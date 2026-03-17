@@ -161,6 +161,15 @@ describe('PopularNearby', () => {
 
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByTestId('popular-nearby-scroll').className).toContain('overflow-x-auto');
+    expect(screen.getByTestId('popular-nearby-scroll').className).toContain('py-3');
+
+    const carouselCards = screen.getAllByTestId('club-card-surface');
+
+    expect(carouselCards).toHaveLength(6);
+    carouselCards.forEach((card) => {
+      expect(card).toHaveAttribute('data-card-variant', 'carousel');
+      expect(card.className).toContain('group-hover:-translate-y-0.5');
+    });
 
     const clubLinks = screen.getAllByRole('link');
     const clubNames = clubLinks.map((link) => link.getAttribute('href'));

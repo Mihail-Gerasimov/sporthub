@@ -48,12 +48,12 @@ export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
 
       <div
         data-testid="popular-nearby-scroll"
-        className="-mx-6 overflow-x-auto px-6 pb-2 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12"
+        className="-mx-6 overflow-x-auto px-6 py-3 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12"
       >
-        <div className="flex min-w-max gap-4">
+        <div className="flex min-w-max items-stretch gap-4">
           {popularClubs.map((club) => (
-            <div key={club.id} className="w-[19.5rem] shrink-0 snap-start sm:w-[22rem]">
-              <ClubCard club={club} sports={sports} />
+            <div key={club.id} className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]">
+              <ClubCard club={club} sports={sports} variant="carousel" />
             </div>
           ))}
         </div>
