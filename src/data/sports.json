@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Йога",
+    "slug": "yoga",
+    "description": "Практики для гибкости, дыхания и баланса в спокойном ритме.",
+    "icon": "🧘",
+    "imageUrl": "/images/sports/yoga.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 2,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Бокс",
+    "slug": "boxing",
+    "description": "Тренировки на технику ударов, координацию и выносливость.",
+    "icon": "🥊",
+    "imageUrl": "/images/sports/boxing.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 3,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Плавание",
+    "slug": "swimming",
+    "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+    "icon": "🏊",
+    "imageUrl": "/images/sports/swimming.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 4,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Кроссфит",
+    "slug": "crossfit",
+    "description": "Интенсивные функциональные тренировки с прогрессией нагрузки.",
+    "icon": "🏋️",
+    "imageUrl": "/images/sports/crossfit.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 5,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Танцы",
+    "slug": "dance",
+    "description": "Современные танцевальные направления для взрослых и подростков.",
+    "icon": "💃",
+    "imageUrl": "/images/sports/dance.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 6,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Тренажёрный зал",
+    "slug": "gym",
+    "description": "Силовые и общефизические тренировки в зале с программой под цель.",
+    "icon": "🏋️‍♂️",
+    "imageUrl": "/images/sports/gym.jpg",
+    "isPopular": true
+  },
+  {
+    "id": 7,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Единоборства",
+    "slug": "martial-arts",
+    "description": "Группы по технике, выносливости и самообороне.",
+    "icon": "🥋",
+    "imageUrl": "/images/sports/martial-arts.jpg",
+    "isPopular": false
+  },
+  {
+    "id": 8,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Пилатес",
+    "slug": "pilates",
+    "description": "Мягкая работа с осанкой, центром тела и контролем движения.",
+    "icon": "🤸",
+    "imageUrl": "/images/sports/pilates.jpg",
+    "isPopular": true
+  }
+]

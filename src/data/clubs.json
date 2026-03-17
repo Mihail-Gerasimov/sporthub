@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Volna Aquatic Club",
+    "slug": "volna-aquatic-club",
+    "description": "Клуб с 25-метровым бассейном, утренними дорожками и группами по плаванию и пилатесу.",
+    "shortDescription": "Бассейн и пилатес рядом с набережной.",
+    "city": "Самара",
+    "address": "ул. Лесная, 23к1",
+    "phone": "+7 (846) 200-11-01",
+    "email": "hello@volna-club.ru",
+    "website": "https://volna-club.ru",
+    "coordinates": {
+      "lat": 53.2129,
+      "lng": 50.1245
+    },
+    "sportIds": [3, 8],
+    "imageUrls": [
+      "/images/clubs/volna-1.jpg",
+      "/images/clubs/volna-2.jpg",
+      "/images/clubs/volna-3.jpg"
+    ],
+    "amenities": ["Бассейн 25 м", "Парковка", "Сауна", "Шкафчики"],
+    "tags": ["Бассейн", "Восстановление", "Утренние группы"],
+    "rating": 4.8,
+    "reviewCount": 64,
+    "priceFrom": 900,
+    "distanceKm": 1.8,
+    "isFeatured": true
+  },
+  {
+    "id": 2,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "North Ring Boxing Lab",
+    "slug": "north-ring-boxing-lab",
+    "description": "Зал бокса и ударной техники с отдельной зоной лап, мешков и ОФП.",
+    "shortDescription": "Бокс и единоборства с сильной вечерней сеткой.",
+    "city": "Самара",
+    "address": "Московское шоссе, 41",
+    "phone": "+7 (846) 200-11-02",
+    "email": "team@northring.ru",
+    "website": "https://northring.ru",
+    "coordinates": {
+      "lat": 53.2334,
+      "lng": 50.2021
+    },
+    "sportIds": [2, 7],
+    "imageUrls": [
+      "/images/clubs/north-ring-1.jpg",
+      "/images/clubs/north-ring-2.jpg",
+      "/images/clubs/north-ring-3.jpg"
+    ],
+    "amenities": ["Ринг", "Мешки", "Раздевалки", "Пробная тренировка"],
+    "tags": ["Бокс", "Спарринги", "Вечерние группы"],
+    "rating": 4.7,
+    "reviewCount": 51,
+    "priceFrom": 1100,
+    "distanceKm": 5.4,
+    "isFeatured": true
+  },
+  {
+    "id": 3,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Balance Yoga House",
+    "slug": "balance-yoga-house",
+    "description": "Камерная студия для йоги и пилатеса с небольшими группами и спокойной атмосферой.",
+    "shortDescription": "Йога и пилатес в центре города.",
+    "city": "Самара",
+    "address": "ул. Молодогвардейская, 86",
+    "phone": "+7 (846) 200-11-03",
+    "email": "hello@balance-house.ru",
+    "website": "https://balance-house.ru",
+    "coordinates": {
+      "lat": 53.1957,
+      "lng": 50.1006
+    },
+    "sportIds": [1, 8],
+    "imageUrls": [
+      "/images/clubs/balance-1.jpg",
+      "/images/clubs/balance-2.jpg",
+      "/images/clubs/balance-3.jpg"
+    ],
+    "amenities": ["Коврики и блоки", "Чайная зона", "Душевые", "Небольшие группы"],
+    "tags": ["Йога", "Пилатес", "Спокойный формат"],
+    "rating": 4.9,
+    "reviewCount": 72,
+    "priceFrom": 850,
+    "distanceKm": 2.3,
+    "isFeatured": true
+  },
+  {
+    "id": 4,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Forge Crossfit Arena",
+    "slug": "forge-crossfit-arena",
+    "description": "Просторный зал для кроссфита и силовых тренировок с функциональной зоной и греблей.",
+    "shortDescription": "Кроссфит и силовые тренировки с интенсивным темпом.",
+    "city": "Самара",
+    "address": "ул. Авроры, 150",
+    "phone": "+7 (846) 200-11-04",
+    "email": "info@forge-arena.ru",
+    "website": "https://forge-arena.ru",
+    "coordinates": {
+      "lat": 53.1904,
+      "lng": 50.1908
+    },
+    "sportIds": [4, 6],
+    "imageUrls": [
+      "/images/clubs/forge-1.jpg",
+      "/images/clubs/forge-2.jpg",
+      "/images/clubs/forge-3.jpg"
+    ],
+    "amenities": ["Функциональная рама", "Гребля", "Штанги", "Зона восстановления"],
+    "tags": ["Кроссфит", "Сила", "Интенсив"],
+    "rating": 4.6,
+    "reviewCount": 48,
+    "priceFrom": 1200,
+    "distanceKm": 6.1,
+    "isFeatured": false
+  },
+  {
+    "id": 5,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Motion Dance Hub",
+    "slug": "motion-dance-hub",
+    "description": "Танцевальная студия с modern, jazz-funk и body balance для взрослых новичков и продолжающих.",
+    "shortDescription": "Танцы и мягкие фитнес-практики в одном пространстве.",
+    "city": "Самара",
+    "address": "ул. Ново-Садовая, 181А",
+    "phone": "+7 (846) 200-11-05",
+    "email": "hi@motionhub.ru",
+    "website": "https://motionhub.ru",
+    "coordinates": {
+      "lat": 53.2251,
+      "lng": 50.1664
+    },
+    "sportIds": [5, 1],
+    "imageUrls": [
+      "/images/clubs/motion-1.jpg",
+      "/images/clubs/motion-2.jpg",
+      "/images/clubs/motion-3.jpg"
+    ],
+    "amenities": ["Танцевальный зал", "Зеркала", "Раздевалки", "Мини-группы"],
+    "tags": ["Танцы", "Choreo", "Stretch vibe"],
+    "rating": 4.8,
+    "reviewCount": 37,
+    "priceFrom": 950,
+    "distanceKm": 4.2,
+    "isFeatured": false
+  },
+  {
+    "id": 6,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Vector Fitness Club",
+    "slug": "vector-fitness-club",
+    "description": "Универсальный фитнес-клуб с тренажёрным залом, круговыми тренировками и короткими экспресс-классами.",
+    "shortDescription": "Зал и функциональные тренировки для плотного графика.",
+    "city": "Самара",
+    "address": "ул. Демократическая, 7",
+    "phone": "+7 (846) 200-11-06",
+    "email": "contact@vectorfit.ru",
+    "website": "https://vectorfit.ru",
+    "coordinates": {
+      "lat": 53.2728,
+      "lng": 50.2369
+    },
+    "sportIds": [6, 4],
+    "imageUrls": [
+      "/images/clubs/vector-1.jpg",
+      "/images/clubs/vector-2.jpg",
+      "/images/clubs/vector-3.jpg"
+    ],
+    "amenities": ["Кардио-зона", "Свободные веса", "Функциональная зона", "Парковка"],
+    "tags": ["Фитнес", "Экспресс-сессии", "После работы"],
+    "rating": 4.5,
+    "reviewCount": 44,
+    "priceFrom": 700,
+    "distanceKm": 7.3,
+    "isFeatured": false
+  }
+]
