@@ -11,7 +11,7 @@
 - **БД (MVP):** JSON-файлы через абстракцию `lib/db.ts`
 - **Валидация:** Zod 4.3.6
 - **Auth (MVP):** Заглушка (Zustand + localStorage)
-- **Качество кода:** ESLint 9 + Prettier 3.8.1
+- **Качество кода:** ESLint 9 + Prettier 3.8.1 + Vitest
 
 ## Требования
 
@@ -37,13 +37,15 @@ npm run dev
 
 ## Команды
 
-| Команда          | Описание                           |
-| ---------------- | ---------------------------------- |
-| `npm run dev`    | Dev-сервер (http://localhost:3000) |
-| `npm run build`  | Production-сборка                  |
-| `npm run start`  | Запуск production-сборки           |
-| `npm run lint`   | Линтер (ESLint)                    |
-| `npm run format` | Форматирование (Prettier)          |
+| Команда              | Описание                           |
+| -------------------- | ---------------------------------- |
+| `npm run dev`        | Dev-сервер (http://localhost:3000) |
+| `npm run build`      | Production-сборка                  |
+| `npm run start`      | Запуск production-сборки           |
+| `npm run lint`       | Линтер (ESLint)                    |
+| `npm run format`     | Форматирование (Prettier)          |
+| `npm run test`       | Одноразовый прогон тестов          |
+| `npm run test:watch` | Vitest в watch-режиме              |
 
 ## Структура проекта
 
@@ -76,6 +78,7 @@ npm run dev
 │   │   ├── db.ts
 │   │   └── utils.ts
 │   ├── stores/                  # Zustand-сторы
+│   ├── test/                    # Vitest, smoke tests, test setup
 │   └── types/
 │       └── index.ts             # TypeScript-типы сущностей
 ├── .prettierrc
@@ -96,7 +99,7 @@ npm run dev
 | ---- | -------------------------- | ------ |
 | 1    | Инициализация проекта      | ✅     |
 | 2    | Типы данных и моковая база | ✅     |
-| 3    | API Routes                 | ⬜     |
+| 3    | API Routes                 | 🔄     |
 | 4    | Базовые UI-компоненты      | ⬜     |
 | 5    | Главная страница           | ⬜     |
 | 6    | Auth-заглушка              | ⬜     |
