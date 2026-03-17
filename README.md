@@ -65,7 +65,7 @@ npm run dev
 │   │   ├── auth/
 │   │   ├── booking/
 │   │   ├── clubs/
-│   │   ├── layout/
+│   │   ├── layout/             # Header, Footer, MobileNav, AppShell
 │   │   ├── map/
 │   │   ├── reviews/
 │   │   ├── schedule/
@@ -108,7 +108,7 @@ npm run dev
 | 2    | Типы данных и моковая база | ✅     |
 | 3    | API Routes                 | ✅     |
 | 4    | Базовые UI-компоненты      | ✅     |
-| 5    | Главная страница           | ⬜     |
+| 5    | Главная страница           | 🔄     |
 | 6    | Auth-заглушка              | ⬜     |
 | 7    | Страница клуба             | ⬜     |
 | 8    | Флоу записи на занятие     | ⬜     |

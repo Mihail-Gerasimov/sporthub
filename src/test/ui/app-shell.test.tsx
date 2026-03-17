@@ -1,0 +1,31 @@
+import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { AppShell } from '@/components/layout/AppShell';
+
+describe('AppShell', () => {
+  it('рендерит header, footer, mobile nav и контент страницы', () => {
+    render(
+      <AppShell>
+        <div>Главный контент</div>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
+    expect(screen.getByText('Главный контент')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+
+    const primaryNavigation = screen.getByRole('navigation', { name: 'Основная навигация' });
+    const mobileNavigation = screen.getByRole('navigation', { name: 'Мобильная навигация' });
+
+    expect(within(primaryNavigation).getByRole('link', { name: 'Подборки' })).toBeInTheDocument();
+    expect(within(primaryNavigation).getByRole('link', { name: 'Клубы' })).toBeInTheDocument();
+    expect(within(primaryNavigation).getByRole('link', { name: 'Тренеры' })).toBeInTheDocument();
+
+    expect(within(mobileNavigation).getByRole('link', { name: 'Главная' })).toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole('link', { name: 'Поиск' })).toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole('link', { name: 'Мои записи' })).toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole('link', { name: 'Профиль' })).toBeInTheDocument();
+  });
+});
