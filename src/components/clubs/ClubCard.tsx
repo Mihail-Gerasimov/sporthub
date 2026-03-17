@@ -9,6 +9,7 @@ type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 type ClubCardProps = {
   club: Club;
   sports: ClubCardSport[];
+  highlighted?: boolean;
 };
 
 function getCoverPalette(clubId: number): string {
@@ -22,14 +23,18 @@ function getCoverPalette(clubId: number): string {
   return palettes[clubId % palettes.length];
 }
 
-export function ClubCard({ club, sports }: ClubCardProps) {
+export function ClubCard({ club, highlighted = false, sports }: ClubCardProps) {
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   const previewSports = clubSports.slice(0, 3);
   const previewTags = club.tags.slice(0, 3);
 
   return (
     <Link href={`/clubs/${club.id}`} className="group block">
-      <Card className="h-full overflow-hidden p-0 transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-floating">
+      <Card
+        className={`h-full overflow-hidden p-0 transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-floating ${
+          highlighted ? 'ring-2 ring-accent/35 shadow-floating' : ''
+        }`}
+      >
         <div
           className={`relative min-h-52 bg-gradient-to-br ${getCoverPalette(club.id)} p-5 text-panel`}
         >
@@ -41,6 +46,11 @@ export function ClubCard({ club, sports }: ClubCardProps) {
               {club.isFeatured ? (
                 <Badge className="border-panel/20 bg-panel/12 text-panel" tone="outline">
                   Featured
+                </Badge>
+              ) : null}
+              {highlighted ? (
+                <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
+                  Выбрано на карте
                 </Badge>
               ) : null}
             </div>

@@ -1,48 +1,57 @@
 'use client';
 
-import type { Club, Sport } from '@/types';
+import type { Club, EntityId } from '@/types';
 
 import { Badge, Card } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
+import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
 import { useFilterStore } from '@/stores/useFilterStore';
-
-type ClubListSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 type ClubListProps = {
   clubs: Club[];
   sports: ClubListSport[];
+  selectedClubId?: EntityId | null;
+  embedded?: boolean;
 };
 
-function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase('ru-RU');
-}
-
-export function ClubList({ clubs, sports }: ClubListProps) {
+export function ClubList({
+  clubs,
+  embedded = false,
+  selectedClubId = null,
+  sports,
+}: ClubListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
 
-  const normalizedSearch = normalize(searchQuery);
-
-  const filteredClubs = clubs.filter((club) => {
-    const matchesSport = selectedSportId === null || club.sportIds.includes(selectedSportId);
-
-    const searchStack = [
-      club.name,
-      club.shortDescription,
-      club.description,
-      club.tags.join(' '),
-      sports
-        .filter((sport) => club.sportIds.includes(sport.id))
-        .map((sport) => sport.name)
-        .join(' '),
-    ]
-      .join(' ')
-      .toLocaleLowerCase('ru-RU');
-
-    const matchesSearch = normalizedSearch === '' || searchStack.includes(normalizedSearch);
-
-    return matchesSport && matchesSearch;
+  const filteredClubs = filterClubs({
+    clubs,
+    searchQuery,
+    selectedSportId,
+    sports,
   });
+
+  const content =
+    filteredClubs.length > 0 ? (
+      <div className="grid gap-4 lg:grid-cols-2">
+        {filteredClubs.map((club) => (
+          <ClubCard
+            key={club.id}
+            club={club}
+            highlighted={selectedClubId === club.id}
+            sports={sports}
+          />
+        ))}
+      </div>
+    ) : (
+      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-7 text-muted">
+        По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид
+        спорта.
+      </div>
+    );
+
+  if (embedded) {
+    return content;
+  }
 
   return (
     <section id="clubs" className="space-y-4">
@@ -66,18 +75,7 @@ export function ClubList({ clubs, sports }: ClubListProps) {
           </div>
         </div>
 
-        {filteredClubs.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {filteredClubs.map((club) => (
-              <ClubCard key={club.id} club={club} sports={sports} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-7 text-muted">
-            По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид
-            спорта.
-          </div>
-        )}
+        {content}
       </Card>
     </section>
   );
