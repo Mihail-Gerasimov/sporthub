@@ -176,8 +176,8 @@
 - [x] `GET /api/sports` работает
 - [x] `GET /api/clubs` — список с фильтрами
 - [x] `GET /api/clubs/[id]` — детали с тренерами и расписанием
-- [ ] `GET /api/trainers` — список с фильтрами
-- [ ] `GET /api/trainers/[id]` — детали тренера
+- [x] `GET /api/trainers` — список с фильтрами
+- [x] `GET /api/trainers/[id]` — детали тренера
 - [ ] `GET /api/schedule` — расписание с фильтрами
 - [ ] `POST /api/bookings` — создаёт запись, проверяет места
 - [ ] `GET /api/bookings` — записи пользователя
