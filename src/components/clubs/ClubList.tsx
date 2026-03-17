@@ -54,7 +54,7 @@ export function ClubList({
   }
 
   return (
-    <section id="clubs" className="space-y-4">
+    <section id="club-list" className="space-y-4">
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

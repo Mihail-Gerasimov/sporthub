@@ -38,8 +38,8 @@ export function MapPreviewSection({ clubs, sports }: MapPreviewSectionProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">Club map</p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">Клубы на карте и в списке</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
-            Фильтры сверху сразу перестраивают метки и карточки. На десктопе карта и список работают
-            рядом, на мобильных карта остаётся сворачиваемой.
+            Фильтры сверху сразу перестраивают метки и карточки. Карта остаётся главным акцентом
+            секции, а список клубов идёт ниже единым широким блоком без тесного деления пополам.
           </p>
         </div>
 
@@ -65,15 +65,12 @@ export function MapPreviewSection({ clubs, sports }: MapPreviewSectionProps) {
         </div>
       </div>
 
-      <div
-        data-testid="main-zone-layout"
-        className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start"
-      >
+      <div data-testid="main-zone-layout" className="flex flex-col gap-4">
         <div
           id="main-zone-map-panel"
           data-testid="map-panel"
           data-collapsed={isMapExpanded ? 'false' : 'true'}
-          className={cn(!isMapExpanded && 'hidden lg:block')}
+          className={cn('w-full', !isMapExpanded && 'hidden lg:block')}
         >
           <MapView
             clubs={filteredClubs}
@@ -82,7 +79,7 @@ export function MapPreviewSection({ clubs, sports }: MapPreviewSectionProps) {
           />
         </div>
 
-        <div data-testid="list-panel">
+        <div data-testid="list-panel" className="w-full">
           <ClubList clubs={clubs} selectedClubId={selectedClub?.id ?? null} sports={sports} />
         </div>
       </div>

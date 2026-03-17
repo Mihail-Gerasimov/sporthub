@@ -71,24 +71,26 @@ describe('MapPreviewSection', () => {
   it('рендерит метки карты и по клику подсвечивает связанную карточку клуба', () => {
     render(<MapPreviewSection clubs={clubs} sports={sports} />);
 
-    expect(screen.getByTestId('main-zone-layout').className).toContain(
-      'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]',
-    );
+    expect(screen.getByTestId('main-zone-layout').className).toContain('flex');
+    expect(screen.getByTestId('main-zone-layout').className).toContain('flex-col');
     expect(screen.getByRole('button', { name: 'Скрыть карту' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
 
-    expect(
-      screen.getByRole('button', { name: 'Выбрать клуб Volna Aquatic Club на карте' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Выбрать клуб Balance Yoga House на карте' }),
-    ).toBeInTheDocument();
+    const volnaMarker = screen.getByRole('button', {
+      name: 'Выбрать клуб Volna Aquatic Club на карте',
+    });
+    const balanceMarker = screen.getByRole('button', {
+      name: 'Выбрать клуб Balance Yoga House на карте',
+    });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Выбрать клуб Balance Yoga House на карте' }),
-    );
+    expect(volnaMarker).toHaveAttribute('data-marker-size', 'compact');
+    expect(balanceMarker).toHaveAttribute('data-marker-size', 'compact');
+    expect(volnaMarker).toBeInTheDocument();
+    expect(balanceMarker).toBeInTheDocument();
+
+    fireEvent.click(balanceMarker);
 
     expect(screen.getByText('выбран клуб: Balance Yoga House')).toBeInTheDocument();
     expect(screen.getAllByText('Выбрано на карте')).toHaveLength(1);
