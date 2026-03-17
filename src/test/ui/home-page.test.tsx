@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import Home from '@/app/page';
 
 describe('Home page', () => {
-  it('рендерит базовую заглушку проекта', () => {
-    render(<Home />);
+  it('рендерит базовую заглушку проекта', async () => {
+    render(await Home());
 
     expect(screen.getByText('SportHub')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'MVP в разработке' })).toBeInTheDocument();

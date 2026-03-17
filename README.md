@@ -69,7 +69,7 @@ npm run dev
 │   │   ├── map/
 │   │   ├── reviews/
 │   │   ├── schedule/
-│   │   ├── search/
+│   │   ├── search/             # SearchBar, filters и preview секция поиска
 │   │   ├── trainers/
 │   │   └── ui/                 # Базовые UI-компоненты и витрина библиотеки
 │   ├── data/                    # JSON-файлы MVP-базы

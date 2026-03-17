@@ -1,4 +1,6 @@
+import { SearchControlsPreview } from '@/components/search';
 import { StoreShowcase, UiShowcase } from '@/components/ui';
+import { getSports } from '@/lib/db';
 
 const colorTokens = [
   {
@@ -42,10 +44,19 @@ const signalTokens = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const sports = await getSports();
+  const searchFilterSports = sports.map((sport) => ({
+    id: sport.id,
+    name: sport.name,
+    icon: sport.icon,
+  }));
+
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <SearchControlsPreview sports={searchFilterSports} />
+
         <section className="rounded-card border border-line bg-panel p-6 shadow-card sm:p-8 lg:p-10">
           <div className="flex flex-wrap gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">
             <span className="rounded-pill border border-line bg-canvas px-4 py-2">
