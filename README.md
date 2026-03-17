@@ -4,13 +4,14 @@
 
 ## Стек
 
-- **Фреймворк:** Next.js 16 (App Router) — монолит: фронт + API
-- **Язык:** TypeScript
-- **UI:** React 19 + Tailwind CSS 4
-- **Стейт:** Zustand
+- **Фреймворк:** Next.js 16.1.7 (App Router) — монолит: фронт + API
+- **Язык:** TypeScript 5.9.3
+- **UI:** React 19.2.3 + Tailwind CSS 4.2.1
+- **Стейт:** Zustand 5.0.12
 - **БД (MVP):** JSON-файлы через абстракцию `lib/db.ts`
-- **Валидация:** Zod
+- **Валидация:** Zod 4.3.6
 - **Auth (MVP):** Заглушка (Zustand + localStorage)
+- **Качество кода:** ESLint 9 + Prettier 3.8.1
 
 ## Требования
 
@@ -44,37 +45,45 @@ npm run dev
 | `npm run lint`   | Линтер (ESLint)                    |
 | `npm run format` | Форматирование (Prettier)          |
 
-<!-- TODO: обновить после Phase 1 — добавить фактические версии из package.json -->
-
 ## Структура проекта
 
-```
+```text
 ./
+├── public/                      # Статика Next.js
 ├── src/
-│   ├── app/              # Страницы и API routes
-│   ├── components/       # React-компоненты
-│   ├── lib/              # Утилиты, абстракция БД
-│   ├── types/            # TypeScript интерфейсы
-│   ├── stores/           # Zustand сторы
-│   ├── data/             # JSON-файлы (БД на MVP)
-│   └── styles/           # Глобальные стили
-├── public/               # Статика
-├── package.json
-├── tsconfig.json
+│   ├── app/                     # App Router, layout, page, globals
+│   ├── components/
+│   │   ├── auth/
+│   │   ├── booking/
+│   │   ├── clubs/
+│   │   ├── layout/
+│   │   ├── map/
+│   │   ├── reviews/
+│   │   ├── schedule/
+│   │   ├── search/
+│   │   ├── trainers/
+│   │   └── ui/
+│   ├── data/                    # JSON-файлы MVP-базы
+│   ├── lib/                     # Утилиты и абстракции
+│   ├── stores/                  # Zustand-сторы
+│   └── types/                   # TypeScript-типы
+├── .prettierrc
+├── eslint.config.mjs
+├── IMPLEMENTATION_PLAN.md       # План реализации
+├── CODEX.md                     # Memory проекта
 ├── next.config.ts
-├── STACK_OVERVIEW.md     # Стек и технологические решения
-├── IMPLEMENTATION_PLAN.md # План реализации
-├── CODEX.md              # Memory проекта
-└── README.md             # ← этот файл
+├── package.json
+├── postcss.config.mjs
+├── README.md                    # Текущая документация проекта
+├── STACK_OVERVIEW.md            # Стек и технологические решения
+└── tsconfig.json
 ```
-
-<!-- TODO: обновить после Phase 1 — детализировать структуру по факту -->
 
 ## Прогресс реализации
 
 | Фаза | Название                   | Статус |
 | ---- | -------------------------- | ------ |
-| 1    | Инициализация проекта      | ⬜     |
+| 1    | Инициализация проекта      | ✅     |
 | 2    | Типы данных и моковая база | ⬜     |
 | 3    | API Routes                 | ⬜     |
 | 4    | Базовые UI-компоненты      | ⬜     |
