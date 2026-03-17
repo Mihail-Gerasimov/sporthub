@@ -1,4 +1,4 @@
-import { UiShowcase } from '@/components/ui';
+import { StoreShowcase, UiShowcase } from '@/components/ui';
 
 const colorTokens = [
   {
@@ -165,6 +165,7 @@ export default function Home() {
         </section>
 
         <UiShowcase />
+        <StoreShowcase />
       </div>
     </main>
   );

@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 
 import { Button } from '@/components/ui';
+import { useUIStore } from '@/stores/useUIStore';
 
 const navigationItems = [
   { href: '/#discover', label: 'Подборки' },
@@ -9,6 +12,8 @@ const navigationItems = [
 ];
 
 export function Header() {
+  const openAuthModal = useUIStore((state) => state.openAuthModal);
+
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
@@ -46,7 +51,14 @@ export function Header() {
             <p className="font-semibold uppercase tracking-[0.18em]">Samara MVP</p>
             <p>Маркетплейс занятий и клубов</p>
           </div>
-          <Button size="sm">Войти</Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              openAuthModal();
+            }}
+          >
+            Войти
+          </Button>
         </div>
       </div>
     </header>

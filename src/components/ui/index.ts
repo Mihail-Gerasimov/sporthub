@@ -6,4 +6,5 @@ export { Input } from '@/components/ui/Input';
 export { Modal } from '@/components/ui/Modal';
 export { Rating } from '@/components/ui/Rating';
 export { Skeleton } from '@/components/ui/Skeleton';
+export { StoreShowcase } from '@/components/ui/StoreShowcase';
 export { UiShowcase } from '@/components/ui/UiShowcase';

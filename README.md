@@ -84,7 +84,7 @@ npm run dev
 │   │   ├── constants.ts
 │   │   ├── db.ts
 │   │   └── utils.ts
-│   ├── stores/                  # Zustand-сторы
+│   ├── stores/                  # Zustand-сторы фильтров и UI
 │   ├── test/                    # Vitest, smoke tests, test setup
 │   └── types/
 │       └── index.ts             # TypeScript-типы сущностей
