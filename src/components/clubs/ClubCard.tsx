@@ -1,0 +1,104 @@
+import Link from 'next/link';
+
+import { Badge, Card, Rating } from '@/components/ui';
+import { formatPrice } from '@/lib/utils';
+import type { Club, Sport } from '@/types';
+
+type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
+
+type ClubCardProps = {
+  club: Club;
+  sports: ClubCardSport[];
+};
+
+function getCoverPalette(clubId: number): string {
+  const palettes = [
+    'from-accent/92 via-accent-strong/86 to-[#4f291f]',
+    'from-teal/92 via-[#0f5961] to-[#17343f]',
+    'from-[#c86b43] via-[#7c3623] to-[#1d252b]',
+    'from-[#275860] via-[#18323d] to-[#0e171c]',
+  ];
+
+  return palettes[clubId % palettes.length];
+}
+
+export function ClubCard({ club, sports }: ClubCardProps) {
+  const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
+  const previewSports = clubSports.slice(0, 3);
+  const previewTags = club.tags.slice(0, 3);
+
+  return (
+    <Link href={`/clubs/${club.id}`} className="group block">
+      <Card className="h-full overflow-hidden p-0 transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-floating">
+        <div
+          className={`relative min-h-52 bg-gradient-to-br ${getCoverPalette(club.id)} p-5 text-panel`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Badge className="bg-panel/14 text-panel" tone="outline">
+                {club.city}
+              </Badge>
+              {club.isFeatured ? (
+                <Badge className="border-panel/20 bg-panel/12 text-panel" tone="outline">
+                  Featured
+                </Badge>
+              ) : null}
+            </div>
+
+            <span className="rounded-pill bg-panel/14 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-panel">
+              фото preview
+            </span>
+          </div>
+
+          <div className="mt-10 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-panel/72">
+                {club.address}
+              </p>
+              <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
+                {club.name}
+              </p>
+            </div>
+
+            <div className="flex gap-2 text-2xl" aria-hidden="true">
+              {previewSports.map((sport) => (
+                <span key={sport.id}>{sport.icon}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-muted">{club.shortDescription}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Rating value={club.rating} />
+                <span className="text-sm text-muted">{club.reviewCount} отзывов</span>
+              </div>
+            </div>
+
+            <div className="rounded-card border border-line bg-canvas px-4 py-3 text-right">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted">от</p>
+              <p className="mt-1 text-lg font-semibold text-ink">{formatPrice(club.priceFrom)}</p>
+              <p className="text-xs text-muted">{club.distanceKm.toFixed(1)} км</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {previewTags.map((tag) => (
+              <Badge key={tag} tone="outline">
+                {tag}
+              </Badge>
+            ))}
+            {previewSports.map((sport) => (
+              <Badge key={sport.id} tone="teal">
+                {sport.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+}

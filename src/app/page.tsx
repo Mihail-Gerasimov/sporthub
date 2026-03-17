@@ -1,6 +1,7 @@
+import { ClubList } from '@/components/clubs';
 import { SearchControlsPreview } from '@/components/search';
 import { StoreShowcase, UiShowcase } from '@/components/ui';
-import { getSports } from '@/lib/db';
+import { getClubs, getSports } from '@/lib/db';
 
 const colorTokens = [
   {
@@ -45,6 +46,7 @@ const signalTokens = [
 ];
 
 export default async function Home() {
+  const clubs = await getClubs();
   const sports = await getSports();
   const searchFilterSports = sports.map((sport) => ({
     id: sport.id,
@@ -56,6 +58,7 @@ export default async function Home() {
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <SearchControlsPreview sports={searchFilterSports} />
+        <ClubList clubs={clubs} sports={searchFilterSports} />
 
         <section className="rounded-card border border-line bg-panel p-6 shadow-card sm:p-8 lg:p-10">
           <div className="flex flex-wrap gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">

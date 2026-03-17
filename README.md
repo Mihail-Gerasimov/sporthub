@@ -64,7 +64,7 @@ npm run dev
 │   ├── components/
 │   │   ├── auth/
 │   │   ├── booking/
-│   │   ├── clubs/
+│   │   ├── clubs/              # ClubCard и ClubList для выдачи по фильтрам
 │   │   ├── layout/             # Header, Footer, MobileNav, AppShell
 │   │   ├── map/
 │   │   ├── reviews/
