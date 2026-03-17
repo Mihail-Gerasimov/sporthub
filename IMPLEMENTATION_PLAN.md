@@ -173,7 +173,7 @@
 
 ### Phase 3 — Чеклист
 
-- [ ] `GET /api/sports` работает
+- [x] `GET /api/sports` работает
 - [ ] `GET /api/clubs` — список с фильтрами
 - [ ] `GET /api/clubs/[id]` — детали с тренерами и расписанием
 - [ ] `GET /api/trainers` — список с фильтрами
