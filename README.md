@@ -64,9 +64,20 @@ npm run dev
 │   │   ├── trainers/
 │   │   └── ui/
 │   ├── data/                    # JSON-файлы MVP-базы
+│   │   ├── bookings.json
+│   │   ├── clubs.json
+│   │   ├── reviews.json
+│   │   ├── schedule.json
+│   │   ├── sports.json
+│   │   ├── trainers.json
+│   │   └── users.json
 │   ├── lib/                     # Утилиты и абстракции
+│   │   ├── constants.ts
+│   │   ├── db.ts
+│   │   └── utils.ts
 │   ├── stores/                  # Zustand-сторы
-│   └── types/                   # TypeScript-типы
+│   └── types/
+│       └── index.ts             # TypeScript-типы сущностей
 ├── .prettierrc
 ├── eslint.config.mjs
 ├── IMPLEMENTATION_PLAN.md       # План реализации
@@ -84,7 +95,7 @@ npm run dev
 | Фаза | Название                   | Статус |
 | ---- | -------------------------- | ------ |
 | 1    | Инициализация проекта      | ✅     |
-| 2    | Типы данных и моковая база | ⬜     |
+| 2    | Типы данных и моковая база | ✅     |
 | 3    | API Routes                 | ⬜     |
 | 4    | Базовые UI-компоненты      | ⬜     |
 | 5    | Главная страница           | ⬜     |
