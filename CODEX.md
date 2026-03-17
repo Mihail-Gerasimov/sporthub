@@ -75,13 +75,14 @@
 
 - После **КАЖДОГО** завершённого шага: `git add` + `git commit` с осмысленным сообщением.
 - Формат: `тип(модуль): Step X.Y — краткое описание`
+- Описание коммита после `тип(модуль):` пиши **на русском языке**.
 - Типы: `feat` (новая функциональность), `fix` (баг), `refactor` (рефакторинг), `chore` (инфраструктура, конфиги), `docs` (документация), `style` (стили/UI)
 - Примеры:
-  - `chore(infra): Step 1.1 — init project with create-next-app`
-  - `feat(types): Step 2.1 — define TypeScript interfaces for all entities`
-  - `feat(api): Step 3.2 — clubs API with filters and detail endpoint`
-  - `feat(ui): Step 4.2 — base UI components (Button, Card, Modal, Rating)`
-  - `feat(page): Step 5.9 — assemble home page with all sections`
+  - `chore(infra): Step 1.1 — инициализировать проект через create-next-app`
+  - `feat(types): Step 2.1 — описать TypeScript-интерфейсы всех сущностей`
+  - `feat(api): Step 3.2 — добавить API клубов с фильтрами и детальной карточкой`
+  - `feat(ui): Step 4.2 — создать базовые UI-компоненты`
+  - `feat(page): Step 5.9 — собрать главную страницу из всех секций`
 
 ### Ветки
 
