@@ -54,6 +54,7 @@ npm run dev
 ├── public/                      # Статика Next.js
 ├── src/
 │   ├── app/                     # App Router, страницы, layout и API routes
+│   │   ├── booking/
 │   │   └── api/
 │   │       ├── bookings/
 │   │       ├── clubs/
@@ -68,7 +69,7 @@ npm run dev
 │   │   ├── layout/             # Header, Footer, MobileNav, AppShell
 │   │   ├── map/                # MapView и адаптивная основная зона карты/списка
 │   │   ├── reviews/
-│   │   ├── schedule/
+│   │   ├── schedule/           # UpcomingSessions и helper выборки занятий на сегодня
 │   │   ├── search/             # SearchBar, filters и preview секция поиска
 │   │   ├── trainers/
 │   │   └── ui/                 # Базовые UI-компоненты и витрина библиотеки

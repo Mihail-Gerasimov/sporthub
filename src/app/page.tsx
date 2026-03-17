@@ -1,8 +1,10 @@
 import { PopularNearby } from '@/components/clubs';
 import { MapPreviewSection } from '@/components/map';
+import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { SearchControlsPreview } from '@/components/search';
 import { StoreShowcase, UiShowcase } from '@/components/ui';
-import { getClubs, getSports } from '@/lib/db';
+import { getClubs, getSchedule, getSports } from '@/lib/db';
+import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 
 const colorTokens = [
   {
@@ -48,7 +50,18 @@ const signalTokens = [
 
 export default async function Home() {
   const clubs = await getClubs();
+  const schedule = await getSchedule();
   const sports = await getSports();
+  const todayDateKey = getDateKeyInTimeZone();
+  const upcomingSessions = getUpcomingSessions({
+    clubs,
+    schedule,
+    targetDate: todayDateKey,
+  });
+  const upcomingSessionsLabel = formatDate(todayDateKey, {
+    day: 'numeric',
+    month: 'long',
+  });
   const searchFilterSports = sports.map((sport) => ({
     id: sport.id,
     name: sport.name,
@@ -61,6 +74,7 @@ export default async function Home() {
         <SearchControlsPreview sports={searchFilterSports} />
         <MapPreviewSection clubs={clubs} sports={searchFilterSports} />
         <PopularNearby clubs={clubs} sports={searchFilterSports} />
+        <UpcomingSessions sessions={upcomingSessions} dateLabel={upcomingSessionsLabel} />
 
         <section className="rounded-card border border-line bg-panel p-6 shadow-card sm:p-8 lg:p-10">
           <div className="flex flex-wrap gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">

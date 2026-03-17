@@ -26,6 +26,15 @@ export function formatDate(
   }).format(date);
 }
 
+export function getDateKeyInTimeZone(date = new Date(), timeZone = DEFAULT_TIME_ZONE): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 export function formatPrice(value: number, currency = 'RUB'): string {
   return new Intl.NumberFormat(DEFAULT_LOCALE, {
     style: 'currency',
