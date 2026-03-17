@@ -186,7 +186,7 @@
 - [x] `GET /api/trainers/[id]` — детали тренера
 - [x] Тестовая среда подключена
 - [x] `npm run test` выполняется
-- [ ] `GET /api/schedule` — расписание с фильтрами
+- [x] `GET /api/schedule` — расписание с фильтрами
 - [ ] `POST /api/bookings` — создаёт запись, проверяет места
 - [ ] `GET /api/bookings` — записи пользователя
 - [ ] `POST /api/reviews` — создаёт отзыв
