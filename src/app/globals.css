@@ -1,20 +1,68 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #111827;
-  --foreground-muted: #6b7280;
+  --ui-canvas: #f4ead7;
+  --ui-panel: #fff7eb;
+  --ui-panel-strong: #eadcc6;
+  --ui-ink: #15232a;
+  --ui-muted: #61717a;
+  --ui-line: #d7c2a5;
+  --ui-accent: #d85a32;
+  --ui-accent-strong: #ad3c1c;
+  --ui-accent-soft: #f4c9a8;
+  --ui-teal: #0c6f73;
+  --ui-success: #1e7b56;
+  --ui-warning: #cb8b24;
+  --ui-danger: #b34536;
+  --ui-radius-card: 30px;
+  --ui-radius-pill: 999px;
+  --ui-shadow-card: 0 26px 60px rgba(21, 35, 42, 0.12);
+  --ui-shadow-floating: 0 18px 36px rgba(216, 90, 50, 0.18);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-foreground-muted: var(--foreground-muted);
+  --color-canvas: var(--ui-canvas);
+  --color-panel: var(--ui-panel);
+  --color-panel-strong: var(--ui-panel-strong);
+  --color-ink: var(--ui-ink);
+  --color-muted: var(--ui-muted);
+  --color-line: var(--ui-line);
+  --color-accent: var(--ui-accent);
+  --color-accent-strong: var(--ui-accent-strong);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-teal: var(--ui-teal);
+  --color-success: var(--ui-success);
+  --color-warning: var(--ui-warning);
+  --color-danger: var(--ui-danger);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-geist-sans);
+  --font-body: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-card: var(--ui-radius-card);
+  --radius-pill: var(--ui-radius-pill);
+  --shadow-card: var(--ui-shadow-card);
+  --shadow-floating: var(--ui-shadow-floating);
+}
+
+* {
+  border-color: var(--ui-line);
+}
+
+html {
+  background: var(--ui-canvas);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(244, 201, 168, 0.72), transparent 26%),
+    radial-gradient(circle at top right, rgba(12, 111, 115, 0.2), transparent 24%),
+    linear-gradient(180deg, rgba(255, 247, 235, 0.96), rgba(244, 234, 215, 0.98));
+  color: var(--ui-ink);
+  font-family: var(--font-geist-sans);
+}
+
+::selection {
+  background: var(--ui-accent);
+  color: var(--ui-panel);
 }
