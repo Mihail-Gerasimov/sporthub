@@ -1,3 +1,4 @@
+import { PopularNearby } from '@/components/clubs';
 import { MapPreviewSection } from '@/components/map';
 import { SearchControlsPreview } from '@/components/search';
 import { StoreShowcase, UiShowcase } from '@/components/ui';
@@ -59,6 +60,7 @@ export default async function Home() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <SearchControlsPreview sports={searchFilterSports} />
         <MapPreviewSection clubs={clubs} sports={searchFilterSports} />
+        <PopularNearby clubs={clubs} sports={searchFilterSports} />
 
         <section className="rounded-card border border-line bg-panel p-6 shadow-card sm:p-8 lg:p-10">
           <div className="flex flex-wrap gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">
