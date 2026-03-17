@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 
 :root {
+  --ui-font-display: 'Avenir Next', 'SF Pro Display', 'Segoe UI', sans-serif;
+  --ui-font-body: 'Avenir Next', 'SF Pro Text', 'Segoe UI', sans-serif;
+  --ui-font-mono: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
   --ui-canvas: #f4ead7;
   --ui-panel: #fff7eb;
   --ui-panel-strong: #eadcc6;
@@ -34,10 +37,10 @@
   --color-success: var(--ui-success);
   --color-warning: var(--ui-warning);
   --color-danger: var(--ui-danger);
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-geist-sans);
-  --font-body: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--ui-font-body);
+  --font-display: var(--ui-font-display);
+  --font-body: var(--ui-font-body);
+  --font-mono: var(--ui-font-mono);
   --radius-card: var(--ui-radius-card);
   --radius-pill: var(--ui-radius-pill);
   --shadow-card: var(--ui-shadow-card);
@@ -59,7 +62,9 @@ body {
     radial-gradient(circle at top right, rgba(12, 111, 115, 0.2), transparent 24%),
     linear-gradient(180deg, rgba(255, 247, 235, 0.96), rgba(244, 234, 215, 0.98));
   color: var(--ui-ink);
-  font-family: var(--font-geist-sans);
+  font-family: var(--ui-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {

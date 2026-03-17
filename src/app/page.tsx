@@ -1,3 +1,5 @@
+import { UiShowcase } from '@/components/ui';
+
 const colorTokens = [
   {
     name: 'Canvas',
@@ -161,6 +163,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <UiShowcase />
       </div>
     </main>
   );

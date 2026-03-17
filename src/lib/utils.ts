@@ -1,5 +1,11 @@
 import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@/lib/constants';
 
+type ClassNameValue = string | false | null | undefined;
+
+export function cn(...values: ClassNameValue[]): string {
+  return values.filter(Boolean).join(' ');
+}
+
 export function formatDate(
   value: string | Date,
   options: Intl.DateTimeFormatOptions = {
