@@ -189,9 +189,9 @@
 - [x] `GET /api/schedule` — расписание с фильтрами
 - [x] `POST /api/bookings` — создаёт запись, проверяет места
 - [x] `GET /api/bookings` — записи пользователя
-- [ ] `POST /api/reviews` — создаёт отзыв
-- [ ] Все входные данные валидируются через Zod
-- [ ] Формат ответов единый: `{ success, data }` или `{ success, error }`
+- [x] `POST /api/reviews` — создаёт отзыв
+- [x] Все входные данные валидируются через Zod
+- [x] Формат ответов единый: `{ success, data }` или `{ success, error }`
 
 ---
 

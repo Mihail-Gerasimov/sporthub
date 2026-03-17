@@ -53,7 +53,14 @@ npm run dev
 ./
 ├── public/                      # Статика Next.js
 ├── src/
-│   ├── app/                     # App Router, layout, page, globals
+│   ├── app/                     # App Router, страницы, layout и API routes
+│   │   └── api/
+│   │       ├── bookings/
+│   │       ├── clubs/
+│   │       ├── reviews/
+│   │       ├── schedule/
+│   │       ├── sports/
+│   │       └── trainers/
 │   ├── components/
 │   │   ├── auth/
 │   │   ├── booking/
@@ -99,7 +106,7 @@ npm run dev
 | ---- | -------------------------- | ------ |
 | 1    | Инициализация проекта      | ✅     |
 | 2    | Типы данных и моковая база | ✅     |
-| 3    | API Routes                 | 🔄     |
+| 3    | API Routes                 | ✅     |
 | 4    | Базовые UI-компоненты      | ⬜     |
 | 5    | Главная страница           | ⬜     |
 | 6    | Auth-заглушка              | ⬜     |
