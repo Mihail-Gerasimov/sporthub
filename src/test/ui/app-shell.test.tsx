@@ -21,7 +21,7 @@ describe('AppShell', () => {
 
     expect(within(primaryNavigation).getByRole('link', { name: 'Подборки' })).toBeInTheDocument();
     expect(within(primaryNavigation).getByRole('link', { name: 'Клубы' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: 'Тренеры' })).toBeInTheDocument();
+    expect(within(primaryNavigation).getByRole('link', { name: 'Занятия' })).toBeInTheDocument();
 
     expect(within(mobileNavigation).getByRole('link', { name: 'Главная' })).toBeInTheDocument();
     expect(within(mobileNavigation).getByRole('link', { name: 'Поиск' })).toBeInTheDocument();

@@ -32,17 +32,19 @@ export function MapPreviewSection({ clubs, sports }: MapPreviewSectionProps) {
     filteredClubs.find((club) => club.id === selectedClubId) ?? filteredClubs[0] ?? null;
 
   return (
-    <section id="map" className="space-y-4">
+    <section id="clubs" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">Main zone</p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink">
-            Карта-заглушка и активная выборка клубов
-          </h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">Club map</p>
+          <h2 className="mt-2 text-2xl font-semibold text-ink">Клубы на карте и в списке</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+            Фильтры сверху сразу перестраивают метки и карточки. На десктопе карта и список работают
+            рядом, на мобильных карта остаётся сворачиваемой.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="accent">Step 5.6</Badge>
+          <Badge tone="accent">{`В выдаче: ${filteredClubs.length}`}</Badge>
           {selectedClub ? (
             <Badge tone="outline">{`выбран клуб: ${selectedClub.name}`}</Badge>
           ) : (

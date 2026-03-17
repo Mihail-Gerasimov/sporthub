@@ -53,7 +53,7 @@ describe('Search controls', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Плавание' }));
 
-    expect(screen.getByText('search: плавание')).toBeInTheDocument();
-    expect(screen.getByText('sport: Плавание')).toBeInTheDocument();
+    expect(screen.getByText('Запрос: плавание')).toBeInTheDocument();
+    expect(screen.getByText('Фокус: Плавание')).toBeInTheDocument();
   });
 });

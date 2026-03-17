@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores/useUIStore';
 const navigationItems = [
   { href: '/#discover', label: 'Подборки' },
   { href: '/#clubs', label: 'Клубы' },
-  { href: '/#trainers', label: 'Тренеры' },
+  { href: '/#upcoming-sessions', label: 'Занятия' },
 ];
 
 export function Header() {

@@ -31,14 +31,18 @@ export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-            Popular nearby
+            Nearby highlights
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">Популярное рядом</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+            Быстрый горизонтальный ряд с клубами, которые сильнее всего выделяются по рейтингу и
+            отзывам.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge tone="accent">Step 5.7</Badge>
-          <Badge tone="outline">MVP: сортировка по рейтингу</Badge>
+          <Badge tone="accent">Топ по рейтингу</Badge>
+          <Badge tone="outline">MVP без геолокации</Badge>
         </div>
       </div>
 

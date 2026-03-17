@@ -1,52 +1,12 @@
+import Link from 'next/link';
+
+import { Badge } from '@/components/ui';
 import { PopularNearby } from '@/components/clubs';
 import { MapPreviewSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { SearchControlsPreview } from '@/components/search';
-import { StoreShowcase, UiShowcase } from '@/components/ui';
 import { getClubs, getSchedule, getSports } from '@/lib/db';
-import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
-
-const colorTokens = [
-  {
-    name: 'Canvas',
-    value: '#F4EAD7',
-    swatchClassName: 'bg-canvas',
-    textClassName: 'text-ink',
-  },
-  {
-    name: 'Panel',
-    value: '#FFF7EB',
-    swatchClassName: 'bg-panel',
-    textClassName: 'text-ink',
-  },
-  {
-    name: 'Accent',
-    value: '#D85A32',
-    swatchClassName: 'bg-accent',
-    textClassName: 'text-[var(--ui-panel)]',
-  },
-  {
-    name: 'Teal',
-    value: '#0C6F73',
-    swatchClassName: 'bg-teal',
-    textClassName: 'text-[var(--ui-panel)]',
-  },
-];
-
-const signalTokens = [
-  {
-    label: 'Success',
-    className: 'bg-success',
-  },
-  {
-    label: 'Warning',
-    className: 'bg-warning',
-  },
-  {
-    label: 'Danger',
-    className: 'bg-danger',
-  },
-];
+import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
 export default async function Home() {
   const clubs = await getClubs();
@@ -58,6 +18,13 @@ export default async function Home() {
     schedule,
     targetDate: todayDateKey,
   });
+  const featuredClub = [...clubs].sort((left, right) => {
+    if (right.rating !== left.rating) {
+      return right.rating - left.rating;
+    }
+
+    return right.reviewCount - left.reviewCount;
+  })[0];
   const upcomingSessionsLabel = formatDate(todayDateKey, {
     day: 'numeric',
     month: 'long',
@@ -70,132 +37,119 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <section className="relative overflow-hidden rounded-card border border-line bg-panel px-6 py-7 shadow-floating sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,90,50,0.24),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(12,111,115,0.18),transparent_36%)]"
+          />
+
+          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <Badge tone="accent">Samara active city</Badge>
+                <Badge tone="outline">{clubs.length} клубов в каталоге</Badge>
+                <Badge tone="teal">{upcomingSessions.length} слотов на сегодня</Badge>
+              </div>
+
+              <h1 className="mt-5 max-w-4xl font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-6xl">
+                Найди спорт в своём ритме
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-muted sm:text-lg">
+                SportHub собирает клубы, студии и занятия Самары в одной витрине: сначала быстрый
+                поиск и фильтры, потом карта, популярные места и ближайшие слоты на сегодня.
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                {searchFilterSports.slice(0, 5).map((sport) => (
+                  <span
+                    key={sport.id}
+                    className="rounded-pill border border-line bg-canvas px-4 py-2 text-sm font-medium text-ink"
+                  >
+                    {sport.icon} {sport.name}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/#clubs"
+                  className="rounded-pill bg-accent px-5 py-3 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
+                >
+                  Смотреть клубы на карте
+                </Link>
+                <Link
+                  href="/#upcoming-sessions"
+                  className="rounded-pill border border-line bg-panel-strong px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-accent/30 hover:text-accent"
+                >
+                  Открыть занятия на сегодня
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-card border border-line bg-canvas/90 p-5 shadow-card">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                  Сегодня в фокусе
+                </p>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-sm text-muted">Ближайший слот</p>
+                    <p className="mt-1 text-xl font-semibold text-ink">
+                      {upcomingSessions[0]?.title ?? 'Слоты скоро появятся'}
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      {upcomingSessions[0]
+                        ? `${upcomingSessions[0].clubName}, ${upcomingSessions[0].startTime}`
+                        : `Проверь расписание на ${upcomingSessionsLabel}`}
+                    </p>
+                  </div>
+                  <div className="rounded-card border border-line bg-panel px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                      На сегодня
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-ink">
+                      {upcomingSessions.length > 0
+                        ? `${upcomingSessions.length} занятия доступны для быстрой записи.`
+                        : 'Свободных слотов на сегодня пока нет.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-card border border-line bg-panel-strong p-5 shadow-card">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                  Сильный клуб дня
+                </p>
+                <div className="mt-4">
+                  {featuredClub ? (
+                    <>
+                      <p className="text-xl font-semibold text-ink">{featuredClub.name}</p>
+                      <p className="mt-2 text-sm leading-7 text-muted">
+                        {featuredClub.shortDescription}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Badge tone="outline">{featuredClub.rating.toFixed(1)} рейтинг</Badge>
+                        <Badge tone="outline">{featuredClub.reviewCount} отзывов</Badge>
+                        <Badge tone="accent">{formatPrice(featuredClub.priceFrom)}</Badge>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm leading-7 text-muted">
+                      Каталог клубов пока пуст. После загрузки данных здесь появится лучший клуб
+                      дня.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <SearchControlsPreview sports={searchFilterSports} />
         <MapPreviewSection clubs={clubs} sports={searchFilterSports} />
         <PopularNearby clubs={clubs} sports={searchFilterSports} />
         <UpcomingSessions sessions={upcomingSessions} dateLabel={upcomingSessionsLabel} />
-
-        <section className="rounded-card border border-line bg-panel p-6 shadow-card sm:p-8 lg:p-10">
-          <div className="flex flex-wrap gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">
-            <span className="rounded-pill border border-line bg-canvas px-4 py-2">
-              Brand system
-            </span>
-            <span className="rounded-pill bg-accent px-4 py-2 text-[var(--ui-panel)]">Phase 4</span>
-            <span className="rounded-pill border border-line bg-panel-strong px-4 py-2">
-              Design tokens
-            </span>
-          </div>
-
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1.25fr_0.9fr]">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.28em] text-muted">SportHub</p>
-              <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-6xl">
-                MVP в разработке
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-8 text-muted sm:text-lg">
-                Главная страница будет собрана в следующих шагах. Сейчас проект и инфраструктура
-                подготовлены к дальнейшей разработке.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <span className="rounded-pill bg-accent-soft px-4 py-2 text-sm font-medium text-accent-strong">
-                  mobile-first
-                </span>
-                <span className="rounded-pill border border-line bg-canvas px-4 py-2 text-sm font-medium text-ink">
-                  warm editorial palette
-                </span>
-                <span className="rounded-pill border border-line bg-canvas px-4 py-2 text-sm font-medium text-teal">
-                  soft athletic contrast
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-card border border-line bg-panel-strong p-5 shadow-floating sm:p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                Typography & surfaces
-              </p>
-              <div className="mt-4 space-y-4">
-                <div className="rounded-card bg-panel p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted">Display</p>
-                  <p className="mt-2 font-display text-2xl font-semibold text-ink">
-                    Strong, clean, deliberate
-                  </p>
-                </div>
-                <div className="rounded-card border border-line bg-canvas p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted">Body</p>
-                  <p className="mt-2 text-sm leading-7 text-muted">
-                    Базовая тема собрана на мягком фоне, тёплых карточках и акценте без стандартного
-                    фиолетового вайба.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-card border border-line bg-panel p-6 shadow-card">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                  Color system
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">Базовые токены палитры</h2>
-              </div>
-              <p className="text-sm text-muted">canvas / panel / accent / teal</p>
-            </div>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {colorTokens.map((token) => (
-                <article
-                  key={token.name}
-                  className={`${token.swatchClassName} rounded-card border border-line p-4 shadow-card`}
-                >
-                  <p className={`text-xs uppercase tracking-[0.18em] ${token.textClassName}`}>
-                    {token.name}
-                  </p>
-                  <p className={`mt-10 text-lg font-semibold ${token.textClassName}`}>
-                    {token.value}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-card border border-line bg-panel p-6 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-              States & depth
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {signalTokens.map((token) => (
-                <span
-                  key={token.label}
-                  className={`${token.className} rounded-pill px-4 py-2 text-sm font-semibold text-[var(--ui-panel)]`}
-                >
-                  {token.label}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-card border border-line bg-canvas p-4 shadow-card">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted">Radius</p>
-                <p className="mt-2 text-sm leading-7 text-ink">
-                  Карточки получили крупный радиус для мягкой посадки интерфейса.
-                </p>
-              </div>
-              <div className="rounded-card border border-line bg-panel-strong p-4 shadow-floating">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted">Shadow</p>
-                <p className="mt-2 text-sm leading-7 text-ink">
-                  Акцентная глубина выделяет важные блоки и CTA-носители.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <UiShowcase />
-        <StoreShowcase />
       </div>
     </main>
   );
