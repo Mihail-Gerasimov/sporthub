@@ -66,7 +66,7 @@ npm run dev
 │   │   ├── booking/
 │   │   ├── clubs/              # ClubCard и ClubList для выдачи по фильтрам
 │   │   ├── layout/             # Header, Footer, MobileNav, AppShell
-│   │   ├── map/                # MapView и preview секция карты-заглушки
+│   │   ├── map/                # MapView и адаптивная основная зона карты/списка
 │   │   ├── reviews/
 │   │   ├── schedule/
 │   │   ├── search/             # SearchBar, filters и preview секция поиска

@@ -71,6 +71,14 @@ describe('MapPreviewSection', () => {
   it('рендерит метки карты и по клику подсвечивает связанную карточку клуба', () => {
     render(<MapPreviewSection clubs={clubs} sports={sports} />);
 
+    expect(screen.getByTestId('main-zone-layout').className).toContain(
+      'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]',
+    );
+    expect(screen.getByRole('button', { name: 'Скрыть карту' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+
     expect(
       screen.getByRole('button', { name: 'Выбрать клуб Volna Aquatic Club на карте' }),
     ).toBeInTheDocument();
@@ -84,5 +92,14 @@ describe('MapPreviewSection', () => {
 
     expect(screen.getByText('выбран клуб: Balance Yoga House')).toBeInTheDocument();
     expect(screen.getAllByText('Выбрано на карте')).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть карту' }));
+
+    expect(screen.getByRole('button', { name: 'Показать карту' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByTestId('map-panel')).toHaveAttribute('data-collapsed', 'true');
+    expect(screen.getByTestId('list-panel')).toBeInTheDocument();
   });
 });
