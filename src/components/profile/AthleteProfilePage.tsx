@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
+import { AthleteFeedbackSettingsSection } from '@/components/profile/AthleteFeedbackSettingsSection';
 import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import { AthleteHistorySection } from '@/components/profile/AthleteHistorySection';
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
+import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { Badge, Button, Card } from '@/components/ui';
 import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 import {
@@ -266,6 +268,16 @@ export function AthleteProfilePage({
       }),
     [athleteUserId, athleteBookings, athleteReviews, clubs, trainers, users],
   );
+  const reviewItems = useMemo(
+    () =>
+      getAthleteReviewItems({
+        athleteUserId,
+        clubs,
+        reviews: athleteReviews,
+        trainers,
+      }),
+    [athleteUserId, athleteReviews, clubs, trainers],
+  );
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
     return <AthleteAccessDeniedState />;
@@ -286,8 +298,8 @@ export function AthleteProfilePage({
                 Кабинет спортсмена
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-8 text-muted">
-                Кабинет уже показывает сводку, ачивки и ближайшие записи из MVP-данных. Следующими
-                шагами сюда будут добавляться избранное и пользовательские настройки.
+                Кабинет уже собран как цельная MVP-страница спортсмена: со сводкой, ачивками,
+                историей, избранным и отзывами. Дальше пойдём в сценарий записи и подтверждения.
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -466,6 +478,12 @@ export function AthleteProfilePage({
         <AthleteFavoritesSection
           favoriteClubs={favorites.clubs}
           favoriteTrainers={favorites.trainers}
+        />
+
+        <AthleteFeedbackSettingsSection
+          accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
+          reviewItems={reviewItems}
+          user={user}
         />
       </div>
     </div>

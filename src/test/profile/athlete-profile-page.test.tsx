@@ -364,7 +364,7 @@ describe('AthleteProfilePage', () => {
 
     expect(screen.getByRole('heading', { name: 'Кабинет спортсмена' })).toBeInTheDocument();
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
-    expect(screen.getByText('alexey@sporthub.local')).toBeInTheDocument();
+    expect(screen.getAllByText('alexey@sporthub.local').length).toBeGreaterThan(0);
     expect(screen.queryByText('Кабинет представителя спортивных услуг')).not.toBeInTheDocument();
   });
 
@@ -671,7 +671,9 @@ describe('AthleteProfilePage', () => {
     const favoriteClubs = within(favoritesSection).getByTestId('athlete-favorite-clubs');
     const favoriteTrainers = within(favoritesSection).getByTestId('athlete-favorite-trainers');
 
-    expect(within(favoritesSection).getByRole('heading', { name: 'Избранное' })).toBeInTheDocument();
+    expect(
+      within(favoritesSection).getByRole('heading', { name: 'Избранное' }),
+    ).toBeInTheDocument();
     expect(
       within(favoritesSection).getByRole('heading', { name: 'Избранные клубы' }),
     ).toBeInTheDocument();
@@ -713,11 +715,95 @@ describe('AthleteProfilePage', () => {
 
     const favoritesSection = screen.getByTestId('athlete-favorites-section');
 
-    expect(within(favoritesSection).getByRole('heading', { name: 'Избранное' })).toBeInTheDocument();
+    expect(
+      within(favoritesSection).getByRole('heading', { name: 'Избранное' }),
+    ).toBeInTheDocument();
     expect(
       within(favoritesSection).getByText(
         'Пока нет сохранённых клубов и тренеров. Этот блок заполнится по мере развития MVP-избранного.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('показывает отдельный блок отзывов и базовых настроек', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+        phone: '+7 (927) 000-10-10',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const feedbackSection = screen.getByTestId('athlete-feedback-settings-section');
+    const reviewsBlock = within(feedbackSection).getByTestId('athlete-reviews-block');
+    const settingsBlock = within(feedbackSection).getByTestId('athlete-settings-block');
+
+    expect(
+      within(feedbackSection).getByRole('heading', { name: 'Отзывы и базовые настройки' }),
+    ).toBeInTheDocument();
+    expect(within(reviewsBlock).getByRole('heading', { name: 'Мои отзывы' })).toBeInTheDocument();
+    expect(
+      within(settingsBlock).getByRole('heading', { name: 'Базовые настройки' }),
+    ).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Анна Миронова')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Отзыв 1')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Отзыв 3')).toBeInTheDocument();
+    expect(within(settingsBlock).getByText('alexey@sporthub.local')).toBeInTheDocument();
+    expect(within(settingsBlock).getByText('+7 (927) 000-10-10')).toBeInTheDocument();
+    expect(within(settingsBlock).getByText('Zustand + localStorage')).toBeInTheDocument();
+  });
+
+  it('показывает пустое состояние отзывов и read-only настройки, если отзывов нет', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={[]}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const feedbackSection = screen.getByTestId('athlete-feedback-settings-section');
+    const reviewsBlock = within(feedbackSection).getByTestId('athlete-reviews-block');
+    const settingsBlock = within(feedbackSection).getByTestId('athlete-settings-block');
+
+    expect(
+      within(reviewsBlock).getByText(
+        'Ты ещё не оставлял отзывы. После новых оценок клубов и тренеров они появятся здесь.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(settingsBlock).getByText(
+        'Редактирование профиля и настроек появится в следующих фазах.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(settingsBlock).getByText('Не добавлен')).toBeInTheDocument();
   });
 });
