@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import AthleteProfileRoute from '@/app/profile/athlete/page';
@@ -212,6 +212,118 @@ const profileReviews: Review[] = [
   },
 ];
 
+const historyBookings: Booking[] = [
+  {
+    id: 11,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    scheduleId: 31,
+    userId: 1,
+    clubId: 3,
+    trainerId: 5,
+    sportId: 1,
+    date: '2026-03-11',
+    status: 'completed',
+    paymentStatus: 'paid',
+    totalPrice: 1600,
+  },
+  {
+    id: 12,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    scheduleId: 32,
+    userId: 1,
+    clubId: 2,
+    trainerId: 3,
+    sportId: 2,
+    date: '2026-03-09',
+    status: 'completed',
+    paymentStatus: 'paid',
+    totalPrice: 1200,
+  },
+];
+
+const historySchedule: Schedule[] = [
+  {
+    id: 31,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 3,
+    trainerId: 5,
+    sportId: 1,
+    title: 'Персональная хатха-йога',
+    date: '2026-03-11',
+    startTime: '09:30',
+    endTime: '10:30',
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 1,
+    bookedCount: 1,
+    price: 1600,
+    room: 'Private room',
+  },
+  {
+    id: 32,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 2,
+    trainerId: 3,
+    sportId: 2,
+    title: 'Бокс. Базовая техника',
+    date: '2026-03-09',
+    startTime: '18:00',
+    endTime: '19:00',
+    durationMinutes: 60,
+    level: 'beginner',
+    capacity: 16,
+    bookedCount: 10,
+    price: 1200,
+    room: 'Ринг 1',
+  },
+];
+
+const historyClubs: Club[] = [
+  {
+    id: 2,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'North Ring Boxing Lab',
+    slug: 'north-ring-boxing-lab',
+    description: 'Клуб бокса',
+    shortDescription: 'Бокс и спарринги.',
+    city: 'Самара',
+    address: 'Московское шоссе, 41',
+    phone: '+7 (846) 200-11-02',
+    email: 'hello@north-ring.ru',
+    website: 'https://north-ring.ru',
+    coordinates: { lat: 53.2337, lng: 50.1966 },
+    sportIds: [2, 7],
+    imageUrls: [],
+    amenities: [],
+    tags: [],
+    rating: 4.7,
+    reviewCount: 51,
+    priceFrom: 1100,
+    distanceKm: 5.4,
+    isFeatured: true,
+  },
+  ...profileClubs,
+];
+
+const historyTrainers: Trainer[] = [
+  {
+    id: 3,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 2,
+    sportId: 2,
+    name: 'Тимур Каримов',
+    slug: 'timur-karimov',
+    bio: 'Тренер по боксу.',
+    avatarUrl: '/images/trainers/timur.jpg',
+    experienceYears: 11,
+    specialties: ['Бокс'],
+    rating: 4.8,
+    reviewCount: 31,
+    priceFrom: 1600,
+  },
+  ...profileTrainers,
+];
+
 describe('AthleteProfilePage', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -384,12 +496,14 @@ describe('AthleteProfilePage', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Предстоящие записи' })).toBeInTheDocument();
-    expect(screen.getByText('Утреннее плавание')).toBeInTheDocument();
-    expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
-    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
-    expect(screen.getByText('Подтверждена')).toBeInTheDocument();
-    expect(screen.queryByText('Утренняя хатха-йога')).not.toBeInTheDocument();
-    expect(screen.queryByText('Бокс. Базовая техника')).not.toBeInTheDocument();
+    const upcomingSection = screen.getByTestId('athlete-upcoming-section');
+
+    expect(within(upcomingSection).getByText('Утреннее плавание')).toBeInTheDocument();
+    expect(within(upcomingSection).getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(within(upcomingSection).getByText('Марина Соколова')).toBeInTheDocument();
+    expect(within(upcomingSection).getByText('Подтверждена')).toBeInTheDocument();
+    expect(within(upcomingSection).queryByText('Утренняя хатха-йога')).not.toBeInTheDocument();
+    expect(within(upcomingSection).queryByText('Бокс. Базовая техника')).not.toBeInTheDocument();
   });
 
   it('показывает пустое состояние блока предстоящих записей, если данных нет', () => {
@@ -449,5 +563,64 @@ describe('AthleteProfilePage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('На спорте всерьёз')).toBeInTheDocument();
     expect(screen.getByText('0/10')).toBeInTheDocument();
+  });
+
+  it('показывает историю отдельно от будущих записей и связывает её с отзывами', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={historyBookings}
+        clubs={historyClubs}
+        reviews={profileReviews}
+        schedule={historySchedule}
+        trainers={historyTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'История' })).toBeInTheDocument();
+    expect(screen.getByText('Персональная хатха-йога')).toBeInTheDocument();
+    expect(screen.getByText('Бокс. Базовая техника')).toBeInTheDocument();
+    expect(screen.getByText('Персональная тренировка')).toBeInTheDocument();
+    expect(screen.getByText('Групповое занятие')).toBeInTheDocument();
+    expect(screen.getByText('Отзыв уже оставлен')).toBeInTheDocument();
+    expect(screen.getByText('Можно оставить отзыв')).toBeInTheDocument();
+  });
+
+  it('показывает пустое состояние блока истории, если завершённых занятий нет', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={[]}
+        clubs={historyClubs}
+        reviews={[]}
+        schedule={historySchedule}
+        trainers={historyTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'История' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'История пока пустая. Завершённые занятия и связанные отзывы появятся здесь автоматически.',
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
+import { AthleteHistorySection } from '@/components/profile/AthleteHistorySection';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
+import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { Badge, Button, Card } from '@/components/ui';
 import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 import {
@@ -236,6 +238,18 @@ export function AthleteProfilePage({
       }),
     [athleteUserId, athleteBookings, clubs, schedule, trainers],
   );
+  const historyItems = useMemo(
+    () =>
+      getAthleteHistoryItems({
+        athleteUserId,
+        bookings: athleteBookings,
+        clubs,
+        reviews: athleteReviews,
+        schedule,
+        trainers,
+      }),
+    [athleteUserId, athleteBookings, athleteReviews, clubs, schedule, trainers],
+  );
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
     return <AthleteAccessDeniedState />;
@@ -257,7 +271,7 @@ export function AthleteProfilePage({
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-8 text-muted">
                 Кабинет уже показывает сводку, ачивки и ближайшие записи из MVP-данных. Следующими
-                шагами сюда будут добавляться история, избранное и пользовательские настройки.
+                шагами сюда будут добавляться избранное и пользовательские настройки.
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -375,7 +389,7 @@ export function AthleteProfilePage({
 
         <AthleteAchievementsSection achievements={athleteAchievements} />
 
-        <Card className="p-6 sm:p-8">
+        <Card className="p-6 sm:p-8" data-testid="athlete-upcoming-section">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -430,6 +444,8 @@ export function AthleteProfilePage({
             </div>
           )}
         </Card>
+
+        <AthleteHistorySection historyItems={historyItems} />
       </div>
     </div>
   );
