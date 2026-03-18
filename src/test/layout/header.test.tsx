@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Header } from '@/components/layout/Header';
-import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORAGE_KEY, AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 describe('Header', () => {
@@ -56,5 +56,31 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByText('Алексей Смирнов')).not.toBeInTheDocument();
     expect(screen.queryByText('Спортсмен')).not.toBeInTheDocument();
+  });
+
+  it('после rehydrate из localStorage UI по-прежнему видит правильный тип аккаунта', async () => {
+    localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          user: {
+            name: 'Марина Крылова',
+            email: 'marina@studio.local',
+          },
+          accountType: 'provider',
+          isAuthenticated: true,
+        },
+        version: 0,
+      }),
+    );
+
+    await act(async () => {
+      await useAuthStore.persist.rehydrate();
+    });
+
+    render(<Header />);
+
+    expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+    expect(screen.getByText('Представитель спортивных услуг')).toBeInTheDocument();
   });
 });

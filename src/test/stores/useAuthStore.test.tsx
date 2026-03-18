@@ -5,6 +5,9 @@ import type { AuthAccountType, UserRole } from '@/types';
 import {
   AUTH_STORAGE_KEY,
   AUTH_STORE_DEFAULT_STATE,
+  getPersonalCabinetConfig,
+  PERSONAL_CABINET_CONFIG,
+  selectAuthAccountType,
   useAuthStore,
   type AuthSessionUser,
 } from '@/stores/useAuthStore';
@@ -93,6 +96,23 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().user).toEqual(athleteUser);
     expect(useAuthStore.getState().accountType).toBe('athlete');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('даёт читать accountType из auth-store после авторизации через selector', () => {
+    act(() => {
+      useAuthStore.getState().login({
+        accountType: 'provider',
+        user: providerUser,
+      });
+    });
+
+    expect(selectAuthAccountType(useAuthStore.getState())).toBe('provider');
+  });
+
+  it('возвращает конфиг будущего личного кабинета по accountType', () => {
+    expect(getPersonalCabinetConfig('provider')).toEqual(PERSONAL_CABINET_CONFIG.provider);
+    expect(getPersonalCabinetConfig('athlete')).toEqual(PERSONAL_CABINET_CONFIG.athlete);
+    expect(getPersonalCabinetConfig(null)).toBeNull();
   });
 
   it('использует отдельный AuthAccountType и не смешивает его с UserRole', () => {

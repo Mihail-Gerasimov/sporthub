@@ -12,6 +12,12 @@ export type AuthSessionUser = {
   avatarUrl?: string;
 };
 
+export type PersonalCabinetConfig = {
+  accountType: AuthAccountType;
+  profilePath: '/profile/provider' | '/profile/athlete';
+  title: string;
+};
+
 type AuthSessionPayload = {
   accountType: AuthAccountType;
   user: AuthSessionUser;
@@ -40,6 +46,27 @@ function createAuthenticatedState(payload: AuthSessionPayload) {
     accountType: payload.accountType,
     isAuthenticated: true,
   } satisfies Pick<AuthState, 'user' | 'accountType' | 'isAuthenticated'>;
+}
+
+export const PERSONAL_CABINET_CONFIG: Record<AuthAccountType, PersonalCabinetConfig> = {
+  provider: {
+    accountType: 'provider',
+    profilePath: '/profile/provider',
+    title: 'Кабинет представителя спортивных услуг',
+  },
+  athlete: {
+    accountType: 'athlete',
+    profilePath: '/profile/athlete',
+    title: 'Кабинет спортсмена',
+  },
+};
+
+export function selectAuthAccountType(state: Pick<AuthState, 'accountType'>) {
+  return state.accountType;
+}
+
+export function getPersonalCabinetConfig(accountType: AuthAccountType | null) {
+  return accountType ? PERSONAL_CABINET_CONFIG[accountType] : null;
 }
 
 export const useAuthStore = create<AuthState>()(
