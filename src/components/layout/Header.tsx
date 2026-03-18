@@ -18,6 +18,7 @@ export function Header() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
+  const logout = useAuthStore((state) => state.logout);
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
 
   return (
@@ -67,9 +68,22 @@ export function Header() {
                   </p>
                 ) : null}
               </div>
-              <div className="flex size-11 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink">
+              <div
+                role="img"
+                aria-label={`Аватар ${user.name}`}
+                className="flex size-11 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink"
+              >
                 {accountInitial}
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  logout();
+                }}
+              >
+                Выйти
+              </Button>
             </div>
           ) : (
             <Button
