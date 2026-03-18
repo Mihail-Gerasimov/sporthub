@@ -10,7 +10,7 @@
 - **Стейт:** Zustand 5.0.12
 - **БД (MVP):** JSON-файлы через абстракцию `lib/db.ts`
 - **Валидация:** Zod 4.3.6
-- **Auth (MVP):** Заглушка (Zustand + localStorage)
+- **Auth (MVP):** Auth-модалка на Zustand + localStorage (`provider` / `athlete`)
 - **Качество кода:** ESLint 9 + Prettier 3.8.1 + Vitest
 
 ## Требования
@@ -55,6 +55,8 @@ npm run dev
 ├── src/
 │   ├── app/                     # App Router, страницы, layout и API routes
 │   │   ├── booking/
+│   │   ├── clubs/
+│   │   ├── profile/
 │   │   └── api/
 │   │       ├── bookings/
 │   │       ├── clubs/
@@ -63,11 +65,12 @@ npm run dev
 │   │       ├── sports/
 │   │       └── trainers/
 │   ├── components/
-│   │   ├── auth/               # AuthModal и сценарии авторизации
+│   │   ├── auth/               # AuthModal, вход и регистрация
 │   │   ├── booking/
-│   │   ├── clubs/              # ClubCard, ClubList и PopularNearby для клубной выдачи
+│   │   ├── clubs/              # ClubCard, ClubList, PopularNearby и страница клуба
 │   │   ├── layout/             # Header, Footer, MobileNav, AppShell
 │   │   ├── map/                # MapView и адаптивная основная зона карты/списка
+│   │   ├── profile/            # Кабинет спортсмена и его секции
 │   │   ├── reviews/
 │   │   ├── schedule/           # UpcomingSessions и helper выборки занятий на сегодня
 │   │   ├── search/             # SearchBar, filters и preview секция поиска
@@ -111,9 +114,17 @@ npm run dev
 | 4    | Базовые UI-компоненты      | ✅     |
 | 5    | Главная страница           | ✅     |
 | 6    | Auth-заглушка              | ✅     |
-| 7    | Страница клуба             | ⬜     |
+| 7    | Личный кабинет спортсмена  | ✅     |
 | 8    | Флоу записи на занятие     | ⬜     |
 | 9    | Личный кабинет             | ⬜     |
+
+## Что Уже Работает
+
+- Главная страница `/` с поиском, фильтрами, картой-заглушкой, подборками и ближайшими занятиями
+- REST API в `app/api/*` для `sports`, `clubs`, `trainers`, `schedule`, `bookings`, `reviews`
+- Auth-модалка `Вход / Регистрация` с выбором типа аккаунта
+- Публичная страница клуба `/clubs/[id]` с athlete-only действиями `Записаться` и `Оставить отзыв`
+- Личный кабинет спортсмена `/profile/athlete` со сводкой, записями, ачивками, историей, избранным и отзывами
 
 ## Документация
 
