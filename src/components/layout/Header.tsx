@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 
+import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 const navigationItems = [
@@ -13,6 +15,10 @@ const navigationItems = [
 
 export function Header() {
   const openAuthModal = useUIStore((state) => state.openAuthModal);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const accountType = useAuthStore((state) => state.accountType);
+  const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
@@ -51,14 +57,30 @@ export function Header() {
             <p className="font-semibold uppercase tracking-[0.18em]">Samara MVP</p>
             <p>Маркетплейс занятий и клубов</p>
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              openAuthModal();
-            }}
-          >
-            Войти
-          </Button>
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-3">
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-semibold text-ink">{user.name}</p>
+                {accountType ? (
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                    {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex size-11 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink">
+                {accountInitial}
+              </div>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => {
+                openAuthModal();
+              }}
+            >
+              Войти
+            </Button>
+          )}
         </div>
       </div>
     </header>

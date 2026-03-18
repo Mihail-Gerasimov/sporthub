@@ -1,11 +1,13 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { z } from 'zod';
 
 import { AUTH_ACCOUNT_TYPE_OPTIONS } from '@/lib/constants';
 import type { AuthAccountType } from '@/types';
 
 import { Button, Chip, Input, Modal } from '@/components/ui';
+import { useAuthStore, type AuthSessionUser } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 type AuthTab = 'login' | 'register';
@@ -21,6 +23,28 @@ type RegisterFormState = {
   phone: string;
   password: string;
 };
+
+type LoginFormErrors = Partial<Record<keyof LoginFormState, string>>;
+
+const DEFAULT_LOGIN_FORM: LoginFormState = {
+  email: '',
+  password: '',
+};
+
+const DEFAULT_REGISTER_FORM: RegisterFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  password: '',
+};
+
+const DEFAULT_LOGIN_ERRORS: LoginFormErrors = {};
+const AUTH_LOGIN_DELAY_MS = 600;
+
+const loginFormSchema = z.object({
+  email: z.email('Укажи корректный email.'),
+  password: z.string().min(6, 'Пароль должен быть не короче 6 символов.'),
+});
 
 type AccountTypeSelectorProps = {
   selectedAccountType: AuthAccountType | null;
@@ -48,31 +72,112 @@ function AccountTypeSelector({ onSelect, selectedAccountType }: AccountTypeSelec
   );
 }
 
+function getLoginValidationErrors(form: LoginFormState): LoginFormErrors {
+  const validationResult = loginFormSchema.safeParse(form);
+
+  if (validationResult.success) {
+    return DEFAULT_LOGIN_ERRORS;
+  }
+
+  return validationResult.error.issues.reduce<LoginFormErrors>((accumulator, issue) => {
+    const fieldName = issue.path[0];
+
+    if (fieldName === 'email' || fieldName === 'password') {
+      accumulator[fieldName] = issue.message;
+    }
+
+    return accumulator;
+  }, {});
+}
+
+function createLoginSessionUser(email: string): AuthSessionUser {
+  const [localPart] = email.split('@');
+
+  return {
+    name: localPart || 'sporthub-user',
+    email,
+  };
+}
+
 export function AuthModal() {
   const isAuthModalOpen = useUIStore((state) => state.isAuthModalOpen);
   const closeAuthModal = useUIStore((state) => state.closeAuthModal);
+  const login = useAuthStore((state) => state.login);
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
   const [loginAccountType, setLoginAccountType] = useState<AuthAccountType | null>(null);
   const [registerAccountType, setRegisterAccountType] = useState<AuthAccountType | null>(null);
-  const [loginForm, setLoginForm] = useState<LoginFormState>({
-    email: '',
-    password: '',
-  });
-  const [registerForm, setRegisterForm] = useState<RegisterFormState>({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-  });
+  const [loginForm, setLoginForm] = useState<LoginFormState>(DEFAULT_LOGIN_FORM);
+  const [loginErrors, setLoginErrors] = useState<LoginFormErrors>(DEFAULT_LOGIN_ERRORS);
+  const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
+  const [registerForm, setRegisterForm] = useState<RegisterFormState>(DEFAULT_REGISTER_FORM);
   const loginTabId = useId();
   const registerTabId = useId();
   const loginPanelId = useId();
   const registerPanelId = useId();
+  const loginTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (loginTimeoutRef.current !== null) {
+        window.clearTimeout(loginTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function resetModalState() {
+    setActiveTab('login');
+    setLoginAccountType(null);
+    setRegisterAccountType(null);
+    setLoginForm(DEFAULT_LOGIN_FORM);
+    setLoginErrors(DEFAULT_LOGIN_ERRORS);
+    setIsLoginSubmitting(false);
+    setRegisterForm(DEFAULT_REGISTER_FORM);
+
+    if (loginTimeoutRef.current !== null) {
+      window.clearTimeout(loginTimeoutRef.current);
+      loginTimeoutRef.current = null;
+    }
+  }
+
+  function handleCloseModal() {
+    closeAuthModal();
+    resetModalState();
+  }
+
+  function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!loginAccountType || isLoginSubmitting) {
+      return;
+    }
+
+    const normalizedLoginForm = {
+      email: loginForm.email.trim(),
+      password: loginForm.password,
+    } satisfies LoginFormState;
+    const validationErrors = getLoginValidationErrors(normalizedLoginForm);
+
+    setLoginErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setIsLoginSubmitting(true);
+
+    loginTimeoutRef.current = window.setTimeout(() => {
+      login({
+        accountType: loginAccountType,
+        user: createLoginSessionUser(normalizedLoginForm.email),
+      });
+      handleCloseModal();
+    }, AUTH_LOGIN_DELAY_MS);
+  }
 
   return (
     <Modal
       open={isAuthModalOpen}
-      onClose={closeAuthModal}
+      onClose={handleCloseModal}
       title="Войти или создать профиль"
       description="Выбери сценарий, тип аккаунта и продолжи работу с SportHub. Логика авторизации будет расширяться на следующих шагах."
     >
@@ -119,11 +224,13 @@ export function AuthModal() {
         </div>
 
         {activeTab === 'login' ? (
-          <section
+          <form
             id={loginPanelId}
+            noValidate
             role="tabpanel"
             aria-labelledby={loginTabId}
             className="space-y-5"
+            onSubmit={handleLoginSubmit}
           >
             <AccountTypeSelector
               selectedAccountType={loginAccountType}
@@ -136,10 +243,16 @@ export function AuthModal() {
                 type="email"
                 placeholder="name@example.com"
                 value={loginForm.email}
+                error={loginErrors.email}
+                disabled={isLoginSubmitting}
                 onChange={(event) => {
                   setLoginForm((currentValue) => ({
                     ...currentValue,
                     email: event.target.value,
+                  }));
+                  setLoginErrors((currentValue) => ({
+                    ...currentValue,
+                    email: undefined,
                   }));
                 }}
               />
@@ -148,19 +261,30 @@ export function AuthModal() {
                 type="password"
                 placeholder="Введите пароль"
                 value={loginForm.password}
+                error={loginErrors.password}
+                disabled={isLoginSubmitting}
                 onChange={(event) => {
                   setLoginForm((currentValue) => ({
                     ...currentValue,
                     password: event.target.value,
                   }));
+                  setLoginErrors((currentValue) => ({
+                    ...currentValue,
+                    password: undefined,
+                  }));
                 }}
               />
             </div>
 
-            <Button fullWidth type="button" disabled={!loginAccountType}>
+            <Button
+              fullWidth
+              type="submit"
+              loading={isLoginSubmitting}
+              disabled={!loginAccountType}
+            >
               Продолжить вход
             </Button>
-          </section>
+          </form>
         ) : (
           <section
             id={registerPanelId}

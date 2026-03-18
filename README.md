@@ -63,7 +63,7 @@ npm run dev
 │   │       ├── sports/
 │   │       └── trainers/
 │   ├── components/
-│   │   ├── auth/
+│   │   ├── auth/               # AuthModal и сценарии авторизации
 │   │   ├── booking/
 │   │   ├── clubs/              # ClubCard, ClubList и PopularNearby для клубной выдачи
 │   │   ├── layout/             # Header, Footer, MobileNav, AppShell
@@ -85,7 +85,7 @@ npm run dev
 │   │   ├── constants.ts
 │   │   ├── db.ts
 │   │   └── utils.ts
-│   ├── stores/                  # Zustand-сторы фильтров и UI
+│   ├── stores/                  # Zustand-сторы фильтров, UI и auth
 │   ├── test/                    # Vitest, smoke tests, test setup
 │   └── types/
 │       └── index.ts             # TypeScript-типы сущностей
@@ -110,7 +110,7 @@ npm run dev
 | 3    | API Routes                 | ✅     |
 | 4    | Базовые UI-компоненты      | ✅     |
 | 5    | Главная страница           | ✅     |
-| 6    | Auth-заглушка              | ⬜     |
+| 6    | Auth-заглушка              | 🔄     |
 | 7    | Страница клуба             | ⬜     |
 | 8    | Флоу записи на занятие     | ⬜     |
 | 9    | Личный кабинет             | ⬜     |
