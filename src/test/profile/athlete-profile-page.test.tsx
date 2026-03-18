@@ -5,7 +5,7 @@ import AthleteProfileRoute from '@/app/profile/athlete/page';
 import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Review } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
 
 const profileBookings: Booking[] = [
   {
@@ -33,6 +33,155 @@ const profileBookings: Booking[] = [
     status: 'completed',
     paymentStatus: 'paid',
     totalPrice: 900,
+  },
+  {
+    id: 3,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    scheduleId: 24,
+    userId: 1,
+    clubId: 2,
+    trainerId: 3,
+    sportId: 2,
+    date: '2026-03-20',
+    status: 'cancelled',
+    paymentStatus: 'unpaid',
+    totalPrice: 1200,
+  },
+];
+
+const profileSchedule: Schedule[] = [
+  {
+    id: 21,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 1,
+    trainerId: 1,
+    sportId: 3,
+    title: 'Утреннее плавание',
+    date: '2026-03-19',
+    startTime: '07:30',
+    endTime: '08:30',
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 14,
+    bookedCount: 8,
+    price: 1100,
+    room: 'Бассейн A',
+  },
+  {
+    id: 19,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 3,
+    trainerId: 5,
+    sportId: 1,
+    title: 'Утренняя хатха-йога',
+    date: '2026-03-11',
+    startTime: '09:00',
+    endTime: '10:00',
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 12,
+    bookedCount: 6,
+    price: 900,
+    room: 'Зал Light',
+  },
+  {
+    id: 24,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 2,
+    trainerId: 3,
+    sportId: 2,
+    title: 'Бокс. Базовая техника',
+    date: '2026-03-20',
+    startTime: '08:00',
+    endTime: '09:00',
+    durationMinutes: 60,
+    level: 'beginner',
+    capacity: 16,
+    bookedCount: 12,
+    price: 1200,
+    room: 'Ринг 1',
+  },
+];
+
+const profileClubs: Club[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Volna Aquatic Club',
+    slug: 'volna-aquatic-club',
+    description: 'Клуб с бассейном',
+    shortDescription: 'Бассейн рядом с набережной.',
+    city: 'Самара',
+    address: 'ул. Лесная, 23к1',
+    phone: '+7 (846) 200-11-01',
+    email: 'hello@volna-club.ru',
+    website: 'https://volna-club.ru',
+    coordinates: { lat: 53.2129, lng: 50.1245 },
+    sportIds: [3, 8],
+    imageUrls: [],
+    amenities: [],
+    tags: [],
+    rating: 4.8,
+    reviewCount: 64,
+    priceFrom: 900,
+    distanceKm: 1.8,
+    isFeatured: true,
+  },
+  {
+    id: 3,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Balance Yoga House',
+    slug: 'balance-yoga-house',
+    description: 'Клуб йоги',
+    shortDescription: 'Йога в центре города.',
+    city: 'Самара',
+    address: 'ул. Молодогвардейская, 86',
+    phone: '+7 (846) 200-11-03',
+    email: 'hello@balance-house.ru',
+    website: 'https://balance-house.ru',
+    coordinates: { lat: 53.1957, lng: 50.1006 },
+    sportIds: [1, 8],
+    imageUrls: [],
+    amenities: [],
+    tags: [],
+    rating: 4.9,
+    reviewCount: 72,
+    priceFrom: 850,
+    distanceKm: 2.3,
+    isFeatured: true,
+  },
+];
+
+const profileTrainers: Trainer[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 1,
+    sportId: 3,
+    name: 'Марина Соколова',
+    slug: 'marina-sokolova',
+    bio: 'Тренер по плаванию.',
+    avatarUrl: '/images/trainers/marina.jpg',
+    experienceYears: 9,
+    specialties: ['Кроль'],
+    rating: 4.9,
+    reviewCount: 28,
+    priceFrom: 1400,
+  },
+  {
+    id: 5,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 3,
+    sportId: 1,
+    name: 'Анна Миронова',
+    slug: 'anna-mironova',
+    bio: 'Тренер по йоге.',
+    avatarUrl: '/images/trainers/anna.jpg',
+    experienceYears: 8,
+    specialties: ['Йога'],
+    rating: 5,
+    reviewCount: 36,
+    priceFrom: 1300,
   },
 ];
 
@@ -135,7 +284,15 @@ describe('AthleteProfilePage', () => {
       },
     });
 
-    render(<AthleteProfilePage bookings={profileBookings} reviews={profileReviews} />);
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
 
     expect(screen.getByRole('heading', { name: 'Кабинет спортсмена' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
@@ -157,11 +314,78 @@ describe('AthleteProfilePage', () => {
       },
     });
 
-    render(<AthleteProfilePage bookings={profileBookings} reviews={profileReviews} />);
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(screen.getByText('Кабинет спортсмена доступен только после входа.')).toBeInTheDocument();
+  });
+
+  it('показывает только будущие или актуальные записи пользователя', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Предстоящие записи' })).toBeInTheDocument();
+    expect(screen.getByText('Утреннее плавание')).toBeInTheDocument();
+    expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    expect(screen.getByText('Подтверждена')).toBeInTheDocument();
+    expect(screen.queryByText('Утренняя хатха-йога')).not.toBeInTheDocument();
+    expect(screen.queryByText('Бокс. Базовая техника')).not.toBeInTheDocument();
+  });
+
+  it('показывает пустое состояние блока предстоящих записей, если данных нет', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={[]}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Предстоящие записи' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Пока нет будущих записей. Следующий шаг кабинета добавит сюда активные занятия.',
+      ),
+    ).toBeInTheDocument();
   });
 });

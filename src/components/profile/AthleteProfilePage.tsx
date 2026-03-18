@@ -4,18 +4,21 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { Badge, Button, Card } from '@/components/ui';
-import { getDateKeyInTimeZone } from '@/lib/utils';
+import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Review } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
 
 type AthleteProfilePageProps = {
   bookings?: Booking[];
+  clubs?: Club[];
   reviews?: Review[];
+  schedule?: Schedule[];
+  trainers?: Trainer[];
 };
 
 type AthleteSummary = {
@@ -23,6 +26,23 @@ type AthleteSummary = {
   completedVisitsCount: number;
   reviewsCount: number;
   upcomingBookingsCount: number;
+};
+
+type UpcomingProfileBooking = {
+  id: number;
+  clubName: string;
+  date: string;
+  startTime: string;
+  statusLabel: string;
+  title: string;
+  trainerName: string;
+};
+
+const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
+  pending: 'Ожидает подтверждения',
+  confirmed: 'Подтверждена',
+  completed: 'Завершена',
+  cancelled: 'Отменена',
 };
 
 function getUnlockedAchievementsCount({
@@ -101,6 +121,56 @@ function getAthleteSummary({
   };
 }
 
+function getUpcomingProfileBookings({
+  athleteUserId,
+  bookings,
+  clubs,
+  schedule,
+  trainers,
+}: {
+  athleteUserId: number | null;
+  bookings: Booking[];
+  clubs: Club[];
+  schedule: Schedule[];
+  trainers: Trainer[];
+}): UpcomingProfileBooking[] {
+  if (athleteUserId === null) {
+    return [];
+  }
+
+  const todayDateKey = getDateKeyInTimeZone();
+  const clubNames = new Map(clubs.map((club) => [club.id, club.name]));
+  const trainerNames = new Map(trainers.map((trainer) => [trainer.id, trainer.name]));
+  const scheduleItems = new Map(schedule.map((slot) => [slot.id, slot]));
+
+  return bookings
+    .filter(
+      (booking) =>
+        booking.userId === athleteUserId &&
+        booking.date >= todayDateKey &&
+        (booking.status === 'confirmed' || booking.status === 'pending'),
+    )
+    .map((booking) => {
+      const slot = scheduleItems.get(booking.scheduleId);
+
+      return {
+        id: booking.id,
+        clubName: clubNames.get(booking.clubId) ?? 'Клуб SportHub',
+        date: booking.date,
+        startTime: slot?.startTime ?? 'Время уточняется',
+        statusLabel: BOOKING_STATUS_LABELS[booking.status],
+        title: slot?.title ?? 'Занятие SportHub',
+        trainerName: trainerNames.get(booking.trainerId) ?? 'Тренер SportHub',
+      } satisfies UpcomingProfileBooking;
+    })
+    .sort((left, right) => {
+      const leftTimestamp = `${left.date}T${left.startTime}`;
+      const rightTimestamp = `${right.date}T${right.startTime}`;
+
+      return leftTimestamp.localeCompare(rightTimestamp);
+    });
+}
+
 function AthleteAccessDeniedState() {
   const openAuthModal = useUIStore((state) => state.openAuthModal);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -148,7 +218,13 @@ function AthleteAccessDeniedState() {
   );
 }
 
-export function AthleteProfilePage({ bookings = [], reviews = [] }: AthleteProfilePageProps) {
+export function AthleteProfilePage({
+  bookings = [],
+  clubs = [],
+  reviews = [],
+  schedule = [],
+  trainers = [],
+}: AthleteProfilePageProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -163,6 +239,17 @@ export function AthleteProfilePage({ bookings = [], reviews = [] }: AthleteProfi
         reviews,
       }),
     [athleteUserId, bookings, reviews],
+  );
+  const upcomingBookings = useMemo(
+    () =>
+      getUpcomingProfileBookings({
+        athleteUserId,
+        bookings,
+        clubs,
+        schedule,
+        trainers,
+      }),
+    [athleteUserId, bookings, clubs, schedule, trainers],
   );
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
@@ -299,6 +386,62 @@ export function AthleteProfilePage({ bookings = [], reviews = [] }: AthleteProfi
               Открытых MVP-достижений по текущей активности
             </p>
           </div>
+        </Card>
+
+        <Card className="p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                Ближайший план
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+                Предстоящие записи
+              </h2>
+            </div>
+            <Badge tone="outline">{upcomingBookings.length} активных записи</Badge>
+          </div>
+
+          {upcomingBookings.length > 0 ? (
+            <div className="mt-6 grid gap-4">
+              {upcomingBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="grid gap-4 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.3fr_0.9fr_auto]"
+                >
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      {booking.clubName}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-ink">{booking.title}</p>
+                    <p className="mt-2 text-sm leading-7 text-muted">{booking.trainerName}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      Дата и время
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-ink">
+                      {formatDate(booking.date, {
+                        day: 'numeric',
+                        month: 'long',
+                      })}
+                    </p>
+                    <p className="mt-1 text-sm leading-7 text-muted">{booking.startTime}</p>
+                  </div>
+
+                  <div className="flex items-start md:justify-end">
+                    <Badge tone="success">{booking.statusLabel}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-card border border-line bg-canvas p-5">
+              <p className="text-sm leading-7 text-muted">
+                Пока нет будущих записей. Следующий шаг кабинета добавит сюда активные занятия.
+              </p>
+            </div>
+          )}
         </Card>
       </div>
     </div>
