@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
+import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import { AthleteHistorySection } from '@/components/profile/AthleteHistorySection';
+import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { Badge, Button, Card } from '@/components/ui';
@@ -15,7 +17,7 @@ import {
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
 
 type AthleteProfilePageProps = {
   bookings?: Booking[];
@@ -23,6 +25,7 @@ type AthleteProfilePageProps = {
   reviews?: Review[];
   schedule?: Schedule[];
   trainers?: Trainer[];
+  users?: User[];
 };
 
 type AthleteSummary = {
@@ -192,6 +195,7 @@ export function AthleteProfilePage({
   reviews = [],
   schedule = [],
   trainers = [],
+  users = [],
 }: AthleteProfilePageProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
@@ -249,6 +253,18 @@ export function AthleteProfilePage({
         trainers,
       }),
     [athleteUserId, athleteBookings, athleteReviews, clubs, schedule, trainers],
+  );
+  const favorites = useMemo(
+    () =>
+      getAthleteFavorites({
+        athleteUserId,
+        bookings: athleteBookings,
+        clubs,
+        reviews: athleteReviews,
+        trainers,
+        users,
+      }),
+    [athleteUserId, athleteBookings, athleteReviews, clubs, trainers, users],
   );
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
@@ -446,6 +462,11 @@ export function AthleteProfilePage({
         </Card>
 
         <AthleteHistorySection historyItems={historyItems} />
+
+        <AthleteFavoritesSection
+          favoriteClubs={favorites.clubs}
+          favoriteTrainers={favorites.trainers}
+        />
       </div>
     </div>
   );

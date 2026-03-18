@@ -1,13 +1,14 @@
-import { getBookings, getClubs, getReviews, getSchedule, getTrainers } from '@/lib/db';
+import { getBookings, getClubs, getReviews, getSchedule, getTrainers, getUsers } from '@/lib/db';
 import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
 
 export default async function AthleteProfileRoute() {
-  const [bookings, clubs, reviews, schedule, trainers] = await Promise.all([
+  const [bookings, clubs, reviews, schedule, trainers, users] = await Promise.all([
     getBookings(),
     getClubs(),
     getReviews(),
     getSchedule(),
     getTrainers(),
+    getUsers(),
   ]);
 
   return (
@@ -17,6 +18,7 @@ export default async function AthleteProfileRoute() {
       reviews={reviews}
       schedule={schedule}
       trainers={trainers}
+      users={users}
     />
   );
 }

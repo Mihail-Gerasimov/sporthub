@@ -6,6 +6,7 @@ import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { User } from '@/types';
 
 const profileBookings: Booking[] = [
   {
@@ -212,6 +213,19 @@ const profileReviews: Review[] = [
   },
 ];
 
+const profileUsers: User[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    role: 'athlete',
+    name: 'Алексей Смирнов',
+    email: 'alexey@sporthub.local',
+    phone: '+7 (927) 000-10-10',
+    password: 'sporthub123',
+    favoriteClubIds: [1, 3],
+  },
+];
+
 const historyBookings: Booking[] = [
   {
     id: 11,
@@ -403,6 +417,7 @@ describe('AthleteProfilePage', () => {
         reviews={profileReviews}
         schedule={profileSchedule}
         trainers={profileTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -433,6 +448,7 @@ describe('AthleteProfilePage', () => {
         reviews={profileReviews}
         schedule={profileSchedule}
         trainers={profileTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -465,6 +481,7 @@ describe('AthleteProfilePage', () => {
         reviews={profileReviews}
         schedule={profileSchedule}
         trainers={profileTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -524,6 +541,7 @@ describe('AthleteProfilePage', () => {
         reviews={profileReviews}
         schedule={profileSchedule}
         trainers={profileTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -553,6 +571,7 @@ describe('AthleteProfilePage', () => {
         reviews={[]}
         schedule={profileSchedule}
         trainers={profileTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -583,6 +602,7 @@ describe('AthleteProfilePage', () => {
         reviews={profileReviews}
         schedule={historySchedule}
         trainers={historyTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -613,6 +633,7 @@ describe('AthleteProfilePage', () => {
         reviews={[]}
         schedule={historySchedule}
         trainers={historyTrainers}
+        users={profileUsers}
       />,
     );
 
@@ -620,6 +641,82 @@ describe('AthleteProfilePage', () => {
     expect(
       screen.getByText(
         'История пока пустая. Завершённые занятия и связанные отзывы появятся здесь автоматически.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('показывает избранные клубы и тренеров отдельным блоком', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const favoritesSection = screen.getByTestId('athlete-favorites-section');
+    const favoriteClubs = within(favoritesSection).getByTestId('athlete-favorite-clubs');
+    const favoriteTrainers = within(favoritesSection).getByTestId('athlete-favorite-trainers');
+
+    expect(within(favoritesSection).getByRole('heading', { name: 'Избранное' })).toBeInTheDocument();
+    expect(
+      within(favoritesSection).getByRole('heading', { name: 'Избранные клубы' }),
+    ).toBeInTheDocument();
+    expect(
+      within(favoritesSection).getByRole('heading', { name: 'Избранные тренеры' }),
+    ).toBeInTheDocument();
+    expect(within(favoriteClubs).getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(within(favoriteClubs).getByText('Balance Yoga House')).toBeInTheDocument();
+    expect(within(favoriteTrainers).getByText('Марина Соколова')).toBeInTheDocument();
+    expect(within(favoriteTrainers).getByText('Анна Миронова')).toBeInTheDocument();
+  });
+
+  it('показывает пустое состояние блока избранного, если данных нет', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={[]}
+        clubs={profileClubs}
+        reviews={[]}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={[
+          {
+            ...profileUsers[0],
+            favoriteClubIds: [],
+          },
+        ]}
+      />,
+    );
+
+    const favoritesSection = screen.getByTestId('athlete-favorites-section');
+
+    expect(within(favoritesSection).getByRole('heading', { name: 'Избранное' })).toBeInTheDocument();
+    expect(
+      within(favoritesSection).getByText(
+        'Пока нет сохранённых клубов и тренеров. Этот блок заполнится по мере развития MVP-избранного.',
       ),
     ).toBeInTheDocument();
   });
