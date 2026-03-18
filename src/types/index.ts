@@ -3,6 +3,8 @@ export type EntityId = number;
 export type ISODateString = string;
 export type ISODateTimeString = string;
 
+export type AuthAccountType = 'provider' | 'athlete';
+
 export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
