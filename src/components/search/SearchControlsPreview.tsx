@@ -21,7 +21,7 @@ export function SearchControlsPreview({ sports }: SearchControlsPreviewProps) {
 
   return (
     <section id="discover" className="space-y-4">
-      <Card className="space-y-5 border-accent/12 bg-panel shadow-floating">
+      <Card className="space-y-5 border-accent/12 bg-panel">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">

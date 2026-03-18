@@ -7,14 +7,9 @@ export type CardProps = ComponentPropsWithoutRef<'div'> & {
 };
 
 export function Card({ className, elevated = false, ...props }: CardProps) {
+  void elevated;
+
   return (
-    <div
-      className={cn(
-        'rounded-card border border-line bg-panel p-5',
-        elevated ? 'shadow-floating' : 'shadow-card',
-        className,
-      )}
-      {...props}
-    />
+    <div className={cn('rounded-card border border-line bg-panel p-5', className)} {...props} />
   );
 }

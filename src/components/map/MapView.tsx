@@ -68,7 +68,7 @@ export function MapView({ clubs, onSelectClub, selectedClubId }: MapViewProps) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-card border border-line bg-panel p-5 text-panel shadow-card sm:p-6">
+    <div className="relative overflow-hidden rounded-card border border-line bg-panel p-5 text-panel sm:p-6">
       <div className="pointer-events-none absolute inset-0 opacity-80">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(216,90,50,0.16),transparent_26%),radial-gradient(circle_at_right,rgba(12,111,115,0.18),transparent_32%)]" />
       </div>

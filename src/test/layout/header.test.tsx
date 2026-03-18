@@ -39,6 +39,24 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 
+  it('для спортсмена делает иконку аккаунта ссылкой в личный кабинет', () => {
+    useAuthStore.getState().login({
+      accountType: 'athlete',
+      user: {
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(<Header />);
+
+    expect(screen.getByRole('link', { name: 'Перейти в кабинет спортсмена' })).toHaveAttribute(
+      'href',
+      '/profile/athlete',
+    );
+    expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+  });
+
   it('после logout возвращается в гостевое состояние', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',

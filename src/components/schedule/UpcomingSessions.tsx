@@ -54,7 +54,7 @@ export function UpcomingSessions({ sessions, dateLabel }: UpcomingSessionsProps)
               className="group block"
               aria-label={`Открыть запись на занятие ${session.title}`}
             >
-              <Card className="flex h-full flex-col gap-5 transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-floating">
+              <Card className="flex h-full flex-col gap-5 transition-transform duration-200 group-hover:-translate-y-1">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">

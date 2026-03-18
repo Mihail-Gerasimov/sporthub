@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PopularNearby } from '@/components/clubs/PopularNearby';
 import type { Club, Sport } from '@/types';
@@ -182,5 +182,26 @@ describe('PopularNearby', () => {
       '/clubs/4',
       '/clubs/6',
     ]);
+  });
+
+  it('показывает кнопки прокрутки и листает слайдер влево и вправо', () => {
+    render(<PopularNearby clubs={clubs} sports={sports} />);
+
+    const scrollContainer = screen.getByTestId('popular-nearby-scroll');
+    const scrollByMock = vi.fn();
+
+    scrollContainer.scrollBy = scrollByMock;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Прокрутить популярные клубы влево' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Прокрутить популярные клубы вправо' }));
+
+    expect(scrollByMock).toHaveBeenNthCalledWith(1, {
+      left: -360,
+      behavior: 'smooth',
+    });
+    expect(scrollByMock).toHaveBeenNthCalledWith(2, {
+      left: 360,
+      behavior: 'smooth',
+    });
   });
 });

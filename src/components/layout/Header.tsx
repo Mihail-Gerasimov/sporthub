@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui';
+import { getPersonalCabinetConfig } from '@/stores/useAuthStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -20,6 +21,9 @@ export function Header() {
   const accountType = useAuthStore((state) => state.accountType);
   const logout = useAuthStore((state) => state.logout);
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
+  const cabinetConfig = getPersonalCabinetConfig(accountType);
+  const athleteCabinetHref =
+    accountType === 'athlete' ? cabinetConfig?.profilePath ?? '/profile/athlete' : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
@@ -54,27 +58,33 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="hidden text-right text-xs leading-5 text-muted xl:block">
-            <p className="font-semibold uppercase tracking-[0.18em]">Samara MVP</p>
-            <p>Маркетплейс занятий и клубов</p>
-          </div>
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden text-right md:block">
-                <p className="text-sm font-semibold text-ink">{user.name}</p>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden min-w-0 text-right md:block">
+                <p className="truncate text-sm font-semibold leading-5 text-ink">{user.name}</p>
                 {accountType ? (
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <p className="text-[11px] uppercase tracking-[0.18em] leading-4 text-muted">
                     {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
                   </p>
                 ) : null}
               </div>
-              <div
-                role="img"
-                aria-label={`Аватар ${user.name}`}
-                className="flex size-11 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink"
-              >
-                {accountInitial}
-              </div>
+              {athleteCabinetHref ? (
+                <Link
+                  href={athleteCabinetHref}
+                  aria-label="Перейти в кабинет спортсмена"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink transition-colors hover:border-accent hover:text-accent"
+                >
+                  {accountInitial}
+                </Link>
+              ) : (
+                <div
+                  role="img"
+                  aria-label={`Аватар ${user.name}`}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink"
+                >
+                  {accountInitial}
+                </div>
+              )}
               <Button
                 size="sm"
                 variant="outline"

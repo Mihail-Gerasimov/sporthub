@@ -269,11 +269,14 @@ export function ClubDetailPageClient({
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <Card className="overflow-hidden p-4 sm:p-5">
-            <div className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
-              <MediaStub label="Фото клуба" className="min-h-72 md:min-h-[24rem]" />
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1">
-                <MediaStub label="Фото клуба" className="min-h-32" />
-                <MediaStub label="Фото клуба" className="min-h-32" />
+            <div className="grid gap-4" data-testid="club-media-gallery">
+              <MediaStub label="Фото клуба" className="min-h-72 md:min-h-[26rem]" />
+              <div
+                className="grid gap-4 sm:grid-cols-2"
+                data-testid="club-media-gallery-secondary"
+              >
+                <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
+                <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
               </div>
             </div>
           </Card>
@@ -337,38 +340,38 @@ export function ClubDetailPageClient({
           </Card>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-          <Card className="p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
-                  Sport focus
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
-                  Направления клуба
-                </h2>
-              </div>
-              <Badge tone="outline">{sports.length} направления</Badge>
+        <section data-testid="club-directions-section">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                Sport focus
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+                Направления клуба
+              </h2>
             </div>
+            <Badge tone="outline">{sports.length} направления</Badge>
+          </div>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {sports.map((sport) => (
-                <div
-                  key={sport.id}
-                  className="flex min-w-[10rem] flex-1 items-center gap-3 rounded-card border border-line bg-canvas px-4 py-4"
-                >
-                  <span className="text-2xl" aria-hidden="true">
-                    {sport.icon}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{sport.name}</p>
-                    <p className="text-xs leading-6 text-muted">{sport.description}</p>
-                  </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {sports.map((sport) => (
+              <div
+                key={sport.id}
+                className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
+              >
+                <span className="mt-1 text-2xl" aria-hidden="true">
+                  {sport.icon}
+                </span>
+                <div>
+                  <p className="text-lg font-semibold text-ink">{sport.name}</p>
+                  <p className="mt-2 text-sm leading-7 text-muted">{sport.description}</p>
                 </div>
-              ))}
-            </div>
-          </Card>
+              </div>
+            ))}
+          </div>
+        </section>
 
+        <section data-testid="club-trainers-section">
           <Card className="p-6 sm:p-7">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -384,12 +387,13 @@ export function ClubDetailPageClient({
               {trainers.map((trainer) => (
                 <div
                   key={trainer.id}
-                  className="grid gap-4 rounded-card border border-line bg-canvas p-4 sm:grid-cols-[7rem_1fr]"
+                  data-testid={`club-trainer-card-${trainer.id}`}
+                  className="flex h-full flex-col rounded-card border border-line bg-canvas p-4"
                 >
-                  <MediaStub label="Фото тренера" className="min-h-28" />
-                  <div>
+                  <MediaStub label="Фото тренера" className="min-h-44 w-full" />
+                  <div className="mt-4">
                     <p className="text-lg font-semibold text-ink">{trainer.name}</p>
-                    <p className="mt-1 text-sm leading-7 text-muted">{trainer.bio}</p>
+                    <p className="mt-2 text-sm leading-7 text-muted">{trainer.bio}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
                       <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>

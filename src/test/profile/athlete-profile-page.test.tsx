@@ -670,6 +670,8 @@ describe('AthleteProfilePage', () => {
     const favoritesSection = screen.getByTestId('athlete-favorites-section');
     const favoriteClubs = within(favoritesSection).getByTestId('athlete-favorite-clubs');
     const favoriteTrainers = within(favoritesSection).getByTestId('athlete-favorite-trainers');
+    const favoriteClubsCard = within(favoritesSection).getByTestId('athlete-favorite-clubs-card');
+    const favoriteTrainersCard = within(favoritesSection).getByTestId('athlete-favorite-trainers-card');
 
     expect(
       within(favoritesSection).getByRole('heading', { name: 'Избранное' }),
@@ -680,6 +682,8 @@ describe('AthleteProfilePage', () => {
     expect(
       within(favoritesSection).getByRole('heading', { name: 'Избранные тренеры' }),
     ).toBeInTheDocument();
+    expect(favoriteClubsCard).toBeInTheDocument();
+    expect(favoriteTrainersCard).toBeInTheDocument();
     expect(within(favoriteClubs).getByText('Volna Aquatic Club')).toBeInTheDocument();
     expect(within(favoriteClubs).getByText('Balance Yoga House')).toBeInTheDocument();
     expect(within(favoriteTrainers).getByText('Марина Соколова')).toBeInTheDocument();
@@ -805,5 +809,58 @@ describe('AthleteProfilePage', () => {
       ),
     ).toBeInTheDocument();
     expect(within(settingsBlock).getByText('Не добавлен')).toBeInTheDocument();
+  });
+
+  it('сворачивает отзывы до трёх и умеет раскрывать весь список', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+        phone: '+7 (927) 000-10-10',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={[
+          ...profileReviews,
+          {
+            id: 4,
+            createdAt: '2026-03-18T09:00:00.000Z',
+            userId: 1,
+            clubId: 1,
+            rating: 4,
+            text: 'Отзыв 4',
+          },
+        ]}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const reviewsBlock = screen.getByTestId('athlete-reviews-block');
+
+    expect(within(reviewsBlock).getByText('Отзыв 4')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Отзыв 1')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByText('Отзыв 2')).toBeInTheDocument();
+    expect(within(reviewsBlock).queryByText('Отзыв 3')).not.toBeInTheDocument();
+
+    fireEvent.click(within(reviewsBlock).getByRole('button', { name: 'Показать все отзывы' }));
+
+    expect(within(reviewsBlock).getByText('Отзыв 3')).toBeInTheDocument();
+    expect(within(reviewsBlock).getByRole('button', { name: 'Скрыть отзывы' })).toBeInTheDocument();
+
+    fireEvent.click(within(reviewsBlock).getByRole('button', { name: 'Скрыть отзывы' }));
+
+    expect(within(reviewsBlock).queryByText('Отзыв 3')).not.toBeInTheDocument();
+    expect(
+      within(reviewsBlock).getByRole('button', { name: 'Показать все отзывы' }),
+    ).toBeInTheDocument();
   });
 });

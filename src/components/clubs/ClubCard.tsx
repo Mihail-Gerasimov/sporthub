@@ -41,9 +41,9 @@ export function ClubCard({
         data-card-variant={variant}
         data-testid="club-card-surface"
         className={cn(
-          'flex h-full flex-col overflow-hidden p-0 transition-transform duration-200 group-hover:shadow-floating',
+          'flex h-full flex-col overflow-hidden p-0 transition-transform duration-200',
           isCarousel ? 'group-hover:-translate-y-0.5' : 'group-hover:-translate-y-1',
-          highlighted && 'ring-2 ring-accent/35 shadow-floating',
+          highlighted && 'ring-2 ring-accent/35',
         )}
       >
         <div

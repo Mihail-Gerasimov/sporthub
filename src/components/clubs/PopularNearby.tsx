@@ -1,5 +1,9 @@
-import { Badge, Card } from '@/components/ui';
+'use client';
+
+import { useRef } from 'react';
+
 import { ClubCard } from '@/components/clubs/ClubCard';
+import { Badge, Button, Card } from '@/components/ui';
 import type { Club, Sport } from '@/types';
 
 type PopularNearbySport = Pick<Sport, 'id' | 'name' | 'icon'>;
@@ -8,6 +12,8 @@ type PopularNearbyProps = {
   clubs: Club[];
   sports: PopularNearbySport[];
 };
+
+const POPULAR_NEARBY_SCROLL_STEP = 360;
 
 function sortByPopularity(clubs: Club[]): Club[] {
   return [...clubs].sort((left, right) => {
@@ -25,6 +31,14 @@ function sortByPopularity(clubs: Club[]): Club[] {
 
 export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
   const popularClubs = sortByPopularity(clubs).slice(0, 6);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  function scrollCarousel(direction: 'left' | 'right') {
+    scrollContainerRef.current?.scrollBy({
+      left: direction === 'left' ? -POPULAR_NEARBY_SCROLL_STEP : POPULAR_NEARBY_SCROLL_STEP,
+      behavior: 'smooth',
+    });
+  }
 
   return (
     <section id="popular-nearby" className="space-y-4">
@@ -40,22 +54,53 @@ export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Badge tone="accent">Топ по рейтингу</Badge>
           <Badge tone="outline">MVP без геолокации</Badge>
         </div>
       </div>
 
-      <div
-        data-testid="popular-nearby-scroll"
-        className="-mx-6 overflow-x-auto px-6 py-3 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12"
-      >
-        <div className="flex min-w-max items-stretch gap-4">
-          {popularClubs.map((club) => (
-            <div key={club.id} className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]">
-              <ClubCard club={club} sports={sports} variant="carousel" />
-            </div>
-          ))}
+      <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
+        <div className="mb-3 flex items-center justify-start gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-w-10 px-0"
+            aria-label="Прокрутить популярные клубы влево"
+            onClick={() => {
+              scrollCarousel('left');
+            }}
+          >
+            <span aria-hidden="true">←</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-w-10 px-0"
+            aria-label="Прокрутить популярные клубы вправо"
+            onClick={() => {
+              scrollCarousel('right');
+            }}
+          >
+            <span aria-hidden="true">→</span>
+          </Button>
+        </div>
+
+        <div
+          ref={scrollContainerRef}
+          data-testid="popular-nearby-scroll"
+          className="scrollbar-hidden overflow-x-auto py-3"
+        >
+          <div className="flex min-w-max items-stretch gap-4">
+            {popularClubs.map((club) => (
+              <div
+                key={club.id}
+                className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
+              >
+                <ClubCard club={club} sports={sports} variant="carousel" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

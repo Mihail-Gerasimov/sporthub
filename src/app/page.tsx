@@ -38,7 +38,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className="relative overflow-hidden rounded-card border border-line bg-panel px-6 py-7 shadow-floating sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+        <section className="relative overflow-hidden rounded-card border border-line bg-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,90,50,0.24),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(12,111,115,0.18),transparent_36%)]"
@@ -88,7 +88,7 @@ export default async function Home() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-card border border-line bg-canvas/90 p-5 shadow-card">
+              <div className="rounded-card border border-line bg-canvas/90 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
                   Сегодня в фокусе
                 </p>
@@ -117,7 +117,7 @@ export default async function Home() {
                 </div>
               </div>
 
-              <div className="rounded-card border border-line bg-panel-strong p-5 shadow-card">
+              <div className="rounded-card border border-line bg-panel-strong p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
                   Сильный клуб дня
                 </p>

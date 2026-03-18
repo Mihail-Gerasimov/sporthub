@@ -135,6 +135,13 @@ describe('ClubDetailPageClient', () => {
     expect(screen.getByText('Фото автора')).toBeInTheDocument();
     expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    expect(screen.getByTestId('club-directions-section')).toBeInTheDocument();
+    expect(screen.getByTestId('club-trainers-section')).toBeInTheDocument();
+    expect(screen.getByTestId('club-media-gallery')).toBeInTheDocument();
+    expect(screen.getByTestId('club-media-gallery-secondary').className).toContain(
+      'sm:grid-cols-2',
+    );
+    expect(screen.getByTestId('club-trainer-card-1')).toHaveClass('flex-col');
   });
 
   it('для гостя показывает временные auth-подсказки вместо athlete-only действий', async () => {
