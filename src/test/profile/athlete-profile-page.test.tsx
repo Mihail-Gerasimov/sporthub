@@ -303,6 +303,38 @@ describe('AthleteProfilePage', () => {
     expect(screen.getByTestId('athlete-summary-achievements')).toHaveTextContent('3');
   });
 
+  it('показывает ачивки отдельным блоком с открытыми и прогрессируемыми достижениями', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Ачивки спортсмена' })).toBeInTheDocument();
+    expect(screen.getByText('Общий прогресс')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Открытые ачивки' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ачивки в процессе' })).toBeInTheDocument();
+    expect(screen.getByText('Первый отзыв')).toBeInTheDocument();
+    expect(screen.getByText('Голос сообщества')).toBeInTheDocument();
+    expect(screen.getByText('Исследователь')).toBeInTheDocument();
+    expect(screen.getByText('Возвращение в зал')).toBeInTheDocument();
+    expect(screen.getAllByText('1/3')).toHaveLength(2);
+  });
+
   it('logout в кабинете спортсмена сбрасывает auth-state и возвращает ограничение доступа', () => {
     useAuthStore.setState({
       isAuthenticated: true,
@@ -384,8 +416,38 @@ describe('AthleteProfilePage', () => {
     expect(screen.getByRole('heading', { name: 'Предстоящие записи' })).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Пока нет будущих записей. Следующий шаг кабинета добавит сюда активные занятия.',
+        'Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('не ломает блок ачивок при отсутствии активности пользователя', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={[]}
+        clubs={profileClubs}
+        reviews={[]}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Ачивки спортсмена' })).toBeInTheDocument();
+    expect(screen.getByText('0% общего прогресса')).toBeInTheDocument();
+    expect(
+      screen.getByText('Пока нет открытых ачивок. Прогресс начнёт наполняться по мере активности.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('На спорте всерьёз')).toBeInTheDocument();
+    expect(screen.getByText('0/10')).toBeInTheDocument();
   });
 });

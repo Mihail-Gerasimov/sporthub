@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 
+import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
+import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { Badge, Button, Card } from '@/components/ui';
 import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 import {
@@ -45,78 +47,42 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   cancelled: 'Отменена',
 };
 
-function getUnlockedAchievementsCount({
-  completedVisitsCount,
-  reviews,
-}: {
-  completedVisitsCount: number;
-  reviews: Review[];
-}) {
-  let unlockedCount = 0;
-  const uniqueClubCount = new Set(
-    reviews.flatMap((review) => (review.clubId ? [review.clubId] : [])),
-  ).size;
+function getUpcomingBookingsLabel(count: number) {
+  const remainder10 = count % 10;
+  const remainder100 = count % 100;
 
-  if (reviews.length >= 1) {
-    unlockedCount += 1;
+  if (remainder10 === 1 && remainder100 !== 11) {
+    return `${count} активная запись`;
   }
 
-  if (reviews.length >= 3) {
-    unlockedCount += 1;
+  if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
+    return `${count} активные записи`;
   }
 
-  if (uniqueClubCount >= 2) {
-    unlockedCount += 1;
-  }
-
-  if (completedVisitsCount >= 3) {
-    unlockedCount += 1;
-  }
-
-  if (completedVisitsCount >= 10) {
-    unlockedCount += 1;
-  }
-
-  return unlockedCount;
+  return `${count} активных записей`;
 }
 
 function getAthleteSummary({
-  athleteUserId,
   bookings,
+  achievementsCount,
   reviews,
 }: {
-  athleteUserId: number | null;
   bookings: Booking[];
+  achievementsCount: number;
   reviews: Review[];
 }): AthleteSummary {
-  if (athleteUserId === null) {
-    return {
-      achievementsCount: 0,
-      completedVisitsCount: 0,
-      reviewsCount: 0,
-      upcomingBookingsCount: 0,
-    };
-  }
-
   const todayDateKey = getDateKeyInTimeZone();
-  const athleteBookings = bookings.filter((booking) => booking.userId === athleteUserId);
-  const athleteReviews = reviews.filter((review) => review.userId === athleteUserId);
-  const upcomingBookingsCount = athleteBookings.filter(
+  const upcomingBookingsCount = bookings.filter(
     (booking) =>
       booking.date >= todayDateKey &&
       (booking.status === 'confirmed' || booking.status === 'pending'),
   ).length;
-  const completedVisitsCount = athleteBookings.filter(
-    (booking) => booking.status === 'completed',
-  ).length;
+  const completedVisitsCount = bookings.filter((booking) => booking.status === 'completed').length;
 
   return {
-    achievementsCount: getUnlockedAchievementsCount({
-      completedVisitsCount,
-      reviews: athleteReviews,
-    }),
+    achievementsCount,
     completedVisitsCount,
-    reviewsCount: athleteReviews.length,
+    reviewsCount: reviews.length,
     upcomingBookingsCount,
   };
 }
@@ -231,25 +197,44 @@ export function AthleteProfilePage({
   const athleteUserId = useAuthStore(selectAthleteActionUserId);
   const logout = useAuthStore((state) => state.logout);
   const cabinetConfig = getPersonalCabinetConfig(accountType);
+  const athleteBookings = useMemo(
+    () =>
+      athleteUserId === null ? [] : bookings.filter((booking) => booking.userId === athleteUserId),
+    [athleteUserId, bookings],
+  );
+  const athleteReviews = useMemo(
+    () =>
+      athleteUserId === null ? [] : reviews.filter((review) => review.userId === athleteUserId),
+    [athleteUserId, reviews],
+  );
+  const athleteAchievements = useMemo(
+    () =>
+      getAthleteAchievements({
+        athleteUserId,
+        bookings: athleteBookings,
+        reviews: athleteReviews,
+      }),
+    [athleteUserId, athleteBookings, athleteReviews],
+  );
   const athleteSummary = useMemo(
     () =>
       getAthleteSummary({
-        athleteUserId,
-        bookings,
-        reviews,
+        achievementsCount: athleteAchievements.filter((achievement) => achievement.unlocked).length,
+        bookings: athleteBookings,
+        reviews: athleteReviews,
       }),
-    [athleteUserId, bookings, reviews],
+    [athleteAchievements, athleteBookings, athleteReviews],
   );
   const upcomingBookings = useMemo(
     () =>
       getUpcomingProfileBookings({
         athleteUserId,
-        bookings,
+        bookings: athleteBookings,
         clubs,
         schedule,
         trainers,
       }),
-    [athleteUserId, bookings, clubs, schedule, trainers],
+    [athleteUserId, athleteBookings, clubs, schedule, trainers],
   );
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
@@ -271,8 +256,8 @@ export function AthleteProfilePage({
                 Кабинет спортсмена
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-8 text-muted">
-                Базовый athlete-only кабинет уже подключён к текущему auth-flow. Следующими шагами
-                сюда будут добавляться сводка, предстоящие записи, ачивки и история.
+                Кабинет уже показывает сводку, ачивки и ближайшие записи из MVP-данных. Следующими
+                шагами сюда будут добавляться история, избранное и пользовательские настройки.
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -388,6 +373,8 @@ export function AthleteProfilePage({
           </div>
         </Card>
 
+        <AthleteAchievementsSection achievements={athleteAchievements} />
+
         <Card className="p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -398,7 +385,7 @@ export function AthleteProfilePage({
                 Предстоящие записи
               </h2>
             </div>
-            <Badge tone="outline">{upcomingBookings.length} активных записи</Badge>
+            <Badge tone="outline">{getUpcomingBookingsLabel(upcomingBookings.length)}</Badge>
           </div>
 
           {upcomingBookings.length > 0 ? (
@@ -438,7 +425,7 @@ export function AthleteProfilePage({
           ) : (
             <div className="mt-6 rounded-card border border-line bg-canvas p-5">
               <p className="text-sm leading-7 text-muted">
-                Пока нет будущих записей. Следующий шаг кабинета добавит сюда активные занятия.
+                Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.
               </p>
             </div>
           )}
