@@ -47,7 +47,6 @@ describe('db abstraction', () => {
 
     expect(trainer).toMatchObject({
       id: 1,
-      affiliatedClubId: 1,
       sportIds: [3],
       city: 'Самара',
       address: 'ул. Лесная, 23к1',

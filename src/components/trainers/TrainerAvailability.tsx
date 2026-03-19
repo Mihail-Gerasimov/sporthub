@@ -57,7 +57,7 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                      {slot.affiliatedClubName ?? 'Персональная услуга'}
+                      Персональная услуга
                     </p>
                     <h3 className="mt-2 text-xl font-semibold leading-tight text-ink">
                       {slot.trainerName}
@@ -94,7 +94,8 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
                       Площадка
                     </p>
-                    <p className="mt-1 text-sm text-ink">{slot.room ?? 'Уточняется'}</p>
+                    <p className="mt-1 text-sm text-ink">{slot.venueLabel}</p>
+                    {slot.room ? <p className="mt-1 text-xs text-muted">{slot.room}</p> : null}
                   </div>
 
                   <span className="text-sm font-semibold text-accent-strong transition-transform duration-200 group-hover:translate-x-1">

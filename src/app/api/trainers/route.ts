@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getTrainers } from '@/lib/db';
+import { getOfferings, getTrainers } from '@/lib/db';
 
 const trainersQuerySchema = z.object({
   affiliatedClubId: z.preprocess((value) => {
@@ -50,7 +50,17 @@ export async function GET(request: NextRequest) {
     let trainers = await getTrainers();
 
     if (normalizedAffiliatedClubId !== undefined) {
-      trainers = trainers.filter((trainer) => trainer.affiliatedClubId === normalizedAffiliatedClubId);
+      const offerings = await getOfferings();
+      const trainerIds = new Set(
+        offerings
+          .filter(
+            (offering) =>
+              offering.ownerType === 'trainer' &&
+              offering.affiliatedClubId === normalizedAffiliatedClubId,
+          )
+          .map((offering) => offering.ownerId),
+      );
+      trainers = trainers.filter((trainer) => trainerIds.has(trainer.id));
     }
 
     if (sportId !== undefined) {

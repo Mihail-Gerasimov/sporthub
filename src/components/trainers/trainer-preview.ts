@@ -28,10 +28,10 @@ export type TrainerDirectoryItem = {
   city: string;
   address: string;
   coordinates: Coordinates;
-  affiliatedClubId: EntityId | null;
-  affiliatedClubName: string | null;
-  affiliatedClubSlug: string | null;
   distanceKm: number | null;
+  venueName: string | null;
+  venueLabel: string;
+  venueAddress: string;
   primaryOfferingId: EntityId | null;
   primaryOfferingTitle: string | null;
   primaryOfferingFormat: OfferingFormat | null;
@@ -54,8 +54,8 @@ export type TrainerAvailabilityItem = {
   price: number;
   room?: string;
   availableSpots: number;
-  affiliatedClubName: string | null;
   format: OfferingFormat | null;
+  venueLabel: string;
 };
 
 type BuildTrainerDirectoryInput = {
@@ -106,10 +106,6 @@ export function buildTrainerDirectory({
 
   return trainers
     .flatMap((trainer) => {
-      const affiliatedClub =
-        trainer.affiliatedClubId !== undefined
-          ? clubsById.get(trainer.affiliatedClubId) ?? null
-          : null;
       const offeringsForTrainer = [...(trainerOfferingsByTrainerId.get(trainer.id) ?? [])].sort(
         (left, right) => {
           if (left.price !== right.price) {
@@ -125,13 +121,20 @@ export function buildTrainerDirectory({
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
       const primaryOffering = offeringsForTrainer[0] ?? null;
       const nextSlot = availableSlots[0] ?? null;
+      const venueClub =
+        primaryOffering?.affiliatedClubId !== undefined
+          ? clubsById.get(primaryOffering.affiliatedClubId) ?? null
+          : null;
       const coordinates =
-        trainer.coordinates ?? primaryOffering?.coordinates ?? affiliatedClub?.coordinates ?? null;
-      const address = trainer.address ?? primaryOffering?.address ?? affiliatedClub?.address ?? null;
+        trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
+      const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;
 
       if (!coordinates || !address) {
         return [];
       }
+
+      const venueName = venueClub?.name ?? null;
+      const venueLabel = venueName ?? address;
 
       const searchText = [
         trainer.name,
@@ -139,7 +142,7 @@ export function buildTrainerDirectory({
         trainer.specialties.join(' '),
         sportsForTrainer.map((sport) => sport.name).join(' '),
         offeringsForTrainer.map((offering) => `${offering.title} ${offering.description}`).join(' '),
-        affiliatedClub?.name ?? '',
+        venueName ?? '',
         address,
       ]
         .join(' ')
@@ -159,13 +162,13 @@ export function buildTrainerDirectory({
           priceFrom: trainer.priceFrom,
           sportIds: trainer.sportIds,
           sports: sportsForTrainer,
-          city: trainer.city ?? affiliatedClub?.city ?? DEFAULT_CITY,
+          city: trainer.city ?? venueClub?.city ?? DEFAULT_CITY,
           address,
           coordinates,
-          affiliatedClubId: trainer.affiliatedClubId ?? null,
-          affiliatedClubName: affiliatedClub?.name ?? null,
-          affiliatedClubSlug: affiliatedClub?.slug ?? null,
-          distanceKm: affiliatedClub?.distanceKm ?? null,
+          distanceKm: venueClub?.distanceKm ?? null,
+          venueName,
+          venueLabel,
+          venueAddress: address,
           primaryOfferingId: primaryOffering?.id ?? null,
           primaryOfferingTitle: primaryOffering?.title ?? null,
           primaryOfferingFormat: primaryOffering?.format ?? null,
@@ -221,8 +224,8 @@ export function getTrainerAvailability({
           price: slot.price,
           room: slot.room,
           availableSpots: slot.capacity - slot.bookedCount,
-          affiliatedClubName: trainer.affiliatedClubName,
           format: trainer.primaryOfferingFormat,
+          venueLabel: trainer.venueLabel,
         } satisfies TrainerAvailabilityItem,
       ];
     })

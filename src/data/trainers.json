@@ -2,7 +2,6 @@
   {
     "id": 1,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 1,
     "sportId": 3,
     "name": "Марина Соколова",
     "slug": "marina-sokolova",
@@ -20,7 +19,6 @@
     "sportIds": [
       3
     ],
-    "affiliatedClubId": 1,
     "city": "Самара",
     "address": "ул. Лесная, 23к1",
     "coordinates": {
@@ -31,7 +29,6 @@
   {
     "id": 2,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 1,
     "sportId": 8,
     "name": "Елена Круглова",
     "slug": "elena-kruglova",
@@ -49,7 +46,6 @@
     "sportIds": [
       8
     ],
-    "affiliatedClubId": 1,
     "city": "Самара",
     "address": "ул. Лесная, 23к1",
     "coordinates": {
@@ -60,7 +56,6 @@
   {
     "id": 3,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 2,
     "sportId": 2,
     "name": "Тимур Каримов",
     "slug": "timur-karimov",
@@ -78,7 +73,6 @@
     "sportIds": [
       2
     ],
-    "affiliatedClubId": 2,
     "city": "Самара",
     "address": "Московское шоссе, 41",
     "coordinates": {
@@ -89,7 +83,6 @@
   {
     "id": 4,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 2,
     "sportId": 7,
     "name": "Арсен Петров",
     "slug": "arsen-petrov",
@@ -107,7 +100,6 @@
     "sportIds": [
       7
     ],
-    "affiliatedClubId": 2,
     "city": "Самара",
     "address": "Московское шоссе, 41",
     "coordinates": {
@@ -118,7 +110,6 @@
   {
     "id": 5,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 3,
     "sportId": 1,
     "name": "Анна Миронова",
     "slug": "anna-mironova",
@@ -136,7 +127,6 @@
     "sportIds": [
       1
     ],
-    "affiliatedClubId": 3,
     "city": "Самара",
     "address": "ул. Молодогвардейская, 86",
     "coordinates": {
@@ -147,7 +137,6 @@
   {
     "id": 6,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 3,
     "sportId": 8,
     "name": "София Зайцева",
     "slug": "sofiya-zaytseva",
@@ -165,7 +154,6 @@
     "sportIds": [
       8
     ],
-    "affiliatedClubId": 3,
     "city": "Самара",
     "address": "ул. Молодогвардейская, 86",
     "coordinates": {
@@ -176,7 +164,6 @@
   {
     "id": 7,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 4,
     "sportId": 4,
     "name": "Кирилл Егоров",
     "slug": "kirill-egorov",
@@ -194,7 +181,6 @@
     "sportIds": [
       4
     ],
-    "affiliatedClubId": 4,
     "city": "Самара",
     "address": "ул. Авроры, 150",
     "coordinates": {
@@ -205,7 +191,6 @@
   {
     "id": 8,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 4,
     "sportId": 6,
     "name": "Павел Никитин",
     "slug": "pavel-nikitin",
@@ -223,7 +208,6 @@
     "sportIds": [
       6
     ],
-    "affiliatedClubId": 4,
     "city": "Самара",
     "address": "ул. Авроры, 150",
     "coordinates": {
@@ -234,7 +218,6 @@
   {
     "id": 9,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 5,
     "sportId": 5,
     "name": "Дарья Волкова",
     "slug": "darya-volkova",
@@ -252,7 +235,6 @@
     "sportIds": [
       5
     ],
-    "affiliatedClubId": 5,
     "city": "Самара",
     "address": "ул. Ново-Садовая, 181А",
     "coordinates": {
@@ -263,7 +245,6 @@
   {
     "id": 10,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 5,
     "sportId": 1,
     "name": "Вера Лебедева",
     "slug": "vera-lebedeva",
@@ -281,7 +262,6 @@
     "sportIds": [
       1
     ],
-    "affiliatedClubId": 5,
     "city": "Самара",
     "address": "ул. Ново-Садовая, 181А",
     "coordinates": {
@@ -292,7 +272,6 @@
   {
     "id": 11,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 6,
     "sportId": 6,
     "name": "Денис Орлов",
     "slug": "denis-orlov",
@@ -310,7 +289,6 @@
     "sportIds": [
       6
     ],
-    "affiliatedClubId": 6,
     "city": "Самара",
     "address": "ул. Демократическая, 7",
     "coordinates": {
@@ -321,7 +299,6 @@
   {
     "id": 12,
     "createdAt": "2026-03-17T09:00:00.000Z",
-    "clubId": 6,
     "sportId": 4,
     "name": "Илья Романов",
     "slug": "ilya-romanov",
@@ -339,7 +316,6 @@
     "sportIds": [
       4
     ],
-    "affiliatedClubId": 6,
     "city": "Самара",
     "address": "ул. Демократическая, 7",
     "coordinates": {

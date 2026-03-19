@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getClubById, getReviews, getSchedule, getSports, getTrainers } from '@/lib/db';
+import { getClubById, getOfferings, getReviews, getSchedule, getSports, getTrainers } from '@/lib/db';
 
 const clubIdSchema = z.coerce.number().int().positive();
 
@@ -33,12 +33,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const [reviews, schedule, sports, trainers] = await Promise.all([
+    const [offerings, reviews, schedule, sports, trainers] = await Promise.all([
+      getOfferings(),
       getReviews(),
       getSchedule(),
       getSports(),
       getTrainers(),
     ]);
+    const clubTrainerIds = new Set(
+      offerings
+        .filter((offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId)
+        .map((offering) => offering.ownerId),
+    );
 
     return NextResponse.json({
       success: true,
@@ -46,7 +52,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         club,
         sports: sports.filter((sport) => club.sportIds.includes(sport.id)),
         trainers: trainers
-          .filter((trainer) => trainer.clubId === clubId)
+          .filter((trainer) => clubTrainerIds.has(trainer.id))
           .sort((left, right) => right.rating - left.rating),
         schedule: schedule
           .filter((slot) => slot.clubId === clubId)

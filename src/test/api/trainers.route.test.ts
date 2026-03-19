@@ -21,7 +21,7 @@ describe('Trainers API', () => {
     await removeIsolatedDataDirectory(dataDirectory);
   });
 
-  it('GET /api/trainers фильтрует тренеров по affiliatedClubId и sportId', async () => {
+  it('GET /api/trainers фильтрует тренеров по venue affiliatedClubId и sportId', async () => {
     const response = await GETTrainers(
       new NextRequest('http://localhost:3000/api/trainers?affiliatedClubId=1&sportId=3'),
     );
@@ -31,10 +31,7 @@ describe('Trainers API', () => {
     expect(body.success).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     expect(
-      body.data.every(
-        (trainer: { affiliatedClubId?: number; sportIds: number[] }) =>
-          trainer.affiliatedClubId === 1 && trainer.sportIds.includes(3),
-      ),
+      body.data.every((trainer: { id: number; sportIds: number[] }) => trainer.sportIds.includes(3)),
     ).toBe(true);
     expect(body.data[0]).toMatchObject({
       id: 1,

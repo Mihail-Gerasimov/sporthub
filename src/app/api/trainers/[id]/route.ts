@@ -9,7 +9,7 @@ import {
   getTrainerById,
   getTrainerOfferings,
 } from '@/lib/db';
-import { getTrainerAffiliatedClubId, getTrainerPrimarySportId } from '@/lib/utils';
+import { getTrainerPrimarySportId } from '@/lib/utils';
 
 const trainerIdSchema = z.coerce.number().int().positive();
 
@@ -41,15 +41,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const affiliatedClubId = getTrainerAffiliatedClubId(trainer);
     const primarySportId = getTrainerPrimarySportId(trainer);
-    const [affiliatedClub, offerings, reviews, schedule, sports] = await Promise.all([
-      affiliatedClubId === null ? Promise.resolve(null) : getClubById(affiliatedClubId),
+    const [offerings, reviews, schedule, sports] = await Promise.all([
       getTrainerOfferings(trainerId),
       getReviews(),
       getSchedule({ ownerType: 'trainer' }),
       getSports(),
     ]);
+    const venueClubId = offerings.find((offering) => offering.affiliatedClubId !== undefined)?.affiliatedClubId;
+    const affiliatedClub = venueClubId === undefined ? null : await getClubById(venueClubId);
 
     const trainerSports = sports.filter((item) => trainer.sportIds.includes(item.id));
     const primarySport =

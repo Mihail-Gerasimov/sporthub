@@ -45,8 +45,8 @@ const trainerSlots: TrainerAvailabilityItem[] = [
     price: 1400,
     room: 'Индивидуальный зал',
     availableSpots: 1,
-    affiliatedClubName: 'Volna Aquatic Club',
     format: 'personal',
+    venueLabel: 'Volna Aquatic Club',
   },
 ];
 

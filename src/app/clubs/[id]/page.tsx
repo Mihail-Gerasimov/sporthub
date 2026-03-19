@@ -1,7 +1,15 @@
 import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
-import { getClubById, getReviews, getSchedule, getSports, getTrainers, getUsers } from '@/lib/db';
+import {
+  getClubById,
+  getOfferings,
+  getReviews,
+  getSchedule,
+  getSports,
+  getTrainers,
+  getUsers,
+} from '@/lib/db';
 
 type ClubDetailPageProps = {
   params: Promise<{
@@ -23,7 +31,8 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     notFound();
   }
 
-  const [sports, trainers, schedule, reviews, users] = await Promise.all([
+  const [offerings, sports, trainers, schedule, reviews, users] = await Promise.all([
+    getOfferings(),
     getSports(),
     getTrainers(),
     getSchedule(),
@@ -32,8 +41,13 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
   ]);
 
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
+  const clubTrainerIds = new Set(
+    offerings
+      .filter((offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId)
+      .map((offering) => offering.ownerId),
+  );
   const clubTrainers = trainers
-    .filter((trainer) => trainer.clubId === clubId)
+    .filter((trainer) => clubTrainerIds.has(trainer.id))
     .sort((left, right) => right.rating - left.rating);
   const clubSchedule = schedule
     .filter((slot) => slot.clubId === clubId)

@@ -69,7 +69,6 @@ export function AthleteFavoritesSection({
                   <div key={trainer.id} className="rounded-card border border-line bg-canvas p-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge tone="teal">{trainer.reasonLabel}</Badge>
-                      <Badge tone="outline">{trainer.clubName}</Badge>
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{trainer.name}</p>
                     <p className="mt-2 text-sm leading-7 text-muted">{trainer.bio}</p>

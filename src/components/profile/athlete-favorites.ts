@@ -1,8 +1,6 @@
-import { getTrainerAffiliatedClubId } from '@/lib/utils';
 import type { Booking, Club, Review, Trainer, User } from '@/types';
 
 export type AthleteFavoriteTrainer = Trainer & {
-  clubName: string;
   reasonLabel: string;
 };
 
@@ -22,7 +20,6 @@ type GetAthleteFavoritesInput = {
 
 type TrainerScore = {
   bookingCount: number;
-  inFavoriteClub: boolean;
   reviewCount: number;
 };
 
@@ -35,7 +32,7 @@ function getTrainerReasonLabel(score: TrainerScore) {
     return 'Есть записи к тренеру';
   }
 
-  return 'Из любимого клуба';
+  return 'Тренер в каталоге';
 }
 
 export function getAthleteFavorites({
@@ -66,8 +63,6 @@ export function getAthleteFavorites({
   const favoriteClubs = favoriteClubIds
     .map((favoriteClubId) => clubs.find((club) => club.id === favoriteClubId) ?? null)
     .filter((club): club is Club => club !== null);
-
-  const clubNames = new Map(clubs.map((club) => [club.id, club.name]));
   const activeBookings = bookings.filter(
     (booking) => booking.userId === athleteUserId && booking.status !== 'cancelled',
   );
@@ -80,16 +75,13 @@ export function getAthleteFavorites({
       (booking) => booking.trainerId === trainer.id,
     ).length;
     const reviewCount = athleteReviews.filter((review) => review.trainerId === trainer.id).length;
-    const affiliatedClubId = getTrainerAffiliatedClubId(trainer);
-    const inFavoriteClub = affiliatedClubId === null ? false : favoriteClubIds.includes(affiliatedClubId);
 
-    if (bookingCount === 0 && reviewCount === 0 && !inFavoriteClub) {
+    if (bookingCount === 0 && reviewCount === 0) {
       continue;
     }
 
     trainerScores.set(trainer.id, {
       bookingCount,
-      inFavoriteClub,
       reviewCount,
     });
   }
@@ -105,13 +97,9 @@ export function getAthleteFavorites({
       }
 
       const leftWeight =
-        leftScore.reviewCount * 10 +
-        leftScore.bookingCount * 4 +
-        (leftScore.inFavoriteClub ? 1 : 0);
+        leftScore.reviewCount * 10 + leftScore.bookingCount * 4;
       const rightWeight =
-        rightScore.reviewCount * 10 +
-        rightScore.bookingCount * 4 +
-        (rightScore.inFavoriteClub ? 1 : 0);
+        rightScore.reviewCount * 10 + rightScore.bookingCount * 4;
 
       if (leftWeight !== rightWeight) {
         return rightWeight - leftWeight;
@@ -129,11 +117,9 @@ export function getAthleteFavorites({
 
       return {
         ...trainer,
-        clubName: clubNames.get(getTrainerAffiliatedClubId(trainer) ?? -1) ?? 'Клуб SportHub',
         reasonLabel: getTrainerReasonLabel(
           score ?? {
             bookingCount: 0,
-            inFavoriteClub: false,
             reviewCount: 0,
           },
         ),
