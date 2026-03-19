@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PopularNearby } from '@/components/clubs/PopularNearby';
+import { useFilterStore } from '@/stores/useFilterStore';
 import type { Club, Sport } from '@/types';
+import type { TrainerDirectoryItem } from '@/components/trainers';
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [
   { id: 1, name: 'Йога', icon: '🧘' },
@@ -155,9 +157,80 @@ const clubs: Club[] = [
   },
 ];
 
+const trainers: TrainerDirectoryItem[] = [
+  {
+    id: 5,
+    name: 'Анна Миронова',
+    slug: 'anna-mironova',
+    bio: 'Тренер по йоге.',
+    avatarUrl: '/images/trainers/anna-mironova.jpg',
+    experienceYears: 8,
+    specialties: ['Хатха-йога', 'Утренние практики'],
+    rating: 5,
+    reviewCount: 36,
+    priceFrom: 1300,
+    sportIds: [1],
+    sports: [{ id: 1, name: 'Йога', icon: '🧘' }],
+    city: 'Самара',
+    address: 'ул. Молодогвардейская, 86',
+    coordinates: { lat: 53.1957, lng: 50.1006 },
+    affiliatedClubId: 3,
+    affiliatedClubName: 'Balance Yoga House',
+    affiliatedClubSlug: 'balance-yoga-house',
+    distanceKm: 2.3,
+    primaryOfferingId: 105,
+    primaryOfferingTitle: 'Персональная тренировка: Йога',
+    primaryOfferingFormat: 'personal',
+    nextSlotId: 1005,
+    nextSlotDate: '2026-03-20',
+    nextSlotStartTime: '10:15',
+    availableSlotsCount: 1,
+    offeringTitles: ['Персональная тренировка: Йога'],
+    searchText: 'анна миронова йога',
+  },
+  {
+    id: 1,
+    name: 'Марина Соколова',
+    slug: 'marina-sokolova',
+    bio: 'Тренер по плаванию.',
+    avatarUrl: '/images/trainers/marina-sokolova.jpg',
+    experienceYears: 9,
+    specialties: ['Кроль', 'Постановка дыхания'],
+    rating: 4.9,
+    reviewCount: 28,
+    priceFrom: 1400,
+    sportIds: [3],
+    sports: [{ id: 3, name: 'Плавание', icon: '🏊' }],
+    city: 'Самара',
+    address: 'ул. Лесная, 23к1',
+    coordinates: { lat: 53.2129, lng: 50.1245 },
+    affiliatedClubId: 1,
+    affiliatedClubName: 'Volna Aquatic Club',
+    affiliatedClubSlug: 'volna-aquatic-club',
+    distanceKm: 1.8,
+    primaryOfferingId: 101,
+    primaryOfferingTitle: 'Персональная тренировка: Плавание',
+    primaryOfferingFormat: 'personal',
+    nextSlotId: 1001,
+    nextSlotDate: '2026-03-20',
+    nextSlotStartTime: '08:15',
+    availableSlotsCount: 1,
+    offeringTitles: ['Персональная тренировка: Плавание'],
+    searchText: 'марина соколова плавание',
+  },
+];
+
 describe('PopularNearby', () => {
+  beforeEach(() => {
+    useFilterStore.setState({
+      discoveryMode: 'clubs',
+      searchQuery: '',
+      selectedSportId: null,
+    });
+  });
+
   it('показывает топ-клубы по рейтингу в горизонтальном скролле', () => {
-    render(<PopularNearby clubs={clubs} sports={sports} />);
+    render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByTestId('popular-nearby-scroll').className).toContain('overflow-x-auto');
@@ -185,7 +258,7 @@ describe('PopularNearby', () => {
   });
 
   it('показывает кнопки прокрутки и листает слайдер влево и вправо', () => {
-    render(<PopularNearby clubs={clubs} sports={sports} />);
+    render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
     const scrollContainer = screen.getByTestId('popular-nearby-scroll');
     const scrollByMock = vi.fn();
@@ -203,5 +276,20 @@ describe('PopularNearby', () => {
       left: 360,
       behavior: 'smooth',
     });
+  });
+
+  it('в trainer-mode показывает популярные карточки тренеров', () => {
+    useFilterStore.setState({
+      discoveryMode: 'trainers',
+      searchQuery: '',
+      selectedSportId: null,
+    });
+
+    render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
+
+    expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
+    expect(screen.getByTestId('popular-trainers-scroll')).toBeInTheDocument();
+    expect(screen.getByText('Анна Миронова')).toBeInTheDocument();
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
   });
 });

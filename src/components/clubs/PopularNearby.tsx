@@ -3,14 +3,19 @@
 import { useRef } from 'react';
 
 import { ClubCard } from '@/components/clubs/ClubCard';
+import { PopularTrainers } from '@/components/trainers';
 import { Badge, Button, Card } from '@/components/ui';
+import { useFilterStore } from '@/stores/useFilterStore';
 import type { Club, Sport } from '@/types';
+
+import type { TrainerDirectoryItem } from '@/components/trainers';
 
 type PopularNearbySport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 type PopularNearbyProps = {
   clubs: Club[];
   sports: PopularNearbySport[];
+  trainers: TrainerDirectoryItem[];
 };
 
 const POPULAR_NEARBY_SCROLL_STEP = 360;
@@ -29,9 +34,14 @@ function sortByPopularity(clubs: Club[]): Club[] {
   });
 }
 
-export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
+export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
+  const discoveryMode = useFilterStore((state) => state.discoveryMode);
   const popularClubs = sortByPopularity(clubs).slice(0, 6);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  if (discoveryMode === 'trainers') {
+    return <PopularTrainers trainers={trainers} />;
+  }
 
   function scrollCarousel(direction: 'left' | 'right') {
     scrollContainerRef.current?.scrollBy({
@@ -41,7 +51,7 @@ export function PopularNearby({ clubs, sports }: PopularNearbyProps) {
   }
 
   return (
-    <section id="popular-nearby" className="space-y-4">
+    <section id="highlights" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">

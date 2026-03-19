@@ -20,12 +20,12 @@ describe('AppShell', () => {
     const mobileNavigation = screen.getByRole('navigation', { name: 'Мобильная навигация' });
 
     expect(within(primaryNavigation).getByRole('link', { name: 'Подборки' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: 'Клубы' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: 'Занятия' })).toBeInTheDocument();
+    expect(within(primaryNavigation).getByRole('link', { name: 'Выдача' })).toBeInTheDocument();
+    expect(within(primaryNavigation).getByRole('link', { name: 'Слоты' })).toBeInTheDocument();
 
     expect(within(mobileNavigation).getByRole('link', { name: 'Главная' })).toBeInTheDocument();
     expect(within(mobileNavigation).getByRole('link', { name: 'Поиск' })).toBeInTheDocument();
-    expect(within(mobileNavigation).getByRole('link', { name: 'Мои записи' })).toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole('link', { name: 'Слоты' })).toBeInTheDocument();
     expect(within(mobileNavigation).getByRole('link', { name: 'Профиль' })).toBeInTheDocument();
   });
 });

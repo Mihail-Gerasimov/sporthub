@@ -33,16 +33,27 @@ function LocationIcon() {
 }
 
 export function SearchBar() {
+  const discoveryMode = useFilterStore((state) => state.discoveryMode);
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const setSearch = useFilterStore((state) => state.setSearch);
+  const searchMeta =
+    discoveryMode === 'clubs'
+      ? {
+          ariaLabel: 'Поиск клубов и направлений',
+          placeholder: 'Бокс, йога, бассейн...',
+        }
+      : {
+          ariaLabel: 'Поиск тренеров и направлений',
+          placeholder: 'Марина, плавание, растяжка...',
+        };
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
       <div className="flex-1">
         <Input
-          aria-label="Поиск клубов и занятий"
+          aria-label={searchMeta.ariaLabel}
           value={searchQuery}
-          placeholder="Бокс, йога, бассейн..."
+          placeholder={searchMeta.placeholder}
           icon={<SearchIcon />}
           className="text-base"
           onChange={(event) => {

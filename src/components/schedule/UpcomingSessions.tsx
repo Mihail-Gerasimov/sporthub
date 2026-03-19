@@ -1,13 +1,20 @@
+'use client';
+
 import Link from 'next/link';
 
+import { TrainerAvailability } from '@/components/trainers';
 import { Badge, Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
+import { useFilterStore } from '@/stores/useFilterStore';
 
 import type { UpcomingSessionItem } from '@/components/schedule/getUpcomingSessions';
+import type { TrainerAvailabilityItem } from '@/components/trainers';
 
 type UpcomingSessionsProps = {
   sessions: UpcomingSessionItem[];
   dateLabel: string;
+  trainerDateLabel: string;
+  trainerSlots: TrainerAvailabilityItem[];
 };
 
 function getPlacesLabel(value: number): string {
@@ -25,9 +32,20 @@ function getPlacesLabel(value: number): string {
   return 'мест';
 }
 
-export function UpcomingSessions({ sessions, dateLabel }: UpcomingSessionsProps) {
+export function UpcomingSessions({
+  dateLabel,
+  sessions,
+  trainerDateLabel,
+  trainerSlots,
+}: UpcomingSessionsProps) {
+  const discoveryMode = useFilterStore((state) => state.discoveryMode);
+
+  if (discoveryMode === 'trainers') {
+    return <TrainerAvailability dateLabel={trainerDateLabel} slots={trainerSlots} />;
+  }
+
   return (
-    <section id="upcoming-sessions" className="space-y-4">
+    <section id="availability" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">

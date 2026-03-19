@@ -63,6 +63,7 @@ const clubs: Club[] = [
 describe('ClubList', () => {
   beforeEach(() => {
     useFilterStore.setState({
+      discoveryMode: 'clubs',
       searchQuery: '',
       selectedSportId: null,
     });
@@ -81,6 +82,7 @@ describe('ClubList', () => {
 
   it('фильтрует список по searchQuery из store', () => {
     useFilterStore.setState({
+      discoveryMode: 'clubs',
       searchQuery: 'volna',
       selectedSportId: null,
     });
@@ -93,6 +95,7 @@ describe('ClubList', () => {
 
   it('фильтрует список по выбранному sportId из store', () => {
     useFilterStore.setState({
+      discoveryMode: 'clubs',
       searchQuery: '',
       selectedSportId: 1,
     });

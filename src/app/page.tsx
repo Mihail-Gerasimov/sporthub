@@ -1,22 +1,44 @@
 import Link from 'next/link';
 
+import { buildTrainerDirectory, getTrainerAvailability } from '@/components/trainers';
 import { Badge } from '@/components/ui';
 import { PopularNearby } from '@/components/clubs';
 import { MapPreviewSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { SearchControlsPreview } from '@/components/search';
-import { getClubs, getSchedule, getSports } from '@/lib/db';
+import { getClubs, getOfferings, getSchedule, getSports, getTrainers } from '@/lib/db';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
 export default async function Home() {
-  const clubs = await getClubs();
-  const schedule = await getSchedule();
-  const sports = await getSports();
+  const [clubs, clubSchedule, offerings, sports, trainerSchedule, trainers] = await Promise.all([
+    getClubs(),
+    getSchedule(),
+    getOfferings(),
+    getSports(),
+    getSchedule({ ownerType: 'trainer' }),
+    getTrainers(),
+  ]);
   const todayDateKey = getDateKeyInTimeZone();
   const upcomingSessions = getUpcomingSessions({
     clubs,
-    schedule,
+    schedule: clubSchedule,
     targetDate: todayDateKey,
+  });
+  const searchFilterSports = sports.map((sport) => ({
+    id: sport.id,
+    name: sport.name,
+    icon: sport.icon,
+  }));
+  const trainerDirectory = buildTrainerDirectory({
+    clubs,
+    offerings,
+    schedule: trainerSchedule,
+    sports: searchFilterSports,
+    trainers,
+  });
+  const trainerAvailability = getTrainerAvailability({
+    schedule: trainerSchedule,
+    trainers: trainerDirectory,
   });
   const featuredClub = [...clubs].sort((left, right) => {
     if (right.rating !== left.rating) {
@@ -29,11 +51,17 @@ export default async function Home() {
     day: 'numeric',
     month: 'long',
   });
-  const searchFilterSports = sports.map((sport) => ({
-    id: sport.id,
-    name: sport.name,
-    icon: sport.icon,
-  }));
+  const trainerAvailabilityLabel = formatDate(trainerAvailability[0]?.date ?? todayDateKey, {
+    day: 'numeric',
+    month: 'long',
+  });
+  const featuredTrainer = [...trainerDirectory].sort((left, right) => {
+    if (right.rating !== left.rating) {
+      return right.rating - left.rating;
+    }
+
+    return right.reviewCount - left.reviewCount;
+  })[0];
 
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
@@ -49,15 +77,16 @@ export default async function Home() {
               <div className="flex flex-wrap gap-2">
                 <Badge tone="accent">Samara active city</Badge>
                 <Badge tone="outline">{clubs.length} клубов в каталоге</Badge>
-                <Badge tone="teal">{upcomingSessions.length} слотов на сегодня</Badge>
+                <Badge tone="teal">{trainerDirectory.length} тренеров в каталоге</Badge>
               </div>
 
               <h1 className="mt-5 max-w-4xl font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-6xl">
                 Найди спорт в своём ритме
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-muted sm:text-lg">
-                SportHub собирает клубы, студии и занятия Самары в одной витрине: сначала быстрый
-                поиск и фильтры, потом карта, популярные места и ближайшие слоты на сегодня.
+                SportHub собирает клубы, студии, персональных тренеров и спортивные слоты Самары в
+                одной витрине: сначала быстрый поиск и фильтры, потом выдача на карте, популярные
+                карточки и ближайшие окна для записи.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -73,16 +102,16 @@ export default async function Home() {
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/#clubs"
+                  href="/#results"
                   className="rounded-pill bg-accent px-5 py-3 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
                 >
-                  Смотреть клубы на карте
+                  Открыть выдачу
                 </Link>
                 <Link
-                  href="/#upcoming-sessions"
+                  href="/#availability"
                   className="rounded-pill border border-line bg-panel-strong px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-accent/30 hover:text-accent"
                 >
-                  Открыть занятия на сегодня
+                  Смотреть слоты и окна
                 </Link>
               </div>
             </div>
@@ -119,11 +148,12 @@ export default async function Home() {
 
               <div className="rounded-card border border-line bg-panel-strong p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                  Сильный клуб дня
+                  Лидер каталога
                 </p>
                 <div className="mt-4">
-                  {featuredClub ? (
+                  {featuredClub && featuredTrainer ? (
                     <>
+                      <p className="text-sm text-muted">Клуб</p>
                       <p className="text-xl font-semibold text-ink">{featuredClub.name}</p>
                       <p className="mt-2 text-sm leading-7 text-muted">
                         {featuredClub.shortDescription}
@@ -133,11 +163,24 @@ export default async function Home() {
                         <Badge tone="outline">{featuredClub.reviewCount} отзывов</Badge>
                         <Badge tone="accent">{formatPrice(featuredClub.priceFrom)}</Badge>
                       </div>
+
+                      <div className="mt-5 border-t border-line/80 pt-5">
+                        <p className="text-sm text-muted">Тренер</p>
+                        <p className="mt-1 text-xl font-semibold text-ink">{featuredTrainer.name}</p>
+                        <p className="mt-2 text-sm leading-7 text-muted">
+                          {featuredTrainer.primaryOfferingTitle ?? featuredTrainer.bio}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Badge tone="outline">{featuredTrainer.rating.toFixed(1)} рейтинг</Badge>
+                          <Badge tone="outline">{featuredTrainer.reviewCount} отзывов</Badge>
+                          <Badge tone="teal">{formatPrice(featuredTrainer.priceFrom)}</Badge>
+                        </div>
+                      </div>
                     </>
                   ) : (
                     <p className="mt-2 text-sm leading-7 text-muted">
-                      Каталог клубов пока пуст. После загрузки данных здесь появится лучший клуб
-                      дня.
+                      Каталог пока пуст. После загрузки данных здесь появятся сильные точки
+                      клубного и тренерского каталога.
                     </p>
                   )}
                 </div>
@@ -146,10 +189,19 @@ export default async function Home() {
           </div>
         </section>
 
-        <SearchControlsPreview sports={searchFilterSports} />
-        <MapPreviewSection clubs={clubs} sports={searchFilterSports} />
-        <PopularNearby clubs={clubs} sports={searchFilterSports} />
-        <UpcomingSessions sessions={upcomingSessions} dateLabel={upcomingSessionsLabel} />
+        <SearchControlsPreview
+          clubCount={clubs.length}
+          sports={searchFilterSports}
+          trainerCount={trainerDirectory.length}
+        />
+        <MapPreviewSection clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
+        <PopularNearby clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
+        <UpcomingSessions
+          dateLabel={upcomingSessionsLabel}
+          sessions={upcomingSessions}
+          trainerDateLabel={trainerAvailabilityLabel}
+          trainerSlots={trainerAvailability}
+        />
       </div>
     </main>
   );

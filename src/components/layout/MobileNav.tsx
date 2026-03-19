@@ -32,8 +32,8 @@ const mobileNavItems = [
     ),
   },
   {
-    href: '/#bookings',
-    label: 'Мои записи',
+    href: '/#availability',
+    label: 'Слоты',
     glyph: (
       <>
         <rect
@@ -57,7 +57,7 @@ const mobileNavItems = [
     ),
   },
   {
-    href: '/#profile',
+    href: '/profile/athlete',
     label: 'Профиль',
     glyph: (
       <>

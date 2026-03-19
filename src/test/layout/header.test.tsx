@@ -20,6 +20,9 @@ describe('Header', () => {
 
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Подборки' })).toHaveAttribute('href', '/#discover');
+    expect(screen.getByRole('link', { name: 'Выдача' })).toHaveAttribute('href', '/#results');
+    expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('href', '/#availability');
   });
 
   it('после авторизации показывает имя, человекочитаемый тип аккаунта и аватар-заглушку', () => {
