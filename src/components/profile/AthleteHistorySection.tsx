@@ -20,7 +20,9 @@ function getPersonalTrainingLabel(count: number) {
 }
 
 export function AthleteHistorySection({ historyItems }: AthleteHistorySectionProps) {
-  const visitedClubsCount = new Set(historyItems.map((item) => item.clubId)).size;
+  const visitedClubsCount = new Set(
+    historyItems.flatMap((item) => (item.clubId === null ? [] : [item.clubId])),
+  ).size;
   const personalTrainingsCount = historyItems.filter(
     (item) => item.formatLabel === 'Персональная тренировка',
   ).length;

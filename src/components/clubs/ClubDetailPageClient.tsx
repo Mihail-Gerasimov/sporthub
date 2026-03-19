@@ -83,7 +83,7 @@ function buildScheduleGroups(
 
       currentGroup.push({
         ...slot,
-        trainerName: trainerNames.get(slot.trainerId) ?? 'Тренер SportHub',
+        trainerName: trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер SportHub',
         sportName: sportNames.get(slot.sportId) ?? 'Занятие',
         availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
       });

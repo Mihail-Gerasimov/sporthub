@@ -12,7 +12,7 @@ import { getAthleteAchievements } from '@/components/profile/athlete-achievement
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { Badge, Button, Card } from '@/components/ui';
-import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
+import { formatDate, getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -128,12 +128,12 @@ function getUpcomingProfileBookings({
 
       return {
         id: booking.id,
-        clubName: clubNames.get(booking.clubId) ?? 'Клуб SportHub',
+        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub',
         date: booking.date,
         startTime: slot?.startTime ?? 'Время уточняется',
         statusLabel: BOOKING_STATUS_LABELS[booking.status],
         title: slot?.title ?? 'Занятие SportHub',
-        trainerName: trainerNames.get(booking.trainerId) ?? 'Тренер SportHub',
+        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
       } satisfies UpcomingProfileBooking;
     })
     .sort((left, right) => {

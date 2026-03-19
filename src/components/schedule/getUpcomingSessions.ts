@@ -1,4 +1,5 @@
 import { APP_LIMITS } from '@/lib/constants';
+import { getScheduleClubId } from '@/lib/utils';
 import type { Club, EntityId, Schedule } from '@/types';
 
 export type UpcomingSessionItem = {
@@ -32,7 +33,13 @@ export function getUpcomingSessions({
     .filter((slot) => slot.date === targetDate)
     .filter((slot) => slot.bookedCount < slot.capacity)
     .flatMap((slot) => {
-      const club = clubById.get(slot.clubId);
+      const clubId = getScheduleClubId(slot);
+
+      if (clubId === null) {
+        return [];
+      }
+
+      const club = clubById.get(clubId);
 
       if (!club) {
         return [];
@@ -42,7 +49,7 @@ export function getUpcomingSessions({
         {
           id: slot.id,
           title: slot.title,
-          clubId: slot.clubId,
+          clubId,
           clubName: club.name,
           date: slot.date,
           startTime: slot.startTime,

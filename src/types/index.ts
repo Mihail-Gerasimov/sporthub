@@ -7,11 +7,15 @@ export type AuthAccountType = 'provider' | 'athlete';
 
 export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
 
+export type CatalogOwnerType = 'club' | 'trainer';
+
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 
 export type SessionLevel = 'beginner' | 'intermediate' | 'advanced' | 'all_levels';
+
+export type OfferingFormat = 'group' | 'personal' | 'mini_group';
 
 export interface BaseEntity {
   id: EntityId;
@@ -55,8 +59,6 @@ export interface Club extends BaseEntity {
 }
 
 export interface Trainer extends BaseEntity {
-  clubId: EntityId;
-  sportId: EntityId;
   name: string;
   slug: string;
   bio: string;
@@ -66,11 +68,39 @@ export interface Trainer extends BaseEntity {
   rating: number;
   reviewCount: number;
   priceFrom: number;
+  sportIds: EntityId[];
+  city?: string;
+  address?: string;
+  coordinates?: Coordinates;
+  affiliatedClubId?: EntityId;
+  // STUB: сохранить переходную совместимость до миграции JSON и API на offerings.
+  clubId?: EntityId;
+  // STUB: сохранить переходную совместимость до появления primarySportId и новой выдачи.
+  sportId?: EntityId;
+}
+
+export interface Offering extends BaseEntity {
+  ownerType: CatalogOwnerType;
+  ownerId: EntityId;
+  affiliatedClubId?: EntityId;
+  sportId: EntityId;
+  title: string;
+  description: string;
+  format: OfferingFormat;
+  price: number;
+  durationMinutes: number;
+  capacity: number;
+  address: string;
+  coordinates: Coordinates;
 }
 
 export interface Schedule extends BaseEntity {
-  clubId: EntityId;
-  trainerId: EntityId;
+  offeringId?: EntityId;
+  ownerType?: CatalogOwnerType;
+  ownerId?: EntityId;
+  affiliatedClubId?: EntityId;
+  clubId?: EntityId;
+  trainerId?: EntityId;
   sportId: EntityId;
   title: string;
   description?: string;
@@ -87,9 +117,13 @@ export interface Schedule extends BaseEntity {
 
 export interface Booking extends BaseEntity {
   scheduleId: EntityId;
+  offeringId?: EntityId;
+  ownerType?: CatalogOwnerType;
+  ownerId?: EntityId;
+  affiliatedClubId?: EntityId;
   userId: EntityId;
-  clubId: EntityId;
-  trainerId: EntityId;
+  clubId?: EntityId;
+  trainerId?: EntityId;
   sportId: EntityId;
   date: ISODateString;
   status: BookingStatus;

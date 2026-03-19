@@ -1,8 +1,9 @@
+import { getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
 
 export type AthleteHistoryItem = {
   id: number;
-  clubId: number;
+  clubId: number | null;
   clubName: string;
   date: string;
   formatLabel: string;
@@ -80,14 +81,14 @@ export function getAthleteHistoryItems({
 
       return {
         id: booking.id,
-        clubId: booking.clubId,
-        clubName: clubNames.get(booking.clubId) ?? 'Клуб SportHub',
+        clubId: getBookingClubId(booking),
+        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub',
         date: booking.date,
         formatLabel: getHistoryFormatLabel(scheduleItem),
         reviewStatusLabel,
         startTime: scheduleItem?.startTime ?? 'Время уточняется',
         title: scheduleItem?.title ?? 'Завершённое занятие',
-        trainerName: trainerNames.get(booking.trainerId) ?? 'Тренер SportHub',
+        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
       } satisfies AthleteHistoryItem;
     })
     .sort((left, right) => {

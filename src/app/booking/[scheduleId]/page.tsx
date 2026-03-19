@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { Badge, Card } from '@/components/ui';
 import { getClubById, getScheduleById, getTrainerById } from '@/lib/db';
-import { formatDate, formatPrice } from '@/lib/utils';
+import { formatDate, formatPrice, getScheduleClubId, getScheduleTrainerId } from '@/lib/utils';
 
 type BookingPageProps = {
   params: Promise<{
@@ -25,9 +25,11 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound();
   }
 
+  const clubId = getScheduleClubId(slot);
+  const trainerId = getScheduleTrainerId(slot);
   const [club, trainer] = await Promise.all([
-    getClubById(slot.clubId),
-    getTrainerById(slot.trainerId),
+    clubId === null ? Promise.resolve(null) : getClubById(clubId),
+    trainerId === null ? Promise.resolve(null) : getTrainerById(trainerId),
   ]);
 
   if (!club || !trainer) {

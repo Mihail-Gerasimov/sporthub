@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@/lib/constants';
+import type { Booking, EntityId, Schedule, Trainer } from '@/types';
 
 type ClassNameValue = string | false | null | undefined;
 
@@ -101,4 +102,44 @@ export function getTimeUntil(value: string | Date, now = new Date()): string {
   }
 
   return 'меньше минуты';
+}
+
+export function getTrainerAffiliatedClubId(
+  trainer: Pick<Trainer, 'affiliatedClubId' | 'clubId'>,
+): EntityId | null {
+  return trainer.affiliatedClubId ?? trainer.clubId ?? null;
+}
+
+export function getTrainerSportIds(trainer: Pick<Trainer, 'sportIds' | 'sportId'>): EntityId[] {
+  if (Array.isArray(trainer.sportIds) && trainer.sportIds.length > 0) {
+    return trainer.sportIds;
+  }
+
+  return trainer.sportId !== undefined ? [trainer.sportId] : [];
+}
+
+export function getTrainerPrimarySportId(
+  trainer: Pick<Trainer, 'sportIds' | 'sportId'>,
+): EntityId | null {
+  return getTrainerSportIds(trainer)[0] ?? null;
+}
+
+export function getScheduleClubId(
+  scheduleItem: Pick<Schedule, 'affiliatedClubId' | 'clubId'>,
+): EntityId | null {
+  return scheduleItem.affiliatedClubId ?? scheduleItem.clubId ?? null;
+}
+
+export function getScheduleTrainerId(scheduleItem: Pick<Schedule, 'trainerId'>): EntityId | null {
+  return scheduleItem.trainerId ?? null;
+}
+
+export function getBookingClubId(
+  booking: Pick<Booking, 'affiliatedClubId' | 'clubId'>,
+): EntityId | null {
+  return booking.affiliatedClubId ?? booking.clubId ?? null;
+}
+
+export function getBookingTrainerId(booking: Pick<Booking, 'trainerId'>): EntityId | null {
+  return booking.trainerId ?? null;
 }

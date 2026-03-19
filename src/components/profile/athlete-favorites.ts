@@ -1,3 +1,4 @@
+import { getTrainerAffiliatedClubId } from '@/lib/utils';
 import type { Booking, Club, Review, Trainer, User } from '@/types';
 
 export type AthleteFavoriteTrainer = Trainer & {
@@ -79,7 +80,8 @@ export function getAthleteFavorites({
       (booking) => booking.trainerId === trainer.id,
     ).length;
     const reviewCount = athleteReviews.filter((review) => review.trainerId === trainer.id).length;
-    const inFavoriteClub = favoriteClubIds.includes(trainer.clubId);
+    const affiliatedClubId = getTrainerAffiliatedClubId(trainer);
+    const inFavoriteClub = affiliatedClubId === null ? false : favoriteClubIds.includes(affiliatedClubId);
 
     if (bookingCount === 0 && reviewCount === 0 && !inFavoriteClub) {
       continue;
@@ -127,7 +129,7 @@ export function getAthleteFavorites({
 
       return {
         ...trainer,
-        clubName: clubNames.get(trainer.clubId) ?? 'Клуб SportHub',
+        clubName: clubNames.get(getTrainerAffiliatedClubId(trainer) ?? -1) ?? 'Клуб SportHub',
         reasonLabel: getTrainerReasonLabel(
           score ?? {
             bookingCount: 0,

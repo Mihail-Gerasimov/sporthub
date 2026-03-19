@@ -61,6 +61,7 @@ const trainers: Trainer[] = [
     id: 1,
     createdAt: '2026-03-17T09:00:00.000Z',
     clubId: 1,
+    sportIds: [3],
     sportId: 3,
     name: 'Марина Соколова',
     slug: 'marina-sokolova',
