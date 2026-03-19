@@ -6,7 +6,7 @@ export default async function AthleteProfileRoute() {
     getBookings(),
     getClubs(),
     getReviews(),
-    getSchedule(),
+    getSchedule({ ownerType: 'all' }),
     getTrainers(),
     getUsers(),
   ]);
