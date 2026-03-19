@@ -43,9 +43,9 @@ describe('Bookings API', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          scheduleId: 1,
+          scheduleId: 1001,
           userId: 1,
-          date: '2026-03-18',
+          date: '2026-03-20',
         }),
       }),
     );
@@ -54,16 +54,20 @@ describe('Bookings API', () => {
     expect(postResponse.status).toBe(201);
     expect(postBody.success).toBe(true);
     expect(postBody.data).toMatchObject({
-      scheduleId: 1,
+      scheduleId: 1001,
+      offeringId: 101,
+      ownerType: 'trainer',
+      ownerId: 1,
+      affiliatedClubId: 1,
       userId: 1,
-      clubId: 1,
       trainerId: 1,
       sportId: 3,
-      date: '2026-03-18',
+      date: '2026-03-20',
       status: 'confirmed',
       paymentStatus: 'unpaid',
-      totalPrice: 1100,
+      totalPrice: 1400,
     });
+    expect(postBody.data.clubId).toBeUndefined();
 
     const getResponse = await GET(new NextRequest('http://localhost:3000/api/bookings?userId=1'));
     const getBody = await getResponse.json();
@@ -72,16 +76,47 @@ describe('Bookings API', () => {
     expect(getBody.success).toBe(true);
     expect(getBody.data).toHaveLength(1);
     expect(getBody.data[0]).toMatchObject({
-      scheduleId: 1,
+      scheduleId: 1001,
       userId: 1,
     });
 
     const schedulePath = path.join(dataDirectory, 'schedule.json');
     const scheduleRaw = await readFile(schedulePath, 'utf8');
     const schedule = JSON.parse(scheduleRaw) as Schedule[];
-    const reservedSlot = schedule.find((slot) => slot.id === 1);
+    const reservedSlot = schedule.find((slot) => slot.id === 1001);
 
-    expect(reservedSlot?.bookedCount).toBe(9);
+    expect(reservedSlot?.bookedCount).toBe(1);
+  });
+
+  it('создаёт club booking и сохраняет owner metadata клубной услуги', async () => {
+    const response = await POST(
+      new Request('http://localhost:3000/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scheduleId: 1,
+          userId: 1,
+          date: '2026-03-18',
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.success).toBe(true);
+    expect(body.data).toMatchObject({
+      scheduleId: 1,
+      offeringId: 1,
+      ownerType: 'club',
+      ownerId: 1,
+      affiliatedClubId: 1,
+      clubId: 1,
+      trainerId: 1,
+      sportId: 3,
+      totalPrice: 1100,
+    });
   });
 
   it('не создаёт запись, если свободных мест больше нет', async () => {
@@ -89,7 +124,7 @@ describe('Bookings API', () => {
     const scheduleRaw = await readFile(schedulePath, 'utf8');
     const schedule = JSON.parse(scheduleRaw) as Schedule[];
     const updatedSchedule = schedule.map((slot) =>
-      slot.id === 1 ? { ...slot, bookedCount: slot.capacity } : slot,
+      slot.id === 1001 ? { ...slot, bookedCount: slot.capacity } : slot,
     );
 
     await writeFile(schedulePath, `${JSON.stringify(updatedSchedule, null, 2)}\n`, 'utf8');
@@ -101,9 +136,9 @@ describe('Bookings API', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          scheduleId: 1,
+          scheduleId: 1001,
           userId: 1,
-          date: '2026-03-18',
+          date: '2026-03-20',
         }),
       }),
     );

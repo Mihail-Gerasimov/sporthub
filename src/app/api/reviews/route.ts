@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 import { createReview, getClubById, getReviews, getTrainerById, getUserById } from '@/lib/db';
 
+function hasExactlyOneReviewTarget(input: { clubId?: number; trainerId?: number }): boolean {
+  return (input.clubId === undefined) !== (input.trainerId === undefined);
+}
+
 const reviewsQuerySchema = z.object({
   clubId: z.preprocess((value) => {
     if (typeof value !== 'string' || value.trim() === '') {
@@ -46,6 +50,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { clubId, trainerId } = validationResult.data;
+
+    if (!hasExactlyOneReviewTarget({ clubId, trainerId }) && !(clubId === undefined && trainerId === undefined)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Нужно указать либо clubId, либо trainerId',
+        },
+        { status: 400 },
+      );
+    }
+
     let reviews = await getReviews();
 
     if (clubId !== undefined) {
@@ -95,6 +110,16 @@ export async function POST(request: Request) {
         {
           success: false,
           error: 'Нужно указать clubId или trainerId',
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!hasExactlyOneReviewTarget({ clubId, trainerId })) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Нужно указать либо clubId, либо trainerId',
         },
         { status: 400 },
       );

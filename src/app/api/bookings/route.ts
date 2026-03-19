@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
   createBooking,
   getBookings,
-  getScheduleById,
+  getScheduleSlotContext,
   getUserById,
   incrementScheduleBookedCount,
 } from '@/lib/db';
@@ -84,9 +84,9 @@ export async function POST(request: Request) {
     }
 
     const { date, scheduleId, userId } = validationResult.data;
-    const [existingBookings, schedule, user] = await Promise.all([
+    const [existingBookings, slotContext, user] = await Promise.all([
       getBookings(),
-      getScheduleById(scheduleId),
+      getScheduleSlotContext(scheduleId),
       getUserById(userId),
     ]);
 
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!schedule) {
+    if (!slotContext) {
       return NextResponse.json(
         {
           success: false,
@@ -109,6 +109,8 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
+
+    const { affiliatedClub, club, offering, schedule, trainer } = slotContext;
 
     if (schedule.date !== date) {
       return NextResponse.json(
@@ -149,14 +151,18 @@ export async function POST(request: Request) {
 
     const booking = await createBooking({
       scheduleId,
+      offeringId: schedule.offeringId,
+      ownerType: schedule.ownerType,
+      ownerId: schedule.ownerId,
+      affiliatedClubId: schedule.affiliatedClubId ?? affiliatedClub?.id,
       userId,
-      clubId: schedule.clubId,
-      trainerId: schedule.trainerId,
-      sportId: schedule.sportId,
+      clubId: club?.id,
+      trainerId: trainer?.id ?? schedule.trainerId,
+      sportId: offering?.sportId ?? schedule.sportId,
       date,
       status: 'confirmed',
       paymentStatus: 'unpaid',
-      totalPrice: schedule.price,
+      totalPrice: offering?.price ?? schedule.price,
     });
 
     const updatedSchedule = await incrementScheduleBookedCount(scheduleId);

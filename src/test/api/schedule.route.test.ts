@@ -1,10 +1,26 @@
 import { NextRequest } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { GET } from '@/app/api/schedule/route';
+import {
+  createIsolatedDataDirectory,
+  removeIsolatedDataDirectory,
+} from '@/test/helpers/data-directory';
 
 describe('GET /api/schedule', () => {
-  it('фильтрует расписание по clubId и date', async () => {
+  let dataDirectory: string;
+
+  beforeEach(async () => {
+    dataDirectory = await createIsolatedDataDirectory();
+    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+  });
+
+  afterEach(async () => {
+    delete process.env.SPORT_HUB_DATA_DIRECTORY;
+    await removeIsolatedDataDirectory(dataDirectory);
+  });
+
+  it('по умолчанию возвращает club schedule и фильтрует по clubId и date', async () => {
     const request = new NextRequest('http://localhost:3000/api/schedule?clubId=1&date=2026-03-18');
 
     const response = await GET(request);
@@ -18,14 +34,17 @@ describe('GET /api/schedule', () => {
         expect.objectContaining({
           id: 1,
           clubId: 1,
+          ownerType: 'club',
           date: '2026-03-18',
         }),
       ]),
     );
   });
 
-  it('фильтрует расписание по trainerId и sportId и возвращает только слоты со свободными местами', async () => {
-    const request = new NextRequest('http://localhost:3000/api/schedule?trainerId=1&sportId=3');
+  it('возвращает trainer slots при ownerType=trainer и считает availableSpots', async () => {
+    const request = new NextRequest(
+      'http://localhost:3000/api/schedule?ownerType=trainer&trainerId=1&sportId=3&date=2026-03-20',
+    );
 
     const response = await GET(request);
     const body = await response.json();
@@ -33,11 +52,21 @@ describe('GET /api/schedule', () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 1001,
+          offeringId: 101,
+          ownerType: 'trainer',
+          trainerId: 1,
+        }),
+      ]),
+    );
     expect(
-      body.data.every((slot: { trainerId: number; sportId: number }) => slot.trainerId === 1),
-    ).toBe(true);
-    expect(
-      body.data.every((slot: { trainerId: number; sportId: number }) => slot.sportId === 3),
+      body.data.every(
+        (slot: { ownerType: string; trainerId: number; sportId: number }) =>
+          slot.ownerType === 'trainer' && slot.trainerId === 1 && slot.sportId === 3,
+      ),
     ).toBe(true);
     expect(
       body.data.every(
@@ -45,6 +74,19 @@ describe('GET /api/schedule', () => {
           slot.availableSpots === slot.capacity - slot.bookedCount && slot.availableSpots > 0,
       ),
     ).toBe(true);
+  });
+
+  it('возвращает ошибку 400 при невалидном ownerType', async () => {
+    const request = new NextRequest('http://localhost:3000/api/schedule?ownerType=coach');
+
+    const response = await GET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      success: false,
+      error: 'Некорректные параметры запроса',
+    });
   });
 
   it('возвращает ошибку 400 при невалидной дате', async () => {

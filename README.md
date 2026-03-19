@@ -125,6 +125,7 @@ npm run dev
 - Главная страница `/` с поиском, фильтрами, картой-заглушкой, подборками и ближайшими занятиями
 - REST API в `app/api/*` для `sports`, `clubs`, `trainers`, `schedule`, `bookings`, `reviews`
 - MVP data layer уже разделяет профили тренеров, offerings и schedule-слоты через `src/data/*.json` и `lib/db.ts`
+- API уже поддерживает `ownerType`-ориентированное расписание, trainer offerings и нейтральный booking contract через `scheduleId`
 - Auth-модалка `Вход / Регистрация` с выбором типа аккаунта
 - Публичная страница клуба `/clubs/[id]` с athlete-only действиями `Записаться` и `Оставить отзыв`
 - MVP preview страницы записи `/booking/[scheduleId]` для перехода в будущий booking flow

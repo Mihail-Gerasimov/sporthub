@@ -26,7 +26,7 @@ JSON (fs/lowdb)     → PostgreSQL + Prisma ORM
 - тренеры и услуги тренера.
 
 Для этого в доменной модели вводится отдельная сущность услуги (`Offering`), а маршрут `/booking/[scheduleId]` сохраняется как единая точка входа в запись на конкретный слот. На шаге 8.1 типы и переходные совместимости уже подготовлены, а миграция JSON-данных, `db.ts` и API-контрактов будет доводиться следующими шагами фазы.
-После Step 8.2 fake data уже разделены на `trainers.json`, `offerings.json` и `schedule.json`, а `lib/db.ts` умеет читать независимые club/trainer offerings и slot context. Следующий этап — перевести API-контракты и запись на эту модель без жёсткой привязки к клубу.
+После Step 8.2 fake data уже разделены на `trainers.json`, `offerings.json` и `schedule.json`, а `lib/db.ts` умеет читать независимые club/trainer offerings и slot context. После Step 8.3 API `trainers`, `schedule`, `bookings` и `reviews` тоже переведены на `ownerType/offeringId`-совместимый контракт. Следующий этап — довести `/booking/[scheduleId]` до полноценного общего slot-based flow.
 
 ## Текущие пользовательские поверхности MVP
 

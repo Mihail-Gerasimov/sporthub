@@ -4,7 +4,25 @@ import { z } from 'zod';
 import { getSchedule } from '@/lib/db';
 
 const scheduleQuerySchema = z.object({
+  ownerType: z.preprocess(
+    (value) => {
+      if (typeof value !== 'string') {
+        return undefined;
+      }
+
+      const normalizedValue = value.trim();
+      return normalizedValue === '' ? undefined : normalizedValue;
+    },
+    z.enum(['club', 'trainer', 'all']).optional(),
+  ),
   clubId: z.preprocess((value) => {
+    if (typeof value !== 'string' || value.trim() === '') {
+      return undefined;
+    }
+
+    return Number(value);
+  }, z.number().int().positive().optional()),
+  affiliatedClubId: z.preprocess((value) => {
     if (typeof value !== 'string' || value.trim() === '') {
       return undefined;
     }
@@ -44,7 +62,9 @@ const scheduleQuerySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const validationResult = scheduleQuerySchema.safeParse({
+      ownerType: request.nextUrl.searchParams.get('ownerType'),
       clubId: request.nextUrl.searchParams.get('clubId'),
+      affiliatedClubId: request.nextUrl.searchParams.get('affiliatedClubId'),
       trainerId: request.nextUrl.searchParams.get('trainerId'),
       sportId: request.nextUrl.searchParams.get('sportId'),
       date: request.nextUrl.searchParams.get('date'),
@@ -60,10 +80,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { clubId, date, sportId, trainerId } = validationResult.data;
-    let schedule = await getSchedule();
+    const { affiliatedClubId, clubId, date, ownerType, sportId, trainerId } = validationResult.data;
+    let schedule = await getSchedule({
+      ownerType,
+    });
 
     schedule = schedule.filter((slot) => slot.bookedCount < slot.capacity);
+
+    if (affiliatedClubId !== undefined) {
+      schedule = schedule.filter((slot) => slot.affiliatedClubId === affiliatedClubId);
+    }
 
     if (clubId !== undefined) {
       schedule = schedule.filter((slot) => slot.clubId === clubId);

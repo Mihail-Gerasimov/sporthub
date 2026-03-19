@@ -4,6 +4,13 @@ import { z } from 'zod';
 import { getTrainers } from '@/lib/db';
 
 const trainersQuerySchema = z.object({
+  affiliatedClubId: z.preprocess((value) => {
+    if (typeof value !== 'string' || value.trim() === '') {
+      return undefined;
+    }
+
+    return Number(value);
+  }, z.number().int().positive().optional()),
   clubId: z.preprocess((value) => {
     if (typeof value !== 'string' || value.trim() === '') {
       return undefined;
@@ -23,6 +30,7 @@ const trainersQuerySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const validationResult = trainersQuerySchema.safeParse({
+      affiliatedClubId: request.nextUrl.searchParams.get('affiliatedClubId'),
       clubId: request.nextUrl.searchParams.get('clubId'),
       sportId: request.nextUrl.searchParams.get('sportId'),
     });
@@ -37,20 +45,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { clubId, sportId } = validationResult.data;
+    const { affiliatedClubId, clubId, sportId } = validationResult.data;
+    const normalizedAffiliatedClubId = affiliatedClubId ?? clubId;
     let trainers = await getTrainers();
 
-    if (clubId !== undefined) {
-      trainers = trainers.filter((trainer) => trainer.clubId === clubId);
+    if (normalizedAffiliatedClubId !== undefined) {
+      trainers = trainers.filter((trainer) => trainer.affiliatedClubId === normalizedAffiliatedClubId);
     }
 
     if (sportId !== undefined) {
-      trainers = trainers.filter((trainer) => trainer.sportId === sportId);
+      trainers = trainers.filter((trainer) => trainer.sportIds.includes(sportId));
     }
 
     return NextResponse.json({
       success: true,
-      data: trainers.sort((left, right) => right.rating - left.rating),
+      data: trainers.sort((left, right) => {
+        if (right.rating !== left.rating) {
+          return right.rating - left.rating;
+        }
+
+        return right.reviewCount - left.reviewCount;
+      }),
     });
   } catch (error) {
     console.error('Ошибка получения тренеров:', error);

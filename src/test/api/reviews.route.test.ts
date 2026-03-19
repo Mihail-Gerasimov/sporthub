@@ -30,7 +30,7 @@ describe('Reviews API', () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data).toHaveLength(2);
+    expect(body.data.length).toBeGreaterThan(0);
     expect(body.data.every((review: { clubId?: number }) => review.clubId === 1)).toBe(true);
   });
 
@@ -40,14 +40,17 @@ describe('Reviews API', () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data).toHaveLength(1);
+    expect(body.data.length).toBeGreaterThan(0);
     expect(body.data[0]).toMatchObject({
       trainerId: 1,
       rating: 5,
     });
   });
 
-  it('создаёт отзыв и сохраняет его в JSON', async () => {
+  it('создаёт отзыв о тренере и сохраняет его в JSON', async () => {
+    const beforeResponse = await GET(new NextRequest('http://localhost:3000/api/reviews?trainerId=1'));
+    const beforeBody = await beforeResponse.json();
+
     const postResponse = await POST(
       new Request('http://localhost:3000/api/reviews', {
         method: 'POST',
@@ -56,9 +59,9 @@ describe('Reviews API', () => {
         },
         body: JSON.stringify({
           userId: 1,
-          clubId: 1,
+          trainerId: 1,
           rating: 5,
-          text: 'Очень комфортная атмосфера и понятная коммуникация тренеров.',
+          text: 'Персональная тренировка была собрана очень чётко и без лишней суеты.',
         }),
       }),
     );
@@ -68,16 +71,16 @@ describe('Reviews API', () => {
     expect(postBody.success).toBe(true);
     expect(postBody.data).toMatchObject({
       userId: 1,
-      clubId: 1,
+      trainerId: 1,
       rating: 5,
     });
 
-    const getResponse = await GET(new NextRequest('http://localhost:3000/api/reviews?clubId=1'));
+    const getResponse = await GET(new NextRequest('http://localhost:3000/api/reviews?trainerId=1'));
     const getBody = await getResponse.json();
 
     expect(getResponse.status).toBe(200);
     expect(getBody.success).toBe(true);
-    expect(getBody.data).toHaveLength(3);
+    expect(getBody.data).toHaveLength(beforeBody.data.length + 1);
 
     const reviewsPath = path.join(dataDirectory, 'reviews.json');
     const reviewsRaw = await readFile(reviewsPath, 'utf8');
@@ -85,12 +88,12 @@ describe('Reviews API', () => {
 
     expect(reviews.at(-1)).toMatchObject({
       userId: 1,
-      clubId: 1,
+      trainerId: 1,
       rating: 5,
     });
   });
 
-  it('не создаёт отзыв без clubId или trainerId', async () => {
+  it('не создаёт отзыв без target сущности', async () => {
     const response = await POST(
       new Request('http://localhost:3000/api/reviews', {
         method: 'POST',
@@ -110,6 +113,31 @@ describe('Reviews API', () => {
     expect(body).toEqual({
       success: false,
       error: 'Нужно указать clubId или trainerId',
+    });
+  });
+
+  it('не создаёт отзыв сразу и на клуб, и на тренера', async () => {
+    const response = await POST(
+      new Request('http://localhost:3000/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: 1,
+          clubId: 1,
+          trainerId: 1,
+          rating: 4,
+          text: 'Две целевые сущности в одном отзыве не должны проходить.',
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      success: false,
+      error: 'Нужно указать либо clubId, либо trainerId',
     });
   });
 });

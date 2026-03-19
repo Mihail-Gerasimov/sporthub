@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getClubById, getReviews, getSchedule, getSports, getTrainerById } from '@/lib/db';
+import {
+  getClubById,
+  getReviews,
+  getSchedule,
+  getSports,
+  getTrainerById,
+  getTrainerOfferings,
+} from '@/lib/db';
 import { getTrainerAffiliatedClubId, getTrainerPrimarySportId } from '@/lib/utils';
 
 const trainerIdSchema = z.coerce.number().int().positive();
@@ -36,21 +43,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const affiliatedClubId = getTrainerAffiliatedClubId(trainer);
     const primarySportId = getTrainerPrimarySportId(trainer);
-    const [club, reviews, schedule, sports] = await Promise.all([
+    const [affiliatedClub, offerings, reviews, schedule, sports] = await Promise.all([
       affiliatedClubId === null ? Promise.resolve(null) : getClubById(affiliatedClubId),
+      getTrainerOfferings(trainerId),
       getReviews(),
-      getSchedule(),
+      getSchedule({ ownerType: 'trainer' }),
       getSports(),
     ]);
 
-    const sport = primarySportId === null ? null : sports.find((item) => item.id === primarySportId) ?? null;
+    const trainerSports = sports.filter((item) => trainer.sportIds.includes(item.id));
+    const primarySport =
+      primarySportId === null ? null : trainerSports.find((item) => item.id === primarySportId) ?? null;
 
     return NextResponse.json({
       success: true,
       data: {
         trainer,
-        club,
-        sport,
+        affiliatedClub,
+        club: affiliatedClub,
+        offerings: offerings.sort((left, right) => left.price - right.price),
+        primarySport,
+        sport: primarySport,
+        sports: trainerSports,
         schedule: schedule
           .filter((slot) => slot.trainerId === trainerId)
           .sort((left, right) => {
