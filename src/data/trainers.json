@@ -9,10 +9,24 @@
     "bio": "Тренер по плаванию, специализируется на технике кроля и мягком входе в воду для взрослых новичков.",
     "avatarUrl": "/images/trainers/marina-sokolova.jpg",
     "experienceYears": 9,
-    "specialties": ["Кроль", "Постановка дыхания", "Взрослые новички"],
+    "specialties": [
+      "Кроль",
+      "Постановка дыхания",
+      "Взрослые новички"
+    ],
     "rating": 4.9,
     "reviewCount": 28,
-    "priceFrom": 1400
+    "priceFrom": 1400,
+    "sportIds": [
+      3
+    ],
+    "affiliatedClubId": 1,
+    "city": "Самара",
+    "address": "ул. Лесная, 23к1",
+    "coordinates": {
+      "lat": 53.2129,
+      "lng": 50.1245
+    }
   },
   {
     "id": 2,
@@ -24,10 +38,24 @@
     "bio": "Ведёт пилатес для восстановления осанки и стабильности корпуса.",
     "avatarUrl": "/images/trainers/elena-kruglova.jpg",
     "experienceYears": 7,
-    "specialties": ["Пилатес", "Осанка", "Мягкий старт"],
+    "specialties": [
+      "Пилатес",
+      "Осанка",
+      "Мягкий старт"
+    ],
     "rating": 4.8,
     "reviewCount": 24,
-    "priceFrom": 1200
+    "priceFrom": 1200,
+    "sportIds": [
+      8
+    ],
+    "affiliatedClubId": 1,
+    "city": "Самара",
+    "address": "ул. Лесная, 23к1",
+    "coordinates": {
+      "lat": 53.2129,
+      "lng": 50.1245
+    }
   },
   {
     "id": 3,
@@ -39,10 +67,24 @@
     "bio": "Поставит базовую боксерскую стойку, работу ног и ударные связки без перегруза.",
     "avatarUrl": "/images/trainers/timur-karimov.jpg",
     "experienceYears": 11,
-    "specialties": ["Техника удара", "Лапы", "Любительский бокс"],
+    "specialties": [
+      "Техника удара",
+      "Лапы",
+      "Любительский бокс"
+    ],
     "rating": 4.8,
     "reviewCount": 31,
-    "priceFrom": 1600
+    "priceFrom": 1600,
+    "sportIds": [
+      2
+    ],
+    "affiliatedClubId": 2,
+    "city": "Самара",
+    "address": "Московское шоссе, 41",
+    "coordinates": {
+      "lat": 53.2334,
+      "lng": 50.2021
+    }
   },
   {
     "id": 4,
@@ -54,10 +96,24 @@
     "bio": "Тренер групп по ударной технике и самообороне для начинающих и продолжающих.",
     "avatarUrl": "/images/trainers/arsen-petrov.jpg",
     "experienceYears": 10,
-    "specialties": ["Самооборона", "ОФП", "Постановка техники"],
+    "specialties": [
+      "Самооборона",
+      "ОФП",
+      "Постановка техники"
+    ],
     "rating": 4.7,
     "reviewCount": 19,
-    "priceFrom": 1500
+    "priceFrom": 1500,
+    "sportIds": [
+      7
+    ],
+    "affiliatedClubId": 2,
+    "city": "Самара",
+    "address": "Московское шоссе, 41",
+    "coordinates": {
+      "lat": 53.2334,
+      "lng": 50.2021
+    }
   },
   {
     "id": 5,
@@ -69,10 +125,24 @@
     "bio": "Преподаватель хатха-йоги и утренних практик на дыхание и мобилизацию.",
     "avatarUrl": "/images/trainers/anna-mironova.jpg",
     "experienceYears": 8,
-    "specialties": ["Хатха-йога", "Утренние практики", "Мобилизация"],
+    "specialties": [
+      "Хатха-йога",
+      "Утренние практики",
+      "Мобилизация"
+    ],
     "rating": 5,
     "reviewCount": 36,
-    "priceFrom": 1300
+    "priceFrom": 1300,
+    "sportIds": [
+      1
+    ],
+    "affiliatedClubId": 3,
+    "city": "Самара",
+    "address": "ул. Молодогвардейская, 86",
+    "coordinates": {
+      "lat": 53.1957,
+      "lng": 50.1006
+    }
   },
   {
     "id": 6,
@@ -84,10 +154,24 @@
     "bio": "Ведёт пилатес на контроль центра тела и бережную силовую работу.",
     "avatarUrl": "/images/trainers/sofiya-zaytseva.jpg",
     "experienceYears": 6,
-    "specialties": ["Пилатес mat", "Core", "Восстановление"],
+    "specialties": [
+      "Пилатес mat",
+      "Core",
+      "Восстановление"
+    ],
     "rating": 4.9,
     "reviewCount": 22,
-    "priceFrom": 1250
+    "priceFrom": 1250,
+    "sportIds": [
+      8
+    ],
+    "affiliatedClubId": 3,
+    "city": "Самара",
+    "address": "ул. Молодогвардейская, 86",
+    "coordinates": {
+      "lat": 53.1957,
+      "lng": 50.1006
+    }
   },
   {
     "id": 7,
@@ -99,10 +183,24 @@
     "bio": "Собирает интенсивные WOD и помогает адаптироваться к нагрузке безопасно.",
     "avatarUrl": "/images/trainers/kirill-egorov.jpg",
     "experienceYears": 9,
-    "specialties": ["WOD", "Техника движений", "Функциональная сила"],
+    "specialties": [
+      "WOD",
+      "Техника движений",
+      "Функциональная сила"
+    ],
     "rating": 4.7,
     "reviewCount": 27,
-    "priceFrom": 1700
+    "priceFrom": 1700,
+    "sportIds": [
+      4
+    ],
+    "affiliatedClubId": 4,
+    "city": "Самара",
+    "address": "ул. Авроры, 150",
+    "coordinates": {
+      "lat": 53.1904,
+      "lng": 50.1908
+    }
   },
   {
     "id": 8,
@@ -114,10 +212,24 @@
     "bio": "Тренер по силовой подготовке и работе в тренажёрном зале без лишней теории.",
     "avatarUrl": "/images/trainers/pavel-nikitin.jpg",
     "experienceYears": 12,
-    "specialties": ["Силовая база", "Набор массы", "Техника упражнений"],
+    "specialties": [
+      "Силовая база",
+      "Набор массы",
+      "Техника упражнений"
+    ],
     "rating": 4.6,
     "reviewCount": 21,
-    "priceFrom": 1500
+    "priceFrom": 1500,
+    "sportIds": [
+      6
+    ],
+    "affiliatedClubId": 4,
+    "city": "Самара",
+    "address": "ул. Авроры, 150",
+    "coordinates": {
+      "lat": 53.1904,
+      "lng": 50.1908
+    }
   },
   {
     "id": 9,
@@ -129,10 +241,24 @@
     "bio": "Ставит хореографию для групп modern и jazz-funk, умеет работать с новичками.",
     "avatarUrl": "/images/trainers/darya-volkova.jpg",
     "experienceYears": 7,
-    "specialties": ["Jazz-funk", "Modern", "Пластика"],
+    "specialties": [
+      "Jazz-funk",
+      "Modern",
+      "Пластика"
+    ],
     "rating": 4.9,
     "reviewCount": 25,
-    "priceFrom": 1400
+    "priceFrom": 1400,
+    "sportIds": [
+      5
+    ],
+    "affiliatedClubId": 5,
+    "city": "Самара",
+    "address": "ул. Ново-Садовая, 181А",
+    "coordinates": {
+      "lat": 53.2251,
+      "lng": 50.1664
+    }
   },
   {
     "id": 10,
@@ -144,10 +270,24 @@
     "bio": "Ведёт body balance и мягкие йога-практики для снятия зажимов после офиса.",
     "avatarUrl": "/images/trainers/vera-lebedeva.jpg",
     "experienceYears": 5,
-    "specialties": ["Body balance", "Stretch", "Антистресс"],
+    "specialties": [
+      "Body balance",
+      "Stretch",
+      "Антистресс"
+    ],
     "rating": 4.8,
     "reviewCount": 17,
-    "priceFrom": 1150
+    "priceFrom": 1150,
+    "sportIds": [
+      1
+    ],
+    "affiliatedClubId": 5,
+    "city": "Самара",
+    "address": "ул. Ново-Садовая, 181А",
+    "coordinates": {
+      "lat": 53.2251,
+      "lng": 50.1664
+    }
   },
   {
     "id": 11,
@@ -159,10 +299,24 @@
     "bio": "Работает с силовыми циклами и короткими эффективными программами в зале.",
     "avatarUrl": "/images/trainers/denis-orlov.jpg",
     "experienceYears": 10,
-    "specialties": ["Силовые циклы", "Фитнес после работы", "Техника базы"],
+    "specialties": [
+      "Силовые циклы",
+      "Фитнес после работы",
+      "Техника базы"
+    ],
     "rating": 4.6,
     "reviewCount": 18,
-    "priceFrom": 1300
+    "priceFrom": 1300,
+    "sportIds": [
+      6
+    ],
+    "affiliatedClubId": 6,
+    "city": "Самара",
+    "address": "ул. Демократическая, 7",
+    "coordinates": {
+      "lat": 53.2728,
+      "lng": 50.2369
+    }
   },
   {
     "id": 12,
@@ -174,9 +328,23 @@
     "bio": "Ведёт функциональные круговые тренировки и помогает держать темп в группе.",
     "avatarUrl": "/images/trainers/ilya-romanov.jpg",
     "experienceYears": 8,
-    "specialties": ["Функциональный тренинг", "Круговые тренировки", "Выносливость"],
+    "specialties": [
+      "Функциональный тренинг",
+      "Круговые тренировки",
+      "Выносливость"
+    ],
     "rating": 4.7,
     "reviewCount": 23,
-    "priceFrom": 1450
+    "priceFrom": 1450,
+    "sportIds": [
+      4
+    ],
+    "affiliatedClubId": 6,
+    "city": "Самара",
+    "address": "ул. Демократическая, 7",
+    "coordinates": {
+      "lat": 53.2728,
+      "lng": 50.2369
+    }
   }
 ]

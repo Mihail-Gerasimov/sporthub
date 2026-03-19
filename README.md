@@ -79,6 +79,7 @@ npm run dev
 │   ├── data/                    # JSON-файлы MVP-базы
 │   │   ├── bookings.json
 │   │   ├── clubs.json
+│   │   ├── offerings.json
 │   │   ├── reviews.json
 │   │   ├── schedule.json
 │   │   ├── sports.json
@@ -123,6 +124,7 @@ npm run dev
 
 - Главная страница `/` с поиском, фильтрами, картой-заглушкой, подборками и ближайшими занятиями
 - REST API в `app/api/*` для `sports`, `clubs`, `trainers`, `schedule`, `bookings`, `reviews`
+- MVP data layer уже разделяет профили тренеров, offerings и schedule-слоты через `src/data/*.json` и `lib/db.ts`
 - Auth-модалка `Вход / Регистрация` с выбором типа аккаунта
 - Публичная страница клуба `/clubs/[id]` с athlete-only действиями `Записаться` и `Оставить отзыв`
 - MVP preview страницы записи `/booking/[scheduleId]` для перехода в будущий booking flow

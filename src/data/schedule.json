@@ -15,7 +15,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 2,
@@ -33,7 +37,11 @@
     "capacity": 12,
     "bookedCount": 9,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 3,
@@ -51,7 +59,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 4,
@@ -69,7 +81,11 @@
     "capacity": 16,
     "bookedCount": 12,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 5,
@@ -87,7 +103,11 @@
     "capacity": 16,
     "bookedCount": 8,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 6,
@@ -105,7 +125,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 7,
@@ -123,7 +147,11 @@
     "capacity": 12,
     "bookedCount": 6,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 8,
@@ -141,7 +169,11 @@
     "capacity": 10,
     "bookedCount": 7,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 9,
@@ -159,7 +191,11 @@
     "capacity": 12,
     "bookedCount": 10,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 10,
@@ -177,7 +213,11 @@
     "capacity": 18,
     "bookedCount": 12,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 11,
@@ -195,7 +235,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 12,
@@ -213,7 +257,11 @@
     "capacity": 18,
     "bookedCount": 10,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 13,
@@ -231,7 +279,11 @@
     "capacity": 15,
     "bookedCount": 12,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 14,
@@ -249,7 +301,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 15,
@@ -267,7 +323,11 @@
     "capacity": 15,
     "bookedCount": 7,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 16,
@@ -285,7 +345,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 17,
@@ -303,7 +367,11 @@
     "capacity": 16,
     "bookedCount": 7,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 18,
@@ -321,7 +389,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 19,
@@ -339,7 +411,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 20,
@@ -357,7 +433,11 @@
     "capacity": 12,
     "bookedCount": 6,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 21,
@@ -375,7 +455,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 22,
@@ -393,7 +477,11 @@
     "capacity": 16,
     "bookedCount": 8,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 23,
@@ -411,7 +499,11 @@
     "capacity": 16,
     "bookedCount": 11,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 24,
@@ -429,7 +521,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 25,
@@ -447,7 +543,11 @@
     "capacity": 12,
     "bookedCount": 8,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 26,
@@ -465,7 +565,11 @@
     "capacity": 10,
     "bookedCount": 8,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 27,
@@ -483,7 +587,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 28,
@@ -501,7 +609,11 @@
     "capacity": 18,
     "bookedCount": 14,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 29,
@@ -519,7 +631,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 30,
@@ -537,7 +653,11 @@
     "capacity": 18,
     "bookedCount": 8,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 31,
@@ -555,7 +675,11 @@
     "capacity": 15,
     "bookedCount": 8,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 32,
@@ -573,7 +697,11 @@
     "capacity": 12,
     "bookedCount": 5,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 33,
@@ -591,7 +719,11 @@
     "capacity": 15,
     "bookedCount": 9,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 34,
@@ -609,7 +741,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 35,
@@ -627,7 +763,11 @@
     "capacity": 16,
     "bookedCount": 10,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 36,
@@ -645,7 +785,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 37,
@@ -663,7 +807,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 38,
@@ -681,7 +829,11 @@
     "capacity": 12,
     "bookedCount": 8,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 39,
@@ -699,7 +851,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 40,
@@ -717,7 +873,11 @@
     "capacity": 16,
     "bookedCount": 11,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 41,
@@ -735,7 +895,11 @@
     "capacity": 16,
     "bookedCount": 13,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 42,
@@ -753,7 +917,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 43,
@@ -771,7 +939,11 @@
     "capacity": 12,
     "bookedCount": 10,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 44,
@@ -789,7 +961,11 @@
     "capacity": 10,
     "bookedCount": 6,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 45,
@@ -807,7 +983,11 @@
     "capacity": 12,
     "bookedCount": 5,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 46,
@@ -825,7 +1005,11 @@
     "capacity": 18,
     "bookedCount": 10,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 47,
@@ -843,7 +1027,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 48,
@@ -861,7 +1049,11 @@
     "capacity": 18,
     "bookedCount": 11,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 49,
@@ -879,7 +1071,11 @@
     "capacity": 15,
     "bookedCount": 7,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 50,
@@ -897,7 +1093,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 51,
@@ -915,7 +1115,11 @@
     "capacity": 15,
     "bookedCount": 11,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 52,
@@ -933,7 +1137,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 53,
@@ -951,7 +1159,11 @@
     "capacity": 16,
     "bookedCount": 12,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 54,
@@ -969,7 +1181,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 55,
@@ -987,7 +1203,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 56,
@@ -1005,7 +1225,11 @@
     "capacity": 12,
     "bookedCount": 10,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 57,
@@ -1023,7 +1247,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 58,
@@ -1041,7 +1269,11 @@
     "capacity": 16,
     "bookedCount": 13,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 59,
@@ -1059,7 +1291,11 @@
     "capacity": 16,
     "bookedCount": 9,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 60,
@@ -1077,7 +1313,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 61,
@@ -1095,7 +1335,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 62,
@@ -1113,7 +1357,11 @@
     "capacity": 10,
     "bookedCount": 5,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 63,
@@ -1131,7 +1379,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 64,
@@ -1149,7 +1401,11 @@
     "capacity": 18,
     "bookedCount": 8,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 65,
@@ -1167,7 +1423,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 66,
@@ -1185,7 +1445,11 @@
     "capacity": 18,
     "bookedCount": 14,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 67,
@@ -1203,7 +1467,11 @@
     "capacity": 15,
     "bookedCount": 9,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 68,
@@ -1221,7 +1489,11 @@
     "capacity": 12,
     "bookedCount": 9,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 69,
@@ -1239,7 +1511,11 @@
     "capacity": 15,
     "bookedCount": 8,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 70,
@@ -1257,7 +1533,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 71,
@@ -1275,7 +1555,11 @@
     "capacity": 16,
     "bookedCount": 8,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 72,
@@ -1293,7 +1577,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 73,
@@ -1311,7 +1599,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 74,
@@ -1329,7 +1621,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 75,
@@ -1347,7 +1643,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 76,
@@ -1365,7 +1665,11 @@
     "capacity": 16,
     "bookedCount": 9,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 77,
@@ -1383,7 +1687,11 @@
     "capacity": 16,
     "bookedCount": 7,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 78,
@@ -1401,7 +1709,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 79,
@@ -1419,7 +1731,11 @@
     "capacity": 12,
     "bookedCount": 5,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 80,
@@ -1437,7 +1753,11 @@
     "capacity": 10,
     "bookedCount": 6,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 81,
@@ -1455,7 +1775,11 @@
     "capacity": 12,
     "bookedCount": 9,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 82,
@@ -1473,7 +1797,11 @@
     "capacity": 18,
     "bookedCount": 11,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 83,
@@ -1491,7 +1819,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 84,
@@ -1509,7 +1841,11 @@
     "capacity": 18,
     "bookedCount": 9,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 85,
@@ -1527,7 +1863,11 @@
     "capacity": 15,
     "bookedCount": 11,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 86,
@@ -1545,7 +1885,11 @@
     "capacity": 12,
     "bookedCount": 6,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 87,
@@ -1563,7 +1907,11 @@
     "capacity": 15,
     "bookedCount": 10,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 88,
@@ -1581,7 +1929,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 89,
@@ -1599,7 +1951,11 @@
     "capacity": 16,
     "bookedCount": 11,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 90,
@@ -1617,7 +1973,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 91,
@@ -1635,7 +1995,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 92,
@@ -1653,7 +2017,11 @@
     "capacity": 12,
     "bookedCount": 5,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 93,
@@ -1671,7 +2039,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 94,
@@ -1689,7 +2061,11 @@
     "capacity": 16,
     "bookedCount": 7,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 95,
@@ -1707,7 +2083,11 @@
     "capacity": 16,
     "bookedCount": 10,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 96,
@@ -1725,7 +2105,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 97,
@@ -1743,7 +2127,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 98,
@@ -1761,7 +2149,11 @@
     "capacity": 10,
     "bookedCount": 8,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 99,
@@ -1779,7 +2171,11 @@
     "capacity": 12,
     "bookedCount": 6,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 100,
@@ -1797,7 +2193,11 @@
     "capacity": 18,
     "bookedCount": 14,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 101,
@@ -1815,7 +2215,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 102,
@@ -1833,7 +2237,11 @@
     "capacity": 18,
     "bookedCount": 12,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 103,
@@ -1851,7 +2259,11 @@
     "capacity": 15,
     "bookedCount": 8,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 104,
@@ -1869,7 +2281,11 @@
     "capacity": 12,
     "bookedCount": 8,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 105,
@@ -1887,7 +2303,11 @@
     "capacity": 15,
     "bookedCount": 12,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 106,
@@ -1905,7 +2325,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 107,
@@ -1923,7 +2347,11 @@
     "capacity": 16,
     "bookedCount": 13,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 108,
@@ -1941,7 +2369,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 109,
@@ -1959,7 +2391,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 110,
@@ -1977,7 +2413,11 @@
     "capacity": 12,
     "bookedCount": 7,
     "price": 950,
-    "room": "Зал Balance"
+    "room": "Зал Balance",
+    "offeringId": 2,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 111,
@@ -1995,7 +2435,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 1150,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 112,
@@ -2013,7 +2457,11 @@
     "capacity": 16,
     "bookedCount": 10,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 113,
@@ -2031,7 +2479,11 @@
     "capacity": 16,
     "bookedCount": 12,
     "price": 1250,
-    "room": "Зал техники"
+    "room": "Зал техники",
+    "offeringId": 5,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 114,
@@ -2049,7 +2501,11 @@
     "capacity": 14,
     "bookedCount": 7,
     "price": 1350,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 6,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
   },
   {
     "id": 115,
@@ -2067,7 +2523,11 @@
     "capacity": 12,
     "bookedCount": 9,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 116,
@@ -2085,7 +2545,11 @@
     "capacity": 10,
     "bookedCount": 5,
     "price": 950,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 8,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 117,
@@ -2103,7 +2567,11 @@
     "capacity": 12,
     "bookedCount": 8,
     "price": 950,
-    "room": "Зал Flow"
+    "room": "Зал Flow",
+    "offeringId": 9,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 118,
@@ -2121,7 +2589,11 @@
     "capacity": 18,
     "bookedCount": 9,
     "price": 1300,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 10,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 119,
@@ -2139,7 +2611,11 @@
     "capacity": 14,
     "bookedCount": 10,
     "price": 1200,
-    "room": "Strength Zone"
+    "room": "Strength Zone",
+    "offeringId": 11,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 120,
@@ -2157,7 +2633,11 @@
     "capacity": 18,
     "bookedCount": 14,
     "price": 1350,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 12,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 121,
@@ -2175,7 +2655,11 @@
     "capacity": 15,
     "bookedCount": 10,
     "price": 1000,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 13,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 122,
@@ -2193,7 +2677,11 @@
     "capacity": 12,
     "bookedCount": 10,
     "price": 900,
-    "room": "Balance Room"
+    "room": "Balance Room",
+    "offeringId": 14,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 123,
@@ -2211,7 +2699,11 @@
     "capacity": 15,
     "bookedCount": 8,
     "price": 1100,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 15,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 124,
@@ -2229,7 +2721,11 @@
     "capacity": 14,
     "bookedCount": 11,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 125,
@@ -2247,7 +2743,11 @@
     "capacity": 16,
     "bookedCount": 9,
     "price": 950,
-    "room": "Functional Zone"
+    "room": "Functional Zone",
+    "offeringId": 17,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 126,
@@ -2265,7 +2765,11 @@
     "capacity": 14,
     "bookedCount": 6,
     "price": 850,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 18,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 127,
@@ -2283,7 +2787,11 @@
     "capacity": 18,
     "bookedCount": 11,
     "price": 1250,
-    "room": "Arena"
+    "room": "Arena",
+    "offeringId": 19,
+    "ownerType": "club",
+    "ownerId": 4,
+    "affiliatedClubId": 4
   },
   {
     "id": 128,
@@ -2301,7 +2809,11 @@
     "capacity": 14,
     "bookedCount": 8,
     "price": 1100,
-    "room": "Бассейн A"
+    "room": "Бассейн A",
+    "offeringId": 1,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1
   },
   {
     "id": 129,
@@ -2319,7 +2831,11 @@
     "capacity": 12,
     "bookedCount": 6,
     "price": 900,
-    "room": "Зал Light"
+    "room": "Зал Light",
+    "offeringId": 7,
+    "ownerType": "club",
+    "ownerId": 3,
+    "affiliatedClubId": 3
   },
   {
     "id": 130,
@@ -2337,7 +2853,11 @@
     "capacity": 15,
     "bookedCount": 8,
     "price": 850,
-    "room": "Dance Hall"
+    "room": "Dance Hall",
+    "offeringId": 20,
+    "ownerType": "club",
+    "ownerId": 5,
+    "affiliatedClubId": 5
   },
   {
     "id": 131,
@@ -2355,7 +2875,11 @@
     "capacity": 14,
     "bookedCount": 9,
     "price": 800,
-    "room": "Gym Floor"
+    "room": "Gym Floor",
+    "offeringId": 16,
+    "ownerType": "club",
+    "ownerId": 6,
+    "affiliatedClubId": 6
   },
   {
     "id": 132,
@@ -2373,6 +2897,262 @@
     "capacity": 16,
     "bookedCount": 10,
     "price": 1200,
-    "room": "Ринг 1"
+    "room": "Ринг 1",
+    "offeringId": 21,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2
+  },
+  {
+    "id": 1001,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 101,
+    "ownerType": "trainer",
+    "ownerId": 1,
+    "affiliatedClubId": 1,
+    "trainerId": 1,
+    "sportId": 3,
+    "title": "Персональная тренировка: Плавание",
+    "description": "Индивидуальная сессия с Марина Соколова по направлению «Плавание».",
+    "date": "2026-03-20",
+    "startTime": "08:15",
+    "endTime": "09:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1400,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1002,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 102,
+    "ownerType": "trainer",
+    "ownerId": 2,
+    "affiliatedClubId": 1,
+    "trainerId": 2,
+    "sportId": 8,
+    "title": "Персональная тренировка: Пилатес",
+    "description": "Индивидуальная сессия с Елена Круглова по направлению «Пилатес».",
+    "date": "2026-03-20",
+    "startTime": "09:45",
+    "endTime": "10:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1200,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1003,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 103,
+    "ownerType": "trainer",
+    "ownerId": 3,
+    "affiliatedClubId": 2,
+    "trainerId": 3,
+    "sportId": 2,
+    "title": "Персональная тренировка: Бокс",
+    "description": "Индивидуальная сессия с Тимур Каримов по направлению «Бокс».",
+    "date": "2026-03-20",
+    "startTime": "10:15",
+    "endTime": "11:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1600,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1004,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 104,
+    "ownerType": "trainer",
+    "ownerId": 4,
+    "affiliatedClubId": 2,
+    "trainerId": 4,
+    "sportId": 7,
+    "title": "Персональная тренировка: Единоборства",
+    "description": "Индивидуальная сессия с Арсен Петров по направлению «Единоборства».",
+    "date": "2026-03-20",
+    "startTime": "11:45",
+    "endTime": "12:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1500,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1005,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 105,
+    "ownerType": "trainer",
+    "ownerId": 5,
+    "affiliatedClubId": 3,
+    "trainerId": 5,
+    "sportId": 1,
+    "title": "Персональная тренировка: Йога",
+    "description": "Индивидуальная сессия с Анна Миронова по направлению «Йога».",
+    "date": "2026-03-20",
+    "startTime": "12:15",
+    "endTime": "13:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1300,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1006,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 106,
+    "ownerType": "trainer",
+    "ownerId": 6,
+    "affiliatedClubId": 3,
+    "trainerId": 6,
+    "sportId": 8,
+    "title": "Персональная тренировка: Пилатес",
+    "description": "Индивидуальная сессия с София Зайцева по направлению «Пилатес».",
+    "date": "2026-03-20",
+    "startTime": "13:45",
+    "endTime": "14:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1250,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1007,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 107,
+    "ownerType": "trainer",
+    "ownerId": 7,
+    "affiliatedClubId": 4,
+    "trainerId": 7,
+    "sportId": 4,
+    "title": "Персональная тренировка: Кроссфит",
+    "description": "Индивидуальная сессия с Кирилл Егоров по направлению «Кроссфит».",
+    "date": "2026-03-20",
+    "startTime": "08:15",
+    "endTime": "09:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1700,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1008,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 108,
+    "ownerType": "trainer",
+    "ownerId": 8,
+    "affiliatedClubId": 4,
+    "trainerId": 8,
+    "sportId": 6,
+    "title": "Персональная тренировка: Тренажёрный зал",
+    "description": "Индивидуальная сессия с Павел Никитин по направлению «Тренажёрный зал».",
+    "date": "2026-03-20",
+    "startTime": "09:45",
+    "endTime": "10:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1500,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1009,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 109,
+    "ownerType": "trainer",
+    "ownerId": 9,
+    "affiliatedClubId": 5,
+    "trainerId": 9,
+    "sportId": 5,
+    "title": "Персональная тренировка: Танцы",
+    "description": "Индивидуальная сессия с Дарья Волкова по направлению «Танцы».",
+    "date": "2026-03-20",
+    "startTime": "10:15",
+    "endTime": "11:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1400,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1010,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 110,
+    "ownerType": "trainer",
+    "ownerId": 10,
+    "affiliatedClubId": 5,
+    "trainerId": 10,
+    "sportId": 1,
+    "title": "Персональная тренировка: Йога",
+    "description": "Индивидуальная сессия с Вера Лебедева по направлению «Йога».",
+    "date": "2026-03-20",
+    "startTime": "11:45",
+    "endTime": "12:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1150,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1011,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 111,
+    "ownerType": "trainer",
+    "ownerId": 11,
+    "affiliatedClubId": 6,
+    "trainerId": 11,
+    "sportId": 6,
+    "title": "Персональная тренировка: Тренажёрный зал",
+    "description": "Индивидуальная сессия с Денис Орлов по направлению «Тренажёрный зал».",
+    "date": "2026-03-20",
+    "startTime": "12:15",
+    "endTime": "13:15",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1300,
+    "room": "Индивидуальный зал"
+  },
+  {
+    "id": 1012,
+    "createdAt": "2026-03-19T09:00:00.000Z",
+    "offeringId": 112,
+    "ownerType": "trainer",
+    "ownerId": 12,
+    "affiliatedClubId": 6,
+    "trainerId": 12,
+    "sportId": 4,
+    "title": "Персональная тренировка: Кроссфит",
+    "description": "Индивидуальная сессия с Илья Романов по направлению «Кроссфит».",
+    "date": "2026-03-20",
+    "startTime": "13:45",
+    "endTime": "14:45",
+    "durationMinutes": 60,
+    "level": "all_levels",
+    "capacity": 1,
+    "bookedCount": 0,
+    "price": 1450,
+    "room": "Индивидуальный зал"
   }
 ]
