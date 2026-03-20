@@ -143,3 +143,8 @@ export function getBookingClubId(
 export function getBookingTrainerId(booking: Pick<Booking, 'trainerId'>): EntityId | null {
   return booking.trainerId ?? null;
 }
+
+/** Нормализация строки для поиска: trim + нижний регистр (ru-RU). */
+export function normalizeSearchText(value: string): string {
+  return value.trim().toLocaleLowerCase('ru-RU');
+}

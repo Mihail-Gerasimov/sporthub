@@ -1,4 +1,5 @@
 import { APP_LIMITS, DEFAULT_CITY } from '@/lib/constants';
+import { normalizeSearchText } from '@/lib/utils';
 import type {
   Club,
   Coordinates,
@@ -123,7 +124,7 @@ export function buildTrainerDirectory({
       const nextSlot = availableSlots[0] ?? null;
       const venueClub =
         primaryOffering?.affiliatedClubId !== undefined
-          ? clubsById.get(primaryOffering.affiliatedClubId) ?? null
+          ? (clubsById.get(primaryOffering.affiliatedClubId) ?? null)
           : null;
       const coordinates =
         trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
@@ -136,17 +137,19 @@ export function buildTrainerDirectory({
       const venueName = venueClub?.name ?? null;
       const venueLabel = venueName ?? address;
 
-      const searchText = [
-        trainer.name,
-        trainer.bio,
-        trainer.specialties.join(' '),
-        sportsForTrainer.map((sport) => sport.name).join(' '),
-        offeringsForTrainer.map((offering) => `${offering.title} ${offering.description}`).join(' '),
-        venueName ?? '',
-        address,
-      ]
-        .join(' ')
-        .toLocaleLowerCase('ru-RU');
+      const searchText = normalizeSearchText(
+        [
+          trainer.name,
+          trainer.bio,
+          trainer.specialties.join(' '),
+          sportsForTrainer.map((sport) => sport.name).join(' '),
+          offeringsForTrainer
+            .map((offering) => `${offering.title} ${offering.description}`)
+            .join(' '),
+          venueName ?? '',
+          address,
+        ].join(' '),
+      );
 
       return [
         {

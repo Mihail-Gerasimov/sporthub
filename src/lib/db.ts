@@ -93,6 +93,12 @@ function createTimestamp(): string {
   return new Date().toISOString();
 }
 
+/**
+ * Нормализация тренера: синхронизация legacy-полей (clubId, sportId)
+ * с актуальными (affiliatedClubId, sportIds).
+ * Legacy-поля сохранены для обратной совместимости с JSON-данными;
+ * весь код должен читать только affiliatedClubId и sportIds.
+ */
 function normalizeTrainer(trainer: Trainer): Trainer {
   const affiliatedClubId = trainer.affiliatedClubId ?? trainer.clubId;
   const sportIds =
@@ -105,12 +111,13 @@ function normalizeTrainer(trainer: Trainer): Trainer {
   return {
     ...trainer,
     affiliatedClubId,
-    clubId: trainer.clubId ?? affiliatedClubId,
+    clubId: affiliatedClubId,
     sportIds,
-    sportId: trainer.sportId ?? sportIds[0],
+    sportId: sportIds[0],
   };
 }
 
+/** Нормализация слота расписания: восстановление ownerId, ownerType и связанных полей. */
 function normalizeSchedule(
   scheduleItem: Schedule,
   offeringsById: Map<EntityId, Offering>,
@@ -120,17 +127,20 @@ function normalizeSchedule(
       ? (offeringsById.get(scheduleItem.offeringId) ?? null)
       : null;
   const ownerType = scheduleItem.ownerType ?? offering?.ownerType ?? 'club';
-  const ownerId =
+
+  // Цепочка фолбэков для ownerId: слот → offering → clubId/trainerId из слота.
+  // Если ни один источник не дал значение — используем id самого слота как fallback,
+  // чтобы не допустить undefined в дальнейших операциях (бронирование, статистика).
+  const rawOwnerId =
     scheduleItem.ownerId ??
     offering?.ownerId ??
     (ownerType === 'club' ? scheduleItem.clubId : scheduleItem.trainerId);
+  const ownerId = rawOwnerId ?? scheduleItem.id;
+
   const affiliatedClubId =
     scheduleItem.affiliatedClubId ?? offering?.affiliatedClubId ?? scheduleItem.clubId ?? undefined;
-  const clubId =
-    scheduleItem.clubId ?? (ownerType === 'club' && ownerId !== undefined ? ownerId : undefined);
-  const trainerId =
-    scheduleItem.trainerId ??
-    (ownerType === 'trainer' && ownerId !== undefined ? ownerId : undefined);
+  const clubId = scheduleItem.clubId ?? (ownerType === 'club' ? ownerId : undefined);
+  const trainerId = scheduleItem.trainerId ?? (ownerType === 'trainer' ? ownerId : undefined);
 
   return {
     ...scheduleItem,

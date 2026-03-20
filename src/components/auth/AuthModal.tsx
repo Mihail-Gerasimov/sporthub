@@ -349,6 +349,7 @@ export function AuthModal() {
             }`}
             onClick={() => {
               setActiveTab('login');
+              setRegisterErrors(DEFAULT_REGISTER_ERRORS);
             }}
           >
             Вход
@@ -366,6 +367,7 @@ export function AuthModal() {
             }`}
             onClick={() => {
               setActiveTab('register');
+              setLoginErrors(DEFAULT_LOGIN_ERRORS);
             }}
           >
             Регистрация

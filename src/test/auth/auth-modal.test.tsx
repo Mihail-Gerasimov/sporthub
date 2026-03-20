@@ -139,10 +139,8 @@ describe('AuthModal', () => {
 
     fireEvent.click(submitButton);
 
-    expect(screen.getByRole('button', { name: /Продолжить вход/i })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
+    // Кнопка в loading-режиме скрывает children и показывает «Загрузка…»
+    expect(screen.getByRole('button', { name: /Загрузка/i })).toHaveAttribute('aria-busy', 'true');
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
 
     await act(async () => {
@@ -281,10 +279,8 @@ describe('AuthModal', () => {
 
     fireEvent.click(submitButton);
 
-    expect(screen.getByRole('button', { name: /Создать аккаунт/i })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
+    // Кнопка в loading-режиме скрывает children и показывает «Загрузка…»
+    expect(screen.getByRole('button', { name: /Загрузка/i })).toHaveAttribute('aria-busy', 'true');
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
 
     await act(async () => {
@@ -302,5 +298,33 @@ describe('AuthModal', () => {
       screen.queryByRole('dialog', { name: 'Войти или создать профиль' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+  });
+
+  it('сбрасывает ошибки валидации при переключении между табами', () => {
+    useUIStore.setState({
+      isAuthModalOpen: true,
+    });
+
+    render(<AuthModal />);
+
+    // Вызываем ошибки валидации на табе «Вход»
+    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'invalid-email' },
+    });
+    fireEvent.change(screen.getByLabelText('Пароль'), {
+      target: { value: '123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
+
+    expect(screen.getByText('Укажи корректный email.')).toBeInTheDocument();
+    expect(screen.getByText('Пароль должен быть не короче 6 символов.')).toBeInTheDocument();
+
+    // Переключаемся на «Регистрация» и обратно — ошибки должны сброситься
+    fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Вход' }));
+
+    expect(screen.queryByText('Укажи корректный email.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Пароль должен быть не короче 6 символов.')).not.toBeInTheDocument();
   });
 });
