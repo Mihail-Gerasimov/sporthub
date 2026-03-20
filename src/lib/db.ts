@@ -3,6 +3,7 @@ import 'server-only';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { getProjectDataDirectory } from '@/lib/projectPaths';
 import type {
   Booking,
   CatalogOwnerType,
@@ -60,7 +61,7 @@ function getDataDirectory(): string {
     return overrideDirectory;
   }
 
-  return path.join(process.cwd(), 'src', 'data');
+  return getProjectDataDirectory();
 }
 
 async function readCollection<Key extends keyof DataCollectionMap>(
@@ -115,7 +116,9 @@ function normalizeSchedule(
   offeringsById: Map<EntityId, Offering>,
 ): Schedule {
   const offering =
-    scheduleItem.offeringId !== undefined ? offeringsById.get(scheduleItem.offeringId) ?? null : null;
+    scheduleItem.offeringId !== undefined
+      ? (offeringsById.get(scheduleItem.offeringId) ?? null)
+      : null;
   const ownerType = scheduleItem.ownerType ?? offering?.ownerType ?? 'club';
   const ownerId =
     scheduleItem.ownerId ??
@@ -124,8 +127,7 @@ function normalizeSchedule(
   const affiliatedClubId =
     scheduleItem.affiliatedClubId ?? offering?.affiliatedClubId ?? scheduleItem.clubId ?? undefined;
   const clubId =
-    scheduleItem.clubId ??
-    (ownerType === 'club' && ownerId !== undefined ? ownerId : undefined);
+    scheduleItem.clubId ?? (ownerType === 'club' && ownerId !== undefined ? ownerId : undefined);
   const trainerId =
     scheduleItem.trainerId ??
     (ownerType === 'trainer' && ownerId !== undefined ? ownerId : undefined);
@@ -171,7 +173,9 @@ export async function getOfferingById(id: EntityId): Promise<Offering | null> {
 
 export async function getClubOfferings(clubId: EntityId): Promise<Offering[]> {
   const offerings = await getOfferings();
-  return offerings.filter((offering) => offering.ownerType === 'club' && offering.ownerId === clubId);
+  return offerings.filter(
+    (offering) => offering.ownerType === 'club' && offering.ownerId === clubId,
+  );
 }
 
 export async function getTrainerOfferings(trainerId: EntityId): Promise<Offering[]> {
@@ -217,25 +221,25 @@ export async function getScheduleSlotContext(id: EntityId): Promise<ScheduleSlot
   const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
   const offering =
     scheduleItem.offeringId !== undefined
-      ? offerings.find((item) => item.id === scheduleItem.offeringId) ?? null
+      ? (offerings.find((item) => item.id === scheduleItem.offeringId) ?? null)
       : null;
   const club =
     scheduleItem.clubId !== undefined
-      ? clubById.get(scheduleItem.clubId) ?? null
+      ? (clubById.get(scheduleItem.clubId) ?? null)
       : offering?.ownerType === 'club'
-        ? clubById.get(offering.ownerId) ?? null
+        ? (clubById.get(offering.ownerId) ?? null)
         : null;
   const trainer =
     scheduleItem.trainerId !== undefined
-      ? trainerById.get(scheduleItem.trainerId) ?? null
+      ? (trainerById.get(scheduleItem.trainerId) ?? null)
       : offering?.ownerType === 'trainer'
-        ? trainerById.get(offering.ownerId) ?? null
+        ? (trainerById.get(offering.ownerId) ?? null)
         : null;
   const affiliatedClub =
     scheduleItem.affiliatedClubId !== undefined
-      ? clubById.get(scheduleItem.affiliatedClubId) ?? null
+      ? (clubById.get(scheduleItem.affiliatedClubId) ?? null)
       : offering?.affiliatedClubId !== undefined
-        ? clubById.get(offering.affiliatedClubId) ?? null
+        ? (clubById.get(offering.affiliatedClubId) ?? null)
         : null;
 
   return {

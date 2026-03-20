@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node ./scripts/run-next.mjs dev --webpack",
+    "dev:turbo": "node ./scripts/run-next.mjs dev --turbopack",
+    "build": "node ./scripts/run-next.mjs build",
+    "start": "node ./scripts/run-next.mjs start",
     "lint": "eslint",
     "format": "prettier --write .",
     "test": "vitest run",

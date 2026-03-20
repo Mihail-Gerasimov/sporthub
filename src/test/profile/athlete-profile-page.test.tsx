@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AthleteProfileRoute from '@/app/profile/athlete/page';
 import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
@@ -228,6 +228,8 @@ const profileUsers: User[] = [
   },
 ];
 
+const FROZEN_PROFILE_TEST_DATE = new Date('2026-03-19T12:00:00+04:00');
+
 const historyBookings: Booking[] = [
   {
     id: 11,
@@ -343,12 +345,18 @@ const historyTrainers: Trainer[] = [
 
 describe('AthleteProfilePage', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_PROFILE_TEST_DATE);
     localStorage.clear();
 
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useUIStore.setState({
       isAuthModalOpen: false,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('показывает athlete-only кабинет с данными пользователя из auth-state', async () => {
