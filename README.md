@@ -11,6 +11,7 @@
 - **БД (MVP):** JSON-файлы через абстракцию `lib/db.ts`
 - **Валидация:** Zod 4.3.6
 - **Auth (MVP):** Auth-модалка на Zustand + localStorage (`provider` / `athlete`)
+- **Локальный dev-режим:** webpack через `npm run dev`, Turbopack доступен отдельно через `npm run dev:turbo`
 - **Качество кода:** ESLint 9 + Prettier 3.8.1 + Vitest
 
 ## Требования
@@ -35,22 +36,27 @@ npm run dev
 
 Открыть http://localhost:3000
 
+`npm run dev` в этом репозитории запускает безопасный dev-режим через `scripts/run-next.mjs` и webpack. Turbopack оставлен как opt-in команда `npm run dev:turbo`.
+
 ## Команды
 
-| Команда              | Описание                           |
-| -------------------- | ---------------------------------- |
-| `npm run dev`        | Dev-сервер (http://localhost:3000) |
-| `npm run build`      | Production-сборка                  |
-| `npm run start`      | Запуск production-сборки           |
-| `npm run lint`       | Линтер (ESLint)                    |
-| `npm run format`     | Форматирование (Prettier)          |
-| `npm run test`       | Одноразовый прогон тестов          |
-| `npm run test:watch` | Vitest в watch-режиме              |
+| Команда              | Описание                                                            |
+| -------------------- | ------------------------------------------------------------------- |
+| `npm run dev`        | Локальный dev-сервер через webpack-wrapper (http://localhost:3000)  |
+| `npm run dev:turbo`  | Альтернативный dev-сервер через Turbopack для точечной диагностики  |
+| `npm run build`      | Production-сборка                                                   |
+| `npm run start`      | Запуск production-сборки                                            |
+| `npm run lint`       | Линтер (ESLint)                                                     |
+| `npm run format`     | Форматирование (Prettier)                                           |
+| `npm run test`       | Одноразовый прогон тестов                                           |
+| `npm run test:watch` | Vitest в watch-режиме                                               |
 
 ## Структура проекта
 
 ```text
 ./
+├── scripts/
+│   └── run-next.mjs             # Wrapper запуска Next с фиксированным корнем проекта
 ├── public/                      # Статика Next.js
 ├── src/
 │   ├── app/                     # App Router, страницы, layout и API routes
@@ -88,6 +94,7 @@ npm run dev
 │   ├── lib/                     # Утилиты и абстракции
 │   │   ├── constants.ts
 │   │   ├── db.ts
+│   │   ├── projectPaths.ts      # Определение корня проекта и data-path без зависимости от cwd
 │   │   └── utils.ts
 │   ├── stores/                  # Zustand-сторы фильтров, UI и auth
 │   ├── test/                    # Vitest, smoke tests, test setup
@@ -125,12 +132,15 @@ npm run dev
 - Главная страница `/` с dual discovery `clubs | trainers`, переключателем режима, фильтрами, fake-картой, подборками и блоком доступных слотов
 - REST API в `app/api/*` для `sports`, `clubs`, `trainers`, `schedule`, `bookings`, `reviews`
 - MVP data layer уже разделяет профили тренеров, offerings и schedule-слоты через `src/data/*.json` и `lib/db.ts`
+- Локальный запуск стабилизирован wrapper-скриптом `scripts/run-next.mjs`; `npm run dev` по умолчанию использует webpack, а `npm run dev:turbo` доступен отдельно
+- `db.ts` и test helpers больше не зависят от `process.cwd()` при поиске `src/data/`: корень проекта определяется через `src/lib/projectPaths.ts`
 - API уже поддерживает `ownerType`-ориентированное расписание, trainer offerings и нейтральный booking contract через `scheduleId`
 - Auth-модалка `Вход / Регистрация` с выбором типа аккаунта
 - Публичная страница клуба `/clubs/[id]` с athlete-only действиями `Записаться` и `Оставить отзыв`
 - Общая slot-based страница записи `/booking/[scheduleId]` для club и trainer услуг
 - На главной в режиме `trainers` уже есть отдельные карточки тренеров, блок `Популярные тренеры` и `Свободные окна тренеров`
 - Личный кабинет спортсмена `/profile/athlete` со сводкой, записями, ачивками, историей, избранным и отзывами
+- Тесты кабинета спортсмена стабилизированы заморозкой системной даты; текущий набор Vitest зелёный
 
 ## Документация
 
