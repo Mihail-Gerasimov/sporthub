@@ -1,0 +1,131 @@
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
+import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
+
+const club: Club = {
+  id: 1,
+  createdAt: '2026-03-17T09:00:00.000Z',
+  name: 'Volna Aquatic Club',
+  slug: 'volna-aquatic-club',
+  description: 'Клуб с бассейном, утренними дорожками и спокойным восстановлением.',
+  shortDescription: 'Бассейн и пилатес рядом с набережной.',
+  city: 'Самара',
+  address: 'ул. Лесная, 23к1',
+  phone: '+7 (846) 200-11-01',
+  email: 'hello@volna-club.ru',
+  website: 'https://volna-club.ru',
+  coordinates: {
+    lat: 53.2129,
+    lng: 50.1245,
+  },
+  sportIds: [3, 8],
+  imageUrls: ['/images/clubs/volna-1.jpg', '/images/clubs/volna-2.jpg'],
+  amenities: ['Бассейн 25 м', 'Сауна'],
+  tags: ['Бассейн', 'Восстановление'],
+  rating: 4.8,
+  reviewCount: 64,
+  priceFrom: 900,
+  distanceKm: 1.8,
+  isFeatured: true,
+};
+
+const sports: Sport[] = [
+  {
+    id: 3,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Плавание',
+    slug: 'swimming',
+    description: 'Плавание',
+    icon: '🏊',
+    imageUrl: '/images/sports/swimming.jpg',
+    isPopular: true,
+  },
+  {
+    id: 8,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Пилатес',
+    slug: 'pilates',
+    description: 'Пилатес',
+    icon: '🤸',
+    imageUrl: '/images/sports/pilates.jpg',
+    isPopular: true,
+  },
+];
+
+const trainers: Trainer[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 1,
+    sportId: 3,
+    name: 'Марина Соколова',
+    slug: 'marina-sokolova',
+    bio: 'Тренер по плаванию с мягким входом для взрослых новичков.',
+    avatarUrl: '/images/trainers/marina.jpg',
+    experienceYears: 9,
+    specialties: ['Кроль', 'Дыхание'],
+    rating: 4.9,
+    reviewCount: 28,
+    priceFrom: 1400,
+  },
+];
+
+const schedule: Schedule[] = [
+  {
+    id: 21,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    clubId: 1,
+    trainerId: 1,
+    sportId: 3,
+    title: 'Утреннее плавание',
+    description: 'Спокойная работа на технику.',
+    date: '2026-03-18',
+    startTime: '07:30',
+    endTime: '08:30',
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 14,
+    bookedCount: 8,
+    price: 1100,
+    room: 'Бассейн A',
+  },
+];
+
+const reviews: Review[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    userId: 1,
+    clubId: 1,
+    rating: 5,
+    text: 'Очень чистый бассейн и спокойная атмосфера.',
+  },
+];
+
+describe('ClubDetailPageClient', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('рендерит заглушки вместо реальных изображений и публичный контент клуба', () => {
+    render(
+      <ClubDetailPageClient
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        sports={sports}
+        trainers={trainers}
+      />,
+    );
+
+    expect(screen.getAllByText('Фото клуба').length).toBeGreaterThan(0);
+    expect(screen.getByText('Фото тренера')).toBeInTheDocument();
+    expect(screen.getByText('Фото автора')).toBeInTheDocument();
+    expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    expect(screen.getByText('Запись откроется позже')).toBeInTheDocument();
+  });
+});
