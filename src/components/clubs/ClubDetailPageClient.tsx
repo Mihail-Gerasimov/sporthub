@@ -1,10 +1,15 @@
 'use client';
 
-import { useMemo } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
 
-import { Badge, Card, Rating } from '@/components/ui';
+import { Badge, Button, Card, Rating } from '@/components/ui';
 import { formatDate, formatPhone, formatPrice } from '@/lib/utils';
+import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
+
+const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
 type ReviewWithAuthor = Review & {
   authorName: string;
@@ -19,6 +24,17 @@ type ClubDetailPageClientProps = {
   reviewAuthors: Record<number, string>;
 };
 
+type ReviewFormState = {
+  rating: number;
+  text: string;
+};
+
+type ReviewFormErrors = {
+  rating?: string;
+  text?: string;
+  submit?: string;
+};
+
 type EnrichedScheduleItem = Schedule & {
   trainerName: string;
   sportName: string;
@@ -30,6 +46,11 @@ type ScheduleGroup = {
   label: string;
   items: EnrichedScheduleItem[];
 };
+
+const reviewFormSchema = z.object({
+  rating: z.number().int().min(1, 'Выбери оценку.'),
+  text: z.string().trim().min(1, 'Напиши пару слов о впечатлении.'),
+});
 
 function formatDayLabel(date: string) {
   const label = formatDate(date, {
@@ -87,6 +108,18 @@ function mapReviewsWithAuthors(
   }));
 }
 
+function ActionNotice({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-5 right-5 z-50 max-w-sm rounded-card border border-line bg-panel px-4 py-3 text-sm font-medium text-ink shadow-floating"
+    >
+      {message}
+    </div>
+  );
+}
+
 function MediaStub({ label, className }: { label: string; className?: string }) {
   return (
     <div
@@ -97,6 +130,24 @@ function MediaStub({ label, className }: { label: string; className?: string }) 
   );
 }
 
+function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
+  const validationResult = reviewFormSchema.safeParse(form);
+
+  if (validationResult.success) {
+    return {};
+  }
+
+  return validationResult.error.issues.reduce<ReviewFormErrors>((accumulator, issue) => {
+    const fieldName = issue.path[0];
+
+    if (fieldName === 'rating' || fieldName === 'text') {
+      accumulator[fieldName] = issue.message;
+    }
+
+    return accumulator;
+  }, {});
+}
+
 export function ClubDetailPageClient({
   club,
   reviewAuthors,
@@ -105,11 +156,113 @@ export function ClubDetailPageClient({
   sports,
   trainers,
 }: ClubDetailPageClientProps) {
-  const reviewItems = useMemo(() => mapReviewsWithAuthors(reviews, reviewAuthors), [reviewAuthors, reviews]);
+  const accountType = useAuthStore((state) => state.accountType);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionUser = useAuthStore((state) => state.user);
+  const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
+    mapReviewsWithAuthors(reviews, reviewAuthors),
+  );
+  const [reviewForm, setReviewForm] = useState<ReviewFormState>({
+    rating: 0,
+    text: '',
+  });
+  const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const scheduleGroups = useMemo(
     () => buildScheduleGroups(schedule, trainers, sports),
     [schedule, sports, trainers],
   );
+  const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+    }, AUTH_NOTICE_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [notice]);
+
+  function showActionNotice(message: string) {
+    setNotice(message);
+  }
+
+  async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isAthlete || athleteActionUserId === null) {
+      showActionNotice('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен');
+      return;
+    }
+
+    const normalizedReviewForm = {
+      rating: reviewForm.rating,
+      text: reviewForm.text.trim(),
+    } satisfies ReviewFormState;
+    const validationErrors = getReviewValidationErrors(normalizedReviewForm);
+
+    setReviewErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmittingReview(true);
+
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: athleteActionUserId,
+          clubId: club.id,
+          rating: normalizedReviewForm.rating,
+          text: normalizedReviewForm.text,
+        }),
+      });
+      const payload = (await response.json()) as
+        | { success: true; data: Review }
+        | { success: false; error?: string };
+
+      if (!response.ok || !payload.success) {
+        setReviewErrors({
+          submit: 'Не удалось отправить отзыв.',
+        });
+        return;
+      }
+
+      setReviewItems((currentValue) => [
+        {
+          ...payload.data,
+          authorName:
+            sessionUser?.name ?? reviewAuthors[payload.data.userId] ?? 'Спортсмен SportHub',
+        },
+        ...currentValue,
+      ]);
+      setReviewForm({
+        rating: 0,
+        text: '',
+      });
+      setReviewErrors({});
+      showActionNotice('Отзыв отправлен.');
+    } catch (error) {
+      console.error('Ошибка отправки отзыва со страницы клуба:', error);
+      setReviewErrors({
+        submit: 'Не удалось отправить отзыв.',
+      });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }
 
   return (
     <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
@@ -292,9 +445,26 @@ export function ClubDetailPageClient({
                             </p>
                           </div>
 
-                          <div className="rounded-pill border border-line bg-canvas px-4 py-2 text-sm font-semibold text-muted">
-                            Запись откроется позже
-                          </div>
+                          {isAthlete ? (
+                            <Link
+                              href={`/booking/${slot.id}`}
+                              aria-label={`Записаться на ${slot.title}`}
+                              className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
+                            >
+                              Записаться
+                            </Link>
+                          ) : (
+                            <Button
+                              aria-label={`Записаться на ${slot.title}`}
+                              onClick={() => {
+                                showActionNotice(
+                                  'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
+                                );
+                              }}
+                            >
+                              Записаться
+                            </Button>
+                          )}
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -311,7 +481,7 @@ export function ClubDetailPageClient({
           </Card>
         </section>
 
-        <section>
+        <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
           <Card className="p-6 sm:p-7">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -348,8 +518,88 @@ export function ClubDetailPageClient({
               ))}
             </div>
           </Card>
+
+          <Card className="p-6 sm:p-7">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                Share feedback
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Оставить отзыв</h2>
+              <p className="mt-3 text-sm leading-7 text-muted">
+                Отзыв может оставить только авторизованный спортсмен. На этой фазе работаем с
+                текущими fake data и MVP-логикой.
+              </p>
+            </div>
+
+            <form className="mt-6 space-y-5" onSubmit={handleReviewSubmit}>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-ink">Оценка</p>
+                <Rating
+                  interactive
+                  value={reviewForm.rating}
+                  onChange={(value) => {
+                    setReviewForm((currentValue) => ({
+                      ...currentValue,
+                      rating: value,
+                    }));
+                    setReviewErrors((currentValue) => ({
+                      ...currentValue,
+                      rating: undefined,
+                    }));
+                  }}
+                />
+                {reviewErrors.rating ? (
+                  <p className="text-sm font-medium text-danger">{reviewErrors.rating}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="club-review-text" className="text-sm font-semibold text-ink">
+                  Отзыв
+                </label>
+                <textarea
+                  id="club-review-text"
+                  value={reviewForm.text}
+                  rows={5}
+                  className="min-h-36 w-full rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-7 text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
+                  placeholder="Что понравилось в клубе, формате тренировок или атмосфере?"
+                  onChange={(event) => {
+                    setReviewForm((currentValue) => ({
+                      ...currentValue,
+                      text: event.target.value,
+                    }));
+                    setReviewErrors((currentValue) => ({
+                      ...currentValue,
+                      text: undefined,
+                      submit: undefined,
+                    }));
+                  }}
+                />
+                {reviewErrors.text ? (
+                  <p className="text-sm font-medium text-danger">{reviewErrors.text}</p>
+                ) : null}
+              </div>
+
+              {reviewErrors.submit ? (
+                <p className="text-sm font-medium text-danger">{reviewErrors.submit}</p>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted">
+                  {isAthlete
+                    ? `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}.`
+                    : 'Для отправки отзыва нужен вход или регистрация как спортсмен.'}
+                </div>
+                <Button type="submit" loading={isSubmittingReview}>
+                  Отправить отзыв
+                </Button>
+              </div>
+            </form>
+          </Card>
         </section>
       </div>
+
+      {notice ? <ActionNotice message={notice} /> : null}
     </div>
   );
 }

@@ -6,8 +6,10 @@ import {
   AUTH_STORAGE_KEY,
   AUTH_STORE_DEFAULT_STATE,
   getPersonalCabinetConfig,
+  MVP_ATHLETE_USER_ID,
   PERSONAL_CABINET_CONFIG,
   selectAuthAccountType,
+  selectAthleteActionUserId,
   useAuthStore,
   type AuthSessionUser,
 } from '@/stores/useAuthStore';
@@ -107,6 +109,29 @@ describe('useAuthStore', () => {
     });
 
     expect(selectAuthAccountType(useAuthStore.getState())).toBe('provider');
+  });
+
+  it('возвращает fake athlete userId только для athlete-only действий', () => {
+    act(() => {
+      useAuthStore.getState().login({
+        accountType: 'athlete',
+        user: {
+          ...athleteUser,
+          id: MVP_ATHLETE_USER_ID,
+        },
+      });
+    });
+
+    expect(selectAthleteActionUserId(useAuthStore.getState())).toBe(MVP_ATHLETE_USER_ID);
+
+    act(() => {
+      useAuthStore.getState().login({
+        accountType: 'provider',
+        user: providerUser,
+      });
+    });
+
+    expect(selectAthleteActionUserId(useAuthStore.getState())).toBeNull();
   });
 
   it('возвращает конфиг будущего личного кабинета по accountType', () => {

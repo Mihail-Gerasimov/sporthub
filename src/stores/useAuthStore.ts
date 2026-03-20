@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AuthAccountType } from '@/types';
 
 export type AuthSessionUser = {
+  id?: number;
   name: string;
   email: string;
   phone?: string;
@@ -33,6 +34,7 @@ type AuthState = {
 };
 
 export const AUTH_STORAGE_KEY = 'sporthub-auth-store';
+export const MVP_ATHLETE_USER_ID = 1;
 
 export const AUTH_STORE_DEFAULT_STATE = {
   user: null,
@@ -63,6 +65,10 @@ export const PERSONAL_CABINET_CONFIG: Record<AuthAccountType, PersonalCabinetCon
 
 export function selectAuthAccountType(state: Pick<AuthState, 'accountType'>) {
   return state.accountType;
+}
+
+export function selectAthleteActionUserId(state: Pick<AuthState, 'accountType' | 'user'>) {
+  return state.accountType === 'athlete' ? (state.user?.id ?? null) : null;
 }
 
 export function getPersonalCabinetConfig(accountType: AuthAccountType | null) {

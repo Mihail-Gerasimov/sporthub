@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { useUIStore } from '@/stores/useUIStore';
 import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
 
 const club: Club = {
@@ -107,6 +109,13 @@ const reviews: Review[] = [
 describe('ClubDetailPageClient', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+    useUIStore.setState({
+      isAuthModalOpen: false,
+    });
   });
 
   it('рендерит заглушки вместо реальных изображений и публичный контент клуба', () => {
@@ -126,6 +135,134 @@ describe('ClubDetailPageClient', () => {
     expect(screen.getByText('Фото автора')).toBeInTheDocument();
     expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
-    expect(screen.getByText('Запись откроется позже')).toBeInTheDocument();
+  });
+
+  it('для гостя показывает временные auth-подсказки вместо athlete-only действий', async () => {
+    vi.useFakeTimers();
+
+    render(
+      <ClubDetailPageClient
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        sports={sports}
+        trainers={trainers}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Записаться на Утреннее плавание' }));
+
+    expect(
+      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
+
+    expect(
+      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(3200);
+    });
+
+    expect(
+      screen.queryByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('для provider блокирует athlete-only действия', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'provider',
+      user: {
+        name: 'Марина Крылова',
+        email: 'marina@studio.local',
+      },
+    });
+
+    render(
+      <ClubDetailPageClient
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        sports={sports}
+        trainers={trainers}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Записаться на Утреннее плавание' }));
+
+    expect(
+      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
+    ).toBeInTheDocument();
+  });
+
+  it('для athlete даёт перейти к записи и отправить отзыв через fake API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          id: 2,
+          createdAt: '2026-03-18T10:00:00.000Z',
+          userId: 1,
+          clubId: 1,
+          rating: 5,
+          text: 'Очень понравилась спокойная атмосфера.',
+        },
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <ClubDetailPageClient
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        sports={sports}
+        trainers={trainers}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Записаться на Утреннее плавание' })).toHaveAttribute(
+      'href',
+      '/booking/21',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Оценить на 5 из 5' }));
+    fireEvent.change(screen.getByLabelText('Отзыв'), {
+      target: { value: 'Очень понравилась спокойная атмосфера.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/reviews',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(screen.getByText('Очень понравилась спокойная атмосфера.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Отзыв отправлен.')).toBeInTheDocument();
+    });
   });
 });

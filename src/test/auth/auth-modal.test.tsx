@@ -158,6 +158,33 @@ describe('AuthModal', () => {
     expect(screen.getByText('marina')).toBeInTheDocument();
   });
 
+  it('для спортсмена привязывает auth-session к fake user id для athlete-only действий', async () => {
+    vi.useFakeTimers();
+
+    render(
+      <AppShell>
+        <div>Контент страницы</div>
+      </AppShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'alexey@sporthub.local' },
+    });
+    fireEvent.change(screen.getByLabelText('Пароль'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
+
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+    });
+
+    expect(useAuthStore.getState().accountType).toBe('athlete');
+    expect(useAuthStore.getState().user?.id).toBe(1);
+  });
+
   it('не запускает регистрацию без выбранного типа аккаунта', () => {
     useUIStore.setState({
       isAuthModalOpen: true,
