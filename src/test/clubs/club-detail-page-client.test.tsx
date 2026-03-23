@@ -273,4 +273,22 @@ describe('ClubDetailPageClient', () => {
       expect(screen.getByText('Отзыв отправлен.')).toBeInTheDocument();
     });
   });
+
+  it('содержит ссылку на страницу тренера /trainers/[id] в секции тренеров', () => {
+    render(
+      <ClubDetailPageClient
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        sports={sports}
+        trainers={trainers}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Марина Соколова' })).toHaveAttribute(
+      'href',
+      '/trainers/1',
+    );
+  });
 });

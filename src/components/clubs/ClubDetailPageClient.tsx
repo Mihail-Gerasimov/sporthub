@@ -379,7 +379,12 @@ export function ClubDetailPageClient({
                 >
                   <MediaStub label="Фото тренера" className="min-h-44 w-full" />
                   <div className="mt-4">
-                    <p className="text-lg font-semibold text-ink">{trainer.name}</p>
+                    <Link
+                      href={`/trainers/${trainer.id}`}
+                      className="text-lg font-semibold text-ink transition-colors duration-200 hover:text-accent-strong"
+                    >
+                      {trainer.name}
+                    </Link>
                     <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
