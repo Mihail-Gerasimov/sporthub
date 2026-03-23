@@ -95,7 +95,7 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
             {popularTrainers.map((trainer) => (
               <div
                 key={trainer.id}
-                className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
+                className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
               >
                 <TrainerCard trainer={trainer} variant="carousel" />
               </div>

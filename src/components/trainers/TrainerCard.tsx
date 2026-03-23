@@ -11,6 +11,7 @@ type TrainerCardProps = {
   variant?: 'default' | 'carousel';
 };
 
+/* Палитра градиентов для cover-секции */
 function getCoverPalette(trainerId: number): string {
   const palettes = [
     'from-[#113d45] via-[#1d6c74] to-[#f1d2af]',
@@ -22,6 +23,7 @@ function getCoverPalette(trainerId: number): string {
   return palettes[trainerId % palettes.length];
 }
 
+/* Инициалы тренера (макс. 2 символа) */
 function getTrainerInitials(name: string): string {
   return name
     .trim()
@@ -44,6 +46,12 @@ export function TrainerCard({
       ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
       : 'Свободные окна скоро появятся';
 
+  /* Метка расстояния или количества слотов */
+  const distanceLabel =
+    trainer.distanceKm === null
+      ? `${trainer.availableSlotsCount} окон`
+      : `${trainer.distanceKm.toFixed(1)} км`;
+
   return (
     <article className="h-full w-full">
       <Card
@@ -55,152 +63,139 @@ export function TrainerCard({
           highlighted && 'ring-2 ring-accent/35',
         )}
       >
-        <div className="grid gap-0 md:grid-cols-[0.88fr_1.12fr]">
-          <div
-            className={`relative min-h-72 overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-5 text-panel`}
-          >
-            <div className="relative flex h-full flex-col justify-between gap-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <Badge className="bg-panel/16 text-panel" tone="outline">
-                  {trainer.city}
+        {/* Cover-секция: gradient + фото placeholder */}
+        <div
+          className={`relative min-h-52 overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-5 text-panel`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <Badge className="bg-panel/16 text-panel" tone="outline">
+                {trainer.city}
+              </Badge>
+              {highlighted ? (
+                <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
+                  Выбрано на карте
                 </Badge>
-                {highlighted ? (
-                  <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
-                    Выбрано на карте
-                  </Badge>
-                ) : null}
-              </div>
+              ) : null}
+            </div>
 
-              <div className="flex justify-center py-2">
-                <div className="relative flex size-44 items-center justify-center rounded-[2rem] border border-panel/24 bg-panel/18 backdrop-blur-sm">
-                  <div className="absolute inset-x-5 bottom-0 h-24 rounded-t-[999px] bg-panel/15" />
-                  <div className="absolute top-6 size-18 rounded-full bg-panel/88" />
-                  <div className="absolute bottom-6 h-24 w-24 rounded-t-[999px] bg-panel/82" />
-                  <span className="absolute bottom-5 rounded-pill bg-panel px-3 py-1 text-xs font-semibold uppercase tracking-[0.10em] text-accent-strong">
-                    Фото-заглушка
-                  </span>
-                  <span className="absolute left-4 top-4 text-sm font-semibold uppercase tracking-[0.10em] text-panel/70">
-                    {getTrainerInitials(trainer.name)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
-                    Персональный тренер
-                  </p>
-                  <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
-                    {trainer.name}
-                  </p>
-                </div>
-
-                <div className="flex gap-2 text-2xl" aria-hidden="true">
-                  {previewSports.map((sport) => (
-                    <span key={sport.id}>{sport.icon}</span>
-                  ))}
-                </div>
-              </div>
+            {/* Фото-заглушка (компактная) */}
+            <div className="relative flex size-32 shrink-0 items-center justify-center rounded-[1.5rem] border border-panel/24 bg-panel/18 backdrop-blur-sm">
+              <div className="absolute top-4 size-14 rounded-full bg-panel/88" />
+              <div className="absolute bottom-4 h-18 w-18 rounded-t-[999px] bg-panel/82" />
+              <span className="absolute bottom-3 rounded-pill bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.10em] text-accent-strong">
+                Фото
+              </span>
+              <span className="absolute left-3 top-3 text-xs font-semibold uppercase tracking-[0.10em] text-panel/70">
+                {getTrainerInitials(trainer.name)}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-5 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
-                  {trainer.primaryOfferingFormat ? (
-                    <Badge tone="teal">
-                      {trainer.primaryOfferingFormat === 'personal'
-                        ? 'Персонально'
-                        : trainer.primaryOfferingFormat === 'mini_group'
-                          ? 'Мини-группа'
-                          : 'Группа'}
-                    </Badge>
-                  ) : null}
-                </div>
-                <p
-                  className={cn(
-                    'mt-4 text-sm font-medium leading-relaxed text-muted',
-                    isCarousel && 'min-h-[4rem]',
-                  )}
-                >
-                  {trainer.primaryOfferingTitle ?? trainer.bio}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <Rating value={trainer.rating} />
-                  <span className="text-sm text-muted">{trainer.reviewCount} отзывов</span>
-                </div>
-              </div>
-
-              <div className="rounded-card border border-line bg-canvas px-4 py-3 text-right">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted">от</p>
-                <p className="mt-1 text-lg font-semibold text-ink">
-                  {formatPrice(trainer.priceFrom)}
-                </p>
-                <p className="text-xs text-muted">
-                  {trainer.distanceKm === null
-                    ? `${trainer.availableSlotsCount} окон`
-                    : `${trainer.distanceKm.toFixed(1)} км`}
-                </p>
-              </div>
+          <div className="mt-8 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
+                Персональный тренер
+              </p>
+              <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
+                {trainer.name}
+              </p>
             </div>
 
-            <div className="grid gap-3 rounded-card border border-line bg-panel-strong p-4 sm:grid-cols-2">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-                  Площадка
-                </p>
-                <p className="mt-2 text-sm font-semibold text-ink">{trainer.venueLabel}</p>
-                {trainer.venueName ? (
-                  <p className="mt-1 text-xs text-muted">{trainer.venueAddress}</p>
-                ) : null}
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-                  Ближайшее окно
-                </p>
-                <p className="mt-2 text-sm font-semibold text-ink">{nextSlotLabel}</p>
-              </div>
+            <div className="flex gap-2 text-2xl" aria-hidden="true">
+              {previewSports.map((sport) => (
+                <span key={sport.id}>{sport.icon}</span>
+              ))}
             </div>
+          </div>
+        </div>
 
+        {/* Контент-секция */}
+        <div className="flex flex-1 flex-col gap-5 p-5">
+          {/* Цена и расстояние — компактная строка */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-semibold text-ink">от {formatPrice(trainer.priceFrom)}</span>
+            <span className="text-muted">·</span>
+            <span className="text-muted">{distanceLabel}</span>
+          </div>
+
+          {/* Опыт и формат */}
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
+            {trainer.primaryOfferingFormat ? (
+              <Badge tone="teal">
+                {trainer.primaryOfferingFormat === 'personal'
+                  ? 'Персонально'
+                  : trainer.primaryOfferingFormat === 'mini_group'
+                    ? 'Мини-группа'
+                    : 'Группа'}
+              </Badge>
+            ) : null}
+          </div>
+
+          {/* Описание и рейтинг */}
+          <div>
+            <p
+              className={cn(
+                'text-sm font-medium leading-relaxed text-muted',
+                isCarousel && 'min-h-[3.5rem]',
+              )}
+            >
+              {trainer.primaryOfferingTitle ?? trainer.bio}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Rating value={trainer.rating} />
+              <span className="text-sm text-muted">{trainer.reviewCount} отзывов</span>
+            </div>
+          </div>
+
+          {/* Площадка и ближайшее окно */}
+          <div className="grid gap-3 rounded-card border border-line bg-panel-strong p-4 sm:grid-cols-2">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-                Сильные стороны
+                Площадка
               </p>
-              <div
-                className={cn(
-                  'mt-3 flex flex-wrap gap-2',
-                  isCarousel && 'min-h-[5.5rem] content-start',
-                )}
+              <p className="mt-2 text-sm font-semibold text-ink">{trainer.venueLabel}</p>
+              {trainer.venueName ? (
+                <p className="mt-1 text-xs text-muted">{trainer.venueAddress}</p>
+              ) : null}
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
+                Ближайшее окно
+              </p>
+              <p className="mt-2 text-sm font-semibold text-ink">{nextSlotLabel}</p>
+            </div>
+          </div>
+
+          {/* Сильные стороны */}
+          <div className={cn('flex flex-wrap gap-2', isCarousel && 'min-h-[5.5rem] content-start')}>
+            {previewSpecialties.map((specialty) => (
+              <Badge key={specialty} tone="outline">
+                {specialty}
+              </Badge>
+            ))}
+            {previewSports.map((sport) => (
+              <Badge key={sport.id} tone="teal">
+                {sport.name}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Футер: bio + ссылка на запись */}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
+            <p className="max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
+
+            {trainer.nextSlotId ? (
+              <Link
+                href={`/booking/${trainer.nextSlotId}`}
+                className="text-sm font-semibold text-accent-strong transition-transform duration-200 hover:translate-x-1"
               >
-                {previewSpecialties.map((specialty) => (
-                  <Badge key={specialty} tone="outline">
-                    {specialty}
-                  </Badge>
-                ))}
-                {previewSports.map((sport) => (
-                  <Badge key={sport.id} tone="teal">
-                    {sport.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
-              <p className="max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
-
-              {trainer.nextSlotId ? (
-                <Link
-                  href={`/booking/${trainer.nextSlotId}`}
-                  className="text-sm font-semibold text-accent-strong transition-transform duration-200 hover:translate-x-1"
-                >
-                  Перейти к записи
-                </Link>
-              ) : (
-                <span className="text-sm font-semibold text-muted">Слоты скоро появятся</span>
-              )}
-            </div>
+                Перейти к записи
+              </Link>
+            ) : (
+              <span className="text-sm font-semibold text-muted">Слоты скоро появятся</span>
+            )}
           </div>
         </div>
       </Card>
