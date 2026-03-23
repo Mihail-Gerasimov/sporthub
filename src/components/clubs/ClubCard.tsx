@@ -68,7 +68,7 @@ export function ClubCard({
 
             <span
               data-testid="club-card-media-pill"
-              className="min-w-[8.75rem] shrink-0 whitespace-nowrap rounded-pill bg-panel/14 px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-[0.18em] text-panel"
+              className="min-w-[8.75rem] shrink-0 whitespace-nowrap rounded-pill bg-panel/14 px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-[0.10em] text-panel"
             >
               фото preview
             </span>
@@ -76,7 +76,7 @@ export function ClubCard({
 
           <div className="mt-10 flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-panel/72">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
                 {club.address}
               </p>
               <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
@@ -110,7 +110,7 @@ export function ClubCard({
             </div>
 
             <div className="rounded-card border border-line bg-canvas px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-[0.16em] text-muted">от</p>
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">от</p>
               <p className="mt-1 text-lg font-semibold text-ink">{formatPrice(club.priceFrom)}</p>
               <p className="text-xs text-muted">{club.distanceKm.toFixed(1)} км</p>
             </div>

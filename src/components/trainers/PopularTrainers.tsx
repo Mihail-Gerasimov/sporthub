@@ -23,7 +23,9 @@ function sortByPopularity(trainers: TrainerDirectoryItem[]): TrainerDirectoryIte
       return right.reviewCount - left.reviewCount;
     }
 
-    return (left.distanceKm ?? Number.POSITIVE_INFINITY) - (right.distanceKm ?? Number.POSITIVE_INFINITY);
+    return (
+      (left.distanceKm ?? Number.POSITIVE_INFINITY) - (right.distanceKm ?? Number.POSITIVE_INFINITY)
+    );
   });
 }
 
@@ -42,13 +44,13 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
     <section id="highlights" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Trainer highlights
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">Популярные тренеры</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
-            Горизонтальный ряд с тренерами, которые сильнее всего выделяются по рейтингу, отзывам
-            и плотности персонального спроса.
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+            Горизонтальный ряд с тренерами, которые сильнее всего выделяются по рейтингу, отзывам и
+            плотности персонального спроса.
           </p>
         </div>
 
@@ -103,9 +105,9 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
       </div>
 
       <Card className="bg-panel-strong">
-        <p className="text-sm leading-7 text-muted">
-          В trainer-mode блок строится вокруг самих тренеров и их услуг, а не вокруг клубной
-          выдачи. Здесь собраны самые заметные профили с ближайшими окнами для записи.
+        <p className="text-sm leading-relaxed text-muted">
+          В trainer-mode блок строится вокруг самих тренеров и их услуг, а не вокруг клубной выдачи.
+          Здесь собраны самые заметные профили с ближайшими окнами для записи.
         </p>
       </Card>
     </section>

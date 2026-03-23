@@ -59,11 +59,6 @@ export function TrainerCard({
           <div
             className={`relative min-h-72 overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-5 text-panel`}
           >
-            <div className="absolute inset-0 opacity-30">
-              <div className="absolute right-[-14%] top-[-8%] size-40 rounded-full border border-panel/25" />
-              <div className="absolute bottom-[-18%] left-[-8%] size-48 rounded-full border border-panel/20" />
-            </div>
-
             <div className="relative flex h-full flex-col justify-between gap-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <Badge className="bg-panel/16 text-panel" tone="outline">
@@ -77,14 +72,14 @@ export function TrainerCard({
               </div>
 
               <div className="flex justify-center py-2">
-                <div className="relative flex size-44 items-center justify-center rounded-[2rem] border border-panel/24 bg-panel/18 shadow-floating backdrop-blur-sm">
+                <div className="relative flex size-44 items-center justify-center rounded-[2rem] border border-panel/24 bg-panel/18 backdrop-blur-sm">
                   <div className="absolute inset-x-5 bottom-0 h-24 rounded-t-[999px] bg-panel/15" />
                   <div className="absolute top-6 size-18 rounded-full bg-panel/88" />
                   <div className="absolute bottom-6 h-24 w-24 rounded-t-[999px] bg-panel/82" />
-                  <span className="absolute bottom-5 rounded-pill bg-panel px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent-strong">
+                  <span className="absolute bottom-5 rounded-pill bg-panel px-3 py-1 text-xs font-semibold uppercase tracking-[0.10em] text-accent-strong">
                     Фото-заглушка
                   </span>
-                  <span className="absolute left-4 top-4 text-sm font-semibold uppercase tracking-[0.2em] text-panel/70">
+                  <span className="absolute left-4 top-4 text-sm font-semibold uppercase tracking-[0.10em] text-panel/70">
                     {getTrainerInitials(trainer.name)}
                   </span>
                 </div>
@@ -92,7 +87,7 @@ export function TrainerCard({
 
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-panel/72">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
                     Персональный тренер
                   </p>
                   <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
@@ -126,7 +121,7 @@ export function TrainerCard({
                 </div>
                 <p
                   className={cn(
-                    'mt-4 text-sm font-medium leading-7 text-muted',
+                    'mt-4 text-sm font-medium leading-relaxed text-muted',
                     isCarousel && 'min-h-[4rem]',
                   )}
                 >
@@ -139,7 +134,7 @@ export function TrainerCard({
               </div>
 
               <div className="rounded-card border border-line bg-canvas px-4 py-3 text-right">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted">от</p>
+                <p className="text-xs uppercase tracking-[0.08em] text-muted">от</p>
                 <p className="mt-1 text-lg font-semibold text-ink">
                   {formatPrice(trainer.priceFrom)}
                 </p>
@@ -153,7 +148,7 @@ export function TrainerCard({
 
             <div className="grid gap-3 rounded-card border border-line bg-panel-strong p-4 sm:grid-cols-2">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                   Площадка
                 </p>
                 <p className="mt-2 text-sm font-semibold text-ink">{trainer.venueLabel}</p>
@@ -162,7 +157,7 @@ export function TrainerCard({
                 ) : null}
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                   Ближайшее окно
                 </p>
                 <p className="mt-2 text-sm font-semibold text-ink">{nextSlotLabel}</p>
@@ -170,7 +165,7 @@ export function TrainerCard({
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                 Сильные стороны
               </p>
               <div
@@ -193,7 +188,7 @@ export function TrainerCard({
             </div>
 
             <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
-              <p className="max-w-xs text-sm leading-7 text-muted">{trainer.bio}</p>
+              <p className="max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
 
               {trainer.nextSlotId ? (
                 <Link

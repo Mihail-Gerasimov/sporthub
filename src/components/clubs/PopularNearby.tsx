@@ -54,11 +54,11 @@ export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
     <section id="highlights" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Nearby highlights
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">Популярное рядом</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
             Быстрый горизонтальный ряд с клубами, которые сильнее всего выделяются по рейтингу и
             отзывам.
           </p>
@@ -115,7 +115,7 @@ export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
       </div>
 
       <Card className="bg-panel-strong">
-        <p className="text-sm leading-7 text-muted">
+        <p className="text-sm leading-relaxed text-muted">
           На MVP блок «рядом» пока не использует геолокацию. Здесь показывается топ-клубов по
           рейтингу и отзывам, чтобы быстро подсветить сильные места каталога.
         </p>
