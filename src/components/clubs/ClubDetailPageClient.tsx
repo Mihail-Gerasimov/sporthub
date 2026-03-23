@@ -123,7 +123,7 @@ function ActionNotice({ message }: { message: string }) {
 function MediaStub({ label, className }: { label: string; className?: string }) {
   return (
     <div
-      className={`flex items-center justify-center rounded-card border border-dashed border-line bg-canvas px-4 py-6 text-center text-xs font-semibold uppercase tracking-[0.24em] text-muted ${className ?? ''}`}
+      className={`flex items-center justify-center rounded-card border border-dashed border-line bg-canvas px-4 py-6 text-center text-xs font-semibold uppercase tracking-[0.10em] text-muted ${className ?? ''}`}
     >
       {label}
     </div>
@@ -271,10 +271,7 @@ export function ClubDetailPageClient({
           <Card className="overflow-hidden p-4 sm:p-5">
             <div className="grid gap-4" data-testid="club-media-gallery">
               <MediaStub label="Фото клуба" className="min-h-72 md:min-h-[26rem]" />
-              <div
-                className="grid gap-4 sm:grid-cols-2"
-                data-testid="club-media-gallery-secondary"
-              >
+              <div className="grid gap-4 sm:grid-cols-2" data-testid="club-media-gallery-secondary">
                 <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
                 <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
               </div>
@@ -289,7 +286,7 @@ export function ClubDetailPageClient({
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Club profile
               </p>
               <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
@@ -301,27 +298,27 @@ export function ClubDetailPageClient({
               </div>
             </div>
 
-            <p className="text-base leading-8 text-muted">{club.description}</p>
+            <p className="text-base leading-relaxed text-muted">{club.description}</p>
 
             <div className="grid gap-4 rounded-card border border-line bg-canvas p-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Контакты
                 </p>
-                <div className="mt-3 space-y-2 text-sm leading-7 text-ink">
+                <div className="mt-3 space-y-2 text-sm leading-relaxed text-ink">
                   <p>{formatPhone(club.phone)}</p>
                   {club.email ? <p>{club.email}</p> : null}
                   {club.website ? <p>{club.website}</p> : null}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Цена от
                 </p>
                 <p className="mt-3 text-2xl font-semibold text-ink">
                   {formatPrice(club.priceFrom)}
                 </p>
-                <p className="mt-2 text-sm leading-7 text-muted">{club.shortDescription}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{club.shortDescription}</p>
               </div>
             </div>
 
@@ -343,7 +340,7 @@ export function ClubDetailPageClient({
         <section data-testid="club-directions-section">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Sport focus
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
@@ -364,7 +361,7 @@ export function ClubDetailPageClient({
                 </span>
                 <div>
                   <p className="text-lg font-semibold text-ink">{sport.name}</p>
-                  <p className="mt-2 text-sm leading-7 text-muted">{sport.description}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{sport.description}</p>
                 </div>
               </div>
             ))}
@@ -375,7 +372,7 @@ export function ClubDetailPageClient({
           <Card className="p-6 sm:p-7">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Coaching team
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Тренеры клуба</h2>
@@ -393,7 +390,7 @@ export function ClubDetailPageClient({
                   <MediaStub label="Фото тренера" className="min-h-44 w-full" />
                   <div className="mt-4">
                     <p className="text-lg font-semibold text-ink">{trainer.name}</p>
-                    <p className="mt-2 text-sm leading-7 text-muted">{trainer.bio}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
                       <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>
@@ -417,7 +414,7 @@ export function ClubDetailPageClient({
           <Card className="p-6 sm:p-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Weekly schedule
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
@@ -440,11 +437,11 @@ export function ClubDetailPageClient({
                       <div key={slot.id} className="rounded-card border border-line bg-panel p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+                            <p className="text-sm font-semibold uppercase tracking-[0.10em] text-muted">
                               {slot.sportName}
                             </p>
                             <p className="mt-2 text-xl font-semibold text-ink">{slot.title}</p>
-                            <p className="mt-2 text-sm leading-7 text-muted">
+                            <p className="mt-2 text-sm leading-relaxed text-muted">
                               {slot.startTime} - {slot.endTime}, {slot.trainerName}
                             </p>
                           </div>
@@ -489,7 +486,7 @@ export function ClubDetailPageClient({
           <Card className="p-6 sm:p-7">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Community feedback
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Отзывы клуба</h2>
@@ -515,7 +512,7 @@ export function ClubDetailPageClient({
                         </div>
                         <Rating value={review.rating} />
                       </div>
-                      <p className="mt-3 text-sm leading-7 text-muted">{review.text}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-muted">{review.text}</p>
                     </div>
                   </div>
                 </div>
@@ -525,11 +522,11 @@ export function ClubDetailPageClient({
 
           <Card className="p-6 sm:p-7">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Share feedback
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Оставить отзыв</h2>
-              <p className="mt-3 text-sm leading-7 text-muted">
+              <p className="mt-3 text-sm leading-relaxed text-muted">
                 Отзыв может оставить только авторизованный спортсмен. На этой фазе работаем с
                 текущими fake data и MVP-логикой.
               </p>
@@ -565,7 +562,7 @@ export function ClubDetailPageClient({
                   id="club-review-text"
                   value={reviewForm.text}
                   rows={5}
-                  className="min-h-36 w-full rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-7 text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
+                  className="min-h-36 w-full rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
                   placeholder="Что понравилось в клубе, формате тренировок или атмосфере?"
                   onChange={(event) => {
                     setReviewForm((currentValue) => ({

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getClubById, getOfferings, getReviews, getSchedule, getSports, getTrainers } from '@/lib/db';
+import {
+  getClubById,
+  getOfferings,
+  getReviews,
+  getSchedule,
+  getSports,
+  getTrainers,
+} from '@/lib/db';
 
 const clubIdSchema = z.coerce.number().int().positive();
 
@@ -42,7 +49,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ]);
     const clubTrainerIds = new Set(
       offerings
-        .filter((offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId)
+        .filter(
+          (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
+        )
         .map((offering) => offering.ownerId),
     );
 

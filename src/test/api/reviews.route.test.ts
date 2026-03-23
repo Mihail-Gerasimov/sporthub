@@ -48,7 +48,9 @@ describe('Reviews API', () => {
   });
 
   it('создаёт отзыв о тренере и сохраняет его в JSON', async () => {
-    const beforeResponse = await GET(new NextRequest('http://localhost:3000/api/reviews?trainerId=1'));
+    const beforeResponse = await GET(
+      new NextRequest('http://localhost:3000/api/reviews?trainerId=1'),
+    );
     const beforeBody = await beforeResponse.json();
 
     const postResponse = await POST(

@@ -24,7 +24,7 @@ export function UiShowcase() {
         <Card className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Component library
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-ink">Базовые UI-компоненты</h2>
@@ -57,7 +57,7 @@ export function UiShowcase() {
             </div>
 
             <Card elevated className="bg-panel-strong">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Chip + Rating
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -95,7 +95,7 @@ export function UiShowcase() {
 
         <Card className="space-y-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Modal & skeleton
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Состояния интерфейса</h2>

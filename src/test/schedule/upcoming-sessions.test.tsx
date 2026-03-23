@@ -98,9 +98,8 @@ describe('UpcomingSessions', () => {
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
     expect(screen.getByText('Персональная тренировка: Плавание')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Открыть запись к тренеру Марина Соколова' })).toHaveAttribute(
-      'href',
-      '/booking/1001',
-    );
+    expect(
+      screen.getByRole('link', { name: 'Открыть запись к тренеру Марина Соколова' }),
+    ).toHaveAttribute('href', '/booking/1001');
   });
 });

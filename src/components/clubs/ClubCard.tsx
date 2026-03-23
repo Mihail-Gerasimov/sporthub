@@ -98,7 +98,7 @@ export function ClubCard({
               <p
                 className={cn(
                   'text-sm font-medium text-muted',
-                  isCarousel && 'min-h-[3.5rem] leading-7',
+                  isCarousel && 'min-h-[3.5rem] leading-relaxed',
                 )}
               >
                 {club.shortDescription}

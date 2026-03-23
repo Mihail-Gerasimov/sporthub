@@ -12,7 +12,12 @@ import { getAthleteAchievements } from '@/components/profile/athlete-achievement
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { Badge, Button, Card } from '@/components/ui';
-import { formatDate, getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
+import {
+  formatDate,
+  getBookingClubId,
+  getBookingTrainerId,
+  getDateKeyInTimeZone,
+} from '@/lib/utils';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -165,7 +170,7 @@ function AthleteAccessDeniedState() {
           <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight text-ink">
             Доступ ограничен
           </h1>
-          <p className="mt-4 text-base leading-8 text-muted">{message}</p>
+          <p className="mt-4 text-base leading-relaxed text-muted">{message}</p>
 
           <div className="mt-8 flex flex-wrap gap-3">
             {!isAuthenticated ? (
@@ -297,21 +302,21 @@ export function AthleteProfilePage({
               <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight text-ink">
                 Кабинет спортсмена
               </h1>
-              <p className="mt-4 max-w-2xl text-base leading-8 text-muted">
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
                 Кабинет уже собран как цельная MVP-страница спортсмена: со сводкой, ачивками,
                 историей, избранным и отзывами. Дальше пойдём в сценарий записи и подтверждения.
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-card border border-line bg-canvas p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                     Email
                   </p>
                   <p className="mt-3 text-base font-semibold text-ink">{user.email}</p>
                 </div>
 
                 <div className="rounded-card border border-line bg-canvas p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                     Телефон
                   </p>
                   <p className="mt-3 text-base font-semibold text-ink">
@@ -346,7 +351,7 @@ export function AthleteProfilePage({
           <div className="sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Быстрая сводка
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
@@ -358,14 +363,14 @@ export function AthleteProfilePage({
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Имя спортсмена
             </p>
             <p className="mt-3 text-lg font-semibold text-ink">{user.name}</p>
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Ближайшие записи
             </p>
             <p
@@ -374,11 +379,13 @@ export function AthleteProfilePage({
             >
               {athleteSummary.upcomingBookingsCount}
             </p>
-            <p className="mt-2 text-sm leading-7 text-muted">Активных слотов в ближайшем плане</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Активных слотов в ближайшем плане
+            </p>
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Посещения
             </p>
             <p
@@ -387,29 +394,29 @@ export function AthleteProfilePage({
             >
               {athleteSummary.completedVisitsCount}
             </p>
-            <p className="mt-2 text-sm leading-7 text-muted">Завершённых занятий в истории</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Завершённых занятий в истории</p>
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Отзывы</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">Отзывы</p>
             <p
               data-testid="athlete-summary-reviews"
               className="mt-3 text-3xl font-semibold text-ink"
             >
               {athleteSummary.reviewsCount}
             </p>
-            <p className="mt-2 text-sm leading-7 text-muted">Оставленных отзывов в MVP</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Оставленных отзывов в MVP</p>
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Ачивки</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">Ачивки</p>
             <p
               data-testid="athlete-summary-achievements"
               className="mt-3 text-3xl font-semibold text-ink"
             >
               {athleteSummary.achievementsCount}
             </p>
-            <p className="mt-2 text-sm leading-7 text-muted">
+            <p className="mt-2 text-sm leading-relaxed text-muted">
               Открытых MVP-достижений по текущей активности
             </p>
           </div>
@@ -420,7 +427,7 @@ export function AthleteProfilePage({
         <Card className="p-6 sm:p-8" data-testid="athlete-upcoming-section">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Ближайший план
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
@@ -438,15 +445,15 @@ export function AthleteProfilePage({
                   className="grid gap-4 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.3fr_0.9fr_auto]"
                 >
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {booking.clubName}
                     </p>
                     <p className="mt-2 text-xl font-semibold text-ink">{booking.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-muted">{booking.trainerName}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{booking.trainerName}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       Дата и время
                     </p>
                     <p className="mt-2 text-base font-semibold text-ink">
@@ -455,7 +462,7 @@ export function AthleteProfilePage({
                         month: 'long',
                       })}
                     </p>
-                    <p className="mt-1 text-sm leading-7 text-muted">{booking.startTime}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">{booking.startTime}</p>
                   </div>
 
                   <div className="flex items-start md:justify-end">
@@ -466,7 +473,7 @@ export function AthleteProfilePage({
             </div>
           ) : (
             <div className="mt-6 rounded-card border border-line bg-canvas p-5">
-              <p className="text-sm leading-7 text-muted">
+              <p className="text-sm leading-relaxed text-muted">
                 Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.
               </p>
             </div>

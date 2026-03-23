@@ -32,7 +32,7 @@ export function StoreShowcase() {
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Client state
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Zustand store preview</h2>
@@ -81,7 +81,7 @@ export function StoreShowcase() {
 
       <Card elevated className="space-y-5 bg-panel-strong">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Cross-component state
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">UI store wiring</h2>
@@ -103,7 +103,7 @@ export function StoreShowcase() {
           </Button>
         </div>
 
-        <p className="text-sm leading-7 text-muted">
+        <p className="text-sm leading-relaxed text-muted">
           На этом шаге модалки ещё нет. Здесь мы только фиксируем и проверяем реактивное клиентское
           состояние перед сборкой поиска, фильтров и auth flow.
         </p>

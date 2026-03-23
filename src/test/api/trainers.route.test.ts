@@ -31,7 +31,9 @@ describe('Trainers API', () => {
     expect(body.success).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     expect(
-      body.data.every((trainer: { id: number; sportIds: number[] }) => trainer.sportIds.includes(3)),
+      body.data.every((trainer: { id: number; sportIds: number[] }) =>
+        trainer.sportIds.includes(3),
+      ),
     ).toBe(true);
     expect(body.data[0]).toMatchObject({
       id: 1,

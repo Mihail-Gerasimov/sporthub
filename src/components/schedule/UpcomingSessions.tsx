@@ -48,7 +48,7 @@ export function UpcomingSessions({
     <section id="availability" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Sessions today
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">Ближайшие занятия</h2>
@@ -75,7 +75,7 @@ export function UpcomingSessions({
               <Card className="flex h-full flex-col gap-5 transition-transform duration-200 group-hover:-translate-y-1">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {session.clubName}
                     </p>
                     <h3 className="mt-2 text-xl font-semibold leading-tight text-ink">
@@ -89,7 +89,7 @@ export function UpcomingSessions({
 
                 <div className="grid gap-3 text-sm text-muted sm:grid-cols-2">
                   <div className="rounded-card border border-line bg-canvas px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                       Время
                     </p>
                     <p className="mt-2 text-base font-semibold text-ink">
@@ -98,7 +98,7 @@ export function UpcomingSessions({
                   </div>
 
                   <div className="rounded-card border border-line bg-panel-strong px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                       Стоимость
                     </p>
                     <p className="mt-2 text-base font-semibold text-ink">
@@ -109,7 +109,7 @@ export function UpcomingSessions({
 
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                       Зал
                     </p>
                     <p className="mt-1 text-sm text-ink">{session.room ?? 'Уточняется'}</p>
@@ -125,7 +125,7 @@ export function UpcomingSessions({
         </div>
       ) : (
         <Card className="bg-panel-strong">
-          <p className="text-sm leading-7 text-muted">
+          <p className="text-sm leading-relaxed text-muted">
             На сегодня в расписании нет новых слотов. Проверь другие секции или открой клуб, чтобы
             посмотреть ближайшие даты.
           </p>

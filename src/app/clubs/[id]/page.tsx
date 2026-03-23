@@ -43,7 +43,9 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   const clubTrainerIds = new Set(
     offerings
-      .filter((offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId)
+      .filter(
+        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
+      )
       .map((offering) => offering.ownerId),
   );
   const clubTrainers = trainers

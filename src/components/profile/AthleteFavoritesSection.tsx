@@ -18,7 +18,7 @@ export function AthleteFavoritesSection({
     <section data-testid="athlete-favorites-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Saved picks
           </p>
           <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Избранное</h2>
@@ -47,8 +47,10 @@ export function AthleteFavoritesSection({
                       {club.isFeatured ? <Badge tone="success">Featured</Badge> : null}
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{club.name}</p>
-                    <p className="mt-2 text-sm leading-7 text-muted">{club.shortDescription}</p>
-                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      {club.shortDescription}
+                    </p>
+                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {club.address}
                     </p>
                   </div>
@@ -71,8 +73,8 @@ export function AthleteFavoritesSection({
                       <Badge tone="teal">{trainer.reasonLabel}</Badge>
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{trainer.name}</p>
-                    <p className="mt-2 text-sm leading-7 text-muted">{trainer.bio}</p>
-                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
+                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {trainer.specialties.join(' • ')}
                     </p>
                   </div>
@@ -83,7 +85,7 @@ export function AthleteFavoritesSection({
         </div>
       ) : (
         <Card className="mt-6 p-5 sm:p-6">
-          <p className="text-sm leading-7 text-muted">
+          <p className="text-sm leading-relaxed text-muted">
             Пока нет сохранённых клубов и тренеров. Этот блок заполнится по мере развития
             MVP-избранного.
           </p>

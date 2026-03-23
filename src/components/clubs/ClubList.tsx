@@ -43,7 +43,7 @@ export function ClubList({
         ))}
       </div>
     ) : (
-      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-7 text-muted">
+      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-relaxed text-muted">
         По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид
         спорта.
       </div>
@@ -58,7 +58,7 @@ export function ClubList({
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Club list
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Клубы под текущие фильтры</h2>

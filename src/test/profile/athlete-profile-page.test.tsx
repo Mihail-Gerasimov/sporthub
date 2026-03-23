@@ -682,7 +682,9 @@ describe('AthleteProfilePage', () => {
     const favoriteClubs = within(favoritesSection).getByTestId('athlete-favorite-clubs');
     const favoriteTrainers = within(favoritesSection).getByTestId('athlete-favorite-trainers');
     const favoriteClubsCard = within(favoritesSection).getByTestId('athlete-favorite-clubs-card');
-    const favoriteTrainersCard = within(favoritesSection).getByTestId('athlete-favorite-trainers-card');
+    const favoriteTrainersCard = within(favoritesSection).getByTestId(
+      'athlete-favorite-trainers-card',
+    );
 
     expect(
       within(favoritesSection).getByRole('heading', { name: 'Избранное' }),

@@ -17,7 +17,9 @@ describe('Home page', () => {
     render(await Home());
 
     expect(screen.getByRole('heading', { name: 'Найди спорт в своём ритме' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы на карте и в списке' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
@@ -25,8 +27,12 @@ describe('Home page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
 
-    expect(screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Тренеры на карте и в списке' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Тренеры на карте и в списке' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
   });

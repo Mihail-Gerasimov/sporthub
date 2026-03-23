@@ -96,10 +96,8 @@ export function getAthleteFavorites({
         return 0;
       }
 
-      const leftWeight =
-        leftScore.reviewCount * 10 + leftScore.bookingCount * 4;
-      const rightWeight =
-        rightScore.reviewCount * 10 + rightScore.bookingCount * 4;
+      const leftWeight = leftScore.reviewCount * 10 + leftScore.bookingCount * 4;
+      const rightWeight = rightScore.reviewCount * 10 + rightScore.bookingCount * 4;
 
       if (leftWeight !== rightWeight) {
         return rightWeight - leftWeight;

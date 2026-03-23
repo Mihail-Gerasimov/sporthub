@@ -48,12 +48,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       getSchedule({ ownerType: 'trainer' }),
       getSports(),
     ]);
-    const venueClubId = offerings.find((offering) => offering.affiliatedClubId !== undefined)?.affiliatedClubId;
+    const venueClubId = offerings.find(
+      (offering) => offering.affiliatedClubId !== undefined,
+    )?.affiliatedClubId;
     const affiliatedClub = venueClubId === undefined ? null : await getClubById(venueClubId);
 
     const trainerSports = sports.filter((item) => trainer.sportIds.includes(item.id));
     const primarySport =
-      primarySportId === null ? null : trainerSports.find((item) => item.id === primarySportId) ?? null;
+      primarySportId === null
+        ? null
+        : (trainerSports.find((item) => item.id === primarySportId) ?? null);
 
     return NextResponse.json({
       success: true,

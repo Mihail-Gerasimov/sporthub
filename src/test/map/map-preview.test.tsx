@@ -179,7 +179,9 @@ describe('MapPreviewSection', () => {
 
     render(<MapPreviewSection clubs={clubs} sports={sports} trainers={trainers} />);
 
-    expect(screen.getByRole('heading', { name: 'Тренеры на карте и в списке' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Тренеры на карте и в списке' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Выбрать тренера Марина Соколова на карте' }),
     ).toBeInTheDocument();

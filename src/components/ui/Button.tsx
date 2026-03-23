@@ -72,7 +72,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               aria-hidden="true"
               className="size-4 animate-spin rounded-pill border-2 border-current border-t-transparent"
             />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Загрузка</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.10em]">Загрузка</span>
           </>
         ) : (
           leadingIcon && <span aria-hidden="true">{leadingIcon}</span>

@@ -31,7 +31,7 @@ export function AthleteHistorySection({ historyItems }: AthleteHistorySectionPro
     <Card className="p-6 sm:p-8" data-testid="athlete-history-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Activity archive
           </p>
           <h2 className="mt-2 font-display text-3xl font-semibold text-ink">История</h2>
@@ -57,15 +57,15 @@ export function AthleteHistorySection({ historyItems }: AthleteHistorySectionPro
                   <Badge tone="success">{historyItem.reviewStatusLabel}</Badge>
                 </div>
 
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   {historyItem.clubName}
                 </p>
                 <p className="mt-2 text-xl font-semibold text-ink">{historyItem.title}</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{historyItem.trainerName}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{historyItem.trainerName}</p>
               </div>
 
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Дата и время
                 </p>
                 <p className="mt-2 text-base font-semibold text-ink">
@@ -74,7 +74,7 @@ export function AthleteHistorySection({ historyItems }: AthleteHistorySectionPro
                     month: 'long',
                   })}
                 </p>
-                <p className="mt-1 text-sm leading-7 text-muted">{historyItem.startTime}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{historyItem.startTime}</p>
               </div>
 
               <div className="flex items-start md:justify-end">
@@ -85,7 +85,7 @@ export function AthleteHistorySection({ historyItems }: AthleteHistorySectionPro
         </div>
       ) : (
         <div className="mt-6 rounded-card border border-line bg-canvas p-5">
-          <p className="text-sm leading-7 text-muted">
+          <p className="text-sm leading-relaxed text-muted">
             История пока пустая. Завершённые занятия и связанные отзывы появятся здесь
             автоматически.
           </p>

@@ -61,7 +61,7 @@ export function MapView({ clubs, onSelectClub, selectedClubId }: MapViewProps) {
   // STUB: заменить на Яндекс.Карты / 2GIS.
   if (clubs.length === 0) {
     return (
-      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-7 text-muted">
+      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-relaxed text-muted">
         Для текущих фильтров на карте пока нечего показать.
       </div>
     );
@@ -75,14 +75,14 @@ export function MapView({ clubs, onSelectClub, selectedClubId }: MapViewProps) {
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Map overview
           </p>
           <h3 className="mt-2 font-display text-2xl font-semibold text-ink">
             География клубов Самары
           </h3>
         </div>
-        <span className="rounded-pill border border-line bg-panel-strong px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink">
+        <span className="rounded-pill border border-line bg-panel-strong px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-ink">
           {clubs.length} маркеров
         </span>
       </div>
@@ -95,7 +95,7 @@ export function MapView({ clubs, onSelectClub, selectedClubId }: MapViewProps) {
           <div className="absolute left-[28%] bottom-[10%] h-[22%] w-[38%] rounded-full border border-panel/10" />
         </div>
 
-        <div className="absolute inset-x-4 top-5 flex justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-panel/55">
+        <div className="absolute inset-x-4 top-5 flex justify-between text-[10px] font-semibold uppercase tracking-[0.10em] text-panel/55">
           <span>Набережная</span>
           <span>Центр</span>
           <span>Север</span>

@@ -51,7 +51,10 @@ export async function GET(request: NextRequest) {
 
     const { clubId, trainerId } = validationResult.data;
 
-    if (!hasExactlyOneReviewTarget({ clubId, trainerId }) && !(clubId === undefined && trainerId === undefined)) {
+    if (
+      !hasExactlyOneReviewTarget({ clubId, trainerId }) &&
+      !(clubId === undefined && trainerId === undefined)
+    ) {
       return NextResponse.json(
         {
           success: false,

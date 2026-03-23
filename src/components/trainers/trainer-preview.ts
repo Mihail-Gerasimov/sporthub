@@ -123,7 +123,7 @@ export function buildTrainerDirectory({
       const nextSlot = availableSlots[0] ?? null;
       const venueClub =
         primaryOffering?.affiliatedClubId !== undefined
-          ? clubsById.get(primaryOffering.affiliatedClubId) ?? null
+          ? (clubsById.get(primaryOffering.affiliatedClubId) ?? null)
           : null;
       const coordinates =
         trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
@@ -141,7 +141,9 @@ export function buildTrainerDirectory({
         trainer.bio,
         trainer.specialties.join(' '),
         sportsForTrainer.map((sport) => sport.name).join(' '),
-        offeringsForTrainer.map((offering) => `${offering.title} ${offering.description}`).join(' '),
+        offeringsForTrainer
+          .map((offering) => `${offering.title} ${offering.description}`)
+          .join(' '),
         venueName ?? '',
         address,
       ]

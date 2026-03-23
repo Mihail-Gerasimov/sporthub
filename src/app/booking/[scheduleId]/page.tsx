@@ -62,7 +62,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Booking details
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-ink">Запись на занятие</h1>
@@ -86,13 +86,13 @@ export default async function BookingPage({ params }: BookingPageProps) {
           </div>
 
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-muted">
+            <p className="text-sm font-medium uppercase tracking-[0.10em] text-muted">
               {ownerName}
             </p>
             <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
               {slot.title}
             </h2>
-            <p className="mt-3 max-w-2xl text-base leading-8 text-muted">
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
               Проверь формат, площадку и свободные места перед подтверждением записи на выбранный
               слот.
             </p>
@@ -100,7 +100,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-card border border-line bg-panel p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Владелец услуги
               </p>
               <p className="mt-3 text-lg font-semibold text-ink">{ownerName}</p>
@@ -108,12 +108,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
             </div>
 
             <div className="rounded-card border border-line bg-canvas p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Дата и время
               </p>
-              <p className="mt-3 text-lg font-semibold text-ink">
-                {formatDate(slot.date)}
-              </p>
+              <p className="mt-3 text-lg font-semibold text-ink">{formatDate(slot.date)}</p>
               <p className="mt-2 text-sm text-muted">
                 {slot.startTime} - {slot.endTime}
               </p>
@@ -123,7 +121,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
             </div>
 
             <div className="rounded-card border border-line bg-panel-strong p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Стоимость и формат
               </p>
               <p className="mt-3 text-lg font-semibold text-ink">{formatPrice(slot.price)}</p>
@@ -134,7 +132,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Место проведения
               </p>
               <p className="mt-2 text-base font-semibold text-ink">{offering.address}</p>
@@ -142,7 +140,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 {ownerType === 'trainer' ? 'Тренер' : 'Ведущий'}
               </p>
               <p className="mt-2 text-base font-semibold text-ink">
@@ -155,10 +153,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
           </div>
 
           <div className="rounded-card border border-line bg-canvas p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Описание слота
             </p>
-            <p className="mt-3 text-sm leading-7 text-muted">{slot.description ?? offering.description}</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              {slot.description ?? offering.description}
+            </p>
           </div>
         </Card>
       </div>

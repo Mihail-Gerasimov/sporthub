@@ -49,7 +49,9 @@ describe('Search controls', () => {
   it('preview секция по умолчанию работает в club-mode и реактивно показывает значения search и sport из store', () => {
     render(<SearchControlsPreview clubCount={6} sports={sports} trainerCount={12} />);
 
-    expect(screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Бокс, йога, бассейн...'), {
       target: { value: 'плавание' },
@@ -66,7 +68,9 @@ describe('Search controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
 
     expect(useFilterStore.getState().discoveryMode).toBe('trainers');
-    expect(screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Поиск тренеров и направлений')).toBeInTheDocument();
   });
 });

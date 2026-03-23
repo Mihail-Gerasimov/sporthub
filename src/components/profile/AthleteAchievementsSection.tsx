@@ -27,7 +27,7 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
     <Card className="p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Система прогресса
           </p>
           <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Ачивки спортсмена</h2>
@@ -65,7 +65,9 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold text-ink">{achievement.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-muted">{achievement.description}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      {achievement.description}
+                    </p>
                   </div>
                   <Badge tone="success">Готово</Badge>
                 </div>
@@ -74,7 +76,7 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
           </div>
         ) : (
           <div className="mt-4 rounded-card border border-line bg-canvas p-4">
-            <p className="text-sm leading-7 text-muted">
+            <p className="text-sm leading-relaxed text-muted">
               Пока нет открытых ачивок. Прогресс начнёт наполняться по мере активности.
             </p>
           </div>
@@ -97,7 +99,9 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-ink">{achievement.title}</p>
-                      <p className="mt-2 text-sm leading-7 text-muted">{achievement.description}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        {achievement.description}
+                      </p>
                     </div>
                     <Badge tone="teal">
                       {achievement.current}/{achievement.target}
@@ -116,7 +120,7 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
           </div>
         ) : (
           <div className="mt-4 rounded-card border border-line bg-canvas p-4">
-            <p className="text-sm leading-7 text-muted">
+            <p className="text-sm leading-relaxed text-muted">
               Все MVP-ачивки уже открыты. Новые достижения добавим в следующих фазах.
             </p>
           </div>

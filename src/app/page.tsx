@@ -66,13 +66,8 @@ export default async function Home() {
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className="relative overflow-hidden rounded-card border border-line bg-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,90,50,0.24),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(12,111,115,0.18),transparent_36%)]"
-          />
-
-          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+        <section className="rounded-card border border-line bg-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
             <div>
               <div className="flex flex-wrap gap-2">
                 <Badge tone="accent">Samara active city</Badge>
@@ -83,7 +78,7 @@ export default async function Home() {
               <h1 className="mt-5 max-w-4xl font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-6xl">
                 Найди спорт в своём ритме
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-muted sm:text-lg">
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
                 SportHub собирает клубы, студии, персональных тренеров и спортивные слоты Самары в
                 одной витрине: сначала быстрый поиск и фильтры, потом выдача на карте, популярные
                 карточки и ближайшие окна для записи.
@@ -118,7 +113,7 @@ export default async function Home() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <div className="rounded-card border border-line bg-canvas/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Сегодня в фокусе
                 </p>
                 <div className="mt-4 space-y-3">
@@ -134,10 +129,10 @@ export default async function Home() {
                     </p>
                   </div>
                   <div className="rounded-card border border-line bg-panel px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
                       На сегодня
                     </p>
-                    <p className="mt-2 text-sm leading-7 text-ink">
+                    <p className="mt-2 text-sm leading-relaxed text-ink">
                       {upcomingSessions.length > 0
                         ? `${upcomingSessions.length} занятия доступны для быстрой записи.`
                         : 'Свободных слотов на сегодня пока нет.'}
@@ -147,7 +142,7 @@ export default async function Home() {
               </div>
 
               <div className="rounded-card border border-line bg-panel-strong p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Лидер каталога
                 </p>
                 <div className="mt-4">
@@ -155,7 +150,7 @@ export default async function Home() {
                     <>
                       <p className="text-sm text-muted">Клуб</p>
                       <p className="text-xl font-semibold text-ink">{featuredClub.name}</p>
-                      <p className="mt-2 text-sm leading-7 text-muted">
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
                         {featuredClub.shortDescription}
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -166,8 +161,10 @@ export default async function Home() {
 
                       <div className="mt-5 border-t border-line/80 pt-5">
                         <p className="text-sm text-muted">Тренер</p>
-                        <p className="mt-1 text-xl font-semibold text-ink">{featuredTrainer.name}</p>
-                        <p className="mt-2 text-sm leading-7 text-muted">
+                        <p className="mt-1 text-xl font-semibold text-ink">
+                          {featuredTrainer.name}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">
                           {featuredTrainer.primaryOfferingTitle ?? featuredTrainer.bio}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -178,9 +175,9 @@ export default async function Home() {
                       </div>
                     </>
                   ) : (
-                    <p className="mt-2 text-sm leading-7 text-muted">
-                      Каталог пока пуст. После загрузки данных здесь появятся сильные точки
-                      клубного и тренерского каталога.
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      Каталог пока пуст. После загрузки данных здесь появятся сильные точки клубного
+                      и тренерского каталога.
                     </p>
                   )}
                 </div>

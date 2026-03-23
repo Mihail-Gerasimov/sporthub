@@ -47,11 +47,11 @@ export function MapPreviewSection({ clubs, sports, trainers }: MapPreviewSection
     <section id="results" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             {isTrainerMode ? 'Trainer map' : 'Club map'}
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ink">{activeHeading}</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
             {activeDescription}
           </p>
         </div>

@@ -23,8 +23,7 @@ export function AthleteFeedbackSettingsSection({
 }: AthleteFeedbackSettingsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const visibleReviewItems = useMemo(
-    () =>
-      isExpanded ? reviewItems : reviewItems.slice(0, INITIAL_VISIBLE_REVIEWS_COUNT),
+    () => (isExpanded ? reviewItems : reviewItems.slice(0, INITIAL_VISIBLE_REVIEWS_COUNT)),
     [isExpanded, reviewItems],
   );
   const hasHiddenReviews = reviewItems.length > INITIAL_VISIBLE_REVIEWS_COUNT;
@@ -33,7 +32,7 @@ export function AthleteFeedbackSettingsSection({
     <section data-testid="athlete-feedback-settings-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Feedback and settings
           </p>
           <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
@@ -78,7 +77,7 @@ export function AthleteFeedbackSettingsSection({
                       </div>
 
                       <p className="mt-4 text-lg font-semibold text-ink">{reviewItem.targetName}</p>
-                      <p className="mt-3 text-sm leading-7 text-muted">{reviewItem.text}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-muted">{reviewItem.text}</p>
                     </div>
                   ))}
                 </div>
@@ -100,7 +99,7 @@ export function AthleteFeedbackSettingsSection({
               </>
             ) : (
               <div className="mt-4 rounded-card border border-line bg-canvas p-5">
-                <p className="text-sm leading-7 text-muted">
+                <p className="text-sm leading-relaxed text-muted">
                   Ты ещё не оставлял отзывы. После новых оценок клубов и тренеров они появятся
                   здесь.
                 </p>
@@ -118,21 +117,21 @@ export function AthleteFeedbackSettingsSection({
 
             <div className="mt-4 grid gap-4">
               <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Тип кабинета
                 </p>
                 <p className="mt-3 text-base font-semibold text-ink">{accountTitle}</p>
               </div>
 
               <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Email для входа
                 </p>
                 <p className="mt-3 text-base font-semibold text-ink">{user.email}</p>
               </div>
 
               <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Телефон
                 </p>
                 <p className="mt-3 text-base font-semibold text-ink">
@@ -141,15 +140,15 @@ export function AthleteFeedbackSettingsSection({
               </div>
 
               <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Хранилище сессии
                 </p>
                 <p className="mt-3 text-base font-semibold text-ink">Zustand + localStorage</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{AUTH_STORAGE_KEY}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{AUTH_STORAGE_KEY}</p>
               </div>
 
               <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-sm leading-7 text-muted">
+                <p className="text-sm leading-relaxed text-muted">
                   Редактирование профиля и настроек появится в следующих фазах.
                 </p>
               </div>
