@@ -16,7 +16,7 @@ export function SportFilters({ sports }: SportFiltersProps) {
   const setSport = useFilterStore((state) => state.setSport);
 
   return (
-    <div className="scrollbar-hidden -mx-6 overflow-x-auto px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
+    <div className="scrollbar-hidden overflow-x-auto">
       <div className="flex min-w-max gap-2 pb-2">
         <Chip
           active={selectedSportId === null}
