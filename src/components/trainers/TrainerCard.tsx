@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { Badge, Card, Rating } from '@/components/ui';
+import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { cn, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
@@ -10,28 +11,6 @@ type TrainerCardProps = {
   trainer: TrainerDirectoryItem;
   variant?: 'default' | 'carousel';
 };
-
-/* Палитра градиентов для cover-секции */
-function getCoverPalette(trainerId: number): string {
-  const palettes = [
-    'from-[#113d45] via-[#1d6c74] to-[#f1d2af]',
-    'from-[#713321] via-[#d17a4f] to-[#f4dfc4]',
-    'from-[#16363f] via-[#5f918f] to-[#efe3ca]',
-    'from-[#3e4f56] via-[#d06f4a] to-[#f4d8bb]',
-  ];
-
-  return palettes[trainerId % palettes.length];
-}
-
-/* Инициалы тренера (макс. 2 символа) */
-function getTrainerInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join('');
-}
 
 export function TrainerCard({
   highlighted = false,
