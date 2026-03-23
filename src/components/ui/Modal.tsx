@@ -75,7 +75,7 @@ export function Modal({
               </h2>
             ) : null}
             {description ? (
-              <p id={descriptionId} className="text-sm leading-7 text-muted">
+              <p id={descriptionId} className="text-sm leading-relaxed text-muted">
                 {description}
               </p>
             ) : null}
@@ -91,7 +91,7 @@ export function Modal({
           </button>
         </div>
 
-        <div className="mt-5 text-sm leading-7 text-ink">{children}</div>
+        <div className="mt-5 text-sm leading-relaxed text-ink">{children}</div>
 
         {footer ? <div className="mt-6">{footer}</div> : null}
       </div>

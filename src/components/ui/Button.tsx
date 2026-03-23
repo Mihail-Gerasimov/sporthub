@@ -9,9 +9,8 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClassNames: Record<ButtonVariant, string> = {
   primary:
-    'border-transparent bg-accent text-panel shadow-floating hover:bg-accent-strong focus-visible:ring-accent/30',
-  secondary:
-    'border-transparent bg-teal text-panel shadow-card hover:bg-teal/90 focus-visible:ring-teal/25',
+    'border-transparent bg-accent text-panel hover:bg-accent-strong focus-visible:ring-accent/30',
+  secondary: 'border-transparent bg-teal text-panel hover:bg-teal/90 focus-visible:ring-teal/25',
   outline:
     'border-line bg-panel text-ink hover:border-accent hover:text-accent focus-visible:ring-accent/20',
   ghost:
