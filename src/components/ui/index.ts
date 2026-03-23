@@ -1,3 +1,4 @@
+export { ActionNotice } from '@/components/ui/ActionNotice';
 export { Badge } from '@/components/ui/Badge';
 export { Button } from '@/components/ui/Button';
 export { Card } from '@/components/ui/Card';

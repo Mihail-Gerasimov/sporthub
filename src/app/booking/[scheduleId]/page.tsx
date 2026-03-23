@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { BookingAuthGate } from '@/components/booking/BookingAuthGate';
 import { Badge, Card } from '@/components/ui';
 import { getScheduleSlotContext } from '@/lib/db';
 import { formatDate, formatPrice } from '@/lib/utils';
@@ -75,6 +76,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
             Назад на главную
           </Link>
         </div>
+
+        {/* Auth-гейт: предупреждение для неавторизованных */}
+        <BookingAuthGate />
 
         <Card className="space-y-6 p-6 sm:p-8" elevated>
           <div className="flex flex-wrap gap-2">

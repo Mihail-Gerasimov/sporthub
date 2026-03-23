@@ -1,9 +1,11 @@
 'use client';
 
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-import { Badge, Card } from '@/components/ui';
+import { ActionNotice, Badge, Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 import type { TrainerAvailabilityItem } from '@/components/trainers/trainer-preview';
 
@@ -12,6 +14,10 @@ type TrainerAvailabilityProps = {
   slots: TrainerAvailabilityItem[];
 };
 
+/* Таймаут показа уведомления (мс) */
+const AUTH_NOTICE_TIMEOUT_MS = 3200;
+
+/* Русская плюрализация для «место/места/мест» */
 function getPlacesLabel(value: number): string {
   const mod10 = value % 10;
   const mod100 = value % 100;
@@ -28,6 +34,38 @@ function getPlacesLabel(value: number): string {
 }
 
 export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityProps) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accountType = useAuthStore((state) => state.accountType);
+  const router = useRouter();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  /* Автоскрытие уведомления */
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+    }, AUTH_NOTICE_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [notice]);
+
+  /* Обработчик клика по слоту — проверяет auth */
+  const handleSlotClick = useCallback(
+    (slotId: number) => {
+      if (isAuthenticated && accountType === 'athlete') {
+        router.push(`/booking/${slotId}`);
+      } else {
+        setNotice('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен');
+      }
+    },
+    [accountType, isAuthenticated, router],
+  );
+
   return (
     <section id="availability" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -50,11 +88,14 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
           className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
         >
           {slots.map((slot) => (
-            <Link
+            <button
               key={slot.id}
-              href={`/booking/${slot.id}`}
-              className="group block"
+              type="button"
+              className="group block w-full text-left"
               aria-label={`Открыть запись к тренеру ${slot.trainerName}`}
+              onClick={() => {
+                handleSlotClick(slot.id);
+              }}
             >
               <Card className="flex h-full flex-col gap-5 transition-transform duration-200 group-hover:-translate-y-1">
                 <div className="flex items-start justify-between gap-3">
@@ -106,7 +147,7 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
                   </span>
                 </div>
               </Card>
-            </Link>
+            </button>
           ))}
         </div>
       ) : (
@@ -117,6 +158,8 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
           </p>
         </Card>
       )}
+
+      {notice ? <ActionNotice message={notice} /> : null}
     </section>
   );
 }

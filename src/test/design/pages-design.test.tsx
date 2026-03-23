@@ -3,10 +3,23 @@
  * и страницы следуют минималистичному стилю.
  */
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
 import { useFilterStore } from '@/stores/useFilterStore';
+
+/* Мок next/navigation для useRouter */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+  }),
+  notFound: () => {
+    throw new Error('Not found');
+  },
+}));
 
 describe('Минималистичный стиль страниц', () => {
   beforeEach(() => {

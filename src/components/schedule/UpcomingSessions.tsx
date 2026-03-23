@@ -1,10 +1,12 @@
 'use client';
 
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { TrainerAvailability } from '@/components/trainers';
-import { Badge, Card } from '@/components/ui';
+import { ActionNotice, Badge, Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 import type { UpcomingSessionItem } from '@/components/schedule/getUpcomingSessions';
@@ -17,6 +19,10 @@ type UpcomingSessionsProps = {
   trainerSlots: TrainerAvailabilityItem[];
 };
 
+/* Таймаут показа уведомления (мс) */
+const AUTH_NOTICE_TIMEOUT_MS = 3200;
+
+/* Русская плюрализация для «место/места/мест» */
 function getPlacesLabel(value: number): string {
   const mod10 = value % 10;
   const mod100 = value % 100;
@@ -39,6 +45,37 @@ export function UpcomingSessions({
   trainerSlots,
 }: UpcomingSessionsProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accountType = useAuthStore((state) => state.accountType);
+  const router = useRouter();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  /* Автоскрытие уведомления */
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+    }, AUTH_NOTICE_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [notice]);
+
+  /* Обработчик клика по карточке занятия — проверяет auth */
+  const handleSessionClick = useCallback(
+    (scheduleId: number) => {
+      if (isAuthenticated && accountType === 'athlete') {
+        router.push(`/booking/${scheduleId}`);
+      } else {
+        setNotice('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен');
+      }
+    },
+    [accountType, isAuthenticated, router],
+  );
 
   if (discoveryMode === 'trainers') {
     return <TrainerAvailability dateLabel={trainerDateLabel} slots={trainerSlots} />;
@@ -66,11 +103,14 @@ export function UpcomingSessions({
           className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
         >
           {sessions.map((session) => (
-            <Link
+            <button
               key={session.id}
-              href={`/booking/${session.id}`}
-              className="group block"
+              type="button"
+              className="group block w-full text-left"
               aria-label={`Открыть запись на занятие ${session.title}`}
+              onClick={() => {
+                handleSessionClick(session.id);
+              }}
             >
               <Card className="flex h-full flex-col gap-5 transition-transform duration-200 group-hover:-translate-y-1">
                 <div className="flex items-start justify-between gap-3">
@@ -120,7 +160,7 @@ export function UpcomingSessions({
                   </span>
                 </div>
               </Card>
-            </Link>
+            </button>
           ))}
         </div>
       ) : (
@@ -131,6 +171,8 @@ export function UpcomingSessions({
           </p>
         </Card>
       )}
+
+      {notice ? <ActionNotice message={notice} /> : null}
     </section>
   );
 }

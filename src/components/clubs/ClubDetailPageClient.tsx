@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Badge, Button, Card, Rating } from '@/components/ui';
+import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
@@ -106,18 +106,6 @@ function mapReviewsWithAuthors(
     ...review,
     authorName: reviewAuthors[review.userId] ?? 'Спортсмен SportHub',
   }));
-}
-
-function ActionNotice({ message }: { message: string }) {
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="fixed bottom-5 right-5 z-50 max-w-sm rounded-card border border-line bg-panel px-4 py-3 text-sm font-medium text-ink shadow-floating"
-    >
-      {message}
-    </div>
-  );
 }
 
 function MediaStub({ label, className }: { label: string; className?: string }) {
