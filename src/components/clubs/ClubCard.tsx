@@ -93,26 +93,25 @@ export function ClubCard({
         </div>
 
         <div className="flex flex-1 flex-col gap-5 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p
-                className={cn(
-                  'text-sm font-medium text-muted',
-                  isCarousel && 'min-h-[3.5rem] leading-relaxed',
-                )}
-              >
-                {club.shortDescription}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Rating value={club.rating} />
-                <span className="text-sm text-muted">{club.reviewCount} отзывов</span>
-              </div>
-            </div>
+          {/* Цена и расстояние — компактная строка */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-semibold text-ink">от {formatPrice(club.priceFrom)}</span>
+            <span className="text-muted">·</span>
+            <span className="text-muted">{club.distanceKm.toFixed(1)} км</span>
+          </div>
 
-            <div className="rounded-card border border-line bg-canvas px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-[0.08em] text-muted">от</p>
-              <p className="mt-1 text-lg font-semibold text-ink">{formatPrice(club.priceFrom)}</p>
-              <p className="text-xs text-muted">{club.distanceKm.toFixed(1)} км</p>
+          <div>
+            <p
+              className={cn(
+                'text-sm font-medium text-muted',
+                isCarousel && 'min-h-[3.5rem] leading-relaxed',
+              )}
+            >
+              {club.shortDescription}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Rating value={club.rating} />
+              <span className="text-sm text-muted">{club.reviewCount} отзывов</span>
             </div>
           </div>
 
