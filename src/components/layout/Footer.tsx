@@ -11,11 +11,11 @@ export function Footer() {
     <footer className="border-t border-line bg-panel/90" aria-label="Подвал сайта">
       <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">SportHub</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">SportHub</p>
           <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
             Городская витрина для спорта без лишнего шума.
           </h2>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-muted">
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
             Сейчас это MVP с фокусом на подбор, запись и понятный интерфейс для клубов, студий и
             тренеров.
           </p>
@@ -23,7 +23,7 @@ export function Footer() {
 
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
               Навигация
             </p>
             <div className="mt-4 flex flex-col gap-3">
@@ -40,8 +40,8 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Статус</p>
-            <div className="mt-4 space-y-2 text-sm leading-7 text-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Статус</p>
+            <div className="mt-4 space-y-2 text-sm leading-relaxed text-muted">
               <p>MVP разрабатывается по фазам.</p>
               <p>Следом собираем поиск, фильтры и клубы на главной.</p>
             </div>

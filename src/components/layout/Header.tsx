@@ -23,17 +23,17 @@ export function Header() {
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
   const cabinetConfig = getPersonalCabinetConfig(accountType);
   const athleteCabinetHref =
-    accountType === 'athlete' ? cabinetConfig?.profilePath ?? '/profile/athlete' : null;
+    accountType === 'athlete' ? (cabinetConfig?.profilePath ?? '/profile/athlete') : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-card bg-accent text-lg font-bold text-panel shadow-floating">
+          <span className="flex size-11 items-center justify-center rounded-card bg-accent text-lg font-bold text-panel">
             S
           </span>
           <span className="flex flex-col">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-muted">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
               SportHub
             </span>
             <span className="font-display text-lg font-semibold tracking-tight text-ink">
@@ -63,7 +63,7 @@ export function Header() {
               <div className="hidden min-w-0 text-right md:block">
                 <p className="truncate text-sm font-semibold leading-5 text-ink">{user.name}</p>
                 {accountType ? (
-                  <p className="text-[11px] uppercase tracking-[0.18em] leading-4 text-muted">
+                  <p className="text-[11px] uppercase tracking-[0.12em] leading-4 text-muted">
                     {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
                   </p>
                 ) : null}
