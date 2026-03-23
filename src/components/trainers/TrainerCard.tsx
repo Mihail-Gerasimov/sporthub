@@ -76,9 +76,12 @@ export function TrainerCard({
               <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
                 Персональный тренер
               </p>
-              <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
+              <Link
+                href={`/trainers/${trainer.id}`}
+                className="mt-3 block max-w-xs font-display text-2xl font-semibold leading-tight transition-opacity duration-200 hover:opacity-80"
+              >
                 {trainer.name}
-              </p>
+              </Link>
             </div>
 
             <div className="flex gap-2 text-2xl" aria-hidden="true">
