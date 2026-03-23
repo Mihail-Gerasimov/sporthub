@@ -268,17 +268,8 @@ export function ClubDetailPageClient({
     <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <Card className="overflow-hidden p-4 sm:p-5">
-            <div className="grid gap-4" data-testid="club-media-gallery">
-              <MediaStub label="Фото клуба" className="min-h-72 md:min-h-[26rem]" />
-              <div className="grid gap-4 sm:grid-cols-2" data-testid="club-media-gallery-secondary">
-                <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
-                <MediaStub label="Фото клуба" className="min-h-40 sm:min-h-48" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="flex h-full flex-col gap-5 p-6 sm:p-7">
+          {/* Инфо клуба — на мобильном сверху, на xl справа */}
+          <Card className="flex h-full flex-col gap-5 p-6 xl:order-last sm:p-7">
             <div className="flex flex-wrap gap-2">
               <Badge tone="accent">{club.city}</Badge>
               <Badge tone="outline">{club.reviewCount} отзывов</Badge>
@@ -333,6 +324,17 @@ export function ClubDetailPageClient({
                   {amenity}
                 </Badge>
               ))}
+            </div>
+          </Card>
+
+          {/* Галерея — на мобильном снизу (компактнее), на xl слева */}
+          <Card className="overflow-hidden p-4 xl:order-first sm:p-5">
+            <div className="grid gap-4" data-testid="club-media-gallery">
+              <MediaStub label="Фото клуба" className="min-h-48 md:min-h-72 xl:min-h-[26rem]" />
+              <div className="grid gap-4 sm:grid-cols-2" data-testid="club-media-gallery-secondary">
+                <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
+                <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
+              </div>
             </div>
           </Card>
         </section>

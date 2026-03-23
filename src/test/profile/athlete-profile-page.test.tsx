@@ -766,16 +766,14 @@ describe('AthleteProfilePage', () => {
     );
 
     const feedbackSection = screen.getByTestId('athlete-feedback-settings-section');
-    const reviewsBlock = within(feedbackSection).getByTestId('athlete-reviews-block');
     const settingsBlock = within(feedbackSection).getByTestId('athlete-settings-block');
+    const reviewsBlock = within(feedbackSection).getByTestId('athlete-reviews-block');
 
-    expect(
-      within(feedbackSection).getByRole('heading', { name: 'Отзывы и базовые настройки' }),
-    ).toBeInTheDocument();
-    expect(within(reviewsBlock).getByRole('heading', { name: 'Мои отзывы' })).toBeInTheDocument();
+    /* Секции разделены: у каждой свой h2 заголовок */
     expect(
       within(settingsBlock).getByRole('heading', { name: 'Базовые настройки' }),
     ).toBeInTheDocument();
+    expect(within(reviewsBlock).getByRole('heading', { name: 'Мои отзывы' })).toBeInTheDocument();
     expect(within(reviewsBlock).getByText('Volna Aquatic Club')).toBeInTheDocument();
     expect(within(reviewsBlock).getByText('Анна Миронова')).toBeInTheDocument();
     expect(within(reviewsBlock).getByText('Отзыв 1')).toBeInTheDocument();
