@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
@@ -202,5 +202,94 @@ describe('TrainerDetailPageClient', () => {
       'href',
       '/booking/1',
     );
+  });
+
+  it('рендерит отзывы с именем автора', () => {
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
+    expect(screen.getByText('Отличный тренер, очень внимательная.')).toBeInTheDocument();
+    expect(screen.getByText('Фото автора')).toBeInTheDocument();
+  });
+
+  it('для гостя блокирует отправку отзыва с auth-notice', () => {
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
+
+    expect(
+      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+    ).toBeInTheDocument();
+  });
+
+  it('для athlete отправляет отзыв через API с trainerId', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          id: 2,
+          createdAt: '2026-03-18T10:00:00.000Z',
+          userId: 1,
+          trainerId: 1,
+          rating: 5,
+          text: 'Замечательные тренировки!',
+        },
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Оценить на 5 из 5' }));
+    fireEvent.change(screen.getByLabelText('Отзыв'), {
+      target: { value: 'Замечательные тренировки!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    /* Проверяем что POST содержит trainerId */
+    const callBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+
+    expect(callBody).toEqual(
+      expect.objectContaining({
+        trainerId: 1,
+        rating: 5,
+        text: 'Замечательные тренировки!',
+      }),
+    );
+    expect(screen.getByText('Замечательные тренировки!')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Отзыв отправлен.')).toBeInTheDocument();
+    });
+  });
+
+  it('показывает ошибки валидации при пустой форме', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: { id: 1, name: 'Тест', email: 'test@test.local' },
+    });
+
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
+
+    expect(screen.getByText('Выбери оценку.')).toBeInTheDocument();
+    expect(screen.getByText('Напиши пару слов о впечатлении.')).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
 
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
@@ -12,6 +13,60 @@ import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Offering, Review, Schedule, Sport, Trainer } from '@/types';
 
 const AUTH_NOTICE_TIMEOUT_MS = 3200;
+
+/* Отзыв с именем автора */
+type ReviewWithAuthor = Review & {
+  authorName: string;
+};
+
+/* Состояние формы отзыва */
+type ReviewFormState = {
+  rating: number;
+  text: string;
+};
+
+/* Ошибки валидации формы отзыва */
+type ReviewFormErrors = {
+  rating?: string;
+  text?: string;
+  submit?: string;
+};
+
+/* Zod-схема валидации формы отзыва */
+const reviewFormSchema = z.object({
+  rating: z.number().int().min(1, 'Выбери оценку.'),
+  text: z.string().trim().min(1, 'Напиши пару слов о впечатлении.'),
+});
+
+/* Обогащение отзывов именами авторов */
+function mapReviewsWithAuthors(
+  reviews: Review[],
+  reviewAuthors: Record<number, string>,
+): ReviewWithAuthor[] {
+  return reviews.map((review) => ({
+    ...review,
+    authorName: reviewAuthors[review.userId] ?? 'Спортсмен SportHub',
+  }));
+}
+
+/* Валидация формы отзыва */
+function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
+  const validationResult = reviewFormSchema.safeParse(form);
+
+  if (validationResult.success) {
+    return {};
+  }
+
+  return validationResult.error.issues.reduce<ReviewFormErrors>((accumulator, issue) => {
+    const fieldName = issue.path[0];
+
+    if (fieldName === 'rating' || fieldName === 'text') {
+      accumulator[fieldName] = issue.message;
+    }
+
+    return accumulator;
+  }, {});
+}
 
 type TrainerDetailPageClientProps = {
   affiliatedClub: Club | null;
@@ -118,8 +173,15 @@ export function TrainerDetailPageClient({
 }: TrainerDetailPageClientProps) {
   const accountType = useAuthStore((state) => state.accountType);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionUser = useAuthStore((state) => state.user);
   const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
+    mapReviewsWithAuthors(reviews, reviewAuthors),
+  );
+  const [reviewForm, setReviewForm] = useState<ReviewFormState>({ rating: 0, text: '' });
+  const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const scheduleGroups = useMemo(() => buildScheduleGroups(schedule, sports), [schedule, sports]);
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
 
@@ -139,6 +201,67 @@ export function TrainerDetailPageClient({
 
   function showActionNotice(message: string) {
     setNotice(message);
+  }
+
+  async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isAthlete || athleteActionUserId === null) {
+      showActionNotice('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен');
+      return;
+    }
+
+    const normalizedReviewForm = {
+      rating: reviewForm.rating,
+      text: reviewForm.text.trim(),
+    } satisfies ReviewFormState;
+    const validationErrors = getReviewValidationErrors(normalizedReviewForm);
+
+    setReviewErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmittingReview(true);
+
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: athleteActionUserId,
+          trainerId: trainer.id,
+          rating: normalizedReviewForm.rating,
+          text: normalizedReviewForm.text,
+        }),
+      });
+      const payload = (await response.json()) as
+        | { success: true; data: Review }
+        | { success: false; error?: string };
+
+      if (!response.ok || !payload.success) {
+        setReviewErrors({ submit: 'Не удалось отправить отзыв.' });
+        return;
+      }
+
+      setReviewItems((currentValue) => [
+        {
+          ...payload.data,
+          authorName:
+            sessionUser?.name ?? reviewAuthors[payload.data.userId] ?? 'Спортсмен SportHub',
+        },
+        ...currentValue,
+      ]);
+      setReviewForm({ rating: 0, text: '' });
+      setReviewErrors({});
+      showActionNotice('Отзыв отправлен.');
+    } catch (error) {
+      console.error('Ошибка отправки отзыва со страницы тренера:', error);
+      setReviewErrors({ submit: 'Не удалось отправить отзыв.' });
+    } finally {
+      setIsSubmittingReview(false);
+    }
   }
 
   return (
@@ -407,11 +530,115 @@ export function TrainerDetailPageClient({
           </Card>
         </section>
 
-        {/* ═══ Отзывы — STUB: Step 11.4 ═══ */}
-        <section aria-labelledby="trainer-reviews-heading">
-          <h2 id="trainer-reviews-heading" className="font-display text-3xl font-semibold text-ink">
-            Отзывы
-          </h2>
+        {/* ═══ Отзывы + Форма ═══ */}
+        <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+          <Card className="p-6 sm:p-7">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Community feedback
+                </p>
+                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Отзывы</h2>
+              </div>
+              <Badge tone="outline">{reviewItems.length} отзывов</Badge>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {reviewItems.map((review) => (
+                <div key={review.id} className="rounded-card border border-line bg-canvas p-4">
+                  <div className="flex gap-4">
+                    <MediaStub label="Фото автора" className="min-h-16 min-w-16 px-3 py-3" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-ink">{review.authorName}</p>
+                          <p className="text-sm text-muted">
+                            {formatDate(review.createdAt, {
+                              day: 'numeric',
+                              month: 'long',
+                            })}
+                          </p>
+                        </div>
+                        <Rating value={review.rating} />
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-muted">{review.text}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-6 sm:p-7">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                Share feedback
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Оставить отзыв</h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                Отзыв может оставить только авторизованный спортсмен.
+              </p>
+            </div>
+
+            <form className="mt-6 space-y-5" onSubmit={handleReviewSubmit}>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-ink">Оценка</p>
+                <Rating
+                  interactive
+                  value={reviewForm.rating}
+                  onChange={(value) => {
+                    setReviewForm((currentValue) => ({ ...currentValue, rating: value }));
+                    setReviewErrors((currentValue) => ({ ...currentValue, rating: undefined }));
+                  }}
+                />
+                {reviewErrors.rating ? (
+                  <p className="text-sm font-medium text-danger">{reviewErrors.rating}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="trainer-review-text" className="text-sm font-semibold text-ink">
+                  Отзыв
+                </label>
+                <textarea
+                  id="trainer-review-text"
+                  value={reviewForm.text}
+                  rows={5}
+                  className="min-h-36 w-full rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
+                  placeholder="Что понравилось в тренировках, подходе или атмосфере?"
+                  onChange={(event) => {
+                    setReviewForm((currentValue) => ({
+                      ...currentValue,
+                      text: event.target.value,
+                    }));
+                    setReviewErrors((currentValue) => ({
+                      ...currentValue,
+                      text: undefined,
+                      submit: undefined,
+                    }));
+                  }}
+                />
+                {reviewErrors.text ? (
+                  <p className="text-sm font-medium text-danger">{reviewErrors.text}</p>
+                ) : null}
+              </div>
+
+              {reviewErrors.submit ? (
+                <p className="text-sm font-medium text-danger">{reviewErrors.submit}</p>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted">
+                  {isAthlete
+                    ? `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}.`
+                    : 'Для отправки отзыва нужен вход или регистрация как спортсмен.'}
+                </div>
+                <Button type="submit" loading={isSubmittingReview}>
+                  Отправить отзыв
+                </Button>
+              </div>
+            </form>
+          </Card>
         </section>
       </div>
 
