@@ -3,11 +3,15 @@
 /* Клиентский компонент детальной страницы тренера /trainers/[id] */
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Badge, Card, Rating } from '@/components/ui';
+import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { formatPrice } from '@/lib/utils';
+import { formatDate, formatPrice } from '@/lib/utils';
+import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Offering, Review, Schedule, Sport, Trainer } from '@/types';
+
+const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
 type TrainerDetailPageClientProps = {
   affiliatedClub: Club | null;
@@ -18,6 +22,79 @@ type TrainerDetailPageClientProps = {
   sports: Sport[];
   trainer: Trainer;
 };
+
+/* Enriched-тип для слота расписания */
+type EnrichedScheduleItem = Schedule & {
+  sportName: string;
+  availableSpots: number;
+};
+
+/* Группа слотов по дню */
+type ScheduleGroup = {
+  date: string;
+  label: string;
+  items: EnrichedScheduleItem[];
+};
+
+/* Форматирование метки дня: «Понедельник, 18 марта» */
+function formatDayLabel(date: string) {
+  const label = formatDate(date, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : date;
+}
+
+/* Группировка расписания по дате */
+function buildScheduleGroups(schedule: Schedule[], sports: Sport[]): ScheduleGroup[] {
+  const sportNames = new Map(sports.map((sport) => [sport.id, sport.name]));
+  const groupedSchedule = new Map<string, EnrichedScheduleItem[]>();
+
+  [...schedule]
+    .sort((left, right) => {
+      const leftTimestamp = `${left.date}T${left.startTime}`;
+      const rightTimestamp = `${right.date}T${right.startTime}`;
+
+      return leftTimestamp.localeCompare(rightTimestamp);
+    })
+    .forEach((slot) => {
+      const currentGroup = groupedSchedule.get(slot.date) ?? [];
+
+      currentGroup.push({
+        ...slot,
+        sportName: sportNames.get(slot.sportId) ?? 'Занятие',
+        availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
+      });
+
+      groupedSchedule.set(slot.date, currentGroup);
+    });
+
+  return Array.from(groupedSchedule.entries()).map(([date, items]) => ({
+    date,
+    label: formatDayLabel(date),
+    items,
+  }));
+}
+
+/* Метка формата услуги */
+function getFormatLabel(format: Offering['format']): string {
+  switch (format) {
+    case 'personal': {
+      return 'Персонально';
+    }
+    case 'mini_group': {
+      return 'Мини-группа';
+    }
+    case 'group': {
+      return 'Группа';
+    }
+    default: {
+      return format;
+    }
+  }
+}
 
 /* Заглушка для медиа-контента (фото) */
 function MediaStub({ label, className }: { label: string; className?: string }) {
@@ -39,6 +116,31 @@ export function TrainerDetailPageClient({
   sports,
   trainer,
 }: TrainerDetailPageClientProps) {
+  const accountType = useAuthStore((state) => state.accountType);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
+  const [notice, setNotice] = useState<string | null>(null);
+  const scheduleGroups = useMemo(() => buildScheduleGroups(schedule, sports), [schedule, sports]);
+  const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+    }, AUTH_NOTICE_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [notice]);
+
+  function showActionNotice(message: string) {
+    setNotice(message);
+  }
+
   return (
     <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -87,7 +189,7 @@ export function TrainerDetailPageClient({
             </div>
           </Card>
 
-          {/* Hero — gradient cover с инициалами, как в TrainerCard */}
+          {/* Hero — gradient cover с инициалами */}
           <Card className="overflow-hidden p-0 xl:order-first">
             <div
               className={`relative flex min-h-72 flex-col justify-between overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-6 text-panel sm:min-h-80 xl:min-h-[26rem] sm:p-8`}
@@ -200,24 +302,109 @@ export function TrainerDetailPageClient({
           </section>
         ) : null}
 
-        {/* ═══ Услуги тренера — STUB: Step 11.3 ═══ */}
-        <section aria-labelledby="trainer-offerings-heading">
-          <h2
-            id="trainer-offerings-heading"
-            className="font-display text-3xl font-semibold text-ink"
-          >
-            Услуги тренера
-          </h2>
+        {/* ═══ Услуги тренера ═══ */}
+        <section data-testid="trainer-offerings-section">
+          <Card className="p-6 sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Services
+                </p>
+                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+                  Услуги тренера
+                </h2>
+              </div>
+              <Badge tone="outline">{offerings.length} услуг</Badge>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {offerings.map((offering) => (
+                <div
+                  key={offering.id}
+                  className="flex h-full flex-col rounded-card border border-line bg-canvas p-5"
+                >
+                  <p className="text-lg font-semibold text-ink">{offering.title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{offering.description}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge tone="teal">{getFormatLabel(offering.format)}</Badge>
+                    <Badge tone="outline">{formatPrice(offering.price)}</Badge>
+                    <Badge tone="outline">{offering.durationMinutes} мин</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </section>
 
-        {/* ═══ Расписание — STUB: Step 11.3 ═══ */}
-        <section aria-labelledby="trainer-schedule-heading">
-          <h2
-            id="trainer-schedule-heading"
-            className="font-display text-3xl font-semibold text-ink"
-          >
-            Расписание
-          </h2>
+        {/* ═══ Расписание ═══ */}
+        <section data-testid="trainer-schedule-section">
+          <Card className="p-6 sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Schedule
+                </p>
+                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Расписание</h2>
+              </div>
+              <Badge tone="outline">{schedule.length} слотов</Badge>
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              {scheduleGroups.map((group) => (
+                <div key={group.date} className="rounded-card border border-line bg-canvas p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-ink">{group.label}</h3>
+                    <Badge tone="outline">{group.items.length} занятия</Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {group.items.map((slot) => (
+                      <div key={slot.id} className="rounded-card border border-line bg-panel p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.10em] text-muted">
+                              {slot.sportName}
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-ink">{slot.title}</p>
+                            <p className="mt-2 text-sm leading-relaxed text-muted">
+                              {slot.startTime} - {slot.endTime}
+                            </p>
+                          </div>
+
+                          {isAthlete ? (
+                            <Link
+                              href={`/booking/${slot.id}`}
+                              aria-label={`Записаться на ${slot.title}`}
+                              className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
+                            >
+                              Записаться
+                            </Link>
+                          ) : (
+                            <Button
+                              aria-label={`Записаться на ${slot.title}`}
+                              onClick={() => {
+                                showActionNotice(
+                                  'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
+                                );
+                              }}
+                            >
+                              Записаться
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Badge tone="outline">{formatPrice(slot.price)}</Badge>
+                          <Badge tone="outline">Свободно {slot.availableSpots} мест</Badge>
+                          <Badge tone="teal">{slot.room ?? 'Зал уточняется'}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </section>
 
         {/* ═══ Отзывы — STUB: Step 11.4 ═══ */}
@@ -227,6 +414,8 @@ export function TrainerDetailPageClient({
           </h2>
         </section>
       </div>
+
+      {notice ? <ActionNotice message={notice} /> : null}
     </div>
   );
 }
