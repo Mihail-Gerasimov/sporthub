@@ -1,7 +1,7 @@
 // Тесты бизнес-логики провайдер-кабинета (Step 12.3)
 import { describe, expect, it } from 'vitest';
 
-import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Review, Trainer } from '@/types';
 import {
   getProviderClubs,
   getProviderIncomingBookings,
@@ -127,43 +127,6 @@ const trainers: Trainer[] = [
   },
 ];
 
-const schedule: Schedule[] = [
-  {
-    id: 3,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    ownerType: 'club',
-    ownerId: 1,
-    sportId: 3,
-    title: 'Утреннее плавание',
-    date: '2026-03-18',
-    startTime: '07:30',
-    endTime: '08:30',
-    durationMinutes: 60,
-    level: 'all_levels',
-    capacity: 14,
-    bookedCount: 8,
-    price: 1100,
-  },
-  {
-    id: 1003,
-    createdAt: '2026-03-19T09:00:00.000Z',
-    ownerType: 'trainer',
-    ownerId: 3,
-    trainerId: 3,
-    sportId: 2,
-    title: 'Бокс персональная',
-    date: '2026-03-20',
-    startTime: '10:15',
-    endTime: '11:15',
-    durationMinutes: 60,
-    level: 'all_levels',
-    capacity: 1,
-    bookedCount: 1,
-    price: 1600,
-  },
-];
-
 const bookings: Booking[] = [
   {
     id: 1,
@@ -276,7 +239,6 @@ describe('getProviderIncomingBookings', () => {
       bookings,
       providerClubIds,
       providerTrainerIds,
-      schedule,
     );
 
     // Букинг 1: clubId 1 (провайдер), Букинг 2: trainerId 3 (провайдер), Букинг 3: clubId 3 (чужой)
@@ -284,7 +246,7 @@ describe('getProviderIncomingBookings', () => {
   });
 
   it('возвращает пустой массив если нет входящих записей', () => {
-    const result = getProviderIncomingBookings(bookings, [999], [999], schedule);
+    const result = getProviderIncomingBookings(bookings, [999], [999]);
 
     expect(result).toEqual([]);
   });

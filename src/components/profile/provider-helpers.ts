@@ -1,5 +1,5 @@
 // Бизнес-логика провайдер-кабинета: фильтрация клубов, тренеров, букингов, отзывов и сводка.
-import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Review, Trainer } from '@/types';
 
 /** Сводка KPI провайдера для дэшборда */
 export type ProviderSummary = {
@@ -24,7 +24,6 @@ export function getProviderIncomingBookings(
   bookings: Booking[],
   providerClubIds: number[],
   providerTrainerIds: number[],
-  _schedule: Schedule[],
 ): Booking[] {
   const clubIdSet = new Set(providerClubIds);
   const trainerIdSet = new Set(providerTrainerIds);
