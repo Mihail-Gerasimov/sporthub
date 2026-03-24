@@ -11,6 +11,7 @@ import {
   getProviderSummary,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
+import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import { Badge, Button, Card } from '@/components/ui';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -237,6 +238,9 @@ export function ProviderProfilePage({
             <p className="mt-2 text-sm leading-relaxed text-muted">Средний балл отзывов</p>
           </div>
         </Card>
+
+        {/* Мои публикации */}
+        <ProviderPublicationsSection clubs={providerClubs} trainers={providerTrainers} />
 
         {/* Быстрые действия — заглушки */}
         <Card className="p-6 sm:p-8">
