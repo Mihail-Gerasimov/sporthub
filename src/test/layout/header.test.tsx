@@ -25,7 +25,7 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('href', '/#availability');
   });
 
-  it('после авторизации показывает имя, человекочитаемый тип аккаунта и аватар-заглушку', () => {
+  it('после авторизации показывает имя, человекочитаемый тип аккаунта и ссылку в кабинет', () => {
     useAuthStore.getState().register({
       accountType: 'provider',
       user: {
@@ -38,7 +38,11 @@ describe('Header', () => {
 
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
     expect(screen.getByText('Представитель спортивных услуг')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Аватар Марина Крылова' })).toBeInTheDocument();
+    // Provider avatar теперь ведёт в кабинет провайдера
+    expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
+      'href',
+      '/profile/provider',
+    );
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 
@@ -53,7 +57,7 @@ describe('Header', () => {
 
     render(<Header />);
 
-    expect(screen.getByRole('link', { name: 'Перейти в кабинет спортсмена' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
       'href',
       '/profile/athlete',
     );

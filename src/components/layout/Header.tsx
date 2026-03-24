@@ -22,8 +22,8 @@ export function Header() {
   const logout = useAuthStore((state) => state.logout);
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
   const cabinetConfig = getPersonalCabinetConfig(accountType);
-  const athleteCabinetHref =
-    accountType === 'athlete' ? (cabinetConfig?.profilePath ?? '/profile/athlete') : null;
+  // Универсальная ссылка в кабинет — работает и для athlete, и для provider
+  const cabinetHref = cabinetConfig?.profilePath ?? null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
@@ -68,10 +68,10 @@ export function Header() {
                   </p>
                 ) : null}
               </div>
-              {athleteCabinetHref ? (
+              {cabinetHref ? (
                 <Link
-                  href={athleteCabinetHref}
-                  aria-label="Перейти в кабинет спортсмена"
+                  href={cabinetHref}
+                  aria-label="Перейти в личный кабинет"
                   className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink transition-colors hover:border-accent hover:text-accent"
                 >
                   {accountInitial}
