@@ -109,8 +109,8 @@ describe('ProviderProfilePage', () => {
       />,
     );
 
-    // Шапка
-    expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+    // Шапка — имя дублируется в шапке и настройках, проверяем наличие хотя бы одного
+    expect(screen.getAllByText('Марина Крылова').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Кабинет представителя')).toBeInTheDocument();
 
     // Сводка — 4 KPI-карточки

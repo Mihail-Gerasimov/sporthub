@@ -11,7 +11,10 @@ import {
   getProviderSummary,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
+import { ProviderBookingsSection } from '@/components/profile/ProviderBookingsSection';
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
+import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSection';
+import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
 import { Badge, Button, Card } from '@/components/ui';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -241,6 +244,15 @@ export function ProviderProfilePage({
 
         {/* Мои публикации */}
         <ProviderPublicationsSection clubs={providerClubs} trainers={providerTrainers} />
+
+        {/* Входящие записи */}
+        <ProviderBookingsSection bookings={providerBookings} />
+
+        {/* Отзывы на мои услуги */}
+        <ProviderReviewsSection reviews={providerReviews} />
+
+        {/* Настройки профиля */}
+        <ProviderSettingsSection user={user} />
 
         {/* Быстрые действия — заглушки */}
         <Card className="p-6 sm:p-8">
