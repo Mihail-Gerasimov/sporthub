@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AppShell } from '@/components/layout/AppShell';
-import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import {
+  AUTH_STORE_DEFAULT_STATE,
+  MVP_PROVIDER_USER_ID,
+  useAuthStore,
+} from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 describe('AuthModal', () => {
@@ -294,6 +298,7 @@ describe('AuthModal', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().accountType).toBe('provider');
     expect(useAuthStore.getState().user).toEqual({
+      id: MVP_PROVIDER_USER_ID,
       name: 'Марина Крылова',
       email: 'marina@studio.local',
       phone: '+7 (927) 000-20-20',

@@ -18,7 +18,8 @@
     "coordinates": {
       "lat": 53.2129,
       "lng": 50.1245
-    }
+    },
+    "managedByUserId": 2
   },
   {
     "id": 2,
@@ -60,7 +61,8 @@
     "coordinates": {
       "lat": 53.2334,
       "lng": 50.2021
-    }
+    },
+    "managedByUserId": 2
   },
   {
     "id": 4,
@@ -102,7 +104,8 @@
     "coordinates": {
       "lat": 53.1957,
       "lng": 50.1006
-    }
+    },
+    "managedByUserId": 2
   },
   {
     "id": 6,

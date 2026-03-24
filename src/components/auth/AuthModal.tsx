@@ -8,7 +8,12 @@ import { formatPhone } from '@/lib/utils';
 import type { AuthAccountType } from '@/types';
 
 import { Button, Chip, Input, Modal } from '@/components/ui';
-import { MVP_ATHLETE_USER_ID, useAuthStore, type AuthSessionUser } from '@/stores/useAuthStore';
+import {
+  MVP_ATHLETE_USER_ID,
+  MVP_PROVIDER_USER_ID,
+  useAuthStore,
+  type AuthSessionUser,
+} from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 type AuthTab = 'login' | 'register';
@@ -102,11 +107,13 @@ function getLoginValidationErrors(form: LoginFormState): LoginFormErrors {
   }, {});
 }
 
+// Создаёт MVP-пользователя при логине: athlete → id 1, provider → id 2
 function createLoginSessionUser(email: string, accountType: AuthAccountType): AuthSessionUser {
   const [localPart] = email.split('@');
+  const id = accountType === 'athlete' ? MVP_ATHLETE_USER_ID : MVP_PROVIDER_USER_ID;
 
   return {
-    id: accountType === 'athlete' ? MVP_ATHLETE_USER_ID : undefined,
+    id,
     name: localPart || 'sporthub-user',
     email,
   };
@@ -197,14 +204,16 @@ function getRegisterValidationErrors(form: RegisterFormState): RegisterFormError
   }, {});
 }
 
+// Создаёт MVP-пользователя при регистрации: athlete → id 1, provider → id 2
 function createRegisterSessionUser(
   form: RegisterFormState,
   accountType: AuthAccountType,
 ): AuthSessionUser {
   const normalizedPhoneDigits = getNormalizedRussianPhoneDigits(form.phone);
+  const id = accountType === 'athlete' ? MVP_ATHLETE_USER_ID : MVP_PROVIDER_USER_ID;
 
   return {
-    id: accountType === 'athlete' ? MVP_ATHLETE_USER_ID : undefined,
+    id,
     name: form.name.trim(),
     email: form.email.trim(),
     phone: normalizedPhoneDigits ? formatPhone(normalizedPhoneDigits) : undefined,

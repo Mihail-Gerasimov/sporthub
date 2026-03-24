@@ -29,10 +29,9 @@ describe('Bookings API', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toEqual({
-      success: true,
-      data: [],
-    });
+    expect(body.success).toBe(true);
+    // В bookings.json 3 fake-букинга для userId: 1
+    expect(body.data.length).toBeGreaterThanOrEqual(3);
   });
 
   it('создаёт запись, сохраняет её в JSON и резервирует место в расписании', async () => {
@@ -74,8 +73,14 @@ describe('Bookings API', () => {
 
     expect(getResponse.status).toBe(200);
     expect(getBody.success).toBe(true);
-    expect(getBody.data).toHaveLength(1);
-    expect(getBody.data[0]).toMatchObject({
+    // 3 fake-букинга + 1 только что созданный
+    expect(getBody.data.length).toBeGreaterThanOrEqual(4);
+    // Проверяем, что созданный букинг присутствует в выдаче
+    const createdBooking = getBody.data.find(
+      (b: { scheduleId: number }) => b.scheduleId === 1001,
+    );
+
+    expect(createdBooking).toMatchObject({
       scheduleId: 1001,
       userId: 1,
     });

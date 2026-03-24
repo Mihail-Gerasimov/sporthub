@@ -7,6 +7,7 @@ import {
   AUTH_STORE_DEFAULT_STATE,
   getPersonalCabinetConfig,
   MVP_ATHLETE_USER_ID,
+  MVP_PROVIDER_USER_ID,
   PERSONAL_CABINET_CONFIG,
   selectAuthAccountType,
   selectAthleteActionUserId,
@@ -142,5 +143,15 @@ describe('useAuthStore', () => {
 
   it('использует отдельный AuthAccountType и не смешивает его с UserRole', () => {
     expectTypeOf<AuthAccountType>().not.toEqualTypeOf<UserRole>();
+  });
+
+  it('экспортирует MVP_PROVIDER_USER_ID = 2 для fake-провайдера', () => {
+    expect(MVP_PROVIDER_USER_ID).toBe(2);
+  });
+
+  it('provider-кабинет имеет profilePath /profile/provider', () => {
+    const config = getPersonalCabinetConfig('provider');
+
+    expect(config?.profilePath).toBe('/profile/provider');
   });
 });

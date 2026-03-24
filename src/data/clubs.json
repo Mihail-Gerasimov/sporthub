@@ -27,7 +27,8 @@
     "reviewCount": 64,
     "priceFrom": 900,
     "distanceKm": 1.8,
-    "isFeatured": true
+    "isFeatured": true,
+    "managedByUserId": 2
   },
   {
     "id": 2,
@@ -57,7 +58,8 @@
     "reviewCount": 51,
     "priceFrom": 1100,
     "distanceKm": 5.4,
-    "isFeatured": true
+    "isFeatured": true,
+    "managedByUserId": 2
   },
   {
     "id": 3,

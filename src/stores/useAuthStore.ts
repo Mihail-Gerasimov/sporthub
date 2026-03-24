@@ -35,6 +35,8 @@ type AuthState = {
 
 export const AUTH_STORAGE_KEY = 'sporthub-auth-store';
 export const MVP_ATHLETE_USER_ID = 1;
+// Fake-пользователь «представитель спортивных услуг» для MVP-кабинета провайдера
+export const MVP_PROVIDER_USER_ID = 2;
 
 export const AUTH_STORE_DEFAULT_STATE = {
   user: null,

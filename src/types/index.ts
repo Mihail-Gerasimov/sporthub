@@ -56,6 +56,8 @@ export interface Club extends BaseEntity {
   priceFrom: number;
   distanceKm: number;
   isFeatured: boolean;
+  // Привязка к провайдеру (userId), управляющему этим клубом
+  managedByUserId?: EntityId;
 }
 
 export interface Trainer extends BaseEntity {
@@ -77,6 +79,8 @@ export interface Trainer extends BaseEntity {
   clubId?: EntityId;
   // STUB: сохранить переходную совместимость до появления primarySportId и новой выдачи.
   sportId?: EntityId;
+  // Привязка к провайдеру (userId), управляющему этим тренером
+  managedByUserId?: EntityId;
 }
 
 export interface Offering extends BaseEntity {

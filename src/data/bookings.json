@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "id": 1,
+    "createdAt": "2026-03-18T10:00:00.000Z",
+    "scheduleId": 3,
+    "offeringId": 3,
+    "ownerType": "club",
+    "ownerId": 1,
+    "affiliatedClubId": 1,
+    "userId": 1,
+    "clubId": 1,
+    "sportId": 3,
+    "date": "2026-03-18",
+    "status": "confirmed",
+    "paymentStatus": "paid",
+    "totalPrice": 1150
+  },
+  {
+    "id": 2,
+    "createdAt": "2026-03-19T14:30:00.000Z",
+    "scheduleId": 1003,
+    "offeringId": 103,
+    "ownerType": "trainer",
+    "ownerId": 3,
+    "affiliatedClubId": 2,
+    "userId": 1,
+    "trainerId": 3,
+    "sportId": 2,
+    "date": "2026-03-20",
+    "status": "pending",
+    "paymentStatus": "unpaid",
+    "totalPrice": 1600
+  },
+  {
+    "id": 3,
+    "createdAt": "2026-03-17T08:00:00.000Z",
+    "scheduleId": 4,
+    "offeringId": 4,
+    "ownerType": "club",
+    "ownerId": 2,
+    "affiliatedClubId": 2,
+    "userId": 1,
+    "clubId": 2,
+    "sportId": 2,
+    "date": "2026-03-18",
+    "status": "completed",
+    "paymentStatus": "paid",
+    "totalPrice": 1200
+  }
+]
