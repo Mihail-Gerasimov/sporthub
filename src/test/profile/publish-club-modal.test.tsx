@@ -113,4 +113,37 @@ describe('PublishClubModal', () => {
     expect(screen.getByText('Укажите город')).toBeInTheDocument();
     expect(screen.getByText('Необходимо выбрать хотя бы 1 направление')).toBeInTheDocument();
   });
+
+  // --- Primary action stub (Step 13.8) ---
+
+  it('показывает notice после успешной валидации вместо сохранения', async () => {
+    render(<PublishClubModal {...defaultProps} />);
+
+    // Заполняем обязательные поля
+    fireEvent.change(screen.getByLabelText('Название клуба'), {
+      target: { value: 'FitZone Studio' },
+    });
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.change(screen.getByLabelText('Адрес'), {
+      target: { value: 'ул. Спортивная, 10' },
+    });
+    fireEvent.change(screen.getByLabelText('Краткое описание'), {
+      target: { value: 'Отличный клуб' },
+    });
+    fireEvent.change(screen.getByLabelText('Телефон'), {
+      target: { value: '+7 999 123-45-67' },
+    });
+    fireEvent.change(screen.getByLabelText('Цена от (₽)'), { target: { value: '500' } });
+
+    // Выбираем направление
+    fireEvent.click(screen.getByText('Йога'));
+
+    // Нажимаем «Создать публикацию»
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    // Должен появиться честный notice
+    expect(
+      screen.getByText(/Сохранение публикации будет доступно в следующей фазе/),
+    ).toBeInTheDocument();
+  });
 });

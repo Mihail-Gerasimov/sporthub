@@ -147,4 +147,49 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Укажите фамилию')).toBeInTheDocument();
     expect(screen.getByText('Выберите минимум 1 специализацию')).toBeInTheDocument();
   });
+
+  // --- Primary action stub (Step 13.8) ---
+
+  it('показывает notice после успешной валидации вместо сохранения', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    // Заполняем обязательные поля
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Александр' } });
+    fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Иванов' } });
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.change(screen.getByLabelText('О себе'), {
+      target: { value: 'Опытный тренер' },
+    });
+    fireEvent.change(screen.getByLabelText('Опыт (лет)'), { target: { value: '5' } });
+
+    // Выбираем вид спорта
+    fireEvent.change(screen.getByLabelText('Основной вид спорта'), {
+      target: { value: 'Бокс' },
+    });
+
+    // Выбираем специализацию
+    fireEvent.click(screen.getByText('Персональные тренировки'));
+
+    // Выбираем формат работы
+    fireEvent.click(screen.getByText('В клубе'));
+
+    // Заполняем услугу
+    fireEvent.change(screen.getByLabelText('Название услуги'), {
+      target: { value: 'Персональная тренировка' },
+    });
+    // Цена и длительность — берём первый из нескольких (дублируются с расписанием)
+    const priceInputs = screen.getAllByLabelText('Цена (₽)');
+    fireEvent.change(priceInputs[0], { target: { value: '2000' } });
+    fireEvent.change(screen.getByLabelText('Длительность (мин)'), {
+      target: { value: '60' },
+    });
+
+    // Нажимаем «Создать публикацию»
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    // Должен появиться честный notice
+    expect(
+      screen.getByText(/Сохранение публикации будет доступно в следующей фазе/),
+    ).toBeInTheDocument();
+  });
 });

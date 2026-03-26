@@ -126,21 +126,23 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
   const [form, setForm] = useState<TrainerFormState>(createInitialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState(false);
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
     setErrors({});
     setPhotoNotice(false);
+    setSubmitNotice(false);
     onClose();
   }
 
-  // Валидация и submit
+  // Валидация и submit — stub: показываем notice вместо сохранения
   function handleSubmit() {
     const validationErrors = validateTrainerForm(form);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
-    // STUB: submit-flow будет реализован в Step 13.8
+    setSubmitNotice(true);
   }
 
   // Обновление текстового поля
@@ -165,6 +167,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
       description="Заполните информацию о тренере для публикации на платформе."
       primaryLabel="Создать публикацию"
       onPrimary={handleSubmit}
+      notice={submitNotice ? 'Сохранение публикации будет доступно в следующей фазе' : undefined}
       secondaryLabel="Отмена"
       onSecondary={handleClose}
     >

@@ -122,21 +122,23 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
   const [form, setForm] = useState<ClubFormState>(createInitialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState(false);
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
     setErrors({});
     setPhotoNotice(false);
+    setSubmitNotice(false);
     onClose();
   }
 
-  // Валидация и submit
+  // Валидация и submit — stub: показываем notice вместо сохранения
   function handleSubmit() {
     const validationErrors = validateClubForm(form);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
-    // STUB: submit-flow будет реализован в Step 13.8
+    setSubmitNotice(true);
   }
 
   // Обновление текстового поля
@@ -162,6 +164,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
       primaryLabel="Создать публикацию"
       onPrimary={handleSubmit}
       secondaryLabel="Отмена"
+      notice={submitNotice ? 'Сохранение публикации будет доступно в следующей фазе' : undefined}
       onSecondary={handleClose}
     >
       <div className="flex flex-col gap-8">
