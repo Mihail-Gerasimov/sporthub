@@ -124,11 +124,13 @@ type PublishTrainerModalProps = {
 export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModalProps) {
   const [form, setForm] = useState<TrainerFormState>(createInitialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [photoNotice, setPhotoNotice] = useState(false);
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
     setErrors({});
+    setPhotoNotice(false);
     onClose();
   }
 
@@ -275,13 +277,21 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
             </div>
 
             {/* STUB: загрузка фото */}
-            <div className="rounded-card border border-dashed border-line bg-canvas p-4">
-              <p className="text-sm text-muted">
-                Загрузка фото будет доступна позже{' '}
-                <span className="inline-flex rounded-pill bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                  Скоро
-                </span>
-              </p>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                className="inline-flex w-fit items-center gap-2 rounded-pill border border-dashed border-line bg-canvas px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-accent hover:text-accent"
+                onClick={() => {
+                  setPhotoNotice(true);
+                }}
+              >
+                Добавить фото
+              </button>
+              {photoNotice ? (
+                <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Функционал загрузки фото находится в разработке
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

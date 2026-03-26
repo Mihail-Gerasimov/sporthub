@@ -37,11 +37,11 @@ describe('PublishTrainerModal', () => {
 
   // --- Секция «Фото и визуал» ---
 
-  it('рендерит секцию «Фото и визуал» со stub-пометкой', () => {
+  it('рендерит секцию «Фото и визуал» с кнопкой добавления фото', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     expect(screen.getByText('Фото и визуал')).toBeInTheDocument();
-    expect(screen.getByText(/Загрузка фото будет доступна позже/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
   // --- Секция «Специализация» ---
@@ -123,6 +123,15 @@ describe('PublishTrainerModal', () => {
 
     expect(screen.getByRole('button', { name: 'Создать публикацию' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
+  });
+
+  // --- Фото-stub (Step 13.6) ---
+
+  it('показывает notice при клике на «Добавить фото»', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    expect(screen.getByText(/Функционал загрузки фото находится в разработке/)).toBeInTheDocument();
   });
 
   // --- Валидация (Step 13.5) ---
