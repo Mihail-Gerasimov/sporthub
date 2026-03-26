@@ -15,6 +15,8 @@ import { ProviderBookingsSection } from '@/components/profile/ProviderBookingsSe
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSection';
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
+import { PublishClubModal } from '@/components/profile/PublishClubModal';
+import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Badge, Button, Card } from '@/components/ui';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -26,9 +28,6 @@ type ProviderProfilePageProps = {
   reviews?: Review[];
   trainers?: Trainer[];
 };
-
-// Максимальное время показа тоста в миллисекундах
-const TOAST_DURATION_MS = 3000;
 
 /** Состояние «Доступ ограничен» для неавторизованных или не-provider пользователей */
 function ProviderAccessDeniedState() {
@@ -91,15 +90,9 @@ export function ProviderProfilePage({
   const cabinetConfig = getPersonalCabinetConfig(accountType);
   const providerUserId = user?.id ?? null;
 
-  // Тост для заглушек quick actions
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  function showStubToast() {
-    setToastMessage('Скоро будет доступно');
-    setTimeout(() => {
-      setToastMessage(null);
-    }, TOAST_DURATION_MS);
-  }
+  // Состояние открытия publish-модалок
+  const [isClubModalOpen, setIsClubModalOpen] = useState(false);
+  const [isTrainerModalOpen, setIsTrainerModalOpen] = useState(false);
 
   // Бизнес-данные провайдера
   const providerClubs = useMemo(
@@ -254,30 +247,45 @@ export function ProviderProfilePage({
         {/* Настройки профиля */}
         <ProviderSettingsSection user={user} />
 
-        {/* Быстрые действия — заглушки */}
+        {/* Быстрые действия */}
         <Card className="p-6 sm:p-8">
           <h2 className="font-display text-2xl font-semibold text-ink">Быстрые действия</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Публикация клубов и тренеров будет доступна в следующих обновлениях.
+            Опубликуйте клуб или тренера, чтобы они появились на платформе.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button onClick={showStubToast}>Опубликовать клуб</Button>
-            <Button variant="outline" onClick={showStubToast}>
+            <Button
+              onClick={() => {
+                setIsClubModalOpen(true);
+              }}
+            >
+              Опубликовать клуб
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsTrainerModalOpen(true);
+              }}
+            >
               Опубликовать тренера
             </Button>
           </div>
         </Card>
 
-        {/* Тост */}
-        {toastMessage ? (
-          <div
-            role="status"
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-card border border-line bg-ink px-6 py-3 text-sm font-semibold text-panel shadow-card"
-          >
-            {toastMessage}
-          </div>
-        ) : null}
+        {/* Publish-модалки */}
+        <PublishClubModal
+          open={isClubModalOpen}
+          onClose={() => {
+            setIsClubModalOpen(false);
+          }}
+        />
+        <PublishTrainerModal
+          open={isTrainerModalOpen}
+          onClose={() => {
+            setIsTrainerModalOpen(false);
+          }}
+        />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// Тесты страницы кабинета провайдера (Step 12.4)
+// Тесты страницы кабинета провайдера (Steps 12.4, 13.1)
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -120,7 +120,7 @@ describe('ProviderProfilePage', () => {
     expect(screen.getByTestId('provider-summary-rating')).toHaveTextContent('5');
   });
 
-  it('показывает тост при нажатии на кнопку-заглушку «Опубликовать клуб»', () => {
+  it('открывает модалку «Опубликовать клуб» по клику на кнопку', () => {
     useAuthStore.getState().login({
       accountType: 'provider',
       user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
@@ -130,7 +130,59 @@ describe('ProviderProfilePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Опубликовать клуб/ }));
 
-    expect(screen.getByText(/Скоро будет доступно/)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    // Заголовок модалки — h2 внутри dialog
+    expect(dialog.querySelector('h2')).toHaveTextContent('Опубликовать клуб');
+  });
+
+  it('открывает модалку «Опубликовать тренера» по клику на кнопку', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Опубликовать тренера/ }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.querySelector('h2')).toHaveTextContent('Опубликовать тренера');
+  });
+
+  it('закрывает модалку по клику на overlay', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage />);
+
+    // Открываем модалку клуба
+    fireEvent.click(screen.getByRole('button', { name: /Опубликовать клуб/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Закрываем через overlay
+    fireEvent.click(screen.getByTestId('modal-overlay'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('закрывает модалку по Escape', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage />);
+
+    // Открываем модалку тренера
+    fireEvent.click(screen.getByRole('button', { name: /Опубликовать тренера/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Закрываем через Escape
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('рендерит кнопку «Выйти» и выходит по клику', () => {
