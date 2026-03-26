@@ -285,6 +285,7 @@ export function ProviderProfilePage({
           onClose={() => {
             setIsTrainerModalOpen(false);
           }}
+          clubs={providerClubs.map((c) => ({ id: c.id, name: c.name }))}
         />
       </div>
     </div>
