@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
+import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { Chip, Input } from '@/components/ui';
 
 // --- Локальные типы (form-only, не в src/types/) ---
@@ -362,14 +363,14 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
         {/* Секция 5: Стартовое расписание */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Стартовое расписание</h3>
-          <p className="mt-1 text-sm text-muted">
-            Редактор расписания будет подключён на следующем шаге.
-          </p>
-          {/* STUB: placeholder для ScheduleSlotsEditor (Step 13.7) */}
-          <div className="mt-3 rounded-card border border-dashed border-line bg-canvas p-4">
-            <p className="text-sm text-muted">
-              {form.scheduleSlots.length} слот(ов) — редактор появится позже
-            </p>
+          <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 слотов расписания.</p>
+          <div className="mt-3">
+            <ScheduleSlotsEditor
+              slots={form.scheduleSlots}
+              onChange={(slots) => {
+                setForm((prev) => ({ ...prev, scheduleSlots: slots }));
+              }}
+            />
           </div>
         </section>
 

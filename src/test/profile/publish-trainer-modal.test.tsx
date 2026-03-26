@@ -86,7 +86,8 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
     expect(screen.getByLabelText('Название услуги')).toBeInTheDocument();
     expect(screen.getByLabelText('Описание услуги')).toBeInTheDocument();
-    expect(screen.getByLabelText('Цена (₽)')).toBeInTheDocument();
+    // «Цена (₽)» присутствует (может дублироваться с расписанием)
+    expect(screen.getAllByLabelText('Цена (₽)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByLabelText('Длительность (мин)')).toBeInTheDocument();
     expect(screen.getByLabelText('Место проведения')).toBeInTheDocument();
   });
