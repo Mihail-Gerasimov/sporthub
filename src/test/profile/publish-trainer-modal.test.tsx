@@ -1,5 +1,5 @@
 // Тесты модалки публикации тренера (Step 13.4)
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
@@ -123,5 +123,18 @@ describe('PublishTrainerModal', () => {
 
     expect(screen.getByRole('button', { name: 'Создать публикацию' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
+  });
+
+  // --- Валидация (Step 13.5) ---
+
+  it('показывает ошибки при пустом submit', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    // Должны появиться сообщения об ошибках для обязательных полей
+    expect(screen.getByText('Укажите имя')).toBeInTheDocument();
+    expect(screen.getByText('Укажите фамилию')).toBeInTheDocument();
+    expect(screen.getByText('Выберите минимум 1 специализацию')).toBeInTheDocument();
   });
 });

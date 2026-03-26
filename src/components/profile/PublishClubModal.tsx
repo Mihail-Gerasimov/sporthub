@@ -5,6 +5,7 @@
 import { useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
+import { validateClubForm } from '@/components/profile/publish-validation';
 import { Chip, Input } from '@/components/ui';
 
 // --- Локальные типы (form-only, не в src/types/) ---
@@ -118,11 +119,21 @@ type PublishClubModalProps = {
 
 export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
   const [form, setForm] = useState<ClubFormState>(createInitialState);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
+    setErrors({});
     onClose();
+  }
+
+  // Валидация и submit
+  function handleSubmit() {
+    const validationErrors = validateClubForm(form);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+    // STUB: submit-flow будет реализован в Step 13.8
   }
 
   // Обновление текстового поля
@@ -146,9 +157,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
       title="Опубликовать клуб"
       description="Заполните информацию о клубе для публикации на платформе."
       primaryLabel="Создать публикацию"
-      onPrimary={() => {
-        // STUB: submit-flow будет реализован в Step 13.8
-      }}
+      onPrimary={handleSubmit}
       secondaryLabel="Отмена"
       onSecondary={handleClose}
     >
@@ -161,6 +170,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
               label="Название клуба"
               placeholder="Например: FitZone Studio"
               value={form.name}
+              error={errors.name}
               onChange={(e) => {
                 updateField('name', e.target.value);
               }}
@@ -170,6 +180,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 label="Город"
                 placeholder="Москва"
                 value={form.city}
+                error={errors.city}
                 onChange={(e) => {
                   updateField('city', e.target.value);
                 }}
@@ -178,6 +189,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 label="Адрес"
                 placeholder="ул. Спортивная, 10"
                 value={form.address}
+                error={errors.address}
                 onChange={(e) => {
                   updateField('address', e.target.value);
                 }}
@@ -193,12 +205,15 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 id="club-description"
                 placeholder="Расскажите о клубе в 2-3 предложениях"
                 rows={3}
-                className="w-full rounded-card border border-line bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.description ? 'border-red-400' : 'border-line'}`}
                 value={form.description}
                 onChange={(e) => {
                   updateField('description', e.target.value);
                 }}
               />
+              {errors.description ? (
+                <p className="text-xs text-red-500">{errors.description}</p>
+              ) : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -207,6 +222,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 type="tel"
                 placeholder="+7 (999) 123-45-67"
                 value={form.phone}
+                error={errors.phone}
                 onChange={(e) => {
                   updateField('phone', e.target.value);
                 }}
@@ -216,6 +232,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 type="email"
                 placeholder="info@club.ru"
                 value={form.email}
+                error={errors.email}
                 onChange={(e) => {
                   updateField('email', e.target.value);
                 }}
@@ -275,6 +292,9 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
               </Chip>
             ))}
           </div>
+          {errors.disciplines ? (
+            <p className="mt-2 text-xs text-red-500">{errors.disciplines}</p>
+          ) : null}
         </section>
 
         {/* Секция 4: Теги и удобства */}
@@ -287,6 +307,7 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
               type="number"
               placeholder="500"
               value={form.priceFrom}
+              error={errors.priceFrom}
               onChange={(e) => {
                 updateField('priceFrom', e.target.value);
               }}

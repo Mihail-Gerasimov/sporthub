@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import type { ScheduleSlotForm } from '@/components/profile/PublishClubModal';
+import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { Chip, Input } from '@/components/ui';
 
 // --- Локальные типы (form-only, не в src/types/) ---
@@ -122,11 +123,21 @@ type PublishTrainerModalProps = {
 
 export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModalProps) {
   const [form, setForm] = useState<TrainerFormState>(createInitialState);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
+    setErrors({});
     onClose();
+  }
+
+  // Валидация и submit
+  function handleSubmit() {
+    const validationErrors = validateTrainerForm(form);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+    // STUB: submit-flow будет реализован в Step 13.8
   }
 
   // Обновление текстового поля
@@ -150,9 +161,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
       title="Опубликовать тренера"
       description="Заполните информацию о тренере для публикации на платформе."
       primaryLabel="Создать публикацию"
-      onPrimary={() => {
-        // STUB: submit-flow будет реализован в Step 13.8
-      }}
+      onPrimary={handleSubmit}
       secondaryLabel="Отмена"
       onSecondary={handleClose}
     >
@@ -166,6 +175,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 label="Имя"
                 placeholder="Александр"
                 value={form.firstName}
+                error={errors.firstName}
                 onChange={(e) => {
                   updateField('firstName', e.target.value);
                 }}
@@ -174,6 +184,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 label="Фамилия"
                 placeholder="Иванов"
                 value={form.lastName}
+                error={errors.lastName}
                 onChange={(e) => {
                   updateField('lastName', e.target.value);
                 }}
@@ -184,6 +195,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 label="Город"
                 placeholder="Москва"
                 value={form.city}
+                error={errors.city}
                 onChange={(e) => {
                   updateField('city', e.target.value);
                 }}
@@ -207,12 +219,13 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 id="trainer-bio"
                 placeholder="Расскажите о себе и своём подходе к тренировкам"
                 rows={3}
-                className="w-full rounded-card border border-line bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.bio ? 'border-red-400' : 'border-line'}`}
                 value={form.bio}
                 onChange={(e) => {
                   updateField('bio', e.target.value);
                 }}
               />
+              {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -221,6 +234,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 type="number"
                 placeholder="5"
                 value={form.experience}
+                error={errors.experience}
                 onChange={(e) => {
                   updateField('experience', e.target.value);
                 }}
@@ -283,7 +297,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               </label>
               <select
                 id="trainer-sport"
-                className="w-full rounded-card border border-line bg-panel px-4 py-3 text-sm text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.sport ? 'border-red-400' : 'border-line'}`}
                 value={form.sport}
                 onChange={(e) => {
                   updateField('sport', e.target.value);
@@ -296,6 +310,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                   </option>
                 ))}
               </select>
+              {errors.sport ? <p className="text-xs text-red-500">{errors.sport}</p> : null}
             </div>
 
             {/* Специализации — chips */}
@@ -314,6 +329,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                   </Chip>
                 ))}
               </div>
+              {errors.specializations ? (
+                <p className="mt-1 text-xs text-red-500">{errors.specializations}</p>
+              ) : null}
             </div>
 
             {/* Формат работы — chips */}
@@ -332,6 +350,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                   </Chip>
                 ))}
               </div>
+              {errors.workFormat ? (
+                <p className="mt-1 text-xs text-red-500">{errors.workFormat}</p>
+              ) : null}
             </div>
           </div>
         </section>
@@ -373,6 +394,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               label="Название услуги"
               placeholder="Персональная тренировка"
               value={form.offeringName}
+              error={errors.offeringName}
               onChange={(e) => {
                 updateField('offeringName', e.target.value);
               }}
@@ -419,6 +441,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 type="number"
                 placeholder="2000"
                 value={form.offeringPrice}
+                error={errors.offeringPrice}
                 onChange={(e) => {
                   updateField('offeringPrice', e.target.value);
                 }}
@@ -428,6 +451,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 type="number"
                 placeholder="60"
                 value={form.offeringDuration}
+                error={errors.offeringDuration}
                 onChange={(e) => {
                   updateField('offeringDuration', e.target.value);
                 }}

@@ -1,5 +1,5 @@
 // Тесты модалки публикации клуба (Step 13.3)
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
@@ -91,5 +91,18 @@ describe('PublishClubModal', () => {
 
     expect(screen.getByRole('button', { name: 'Создать публикацию' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
+  });
+
+  // --- Валидация (Step 13.5) ---
+
+  it('показывает ошибки при пустом submit', () => {
+    render(<PublishClubModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    // Должны появиться сообщения об ошибках для обязательных полей
+    expect(screen.getByText('Укажите название клуба')).toBeInTheDocument();
+    expect(screen.getByText('Укажите город')).toBeInTheDocument();
+    expect(screen.getByText('Необходимо выбрать хотя бы 1 направление')).toBeInTheDocument();
   });
 });
