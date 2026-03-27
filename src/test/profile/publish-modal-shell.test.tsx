@@ -102,6 +102,7 @@ describe('PublishModalShell', () => {
 
     const scrollContainer = screen.getByTestId('publish-modal-body');
     expect(scrollContainer.className).toMatch(/overflow-y-auto/);
+    expect(scrollContainer.className).toMatch(/scrollbar-hidden/);
   });
 
   it('не рендерится когда open=false', () => {

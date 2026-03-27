@@ -26,7 +26,6 @@ type TrainerFormInput = {
   address: string;
   bio: string;
   experience: string;
-  priceFrom: string;
   sport: string;
   specializations: string[];
   workFormat: string;

@@ -19,7 +19,7 @@ describe('PublishClubModal', () => {
 
   // --- Секция «Основная информация» ---
 
-  it('рендерит секцию «Основная информация» с полями name, city, address, description, phone, email', () => {
+  it('рендерит секцию «Основная информация» с полями name, city, address, description, phone, email, priceFrom', () => {
     render(<PublishClubModal {...defaultProps} />);
 
     expect(screen.getByText('Основная информация')).toBeInTheDocument();
@@ -29,14 +29,14 @@ describe('PublishClubModal', () => {
     expect(screen.getByLabelText('Краткое описание')).toBeInTheDocument();
     expect(screen.getByLabelText('Телефон')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Цена от (₽)')).toBeInTheDocument();
   });
 
-  // --- Секция «Фото и визуал» ---
+  // --- Секция «Фото» ---
 
-  it('рендерит секцию «Фото и визуал» с кнопкой добавления фото', () => {
+  it('рендерит кнопку «Добавить фото»', () => {
     render(<PublishClubModal {...defaultProps} />);
 
-    expect(screen.getByText('Фото и визуал')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
@@ -48,13 +48,13 @@ describe('PublishClubModal', () => {
     expect(screen.getByText('Направления клуба')).toBeInTheDocument();
   });
 
-  // --- Секция «Теги и удобства» ---
+  // --- Секции «Добавить теги» и «Удобства клуба» ---
 
-  it('рендерит секцию «Теги и удобства» с полем цены', () => {
+  it('рендерит секции «Добавить теги» и «Удобства клуба»', () => {
     render(<PublishClubModal {...defaultProps} />);
 
-    expect(screen.getByText('Теги и удобства')).toBeInTheDocument();
-    expect(screen.getByLabelText('Цена от (₽)')).toBeInTheDocument();
+    expect(screen.getByText('Добавить теги')).toBeInTheDocument();
+    expect(screen.getByText('Удобства клуба')).toBeInTheDocument();
   });
 
   // --- Секция «Стартовое расписание» ---
@@ -78,7 +78,6 @@ describe('PublishClubModal', () => {
   it('stub-элементы маркированы как «Скоро»', () => {
     render(<PublishClubModal {...defaultProps} />);
 
-    // В модалке должны быть stub-пометки для future-полей
     const stubLabels = screen.getAllByText(/Скоро/);
     expect(stubLabels.length).toBeGreaterThanOrEqual(1);
   });
@@ -92,7 +91,7 @@ describe('PublishClubModal', () => {
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
   });
 
-  // --- Фото-stub (Step 13.6) ---
+  // --- Фото-stub ---
 
   it('показывает notice при клике на «Добавить фото»', () => {
     render(<PublishClubModal {...defaultProps} />);
@@ -101,25 +100,23 @@ describe('PublishClubModal', () => {
     expect(screen.getByText(/Функционал загрузки фото находится в разработке/)).toBeInTheDocument();
   });
 
-  // --- Валидация (Step 13.5) ---
+  // --- Валидация ---
 
   it('показывает ошибки при пустом submit', () => {
     render(<PublishClubModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
-    // Должны появиться сообщения об ошибках для обязательных полей
     expect(screen.getByText('Укажите название клуба')).toBeInTheDocument();
     expect(screen.getByText('Укажите город')).toBeInTheDocument();
     expect(screen.getByText('Необходимо выбрать хотя бы 1 направление')).toBeInTheDocument();
   });
 
-  // --- Primary action stub (Step 13.8) ---
+  // --- Primary action stub ---
 
   it('показывает notice после успешной валидации вместо сохранения', async () => {
     render(<PublishClubModal {...defaultProps} />);
 
-    // Заполняем обязательные поля
     fireEvent.change(screen.getByLabelText('Название клуба'), {
       target: { value: 'FitZone Studio' },
     });
@@ -135,13 +132,10 @@ describe('PublishClubModal', () => {
     });
     fireEvent.change(screen.getByLabelText('Цена от (₽)'), { target: { value: '500' } });
 
-    // Выбираем направление
     fireEvent.click(screen.getByText('Йога'));
 
-    // Нажимаем «Создать публикацию»
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
-    // Должен появиться честный notice
     expect(
       screen.getByText(/Сохранение публикации будет доступно в следующей фазе/),
     ).toBeInTheDocument();

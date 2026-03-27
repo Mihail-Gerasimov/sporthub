@@ -126,7 +126,7 @@ export function ScheduleSlotsEditor({ slots, onChange, maxSlots = 3 }: ScheduleS
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
-                label="Зал / локация"
+                label="Зал"
                 placeholder="Зал №1"
                 value={slot.location}
                 onChange={(e) => {

@@ -26,6 +26,7 @@ export function Modal({
   const titleId = useId();
   const descriptionId = useId();
 
+  // Закрытие по Escape
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -44,6 +45,18 @@ export function Modal({
     };
   }, [onClose, open]);
 
+  // Блокировка скролла страницы под модалкой
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
@@ -60,7 +73,7 @@ export function Modal({
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          'w-full max-w-xl rounded-card border border-line bg-panel p-5 shadow-floating sm:p-6',
+          'w-full max-w-4xl rounded-card border border-line bg-panel p-5 shadow-floating sm:p-8',
           className,
         )}
         onClick={(event) => {

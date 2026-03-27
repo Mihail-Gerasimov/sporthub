@@ -35,34 +35,32 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByLabelText('Опыт (лет)')).toBeInTheDocument();
   });
 
-  // --- Секция «Фото и визуал» ---
+  // --- Секция «Фото» ---
 
-  it('рендерит секцию «Фото и визуал» с кнопкой добавления фото', () => {
+  it('рендерит кнопку «Добавить фото»', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
-    expect(screen.getByText('Фото и визуал')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
   // --- Секция «Специализация» ---
 
-  it('рендерит секцию «Специализация» с полями sport, specializations, workFormat', () => {
+  it('рендерит секцию «Специализация» с полями sport, тип, workFormat', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     expect(screen.getByText('Специализация')).toBeInTheDocument();
     expect(screen.getByLabelText('Основной вид спорта')).toBeInTheDocument();
-    expect(screen.getByText('Специализации (1–4)')).toBeInTheDocument();
+    expect(screen.getByText('Тип')).toBeInTheDocument();
     expect(screen.getByText('Формат работы')).toBeInTheDocument();
   });
 
-  // --- Секция «Привязка к клубу» ---
+  // --- Секция «Связать себя с клубом» ---
 
-  it('рендерит секцию «Привязка к клубу» с опциональным select', () => {
+  it('рендерит секцию «Связать себя с клубом» с опциональным select', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
-    expect(screen.getByText('Привязка к клубу')).toBeInTheDocument();
-    expect(screen.getByText(/необязательно/i)).toBeInTheDocument();
-    // Оба select присутствуют (sport + club)
+    expect(screen.getByText('Связать себя с клубом')).toBeInTheDocument();
+    expect(screen.getByText(/Вы можете указать спортивный клуб/)).toBeInTheDocument();
     const selects = screen.getAllByRole('combobox');
     expect(selects.length).toBeGreaterThanOrEqual(2);
   });
@@ -70,7 +68,6 @@ describe('PublishTrainerModal', () => {
   it('отображает переданные клубы в select привязки', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
-    // Второй select — привязка к клубу (первый — вид спорта)
     const selects = screen.getAllByRole('combobox');
     const clubSelect = selects.find((s) => s.textContent?.includes('Без привязки к клубу'));
     expect(clubSelect).toBeDefined();
@@ -86,10 +83,9 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
     expect(screen.getByLabelText('Название услуги')).toBeInTheDocument();
     expect(screen.getByLabelText('Описание услуги')).toBeInTheDocument();
-    // «Цена (₽)» присутствует (может дублироваться с расписанием)
     expect(screen.getAllByLabelText('Цена (₽)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByLabelText('Длительность (мин)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Место проведения')).toBeInTheDocument();
+    expect(screen.getByLabelText('Укажите адрес проведения тренировки')).toBeInTheDocument();
   });
 
   // --- Секция «Стартовое расписание» ---
@@ -126,7 +122,7 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
   });
 
-  // --- Фото-stub (Step 13.6) ---
+  // --- Фото-stub ---
 
   it('показывает notice при клике на «Добавить фото»', () => {
     render(<PublishTrainerModal {...defaultProps} />);
@@ -135,25 +131,23 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText(/Функционал загрузки фото находится в разработке/)).toBeInTheDocument();
   });
 
-  // --- Валидация (Step 13.5) ---
+  // --- Валидация ---
 
   it('показывает ошибки при пустом submit', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
-    // Должны появиться сообщения об ошибках для обязательных полей
     expect(screen.getByText('Укажите имя')).toBeInTheDocument();
     expect(screen.getByText('Укажите фамилию')).toBeInTheDocument();
     expect(screen.getByText('Выберите минимум 1 специализацию')).toBeInTheDocument();
   });
 
-  // --- Primary action stub (Step 13.8) ---
+  // --- Primary action stub ---
 
   it('показывает notice после успешной валидации вместо сохранения', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
-    // Заполняем обязательные поля
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Александр' } });
     fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Иванов' } });
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
@@ -162,32 +156,25 @@ describe('PublishTrainerModal', () => {
     });
     fireEvent.change(screen.getByLabelText('Опыт (лет)'), { target: { value: '5' } });
 
-    // Выбираем вид спорта
     fireEvent.change(screen.getByLabelText('Основной вид спорта'), {
       target: { value: 'Бокс' },
     });
 
-    // Выбираем специализацию
     fireEvent.click(screen.getByText('Персональные тренировки'));
 
-    // Выбираем формат работы
     fireEvent.click(screen.getByText('В клубе'));
 
-    // Заполняем услугу
     fireEvent.change(screen.getByLabelText('Название услуги'), {
       target: { value: 'Персональная тренировка' },
     });
-    // Цена и длительность — берём первый из нескольких (дублируются с расписанием)
     const priceInputs = screen.getAllByLabelText('Цена (₽)');
     fireEvent.change(priceInputs[0], { target: { value: '2000' } });
     fireEvent.change(screen.getByLabelText('Длительность (мин)'), {
       target: { value: '60' },
     });
 
-    // Нажимаем «Создать публикацию»
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
-    // Должен появиться честный notice
     expect(
       screen.getByText(/Сохранение публикации будет доступно в следующей фазе/),
     ).toBeInTheDocument();

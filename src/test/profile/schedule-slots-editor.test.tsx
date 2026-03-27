@@ -40,7 +40,7 @@ describe('ScheduleSlotsEditor', () => {
     expect(screen.getByLabelText('Окончание')).toBeInTheDocument();
     expect(screen.getByLabelText('Цена (₽)')).toBeInTheDocument();
     expect(screen.getByLabelText('Кол-во мест')).toBeInTheDocument();
-    expect(screen.getByLabelText('Зал / локация')).toBeInTheDocument();
+    expect(screen.getByLabelText('Зал')).toBeInTheDocument();
     expect(screen.getByLabelText('Направление')).toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-// Модалка публикации клуба — полная форма с 6 секциями (Step 13.3).
+// Модалка публикации клуба — полная форма с секциями.
 // Form-state локальный, без записи в JSON и без API.
 'use client';
 
@@ -32,7 +32,6 @@ type ClubFormState = {
   phone: string;
   email: string;
   priceFrom: string;
-  coverPreset: string;
   disciplines: string[];
   tags: string[];
   amenities: string[];
@@ -74,13 +73,6 @@ const AVAILABLE_AMENITIES = [
   'Пробная тренировка',
 ];
 
-const COVER_PRESETS = [
-  { id: 'teal', label: 'Бирюзовый' },
-  { id: 'rust', label: 'Терракотовый' },
-  { id: 'sage', label: 'Оливковый' },
-  { id: 'coral', label: 'Коралловый' },
-];
-
 // --- Начальное состояние формы ---
 
 function createInitialState(): ClubFormState {
@@ -92,7 +84,6 @@ function createInitialState(): ClubFormState {
     phone: '',
     email: '',
     priceFrom: '',
-    coverPreset: 'teal',
     disciplines: [],
     tags: [],
     amenities: [],
@@ -244,50 +235,52 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
                 }}
               />
             </div>
+
+            {/* Цена от — перенесена из «Теги и удобства» */}
+            <Input
+              label="Цена от (₽)"
+              type="number"
+              placeholder="500"
+              value={form.priceFrom}
+              error={errors.priceFrom}
+              onChange={(e) => {
+                updateField('priceFrom', e.target.value);
+              }}
+            />
           </div>
         </section>
 
-        {/* Секция 2: Фото и визуал */}
+        <hr className="border-line" />
+
+        {/* Секция 2: Фото — квадрат с иконкой + */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Фото и визуал</h3>
-          <div className="mt-4 flex flex-col gap-4">
-            {/* Стиль карточки (cover preset) — активное поле */}
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Стиль карточки</p>
-              <div className="flex flex-wrap gap-2">
-                {COVER_PRESETS.map((preset) => (
-                  <Chip
-                    key={preset.id}
-                    active={form.coverPreset === preset.id}
-                    onClick={() => {
-                      updateField('coverPreset', preset.id);
-                    }}
-                  >
-                    {preset.label}
-                  </Chip>
-                ))}
-              </div>
+          <button
+            type="button"
+            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent"
+            onClick={() => {
+              setPhotoNotice(true);
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1}
+              stroke="currentColor"
+              className="size-8 text-muted"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span className="text-xs font-semibold text-muted">Добавить фото</span>
+          </button>
+          {photoNotice ? (
+            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Функционал загрузки фото находится в разработке
             </div>
-
-            {/* STUB: загрузка фото */}
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                className="inline-flex w-fit items-center gap-2 rounded-pill border border-dashed border-line bg-canvas px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-accent hover:text-accent"
-                onClick={() => {
-                  setPhotoNotice(true);
-                }}
-              >
-                Добавить фото
-              </button>
-              {photoNotice ? (
-                <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Функционал загрузки фото находится в разработке
-                </div>
-              ) : null}
-            </div>
-          </div>
+          ) : null}
         </section>
+
+        <hr className="border-line" />
 
         {/* Секция 3: Направления клуба */}
         <section>
@@ -311,59 +304,49 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
           ) : null}
         </section>
 
-        {/* Секция 4: Теги и удобства */}
+        <hr className="border-line" />
+
+        {/* Секция 4: Добавить теги */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Теги и удобства</h3>
-
-          <div className="mt-4 flex flex-col gap-4">
-            <Input
-              label="Цена от (₽)"
-              type="number"
-              placeholder="500"
-              value={form.priceFrom}
-              error={errors.priceFrom}
-              onChange={(e) => {
-                updateField('priceFrom', e.target.value);
-              }}
-            />
-
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Теги (2–4)</p>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.map((tag) => (
-                  <Chip
-                    key={tag}
-                    active={form.tags.includes(tag)}
-                    onClick={() => {
-                      toggleArrayItem('tags', tag);
-                    }}
-                  >
-                    {tag}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Удобства (2–4)</p>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_AMENITIES.map((a) => (
-                  <Chip
-                    key={a}
-                    active={form.amenities.includes(a)}
-                    onClick={() => {
-                      toggleArrayItem('amenities', a);
-                    }}
-                  >
-                    {a}
-                  </Chip>
-                ))}
-              </div>
-            </div>
+          <h3 className="font-display text-lg font-semibold text-ink">Добавить теги</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {AVAILABLE_TAGS.map((tag) => (
+              <Chip
+                key={tag}
+                active={form.tags.includes(tag)}
+                onClick={() => {
+                  toggleArrayItem('tags', tag);
+                }}
+              >
+                {tag}
+              </Chip>
+            ))}
           </div>
         </section>
 
-        {/* Секция 5: Стартовое расписание */}
+        <hr className="border-line" />
+
+        {/* Секция 5: Удобства клуба */}
+        <section>
+          <h3 className="font-display text-lg font-semibold text-ink">Удобства клуба</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {AVAILABLE_AMENITIES.map((a) => (
+              <Chip
+                key={a}
+                active={form.amenities.includes(a)}
+                onClick={() => {
+                  toggleArrayItem('amenities', a);
+                }}
+              >
+                {a}
+              </Chip>
+            ))}
+          </div>
+        </section>
+
+        <hr className="border-line" />
+
+        {/* Секция 6: Стартовое расписание */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Стартовое расписание</h3>
           <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 слотов расписания.</p>
@@ -377,7 +360,9 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
           </div>
         </section>
 
-        {/* Секция 6: Дополнительные возможности */}
+        <hr className="border-line" />
+
+        {/* Секция 7: Дополнительные возможности */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">
             Дополнительные возможности

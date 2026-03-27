@@ -1,4 +1,4 @@
-// Модалка публикации тренера — полная форма с 7 секциями (Step 13.4).
+// Модалка публикации тренера — полная форма с секциями.
 // Form-state локальный, без записи в JSON и без API.
 'use client';
 
@@ -20,8 +20,6 @@ type TrainerFormState = {
   address: string;
   bio: string;
   experience: string;
-  priceFrom: string;
-  coverPreset: string;
   sport: string;
   specializations: string[];
   workFormat: string;
@@ -67,14 +65,7 @@ const AVAILABLE_SPECIALIZATIONS = [
 
 const AVAILABLE_WORK_FORMATS = ['В клубе', 'На выезде', 'Онлайн', 'Смешанный'];
 
-const AVAILABLE_OFFERING_FORMATS = ['Индивидуальная', 'Групповая', 'Парная', 'Мини-группа'];
-
-const COVER_PRESETS = [
-  { id: 'teal', label: 'Бирюзовый' },
-  { id: 'rust', label: 'Терракотовый' },
-  { id: 'sage', label: 'Оливковый' },
-  { id: 'coral', label: 'Коралловый' },
-];
+const AVAILABLE_OFFERING_FORMATS = ['Индивидуальная', 'Групповая', 'Мини-группа'];
 
 // --- Начальное состояние формы ---
 
@@ -86,8 +77,6 @@ function createInitialState(): TrainerFormState {
     address: '',
     bio: '',
     experience: '',
-    priceFrom: '',
-    coverPreset: 'teal',
     sport: '',
     specializations: [],
     workFormat: '',
@@ -234,71 +223,50 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Опыт (лет)"
-                type="number"
-                placeholder="5"
-                value={form.experience}
-                error={errors.experience}
-                onChange={(e) => {
-                  updateField('experience', e.target.value);
-                }}
-              />
-              <Input
-                label="Цена от (₽)"
-                type="number"
-                placeholder="1500"
-                value={form.priceFrom}
-                onChange={(e) => {
-                  updateField('priceFrom', e.target.value);
-                }}
-              />
-            </div>
+            <Input
+              label="Опыт (лет)"
+              type="number"
+              placeholder="5"
+              value={form.experience}
+              error={errors.experience}
+              onChange={(e) => {
+                updateField('experience', e.target.value);
+              }}
+            />
           </div>
         </section>
 
-        {/* Секция 2: Фото и визуал */}
+        <hr className="border-line" />
+
+        {/* Секция 2: Фото — квадрат с иконкой + */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Фото и визуал</h3>
-          <div className="mt-4 flex flex-col gap-4">
-            {/* Стиль карточки (cover preset) */}
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Стиль карточки</p>
-              <div className="flex flex-wrap gap-2">
-                {COVER_PRESETS.map((preset) => (
-                  <Chip
-                    key={preset.id}
-                    active={form.coverPreset === preset.id}
-                    onClick={() => {
-                      updateField('coverPreset', preset.id);
-                    }}
-                  >
-                    {preset.label}
-                  </Chip>
-                ))}
-              </div>
+          <button
+            type="button"
+            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent"
+            onClick={() => {
+              setPhotoNotice(true);
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1}
+              stroke="currentColor"
+              className="size-8 text-muted"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span className="text-xs font-semibold text-muted">Добавить фото</span>
+          </button>
+          {photoNotice ? (
+            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Функционал загрузки фото находится в разработке
             </div>
-
-            {/* STUB: загрузка фото */}
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                className="inline-flex w-fit items-center gap-2 rounded-pill border border-dashed border-line bg-canvas px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-accent hover:text-accent"
-                onClick={() => {
-                  setPhotoNotice(true);
-                }}
-              >
-                Добавить фото
-              </button>
-              {photoNotice ? (
-                <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Функционал загрузки фото находится в разработке
-                </div>
-              ) : null}
-            </div>
-          </div>
+          ) : null}
         </section>
+
+        <hr className="border-line" />
 
         {/* Секция 3: Специализация */}
         <section>
@@ -327,9 +295,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               {errors.sport ? <p className="text-xs text-red-500">{errors.sport}</p> : null}
             </div>
 
-            {/* Специализации — chips */}
+            {/* Тип — chips (переименовано из «Специализации») */}
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Специализации (1–4)</p>
+              <p className="text-sm font-semibold text-ink">Тип</p>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_SPECIALIZATIONS.map((spec) => (
                   <Chip
@@ -371,11 +339,14 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
           </div>
         </section>
 
-        {/* Секция 4: Привязка к клубу */}
+        <hr className="border-line" />
+
+        {/* Секция 4: Связать себя с клубом */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Привязка к клубу</h3>
+          <h3 className="font-display text-lg font-semibold text-ink">Связать себя с клубом</h3>
           <p className="mt-1 text-sm text-muted">
-            Выберите клуб, если тренер работает в клубе (необязательно)
+            Вы можете указать спортивный клуб, в котором работаете, чтобы спортсмены узнали о вашей
+            деятельности больше.
           </p>
           <div className="mt-3">
             <select
@@ -398,6 +369,8 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
             </select>
           </div>
         </section>
+
+        <hr className="border-line" />
 
         {/* Секция 5: Услуга тренера */}
         <section>
@@ -472,16 +445,24 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               />
             </div>
 
-            <Input
-              label="Место проведения"
-              placeholder="Зал №3, FitZone Studio"
-              value={form.offeringLocation}
-              onChange={(e) => {
-                updateField('offeringLocation', e.target.value);
-              }}
-            />
+            {/* Адрес проведения тренировки */}
+            <div className="flex flex-col gap-1">
+              <Input
+                label="Укажите адрес проведения тренировки"
+                placeholder="ул. Спортивная, 10, Зал №3"
+                value={form.offeringLocation}
+                onChange={(e) => {
+                  updateField('offeringLocation', e.target.value);
+                }}
+              />
+              <p className="text-xs text-muted">
+                Автоопределение адреса и работа с картой будут доступны в следующих обновлениях
+              </p>
+            </div>
           </div>
         </section>
+
+        <hr className="border-line" />
 
         {/* Секция 6: Стартовое расписание */}
         <section>
@@ -496,6 +477,8 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
             />
           </div>
         </section>
+
+        <hr className="border-line" />
 
         {/* Секция 7: Дополнительные возможности */}
         <section>
