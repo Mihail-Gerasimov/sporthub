@@ -3,8 +3,11 @@ import { describe, expectTypeOf, expect, it } from 'vitest';
 import type {
   Booking,
   CatalogOwnerType,
+  Club,
   Coordinates,
   EntityId,
+  EntitySource,
+  EntityStatus,
   Offering,
   OfferingFormat,
   Review,
@@ -147,5 +150,94 @@ describe('Domain model contracts', () => {
     expect(scheduleFixture.offeringId).toBe(offeringFixture.id);
     expect(bookingFixture.offeringId).toBe(offeringFixture.id);
     expect(bookingFixture.clubId).toBeUndefined();
+  });
+
+  it('определяет source и status как строгие union-типы для публикаций', () => {
+    expectTypeOf<EntitySource>().toEqualTypeOf<'provider' | 'seed'>();
+    expectTypeOf<EntityStatus>().toEqualTypeOf<'published' | 'draft'>();
+  });
+
+  it('Club содержит поля source, status и managedByUserId для динамического каталога', () => {
+    expectTypeOf<Club>().toMatchTypeOf<{
+      source?: EntitySource;
+      status?: EntityStatus;
+      managedByUserId?: EntityId;
+      slug: string;
+    }>();
+  });
+
+  it('Trainer содержит поля source, status и managedByUserId для динамического каталога', () => {
+    expectTypeOf<Trainer>().toMatchTypeOf<{
+      source?: EntitySource;
+      status?: EntityStatus;
+      managedByUserId?: EntityId;
+      slug: string;
+    }>();
+  });
+
+  it('новая публикация клуба имеет корректный shape с safe defaults', () => {
+    const newClub: Club = {
+      id: 1,
+      createdAt: '2026-03-27T10:00:00.000Z',
+      name: 'Тестовый клуб',
+      slug: 'testovyj-klub',
+      description: 'Описание тестового клуба для проверки.',
+      shortDescription: 'Описание тестового клуба',
+      city: 'Самара',
+      address: 'ул. Тестовая, 1',
+      phone: '+7 999 000 00 00',
+      coordinates: { lat: 0, lng: 0 },
+      sportIds: [1],
+      imageUrls: ['/images/placeholder-club.jpg'],
+      amenities: [],
+      tags: [],
+      rating: 0,
+      reviewCount: 0,
+      priceFrom: 1500,
+      distanceKm: 0,
+      isFeatured: false,
+      source: 'provider',
+      status: 'published',
+      managedByUserId: 2,
+    };
+
+    expect(newClub.source).toBe('provider');
+    expect(newClub.status).toBe('published');
+    expect(newClub.managedByUserId).toBe(2);
+    expect(newClub.rating).toBe(0);
+    expect(newClub.reviewCount).toBe(0);
+    expect(newClub.isFeatured).toBe(false);
+    expect(newClub.distanceKm).toBe(0);
+    expect(newClub.coordinates).toEqual({ lat: 0, lng: 0 });
+  });
+
+  it('новая публикация тренера имеет корректный shape с safe defaults', () => {
+    const newTrainer: Trainer = {
+      id: 1,
+      createdAt: '2026-03-27T10:00:00.000Z',
+      name: 'Иван Тестов',
+      slug: 'ivan-testov',
+      bio: 'Тестовый тренер.',
+      avatarUrl: '/images/placeholder-trainer.jpg',
+      experienceYears: 5,
+      specialties: ['Фитнес'],
+      rating: 0,
+      reviewCount: 0,
+      priceFrom: 2000,
+      sportIds: [1],
+      city: 'Самара',
+      address: 'ул. Тестовая, 2',
+      coordinates: { lat: 0, lng: 0 },
+      source: 'provider',
+      status: 'published',
+      managedByUserId: 2,
+    };
+
+    expect(newTrainer.source).toBe('provider');
+    expect(newTrainer.status).toBe('published');
+    expect(newTrainer.managedByUserId).toBe(2);
+    expect(newTrainer.rating).toBe(0);
+    expect(newTrainer.reviewCount).toBe(0);
+    expect(newTrainer.coordinates).toEqual({ lat: 0, lng: 0 });
   });
 });

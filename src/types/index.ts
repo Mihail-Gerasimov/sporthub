@@ -9,6 +9,12 @@ export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
 
 export type CatalogOwnerType = 'club' | 'trainer';
 
+// Источник создания сущности: провайдер (ЛК) или seed-данные
+export type EntitySource = 'provider' | 'seed';
+
+// Статус публикации сущности
+export type EntityStatus = 'published' | 'draft';
+
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
@@ -58,6 +64,10 @@ export interface Club extends BaseEntity {
   isFeatured: boolean;
   // Привязка к провайдеру (userId), управляющему этим клубом
   managedByUserId?: EntityId;
+  // Источник создания: provider (из ЛК) или seed (старые данные)
+  source?: EntitySource;
+  // Статус публикации
+  status?: EntityStatus;
 }
 
 export interface Trainer extends BaseEntity {
@@ -81,6 +91,10 @@ export interface Trainer extends BaseEntity {
   sportId?: EntityId;
   // Привязка к провайдеру (userId), управляющему этим тренером
   managedByUserId?: EntityId;
+  // Источник создания: provider (из ЛК) или seed (старые данные)
+  source?: EntitySource;
+  // Статус публикации
+  status?: EntityStatus;
 }
 
 export interface Offering extends BaseEntity {
