@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { readFile, writeFile } from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { getProjectDataDirectory } from '@/lib/projectPaths';
@@ -30,8 +30,54 @@ type DataCollectionMap = {
   users: User[];
 };
 
+type EntityWithOverridableFields<Entity, Keys extends keyof Entity> = Omit<Entity, Keys> &
+  Partial<Pick<Entity, Keys>>;
+
 export type CreateBookingInput = Omit<Booking, 'id' | 'createdAt'>;
 export type CreateReviewInput = Omit<Review, 'id' | 'createdAt'>;
+
+/**
+ * Входные данные для atomic-создания клуба.
+ * Принимает полные сущности из контракта — db перезаписывает id, createdAt и кросс-ссылки.
+ */
+export interface CreateClubPublicationInput {
+  club: EntityWithOverridableFields<Club, 'id' | 'createdAt'>;
+  offering: EntityWithOverridableFields<
+    Offering,
+    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId'
+  >;
+  schedules: EntityWithOverridableFields<
+    Schedule,
+    'id' | 'createdAt' | 'ownerId' | 'clubId' | 'offeringId' | 'affiliatedClubId'
+  >[];
+}
+
+/** Результат atomic-создания клуба */
+export interface ClubPublicationResult {
+  club: Club;
+  offering: Offering;
+  schedules: Schedule[];
+}
+
+/**
+ * Входные данные для atomic-создания тренера.
+ * Принимает полные сущности из контракта — db перезаписывает id, createdAt и кросс-ссылки.
+ */
+export interface CreateTrainerPublicationInput {
+  trainer: EntityWithOverridableFields<Trainer, 'id' | 'createdAt'>;
+  offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId'>;
+  schedules: EntityWithOverridableFields<
+    Schedule,
+    'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId' | 'affiliatedClubId'
+  >[];
+}
+
+/** Результат atomic-создания тренера */
+export interface TrainerPublicationResult {
+  trainer: Trainer;
+  offering: Offering;
+  schedules: Schedule[];
+}
 export type GetScheduleOptions = {
   ownerType?: CatalogOwnerType | 'all';
 };
@@ -68,7 +114,7 @@ async function readCollection<Key extends keyof DataCollectionMap>(
   key: Key,
 ): Promise<DataCollectionMap[Key]> {
   const filePath = path.join(getDataDirectory(), DATA_FILES[key]);
-  const raw = await readFile(filePath, 'utf8');
+  const raw = await fs.readFile(filePath, 'utf8');
 
   return JSON.parse(raw) as DataCollectionMap[Key];
 }
@@ -78,7 +124,57 @@ async function writeCollection<Key extends keyof DataCollectionMap>(
   data: DataCollectionMap[Key],
 ): Promise<void> {
   const filePath = path.join(getDataDirectory(), DATA_FILES[key]);
-  await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+
+  if (writeCollectionTestHook) {
+    await writeCollectionTestHook(key, data);
+  }
+
+  await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+type CollectionWrite<Key extends keyof DataCollectionMap> = {
+  key: Key;
+  next: DataCollectionMap[Key];
+  previous: DataCollectionMap[Key];
+};
+
+type WriteCollectionTestHook = <Key extends keyof DataCollectionMap>(
+  key: Key,
+  data: DataCollectionMap[Key],
+) => Promise<void> | void;
+
+let writeCollectionTestHook: WriteCollectionTestHook | null = null;
+
+/** Тестовый хук для симуляции ошибок записи без моков ESM-модуля fs/promises. */
+export function __setWriteCollectionTestHookForTests(hook: WriteCollectionTestHook | null): void {
+  writeCollectionTestHook = hook;
+}
+
+/**
+ * Пишет несколько коллекций единым сценарием и откатывает уже записанные,
+ * если одна из операций завершилась с ошибкой.
+ */
+async function writeCollectionsWithRollback<Key extends keyof DataCollectionMap>(
+  writes: CollectionWrite<Key>[],
+): Promise<void> {
+  const completedWrites: CollectionWrite<Key>[] = [];
+
+  try {
+    for (const write of writes) {
+      await writeCollection(write.key, write.next);
+      completedWrites.push(write);
+    }
+  } catch (error) {
+    for (const write of [...completedWrites].reverse()) {
+      try {
+        await writeCollection(write.key, write.previous);
+      } catch (rollbackError) {
+        console.error('Не удалось откатить коллекцию после ошибки записи:', rollbackError);
+      }
+    }
+
+    throw error;
+  }
 }
 
 function getNextEntityId(items: Array<{ id: EntityId }>): EntityId {
@@ -326,4 +422,126 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
   await writeCollection('reviews', reviews);
 
   return review;
+}
+
+/**
+ * Pseudo-atomic создание клуба: club + offering + schedule[].
+ * Сначала собирает все сущности в памяти, затем пишет коллекции с rollback.
+ */
+export async function createClubPublication(
+  input: CreateClubPublicationInput,
+): Promise<ClubPublicationResult> {
+  const now = createTimestamp();
+
+  // Читаем все нужные коллекции одним batch
+  const [clubs, offerings, schedule] = await Promise.all([
+    readCollection('clubs'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+  ]);
+
+  // Назначаем ID через max+1
+  const clubId = getNextEntityId(clubs);
+  const offeringId = getNextEntityId(offerings);
+  let nextScheduleId = getNextEntityId(schedule);
+
+  const club: Club = {
+    ...input.club,
+    id: clubId,
+    createdAt: now,
+  };
+
+  const offering: Offering = {
+    ...input.offering,
+    id: offeringId,
+    createdAt: now,
+    ownerId: clubId,
+    affiliatedClubId: clubId,
+  };
+
+  const schedules: Schedule[] = input.schedules.map((slot) => {
+    const id = nextScheduleId++;
+
+    return {
+      ...slot,
+      id,
+      createdAt: now,
+      offeringId,
+      ownerId: clubId,
+      clubId,
+      affiliatedClubId: clubId,
+    };
+  });
+
+  const nextClubs = [...clubs, club];
+  const nextOfferings = [...offerings, offering];
+  const nextSchedule = [...schedule, ...schedules];
+
+  await writeCollectionsWithRollback([
+    { key: 'clubs', next: nextClubs, previous: clubs },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+  ]);
+
+  return { club, offering, schedules };
+}
+
+/**
+ * Pseudo-atomic создание тренера: trainer + offering + schedule[].
+ * Сначала собирает все сущности в памяти, затем пишет коллекции с rollback.
+ */
+export async function createTrainerPublication(
+  input: CreateTrainerPublicationInput,
+): Promise<TrainerPublicationResult> {
+  const now = createTimestamp();
+
+  const [trainers, offerings, schedule] = await Promise.all([
+    readCollection('trainers'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+  ]);
+
+  const trainerId = getNextEntityId(trainers);
+  const offeringId = getNextEntityId(offerings);
+  let nextScheduleId = getNextEntityId(schedule);
+
+  const trainer: Trainer = {
+    ...input.trainer,
+    id: trainerId,
+    createdAt: now,
+  };
+
+  const offering: Offering = {
+    ...input.offering,
+    id: offeringId,
+    createdAt: now,
+    ownerId: trainerId,
+  };
+
+  const affiliatedClubId = trainer.affiliatedClubId ?? offering.affiliatedClubId;
+  const schedules: Schedule[] = input.schedules.map((slot) => {
+    const id = nextScheduleId++;
+
+    return {
+      ...slot,
+      id,
+      createdAt: now,
+      offeringId,
+      ownerId: trainerId,
+      trainerId,
+      ...(affiliatedClubId !== undefined ? { affiliatedClubId } : {}),
+    };
+  });
+
+  const nextTrainers = [...trainers, trainer];
+  const nextOfferings = [...offerings, offering];
+  const nextSchedule = [...schedule, ...schedules];
+
+  await writeCollectionsWithRollback([
+    { key: 'trainers', next: nextTrainers, previous: trainers },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+  ]);
+
+  return { trainer, offering, schedules };
 }

@@ -32,6 +32,8 @@ const trainer: TrainerDirectoryItem = {
   nextSlotDate: '2026-03-18',
   nextSlotStartTime: '07:30',
   availableSlotsCount: 5,
+  offeringTitles: ['Персональная тренировка'],
+  searchText: 'марина соколова плавание volna aquatic club',
 };
 
 describe('TrainerCard', () => {

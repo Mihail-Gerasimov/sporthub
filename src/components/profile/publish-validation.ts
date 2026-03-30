@@ -15,6 +15,9 @@ type ClubFormInput = {
   email: string;
   priceFrom: string;
   disciplines: string[];
+  tags?: string[];
+  amenities?: string[];
+  scheduleSlots?: ScheduleSlotForm[];
   // Остальные поля не участвуют в валидации MVP
 };
 

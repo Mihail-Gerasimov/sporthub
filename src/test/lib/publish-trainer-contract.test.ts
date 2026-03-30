@@ -188,6 +188,6 @@ describe('publish-trainer contract (Step 14.4)', () => {
   it('future/stub-поля (workFormat) не попадают в persisted trainer', () => {
     const { trainer } = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
     // workFormat — UI-only, не сохраняется в Trainer
-    expect((trainer as Record<string, unknown>).workFormat).toBeUndefined();
+    expect((trainer as unknown as Record<string, unknown>).workFormat).toBeUndefined();
   });
 });

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getOfferings, getTrainers } from '@/lib/db';
+import { createTrainerPublication, getOfferings, getTrainers, getUserById } from '@/lib/db';
+import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
+import { publishTrainerSchema } from '@/lib/schemas/publish';
 
 const trainersQuerySchema = z.object({
   affiliatedClubId: z.preprocess((value) => {
@@ -84,6 +86,63 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Не удалось получить список тренеров',
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/** POST /api/trainers — создание тренера через publish-модалку провайдера */
+export async function POST(request: Request) {
+  try {
+    const rawBody = await request.json();
+    const validationResult = publishTrainerSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Некорректные данные тренера',
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { userId, ...formData } = validationResult.data;
+
+    const user = await getUserById(userId);
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Пользователь не найден',
+        },
+        { status: 404 },
+      );
+    }
+
+    // Маппим форму → сущности через контракт
+    const entities = mapTrainerFormToEntities(formData, userId);
+
+    // Атомарно создаём в JSON через db.ts
+    const result = await createTrainerPublication(entities);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error('Ошибка создания тренера:', error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Не удалось создать тренера',
       },
       { status: 500 },
     );

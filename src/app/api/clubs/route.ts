@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getClubs } from '@/lib/db';
+import { createClubPublication, getClubs, getUserById } from '@/lib/db';
+import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
+import { publishClubSchema } from '@/lib/schemas/publish';
 
 const clubsQuerySchema = z.object({
   sportId: z.preprocess((value) => {
@@ -86,6 +88,64 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Не удалось получить список клубов',
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/** POST /api/clubs — создание клуба через publish-модалку провайдера */
+export async function POST(request: Request) {
+  try {
+    const rawBody = await request.json();
+    const validationResult = publishClubSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Некорректные данные клуба',
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { userId, ...formData } = validationResult.data;
+
+    // Проверяем что пользователь существует
+    const user = await getUserById(userId);
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Пользователь не найден',
+        },
+        { status: 404 },
+      );
+    }
+
+    // Маппим форму → сущности через контракт
+    const entities = mapClubFormToEntities(formData, userId);
+
+    // Атомарно создаём в JSON через db.ts
+    const result = await createClubPublication(entities);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error('Ошибка создания клуба:', error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Не удалось создать клуб',
       },
       { status: 500 },
     );
