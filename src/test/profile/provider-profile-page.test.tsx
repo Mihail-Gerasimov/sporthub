@@ -173,6 +173,20 @@ describe('ProviderProfilePage', () => {
     );
   });
 
+  it('в пустом состоянии рендерит KPI без fake-значений', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage clubs={[]} trainers={[]} bookings={[]} reviews={[]} />);
+
+    expect(screen.getByTestId('provider-summary-publications')).toHaveTextContent('0');
+    expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
+    expect(screen.getByTestId('provider-summary-reviews')).toHaveTextContent('0');
+    expect(screen.getByTestId('provider-summary-rating')).toHaveTextContent('0');
+  });
+
   it('открывает модалку «Опубликовать тренера» по клику на кнопку', () => {
     useAuthStore.getState().login({
       accountType: 'provider',
@@ -305,5 +319,68 @@ describe('ProviderProfilePage', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Клуб опубликован. Кабинет обновлён.');
+  });
+
+  it('обновляет счётчик публикаций после появления новых реальных сущностей в props', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    const { rerender } = render(
+      <ProviderProfilePage clubs={[]} trainers={[]} bookings={[]} reviews={[]} />,
+    );
+
+    expect(screen.getByTestId('provider-summary-publications')).toHaveTextContent('0');
+
+    rerender(
+      <ProviderProfilePage
+        clubs={[
+          {
+            id: 1,
+            createdAt: '',
+            name: 'FitZone Studio',
+            slug: 'fitzone-studio',
+            description: '',
+            shortDescription: '',
+            city: 'Самара',
+            address: '',
+            phone: '',
+            coordinates: { lat: 0, lng: 0 },
+            sportIds: [],
+            imageUrls: [],
+            amenities: [],
+            tags: [],
+            rating: 0,
+            reviewCount: 0,
+            priceFrom: 0,
+            distanceKm: 0,
+            isFeatured: false,
+            managedByUserId: MVP_PROVIDER_USER_ID,
+          },
+        ]}
+        trainers={[
+          {
+            id: 1,
+            createdAt: '',
+            name: 'Александр Иванов',
+            slug: 'alexander-ivanov',
+            bio: '',
+            avatarUrl: '',
+            experienceYears: 5,
+            specialties: [],
+            rating: 0,
+            reviewCount: 0,
+            priceFrom: 0,
+            sportIds: [],
+            managedByUserId: MVP_PROVIDER_USER_ID,
+          },
+        ]}
+        bookings={[]}
+        reviews={[]}
+      />,
+    );
+
+    expect(screen.getByTestId('provider-summary-publications')).toHaveTextContent('2');
   });
 });
