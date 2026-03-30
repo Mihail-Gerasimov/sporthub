@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  getClubBySlug,
   getClubOfferings,
   getOfferings,
   getSchedule,
   getScheduleById,
   getScheduleSlotContext,
   getTrainerById,
+  getTrainerBySlug,
   getTrainerOfferings,
 } from '@/lib/db';
 import {
@@ -57,6 +59,27 @@ describe('db abstraction', () => {
         lng: 50.1245,
       },
     });
+  });
+
+  it('находит клуба и тренера по slug', async () => {
+    const club = await getClubBySlug('volna-aquatic-club');
+    const trainer = await getTrainerBySlug('marina-sokolova');
+
+    expect(club).toMatchObject({
+      id: 1,
+      slug: 'volna-aquatic-club',
+      name: 'Volna Aquatic Club',
+    });
+    expect(trainer).toMatchObject({
+      id: 1,
+      slug: 'marina-sokolova',
+      name: 'Марина Соколова',
+    });
+  });
+
+  it('возвращает null для несуществующего slug', async () => {
+    await expect(getClubBySlug('missing-club')).resolves.toBeNull();
+    await expect(getTrainerBySlug('missing-trainer')).resolves.toBeNull();
   });
 
   it('по умолчанию возвращает только club schedule, а trainer slots доступны отдельным режимом', async () => {

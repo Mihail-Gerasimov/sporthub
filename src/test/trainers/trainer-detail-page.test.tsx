@@ -4,7 +4,7 @@ import path from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import TrainerDetailPage from '@/app/trainers/[id]/page';
+import TrainerDetailPage from '@/app/trainers/[slug]/page';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -35,7 +35,7 @@ describe('Trainer detail page', () => {
   }
 
   it('рендерит публичную страницу тренера с ключевыми секциями', async () => {
-    render(await TrainerDetailPage({ params: Promise.resolve({ id: '1' }) }));
+    render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) }));
 
     /* Имя тренера из данных */
     expect(screen.getByRole('heading', { name: 'Марина Соколова' })).toBeInTheDocument();
@@ -47,15 +47,15 @@ describe('Trainer detail page', () => {
 
   it('отдаёт notFound для несуществующего тренера', async () => {
     await expect(
-      TrainerDetailPage({ params: Promise.resolve({ id: '999' }) }),
+      TrainerDetailPage({ params: Promise.resolve({ slug: 'missing-trainer' }) }),
     ).rejects.toMatchObject({
       digest: expect.stringContaining('404'),
     });
   });
 
-  it('отдаёт notFound для невалидного id', async () => {
+  it('отдаёт notFound для пустого slug', async () => {
     await expect(
-      TrainerDetailPage({ params: Promise.resolve({ id: 'abc' }) }),
+      TrainerDetailPage({ params: Promise.resolve({ slug: '' }) }),
     ).rejects.toMatchObject({
       digest: expect.stringContaining('404'),
     });
@@ -104,7 +104,7 @@ describe('Trainer detail page', () => {
       writeCollection('bookings.json', []),
     ]);
 
-    render(await TrainerDetailPage({ params: Promise.resolve({ id: '101' }) }));
+    render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'ivan-belov' }) }));
 
     expect(screen.getByRole('heading', { name: 'Иван Белов' })).toBeInTheDocument();
     expect(screen.queryByTestId('trainer-affiliated-club-section')).not.toBeInTheDocument();

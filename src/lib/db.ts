@@ -248,6 +248,11 @@ export async function getClubById(id: EntityId): Promise<Club | null> {
   return clubs.find((club) => club.id === id) ?? null;
 }
 
+export async function getClubBySlug(slug: string): Promise<Club | null> {
+  const clubs = await getClubs();
+  return clubs.find((club) => club.slug === slug) ?? null;
+}
+
 export async function getTrainers(): Promise<Trainer[]> {
   const trainers = await readCollection('trainers');
   return trainers.map(normalizeTrainer);
@@ -256,6 +261,11 @@ export async function getTrainers(): Promise<Trainer[]> {
 export async function getTrainerById(id: EntityId): Promise<Trainer | null> {
   const trainers = await getTrainers();
   return trainers.find((trainer) => trainer.id === id) ?? null;
+}
+
+export async function getTrainerBySlug(slug: string): Promise<Trainer | null> {
+  const trainers = await getTrainers();
+  return trainers.find((trainer) => trainer.slug === slug) ?? null;
 }
 
 export async function getOfferings(): Promise<Offering[]> {

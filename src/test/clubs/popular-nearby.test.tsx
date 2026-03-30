@@ -248,12 +248,12 @@ describe('PopularNearby', () => {
     const clubNames = clubLinks.map((link) => link.getAttribute('href'));
 
     expect(clubNames).toEqual([
-      '/clubs/3',
-      '/clubs/1',
-      '/clubs/5',
-      '/clubs/2',
-      '/clubs/4',
-      '/clubs/6',
+      '/clubs/balance-yoga-house',
+      '/clubs/volna-aquatic-club',
+      '/clubs/motion-dance-hub',
+      '/clubs/north-ring-boxing-lab',
+      '/clubs/forge-crossfit-arena',
+      '/clubs/vector-fitness-club',
     ]);
   });
 

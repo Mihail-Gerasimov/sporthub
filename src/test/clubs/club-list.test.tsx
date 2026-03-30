@@ -69,7 +69,7 @@ describe('ClubList', () => {
     });
   });
 
-  it('рендерит карточки клубов с ссылками на будущую страницу клуба', () => {
+  it('рендерит карточки клубов со slug-ссылками на detail page', () => {
     render(<ClubList clubs={clubs} sports={sports} />);
 
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('ClubList', () => {
 
     const clubLink = screen.getByRole('link', { name: /Balance Yoga House/i });
 
-    expect(clubLink).toHaveAttribute('href', '/clubs/2');
+    expect(clubLink).toHaveAttribute('href', '/clubs/balance-yoga-house');
   });
 
   it('фильтрует список по searchQuery из store', () => {

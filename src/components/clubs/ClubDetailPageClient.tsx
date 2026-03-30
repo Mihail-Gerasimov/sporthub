@@ -414,7 +414,7 @@ export function ClubDetailPageClient({
                     <MediaStub label="Фото тренера" className="min-h-44 w-full" />
                     <div className="mt-4">
                       <Link
-                        href={`/trainers/${trainer.id}`}
+                        href={`/trainers/${trainer.slug}`}
                         className="text-lg font-semibold text-ink transition-colors duration-200 hover:text-accent-strong"
                       >
                         {trainer.name}

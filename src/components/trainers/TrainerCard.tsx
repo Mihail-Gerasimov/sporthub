@@ -77,7 +77,7 @@ export function TrainerCard({
                 Персональный тренер
               </p>
               <Link
-                href={`/trainers/${trainer.id}`}
+                href={`/trainers/${trainer.slug}`}
                 className="mt-3 block max-w-xs font-display text-2xl font-semibold leading-tight transition-opacity duration-200 hover:opacity-80"
               >
                 {trainer.name}

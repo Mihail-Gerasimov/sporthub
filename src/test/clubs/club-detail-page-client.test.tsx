@@ -274,7 +274,7 @@ describe('ClubDetailPageClient', () => {
     });
   });
 
-  it('содержит ссылку на страницу тренера /trainers/[id] в секции тренеров', () => {
+  it('содержит slug-ссылку на страницу тренера в секции тренеров', () => {
     render(
       <ClubDetailPageClient
         club={club}
@@ -288,7 +288,7 @@ describe('ClubDetailPageClient', () => {
 
     expect(screen.getByRole('link', { name: 'Марина Соколова' })).toHaveAttribute(
       'href',
-      '/trainers/1',
+      '/trainers/marina-sokolova',
     );
   });
 });

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import {
-  getClubById,
+  getClubBySlug,
   getOfferings,
   getReviews,
   getSchedule,
@@ -13,19 +13,18 @@ import {
 
 type ClubDetailPageProps = {
   params: Promise<{
-    id: string;
+    slug: string;
   }>;
 };
 
 export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
-  const { id } = await params;
-  const clubId = Number(id);
+  const { slug } = await params;
 
-  if (!Number.isInteger(clubId) || clubId <= 0) {
+  if (slug.trim() === '') {
     notFound();
   }
 
-  const club = await getClubById(clubId);
+  const club = await getClubBySlug(slug);
 
   if (!club) {
     notFound();
@@ -44,7 +43,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
   const clubTrainerIds = new Set(
     offerings
       .filter(
-        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
+        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === club.id,
       )
       .map((offering) => offering.ownerId),
   );
@@ -52,7 +51,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     .filter((trainer) => clubTrainerIds.has(trainer.id))
     .sort((left, right) => right.rating - left.rating);
   const clubSchedule = schedule
-    .filter((slot) => slot.clubId === clubId)
+    .filter((slot) => slot.clubId === club.id)
     .sort((left, right) => {
       const leftTimestamp = `${left.date}T${left.startTime}`;
       const rightTimestamp = `${right.date}T${right.startTime}`;
@@ -60,7 +59,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
       return leftTimestamp.localeCompare(rightTimestamp);
     });
   const clubReviews = reviews
-    .filter((review) => review.clubId === clubId)
+    .filter((review) => review.clubId === club.id)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const reviewAuthors = users.reduce<Record<number, string>>((accumulator, user) => {
     accumulator[user.id] = user.name;

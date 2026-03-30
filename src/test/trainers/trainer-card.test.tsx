@@ -37,12 +37,12 @@ const trainer: TrainerDirectoryItem = {
 };
 
 describe('TrainerCard', () => {
-  it('содержит ссылку на детальную страницу тренера /trainers/[id]', () => {
+  it('содержит ссылку на детальную страницу тренера /trainers/[slug]', () => {
     render(<TrainerCard trainer={trainer} />);
 
     const nameLink = screen.getByRole('link', { name: 'Марина Соколова' });
 
-    expect(nameLink).toHaveAttribute('href', '/trainers/1');
+    expect(nameLink).toHaveAttribute('href', '/trainers/marina-sokolova');
   });
 
   it('содержит ссылку на booking по ближайшему слоту', () => {

@@ -147,7 +147,7 @@ describe('TrainerDetailPageClient', () => {
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Перейти к клубу' })).toHaveAttribute(
       'href',
-      '/clubs/1',
+      '/clubs/volna-aquatic-club',
     );
   });
 

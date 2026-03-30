@@ -1,6 +1,6 @@
 'use client';
 
-/* Клиентский компонент детальной страницы тренера /trainers/[id] */
+/* Клиентский компонент детальной страницы тренера /trainers/[slug] */
 
 import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -435,7 +435,7 @@ export function TrainerDetailPageClient({
                   </div>
                 </div>
                 <Link
-                  href={`/clubs/${affiliatedClub.id}`}
+                  href={`/clubs/${affiliatedClub.slug}`}
                   className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-6 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
                 >
                   Перейти к клубу

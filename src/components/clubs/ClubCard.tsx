@@ -36,7 +36,7 @@ export function ClubCard({
   const previewTags = club.tags.slice(0, isCarousel ? 2 : 3);
 
   return (
-    <Link href={`/clubs/${club.id}`} className="group block h-full w-full">
+    <Link href={`/clubs/${club.slug}`} className="group block h-full w-full">
       <Card
         data-card-variant={variant}
         data-testid="club-card-surface"

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import ClubDetailPage from '@/app/clubs/[id]/page';
+import ClubDetailPage from '@/app/clubs/[slug]/page';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -35,7 +35,7 @@ describe('Club detail page', () => {
   }
 
   it('рендерит публичную страницу клуба с ключевыми секциями', async () => {
-    render(await ClubDetailPage({ params: Promise.resolve({ id: '1' }) }));
+    render(await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) }));
 
     expect(screen.getByRole('heading', { name: 'Volna Aquatic Club' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Направления клуба' })).toBeInTheDocument();
@@ -46,7 +46,9 @@ describe('Club detail page', () => {
   });
 
   it('отдаёт notFound для несуществующего клуба', async () => {
-    await expect(ClubDetailPage({ params: Promise.resolve({ id: '999' }) })).rejects.toMatchObject({
+    await expect(
+      ClubDetailPage({ params: Promise.resolve({ slug: 'missing-club' }) }),
+    ).rejects.toMatchObject({
       digest: expect.stringContaining('404'),
     });
   });
@@ -99,7 +101,7 @@ describe('Club detail page', () => {
       writeCollection('bookings.json', []),
     ]);
 
-    render(await ClubDetailPage({ params: Promise.resolve({ id: '101' }) }));
+    render(await ClubDetailPage({ params: Promise.resolve({ slug: 'start-swim-club' }) }));
 
     expect(screen.getByRole('heading', { name: 'Start Swim Club' })).toBeInTheDocument();
     expect(screen.getByTestId('club-media-empty')).toBeInTheDocument();

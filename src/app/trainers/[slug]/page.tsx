@@ -1,4 +1,4 @@
-/* Серверная страница детальной карточки тренера /trainers/[id] */
+/* Серверная страница детальной карточки тренера /trainers/[slug] */
 import { notFound } from 'next/navigation';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
@@ -8,25 +8,24 @@ import {
   getReviews,
   getSchedule,
   getSports,
-  getTrainerById,
+  getTrainerBySlug,
   getUsers,
 } from '@/lib/db';
 
 type TrainerDetailPageProps = {
   params: Promise<{
-    id: string;
+    slug: string;
   }>;
 };
 
 export default async function TrainerDetailPage({ params }: TrainerDetailPageProps) {
-  const { id } = await params;
-  const trainerId = Number(id);
+  const { slug } = await params;
 
-  if (!Number.isInteger(trainerId) || trainerId <= 0) {
+  if (slug.trim() === '') {
     notFound();
   }
 
-  const trainer = await getTrainerById(trainerId);
+  const trainer = await getTrainerBySlug(slug);
 
   if (!trainer) {
     notFound();
@@ -43,7 +42,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
 
   /* Услуги тренера */
   const trainerOfferings = offerings
-    .filter((offering) => offering.ownerType === 'trainer' && offering.ownerId === trainerId)
+    .filter((offering) => offering.ownerType === 'trainer' && offering.ownerId === trainer.id)
     .sort((left, right) => left.price - right.price);
 
   /* Виды спорта тренера */
@@ -51,7 +50,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
 
   /* Расписание тренера — отсортировано по дате и времени */
   const trainerSchedule = schedule
-    .filter((slot) => slot.trainerId === trainerId)
+    .filter((slot) => slot.trainerId === trainer.id)
     .sort((left, right) => {
       const leftTimestamp = `${left.date}T${left.startTime}`;
       const rightTimestamp = `${right.date}T${right.startTime}`;
@@ -61,7 +60,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
 
   /* Отзывы тренера — от новых к старым */
   const trainerReviews = reviews
-    .filter((review) => review.trainerId === trainerId)
+    .filter((review) => review.trainerId === trainer.id)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
   /* Карта авторов отзывов: userId → name */
