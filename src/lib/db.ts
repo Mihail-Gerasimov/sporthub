@@ -189,6 +189,24 @@ function createTimestamp(): string {
   return new Date().toISOString();
 }
 
+function normalizeSlugLookupValue(slug: string): string {
+  const trimmedSlug = slug.trim();
+
+  if (trimmedSlug === '') {
+    return '';
+  }
+
+  let decodedSlug = trimmedSlug;
+
+  try {
+    decodedSlug = decodeURIComponent(trimmedSlug);
+  } catch {
+    decodedSlug = trimmedSlug;
+  }
+
+  return decodedSlug.normalize('NFC').toLocaleLowerCase('ru-RU');
+}
+
 function normalizeTrainer(trainer: Trainer): Trainer {
   const affiliatedClubId = trainer.affiliatedClubId ?? trainer.clubId;
   const sportIds =
@@ -250,7 +268,11 @@ export async function getClubById(id: EntityId): Promise<Club | null> {
 
 export async function getClubBySlug(slug: string): Promise<Club | null> {
   const clubs = await getClubs();
-  return clubs.find((club) => club.slug === slug) ?? null;
+  const normalizedSlug = normalizeSlugLookupValue(slug);
+
+  return (
+    clubs.find((club) => normalizeSlugLookupValue(club.slug) === normalizedSlug) ?? null
+  );
 }
 
 export async function getTrainers(): Promise<Trainer[]> {
@@ -265,7 +287,11 @@ export async function getTrainerById(id: EntityId): Promise<Trainer | null> {
 
 export async function getTrainerBySlug(slug: string): Promise<Trainer | null> {
   const trainers = await getTrainers();
-  return trainers.find((trainer) => trainer.slug === slug) ?? null;
+  const normalizedSlug = normalizeSlugLookupValue(slug);
+
+  return (
+    trainers.find((trainer) => normalizeSlugLookupValue(trainer.slug) === normalizedSlug) ?? null
+  );
 }
 
 export async function getOfferings(): Promise<Offering[]> {

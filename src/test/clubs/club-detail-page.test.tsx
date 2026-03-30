@@ -53,6 +53,66 @@ describe('Club detail page', () => {
     });
   });
 
+  it('открывает клуб по кириллическому slug даже если route param приходит encoded', async () => {
+    const cyrillicClub = {
+      ...fixtureClub,
+      id: 101,
+      slug: 'клуб-мс',
+      name: 'Клуб МС',
+      city: 'Саратов',
+      address: 'спортивная 145',
+      description: 'Клуб с кириллическим slug и рабочей detail page.',
+      shortDescription: 'Клуб с кириллическим slug.',
+      imageUrls: [],
+      amenities: [],
+      tags: ['Интенсив'],
+      rating: 0,
+      reviewCount: 0,
+      isFeatured: false,
+      source: 'provider' as const,
+      status: 'published' as const,
+    };
+    const cyrillicOffering = {
+      ...fixtureClubOffering,
+      id: 201,
+      ownerId: cyrillicClub.id,
+      affiliatedClubId: cyrillicClub.id,
+      title: 'Стартовая группа',
+      description: cyrillicClub.description,
+      address: cyrillicClub.address,
+      price: 1200,
+    };
+    const cyrillicSchedule = {
+      ...fixtureClubSlot1,
+      id: 301,
+      offeringId: cyrillicOffering.id,
+      ownerId: cyrillicClub.id,
+      clubId: cyrillicClub.id,
+      trainerId: undefined,
+      title: 'Стартовая группа',
+      price: 1200,
+      room: 'Зал A',
+    };
+
+    await Promise.all([
+      writeCollection('clubs.json', [cyrillicClub]),
+      writeCollection('trainers.json', []),
+      writeCollection('offerings.json', [cyrillicOffering]),
+      writeCollection('schedule.json', [cyrillicSchedule]),
+      writeCollection('reviews.json', []),
+      writeCollection('bookings.json', []),
+    ]);
+
+    render(
+      await ClubDetailPage({
+        params: Promise.resolve({ slug: '%D0%BA%D0%BB%D1%83%D0%B1-%D0%BC%D1%81' }),
+      }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'Клуб МС' })).toBeInTheDocument();
+    expect(screen.getByText('Стартовая группа')).toBeInTheDocument();
+  });
+
   it('не ломается на минимальной provider-публикации без rich-content', async () => {
     const minimalClub = {
       ...fixtureClub,
