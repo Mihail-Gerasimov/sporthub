@@ -7,12 +7,14 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
+import { seedTestData } from '@/test/helpers/seed-fixtures';
 
 describe('Trainers API', () => {
   let dataDirectory: string;
 
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
+    await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 

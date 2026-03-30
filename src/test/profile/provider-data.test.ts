@@ -1,10 +1,28 @@
-// Тесты данных и типов для провайдер-кабинета (Step 12.1)
-import { describe, expect, expectTypeOf, it } from 'vitest';
+// Тесты данных и типов для провайдер-кабинета (Step 12.1, обновлено Phase 14)
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 
 import type { Club, EntityId, Trainer } from '@/types';
 import { getBookings, getClubs, getTrainers, getUsers } from '@/lib/db';
+import {
+  createIsolatedDataDirectory,
+  removeIsolatedDataDirectory,
+} from '@/test/helpers/data-directory';
+import { seedTestData } from '@/test/helpers/seed-fixtures';
 
 describe('Provider data layer (Step 12.1)', () => {
+  let dataDirectory: string;
+
+  beforeEach(async () => {
+    dataDirectory = await createIsolatedDataDirectory();
+    await seedTestData(dataDirectory);
+    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+  });
+
+  afterEach(async () => {
+    delete process.env.SPORT_HUB_DATA_DIRECTORY;
+    await removeIsolatedDataDirectory(dataDirectory);
+  });
+
   it('Club и Trainer имеют опциональное поле managedByUserId', () => {
     expectTypeOf<Club>().toMatchTypeOf<{ managedByUserId?: EntityId }>();
     expectTypeOf<Trainer>().toMatchTypeOf<{ managedByUserId?: EntityId }>();

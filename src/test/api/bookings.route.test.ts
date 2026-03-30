@@ -9,6 +9,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
+import { seedTestData } from '@/test/helpers/seed-fixtures';
 import type { Schedule } from '@/types';
 
 describe('Bookings API', () => {
@@ -16,6 +17,7 @@ describe('Bookings API', () => {
 
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
+    await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
@@ -30,7 +32,6 @@ describe('Bookings API', () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    // В bookings.json 3 fake-букинга для userId: 1
     expect(body.data.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -73,12 +74,8 @@ describe('Bookings API', () => {
 
     expect(getResponse.status).toBe(200);
     expect(getBody.success).toBe(true);
-    // 3 fake-букинга + 1 только что созданный
     expect(getBody.data.length).toBeGreaterThanOrEqual(4);
-    // Проверяем, что созданный букинг присутствует в выдаче
-    const createdBooking = getBody.data.find(
-      (b: { scheduleId: number }) => b.scheduleId === 1001,
-    );
+    const createdBooking = getBody.data.find((b: { scheduleId: number }) => b.scheduleId === 1001);
 
     expect(createdBooking).toMatchObject({
       scheduleId: 1001,

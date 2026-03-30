@@ -33,7 +33,9 @@ describe('Home page', () => {
     expect(
       screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Клубы на карте и в списке' })).toBeInTheDocument();
+    // Карта теперь placeholder
+    expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
+    expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'MVP в разработке' })).not.toBeInTheDocument();
@@ -43,9 +45,8 @@ describe('Home page', () => {
     expect(
       screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Тренеры на карте и в списке' }),
-    ).toBeInTheDocument();
+    // Карта не меняется при переключении mode — остаётся placeholder
+    expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
   });

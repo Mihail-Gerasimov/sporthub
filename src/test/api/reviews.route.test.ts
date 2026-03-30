@@ -9,6 +9,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
+import { seedTestData } from '@/test/helpers/seed-fixtures';
 import type { Review } from '@/types';
 
 describe('Reviews API', () => {
@@ -16,6 +17,7 @@ describe('Reviews API', () => {
 
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
+    await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 

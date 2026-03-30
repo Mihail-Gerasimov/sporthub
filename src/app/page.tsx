@@ -191,7 +191,7 @@ export default async function Home() {
           sports={searchFilterSports}
           trainerCount={trainerDirectory.length}
         />
-        <MapPreviewSection clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
+        <MapPreviewSection />
         <PopularNearby clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
         <UpcomingSessions
           dateLabel={upcomingSessionsLabel}
