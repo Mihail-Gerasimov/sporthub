@@ -62,6 +62,7 @@ export default async function Home() {
 
     return right.reviewCount - left.reviewCount;
   })[0];
+  const isCatalogEmpty = featuredClub === undefined && featuredTrainer === undefined;
 
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
@@ -145,22 +146,32 @@ export default async function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Лидер каталога
                 </p>
-                <div className="mt-4">
-                  {featuredClub && featuredTrainer ? (
-                    <>
-                      <p className="text-sm text-muted">Клуб</p>
-                      <p className="text-xl font-semibold text-ink">{featuredClub.name}</p>
+                <div className="mt-4 space-y-5">
+                  <div>
+                    <p className="text-sm text-muted">Клуб</p>
+                    {featuredClub ? (
+                      <>
+                        <p className="mt-1 text-xl font-semibold text-ink">{featuredClub.name}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">
+                          {featuredClub.shortDescription}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Badge tone="outline">{featuredClub.rating.toFixed(1)} рейтинг</Badge>
+                          <Badge tone="outline">{featuredClub.reviewCount} отзывов</Badge>
+                          <Badge tone="accent">{formatPrice(featuredClub.priceFrom)}</Badge>
+                        </div>
+                      </>
+                    ) : (
                       <p className="mt-2 text-sm leading-relaxed text-muted">
-                        {featuredClub.shortDescription}
+                        Клубы появятся после первой публикации из кабинета провайдера.
                       </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Badge tone="outline">{featuredClub.rating.toFixed(1)} рейтинг</Badge>
-                        <Badge tone="outline">{featuredClub.reviewCount} отзывов</Badge>
-                        <Badge tone="accent">{formatPrice(featuredClub.priceFrom)}</Badge>
-                      </div>
+                    )}
+                  </div>
 
-                      <div className="mt-5 border-t border-line/80 pt-5">
-                        <p className="text-sm text-muted">Тренер</p>
+                  <div className="border-t border-line/80 pt-5">
+                    <p className="text-sm text-muted">Тренер</p>
+                    {featuredTrainer ? (
+                      <>
                         <p className="mt-1 text-xl font-semibold text-ink">
                           {featuredTrainer.name}
                         </p>
@@ -172,14 +183,20 @@ export default async function Home() {
                           <Badge tone="outline">{featuredTrainer.reviewCount} отзывов</Badge>
                           <Badge tone="teal">{formatPrice(featuredTrainer.priceFrom)}</Badge>
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      Каталог пока пуст. После загрузки данных здесь появятся сильные точки клубного
-                      и тренерского каталога.
+                      </>
+                    ) : (
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        Тренеры появятся после первой публикации и первых доступных услуг.
+                      </p>
+                    )}
+                  </div>
+
+                  {isCatalogEmpty ? (
+                    <p className="rounded-card border border-dashed border-line bg-canvas px-4 py-3 text-sm leading-relaxed text-muted">
+                      Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета
+                      провайдера.
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -36,7 +36,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   const [offerings, sports, schedule, reviews, users] = await Promise.all([
     getOfferings(),
     getSports(),
-    getSchedule(),
+    getSchedule({ ownerType: 'all' }),
     getReviews(),
     getUsers(),
   ]);

@@ -60,56 +60,67 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
         </div>
       </div>
 
-      <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
-        <div className="mb-3 flex items-center justify-start gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-w-10 px-0"
-            aria-label="Прокрутить популярных тренеров влево"
-            onClick={() => {
-              scrollCarousel('left');
-            }}
-          >
-            <span aria-hidden="true">←</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-w-10 px-0"
-            aria-label="Прокрутить популярных тренеров вправо"
-            onClick={() => {
-              scrollCarousel('right');
-            }}
-          >
-            <span aria-hidden="true">→</span>
-          </Button>
-        </div>
-
-        <div
-          ref={scrollContainerRef}
-          data-testid="popular-trainers-scroll"
-          className="scrollbar-hidden overflow-x-auto py-3"
-        >
-          <div className="flex min-w-max items-stretch gap-4">
-            {popularTrainers.map((trainer) => (
-              <div
-                key={trainer.id}
-                className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
+      {popularTrainers.length === 0 ? (
+        <Card data-testid="popular-trainers-empty" className="bg-panel-strong">
+          <p className="text-sm leading-relaxed text-muted">
+            Каталог тренеров пока пуст. После первой публикации здесь появятся новые персональные
+            профили и их доступные услуги.
+          </p>
+        </Card>
+      ) : (
+        <>
+          <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
+            <div className="mb-3 flex items-center justify-start gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-w-10 px-0"
+                aria-label="Прокрутить популярных тренеров влево"
+                onClick={() => {
+                  scrollCarousel('left');
+                }}
               >
-                <TrainerCard trainer={trainer} variant="carousel" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+                <span aria-hidden="true">←</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-w-10 px-0"
+                aria-label="Прокрутить популярных тренеров вправо"
+                onClick={() => {
+                  scrollCarousel('right');
+                }}
+              >
+                <span aria-hidden="true">→</span>
+              </Button>
+            </div>
 
-      <Card className="bg-panel-strong">
-        <p className="text-sm leading-relaxed text-muted">
-          В trainer-mode блок строится вокруг самих тренеров и их услуг, а не вокруг клубной выдачи.
-          Здесь собраны самые заметные профили с ближайшими окнами для записи.
-        </p>
-      </Card>
+            <div
+              ref={scrollContainerRef}
+              data-testid="popular-trainers-scroll"
+              className="scrollbar-hidden overflow-x-auto py-3"
+            >
+              <div className="flex min-w-max items-stretch gap-4">
+                {popularTrainers.map((trainer) => (
+                  <div
+                    key={trainer.id}
+                    className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
+                  >
+                    <TrainerCard trainer={trainer} variant="carousel" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Card className="bg-panel-strong">
+            <p className="text-sm leading-relaxed text-muted">
+              В trainer-mode блок строится вокруг самих тренеров и их услуг, а не вокруг клубной
+              выдачи. Здесь собраны самые заметные профили с ближайшими окнами для записи.
+            </p>
+          </Card>
+        </>
+      )}
     </section>
   );
 }

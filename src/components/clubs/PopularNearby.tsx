@@ -70,56 +70,67 @@ export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
         </div>
       </div>
 
-      <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
-        <div className="mb-3 flex items-center justify-start gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-w-10 px-0"
-            aria-label="Прокрутить популярные клубы влево"
-            onClick={() => {
-              scrollCarousel('left');
-            }}
-          >
-            <span aria-hidden="true">←</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-w-10 px-0"
-            aria-label="Прокрутить популярные клубы вправо"
-            onClick={() => {
-              scrollCarousel('right');
-            }}
-          >
-            <span aria-hidden="true">→</span>
-          </Button>
-        </div>
-
-        <div
-          ref={scrollContainerRef}
-          data-testid="popular-nearby-scroll"
-          className="scrollbar-hidden overflow-x-auto py-3"
-        >
-          <div className="flex min-w-max items-stretch gap-4">
-            {popularClubs.map((club) => (
-              <div
-                key={club.id}
-                className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
+      {popularClubs.length === 0 ? (
+        <Card data-testid="popular-nearby-empty" className="bg-panel-strong">
+          <p className="text-sm leading-relaxed text-muted">
+            Клубный каталог пока пуст. После первой публикации здесь появятся новые клубы, которые
+            можно будет открыть из главной страницы.
+          </p>
+        </Card>
+      ) : (
+        <>
+          <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
+            <div className="mb-3 flex items-center justify-start gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-w-10 px-0"
+                aria-label="Прокрутить популярные клубы влево"
+                onClick={() => {
+                  scrollCarousel('left');
+                }}
               >
-                <ClubCard club={club} sports={sports} variant="carousel" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+                <span aria-hidden="true">←</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-w-10 px-0"
+                aria-label="Прокрутить популярные клубы вправо"
+                onClick={() => {
+                  scrollCarousel('right');
+                }}
+              >
+                <span aria-hidden="true">→</span>
+              </Button>
+            </div>
 
-      <Card className="bg-panel-strong">
-        <p className="text-sm leading-relaxed text-muted">
-          На MVP блок «рядом» пока не использует геолокацию. Здесь показывается топ-клубов по
-          рейтингу и отзывам, чтобы быстро подсветить сильные места каталога.
-        </p>
-      </Card>
+            <div
+              ref={scrollContainerRef}
+              data-testid="popular-nearby-scroll"
+              className="scrollbar-hidden overflow-x-auto py-3"
+            >
+              <div className="flex min-w-max items-stretch gap-4">
+                {popularClubs.map((club) => (
+                  <div
+                    key={club.id}
+                    className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
+                  >
+                    <ClubCard club={club} sports={sports} variant="carousel" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Card className="bg-panel-strong">
+            <p className="text-sm leading-relaxed text-muted">
+              На MVP блок «рядом» пока не использует геолокацию. Здесь показывается топ-клубов по
+              рейтингу и отзывам, чтобы быстро подсветить сильные места каталога.
+            </p>
+          </Card>
+        </>
+      )}
     </section>
   );
 }

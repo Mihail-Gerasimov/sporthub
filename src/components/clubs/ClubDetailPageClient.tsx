@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
@@ -118,6 +118,17 @@ function MediaStub({ label, className }: { label: string; className?: string }) 
   );
 }
 
+function SectionEmptyState({ children, testId }: { children: ReactNode; testId?: string }) {
+  return (
+    <div
+      data-testid={testId}
+      className="rounded-card border border-dashed border-line bg-canvas px-5 py-5 text-sm leading-relaxed text-muted"
+    >
+      {children}
+    </div>
+  );
+}
+
 function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
   const validationResult = reviewFormSchema.safeParse(form);
 
@@ -163,6 +174,7 @@ export function ClubDetailPageClient({
     [schedule, sports, trainers],
   );
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
+  const hasMediaGallery = club.imageUrls.length > 0;
 
   useEffect(() => {
     if (!notice) {
@@ -317,13 +329,26 @@ export function ClubDetailPageClient({
 
           {/* Галерея — на мобильном снизу (компактнее), на xl слева */}
           <Card className="overflow-hidden p-4 xl:order-first sm:p-5">
-            <div className="grid gap-4" data-testid="club-media-gallery">
-              <MediaStub label="Фото клуба" className="min-h-48 md:min-h-72 xl:min-h-[26rem]" />
-              <div className="grid gap-4 sm:grid-cols-2" data-testid="club-media-gallery-secondary">
-                <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
-                <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
+            {hasMediaGallery ? (
+              <div className="grid gap-4" data-testid="club-media-gallery">
+                <MediaStub label="Фото клуба" className="min-h-48 md:min-h-72 xl:min-h-[26rem]" />
+                <div
+                  className="grid gap-4 sm:grid-cols-2"
+                  data-testid="club-media-gallery-secondary"
+                >
+                  <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
+                  <MediaStub label="Фото клуба" className="min-h-32 sm:min-h-40 xl:min-h-48" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4" data-testid="club-media-empty">
+                <MediaStub label="Фото клуба" className="min-h-48 md:min-h-72 xl:min-h-[26rem]" />
+                <p className="text-sm leading-relaxed text-muted">
+                  Галерея пока не добавлена. Публикация остаётся рабочей и откроется в каталоге даже
+                  с минимальным набором данных.
+                </p>
+              </div>
+            )}
           </Card>
         </section>
 
@@ -340,22 +365,31 @@ export function ClubDetailPageClient({
             <Badge tone="outline">{sports.length} направления</Badge>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {sports.map((sport) => (
-              <div
-                key={sport.id}
-                className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
-              >
-                <span className="mt-1 text-2xl" aria-hidden="true">
-                  {sport.icon}
-                </span>
-                <div>
-                  <p className="text-lg font-semibold text-ink">{sport.name}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{sport.description}</p>
+          {sports.length > 0 ? (
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {sports.map((sport) => (
+                <div
+                  key={sport.id}
+                  className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
+                >
+                  <span className="mt-1 text-2xl" aria-hidden="true">
+                    {sport.icon}
+                  </span>
+                  <div>
+                    <p className="text-lg font-semibold text-ink">{sport.name}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{sport.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6">
+              <SectionEmptyState testId="club-directions-empty">
+                Направления для этого клуба ещё не заполнены. Они появятся после обновления
+                публикации.
+              </SectionEmptyState>
+            </div>
+          )}
         </section>
 
         <section data-testid="club-trainers-section">
@@ -369,39 +403,47 @@ export function ClubDetailPageClient({
               </div>
               <Badge tone="outline">{trainers.length} тренера</Badge>
             </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {trainers.map((trainer) => (
-                <div
-                  key={trainer.id}
-                  data-testid={`club-trainer-card-${trainer.id}`}
-                  className="flex h-full flex-col rounded-card border border-line bg-canvas p-4"
-                >
-                  <MediaStub label="Фото тренера" className="min-h-44 w-full" />
-                  <div className="mt-4">
-                    <Link
-                      href={`/trainers/${trainer.id}`}
-                      className="text-lg font-semibold text-ink transition-colors duration-200 hover:text-accent-strong"
-                    >
-                      {trainer.name}
-                    </Link>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
-                      <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>
-                      <Badge tone="teal">{formatPrice(trainer.priceFrom)}</Badge>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {trainer.specialties.map((specialty) => (
-                        <Badge key={specialty} tone="outline">
-                          {specialty}
-                        </Badge>
-                      ))}
+            {trainers.length > 0 ? (
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {trainers.map((trainer) => (
+                  <div
+                    key={trainer.id}
+                    data-testid={`club-trainer-card-${trainer.id}`}
+                    className="flex h-full flex-col rounded-card border border-line bg-canvas p-4"
+                  >
+                    <MediaStub label="Фото тренера" className="min-h-44 w-full" />
+                    <div className="mt-4">
+                      <Link
+                        href={`/trainers/${trainer.id}`}
+                        className="text-lg font-semibold text-ink transition-colors duration-200 hover:text-accent-strong"
+                      >
+                        {trainer.name}
+                      </Link>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
+                        <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>
+                        <Badge tone="teal">{formatPrice(trainer.priceFrom)}</Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {trainer.specialties.map((specialty) => (
+                          <Badge key={specialty} tone="outline">
+                            {specialty}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6">
+                <SectionEmptyState testId="club-trainers-empty">
+                  У клуба пока нет привязанных тренеров. Страница остаётся доступной и без команды,
+                  пока публикация только начинает собираться.
+                </SectionEmptyState>
+              </div>
+            )}
           </Card>
         </section>
 
@@ -418,62 +460,70 @@ export function ClubDetailPageClient({
               </div>
               <Badge tone="outline">{schedule.length} слотов</Badge>
             </div>
+            {scheduleGroups.length > 0 ? (
+              <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                {scheduleGroups.map((group) => (
+                  <div key={group.date} className="rounded-card border border-line bg-canvas p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-ink">{group.label}</h3>
+                      <Badge tone="outline">{group.items.length} занятия</Badge>
+                    </div>
 
-            <div className="mt-6 grid gap-4 xl:grid-cols-2">
-              {scheduleGroups.map((group) => (
-                <div key={group.date} className="rounded-card border border-line bg-canvas p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-ink">{group.label}</h3>
-                    <Badge tone="outline">{group.items.length} занятия</Badge>
-                  </div>
+                    <div className="mt-4 space-y-4">
+                      {group.items.map((slot) => (
+                        <div key={slot.id} className="rounded-card border border-line bg-panel p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold uppercase tracking-[0.10em] text-muted">
+                                {slot.sportName}
+                              </p>
+                              <p className="mt-2 text-xl font-semibold text-ink">{slot.title}</p>
+                              <p className="mt-2 text-sm leading-relaxed text-muted">
+                                {slot.startTime} - {slot.endTime}, {slot.trainerName}
+                              </p>
+                            </div>
 
-                  <div className="mt-4 space-y-4">
-                    {group.items.map((slot) => (
-                      <div key={slot.id} className="rounded-card border border-line bg-panel p-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold uppercase tracking-[0.10em] text-muted">
-                              {slot.sportName}
-                            </p>
-                            <p className="mt-2 text-xl font-semibold text-ink">{slot.title}</p>
-                            <p className="mt-2 text-sm leading-relaxed text-muted">
-                              {slot.startTime} - {slot.endTime}, {slot.trainerName}
-                            </p>
+                            {isAthlete ? (
+                              <Link
+                                href={`/booking/${slot.id}`}
+                                aria-label={`Записаться на ${slot.title}`}
+                                className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
+                              >
+                                Записаться
+                              </Link>
+                            ) : (
+                              <Button
+                                aria-label={`Записаться на ${slot.title}`}
+                                onClick={() => {
+                                  showActionNotice(
+                                    'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
+                                  );
+                                }}
+                              >
+                                Записаться
+                              </Button>
+                            )}
                           </div>
 
-                          {isAthlete ? (
-                            <Link
-                              href={`/booking/${slot.id}`}
-                              aria-label={`Записаться на ${slot.title}`}
-                              className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
-                            >
-                              Записаться
-                            </Link>
-                          ) : (
-                            <Button
-                              aria-label={`Записаться на ${slot.title}`}
-                              onClick={() => {
-                                showActionNotice(
-                                  'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
-                                );
-                              }}
-                            >
-                              Записаться
-                            </Button>
-                          )}
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Badge tone="outline">{formatPrice(slot.price)}</Badge>
+                            <Badge tone="outline">Свободно {slot.availableSpots} мест</Badge>
+                            <Badge tone="teal">{slot.room ?? 'Зал уточняется'}</Badge>
+                          </div>
                         </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Badge tone="outline">{formatPrice(slot.price)}</Badge>
-                          <Badge tone="outline">Свободно {slot.availableSpots} мест</Badge>
-                          <Badge tone="teal">{slot.room ?? 'Зал уточняется'}</Badge>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6">
+                <SectionEmptyState testId="club-schedule-empty">
+                  В расписании клуба пока нет открытых слотов. Когда провайдер добавит занятия, они
+                  появятся здесь без отдельной ручной настройки.
+                </SectionEmptyState>
+              </div>
+            )}
           </Card>
         </section>
 
@@ -488,31 +538,39 @@ export function ClubDetailPageClient({
               </div>
               <Badge tone="outline">{reviewItems.length} отзывов</Badge>
             </div>
-
-            <div className="mt-6 space-y-4">
-              {reviewItems.map((review) => (
-                <div key={review.id} className="rounded-card border border-line bg-canvas p-4">
-                  <div className="flex gap-4">
-                    <MediaStub label="Фото автора" className="min-h-16 min-w-16 px-3 py-3" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-ink">{review.authorName}</p>
-                          <p className="text-sm text-muted">
-                            {formatDate(review.createdAt, {
-                              day: 'numeric',
-                              month: 'long',
-                            })}
-                          </p>
+            {reviewItems.length > 0 ? (
+              <div className="mt-6 space-y-4">
+                {reviewItems.map((review) => (
+                  <div key={review.id} className="rounded-card border border-line bg-canvas p-4">
+                    <div className="flex gap-4">
+                      <MediaStub label="Фото автора" className="min-h-16 min-w-16 px-3 py-3" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-ink">{review.authorName}</p>
+                            <p className="text-sm text-muted">
+                              {formatDate(review.createdAt, {
+                                day: 'numeric',
+                                month: 'long',
+                              })}
+                            </p>
+                          </div>
+                          <Rating value={review.rating} />
                         </div>
-                        <Rating value={review.rating} />
+                        <p className="mt-3 text-sm leading-relaxed text-muted">{review.text}</p>
                       </div>
-                      <p className="mt-3 text-sm leading-relaxed text-muted">{review.text}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6">
+                <SectionEmptyState testId="club-reviews-empty">
+                  У клуба пока нет отзывов. Первая оценка появится после первых посещений и
+                  подтверждённых тренировок.
+                </SectionEmptyState>
+              </div>
+            )}
           </Card>
 
           <Card className="p-6 sm:p-7">
@@ -522,8 +580,8 @@ export function ClubDetailPageClient({
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Оставить отзыв</h2>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                Отзыв может оставить только авторизованный спортсмен. На этой фазе работаем с
-                текущими fake data и MVP-логикой.
+                Отзыв может оставить только авторизованный спортсмен после реального взаимодействия
+                с площадкой.
               </p>
             </div>
 
