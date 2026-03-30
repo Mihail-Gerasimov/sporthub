@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui';
 import { PopularNearby } from '@/components/clubs';
 import { MapPreviewSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
-import { SearchControlsPreview } from '@/components/search';
+import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 import { getClubs, getOfferings, getSchedule, getSports, getTrainers } from '@/lib/db';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
@@ -209,6 +209,11 @@ export default async function Home() {
           trainerCount={trainerDirectory.length}
         />
         <MapPreviewSection />
+        <CatalogResultsSection
+          clubs={clubs}
+          sports={searchFilterSports}
+          trainers={trainerDirectory}
+        />
         <PopularNearby clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
         <UpcomingSessions
           dateLabel={upcomingSessionsLabel}

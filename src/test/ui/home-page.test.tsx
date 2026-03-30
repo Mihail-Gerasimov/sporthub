@@ -56,6 +56,7 @@ describe('Home page', () => {
     expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'MVP в разработке' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
@@ -67,6 +68,9 @@ describe('Home page', () => {
     expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Тренеры под текущие фильтры' }),
+    ).toBeInTheDocument();
   });
 
   it('показывает честный empty-state, если каталог пуст', async () => {
