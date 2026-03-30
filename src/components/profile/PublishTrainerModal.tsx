@@ -1,5 +1,4 @@
-// Модалка публикации тренера — полная форма с секциями.
-// Form-state локальный, без записи в JSON и без API.
+// Модалка публикации тренера — форма публикации с submit через API.
 'use client';
 
 import { useState } from 'react';
@@ -107,31 +106,134 @@ function createInitialState(): TrainerFormState {
 type PublishTrainerModalProps = {
   open: boolean;
   onClose: () => void;
+  onSuccess: (message: string) => void;
   /** Список клубов для опциональной привязки */
   clubs: ClubOption[];
+  userId: number | null;
 };
 
-export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModalProps) {
+type PublishTrainerApiErrorBody = {
+  details?: Record<string, string[] | undefined>;
+  error?: string;
+  success?: boolean;
+};
+
+function buildTrainerPayload(form: TrainerFormState, userId: number) {
+  return {
+    firstName: form.firstName,
+    lastName: form.lastName,
+    city: form.city,
+    address: form.address,
+    bio: form.bio,
+    experience: form.experience,
+    sport: form.sport,
+    specializations: form.specializations,
+    workFormat: form.workFormat,
+    offeringName: form.offeringName,
+    offeringDescription: form.offeringDescription,
+    offeringFormat: form.offeringFormat,
+    offeringPrice: form.offeringPrice,
+    offeringDuration: form.offeringDuration,
+    offeringLocation: form.offeringLocation,
+    clubId: form.clubId,
+    scheduleSlots: form.scheduleSlots,
+    userId,
+  };
+}
+
+function getApiFieldErrors(details?: Record<string, string[] | undefined>): Record<string, string> {
+  if (!details) {
+    return {};
+  }
+
+  return Object.entries(details).reduce<Record<string, string>>((acc, [field, messages]) => {
+    const message = messages?.[0];
+
+    if (message) {
+      acc[field] = message;
+    }
+
+    return acc;
+  }, {});
+}
+
+export function PublishTrainerModal({
+  open,
+  onClose,
+  onSuccess,
+  clubs,
+  userId,
+}: PublishTrainerModalProps) {
   const [form, setForm] = useState<TrainerFormState>(createInitialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
-  const [submitNotice, setSubmitNotice] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState<string | null>(null);
+  const [submitNoticeTone, setSubmitNoticeTone] = useState<'info' | 'danger'>('info');
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
     setErrors({});
     setPhotoNotice(false);
-    setSubmitNotice(false);
+    setIsSubmitting(false);
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
     onClose();
   }
 
-  // Валидация и submit — stub: показываем notice вместо сохранения
-  function handleSubmit() {
+  // Отправка payload в API и синхронизация кабинета после успеха
+  async function handleSubmit() {
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
+
     const validationErrors = validateTrainerForm(form);
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-    setSubmitNotice(true);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setSubmitNotice('Проверьте обязательные поля формы');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
+    if (userId === null) {
+      setSubmitNotice('Не удалось определить пользователя провайдера');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/trainers', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(buildTrainerPayload(form, userId)),
+      });
+      const body = (await response.json()) as PublishTrainerApiErrorBody;
+
+      if (!response.ok || body.success !== true) {
+        const serverErrors = getApiFieldErrors(body.details);
+
+        if (Object.keys(serverErrors).length > 0) {
+          setErrors(serverErrors);
+        }
+
+        setSubmitNotice(body.error ?? 'Не удалось создать тренера');
+        setSubmitNoticeTone('danger');
+        return;
+      }
+
+      handleClose();
+      onSuccess('Тренер опубликован. Кабинет обновлён.');
+    } catch {
+      setSubmitNotice('Не удалось создать тренера. Проверьте соединение и попробуйте снова.');
+      setSubmitNoticeTone('danger');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // Обновление текстового поля
@@ -156,7 +258,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
       description="Заполните информацию о тренере для публикации на платформе."
       primaryLabel="Создать публикацию"
       onPrimary={handleSubmit}
-      notice={submitNotice ? 'Сохранение публикации будет доступно в следующей фазе' : undefined}
+      primaryLoading={isSubmitting}
+      notice={submitNotice ?? undefined}
+      noticeTone={submitNoticeTone}
       secondaryLabel="Отмена"
       onSecondary={handleClose}
     >
@@ -199,6 +303,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 label="Адрес / локация"
                 placeholder="ул. Спортивная, 10"
                 value={form.address}
+                error={errors.address}
                 onChange={(e) => {
                   updateField('address', e.target.value);
                 }}
@@ -396,12 +501,15 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 id="offering-description"
                 placeholder="Что входит в услугу, для кого подходит"
                 rows={3}
-                className="w-full rounded-card border border-line bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.offeringDescription ? 'border-red-400' : 'border-line'}`}
                 value={form.offeringDescription}
                 onChange={(e) => {
                   updateField('offeringDescription', e.target.value);
                 }}
               />
+              {errors.offeringDescription ? (
+                <p className="text-xs text-red-500">{errors.offeringDescription}</p>
+              ) : null}
             </div>
 
             {/* Формат услуги — chips */}
@@ -420,6 +528,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                   </Chip>
                 ))}
               </div>
+              {errors.offeringFormat ? (
+                <p className="mt-1 text-xs text-red-500">{errors.offeringFormat}</p>
+              ) : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -451,6 +562,7 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
                 label="Укажите адрес проведения тренировки"
                 placeholder="ул. Спортивная, 10, Зал №3"
                 value={form.offeringLocation}
+                error={errors.offeringLocation}
                 onChange={(e) => {
                   updateField('offeringLocation', e.target.value);
                 }}
@@ -476,6 +588,9 @@ export function PublishTrainerModal({ open, onClose, clubs }: PublishTrainerModa
               }}
             />
           </div>
+          {errors.scheduleSlots ? (
+            <p className="mt-2 text-xs text-red-500">{errors.scheduleSlots}</p>
+          ) : null}
         </section>
 
         <hr className="border-line" />

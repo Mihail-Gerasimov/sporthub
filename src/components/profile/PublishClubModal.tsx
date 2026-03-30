@@ -1,5 +1,4 @@
-// Модалка публикации клуба — полная форма с секциями.
-// Form-state локальный, без записи в JSON и без API.
+// Модалка публикации клуба — форма публикации с submit через API.
 'use client';
 
 import { useState } from 'react';
@@ -107,29 +106,120 @@ function createInitialState(): ClubFormState {
 type PublishClubModalProps = {
   open: boolean;
   onClose: () => void;
+  onSuccess: (message: string) => void;
+  userId: number | null;
 };
 
-export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
+type PublishClubApiErrorBody = {
+  details?: Record<string, string[] | undefined>;
+  error?: string;
+  success?: boolean;
+};
+
+function buildClubPayload(form: ClubFormState, userId: number) {
+  return {
+    name: form.name,
+    city: form.city,
+    address: form.address,
+    description: form.description,
+    phone: form.phone,
+    email: form.email,
+    priceFrom: form.priceFrom,
+    disciplines: form.disciplines,
+    tags: form.tags,
+    amenities: form.amenities,
+    scheduleSlots: form.scheduleSlots,
+    userId,
+  };
+}
+
+function getApiFieldErrors(details?: Record<string, string[] | undefined>): Record<string, string> {
+  if (!details) {
+    return {};
+  }
+
+  return Object.entries(details).reduce<Record<string, string>>((acc, [field, messages]) => {
+    const message = messages?.[0];
+
+    if (message) {
+      acc[field] = message;
+    }
+
+    return acc;
+  }, {});
+}
+
+export function PublishClubModal({ open, onClose, onSuccess, userId }: PublishClubModalProps) {
   const [form, setForm] = useState<ClubFormState>(createInitialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
-  const [submitNotice, setSubmitNotice] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState<string | null>(null);
+  const [submitNoticeTone, setSubmitNoticeTone] = useState<'info' | 'danger'>('info');
 
   // Сброс формы при закрытии
   function handleClose() {
     setForm(createInitialState());
     setErrors({});
     setPhotoNotice(false);
-    setSubmitNotice(false);
+    setIsSubmitting(false);
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
     onClose();
   }
 
-  // Валидация и submit — stub: показываем notice вместо сохранения
-  function handleSubmit() {
+  // Отправка payload в API и синхронизация кабинета после успеха
+  async function handleSubmit() {
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
+
     const validationErrors = validateClubForm(form);
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-    setSubmitNotice(true);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setSubmitNotice('Проверьте обязательные поля формы');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
+    if (userId === null) {
+      setSubmitNotice('Не удалось определить пользователя провайдера');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/clubs', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(buildClubPayload(form, userId)),
+      });
+      const body = (await response.json()) as PublishClubApiErrorBody;
+
+      if (!response.ok || body.success !== true) {
+        const serverErrors = getApiFieldErrors(body.details);
+
+        if (Object.keys(serverErrors).length > 0) {
+          setErrors(serverErrors);
+        }
+
+        setSubmitNotice(body.error ?? 'Не удалось создать клуб');
+        setSubmitNoticeTone('danger');
+        return;
+      }
+
+      handleClose();
+      onSuccess('Клуб опубликован. Кабинет обновлён.');
+    } catch {
+      setSubmitNotice('Не удалось создать клуб. Проверьте соединение и попробуйте снова.');
+      setSubmitNoticeTone('danger');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // Обновление текстового поля
@@ -154,8 +244,10 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
       description="Заполните информацию о клубе для публикации на платформе."
       primaryLabel="Создать публикацию"
       onPrimary={handleSubmit}
+      primaryLoading={isSubmitting}
       secondaryLabel="Отмена"
-      notice={submitNotice ? 'Сохранение публикации будет доступно в следующей фазе' : undefined}
+      notice={submitNotice ?? undefined}
+      noticeTone={submitNoticeTone}
       onSecondary={handleClose}
     >
       <div className="flex flex-col gap-8">
@@ -358,6 +450,9 @@ export function PublishClubModal({ open, onClose }: PublishClubModalProps) {
               }}
             />
           </div>
+          {errors.scheduleSlots ? (
+            <p className="mt-2 text-xs text-red-500">{errors.scheduleSlots}</p>
+          ) : null}
         </section>
 
         <hr className="border-line" />

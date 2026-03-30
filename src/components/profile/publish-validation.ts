@@ -34,6 +34,7 @@ type TrainerFormInput = {
   workFormat: string;
   offeringName: string;
   offeringDescription: string;
+  offeringFormat: string;
   offeringPrice: string;
   offeringDuration: string;
   offeringLocation: string;
@@ -55,6 +56,25 @@ function isPositiveNumber(value: string): boolean {
   return value.trim() !== '' && !Number.isNaN(num) && num > 0;
 }
 
+/** Проверка минимальной длины текстового поля */
+function hasMinLength(value: string, minLength: number): boolean {
+  return value.trim().length >= minLength;
+}
+
+/** Проверка что слот расписания заполнен полностью */
+function isScheduleSlotComplete(slot: ScheduleSlotForm): boolean {
+  return (
+    slot.title.trim() !== '' &&
+    slot.date.trim() !== '' &&
+    slot.startTime.trim() !== '' &&
+    slot.endTime.trim() !== '' &&
+    isPositiveNumber(slot.price) &&
+    isPositiveNumber(slot.capacity) &&
+    slot.location.trim() !== '' &&
+    slot.discipline.trim() !== ''
+  );
+}
+
 // --- Валидация формы клуба ---
 
 export function validateClubForm(form: ClubFormInput): Record<string, string> {
@@ -71,6 +91,8 @@ export function validateClubForm(form: ClubFormInput): Record<string, string> {
   }
   if (!form.description.trim()) {
     errors.description = 'Добавьте описание';
+  } else if (!hasMinLength(form.description, 50)) {
+    errors.description = 'Описание должно содержать минимум 50 символов';
   }
   if (!form.phone.trim()) {
     errors.phone = 'Укажите телефон';
@@ -87,6 +109,12 @@ export function validateClubForm(form: ClubFormInput): Record<string, string> {
 
   if (form.disciplines.length === 0) {
     errors.disciplines = 'Необходимо выбрать хотя бы 1 направление';
+  }
+
+  if (!form.scheduleSlots || form.scheduleSlots.length === 0) {
+    errors.scheduleSlots = 'Добавьте хотя бы 1 слот расписания';
+  } else if (form.scheduleSlots.some((slot) => !isScheduleSlotComplete(slot))) {
+    errors.scheduleSlots = 'Заполните стартовое расписание полностью';
   }
 
   return errors;
@@ -106,8 +134,13 @@ export function validateTrainerForm(form: TrainerFormInput): Record<string, stri
   if (!form.city.trim()) {
     errors.city = 'Укажите город';
   }
+  if (!form.address.trim()) {
+    errors.address = 'Укажите адрес';
+  }
   if (!form.bio.trim()) {
     errors.bio = 'Добавьте описание о себе';
+  } else if (!hasMinLength(form.bio, 50)) {
+    errors.bio = 'Описание должно содержать минимум 50 символов';
   }
   if (!isPositiveNumber(form.experience)) {
     errors.experience = 'Укажите опыт (положительное число)';
@@ -124,11 +157,26 @@ export function validateTrainerForm(form: TrainerFormInput): Record<string, stri
   if (!form.offeringName.trim()) {
     errors.offeringName = 'Укажите название услуги';
   }
+  if (!form.offeringDescription.trim()) {
+    errors.offeringDescription = 'Добавьте описание услуги';
+  }
+  if (!form.offeringFormat.trim()) {
+    errors.offeringFormat = 'Выберите формат услуги';
+  }
   if (!isPositiveNumber(form.offeringPrice)) {
     errors.offeringPrice = 'Укажите цену услуги (положительное число)';
   }
   if (!isPositiveNumber(form.offeringDuration)) {
     errors.offeringDuration = 'Укажите длительность (положительное число)';
+  }
+  if (!form.offeringLocation.trim()) {
+    errors.offeringLocation = 'Укажите место проведения';
+  }
+
+  if (form.scheduleSlots.length === 0) {
+    errors.scheduleSlots = 'Добавьте хотя бы 1 слот расписания';
+  } else if (form.scheduleSlots.some((slot) => !isScheduleSlotComplete(slot))) {
+    errors.scheduleSlots = 'Заполните стартовое расписание полностью';
   }
 
   // clubId — опциональный, не валидируем

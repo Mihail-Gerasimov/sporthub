@@ -2,7 +2,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 
 import {
   getProviderClubs,
@@ -17,7 +18,7 @@ import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSect
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
-import { Badge, Button, Card } from '@/components/ui';
+import { ActionNotice, Badge, Button, Card } from '@/components/ui';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type { Booking, Club, Review, Trainer } from '@/types';
@@ -89,10 +90,33 @@ export function ProviderProfilePage({
   const logout = useAuthStore((state) => state.logout);
   const cabinetConfig = getPersonalCabinetConfig(accountType);
   const providerUserId = user?.id ?? null;
+  const router = useRouter();
 
   // Состояние открытия publish-модалок
   const [isClubModalOpen, setIsClubModalOpen] = useState(false);
   const [isTrainerModalOpen, setIsTrainerModalOpen] = useState(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!actionNotice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActionNotice(null);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [actionNotice]);
+
+  function handlePublishSuccess(message: string) {
+    setActionNotice(message);
+    startTransition(() => {
+      router.refresh();
+    });
+  }
 
   // Бизнес-данные провайдера
   const providerClubs = useMemo(
@@ -279,15 +303,20 @@ export function ProviderProfilePage({
           onClose={() => {
             setIsClubModalOpen(false);
           }}
+          onSuccess={handlePublishSuccess}
+          userId={providerUserId}
         />
         <PublishTrainerModal
           open={isTrainerModalOpen}
           onClose={() => {
             setIsTrainerModalOpen(false);
           }}
+          onSuccess={handlePublishSuccess}
           clubs={providerClubs.map((c) => ({ id: c.id, name: c.name }))}
+          userId={providerUserId}
         />
       </div>
+      {actionNotice ? <ActionNotice message={actionNotice} /> : null}
     </div>
   );
 }

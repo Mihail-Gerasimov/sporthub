@@ -16,21 +16,25 @@ type PublishModalShellProps = {
   /** Текст primary-кнопки в footer */
   primaryLabel: string;
   onPrimary: () => void;
+  primaryLoading?: boolean;
   /** Текст secondary-кнопки в footer (не рендерится если не задан) */
   secondaryLabel?: string;
   onSecondary?: () => void;
   /** Информационное уведомление (stub / validation summary) */
   notice?: string;
+  noticeTone?: 'info' | 'danger';
 };
 
 export function PublishModalShell({
   children,
   description,
   notice,
+  noticeTone = 'info',
   onClose,
   onPrimary,
   onSecondary,
   open,
+  primaryLoading = false,
   primaryLabel,
   secondaryLabel,
   title,
@@ -47,7 +51,11 @@ export function PublishModalShell({
           {notice ? (
             <div
               role="status"
-              className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+              className={`rounded-card border px-4 py-3 text-sm ${
+                noticeTone === 'danger'
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
             >
               {notice}
             </div>
@@ -55,9 +63,11 @@ export function PublishModalShell({
 
           {/* Кнопки footer */}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={onPrimary}>{primaryLabel}</Button>
+            <Button loading={primaryLoading} onClick={onPrimary}>
+              {primaryLabel}
+            </Button>
             {secondaryLabel && onSecondary ? (
-              <Button variant="outline" onClick={onSecondary}>
+              <Button disabled={primaryLoading} variant="outline" onClick={onSecondary}>
                 {secondaryLabel}
               </Button>
             ) : null}

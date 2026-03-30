@@ -1,6 +1,16 @@
 // Тесты страницы кабинета провайдера (Steps 12.4, 13.1)
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { refreshMock } = vi.hoisted(() => ({
+  refreshMock: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: refreshMock,
+  }),
+}));
 
 import { ProviderProfilePage } from '@/components/profile/ProviderProfilePage';
 import {
@@ -10,10 +20,24 @@ import {
 } from '@/stores/useAuthStore';
 
 describe('ProviderProfilePage', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
     localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+    refreshMock.mockReset();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
   });
+
+  function createJsonResponse(body: unknown, status: number) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+  }
 
   it('показывает «Доступ ограничен» для неавторизованного пользователя', () => {
     render(<ProviderProfilePage />);
@@ -196,5 +220,77 @@ describe('ProviderProfilePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('после успешной публикации клуба показывает notice и обновляет кабинет через router.refresh', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse(
+        {
+          success: true,
+          data: { club: { id: 12 } },
+        },
+        201,
+      ),
+    );
+
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Опубликовать клуб/ }));
+    fireEvent.change(screen.getByLabelText('Название клуба'), {
+      target: { value: 'FitZone Studio' },
+    });
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.change(screen.getByLabelText('Адрес'), {
+      target: { value: 'ул. Спортивная, 10' },
+    });
+    fireEvent.change(screen.getByLabelText('Краткое описание'), {
+      target: {
+        value:
+          'Современный фитнес-клуб с тренажёрным залом, групповыми программами и стабильным расписанием для новичков.',
+      },
+    });
+    fireEvent.change(screen.getByLabelText('Телефон'), {
+      target: { value: '+7 999 123-45-67' },
+    });
+    fireEvent.change(screen.getByLabelText('Цена от (₽)'), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Йога' }));
+    fireEvent.change(screen.getByLabelText('Название занятия'), {
+      target: { value: 'Утренняя йога' },
+    });
+    fireEvent.change(screen.getByLabelText('Дата'), {
+      target: { value: '2026-04-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Начало'), {
+      target: { value: '08:00' },
+    });
+    fireEvent.change(screen.getByLabelText('Окончание'), {
+      target: { value: '09:00' },
+    });
+    fireEvent.change(screen.getByLabelText('Цена (₽)'), {
+      target: { value: '900' },
+    });
+    fireEvent.change(screen.getByLabelText('Кол-во мест'), {
+      target: { value: '15' },
+    });
+    fireEvent.change(screen.getByLabelText('Зал'), {
+      target: { value: 'Зал №1' },
+    });
+    fireEvent.change(screen.getByLabelText('Направление'), {
+      target: { value: 'Йога' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Клуб опубликован. Кабинет обновлён.');
   });
 });
