@@ -46,6 +46,14 @@ IMPLEMENTATION_PLAN.md
 STACK_OVERVIEW.md
 README.md
 
+# dynamic data (формируются через publish-flow, не коммитятся)
+src/data/clubs.json
+src/data/trainers.json
+src/data/offerings.json
+src/data/schedule.json
+src/data/bookings.json
+src/data/reviews.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

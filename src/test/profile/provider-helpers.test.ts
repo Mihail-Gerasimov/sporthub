@@ -235,11 +235,7 @@ describe('getProviderIncomingBookings', () => {
   it('возвращает только букинги на сущности провайдера', () => {
     const providerClubIds = [1, 2];
     const providerTrainerIds = [1, 3];
-    const result = getProviderIncomingBookings(
-      bookings,
-      providerClubIds,
-      providerTrainerIds,
-    );
+    const result = getProviderIncomingBookings(bookings, providerClubIds, providerTrainerIds);
 
     // Букинг 1: clubId 1 (провайдер), Букинг 2: trainerId 3 (провайдер), Букинг 3: clubId 3 (чужой)
     expect(result.map((b) => b.id).sort()).toEqual([1, 2]);

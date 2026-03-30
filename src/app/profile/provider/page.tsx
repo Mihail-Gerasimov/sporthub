@@ -11,11 +11,6 @@ export default async function ProviderProfileRoute() {
   ]);
 
   return (
-    <ProviderProfilePage
-      bookings={bookings}
-      clubs={clubs}
-      reviews={reviews}
-      trainers={trainers}
-    />
+    <ProviderProfilePage bookings={bookings} clubs={clubs} reviews={reviews} trainers={trainers} />
   );
 }
