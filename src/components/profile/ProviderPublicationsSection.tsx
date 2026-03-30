@@ -64,7 +64,7 @@ export function ProviderPublicationsSection({ clubs, trainers }: ProviderPublica
       <h2 className="font-display text-2xl font-semibold text-ink">Мои публикации</h2>
 
       {hasPublications ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div data-testid="provider-publications-list" className="mt-6 grid gap-4 md:grid-cols-2">
           {clubs.map((club) => (
             <PublicationCard
               key={`club-${club.id}`}
@@ -88,7 +88,12 @@ export function ProviderPublicationsSection({ clubs, trainers }: ProviderPublica
           ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm leading-relaxed text-muted">У вас пока нет публикаций</p>
+        <p
+          data-testid="provider-publications-empty"
+          className="mt-4 text-sm leading-relaxed text-muted"
+        >
+          У вас пока нет публикаций
+        </p>
       )}
     </Card>
   );

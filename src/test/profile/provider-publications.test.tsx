@@ -1,4 +1,4 @@
-// Тесты секции «Мои публикации» провайдер-кабинета (Step 12.5)
+// Тесты секции «Мои публикации» провайдер-кабинета (Step 12.5 / Step 14.7)
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -81,7 +81,31 @@ describe('ProviderPublicationsSection', () => {
   it('показывает пустое состояние при отсутствии публикаций', () => {
     render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
 
-    expect(screen.getByText(/У вас пока нет публикаций/)).toBeInTheDocument();
+    expect(screen.getByTestId('provider-publications-empty')).toHaveTextContent(
+      'У вас пока нет публикаций',
+    );
+  });
+
+  it('после появления нового клуба в props сразу рендерит карточку публикации', () => {
+    const { rerender } = render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
+
+    expect(screen.getByTestId('provider-publications-empty')).toBeInTheDocument();
+
+    rerender(<ProviderPublicationsSection clubs={clubs} trainers={[]} />);
+
+    expect(screen.getByTestId('provider-publications-list')).toBeInTheDocument();
+    expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
+  });
+
+  it('после появления нового тренера в props сразу рендерит карточку публикации', () => {
+    const { rerender } = render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
+
+    expect(screen.getByTestId('provider-publications-empty')).toBeInTheDocument();
+
+    rerender(<ProviderPublicationsSection clubs={[]} trainers={trainers} />);
+
+    expect(screen.getByTestId('provider-publications-list')).toBeInTheDocument();
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
   });
 
   it('корректно работает с только клубами', () => {

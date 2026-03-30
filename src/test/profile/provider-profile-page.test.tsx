@@ -160,6 +160,19 @@ describe('ProviderProfilePage', () => {
     expect(dialog.querySelector('h2')).toHaveTextContent('Опубликовать клуб');
   });
 
+  it('в пустом состоянии показывает empty-state блока «Мои публикации»', () => {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
+    });
+
+    render(<ProviderProfilePage clubs={[]} trainers={[]} />);
+
+    expect(screen.getByTestId('provider-publications-empty')).toHaveTextContent(
+      'У вас пока нет публикаций',
+    );
+  });
+
   it('открывает модалку «Опубликовать тренера» по клику на кнопку', () => {
     useAuthStore.getState().login({
       accountType: 'provider',
