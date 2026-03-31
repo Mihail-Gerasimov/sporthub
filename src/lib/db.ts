@@ -33,6 +33,19 @@ type DataCollectionMap = {
 type EntityWithOverridableFields<Entity, Keys extends keyof Entity> = Omit<Entity, Keys> &
   Partial<Pick<Entity, Keys>>;
 
+type PublicationScheduleInput = EntityWithOverridableFields<
+  Schedule,
+  | 'id'
+  | 'createdAt'
+  | 'offeringId'
+  | 'ownerType'
+  | 'ownerId'
+  | 'affiliatedClubId'
+  | 'clubId'
+  | 'trainerId'
+  | 'bookedCount'
+>;
+
 export type CreateBookingInput = Omit<Booking, 'id' | 'createdAt'>;
 export type CreateReviewInput = Omit<Review, 'id' | 'createdAt'>;
 
@@ -77,6 +90,65 @@ export interface TrainerPublicationResult {
   trainer: Trainer;
   offering: Offering;
   schedules: Schedule[];
+}
+
+/**
+ * Входные данные для atomic-обновления клуба.
+ * В edit-flow разрешены только активные MVP-поля — системные поля сохраняются из текущей сущности.
+ */
+export interface UpdateClubPublicationInput {
+  clubId: EntityId;
+  userId: EntityId;
+  club: EntityWithOverridableFields<
+    Club,
+    | 'id'
+    | 'createdAt'
+    | 'slug'
+    | 'website'
+    | 'coordinates'
+    | 'imageUrls'
+    | 'rating'
+    | 'reviewCount'
+    | 'distanceKm'
+    | 'isFeatured'
+    | 'managedByUserId'
+    | 'source'
+    | 'status'
+  >;
+  offering: EntityWithOverridableFields<
+    Offering,
+    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
+  >;
+  schedules: PublicationScheduleInput[];
+}
+
+/**
+ * Входные данные для atomic-обновления тренера.
+ * В edit-flow разрешены только активные MVP-поля — системные поля сохраняются из текущей сущности.
+ */
+export interface UpdateTrainerPublicationInput {
+  trainerId: EntityId;
+  userId: EntityId;
+  trainer: EntityWithOverridableFields<
+    Trainer,
+    | 'id'
+    | 'createdAt'
+    | 'slug'
+    | 'avatarUrl'
+    | 'coordinates'
+    | 'clubId'
+    | 'sportId'
+    | 'rating'
+    | 'reviewCount'
+    | 'managedByUserId'
+    | 'source'
+    | 'status'
+  >;
+  offering: EntityWithOverridableFields<
+    Offering,
+    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
+  >;
+  schedules: PublicationScheduleInput[];
 }
 export type GetScheduleOptions = {
   ownerType?: CatalogOwnerType | 'all';
@@ -187,6 +259,67 @@ function getNextEntityId(items: Array<{ id: EntityId }>): EntityId {
 
 function createTimestamp(): string {
   return new Date().toISOString();
+}
+
+function ensureManagedByUser(
+  managedByUserId: EntityId | undefined,
+  expectedUserId: EntityId,
+  entityLabel: string,
+  entityId: EntityId,
+): void {
+  if (managedByUserId !== expectedUserId) {
+    throw new Error(`Недостаточно прав для редактирования ${entityLabel} с id ${entityId}`);
+  }
+}
+
+function findPrimaryOffering(
+  offerings: Offering[],
+  ownerType: CatalogOwnerType,
+  ownerId: EntityId,
+): Offering | null {
+  return (
+    offerings.find(
+      (offering) => offering.ownerType === ownerType && offering.ownerId === ownerId,
+    ) ?? null
+  );
+}
+
+function isClubPublicationSchedule(
+  scheduleItem: Schedule,
+  clubId: EntityId,
+  offeringId: EntityId,
+): boolean {
+  return (
+    scheduleItem.clubId === clubId ||
+    scheduleItem.offeringId === offeringId ||
+    (scheduleItem.ownerType === 'club' && scheduleItem.ownerId === clubId)
+  );
+}
+
+function isTrainerPublicationSchedule(
+  scheduleItem: Schedule,
+  trainerId: EntityId,
+  offeringId: EntityId,
+): boolean {
+  return (
+    scheduleItem.offeringId === offeringId ||
+    (scheduleItem.ownerType === 'trainer' &&
+      (scheduleItem.ownerId === trainerId || scheduleItem.trainerId === trainerId))
+  );
+}
+
+function assertNoDuplicateScheduleIds(
+  schedules: PublicationScheduleInput[],
+  entityLabel: string,
+): void {
+  const existingSlotIds = schedules
+    .map((slot) => slot.id)
+    .filter((slotId): slotId is EntityId => slotId !== undefined);
+  const uniqueIds = new Set(existingSlotIds);
+
+  if (uniqueIds.size !== existingSlotIds.length) {
+    throw new Error(`В payload редактирования ${entityLabel} есть повторяющиеся id слотов`);
+  }
 }
 
 function normalizeSlugLookupValue(slug: string): string {
@@ -570,6 +703,275 @@ export async function createTrainerPublication(
   const nextTrainers = [...trainers, trainer];
   const nextOfferings = [...offerings, offering];
   const nextSchedule = [...schedule, ...schedules];
+
+  await writeCollectionsWithRollback([
+    { key: 'trainers', next: nextTrainers, previous: trainers },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+  ]);
+
+  return { trainer, offering, schedules };
+}
+
+/**
+ * Pseudo-atomic обновление клуба: club + primary offering + schedule[].
+ * Сохраняет системные поля сущности и существующие slot.id / createdAt / bookedCount.
+ */
+export async function updateClubPublication(
+  input: UpdateClubPublicationInput,
+): Promise<ClubPublicationResult> {
+  const now = createTimestamp();
+  const [clubs, offerings, schedule] = await Promise.all([
+    readCollection('clubs'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+  ]);
+
+  const currentClub = clubs.find((club) => club.id === input.clubId);
+
+  if (!currentClub) {
+    throw new Error(`Клуб с id ${input.clubId} не найден`);
+  }
+
+  ensureManagedByUser(currentClub.managedByUserId, input.userId, 'клуба', input.clubId);
+
+  const currentOffering = findPrimaryOffering(offerings, 'club', input.clubId);
+
+  if (!currentOffering) {
+    throw new Error(`Основная услуга клуба с id ${input.clubId} не найдена`);
+  }
+
+  const currentSchedules = schedule.filter((slot) =>
+    isClubPublicationSchedule(slot, input.clubId, currentOffering.id),
+  );
+  const currentScheduleById = new Map(currentSchedules.map((slot) => [slot.id, slot]));
+  let nextScheduleId = getNextEntityId(schedule);
+
+  assertNoDuplicateScheduleIds(input.schedules, 'клуба');
+
+  const club: Club = {
+    ...currentClub,
+    name: input.club.name,
+    description: input.club.description,
+    shortDescription: input.club.shortDescription,
+    city: input.club.city,
+    address: input.club.address,
+    phone: input.club.phone,
+    email: input.club.email,
+    sportIds: input.club.sportIds,
+    amenities: input.club.amenities,
+    tags: input.club.tags,
+    priceFrom: input.club.priceFrom,
+  };
+
+  const offering: Offering = {
+    ...currentOffering,
+    sportId: input.offering.sportId,
+    title: input.offering.title,
+    description: input.offering.description,
+    format: input.offering.format,
+    price: input.offering.price,
+    durationMinutes: input.offering.durationMinutes,
+    capacity: input.offering.capacity,
+    address: input.offering.address,
+    ownerType: 'club',
+    ownerId: input.clubId,
+    affiliatedClubId: input.clubId,
+  };
+
+  const schedules: Schedule[] = input.schedules.map((slotInput) => {
+    const currentSlot =
+      slotInput.id !== undefined ? (currentScheduleById.get(slotInput.id) ?? null) : null;
+
+    if (slotInput.id !== undefined && !currentSlot) {
+      throw new Error(`Слот клуба с id ${slotInput.id} не найден`);
+    }
+
+    const slotId = currentSlot?.id ?? nextScheduleId++;
+
+    return {
+      ...currentSlot,
+      id: slotId,
+      createdAt: currentSlot?.createdAt ?? now,
+      offeringId: currentOffering.id,
+      ownerType: 'club',
+      ownerId: input.clubId,
+      affiliatedClubId: input.clubId,
+      clubId: input.clubId,
+      sportId: slotInput.sportId,
+      title: slotInput.title,
+      date: slotInput.date,
+      startTime: slotInput.startTime,
+      endTime: slotInput.endTime,
+      durationMinutes: slotInput.durationMinutes,
+      level: currentSlot?.level ?? slotInput.level,
+      capacity: slotInput.capacity,
+      bookedCount: currentSlot?.bookedCount ?? 0,
+      price: slotInput.price,
+      room: slotInput.room,
+    };
+  });
+
+  const nextClubs = clubs.map((clubItem) => (clubItem.id === input.clubId ? club : clubItem));
+  const nextOfferings = offerings.map((offeringItem) =>
+    offeringItem.id === currentOffering.id ? offering : offeringItem,
+  );
+  const nextSchedule = [
+    ...schedule.filter(
+      (slot) => !isClubPublicationSchedule(slot, input.clubId, currentOffering.id),
+    ),
+    ...schedules,
+  ];
+
+  await writeCollectionsWithRollback([
+    { key: 'clubs', next: nextClubs, previous: clubs },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+  ]);
+
+  return { club, offering, schedules };
+}
+
+/**
+ * Pseudo-atomic обновление тренера: trainer + primary offering + schedule[].
+ * Сохраняет системные поля сущности и существующие slot.id / createdAt / bookedCount.
+ */
+export async function updateTrainerPublication(
+  input: UpdateTrainerPublicationInput,
+): Promise<TrainerPublicationResult> {
+  const now = createTimestamp();
+  const [trainers, offerings, schedule] = await Promise.all([
+    readCollection('trainers'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+  ]);
+
+  const currentTrainer = trainers.find((trainer) => trainer.id === input.trainerId);
+
+  if (!currentTrainer) {
+    throw new Error(`Тренер с id ${input.trainerId} не найден`);
+  }
+
+  ensureManagedByUser(currentTrainer.managedByUserId, input.userId, 'тренера', input.trainerId);
+
+  const currentOffering = findPrimaryOffering(offerings, 'trainer', input.trainerId);
+
+  if (!currentOffering) {
+    throw new Error(`Основная услуга тренера с id ${input.trainerId} не найдена`);
+  }
+
+  const currentSchedules = schedule.filter((slot) =>
+    isTrainerPublicationSchedule(slot, input.trainerId, currentOffering.id),
+  );
+  const currentScheduleById = new Map(currentSchedules.map((slot) => [slot.id, slot]));
+  let nextScheduleId = getNextEntityId(schedule);
+
+  assertNoDuplicateScheduleIds(input.schedules, 'тренера');
+
+  const affiliatedClubId = input.trainer.affiliatedClubId ?? null;
+  const trainerBase: Trainer = {
+    ...currentTrainer,
+    name: input.trainer.name,
+    bio: input.trainer.bio,
+    experienceYears: input.trainer.experienceYears,
+    specialties: input.trainer.specialties,
+    priceFrom: input.trainer.priceFrom,
+    sportIds: input.trainer.sportIds,
+    city: input.trainer.city,
+    address: input.trainer.address,
+    sportId: input.trainer.sportIds[0],
+  };
+  const trainer = normalizeTrainer(
+    affiliatedClubId === null
+      ? {
+          ...trainerBase,
+          affiliatedClubId: undefined,
+          clubId: undefined,
+        }
+      : {
+          ...trainerBase,
+          affiliatedClubId,
+          clubId: affiliatedClubId,
+        },
+  );
+
+  const offeringBase: Offering = {
+    ...currentOffering,
+    sportId: input.offering.sportId,
+    title: input.offering.title,
+    description: input.offering.description,
+    format: input.offering.format,
+    price: input.offering.price,
+    durationMinutes: input.offering.durationMinutes,
+    capacity: input.offering.capacity,
+    address: input.offering.address,
+    ownerType: 'trainer',
+    ownerId: input.trainerId,
+  };
+  const offering =
+    affiliatedClubId === null
+      ? {
+          ...offeringBase,
+          affiliatedClubId: undefined,
+        }
+      : {
+          ...offeringBase,
+          affiliatedClubId,
+        };
+
+  const schedules: Schedule[] = input.schedules.map((slotInput) => {
+    const currentSlot =
+      slotInput.id !== undefined ? (currentScheduleById.get(slotInput.id) ?? null) : null;
+
+    if (slotInput.id !== undefined && !currentSlot) {
+      throw new Error(`Слот тренера с id ${slotInput.id} не найден`);
+    }
+
+    const slotId = currentSlot?.id ?? nextScheduleId++;
+    const baseSlot: Schedule = {
+      ...currentSlot,
+      id: slotId,
+      createdAt: currentSlot?.createdAt ?? now,
+      offeringId: currentOffering.id,
+      ownerType: 'trainer',
+      ownerId: input.trainerId,
+      trainerId: input.trainerId,
+      sportId: slotInput.sportId,
+      title: slotInput.title,
+      date: slotInput.date,
+      startTime: slotInput.startTime,
+      endTime: slotInput.endTime,
+      durationMinutes: slotInput.durationMinutes,
+      level: currentSlot?.level ?? slotInput.level,
+      capacity: slotInput.capacity,
+      bookedCount: currentSlot?.bookedCount ?? 0,
+      price: slotInput.price,
+      room: slotInput.room,
+    };
+
+    return affiliatedClubId === null
+      ? {
+          ...baseSlot,
+          affiliatedClubId: undefined,
+        }
+      : {
+          ...baseSlot,
+          affiliatedClubId,
+        };
+  });
+
+  const nextTrainers = trainers.map((trainerItem) =>
+    trainerItem.id === input.trainerId ? trainer : trainerItem,
+  );
+  const nextOfferings = offerings.map((offeringItem) =>
+    offeringItem.id === currentOffering.id ? offering : offeringItem,
+  );
+  const nextSchedule = [
+    ...schedule.filter(
+      (slot) => !isTrainerPublicationSchedule(slot, input.trainerId, currentOffering.id),
+    ),
+    ...schedules,
+  ];
 
   await writeCollectionsWithRollback([
     { key: 'trainers', next: nextTrainers, previous: trainers },

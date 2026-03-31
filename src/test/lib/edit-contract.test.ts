@@ -174,7 +174,8 @@ describe('edit payload использует те же Zod-схемы, что и 
   });
 
   it('publishClubSchema отклоняет partial payload без обязательных полей', () => {
-    const { name: _, ...partial } = validClubPayload;
+    const partial = { ...validClubPayload };
+    delete partial.name;
     const result = publishClubSchema.safeParse(partial);
     expect(result.success).toBe(false);
   });
@@ -185,7 +186,8 @@ describe('edit payload использует те же Zod-схемы, что и 
   });
 
   it('publishTrainerSchema отклоняет partial payload без обязательных полей', () => {
-    const { firstName: _, ...partial } = validTrainerPayload;
+    const partial = { ...validTrainerPayload };
+    delete partial.firstName;
     const result = publishTrainerSchema.safeParse(partial);
     expect(result.success).toBe(false);
   });
