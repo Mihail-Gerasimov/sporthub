@@ -4,33 +4,10 @@
 import { useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
-import type { ScheduleSlotForm } from '@/components/profile/PublishClubModal';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { Chip, Input } from '@/components/ui';
-
-// --- Локальные типы (form-only, не в src/types/) ---
-
-/** Состояние формы тренера */
-type TrainerFormState = {
-  firstName: string;
-  lastName: string;
-  city: string;
-  address: string;
-  bio: string;
-  experience: string;
-  sport: string;
-  specializations: string[];
-  workFormat: string;
-  offeringName: string;
-  offeringDescription: string;
-  offeringFormat: string;
-  offeringPrice: string;
-  offeringDuration: string;
-  offeringLocation: string;
-  clubId: number | null;
-  scheduleSlots: ScheduleSlotForm[];
-};
+import type { TrainerFormState } from '@/lib/schemas/publish';
 
 /** Минимальная информация о клубе для select-привязки */
 type ClubOption = {

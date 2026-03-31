@@ -4,34 +4,13 @@
  * Step 14.3
  */
 import sportsData from '@/data/sports.json';
+import type { ScheduleSlotForm, ClubFormState } from '@/lib/schemas/publish';
 import type { Club, EntityId, Offering, Schedule } from '@/types';
 
-/* --- Типы формы (повторяют state модалки) --- */
+/* --- Типы формы — реэкспорт из единого источника publish.ts --- */
 
-export interface ScheduleSlotForm {
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  price: string;
-  capacity: string;
-  location: string;
-  discipline: string;
-}
-
-export interface ClubPublishForm {
-  name: string;
-  city: string;
-  address: string;
-  description: string;
-  phone: string;
-  email: string;
-  priceFrom: string;
-  disciplines: string[];
-  tags: string[];
-  amenities: string[];
-  scheduleSlots: ScheduleSlotForm[];
-}
+export type { ScheduleSlotForm };
+export type ClubPublishForm = ClubFormState;
 
 /* --- Результат маппинга --- */
 

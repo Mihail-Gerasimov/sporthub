@@ -1,7 +1,7 @@
 // Чистые функции валидации publish-форм (Step 13.5).
 // Возвращают объект ошибок { fieldName: 'Сообщение' } или пустой объект.
 
-import type { ScheduleSlotForm } from '@/components/profile/PublishClubModal';
+import type { ScheduleSlotForm } from '@/lib/schemas/publish';
 
 // --- Типы форм (дублируем для валидации, т.к. оригиналы — локальные в модалках) ---
 

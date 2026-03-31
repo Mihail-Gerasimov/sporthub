@@ -7,35 +7,7 @@ import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { Chip, Input } from '@/components/ui';
-
-// --- Локальные типы (form-only, не в src/types/) ---
-
-/** Слот расписания — переиспользуется в PublishTrainerModal */
-export type ScheduleSlotForm = {
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  price: string;
-  capacity: string;
-  location: string;
-  discipline: string;
-};
-
-/** Состояние формы клуба */
-type ClubFormState = {
-  name: string;
-  city: string;
-  address: string;
-  description: string;
-  phone: string;
-  email: string;
-  priceFrom: string;
-  disciplines: string[];
-  tags: string[];
-  amenities: string[];
-  scheduleSlots: ScheduleSlotForm[];
-};
+import type { ClubFormState } from '@/lib/schemas/publish';
 
 // --- Справочники для выбора ---
 

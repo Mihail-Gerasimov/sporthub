@@ -6,29 +6,11 @@
 import sportsData from '@/data/sports.json';
 import type { EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
-import type { ScheduleSlotForm } from './publish-club';
+import type { TrainerFormState } from '@/lib/schemas/publish';
 
-/* --- Типы формы (повторяют state модалки тренера) --- */
+/* --- Типы формы — реэкспорт из единого источника publish.ts --- */
 
-export interface TrainerPublishForm {
-  firstName: string;
-  lastName: string;
-  city: string;
-  address: string;
-  bio: string;
-  experience: string;
-  sport: string;
-  specializations: string[];
-  workFormat: string;
-  offeringName: string;
-  offeringDescription: string;
-  offeringFormat: string;
-  offeringPrice: string;
-  offeringDuration: string;
-  offeringLocation: string;
-  clubId: number | null;
-  scheduleSlots: ScheduleSlotForm[];
-}
+export type TrainerPublishForm = TrainerFormState;
 
 /* --- Результат маппинга --- */
 

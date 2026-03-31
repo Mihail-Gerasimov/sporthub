@@ -2,7 +2,7 @@
 // Рендерит массив слотов, кнопки добавления/удаления, лимит maxSlots, минимум 1.
 'use client';
 
-import type { ScheduleSlotForm } from '@/components/profile/PublishClubModal';
+import type { ScheduleSlotForm } from '@/lib/schemas/publish';
 import { Input } from '@/components/ui';
 
 type ScheduleSlotsEditorProps = {

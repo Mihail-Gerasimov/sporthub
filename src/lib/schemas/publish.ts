@@ -57,3 +57,58 @@ export const publishTrainerSchema = z.object({
 
 export type PublishClubPayload = z.infer<typeof publishClubSchema>;
 export type PublishTrainerPayload = z.infer<typeof publishTrainerSchema>;
+
+/* ========================================
+   Shared form-state типы для publish/edit модалок.
+   Единый источник правды — используется в create и edit flow.
+   Step 15.1
+   ======================================== */
+
+/** Слот расписания формы. id присутствует только при редактировании существующего слота. */
+export type ScheduleSlotForm = {
+  id?: number;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  price: string;
+  capacity: string;
+  location: string;
+  discipline: string;
+};
+
+/** Состояние формы клуба (create и edit) */
+export type ClubFormState = {
+  name: string;
+  city: string;
+  address: string;
+  description: string;
+  phone: string;
+  email: string;
+  priceFrom: string;
+  disciplines: string[];
+  tags: string[];
+  amenities: string[];
+  scheduleSlots: ScheduleSlotForm[];
+};
+
+/** Состояние формы тренера (create и edit) */
+export type TrainerFormState = {
+  firstName: string;
+  lastName: string;
+  city: string;
+  address: string;
+  bio: string;
+  experience: string;
+  sport: string;
+  specializations: string[];
+  workFormat: string;
+  offeringName: string;
+  offeringDescription: string;
+  offeringFormat: string;
+  offeringPrice: string;
+  offeringDuration: string;
+  offeringLocation: string;
+  clubId: number | null;
+  scheduleSlots: ScheduleSlotForm[];
+};
