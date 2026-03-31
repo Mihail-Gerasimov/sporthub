@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import {
+  deleteTrainerPublication,
   getClubById,
   getReviews,
   getSchedule,
@@ -92,5 +93,32 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const validationResult = trainerIdSchema.safeParse(id);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректный идентификатор тренера' },
+        { status: 400 },
+      );
+    }
+
+    const trainerId = validationResult.data;
+
+    await deleteTrainerPublication(trainerId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Не удалось удалить тренера';
+    const status = message.includes('не найден') ? 404 : 500;
+
+    console.error('Ошибка удаления тренера:', error);
+
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

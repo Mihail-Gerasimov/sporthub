@@ -78,7 +78,7 @@ export function PublishModalShell({
       {/* Scrollable body для длинных форм */}
       <div
         data-testid="publish-modal-body"
-        className="scrollbar-hidden max-h-[75vh] overflow-y-auto"
+        className="scrollbar-hidden max-h-[75vh] overflow-y-auto px-1 -mx-1"
       >
         {children}
       </div>

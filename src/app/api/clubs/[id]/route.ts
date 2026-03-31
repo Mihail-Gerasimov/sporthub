@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import {
+  deleteClubPublication,
   getClubById,
   getOfferings,
   getReviews,
@@ -86,5 +87,32 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const validationResult = clubIdSchema.safeParse(id);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректный идентификатор клуба' },
+        { status: 400 },
+      );
+    }
+
+    const clubId = validationResult.data;
+
+    await deleteClubPublication(clubId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Не удалось удалить клуб';
+    const status = message.includes('не найден') ? 404 : 500;
+
+    console.error('Ошибка удаления клуба:', error);
+
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

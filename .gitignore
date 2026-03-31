@@ -42,7 +42,10 @@ yarn-error.log*
 # project docs (internal, not for production)
 CLAUDE.md
 CODEX.md
+PHASES_OVERVIEW.md
+project-phases/
 IMPLEMENTATION_PLAN.md
+PROJECT_STATE.md
 STACK_OVERVIEW.md
 README.md
 

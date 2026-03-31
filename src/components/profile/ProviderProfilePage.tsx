@@ -21,7 +21,7 @@ import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { ActionNotice, Badge, Button, Card } from '@/components/ui';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, Review, Trainer } from '@/types';
+import type { Booking, Club, EntityId, Review, Trainer } from '@/types';
 
 type ProviderProfilePageProps = {
   bookings?: Booking[];
@@ -116,6 +116,26 @@ export function ProviderProfilePage({
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  async function handleDeletePublication(entityType: 'club' | 'trainer', entityId: EntityId) {
+    const endpoint = entityType === 'club' ? `/api/clubs/${entityId}` : `/api/trainers/${entityId}`;
+
+    try {
+      const response = await fetch(endpoint, { method: 'DELETE' });
+      const result = await response.json();
+
+      if (result.success) {
+        setActionNotice('Публикация удалена');
+        startTransition(() => {
+          router.refresh();
+        });
+      } else {
+        setActionNotice(result.error ?? 'Не удалось удалить публикацию');
+      }
+    } catch {
+      setActionNotice('Ошибка при удалении публикации');
+    }
   }
 
   // Бизнес-данные провайдера
@@ -260,7 +280,11 @@ export function ProviderProfilePage({
         </Card>
 
         {/* Мои публикации */}
-        <ProviderPublicationsSection clubs={providerClubs} trainers={providerTrainers} />
+        <ProviderPublicationsSection
+          clubs={providerClubs}
+          trainers={providerTrainers}
+          onDelete={handleDeletePublication}
+        />
 
         {/* Входящие записи */}
         <ProviderBookingsSection bookings={providerBookings} />

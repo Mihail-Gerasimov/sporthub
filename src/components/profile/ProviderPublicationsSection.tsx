@@ -4,11 +4,13 @@
 import Link from 'next/link';
 
 import { Badge, Card } from '@/components/ui';
-import type { Club, Trainer } from '@/types';
+import type { Club, EntityId, Trainer } from '@/types';
 
 type ProviderPublicationsSectionProps = {
   clubs: Club[];
   trainers: Trainer[];
+  /** Колбэк удаления публикации */
+  onDelete?: (entityType: 'club' | 'trainer', entityId: EntityId) => void;
 };
 
 /** Склонение слова «отзыв» по количеству */
@@ -30,12 +32,14 @@ function PublicationCard({
   rating,
   reviewCount,
   href,
+  onDelete,
 }: {
   name: string;
   type: 'Клуб' | 'Тренер';
   rating: number;
   reviewCount: number;
   href: string;
+  onDelete?: () => void;
 }) {
   return (
     <Link
@@ -48,15 +52,38 @@ function PublicationCard({
         <Badge tone={type === 'Клуб' ? 'success' : 'outline'}>{type}</Badge>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-sm text-muted">
-        <span className="font-semibold text-ink">{rating}</span>
-        <span>{pluralizeReviews(reviewCount)}</span>
+      <div className="mt-3 flex items-center justify-between text-sm text-muted">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-ink">{rating}</span>
+          <span>{pluralizeReviews(reviewCount)}</span>
+        </div>
+
+        {onDelete ? (
+          <button
+            type="button"
+            className="text-xs font-semibold text-red-400 transition-colors hover:text-red-600"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+
+              if (window.confirm('Удалить публикацию? Это действие нельзя отменить.')) {
+                onDelete();
+              }
+            }}
+          >
+            Удалить
+          </button>
+        ) : null}
       </div>
     </Link>
   );
 }
 
-export function ProviderPublicationsSection({ clubs, trainers }: ProviderPublicationsSectionProps) {
+export function ProviderPublicationsSection({
+  clubs,
+  trainers,
+  onDelete,
+}: ProviderPublicationsSectionProps) {
   const hasPublications = clubs.length > 0 || trainers.length > 0;
 
   return (
@@ -73,6 +100,13 @@ export function ProviderPublicationsSection({ clubs, trainers }: ProviderPublica
               rating={club.rating}
               reviewCount={club.reviewCount}
               href={`/clubs/${club.slug}`}
+              onDelete={
+                onDelete
+                  ? () => {
+                      onDelete('club', club.id);
+                    }
+                  : undefined
+              }
             />
           ))}
 
@@ -84,6 +118,13 @@ export function ProviderPublicationsSection({ clubs, trainers }: ProviderPublica
               rating={trainer.rating}
               reviewCount={trainer.reviewCount}
               href={`/trainers/${trainer.slug}`}
+              onDelete={
+                onDelete
+                  ? () => {
+                      onDelete('trainer', trainer.id);
+                    }
+                  : undefined
+              }
             />
           ))}
         </div>

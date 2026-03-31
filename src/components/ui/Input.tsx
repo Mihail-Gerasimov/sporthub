@@ -8,10 +8,12 @@ export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   error?: string;
   icon?: ReactNode;
+  /** Кликабельный элемент справа (например, toggle видимости пароля) */
+  endAdornment?: ReactNode;
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, icon, id, label, type = 'text', ...props }, ref) => {
+  ({ className, endAdornment, error, icon, id, label, type = 'text', ...props }, ref) => {
     const generatedId = useId();
     const inputId = id ?? generatedId;
     const errorId = error ? `${inputId}-error` : undefined;
@@ -44,12 +46,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               'min-h-12 w-full bg-transparent py-3 text-sm text-ink outline-none placeholder:text-muted',
               icon ? 'pl-7' : '',
+              endAdornment ? 'pr-8' : '',
               className,
             )}
             aria-describedby={errorId}
             aria-invalid={Boolean(error)}
             {...props}
           />
+          {endAdornment ? (
+            <span className="absolute right-4 top-1/2 -translate-y-1/2">{endAdornment}</span>
+          ) : null}
         </div>
 
         {error ? (

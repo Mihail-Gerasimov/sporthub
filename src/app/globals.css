@@ -79,3 +79,14 @@ body {
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
+
+/* Скрыть нативные стрелки у number-инпутов */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}

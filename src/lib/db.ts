@@ -270,9 +270,7 @@ export async function getClubBySlug(slug: string): Promise<Club | null> {
   const clubs = await getClubs();
   const normalizedSlug = normalizeSlugLookupValue(slug);
 
-  return (
-    clubs.find((club) => normalizeSlugLookupValue(club.slug) === normalizedSlug) ?? null
-  );
+  return clubs.find((club) => normalizeSlugLookupValue(club.slug) === normalizedSlug) ?? null;
 }
 
 export async function getTrainers(): Promise<Trainer[]> {
@@ -580,4 +578,85 @@ export async function createTrainerPublication(
   ]);
 
   return { trainer, offering, schedules };
+}
+
+/**
+ * Каскадное удаление клуба: club + offerings + schedule + bookings + reviews.
+ * Атомарная операция через writeCollectionsWithRollback.
+ */
+export async function deleteClubPublication(clubId: EntityId): Promise<void> {
+  const [clubs, offerings, schedule, bookings, reviews] = await Promise.all([
+    readCollection('clubs'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+    readCollection('bookings'),
+    readCollection('reviews'),
+  ]);
+
+  const club = clubs.find((c) => c.id === clubId);
+
+  if (!club) {
+    throw new Error(`Клуб с id ${clubId} не найден`);
+  }
+
+  // ID связанных offerings для фильтрации schedule
+  const relatedOfferingIds = new Set(
+    offerings.filter((o) => o.ownerType === 'club' && o.ownerId === clubId).map((o) => o.id),
+  );
+
+  const nextClubs = clubs.filter((c) => c.id !== clubId);
+  const nextOfferings = offerings.filter((o) => !relatedOfferingIds.has(o.id));
+  const nextSchedule = schedule.filter(
+    (s) => s.clubId !== clubId && !relatedOfferingIds.has(s.offeringId ?? -1),
+  );
+  const nextBookings = bookings.filter((b) => b.clubId !== clubId);
+  const nextReviews = reviews.filter((r) => r.clubId !== clubId);
+
+  await writeCollectionsWithRollback([
+    { key: 'clubs', next: nextClubs, previous: clubs },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+    { key: 'bookings', next: nextBookings, previous: bookings },
+    { key: 'reviews', next: nextReviews, previous: reviews },
+  ]);
+}
+
+/**
+ * Каскадное удаление тренера: trainer + offerings + schedule + bookings + reviews.
+ * Атомарная операция через writeCollectionsWithRollback.
+ */
+export async function deleteTrainerPublication(trainerId: EntityId): Promise<void> {
+  const [trainers, offerings, schedule, bookings, reviews] = await Promise.all([
+    readCollection('trainers'),
+    readCollection('offerings'),
+    readCollection('schedule'),
+    readCollection('bookings'),
+    readCollection('reviews'),
+  ]);
+
+  const trainer = trainers.find((t) => t.id === trainerId);
+
+  if (!trainer) {
+    throw new Error(`Тренер с id ${trainerId} не найден`);
+  }
+
+  const relatedOfferingIds = new Set(
+    offerings.filter((o) => o.ownerType === 'trainer' && o.ownerId === trainerId).map((o) => o.id),
+  );
+
+  const nextTrainers = trainers.filter((t) => t.id !== trainerId);
+  const nextOfferings = offerings.filter((o) => !relatedOfferingIds.has(o.id));
+  const nextSchedule = schedule.filter(
+    (s) => s.trainerId !== trainerId && !relatedOfferingIds.has(s.offeringId ?? -1),
+  );
+  const nextBookings = bookings.filter((b) => b.trainerId !== trainerId);
+  const nextReviews = reviews.filter((r) => r.trainerId !== trainerId);
+
+  await writeCollectionsWithRollback([
+    { key: 'trainers', next: nextTrainers, previous: trainers },
+    { key: 'offerings', next: nextOfferings, previous: offerings },
+    { key: 'schedule', next: nextSchedule, previous: schedule },
+    { key: 'bookings', next: nextBookings, previous: bookings },
+    { key: 'reviews', next: nextReviews, previous: reviews },
+  ]);
 }
