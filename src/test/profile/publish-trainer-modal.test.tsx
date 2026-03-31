@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
+import type { TrainerFormState } from '@/lib/schemas/publish';
 
 describe('PublishTrainerModal', () => {
   const fetchMock = vi.fn();
@@ -14,6 +15,37 @@ describe('PublishTrainerModal', () => {
     clubs: [
       { id: 1, name: 'FitZone Studio' },
       { id: 2, name: 'PowerGym' },
+    ],
+  };
+  const editInitialData: TrainerFormState = {
+    firstName: 'Марина',
+    lastName: 'Соколова',
+    city: 'Самара',
+    address: 'ул. Лесная, 23к1',
+    bio: 'Тренер по плаванию с акцентом на технику, дыхание и подготовку к любительским стартам.',
+    experience: '9',
+    sport: 'Плавание',
+    specializations: ['Персональные тренировки'],
+    workFormat: 'В клубе',
+    offeringName: 'Персональная тренировка: Плавание',
+    offeringDescription: 'Индивидуальная работа над техникой плавания и скоростью.',
+    offeringFormat: 'Индивидуальная',
+    offeringPrice: '1900',
+    offeringDuration: '60',
+    offeringLocation: 'Бассейн 1',
+    clubId: 1,
+    scheduleSlots: [
+      {
+        id: 1001,
+        title: 'Техника кроля',
+        date: '2026-04-04',
+        startTime: '09:00',
+        endTime: '10:00',
+        price: '1900',
+        capacity: '1',
+        location: 'Бассейн 1',
+        discipline: 'Плавание',
+      },
     ],
   };
 
@@ -97,6 +129,24 @@ describe('PublishTrainerModal', () => {
 
     const dialog = screen.getByRole('dialog');
     expect(dialog.querySelector('h2')).toHaveTextContent('Опубликовать тренера');
+  });
+
+  it('в режиме edit меняет title и primary-кнопку, а форму заполняет через initialData', () => {
+    render(
+      <PublishTrainerModal
+        {...defaultProps}
+        mode="edit"
+        entityId={1}
+        initialData={editInitialData}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('h2')).toHaveTextContent('Редактировать тренера');
+    expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Имя')).toHaveValue('Марина');
+    expect(screen.getByLabelText('Фамилия')).toHaveValue('Соколова');
+    expect(screen.getByLabelText('Название занятия')).toHaveValue('Техника кроля');
   });
 
   it('рендерит секцию «Основная информация» с полями firstName, lastName, city, address, bio, experience', () => {
@@ -232,6 +282,50 @@ describe('PublishTrainerModal', () => {
     expect(defaultProps.onSuccess).toHaveBeenCalledWith('Тренер опубликован. Кабинет обновлён.');
   });
 
+  it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse(
+        {
+          success: true,
+          data: { trainer: { id: 1 } },
+        },
+        200,
+      ),
+    );
+
+    render(
+      <PublishTrainerModal
+        {...defaultProps}
+        mode="edit"
+        entityId={1}
+        initialData={editInitialData}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Марина PRO' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(requestInit?.body));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/trainers/1',
+      expect.objectContaining({
+        method: 'PATCH',
+      }),
+    );
+    expect(payload.firstName).toBe('Марина PRO');
+    expect(payload.scheduleSlots[0].id).toBe(1001);
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onSuccess).toHaveBeenCalledWith(
+      'Изменения тренера сохранены. Кабинет обновлён.',
+    );
+  });
+
   it('показывает ошибку API и не закрывает модалку', async () => {
     fetchMock.mockResolvedValue(
       createJsonResponse(
@@ -254,5 +348,53 @@ describe('PublishTrainerModal', () => {
 
     expect(defaultProps.onClose).not.toHaveBeenCalled();
     expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('после close/reopen в режиме edit переинициализирует форму по новому initialData', () => {
+    const view = render(
+      <PublishTrainerModal
+        {...defaultProps}
+        mode="edit"
+        entityId={1}
+        initialData={editInitialData}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Черновик' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+
+    view.rerender(
+      <PublishTrainerModal
+        {...defaultProps}
+        open={false}
+        mode="edit"
+        entityId={1}
+        initialData={editInitialData}
+      />,
+    );
+    view.rerender(
+      <PublishTrainerModal
+        {...defaultProps}
+        open={true}
+        mode="edit"
+        entityId={2}
+        initialData={{
+          ...editInitialData,
+          firstName: 'Анна',
+          lastName: 'Миронова',
+          scheduleSlots: [
+            {
+              ...editInitialData.scheduleSlots[0],
+              id: 2002,
+              title: 'Мягкая растяжка в воде',
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText('Имя')).toHaveValue('Анна');
+    expect(screen.getByLabelText('Фамилия')).toHaveValue('Миронова');
+    expect(screen.getByLabelText('Название занятия')).toHaveValue('Мягкая растяжка в воде');
   });
 });

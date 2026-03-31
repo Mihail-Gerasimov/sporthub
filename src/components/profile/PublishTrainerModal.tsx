@@ -1,7 +1,7 @@
-// Модалка публикации тренера — форма публикации с submit через API.
+// Модалка публикации тренера — единая форма create/edit с submit через API.
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
@@ -80,6 +80,8 @@ function createInitialState(): TrainerFormState {
 
 // --- Компонент ---
 
+type PublishModalMode = 'create' | 'edit';
+
 type PublishTrainerModalProps = {
   open: boolean;
   onClose: () => void;
@@ -87,6 +89,9 @@ type PublishTrainerModalProps = {
   /** Список клубов для опциональной привязки */
   clubs: ClubOption[];
   userId: number | null;
+  mode?: PublishModalMode;
+  entityId?: number | null;
+  initialData?: TrainerFormState | null;
 };
 
 type PublishTrainerApiErrorBody = {
@@ -95,7 +100,28 @@ type PublishTrainerApiErrorBody = {
   success?: boolean;
 };
 
-function buildTrainerPayload(form: TrainerFormState, userId: number) {
+/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами. */
+function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
+  return {
+    ...form,
+    specializations: [...form.specializations],
+    scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
+  };
+}
+
+/** Возвращает стартовое состояние для create/edit режима. */
+function resolveInitialState(
+  mode: PublishModalMode,
+  initialData?: TrainerFormState | null,
+): TrainerFormState {
+  if (mode === 'edit' && initialData) {
+    return cloneTrainerFormState(initialData);
+  }
+
+  return createInitialState();
+}
+
+function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: number) {
   return {
     firstName: form.firstName,
     lastName: form.lastName,
@@ -113,7 +139,15 @@ function buildTrainerPayload(form: TrainerFormState, userId: number) {
     offeringDuration: form.offeringDuration,
     offeringLocation: form.offeringLocation,
     clubId: form.clubId,
-    scheduleSlots: form.scheduleSlots,
+    scheduleSlots: form.scheduleSlots.map((slot) => {
+      if (entityId === undefined) {
+        const nextSlot = { ...slot };
+        delete nextSlot.id;
+        return nextSlot;
+      }
+
+      return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
+    }),
     userId,
   };
 }
@@ -140,13 +174,30 @@ export function PublishTrainerModal({
   onSuccess,
   clubs,
   userId,
+  mode = 'create',
+  entityId = null,
+  initialData,
 }: PublishTrainerModalProps) {
-  const [form, setForm] = useState<TrainerFormState>(createInitialState);
+  const isEditMode = mode === 'edit';
+  const [form, setForm] = useState<TrainerFormState>(() => resolveInitialState(mode, initialData));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
   const [submitNoticeTone, setSubmitNoticeTone] = useState<'info' | 'danger'>('info');
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setForm(resolveInitialState(mode, initialData));
+    setErrors({});
+    setPhotoNotice(false);
+    setIsSubmitting(false);
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
+  }, [entityId, initialData, mode, open]);
 
   // Сброс формы при закрытии
   function handleClose() {
@@ -179,15 +230,22 @@ export function PublishTrainerModal({
       return;
     }
 
+    if (isEditMode && entityId === null) {
+      setSubmitNotice('Не удалось определить публикацию для редактирования');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/trainers', {
-        method: 'POST',
+      const endpoint = isEditMode ? `/api/trainers/${entityId}` : '/api/trainers';
+      const response = await fetch(endpoint, {
+        method: isEditMode ? 'PATCH' : 'POST',
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildTrainerPayload(form, userId)),
+        body: JSON.stringify(buildTrainerPayload(form, userId, entityId ?? undefined)),
       });
       const body = (await response.json()) as PublishTrainerApiErrorBody;
 
@@ -198,15 +256,25 @@ export function PublishTrainerModal({
           setErrors(serverErrors);
         }
 
-        setSubmitNotice(body.error ?? 'Не удалось создать тренера');
+        setSubmitNotice(
+          body.error ?? (isEditMode ? 'Не удалось обновить тренера' : 'Не удалось создать тренера'),
+        );
         setSubmitNoticeTone('danger');
         return;
       }
 
       handleClose();
-      onSuccess('Тренер опубликован. Кабинет обновлён.');
+      onSuccess(
+        isEditMode
+          ? 'Изменения тренера сохранены. Кабинет обновлён.'
+          : 'Тренер опубликован. Кабинет обновлён.',
+      );
     } catch {
-      setSubmitNotice('Не удалось создать тренера. Проверьте соединение и попробуйте снова.');
+      setSubmitNotice(
+        isEditMode
+          ? 'Не удалось обновить тренера. Проверьте соединение и попробуйте снова.'
+          : 'Не удалось создать тренера. Проверьте соединение и попробуйте снова.',
+      );
       setSubmitNoticeTone('danger');
     } finally {
       setIsSubmitting(false);
@@ -231,9 +299,13 @@ export function PublishTrainerModal({
     <PublishModalShell
       open={open}
       onClose={handleClose}
-      title="Опубликовать тренера"
-      description="Заполните информацию о тренере для публикации на платформе."
-      primaryLabel="Создать публикацию"
+      title={isEditMode ? 'Редактировать тренера' : 'Опубликовать тренера'}
+      description={
+        isEditMode
+          ? 'Измените активные поля публикации тренера и сохраните обновления.'
+          : 'Заполните информацию о тренере для публикации на платформе.'
+      }
+      primaryLabel={isEditMode ? 'Сохранить изменения' : 'Создать публикацию'}
       onPrimary={handleSubmit}
       primaryLoading={isSubmitting}
       notice={submitNotice ?? undefined}

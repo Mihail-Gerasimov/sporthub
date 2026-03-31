@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
+import type { ClubFormState } from '@/lib/schemas/publish';
 
 describe('PublishClubModal', () => {
   const fetchMock = vi.fn();
@@ -11,6 +12,32 @@ describe('PublishClubModal', () => {
     onClose: vi.fn(),
     onSuccess: vi.fn(),
     userId: 2,
+  };
+  const editInitialData: ClubFormState = {
+    name: 'Volna Aquatic Club',
+    city: 'Самара',
+    address: 'ул. Лесная, 23к1',
+    description:
+      'Клуб с бассейном 25 м, студией восстановления и рабочим расписанием для взрослых и детей.',
+    phone: '+7 (846) 200-11-01',
+    email: 'hello@volna-club.ru',
+    priceFrom: '900',
+    disciplines: ['Плавание', 'Пилатес'],
+    tags: ['Восстановление'],
+    amenities: ['Бассейн 25 м'],
+    scheduleSlots: [
+      {
+        id: 15,
+        title: 'Утреннее плавание',
+        date: '2026-04-02',
+        startTime: '08:00',
+        endTime: '09:00',
+        price: '1100',
+        capacity: '12',
+        location: 'Большой бассейн',
+        discipline: 'Плавание',
+      },
+    ],
   };
 
   beforeEach(() => {
@@ -79,6 +106,19 @@ describe('PublishClubModal', () => {
 
     const dialog = screen.getByRole('dialog');
     expect(dialog.querySelector('h2')).toHaveTextContent('Опубликовать клуб');
+  });
+
+  it('в режиме edit меняет title и primary-кнопку, а форму заполняет через initialData', () => {
+    render(
+      <PublishClubModal {...defaultProps} mode="edit" entityId={1} initialData={editInitialData} />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('h2')).toHaveTextContent('Редактировать клуб');
+    expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Название клуба')).toHaveValue('Volna Aquatic Club');
+    expect(screen.getByLabelText('Телефон')).toHaveValue('+7 (846) 200-11-01');
+    expect(screen.getByLabelText('Название занятия')).toHaveValue('Утреннее плавание');
   });
 
   it('рендерит секцию «Основная информация» с полями name, city, address, description, phone, email, priceFrom', () => {
@@ -180,6 +220,47 @@ describe('PublishClubModal', () => {
     expect(defaultProps.onSuccess).toHaveBeenCalledWith('Клуб опубликован. Кабинет обновлён.');
   });
 
+  it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse(
+        {
+          success: true,
+          data: { club: { id: 1 } },
+        },
+        200,
+      ),
+    );
+
+    render(
+      <PublishClubModal {...defaultProps} mode="edit" entityId={1} initialData={editInitialData} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Название клуба'), {
+      target: { value: 'Volna Aquatic Club Premium' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(requestInit?.body));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/clubs/1',
+      expect.objectContaining({
+        method: 'PATCH',
+      }),
+    );
+    expect(payload.name).toBe('Volna Aquatic Club Premium');
+    expect(payload.scheduleSlots[0].id).toBe(15);
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onSuccess).toHaveBeenCalledWith(
+      'Изменения клуба сохранены. Кабинет обновлён.',
+    );
+  });
+
   it('показывает ошибку API и не закрывает модалку', async () => {
     fetchMock.mockResolvedValue(
       createJsonResponse(
@@ -202,5 +283,44 @@ describe('PublishClubModal', () => {
 
     expect(defaultProps.onClose).not.toHaveBeenCalled();
     expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('в режиме edit показывает ошибку API и не закрывает модалку', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse(
+        {
+          success: false,
+          error: 'Не удалось обновить клуб',
+        },
+        500,
+      ),
+    );
+
+    render(
+      <PublishClubModal {...defaultProps} mode="edit" entityId={1} initialData={editInitialData} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Не удалось обновить клуб')).toBeInTheDocument();
+    });
+
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
+    expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('после close/reopen в режиме create сбрасывает несохранённое состояние формы', () => {
+    const view = render(<PublishClubModal {...defaultProps} />);
+
+    fireEvent.change(screen.getByLabelText('Название клуба'), {
+      target: { value: 'Черновик клуба' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+
+    view.rerender(<PublishClubModal {...defaultProps} open={false} />);
+    view.rerender(<PublishClubModal {...defaultProps} open={true} />);
+
+    expect(screen.getByLabelText('Название клуба')).toHaveValue('');
   });
 });

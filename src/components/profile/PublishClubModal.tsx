@@ -1,7 +1,7 @@
-// Модалка публикации клуба — форма публикации с submit через API.
+// Модалка публикации клуба — единая форма create/edit с submit через API.
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
@@ -75,11 +75,16 @@ function createInitialState(): ClubFormState {
 
 // --- Компонент ---
 
+type PublishModalMode = 'create' | 'edit';
+
 type PublishClubModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: (message: string) => void;
   userId: number | null;
+  mode?: PublishModalMode;
+  entityId?: number | null;
+  initialData?: ClubFormState | null;
 };
 
 type PublishClubApiErrorBody = {
@@ -88,7 +93,30 @@ type PublishClubApiErrorBody = {
   success?: boolean;
 };
 
-function buildClubPayload(form: ClubFormState, userId: number) {
+/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами. */
+function cloneClubFormState(form: ClubFormState): ClubFormState {
+  return {
+    ...form,
+    disciplines: [...form.disciplines],
+    tags: [...form.tags],
+    amenities: [...form.amenities],
+    scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
+  };
+}
+
+/** Возвращает стартовое состояние для create/edit режима. */
+function resolveInitialState(
+  mode: PublishModalMode,
+  initialData?: ClubFormState | null,
+): ClubFormState {
+  if (mode === 'edit' && initialData) {
+    return cloneClubFormState(initialData);
+  }
+
+  return createInitialState();
+}
+
+function buildClubPayload(form: ClubFormState, userId: number, entityId?: number) {
   return {
     name: form.name,
     city: form.city,
@@ -100,7 +128,15 @@ function buildClubPayload(form: ClubFormState, userId: number) {
     disciplines: form.disciplines,
     tags: form.tags,
     amenities: form.amenities,
-    scheduleSlots: form.scheduleSlots,
+    scheduleSlots: form.scheduleSlots.map((slot) => {
+      if (entityId === undefined) {
+        const nextSlot = { ...slot };
+        delete nextSlot.id;
+        return nextSlot;
+      }
+
+      return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
+    }),
     userId,
   };
 }
@@ -121,13 +157,35 @@ function getApiFieldErrors(details?: Record<string, string[] | undefined>): Reco
   }, {});
 }
 
-export function PublishClubModal({ open, onClose, onSuccess, userId }: PublishClubModalProps) {
-  const [form, setForm] = useState<ClubFormState>(createInitialState);
+export function PublishClubModal({
+  open,
+  onClose,
+  onSuccess,
+  userId,
+  mode = 'create',
+  entityId = null,
+  initialData,
+}: PublishClubModalProps) {
+  const isEditMode = mode === 'edit';
+  const [form, setForm] = useState<ClubFormState>(() => resolveInitialState(mode, initialData));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoNotice, setPhotoNotice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
   const [submitNoticeTone, setSubmitNoticeTone] = useState<'info' | 'danger'>('info');
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setForm(resolveInitialState(mode, initialData));
+    setErrors({});
+    setPhotoNotice(false);
+    setIsSubmitting(false);
+    setSubmitNotice(null);
+    setSubmitNoticeTone('info');
+  }, [entityId, initialData, mode, open]);
 
   // Сброс формы при закрытии
   function handleClose() {
@@ -160,15 +218,22 @@ export function PublishClubModal({ open, onClose, onSuccess, userId }: PublishCl
       return;
     }
 
+    if (isEditMode && entityId === null) {
+      setSubmitNotice('Не удалось определить публикацию для редактирования');
+      setSubmitNoticeTone('danger');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/clubs', {
-        method: 'POST',
+      const endpoint = isEditMode ? `/api/clubs/${entityId}` : '/api/clubs';
+      const response = await fetch(endpoint, {
+        method: isEditMode ? 'PATCH' : 'POST',
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildClubPayload(form, userId)),
+        body: JSON.stringify(buildClubPayload(form, userId, entityId ?? undefined)),
       });
       const body = (await response.json()) as PublishClubApiErrorBody;
 
@@ -179,15 +244,25 @@ export function PublishClubModal({ open, onClose, onSuccess, userId }: PublishCl
           setErrors(serverErrors);
         }
 
-        setSubmitNotice(body.error ?? 'Не удалось создать клуб');
+        setSubmitNotice(
+          body.error ?? (isEditMode ? 'Не удалось обновить клуб' : 'Не удалось создать клуб'),
+        );
         setSubmitNoticeTone('danger');
         return;
       }
 
       handleClose();
-      onSuccess('Клуб опубликован. Кабинет обновлён.');
+      onSuccess(
+        isEditMode
+          ? 'Изменения клуба сохранены. Кабинет обновлён.'
+          : 'Клуб опубликован. Кабинет обновлён.',
+      );
     } catch {
-      setSubmitNotice('Не удалось создать клуб. Проверьте соединение и попробуйте снова.');
+      setSubmitNotice(
+        isEditMode
+          ? 'Не удалось обновить клуб. Проверьте соединение и попробуйте снова.'
+          : 'Не удалось создать клуб. Проверьте соединение и попробуйте снова.',
+      );
       setSubmitNoticeTone('danger');
     } finally {
       setIsSubmitting(false);
@@ -212,9 +287,13 @@ export function PublishClubModal({ open, onClose, onSuccess, userId }: PublishCl
     <PublishModalShell
       open={open}
       onClose={handleClose}
-      title="Опубликовать клуб"
-      description="Заполните информацию о клубе для публикации на платформе."
-      primaryLabel="Создать публикацию"
+      title={isEditMode ? 'Редактировать клуб' : 'Опубликовать клуб'}
+      description={
+        isEditMode
+          ? 'Измените активные поля публикации клуба и сохраните обновления.'
+          : 'Заполните информацию о клубе для публикации на платформе.'
+      }
+      primaryLabel={isEditMode ? 'Сохранить изменения' : 'Создать публикацию'}
       onPrimary={handleSubmit}
       primaryLoading={isSubmitting}
       secondaryLabel="Отмена"
