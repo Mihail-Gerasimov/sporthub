@@ -1,3 +1,4 @@
+// API деталей и редактирования клуба: detail-context, PATCH update и каскадное удаление.
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -9,7 +10,11 @@ import {
   getSchedule,
   getSports,
   getTrainers,
+  getUserById,
+  updateClubPublication,
 } from '@/lib/db';
+import { mapClubFormToUpdateInput } from '@/lib/contracts/publish-club';
+import { publishClubSchema } from '@/lib/schemas/publish';
 
 const clubIdSchema = z.coerce.number().int().positive();
 
@@ -48,6 +53,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       getSports(),
       getTrainers(),
     ]);
+    const primaryOffering =
+      offerings.find((offering) => offering.ownerType === 'club' && offering.ownerId === clubId) ??
+      null;
     const clubTrainerIds = new Set(
       offerings
         .filter(
@@ -60,6 +68,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       success: true,
       data: {
         club,
+        primaryOffering,
         sports: sports.filter((sport) => club.sportIds.includes(sport.id)),
         trainers: trainers
           .filter((trainer) => clubTrainerIds.has(trainer.id))
@@ -87,6 +96,64 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       },
       { status: 500 },
     );
+  }
+}
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const idValidationResult = clubIdSchema.safeParse(id);
+
+    if (!idValidationResult.success) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректный идентификатор клуба' },
+        { status: 400 },
+      );
+    }
+
+    const rawBody = await request.json();
+    const payloadValidationResult = publishClubSchema.safeParse(rawBody);
+
+    if (!payloadValidationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Некорректные данные клуба',
+          details: payloadValidationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
+    const clubId = idValidationResult.data;
+    const { userId, ...formData } = payloadValidationResult.data;
+    const user = await getUserById(userId);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Пользователь не найден' },
+        { status: 404 },
+      );
+    }
+
+    const result = await updateClubPublication(mapClubFormToUpdateInput(formData, clubId, userId));
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const rawMessage = error instanceof Error ? error.message : 'Не удалось обновить клуб';
+    const status = rawMessage.includes('Недостаточно прав')
+      ? 403
+      : rawMessage.includes('не найден')
+        ? 404
+        : 500;
+    const message = status === 404 ? 'Клуб не найден' : rawMessage;
+
+    console.error('Ошибка обновления клуба:', error);
+
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }
 

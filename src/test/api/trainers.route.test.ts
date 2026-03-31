@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { GET as GETTrainerDetail } from '@/app/api/trainers/[id]/route';
+import { GET as GETTrainerDetail, PATCH } from '@/app/api/trainers/[id]/route';
 import { GET as GETTrainers, POST } from '@/app/api/trainers/route';
 import { getOfferings, getSchedule, getTrainers } from '@/lib/db';
 import {
@@ -37,6 +37,50 @@ const validTrainerPayload = {
       capacity: '1',
       location: 'Зал единоборств',
       discipline: 'Бокс',
+    },
+  ],
+  userId: 2,
+};
+
+const validTrainerPatchPayload = {
+  firstName: 'Марина',
+  lastName: 'Сергеевна',
+  city: 'Самара',
+  address: 'ул. Лесная, 25',
+  bio: 'Обновлённая биография тренера для edit-flow. Больше внимания технике, постановке дыхания и персональной подготовке к заплывам.',
+  experience: '10',
+  sport: 'Плавание',
+  specializations: ['Кроль', 'Подготовка к стартам'],
+  workFormat: 'В клубе',
+  offeringName: 'Персональная тренировка: Плавание PRO',
+  offeringDescription:
+    'Новая версия основной услуги тренера с акцентом на технику и персональный план.',
+  offeringFormat: 'Индивидуальная',
+  offeringPrice: '1900',
+  offeringDuration: '75',
+  offeringLocation: 'Бассейн 2',
+  clubId: 2,
+  scheduleSlots: [
+    {
+      id: 1001,
+      title: 'Индивидуальная работа на технику',
+      date: '2026-04-04',
+      startTime: '09:00',
+      endTime: '10:15',
+      price: '1900',
+      capacity: '1',
+      location: 'Бассейн 2',
+      discipline: 'Плавание',
+    },
+    {
+      title: 'Вечерняя персональная тренировка',
+      date: '2026-04-05',
+      startTime: '18:00',
+      endTime: '19:00',
+      price: '2100',
+      capacity: '1',
+      location: 'Бассейн 2',
+      discipline: 'Плавание',
     },
   ],
   userId: 2,
@@ -125,6 +169,37 @@ describe('Trainers API', () => {
       ),
     ).toBe(true);
     expect(body.data.reviews.length).toBeGreaterThan(0);
+  });
+
+  it('GET /api/trainers/[id] возвращает данные, достаточные для bootstrap edit-flow тренера', async () => {
+    const response = await GETTrainerDetail(new Request('http://localhost:3000/api/trainers/1'), {
+      params: Promise.resolve({ id: '1' }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.offerings[0]).toMatchObject({
+      id: 101,
+      ownerType: 'trainer',
+      ownerId: 1,
+      affiliatedClubId: 1,
+    });
+    expect(body.data.schedule).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 1001,
+          offeringId: 101,
+          ownerType: 'trainer',
+          ownerId: 1,
+          trainerId: 1,
+        }),
+      ]),
+    );
+    expect(body.data.club).toMatchObject({
+      id: 1,
+      slug: 'volna-aquatic-club',
+    });
   });
 
   it('POST /api/trainers создаёт тренера, offering и schedule через publish payload', async () => {
@@ -230,5 +305,136 @@ describe('Trainers API', () => {
     const trainersAfter = await getTrainers();
 
     expect(trainersAfter).toEqual(trainersBefore);
+  });
+
+  it('PATCH /api/trainers/[id] обновляет тренера, primary offering и расписание через publish-схему', async () => {
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/trainers/1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(validTrainerPatchPayload),
+      }),
+      {
+        params: Promise.resolve({ id: '1' }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.trainer).toMatchObject({
+      id: 1,
+      name: 'Марина Сергеевна',
+      slug: 'marina-sokolova',
+      managedByUserId: 2,
+      affiliatedClubId: 2,
+    });
+    expect(body.data.offering).toMatchObject({
+      id: 101,
+      ownerType: 'trainer',
+      ownerId: 1,
+      affiliatedClubId: 2,
+      title: 'Персональная тренировка: Плавание PRO',
+    });
+    expect(body.data.schedules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 1001,
+          ownerType: 'trainer',
+          ownerId: 1,
+          trainerId: 1,
+          offeringId: 101,
+          bookedCount: 0,
+        }),
+      ]),
+    );
+
+    const trainers = await getTrainers();
+    const offerings = await getOfferings();
+    const schedule = (await getSchedule({ ownerType: 'trainer' })).filter(
+      (slot) => slot.trainerId === 1,
+    );
+
+    expect(trainers.find((trainer) => trainer.id === 1)?.name).toBe('Марина Сергеевна');
+    expect(
+      offerings.filter((offering) => offering.ownerType === 'trainer' && offering.ownerId === 1),
+    ).toHaveLength(1);
+    expect(schedule).toHaveLength(2);
+    expect(schedule.find((slot) => slot.id === 1001)?.bookedCount).toBe(0);
+  });
+
+  it('PATCH /api/trainers/[id] возвращает 400 для невалидного payload и не меняет данные', async () => {
+    const trainersBefore = await getTrainers();
+    const offeringsBefore = await getOfferings();
+    const scheduleBefore = await getSchedule({ ownerType: 'all' });
+
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/trainers/1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...validTrainerPatchPayload,
+          bio: 'Коротко',
+        }),
+      }),
+      {
+        params: Promise.resolve({ id: '1' }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.error).toBe('Некорректные данные тренера');
+    expect(await getTrainers()).toEqual(trainersBefore);
+    expect(await getOfferings()).toEqual(offeringsBefore);
+    expect(await getSchedule({ ownerType: 'all' })).toEqual(scheduleBefore);
+  });
+
+  it('PATCH /api/trainers/[id] возвращает 404 для несуществующего тренера', async () => {
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/trainers/999', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(validTrainerPatchPayload),
+      }),
+      {
+        params: Promise.resolve({ id: '999' }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.success).toBe(false);
+    expect(body.error).toBe('Тренер не найден');
+  });
+
+  it('PATCH /api/trainers/[id] возвращает 403 для чужой публикации', async () => {
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/trainers/1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...validTrainerPatchPayload,
+          userId: 1,
+        }),
+      }),
+      {
+        params: Promise.resolve({ id: '1' }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.success).toBe(false);
+    expect(body.error).toMatch(/Недостаточно прав/i);
   });
 });

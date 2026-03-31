@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 /** Слот расписания (общий для клуба и тренера) */
 const scheduleSlotSchema = z.object({
+  id: z.number().int().positive().optional(),
   title: z.string().trim().min(1, 'Название слота обязательно'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Формат даты: YYYY-MM-DD'),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Формат времени: HH:MM'),

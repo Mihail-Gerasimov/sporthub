@@ -4,6 +4,7 @@
  * Step 14.4
  */
 import sportsData from '@/data/sports.json';
+import type { UpdateTrainerPublicationInput } from '@/lib/db';
 import type { EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
 import type { TrainerFormState } from '@/lib/schemas/publish';
@@ -138,4 +139,58 @@ export function mapTrainerFormToEntities(
   }));
 
   return { trainer, offering, schedules };
+}
+
+/**
+ * Маппит форму редактирования тренера в update-payload для db.ts.
+ * Системные поля и slug сохраняются на уровне db.ts.
+ */
+export function mapTrainerFormToUpdateInput(
+  form: TrainerPublishForm,
+  trainerId: EntityId,
+  managedByUserId: EntityId,
+): UpdateTrainerPublicationInput {
+  const sportId = sportNameToId[form.sport];
+  const sportIds: EntityId[] = sportId != null ? [sportId] : [];
+
+  return {
+    trainerId,
+    userId: managedByUserId,
+    trainer: {
+      name: `${form.firstName} ${form.lastName}`,
+      bio: form.bio,
+      experienceYears: Number(form.experience),
+      specialties: form.specializations,
+      priceFrom: Number(form.offeringPrice),
+      sportIds,
+      city: form.city,
+      address: form.address,
+      ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
+    },
+    offering: {
+      ownerType: 'trainer',
+      sportId: sportIds[0] ?? 0,
+      ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
+      title: form.offeringName,
+      description: form.offeringDescription,
+      format: offeringFormatMap[form.offeringFormat] ?? 'personal',
+      price: Number(form.offeringPrice),
+      durationMinutes: Number(form.offeringDuration),
+      capacity: 1,
+      address: form.offeringLocation,
+    },
+    schedules: form.scheduleSlots.map((slot) => ({
+      ...(slot.id !== undefined ? { id: slot.id } : {}),
+      sportId: sportIds[0] ?? 0,
+      title: slot.title,
+      date: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      durationMinutes: calcDuration(slot.startTime, slot.endTime),
+      level: 'all_levels',
+      capacity: Number(slot.capacity),
+      price: Number(slot.price),
+      room: slot.location,
+    })),
+  };
 }

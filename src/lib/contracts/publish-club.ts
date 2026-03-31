@@ -4,6 +4,7 @@
  * Step 14.3
  */
 import sportsData from '@/data/sports.json';
+import type { UpdateClubPublicationInput } from '@/lib/db';
 import type { ScheduleSlotForm, ClubFormState } from '@/lib/schemas/publish';
 import type { Club, EntityId, Offering, Schedule } from '@/types';
 
@@ -155,4 +156,58 @@ export function mapClubFormToEntities(
   }));
 
   return { club, offering, schedules };
+}
+
+/**
+ * Маппит форму редактирования клуба в update-payload для db.ts.
+ * Системные поля сохраняются на уровне db.ts, сюда попадают только активные MVP-поля.
+ */
+export function mapClubFormToUpdateInput(
+  form: ClubPublishForm,
+  clubId: EntityId,
+  managedByUserId: EntityId,
+): UpdateClubPublicationInput {
+  const sportIds = disciplinesToSportIds(form.disciplines);
+
+  return {
+    clubId,
+    userId: managedByUserId,
+    club: {
+      name: form.name,
+      description: form.description,
+      shortDescription: makeShortDescription(form.description),
+      city: form.city,
+      address: form.address,
+      phone: form.phone,
+      email: form.email || undefined,
+      sportIds,
+      amenities: form.amenities,
+      tags: form.tags,
+      priceFrom: Number(form.priceFrom),
+    },
+    offering: {
+      ownerType: 'club',
+      sportId: sportIds[0] ?? 0,
+      title: `Занятия — ${form.name}`,
+      description: form.description,
+      format: 'group',
+      price: Number(form.priceFrom),
+      durationMinutes: 60,
+      capacity: 20,
+      address: form.address,
+    },
+    schedules: form.scheduleSlots.map((slot) => ({
+      ...(slot.id !== undefined ? { id: slot.id } : {}),
+      sportId: sportNameToId[slot.discipline] ?? sportIds[0] ?? 0,
+      title: slot.title,
+      date: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      durationMinutes: calcDuration(slot.startTime, slot.endTime),
+      level: 'all_levels',
+      capacity: Number(slot.capacity),
+      price: Number(slot.price),
+      room: slot.location,
+    })),
+  };
 }
