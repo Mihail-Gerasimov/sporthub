@@ -1,3 +1,4 @@
+// Главная страница каталога должна всегда читать актуальные JSON-данные после publish/edit/delete.
 import Link from 'next/link';
 
 import { buildTrainerDirectory, getTrainerAvailability } from '@/components/trainers';
@@ -8,6 +9,9 @@ import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 import { getClubs, getOfferings, getSchedule, getSports, getTrainers } from '@/lib/db';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
+
+// Отключаем статическую оптимизацию, чтобы витрина обновлялась после изменений публикаций.
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const [clubs, clubSchedule, offerings, sports, trainerSchedule, trainers] = await Promise.all([

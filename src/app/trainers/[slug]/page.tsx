@@ -12,6 +12,9 @@ import {
   getUsers,
 } from '@/lib/db';
 
+// Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
+export const dynamic = 'force-dynamic';
+
 type TrainerDetailPageProps = {
   params: Promise<{
     slug: string;

@@ -1,3 +1,4 @@
+// Серверная страница записи должна брать свежий slot-context из JSON после edit/delete расписания.
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -6,6 +7,9 @@ import { Badge, Card } from '@/components/ui';
 import { getScheduleSlotContext } from '@/lib/db';
 import { formatDate, formatPrice } from '@/lib/utils';
 import type { OfferingFormat } from '@/types';
+
+// Явно отключаем статическую оптимизацию, чтобы booking-context не зависал после обновления слота.
+export const dynamic = 'force-dynamic';
 
 const OWNER_TYPE_LABELS = {
   club: 'Услуга клуба',

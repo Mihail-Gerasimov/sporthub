@@ -1,3 +1,4 @@
+// Серверная страница клуба должна читать актуальные JSON-данные по slug после изменений публикации.
 import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
@@ -10,6 +11,9 @@ import {
   getTrainers,
   getUsers,
 } from '@/lib/db';
+
+// Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
+export const dynamic = 'force-dynamic';
 
 type ClubDetailPageProps = {
   params: Promise<{
