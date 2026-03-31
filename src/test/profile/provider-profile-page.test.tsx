@@ -1,4 +1,4 @@
-// Тесты страницы кабинета провайдера (Steps 12.4, 13.1)
+// Тесты страницы кабинета провайдера (Steps 12.4, 13.1, 15.6)
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +21,48 @@ import {
 
 describe('ProviderProfilePage', () => {
   const fetchMock = vi.fn();
+  const providerClub = {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Volna Aquatic Club',
+    slug: 'volna',
+    description:
+      'Современный клуб водных видов спорта с длинным бассейном, детскими группами и персональными программами.',
+    shortDescription: 'Клуб плавания и акваподготовки',
+    city: 'Самара',
+    address: 'ул. Набережная, 8',
+    phone: '+7 999 123-45-67',
+    email: 'info@volna.local',
+    coordinates: { lat: 0, lng: 0 },
+    sportIds: [3],
+    imageUrls: [],
+    amenities: ['Душевые'],
+    tags: ['Утренние группы'],
+    rating: 4.8,
+    reviewCount: 10,
+    priceFrom: 900,
+    distanceKm: 1.8,
+    isFeatured: true,
+    managedByUserId: MVP_PROVIDER_USER_ID,
+  };
+  const providerTrainer = {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Марина Соколова',
+    slug: 'marina-sokolova',
+    bio: 'Персональный тренер по плаванию и общей физической подготовке.',
+    avatarUrl: '',
+    experienceYears: 9,
+    specialties: ['Персональные тренировки'],
+    rating: 4.9,
+    reviewCount: 3,
+    priceFrom: 1400,
+    sportIds: [3],
+    city: 'Самара',
+    address: 'ул. Спортивная, 10',
+    affiliatedClubId: 99,
+    managedByUserId: MVP_PROVIDER_USER_ID,
+  };
 
   beforeEach(() => {
     localStorage.clear();
@@ -36,6 +78,13 @@ describe('ProviderProfilePage', () => {
       headers: {
         'content-type': 'application/json',
       },
+    });
+  }
+
+  function loginAsProvider() {
+    useAuthStore.getState().login({
+      accountType: 'provider',
+      user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
     });
   }
 
@@ -247,6 +296,173 @@ describe('ProviderProfilePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('сначала загружает club edit-context и только потом открывает edit-модалку', async () => {
+    let resolveBootstrap: ((value: Response) => void) | undefined;
+
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBootstrap = resolve;
+        }),
+    );
+
+    loginAsProvider();
+
+    render(<ProviderProfilePage clubs={[providerClub]} trainers={[]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/clubs/1');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    resolveBootstrap?.(
+      createJsonResponse(
+        {
+          success: true,
+          data: {
+            club: providerClub,
+            primaryOffering: {
+              id: 10,
+              createdAt: '2026-03-17T09:00:00.000Z',
+              ownerType: 'club',
+              ownerId: 1,
+              sportId: 3,
+              title: 'Утренняя йога',
+              description: 'Групповое занятие для начинающих и продолжающих.',
+              format: 'group',
+              price: 900,
+              durationMinutes: 60,
+              capacity: 15,
+              address: 'ул. Набережная, 8',
+              coordinates: { lat: 0, lng: 0 },
+            },
+            schedule: [
+              {
+                id: 21,
+                createdAt: '2026-03-17T09:00:00.000Z',
+                clubId: 1,
+                sportId: 3,
+                title: 'Утренняя йога',
+                date: '2026-04-01',
+                startTime: '08:00',
+                endTime: '09:00',
+                durationMinutes: 60,
+                level: 'all_levels',
+                capacity: 15,
+                bookedCount: 0,
+                price: 900,
+                room: 'Зал №1',
+              },
+            ],
+          },
+        },
+        200,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+
+    expect(dialog.querySelector('h2')).toHaveTextContent('Редактировать клуб');
+    expect(screen.getByDisplayValue('Volna Aquatic Club')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
+  });
+
+  it('открывает edit-модалку тренера и сохраняет привязанный клуб из bootstrap-контекста', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse(
+        {
+          success: true,
+          data: {
+            trainer: providerTrainer,
+            affiliatedClub: {
+              id: 99,
+              name: 'Wave Arena',
+            },
+            primaryOffering: {
+              id: 22,
+              createdAt: '2026-03-17T09:00:00.000Z',
+              ownerType: 'trainer',
+              ownerId: 1,
+              affiliatedClubId: 99,
+              sportId: 3,
+              title: 'Персональная тренировка',
+              description: 'Индивидуальная работа над техникой и выносливостью.',
+              format: 'personal',
+              price: 1400,
+              durationMinutes: 60,
+              capacity: 1,
+              address: 'Wave Arena',
+              coordinates: { lat: 0, lng: 0 },
+            },
+            schedule: [
+              {
+                id: 31,
+                createdAt: '2026-03-17T09:00:00.000Z',
+                trainerId: 1,
+                sportId: 3,
+                title: 'Персональная тренировка',
+                date: '2026-04-02',
+                startTime: '10:00',
+                endTime: '11:00',
+                durationMinutes: 60,
+                level: 'all_levels',
+                capacity: 1,
+                bookedCount: 0,
+                price: 1400,
+                room: 'Бассейн 25м',
+              },
+            ],
+          },
+        },
+        200,
+      ),
+    );
+
+    loginAsProvider();
+
+    render(<ProviderProfilePage clubs={[]} trainers={[providerTrainer]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+    const affiliatedClubOption = screen.getByRole('option', { name: 'Wave Arena' });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/trainers/1');
+    expect(dialog.querySelector('h2')).toHaveTextContent('Редактировать тренера');
+    expect(screen.getByDisplayValue('Марина')).toBeInTheDocument();
+    expect(affiliatedClubOption).toBeInTheDocument();
+    expect((affiliatedClubOption as HTMLOptionElement).selected).toBe(true);
+  });
+
+  it('сохраняет delete-flow после подключения action «Редактировать»', async () => {
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    fetchMock.mockResolvedValue(createJsonResponse({ success: true }, 200));
+
+    loginAsProvider();
+
+    render(<ProviderProfilePage clubs={[providerClub]} trainers={[]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/clubs/1', { method: 'DELETE' });
+    });
+
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Публикация удалена');
+
+    confirmMock.mockRestore();
   });
 
   it('после успешной публикации клуба показывает notice и обновляет кабинет через router.refresh', async () => {

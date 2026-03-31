@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   getProviderClubs,
@@ -19,15 +19,45 @@ import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSe
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { ActionNotice, Badge, Button, Card } from '@/components/ui';
+import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
+import type { ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, EntityId, Review, Trainer } from '@/types';
+import type { Booking, Club, EntityId, Offering, Review, Schedule, Trainer } from '@/types';
 
 type ProviderProfilePageProps = {
   bookings?: Booking[];
   clubs?: Club[];
   reviews?: Review[];
   trainers?: Trainer[];
+};
+
+type PublishModalMode = 'create' | 'edit';
+
+type TrainerClubOption = {
+  id: EntityId;
+  name: string;
+};
+
+type ClubEditBootstrapResponse = {
+  error?: string;
+  success?: boolean;
+  data?: {
+    club?: Club;
+    primaryOffering?: Offering | null;
+    schedule?: Schedule[];
+  };
+};
+
+type TrainerEditBootstrapResponse = {
+  error?: string;
+  success?: boolean;
+  data?: {
+    trainer?: Trainer;
+    affiliatedClub?: Pick<Club, 'id' | 'name'> | null;
+    primaryOffering?: Offering | null;
+    schedule?: Schedule[];
+  };
 };
 
 /** Состояние «Доступ ограничен» для неавторизованных или не-provider пользователей */
@@ -92,10 +122,20 @@ export function ProviderProfilePage({
   const providerUserId = user?.id ?? null;
   const router = useRouter();
 
-  // Состояние открытия publish-модалок
+  // Состояние открытия и режима publish/edit модалок
   const [isClubModalOpen, setIsClubModalOpen] = useState(false);
   const [isTrainerModalOpen, setIsTrainerModalOpen] = useState(false);
+  const [clubModalMode, setClubModalMode] = useState<PublishModalMode>('create');
+  const [trainerModalMode, setTrainerModalMode] = useState<PublishModalMode>('create');
+  const [clubEditEntityId, setClubEditEntityId] = useState<EntityId | null>(null);
+  const [trainerEditEntityId, setTrainerEditEntityId] = useState<EntityId | null>(null);
+  const [clubInitialData, setClubInitialData] = useState<ClubFormState | null>(null);
+  const [trainerInitialData, setTrainerInitialData] = useState<TrainerFormState | null>(null);
+  const [trainerEditClubOption, setTrainerEditClubOption] = useState<TrainerClubOption | null>(
+    null,
+  );
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const editBootstrapRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!actionNotice) {
@@ -118,6 +158,47 @@ export function ProviderProfilePage({
     });
   }
 
+  /** Инвалидирует предыдущие bootstrap-запросы, чтобы поздний ответ не открыл устаревшую модалку. */
+  function invalidatePendingEditBootstrap() {
+    editBootstrapRequestIdRef.current += 1;
+  }
+
+  /** Полный сброс состояния модалки клуба к create-режиму. */
+  function resetClubModalState() {
+    setIsClubModalOpen(false);
+    setClubModalMode('create');
+    setClubEditEntityId(null);
+    setClubInitialData(null);
+  }
+
+  /** Полный сброс состояния модалки тренера к create-режиму. */
+  function resetTrainerModalState() {
+    setIsTrainerModalOpen(false);
+    setTrainerModalMode('create');
+    setTrainerEditEntityId(null);
+    setTrainerInitialData(null);
+    setTrainerEditClubOption(null);
+  }
+
+  /** Открывает create-модалку клуба и одновременно отменяет возможный незавершённый edit-bootstrap. */
+  function handleOpenCreateClubModal() {
+    invalidatePendingEditBootstrap();
+    setClubModalMode('create');
+    setClubEditEntityId(null);
+    setClubInitialData(null);
+    setIsClubModalOpen(true);
+  }
+
+  /** Открывает create-модалку тренера и одновременно отменяет возможный незавершённый edit-bootstrap. */
+  function handleOpenCreateTrainerModal() {
+    invalidatePendingEditBootstrap();
+    setTrainerModalMode('create');
+    setTrainerEditEntityId(null);
+    setTrainerInitialData(null);
+    setTrainerEditClubOption(null);
+    setIsTrainerModalOpen(true);
+  }
+
   async function handleDeletePublication(entityType: 'club' | 'trainer', entityId: EntityId) {
     const endpoint = entityType === 'club' ? `/api/clubs/${entityId}` : `/api/trainers/${entityId}`;
 
@@ -135,6 +216,85 @@ export function ProviderProfilePage({
       }
     } catch {
       setActionNotice('Ошибка при удалении публикации');
+    }
+  }
+
+  /** Загружает bootstrap редактирования и открывает нужную модалку только после успешного ответа API. */
+  async function handleEditPublication(entityType: 'club' | 'trainer', entityId: EntityId) {
+    const requestId = editBootstrapRequestIdRef.current + 1;
+    editBootstrapRequestIdRef.current = requestId;
+
+    try {
+      if (entityType === 'club') {
+        const response = await fetch(`/api/clubs/${entityId}`);
+        const result = (await response.json()) as ClubEditBootstrapResponse;
+
+        if (requestId !== editBootstrapRequestIdRef.current) {
+          return;
+        }
+
+        const club = result.data?.club;
+        const primaryOffering = result.data?.primaryOffering;
+        const schedule = result.data?.schedule;
+
+        if (
+          !response.ok ||
+          result.success !== true ||
+          !club ||
+          !primaryOffering ||
+          !Array.isArray(schedule)
+        ) {
+          setActionNotice(result.error ?? 'Не удалось загрузить клуб для редактирования');
+          return;
+        }
+
+        setClubModalMode('edit');
+        setClubEditEntityId(entityId);
+        setClubInitialData(mapClubToFormState(club, primaryOffering, schedule));
+        setIsClubModalOpen(true);
+        return;
+      }
+
+      const response = await fetch(`/api/trainers/${entityId}`);
+      const result = (await response.json()) as TrainerEditBootstrapResponse;
+
+      if (requestId !== editBootstrapRequestIdRef.current) {
+        return;
+      }
+
+      const trainer = result.data?.trainer;
+      const primaryOffering = result.data?.primaryOffering;
+      const schedule = result.data?.schedule;
+
+      if (
+        !response.ok ||
+        result.success !== true ||
+        !trainer ||
+        !primaryOffering ||
+        !Array.isArray(schedule)
+      ) {
+        setActionNotice(result.error ?? 'Не удалось загрузить тренера для редактирования');
+        return;
+      }
+
+      setTrainerModalMode('edit');
+      setTrainerEditEntityId(entityId);
+      setTrainerInitialData(mapTrainerToFormState(trainer, primaryOffering, schedule));
+      setTrainerEditClubOption(
+        result.data?.affiliatedClub
+          ? {
+              id: result.data.affiliatedClub.id,
+              name: result.data.affiliatedClub.name,
+            }
+          : null,
+      );
+      setIsTrainerModalOpen(true);
+    } catch {
+      if (requestId !== editBootstrapRequestIdRef.current) {
+        return;
+      }
+
+      setActionNotice('Ошибка при загрузке публикации для редактирования');
     }
   }
 
@@ -161,6 +321,23 @@ export function ProviderProfilePage({
     () => getProviderSummary(providerClubs, providerTrainers, providerBookings, providerReviews),
     [providerClubs, providerTrainers, providerBookings, providerReviews],
   );
+  const providerClubOptions = useMemo<TrainerClubOption[]>(
+    () => providerClubs.map((club) => ({ id: club.id, name: club.name })),
+    [providerClubs],
+  );
+  const trainerModalClubOptions = useMemo<TrainerClubOption[]>(() => {
+    if (!trainerEditClubOption) {
+      return providerClubOptions;
+    }
+
+    const optionAlreadyExists = providerClubOptions.some(
+      (club) => club.id === trainerEditClubOption.id,
+    );
+
+    return optionAlreadyExists
+      ? providerClubOptions
+      : [...providerClubOptions, trainerEditClubOption];
+  }, [providerClubOptions, trainerEditClubOption]);
 
   // Auth-гейт: не авторизован или не provider
   if (!isAuthenticated || accountType !== 'provider' || !user) {
@@ -283,6 +460,7 @@ export function ProviderProfilePage({
         <ProviderPublicationsSection
           clubs={providerClubs}
           trainers={providerTrainers}
+          onEdit={handleEditPublication}
           onDelete={handleDeletePublication}
         />
 
@@ -305,7 +483,7 @@ export function ProviderProfilePage({
           <div className="mt-6 flex flex-wrap gap-3">
             <Button
               onClick={() => {
-                setIsClubModalOpen(true);
+                handleOpenCreateClubModal();
               }}
             >
               Опубликовать клуб
@@ -313,7 +491,7 @@ export function ProviderProfilePage({
             <Button
               variant="outline"
               onClick={() => {
-                setIsTrainerModalOpen(true);
+                handleOpenCreateTrainerModal();
               }}
             >
               Опубликовать тренера
@@ -325,19 +503,25 @@ export function ProviderProfilePage({
         <PublishClubModal
           open={isClubModalOpen}
           onClose={() => {
-            setIsClubModalOpen(false);
+            resetClubModalState();
           }}
           onSuccess={handlePublishSuccess}
           userId={providerUserId}
+          mode={clubModalMode}
+          entityId={clubEditEntityId}
+          initialData={clubInitialData}
         />
         <PublishTrainerModal
           open={isTrainerModalOpen}
           onClose={() => {
-            setIsTrainerModalOpen(false);
+            resetTrainerModalState();
           }}
           onSuccess={handlePublishSuccess}
-          clubs={providerClubs.map((c) => ({ id: c.id, name: c.name }))}
+          clubs={trainerModalClubOptions}
           userId={providerUserId}
+          mode={trainerModalMode}
+          entityId={trainerEditEntityId}
+          initialData={trainerInitialData}
         />
       </div>
       {actionNotice ? <ActionNotice message={actionNotice} /> : null}

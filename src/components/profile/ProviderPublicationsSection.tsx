@@ -9,6 +9,8 @@ import type { Club, EntityId, Trainer } from '@/types';
 type ProviderPublicationsSectionProps = {
   clubs: Club[];
   trainers: Trainer[];
+  /** Колбэк открытия edit-flow публикации */
+  onEdit?: (entityType: 'club' | 'trainer', entityId: EntityId) => void;
   /** Колбэк удаления публикации */
   onDelete?: (entityType: 'club' | 'trainer', entityId: EntityId) => void;
 };
@@ -32,6 +34,7 @@ function PublicationCard({
   rating,
   reviewCount,
   href,
+  onEdit,
   onDelete,
 }: {
   name: string;
@@ -39,6 +42,7 @@ function PublicationCard({
   rating: number;
   reviewCount: number;
   href: string;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   return (
@@ -58,22 +62,38 @@ function PublicationCard({
           <span>{pluralizeReviews(reviewCount)}</span>
         </div>
 
-        {onDelete ? (
-          <button
-            type="button"
-            className="text-xs font-semibold text-red-400 transition-colors hover:text-red-600"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
+        <div className="flex items-center gap-3">
+          {onEdit ? (
+            <button
+              type="button"
+              className="text-xs font-semibold text-ink transition-colors hover:text-accent"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              Редактировать
+            </button>
+          ) : null}
 
-              if (window.confirm('Удалить публикацию? Это действие нельзя отменить.')) {
-                onDelete();
-              }
-            }}
-          >
-            Удалить
-          </button>
-        ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              className="text-xs font-semibold text-red-400 transition-colors hover:text-red-600"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (window.confirm('Удалить публикацию? Это действие нельзя отменить.')) {
+                  onDelete();
+                }
+              }}
+            >
+              Удалить
+            </button>
+          ) : null}
+        </div>
       </div>
     </Link>
   );
@@ -82,6 +102,7 @@ function PublicationCard({
 export function ProviderPublicationsSection({
   clubs,
   trainers,
+  onEdit,
   onDelete,
 }: ProviderPublicationsSectionProps) {
   const hasPublications = clubs.length > 0 || trainers.length > 0;
@@ -100,6 +121,13 @@ export function ProviderPublicationsSection({
               rating={club.rating}
               reviewCount={club.reviewCount}
               href={`/clubs/${club.slug}`}
+              onEdit={
+                onEdit
+                  ? () => {
+                      onEdit('club', club.id);
+                    }
+                  : undefined
+              }
               onDelete={
                 onDelete
                   ? () => {
@@ -118,6 +146,13 @@ export function ProviderPublicationsSection({
               rating={trainer.rating}
               reviewCount={trainer.reviewCount}
               href={`/trainers/${trainer.slug}`}
+              onEdit={
+                onEdit
+                  ? () => {
+                      onEdit('trainer', trainer.id);
+                    }
+                  : undefined
+              }
               onDelete={
                 onDelete
                   ? () => {

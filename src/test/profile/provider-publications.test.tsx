@@ -1,6 +1,6 @@
-// Тесты секции «Мои публикации» провайдер-кабинета (Step 12.5 / Step 14.7)
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+// Тесты секции «Мои публикации» провайдер-кабинета (Step 12.5 / Step 14.7 / Step 15.6)
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import type { Club, Trainer } from '@/types';
@@ -120,5 +120,48 @@ describe('ProviderPublicationsSection', () => {
 
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
     expect(screen.queryByText('Volna Aquatic Club')).not.toBeInTheDocument();
+  });
+
+  it('рендерит action «Редактировать» и прокидывает корректный entity-контекст', () => {
+    const onEdit = vi.fn();
+
+    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} onEdit={onEdit} />);
+
+    const editButtons = screen.getAllByRole('button', { name: 'Редактировать' });
+
+    expect(editButtons).toHaveLength(2);
+
+    fireEvent.click(editButtons[0]);
+    fireEvent.click(editButtons[1]);
+
+    expect(onEdit).toHaveBeenNthCalledWith(1, 'club', 1);
+    expect(onEdit).toHaveBeenNthCalledWith(2, 'trainer', 1);
+  });
+
+  it('сохраняет delete-flow после добавления action «Редактировать»', () => {
+    const onDelete = vi.fn();
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} onDelete={onDelete} />);
+
+    const deleteButtons = screen.getAllByRole('button', { name: 'Удалить' });
+
+    expect(deleteButtons).toHaveLength(2);
+
+    fireEvent.click(deleteButtons[0]);
+    fireEvent.click(deleteButtons[1]);
+
+    expect(confirmMock).toHaveBeenNthCalledWith(
+      1,
+      'Удалить публикацию? Это действие нельзя отменить.',
+    );
+    expect(confirmMock).toHaveBeenNthCalledWith(
+      2,
+      'Удалить публикацию? Это действие нельзя отменить.',
+    );
+    expect(onDelete).toHaveBeenNthCalledWith(1, 'club', 1);
+    expect(onDelete).toHaveBeenNthCalledWith(2, 'trainer', 1);
+
+    confirmMock.mockRestore();
   });
 });
