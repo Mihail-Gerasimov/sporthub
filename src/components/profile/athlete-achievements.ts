@@ -1,13 +1,4 @@
-import type { Booking, Review } from '@/types';
-
-export type AthleteAchievementId =
-  | 'on-time'
-  | 'week-without-skips'
-  | 'first-review'
-  | 'community-voice'
-  | 'explorer'
-  | 'back-to-the-gym'
-  | 'serious-about-sport';
+import type { AthleteAchievementId, Booking, Review } from '@/types';
 
 export type AthleteAchievement = {
   id: AthleteAchievementId;

@@ -9,6 +9,16 @@ export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
 
 export type CatalogOwnerType = 'club' | 'trainer';
 
+export type AthleteAchievementId =
+  | 'on-time'
+  | 'week-without-skips'
+  | 'first-booking'
+  | 'first-review'
+  | 'community-voice'
+  | 'explorer'
+  | 'back-to-the-gym'
+  | 'serious-about-sport';
+
 // Источник создания сущности: провайдер (ЛК) или seed-данные
 export type EntitySource = 'provider' | 'seed';
 

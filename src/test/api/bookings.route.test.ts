@@ -45,7 +45,6 @@ describe('Bookings API', () => {
         body: JSON.stringify({
           scheduleId: 1001,
           userId: 1,
-          date: '2026-03-20',
         }),
       }),
     );
@@ -100,7 +99,6 @@ describe('Bookings API', () => {
         body: JSON.stringify({
           scheduleId: 1,
           userId: 1,
-          date: '2026-03-18',
         }),
       }),
     );
@@ -117,7 +115,30 @@ describe('Bookings API', () => {
       clubId: 1,
       trainerId: 1,
       sportId: 3,
+      date: '2026-03-18',
       totalPrice: 1100,
+    });
+  });
+
+  it('не создаёт запись для пользователя без роли athlete', async () => {
+    const response = await POST(
+      new Request('http://localhost:3000/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scheduleId: 1001,
+          userId: 2,
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body).toEqual({
+      success: false,
+      error: 'Запись доступна только спортсмену',
     });
   });
 
@@ -140,7 +161,6 @@ describe('Bookings API', () => {
         body: JSON.stringify({
           scheduleId: 1001,
           userId: 1,
-          date: '2026-03-20',
         }),
       }),
     );

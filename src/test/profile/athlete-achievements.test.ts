@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
-import type { Booking, Review } from '@/types';
+import type { AthleteAchievementId, Booking, Review } from '@/types';
 
 const bookings: Booking[] = [
   {
@@ -99,6 +99,19 @@ const reviews: Review[] = [
 ];
 
 describe('getAthleteAchievements', () => {
+  it('включает в union новый achievement id first-booking', () => {
+    expectTypeOf<AthleteAchievementId>().toEqualTypeOf<
+      | 'on-time'
+      | 'week-without-skips'
+      | 'first-booking'
+      | 'first-review'
+      | 'community-voice'
+      | 'explorer'
+      | 'back-to-the-gym'
+      | 'serious-about-sport'
+    >();
+  });
+
   it('считает открытые и прогрессируемые ачивки по текущей активности', () => {
     const achievements = getAthleteAchievements({
       athleteUserId: 1,

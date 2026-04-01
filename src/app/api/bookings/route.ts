@@ -19,11 +19,12 @@ const bookingsQuerySchema = z.object({
   }, z.number().int().positive()),
 });
 
-const createBookingSchema = z.object({
-  scheduleId: z.number().int().positive(),
-  userId: z.number().int().positive(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
+const createBookingSchema = z
+  .object({
+    scheduleId: z.number().int().positive(),
+    userId: z.number().int().positive(),
+  })
+  .strict();
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { date, scheduleId, userId } = validationResult.data;
+    const { scheduleId, userId } = validationResult.data;
     const [existingBookings, slotContext, user] = await Promise.all([
       getBookings(),
       getScheduleSlotContext(scheduleId),
@@ -100,6 +101,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (user.role !== 'athlete') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Запись доступна только спортсмену',
+        },
+        { status: 403 },
+      );
+    }
+
     if (!slotContext) {
       return NextResponse.json(
         {
@@ -111,16 +122,6 @@ export async function POST(request: Request) {
     }
 
     const { affiliatedClub, club, offering, schedule, trainer } = slotContext;
-
-    if (schedule.date !== date) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Дата записи не совпадает с расписанием',
-        },
-        { status: 400 },
-      );
-    }
 
     const duplicateBooking = existingBookings.find(
       (booking) =>
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
       clubId: club?.id,
       trainerId: trainer?.id ?? schedule.trainerId,
       sportId: offering?.sportId ?? schedule.sportId,
-      date,
+      date: schedule.date,
       status: 'confirmed',
       paymentStatus: 'unpaid',
       totalPrice: offering?.price ?? schedule.price,
