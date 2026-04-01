@@ -169,15 +169,6 @@ export function AthleteProfilePage({
       athleteUserId === null ? [] : reviews.filter((review) => review.userId === athleteUserId),
     [athleteUserId, reviews],
   );
-  const athleteAchievements = useMemo(
-    () =>
-      getAthleteAchievements({
-        athleteUserId,
-        bookings: athleteBookings,
-        reviews: athleteReviews,
-      }),
-    [athleteUserId, athleteBookings, athleteReviews],
-  );
   const activeFutureBookings = useMemo(
     () =>
       getAthleteActiveFutureBookings({
@@ -185,6 +176,16 @@ export function AthleteProfilePage({
         bookings: athleteBookings,
       }),
     [athleteUserId, athleteBookings],
+  );
+  const athleteAchievements = useMemo(
+    () =>
+      getAthleteAchievements({
+        activeFutureBookingsCount: activeFutureBookings.length,
+        athleteUserId,
+        bookings: athleteBookings,
+        reviews: athleteReviews,
+      }),
+    [activeFutureBookings.length, athleteUserId, athleteBookings, athleteReviews],
   );
   const athleteAchievementProgressSummary = useMemo(
     () =>

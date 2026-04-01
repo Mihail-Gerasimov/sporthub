@@ -16,6 +16,7 @@ export type AthleteAchievementProgressSummary = {
 };
 
 type GetAthleteAchievementsInput = {
+  activeFutureBookingsCount?: number;
   athleteUserId: number | null;
   bookings: Booking[];
   reviews: Review[];
@@ -41,6 +42,9 @@ function getCompletedBookings(bookings: Booking[], athleteUserId: number | null)
 }
 
 function getBookingStreakWithoutCancellation(bookings: Booking[], athleteUserId: number | null) {
+  // STUB: полноценный streak без отмен корректно заработает после post-MVP перехода
+  // к soft-delete или явному lifecycle completed/cancelled. В текущем MVP с hard-delete
+  // вычисление не должно ломать кабинет, а реальные данные обычно возвращают 0.
   if (athleteUserId === null) {
     return 0;
   }
@@ -97,24 +101,21 @@ function getMaxCompletedBookingsWithinSevenDays(bookings: Booking[]) {
   return maxCount;
 }
 
-function getOverallProgressPercent(
-  achievements: AthleteAchievement[],
-  hasActiveBookingSignal: boolean,
-) {
+function getOverallProgressPercent(achievements: AthleteAchievement[]) {
   const totalProgress = achievements.reduce((accumulator, achievement) => {
     return accumulator + achievement.current / achievement.target;
   }, 0);
-  const totalUnits = achievements.length + (hasActiveBookingSignal ? 1 : 0);
-  const progressWithBookingSignal = totalProgress + (hasActiveBookingSignal ? 1 : 0);
+  const totalUnits = achievements.length;
 
   if (totalUnits === 0) {
     return 0;
   }
 
-  return Math.round((progressWithBookingSignal / totalUnits) * 100);
+  return Math.round((totalProgress / totalUnits) * 100);
 }
 
 export function getAthleteAchievements({
+  activeFutureBookingsCount = 0,
   athleteUserId,
   bookings,
   reviews,
@@ -134,8 +135,20 @@ export function getAthleteAchievements({
     ...athleteReviews.flatMap((review) => (review.clubId ? [review.clubId] : [])),
   ]);
   const uniqueClubCount = uniqueClubIds.size;
+  const achievements: AthleteAchievement[] = [];
 
-  return [
+  if (activeFutureBookingsCount > 0) {
+    achievements.push({
+      id: 'first-booking',
+      title: 'Первая запись на тренировку',
+      description: 'Открывается, пока у тебя есть хотя бы одна активная запись.',
+      current: 1,
+      target: 1,
+      unlocked: true,
+    });
+  }
+
+  achievements.push(
     {
       id: 'on-time',
       title: 'Вовремя',
@@ -192,7 +205,9 @@ export function getAthleteAchievements({
       target: 10,
       unlocked: completedVisitsCount >= 10,
     },
-  ];
+  );
+
+  return achievements;
 }
 
 export function getAthleteAchievementProgressSummary({
@@ -206,7 +221,7 @@ export function getAthleteAchievementProgressSummary({
 
   return {
     hasActiveBookingSignal,
-    overallProgressPercent: getOverallProgressPercent(achievements, hasActiveBookingSignal),
+    overallProgressPercent: getOverallProgressPercent(achievements),
     unlockedAchievementsCount: achievements.filter((achievement) => achievement.unlocked).length,
   };
 }

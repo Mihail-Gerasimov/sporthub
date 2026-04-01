@@ -151,23 +151,53 @@ describe('getAthleteAchievements', () => {
       bookings,
       reviews,
     });
+    const achievementsWithActiveBooking = getAthleteAchievements({
+      activeFutureBookingsCount: 1,
+      athleteUserId: 1,
+      bookings: [
+        ...bookings,
+        {
+          id: 6,
+          createdAt: '2026-03-18T09:00:00.000Z',
+          scheduleId: 6,
+          userId: 1,
+          clubId: 3,
+          trainerId: 5,
+          sportId: 1,
+          date: '2026-03-20',
+          status: 'confirmed',
+          paymentStatus: 'unpaid',
+          totalPrice: 850,
+        },
+      ],
+      reviews,
+    });
 
     const summaryWithoutActiveBooking = getAthleteAchievementProgressSummary({
       achievements,
       activeFutureBookingsCount: 0,
     });
     const summaryWithActiveBooking = getAthleteAchievementProgressSummary({
-      achievements,
+      achievements: achievementsWithActiveBooking,
       activeFutureBookingsCount: 1,
     });
 
+    expect(achievements.find((achievement) => achievement.id === 'first-booking')).toBeUndefined();
+    expect(
+      achievementsWithActiveBooking.find((achievement) => achievement.id === 'first-booking'),
+    ).toMatchObject({
+      unlocked: true,
+      current: 1,
+      target: 1,
+      title: 'Первая запись на тренировку',
+    });
     expect(summaryWithoutActiveBooking).toMatchObject({
       unlockedAchievementsCount: 6,
       overallProgressPercent: 93,
       hasActiveBookingSignal: false,
     });
     expect(summaryWithActiveBooking).toMatchObject({
-      unlockedAchievementsCount: 6,
+      unlockedAchievementsCount: 7,
       overallProgressPercent: 94,
       hasActiveBookingSignal: true,
     });
