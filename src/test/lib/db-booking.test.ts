@@ -1,5 +1,5 @@
 // Тесты atomic booking-flow в db.ts: create, cancel (hard-delete), rollback (Step 16.2)
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,7 +16,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { Booking } from '@/types';
+import type { Booking, Schedule } from '@/types';
 
 describe('db booking helpers', () => {
   let dataDirectory: string;
@@ -83,13 +83,32 @@ describe('db booking helpers', () => {
     });
 
     it('выбрасывает ошибку при записи на полный слот', async () => {
-      // Слот 1001 capacity=1, запишем первого
-      await createBookingAtomic({ scheduleId: 1001, userId: 1 });
+      const bookingsBefore = await getBookings();
+      const scheduleBefore = await getSchedule({ ownerType: 'all' });
+      const schedulePath = path.join(dataDirectory, 'schedule.json');
+      const scheduleRaw = await readFile(schedulePath, 'utf8');
+      const schedule = JSON.parse(scheduleRaw) as Schedule[];
+      const updatedSchedule = schedule.map((slot) =>
+        slot.id === 1001 ? { ...slot, bookedCount: slot.capacity } : slot,
+      );
 
-      // Нет другого athlete-пользователя в фикстурах — проверяем через capacity
-      // Слот уже полон, второй userId тоже не пройдёт (но тут userId=1 → duplicate)
-      // Создадим ситуацию: capacity=1, bookedCount=1 → запись невозможна
-      // Фикстурный слот id=2 имеет capacity=12, bookedCount=0 — проверим после заполнения
+      // Напрямую заполняем слот до capacity, чтобы проверить именно capacity guard, а не duplicate.
+      await writeFile(schedulePath, `${JSON.stringify(updatedSchedule, null, 2)}\n`, 'utf8');
+
+      await expect(createBookingAtomic({ scheduleId: 1001, userId: 1 })).rejects.toThrow(
+        'Свободных мест нет',
+      );
+
+      // Ошибка capacity не должна менять bookings и расписание.
+      const bookingsAfter = await getBookings();
+      const scheduleAfter = await getSchedule({ ownerType: 'all' });
+
+      expect(bookingsAfter).toEqual(bookingsBefore);
+      expect(scheduleAfter).toEqual(
+        scheduleBefore.map((slot) =>
+          slot.id === 1001 ? { ...slot, bookedCount: slot.capacity } : slot,
+        ),
+      );
     });
 
     it('откатывает изменения при ошибке записи (atomicity)', async () => {
