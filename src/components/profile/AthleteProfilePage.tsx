@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
 import { AthleteFeedbackSettingsSection } from '@/components/profile/AthleteFeedbackSettingsSection';
 import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import { AthleteHistorySection } from '@/components/profile/AthleteHistorySection';
+import { AthleteUpcomingBookingCard } from '@/components/profile/AthleteUpcomingBookingCard';
 import {
   getAthleteActiveFutureBookings,
   getAthleteUpcomingProfileBookings,
@@ -15,8 +16,7 @@ import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
-import { Badge, Button, Card } from '@/components/ui';
-import { formatDate } from '@/lib/utils';
+import { ActionNotice, Badge, Button, Card } from '@/components/ui';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -40,6 +40,8 @@ type AthleteSummary = {
   reviewsCount: number;
   upcomingBookingsCount: number;
 };
+
+const ACTION_NOTICE_TIMEOUT_MS = 4000;
 
 function getUpcomingBookingsLabel(count: number) {
   const remainder10 = count % 10;
@@ -138,6 +140,22 @@ export function AthleteProfilePage({
   const athleteUserId = useAuthStore(selectAthleteActionUserId);
   const logout = useAuthStore((state) => state.logout);
   const cabinetConfig = getPersonalCabinetConfig(accountType);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!actionNotice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActionNotice(null);
+    }, ACTION_NOTICE_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [actionNotice]);
+
   const athleteBookings = useMemo(
     () =>
       athleteUserId === null ? [] : bookings.filter((booking) => booking.userId === athleteUserId),
@@ -377,41 +395,12 @@ export function AthleteProfilePage({
           {upcomingBookings.length > 0 ? (
             <div className="mt-6 grid gap-4">
               {upcomingBookings.map((booking) => (
-                <div
+                <AthleteUpcomingBookingCard
                   key={booking.id}
-                  data-testid="athlete-upcoming-card"
-                  className="grid gap-4 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.3fr_0.9fr_auto]"
-                >
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      {booking.clubName}
-                    </p>
-                    <p
-                      data-testid="athlete-upcoming-card-title"
-                      className="mt-2 text-xl font-semibold text-ink"
-                    >
-                      {booking.title}
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{booking.trainerName}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      Дата и время
-                    </p>
-                    <p className="mt-2 text-base font-semibold text-ink">
-                      {formatDate(booking.date, {
-                        day: 'numeric',
-                        month: 'long',
-                      })}
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-muted">{booking.startTime}</p>
-                  </div>
-
-                  <div className="flex items-start md:justify-end">
-                    <Badge tone="success">{booking.statusLabel}</Badge>
-                  </div>
-                </div>
+                  athleteUserId={athleteUserId}
+                  booking={booking}
+                  onActionNotice={setActionNotice}
+                />
               ))}
             </div>
           ) : (
@@ -435,6 +424,8 @@ export function AthleteProfilePage({
           reviewItems={reviewItems}
           user={user}
         />
+
+        {actionNotice ? <ActionNotice message={actionNotice} /> : null}
       </div>
     </div>
   );

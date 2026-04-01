@@ -239,10 +239,20 @@ describe('getAthleteUpcomingProfileBookings', () => {
       'Утреннее плавание',
       'Вечернее плавание',
     ]);
+    expect(result.map((booking) => booking.bookingTypeLabel)).toEqual([
+      'Услуга клуба',
+      'Услуга клуба',
+    ]);
+    expect(result.map((booking) => booking.locationLabel)).toEqual([
+      'Volna Aquatic Club · Бассейн A',
+      'Volna Aquatic Club · Бассейн B',
+    ]);
+    expect(result.map((booking) => booking.timeLabel)).toEqual(['07:30 - 08:30', '19:30 - 20:30']);
     expect(result.map((booking) => booking.statusLabel)).toEqual([
       'Подтверждена',
       'Ожидает подтверждения',
     ]);
+    expect(result.map((booking) => booking.statusTone)).toEqual(['success', 'outline']);
 
     vi.useRealTimers();
   });

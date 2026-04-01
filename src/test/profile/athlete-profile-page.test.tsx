@@ -1,5 +1,19 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { refreshMock } = vi.hoisted(() => ({
+  refreshMock: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: refreshMock,
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+  }),
+}));
 
 import AthleteProfileRoute from '@/app/profile/athlete/page';
 import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
@@ -344,6 +358,8 @@ const historyTrainers: Trainer[] = [
 ];
 
 describe('AthleteProfilePage', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(FROZEN_PROFILE_TEST_DATE);
@@ -353,11 +369,23 @@ describe('AthleteProfilePage', () => {
     useUIStore.setState({
       isAuthModalOpen: false,
     });
+    refreshMock.mockReset();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  function createJsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+  }
 
   it('показывает athlete-only кабинет с данными пользователя из auth-state', async () => {
     useAuthStore.setState({
@@ -527,9 +555,13 @@ describe('AthleteProfilePage', () => {
     const upcomingSection = screen.getByTestId('athlete-upcoming-section');
 
     expect(within(upcomingSection).getByText('Утреннее плавание')).toBeInTheDocument();
-    expect(within(upcomingSection).getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(within(upcomingSection).getByText('Услуга клуба')).toBeInTheDocument();
+    expect(within(upcomingSection).getByText('Volna Aquatic Club · Бассейн A')).toBeInTheDocument();
     expect(within(upcomingSection).getByText('Марина Соколова')).toBeInTheDocument();
     expect(within(upcomingSection).getByText('Подтверждена')).toBeInTheDocument();
+    expect(
+      within(upcomingSection).getByRole('button', { name: 'Отменить запись' }),
+    ).toBeInTheDocument();
     expect(within(upcomingSection).queryByText('Утренняя хатха-йога')).not.toBeInTheDocument();
     expect(within(upcomingSection).queryByText('Бокс. Базовая техника')).not.toBeInTheDocument();
   });
@@ -737,6 +769,65 @@ describe('AthleteProfilePage', () => {
         'Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('показывает notice и делает refresh при отмене записи из upcoming-карточки', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        success: true,
+      }),
+    );
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    vi.useRealTimers();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/bookings/1',
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    });
+
+    const deleteCall = fetchMock.mock.calls[0];
+
+    expect(JSON.parse(deleteCall[1].body as string)).toEqual({
+      userId: 1,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Запись отменена. Блок ближайших занятий обновлён.'),
+      ).toBeInTheDocument();
+    });
+
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
   it('не ломает блок ачивок при отсутствии активности пользователя', () => {

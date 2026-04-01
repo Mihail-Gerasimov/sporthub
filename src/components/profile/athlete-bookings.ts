@@ -1,12 +1,19 @@
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import type { Booking, Club, Schedule, Trainer } from '@/types';
 
+export type UpcomingProfileBookingStatusTone = 'success' | 'outline' | 'teal' | 'danger';
+
 export type UpcomingProfileBooking = {
+  bookingTypeLabel: string;
   id: number;
   clubName: string;
   date: string;
+  endTime: string;
+  locationLabel: string;
   startTime: string;
   statusLabel: string;
+  statusTone: UpcomingProfileBookingStatusTone;
+  timeLabel: string;
   title: string;
   trainerName: string;
 };
@@ -33,6 +40,59 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   completed: 'Завершена',
   cancelled: 'Отменена',
 };
+
+const BOOKING_STATUS_TONES: Record<Booking['status'], UpcomingProfileBookingStatusTone> = {
+  pending: 'outline',
+  confirmed: 'success',
+  completed: 'teal',
+  cancelled: 'danger',
+};
+
+function getBookingTypeLabel(booking: Pick<Booking, 'ownerType' | 'clubId' | 'trainerId'>) {
+  if (booking.ownerType === 'trainer') {
+    return 'Услуга тренера';
+  }
+
+  if (booking.ownerType === 'club') {
+    return 'Услуга клуба';
+  }
+
+  if (booking.clubId !== undefined) {
+    return 'Услуга клуба';
+  }
+
+  if (booking.trainerId !== undefined) {
+    return 'Услуга тренера';
+  }
+
+  return 'Занятие SportHub';
+}
+
+function getBookingTimeLabel(slot: Pick<Schedule, 'startTime' | 'endTime'> | undefined) {
+  if (!slot?.startTime) {
+    return 'Время уточняется';
+  }
+
+  if (!slot.endTime) {
+    return slot.startTime;
+  }
+
+  return `${slot.startTime} - ${slot.endTime}`;
+}
+
+function getBookingLocationLabel({
+  clubName,
+  slot,
+}: {
+  clubName: string;
+  slot: Pick<Schedule, 'room'> | undefined;
+}) {
+  if (!slot?.room) {
+    return clubName;
+  }
+
+  return `${clubName} · ${slot.room}`;
+}
 
 export function getAthleteActiveFutureBookings({
   athleteUserId,
@@ -74,13 +134,22 @@ export function getAthleteUpcomingProfileBookings({
   return activeFutureBookings
     .map((booking) => {
       const slot = scheduleItems.get(booking.scheduleId);
+      const clubName = clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub';
 
       return {
+        bookingTypeLabel: getBookingTypeLabel(booking),
         id: booking.id,
-        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub',
+        clubName,
         date: booking.date,
+        endTime: slot?.endTime ?? '',
+        locationLabel: getBookingLocationLabel({
+          clubName,
+          slot,
+        }),
         startTime: slot?.startTime ?? 'Время уточняется',
         statusLabel: BOOKING_STATUS_LABELS[booking.status],
+        statusTone: BOOKING_STATUS_TONES[booking.status],
+        timeLabel: getBookingTimeLabel(slot),
         title: slot?.title ?? 'Занятие SportHub',
         trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
       } satisfies UpcomingProfileBooking;
