@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { BookingAuthGate } from '@/components/booking/BookingAuthGate';
+import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
 import { getScheduleSlotContext } from '@/lib/db';
 import { formatDate, formatPrice } from '@/lib/utils';
@@ -61,10 +61,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
         : 'Независимая услуга тренера';
   const slotTypeLabel = OWNER_TYPE_LABELS[ownerType];
   const formatLabel = OFFERING_FORMAT_LABELS[offering.format];
+  const actionDateLabel = formatDate(slot.date, { day: 'numeric', month: 'long' });
+  const actionTimeLabel = `${slot.startTime} - ${slot.endTime}`;
 
   return (
     <main className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
@@ -81,94 +83,101 @@ export default async function BookingPage({ params }: BookingPageProps) {
           </Link>
         </div>
 
-        {/* Auth-гейт: предупреждение для неавторизованных */}
-        <BookingAuthGate />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] xl:items-start">
+          <Card className="space-y-6 p-6 sm:p-8" elevated>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="accent">{slotTypeLabel}</Badge>
+              <Badge tone="outline">{actionDateLabel}</Badge>
+              <Badge tone={availableSpots > 0 ? 'success' : 'danger'}>
+                Свободно мест: {availableSpots}
+              </Badge>
+            </div>
 
-        <Card className="space-y-6 p-6 sm:p-8" elevated>
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="accent">{slotTypeLabel}</Badge>
-            <Badge tone="outline">{formatDate(slot.date, { day: 'numeric', month: 'long' })}</Badge>
-            <Badge tone={availableSpots > 0 ? 'success' : 'danger'}>
-              Свободно мест: {availableSpots}
-            </Badge>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.10em] text-muted">
-              {ownerName}
-            </p>
-            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
-              {slot.title}
-            </h2>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
-              Проверь формат, площадку и свободные места перед подтверждением записи на выбранный
-              слот.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-card border border-line bg-panel p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Владелец услуги
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.10em] text-muted">
+                {ownerName}
               </p>
-              <p className="mt-3 text-lg font-semibold text-ink">{ownerName}</p>
-              <p className="mt-2 text-sm text-muted">{ownerMeta}</p>
+              <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+                {slot.title}
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
+                Проверь формат, площадку и свободные места перед подтверждением записи на выбранный
+                слот.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-card border border-line bg-panel p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Владелец услуги
+                </p>
+                <p className="mt-3 text-lg font-semibold text-ink">{ownerName}</p>
+                <p className="mt-2 text-sm text-muted">{ownerMeta}</p>
+              </div>
+
+              <div className="rounded-card border border-line bg-canvas p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Дата и время
+                </p>
+                <p className="mt-3 text-lg font-semibold text-ink">{formatDate(slot.date)}</p>
+                <p className="mt-2 text-sm text-muted">{actionTimeLabel}</p>
+                <p className="mt-2 text-sm text-muted">
+                  {slot.durationMinutes} минут, {slot.room ?? 'зал уточняется'}
+                </p>
+              </div>
+
+              <div className="rounded-card border border-line bg-panel-strong p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Стоимость и формат
+                </p>
+                <p className="mt-3 text-lg font-semibold text-ink">{formatPrice(slot.price)}</p>
+                <p className="mt-2 text-sm text-muted">{formatLabel}</p>
+                <p className="mt-2 text-sm text-muted">Свободно мест: {availableSpots}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Место проведения
+                </p>
+                <p className="mt-2 text-base font-semibold text-ink">{offering.address}</p>
+                {slot.room ? <p className="mt-2 text-sm text-muted">{slot.room}</p> : null}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  {ownerType === 'trainer' ? 'Тренер' : 'Ведущий'}
+                </p>
+                <p className="mt-2 text-base font-semibold text-ink">
+                  {trainer?.name ?? 'Тренер будет назначен'}
+                </p>
+                {ownerType === 'trainer' && affiliatedClub ? (
+                  <p className="mt-2 text-sm text-muted">{affiliatedClub.name}</p>
+                ) : null}
+              </div>
             </div>
 
             <div className="rounded-card border border-line bg-canvas p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Дата и время
+                Описание слота
               </p>
-              <p className="mt-3 text-lg font-semibold text-ink">{formatDate(slot.date)}</p>
-              <p className="mt-2 text-sm text-muted">
-                {slot.startTime} - {slot.endTime}
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                {slot.durationMinutes} минут, {slot.room ?? 'зал уточняется'}
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                {slot.description ?? offering.description}
               </p>
             </div>
+          </Card>
 
-            <div className="rounded-card border border-line bg-panel-strong p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Стоимость и формат
-              </p>
-              <p className="mt-3 text-lg font-semibold text-ink">{formatPrice(slot.price)}</p>
-              <p className="mt-2 text-sm text-muted">{formatLabel}</p>
-              <p className="mt-2 text-sm text-muted">Свободно мест: {availableSpots}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Место проведения
-              </p>
-              <p className="mt-2 text-base font-semibold text-ink">{offering.address}</p>
-              {slot.room ? <p className="mt-2 text-sm text-muted">{slot.room}</p> : null}
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                {ownerType === 'trainer' ? 'Тренер' : 'Ведущий'}
-              </p>
-              <p className="mt-2 text-base font-semibold text-ink">
-                {trainer?.name ?? 'Тренер будет назначен'}
-              </p>
-              {ownerType === 'trainer' && affiliatedClub ? (
-                <p className="mt-2 text-sm text-muted">{affiliatedClub.name}</p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-card border border-line bg-canvas p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-              Описание слота
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              {slot.description ?? offering.description}
-            </p>
-          </div>
-        </Card>
+          <BookingActionBlock
+            scheduleId={normalizedScheduleId}
+            slotTitle={slot.title}
+            ownerName={ownerName}
+            ownerTypeLabel={slotTypeLabel}
+            dateLabel={actionDateLabel}
+            timeLabel={actionTimeLabel}
+            availableSpots={availableSpots}
+          />
+        </div>
       </div>
     </main>
   );

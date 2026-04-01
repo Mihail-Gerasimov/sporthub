@@ -338,9 +338,9 @@ describe('dynamic publish-flow phase regression (Step 14.12)', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Запись на занятие' })).toBeInTheDocument();
-    expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
+    expect(screen.getAllByText('Услуга тренера').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Ilya Volkov').length).toBeGreaterThan(0);
-    expect(screen.getByText('Персональная дорожка')).toBeInTheDocument();
+    expect(screen.getAllByText('Персональная дорожка').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Start Swim Lab').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Бассейн A').length).toBeGreaterThan(0);
   });
