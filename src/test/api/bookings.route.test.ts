@@ -1,9 +1,11 @@
+// Тесты API записей: POST /api/bookings, DELETE /api/bookings/[id] (Step 16.2)
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { DELETE } from '@/app/api/bookings/[id]/route';
 import { GET, POST } from '@/app/api/bookings/route';
 import {
   createIsolatedDataDirectory,
@@ -170,6 +172,86 @@ describe('Bookings API', () => {
     expect(body).toEqual({
       success: false,
       error: 'Свободных мест нет',
+    });
+  });
+
+  /* --- DELETE /api/bookings/[id] --- */
+
+  describe('DELETE /api/bookings/[id]', () => {
+    /** Хелпер для создания DELETE-запроса с параметрами маршрута */
+    function createDeleteRequest(bookingId: string, body: Record<string, unknown>) {
+      return {
+        request: new Request(`http://localhost:3000/api/bookings/${bookingId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        params: Promise.resolve({ id: bookingId }),
+      };
+    }
+
+    it('удаляет запись и уменьшает bookedCount в расписании', async () => {
+      // Сначала создаём booking
+      const postResponse = await POST(
+        new Request('http://localhost:3000/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduleId: 1001, userId: 1 }),
+        }),
+      );
+      const postBody = await postResponse.json();
+      const bookingId = postBody.data.id;
+
+      // Удаляем
+      const { request, params } = createDeleteRequest(String(bookingId), { userId: 1 });
+      const deleteResponse = await DELETE(request, { params });
+      const deleteBody = await deleteResponse.json();
+
+      expect(deleteResponse.status).toBe(200);
+      expect(deleteBody.success).toBe(true);
+
+      // Booking физически отсутствует
+      const bookingsPath = path.join(dataDirectory, 'bookings.json');
+      const bookingsRaw = await readFile(bookingsPath, 'utf8');
+      const bookings = JSON.parse(bookingsRaw);
+      const deletedBooking = bookings.find((b: { id: number }) => b.id === bookingId);
+
+      expect(deletedBooking).toBeUndefined();
+
+      // bookedCount вернулся к 0
+      const schedulePath = path.join(dataDirectory, 'schedule.json');
+      const scheduleRaw = await readFile(schedulePath, 'utf8');
+      const schedule = JSON.parse(scheduleRaw) as Schedule[];
+
+      expect(schedule.find((s) => s.id === 1001)?.bookedCount).toBe(0);
+    });
+
+    it('не удаляет чужой booking (ownership guard)', async () => {
+      // Booking id=1 принадлежит userId=1
+      const { request, params } = createDeleteRequest('1', { userId: 999 });
+      const response = await DELETE(request, { params });
+      const body = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(body.success).toBe(false);
+    });
+
+    it('возвращает 404 для несуществующего booking', async () => {
+      const { request, params } = createDeleteRequest('99999', { userId: 1 });
+      const response = await DELETE(request, { params });
+      const body = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(body.success).toBe(false);
+    });
+
+    it('возвращает 400 при невалидном userId', async () => {
+      const { request, params } = createDeleteRequest('1', {});
+      const response = await DELETE(request, { params });
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.success).toBe(false);
     });
   });
 });

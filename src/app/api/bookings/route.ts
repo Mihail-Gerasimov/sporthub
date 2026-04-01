@@ -1,13 +1,8 @@
+// API записей: получение и создание booking (Step 16.2 — atomic flow)
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import {
-  createBooking,
-  getBookings,
-  getScheduleSlotContext,
-  getUserById,
-  incrementScheduleBookedCount,
-} from '@/lib/db';
+import { createBookingAtomic, getBookings, getUserById } from '@/lib/db';
 
 const bookingsQuerySchema = z.object({
   userId: z.preprocess((value) => {
@@ -69,6 +64,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// MVP: запись сразу confirmed. pending зарезервирован для будущего payment-flow.
 export async function POST(request: Request) {
   try {
     const rawBody = await request.json();
@@ -85,11 +81,9 @@ export async function POST(request: Request) {
     }
 
     const { scheduleId, userId } = validationResult.data;
-    const [existingBookings, slotContext, user] = await Promise.all([
-      getBookings(),
-      getScheduleSlotContext(scheduleId),
-      getUserById(userId),
-    ]);
+
+    // Проверяем пользователя и роль до atomic-записи
+    const user = await getUserById(userId);
 
     if (!user) {
       return NextResponse.json(
@@ -111,72 +105,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!slotContext) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Слот расписания не найден',
-        },
-        { status: 404 },
-      );
-    }
-
-    const { affiliatedClub, club, offering, schedule, trainer } = slotContext;
-
-    const duplicateBooking = existingBookings.find(
-      (booking) =>
-        booking.userId === userId &&
-        booking.scheduleId === scheduleId &&
-        booking.status !== 'cancelled',
-    );
-
-    if (duplicateBooking) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Пользователь уже записан на это занятие',
-        },
-        { status: 409 },
-      );
-    }
-
-    if (schedule.bookedCount >= schedule.capacity) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Свободных мест нет',
-        },
-        { status: 409 },
-      );
-    }
-
-    const booking = await createBooking({
-      scheduleId,
-      offeringId: schedule.offeringId,
-      ownerType: schedule.ownerType,
-      ownerId: schedule.ownerId,
-      affiliatedClubId: schedule.affiliatedClubId ?? affiliatedClub?.id,
-      userId,
-      clubId: club?.id,
-      trainerId: trainer?.id ?? schedule.trainerId,
-      sportId: offering?.sportId ?? schedule.sportId,
-      date: schedule.date,
-      status: 'confirmed',
-      paymentStatus: 'unpaid',
-      totalPrice: offering?.price ?? schedule.price,
-    });
-
-    const updatedSchedule = await incrementScheduleBookedCount(scheduleId);
-
-    if (!updatedSchedule) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Свободных мест нет',
-        },
-        { status: 409 },
-      );
-    }
+    const booking = await createBookingAtomic({ scheduleId, userId });
 
     return NextResponse.json(
       {
@@ -187,6 +116,21 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error('Ошибка создания записи:', error);
+
+    // Маппинг бизнес-ошибок из db.ts на HTTP-коды
+    const message = error instanceof Error ? error.message : '';
+
+    if (message === 'Слот расписания не найден') {
+      return NextResponse.json({ success: false, error: message }, { status: 404 });
+    }
+
+    if (message === 'Пользователь уже записан на это занятие') {
+      return NextResponse.json({ success: false, error: message }, { status: 409 });
+    }
+
+    if (message === 'Свободных мест нет') {
+      return NextResponse.json({ success: false, error: message }, { status: 409 });
+    }
 
     return NextResponse.json(
       {

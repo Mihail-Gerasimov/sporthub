@@ -46,7 +46,6 @@ type PublicationScheduleInput = EntityWithOverridableFields<
   | 'bookedCount'
 >;
 
-export type CreateBookingInput = Omit<Booking, 'id' | 'createdAt'>;
 export type CreateReviewInput = Omit<Review, 'id' | 'createdAt'>;
 
 /**
@@ -535,45 +534,131 @@ export async function getUserById(id: EntityId): Promise<User | null> {
   return users.find((user) => user.id === id) ?? null;
 }
 
-export async function createBooking(input: CreateBookingInput): Promise<Booking> {
-  const bookings = await getBookings();
+/**
+ * Минимальный input для atomic-создания booking.
+ * Сервер сам извлекает метаданные слота.
+ */
+export type CreateBookingAtomicInput = {
+  scheduleId: EntityId;
+  userId: EntityId;
+};
 
+/**
+ * Input для отмены booking (hard-delete).
+ */
+export type CancelBookingInput = {
+  bookingId: EntityId;
+  userId: EntityId;
+};
+
+/**
+ * Atomic-создание записи: booking + bookedCount++ единым rollback-сценарием.
+ * Проверяет: существование слота, capacity, duplicate.
+ * MVP: запись сразу confirmed. pending зарезервирован для будущего payment-flow.
+ */
+export async function createBookingAtomic(input: CreateBookingAtomicInput): Promise<Booking> {
+  const [bookings, schedule, slotContext] = await Promise.all([
+    getBookings(),
+    readCollection('schedule'),
+    getScheduleSlotContext(input.scheduleId),
+  ]);
+
+  if (!slotContext) {
+    throw new Error('Слот расписания не найден');
+  }
+
+  const { affiliatedClub, club, offering, schedule: slot, trainer } = slotContext;
+
+  // После hard-delete cancelled записей нет в JSON → любой existing = duplicate
+  const duplicate = bookings.find(
+    (booking) => booking.userId === input.userId && booking.scheduleId === input.scheduleId,
+  );
+
+  if (duplicate) {
+    throw new Error('Пользователь уже записан на это занятие');
+  }
+
+  if (slot.bookedCount >= slot.capacity) {
+    throw new Error('Свободных мест нет');
+  }
+
+  // Собираем booking
   const booking: Booking = {
     id: getNextEntityId(bookings),
     createdAt: createTimestamp(),
-    ...input,
+    scheduleId: input.scheduleId,
+    offeringId: slot.offeringId,
+    ownerType: slot.ownerType,
+    ownerId: slot.ownerId,
+    affiliatedClubId: slot.affiliatedClubId ?? affiliatedClub?.id,
+    userId: input.userId,
+    clubId: club?.id,
+    trainerId: trainer?.id ?? slot.trainerId,
+    sportId: offering?.sportId ?? slot.sportId,
+    date: slot.date,
+    status: 'confirmed',
+    paymentStatus: 'unpaid',
+    totalPrice: offering?.price ?? slot.price,
   };
 
-  bookings.push(booking);
-  await writeCollection('bookings', bookings);
+  // Обновляем bookedCount в schedule
+  const rawSlotIndex = schedule.findIndex((item) => item.id === input.scheduleId);
+  const updatedSchedule = [...schedule];
+
+  updatedSchedule[rawSlotIndex] = {
+    ...schedule[rawSlotIndex],
+    bookedCount: schedule[rawSlotIndex].bookedCount + 1,
+  };
+
+  const updatedBookings = [...bookings, booking];
+
+  // Atomic write: bookings + schedule
+  await writeCollectionsWithRollback([
+    { key: 'bookings', next: updatedBookings, previous: bookings },
+    { key: 'schedule', next: updatedSchedule, previous: schedule },
+  ]);
 
   return booking;
 }
 
-export async function incrementScheduleBookedCount(scheduleId: EntityId): Promise<Schedule | null> {
-  const [offerings, schedule] = await Promise.all([getOfferings(), readCollection('schedule')]);
-  const offeringsById = new Map(offerings.map((offering) => [offering.id, offering]));
-  const slotIndex = schedule.findIndex((item) => item.id === scheduleId);
+/**
+ * Отмена записи: hard-delete booking + bookedCount-- единым rollback-сценарием.
+ * Проверяет ownership: только владелец записи может отменить.
+ */
+export async function cancelBooking(input: CancelBookingInput): Promise<void> {
+  const [bookings, schedule] = await Promise.all([getBookings(), readCollection('schedule')]);
 
-  if (slotIndex === -1) {
-    return null;
+  const bookingIndex = bookings.findIndex((booking) => booking.id === input.bookingId);
+
+  if (bookingIndex === -1) {
+    throw new Error('Запись не найдена');
   }
 
-  const slot = schedule[slotIndex];
+  const booking = bookings[bookingIndex];
 
-  if (slot.bookedCount >= slot.capacity) {
-    return null;
+  if (booking.userId !== input.userId) {
+    throw new Error('Недостаточно прав для отмены записи');
   }
 
-  const updatedSlot = {
-    ...slot,
-    bookedCount: slot.bookedCount + 1,
-  };
+  // Удаляем booking из массива (hard-delete)
+  const updatedBookings = bookings.filter((b) => b.id !== input.bookingId);
 
-  schedule[slotIndex] = updatedSlot;
-  await writeCollection('schedule', schedule);
+  // Уменьшаем bookedCount
+  const slotIndex = schedule.findIndex((item) => item.id === booking.scheduleId);
+  const updatedSchedule = [...schedule];
 
-  return normalizeSchedule(updatedSlot, offeringsById);
+  if (slotIndex !== -1) {
+    updatedSchedule[slotIndex] = {
+      ...schedule[slotIndex],
+      bookedCount: Math.max(0, schedule[slotIndex].bookedCount - 1),
+    };
+  }
+
+  // Atomic write: bookings + schedule
+  await writeCollectionsWithRollback([
+    { key: 'bookings', next: updatedBookings, previous: bookings },
+    { key: 'schedule', next: updatedSchedule, previous: schedule },
+  ]);
 }
 
 export async function createReview(input: CreateReviewInput): Promise<Review> {
