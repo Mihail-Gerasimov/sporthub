@@ -7,17 +7,16 @@ import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievem
 import { AthleteFeedbackSettingsSection } from '@/components/profile/AthleteFeedbackSettingsSection';
 import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import { AthleteHistorySection } from '@/components/profile/AthleteHistorySection';
+import {
+  getAthleteActiveFutureBookings,
+  getAthleteUpcomingProfileBookings,
+} from '@/components/profile/athlete-bookings';
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { Badge, Button, Card } from '@/components/ui';
-import {
-  formatDate,
-  getBookingClubId,
-  getBookingTrainerId,
-  getDateKeyInTimeZone,
-} from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -42,23 +41,6 @@ type AthleteSummary = {
   upcomingBookingsCount: number;
 };
 
-type UpcomingProfileBooking = {
-  id: number;
-  clubName: string;
-  date: string;
-  startTime: string;
-  statusLabel: string;
-  title: string;
-  trainerName: string;
-};
-
-const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтверждена',
-  completed: 'Завершена',
-  cancelled: 'Отменена',
-};
-
 function getUpcomingBookingsLabel(count: number) {
   const remainder10 = count % 10;
   const remainder100 = count % 100;
@@ -77,18 +59,14 @@ function getUpcomingBookingsLabel(count: number) {
 function getAthleteSummary({
   bookings,
   achievementsCount,
+  upcomingBookingsCount,
   reviews,
 }: {
   bookings: Booking[];
   achievementsCount: number;
+  upcomingBookingsCount: number;
   reviews: Review[];
 }): AthleteSummary {
-  const todayDateKey = getDateKeyInTimeZone();
-  const upcomingBookingsCount = bookings.filter(
-    (booking) =>
-      booking.date >= todayDateKey &&
-      (booking.status === 'confirmed' || booking.status === 'pending'),
-  ).length;
   const completedVisitsCount = bookings.filter((booking) => booking.status === 'completed').length;
 
   return {
@@ -97,56 +75,6 @@ function getAthleteSummary({
     reviewsCount: reviews.length,
     upcomingBookingsCount,
   };
-}
-
-function getUpcomingProfileBookings({
-  athleteUserId,
-  bookings,
-  clubs,
-  schedule,
-  trainers,
-}: {
-  athleteUserId: number | null;
-  bookings: Booking[];
-  clubs: Club[];
-  schedule: Schedule[];
-  trainers: Trainer[];
-}): UpcomingProfileBooking[] {
-  if (athleteUserId === null) {
-    return [];
-  }
-
-  const todayDateKey = getDateKeyInTimeZone();
-  const clubNames = new Map(clubs.map((club) => [club.id, club.name]));
-  const trainerNames = new Map(trainers.map((trainer) => [trainer.id, trainer.name]));
-  const scheduleItems = new Map(schedule.map((slot) => [slot.id, slot]));
-
-  return bookings
-    .filter(
-      (booking) =>
-        booking.userId === athleteUserId &&
-        booking.date >= todayDateKey &&
-        (booking.status === 'confirmed' || booking.status === 'pending'),
-    )
-    .map((booking) => {
-      const slot = scheduleItems.get(booking.scheduleId);
-
-      return {
-        id: booking.id,
-        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub',
-        date: booking.date,
-        startTime: slot?.startTime ?? 'Время уточняется',
-        statusLabel: BOOKING_STATUS_LABELS[booking.status],
-        title: slot?.title ?? 'Занятие SportHub',
-        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
-      } satisfies UpcomingProfileBooking;
-    })
-    .sort((left, right) => {
-      const leftTimestamp = `${left.date}T${left.startTime}`;
-      const rightTimestamp = `${right.date}T${right.startTime}`;
-
-      return leftTimestamp.localeCompare(rightTimestamp);
-    });
 }
 
 function AthleteAccessDeniedState() {
@@ -229,18 +157,27 @@ export function AthleteProfilePage({
       }),
     [athleteUserId, athleteBookings, athleteReviews],
   );
+  const activeFutureBookings = useMemo(
+    () =>
+      getAthleteActiveFutureBookings({
+        athleteUserId,
+        bookings: athleteBookings,
+      }),
+    [athleteUserId, athleteBookings],
+  );
   const athleteSummary = useMemo(
     () =>
       getAthleteSummary({
         achievementsCount: athleteAchievements.filter((achievement) => achievement.unlocked).length,
         bookings: athleteBookings,
+        upcomingBookingsCount: activeFutureBookings.length,
         reviews: athleteReviews,
       }),
-    [athleteAchievements, athleteBookings, athleteReviews],
+    [activeFutureBookings.length, athleteAchievements, athleteBookings, athleteReviews],
   );
   const upcomingBookings = useMemo(
     () =>
-      getUpcomingProfileBookings({
+      getAthleteUpcomingProfileBookings({
         athleteUserId,
         bookings: athleteBookings,
         clubs,
@@ -442,13 +379,19 @@ export function AthleteProfilePage({
               {upcomingBookings.map((booking) => (
                 <div
                   key={booking.id}
+                  data-testid="athlete-upcoming-card"
                   className="grid gap-4 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.3fr_0.9fr_auto]"
                 >
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {booking.clubName}
                     </p>
-                    <p className="mt-2 text-xl font-semibold text-ink">{booking.title}</p>
+                    <p
+                      data-testid="athlete-upcoming-card-title"
+                      className="mt-2 text-xl font-semibold text-ink"
+                    >
+                      {booking.title}
+                    </p>
                     <p className="mt-2 text-sm leading-relaxed text-muted">{booking.trainerName}</p>
                   </div>
 

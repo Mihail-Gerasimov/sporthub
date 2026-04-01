@@ -564,6 +564,181 @@ describe('AthleteProfilePage', () => {
     ).toBeInTheDocument();
   });
 
+  it('сортирует предстоящие записи по дате и времени ближайшего слота', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    const sortedBookings: Booking[] = [
+      {
+        id: 101,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        scheduleId: 101,
+        userId: 1,
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        date: '2026-03-20',
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
+        totalPrice: 1100,
+      },
+      {
+        id: 102,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        scheduleId: 102,
+        userId: 1,
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        date: '2026-03-19',
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
+        totalPrice: 1100,
+      },
+      {
+        id: 103,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        scheduleId: 103,
+        userId: 1,
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        date: '2026-03-19',
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        totalPrice: 1100,
+      },
+    ];
+
+    const sortedSchedule: Schedule[] = [
+      {
+        id: 101,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        title: 'Поздний бассейн',
+        date: '2026-03-20',
+        startTime: '20:00',
+        endTime: '21:00',
+        durationMinutes: 60,
+        level: 'all_levels',
+        capacity: 14,
+        bookedCount: 8,
+        price: 1100,
+        room: 'Бассейн C',
+      },
+      {
+        id: 102,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        title: 'Ранний бассейн',
+        date: '2026-03-19',
+        startTime: '06:45',
+        endTime: '07:45',
+        durationMinutes: 60,
+        level: 'all_levels',
+        capacity: 14,
+        bookedCount: 8,
+        price: 1100,
+        room: 'Бассейн A',
+      },
+      {
+        id: 103,
+        createdAt: '2026-03-17T09:00:00.000Z',
+        clubId: 1,
+        trainerId: 1,
+        sportId: 3,
+        title: 'Дневной бассейн',
+        date: '2026-03-19',
+        startTime: '13:30',
+        endTime: '14:30',
+        durationMinutes: 60,
+        level: 'all_levels',
+        capacity: 14,
+        bookedCount: 8,
+        price: 1100,
+        room: 'Бассейн B',
+      },
+    ];
+
+    render(
+      <AthleteProfilePage
+        bookings={sortedBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={sortedSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const upcomingSection = screen.getByTestId('athlete-upcoming-section');
+    const titles = within(upcomingSection)
+      .getAllByTestId('athlete-upcoming-card-title')
+      .map((title) => title.textContent);
+
+    expect(titles).toEqual(['Ранний бассейн', 'Дневной бассейн', 'Поздний бассейн']);
+  });
+
+  it('после hard-cancel убирает карточку из upcoming-блока и обновляет summary count', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    const { rerender } = render(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const upcomingSection = screen.getByTestId('athlete-upcoming-section');
+
+    expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('1');
+    expect(within(upcomingSection).getByText('Утреннее плавание')).toBeInTheDocument();
+
+    rerender(
+      <AthleteProfilePage
+        bookings={profileBookings.filter((booking) => booking.id !== 1)}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
+    expect(
+      within(screen.getByTestId('athlete-upcoming-section')).queryByText('Утреннее плавание'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('не ломает блок ачивок при отсутствии активности пользователя', () => {
     useAuthStore.setState({
       isAuthenticated: true,
