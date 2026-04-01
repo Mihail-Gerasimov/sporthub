@@ -182,7 +182,12 @@ describe('getAthleteAchievements', () => {
       activeFutureBookingsCount: 1,
     });
 
-    expect(achievements.find((achievement) => achievement.id === 'first-booking')).toBeUndefined();
+    expect(achievements.find((achievement) => achievement.id === 'first-booking')).toMatchObject({
+      unlocked: false,
+      current: 0,
+      target: 1,
+      title: 'Первая запись на тренировку',
+    });
     expect(
       achievementsWithActiveBooking.find((achievement) => achievement.id === 'first-booking'),
     ).toMatchObject({
@@ -193,7 +198,7 @@ describe('getAthleteAchievements', () => {
     });
     expect(summaryWithoutActiveBooking).toMatchObject({
       unlockedAchievementsCount: 6,
-      overallProgressPercent: 93,
+      overallProgressPercent: 81,
       hasActiveBookingSignal: false,
     });
     expect(summaryWithActiveBooking).toMatchObject({
@@ -210,7 +215,7 @@ describe('getAthleteAchievements', () => {
       reviews: [],
     });
 
-    expect(achievements).toHaveLength(7);
+    expect(achievements).toHaveLength(8);
     expect(achievements.every((achievement) => achievement.current === 0)).toBe(true);
     expect(achievements.every((achievement) => !achievement.unlocked)).toBe(true);
   });

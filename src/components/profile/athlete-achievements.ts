@@ -137,16 +137,14 @@ export function getAthleteAchievements({
   const uniqueClubCount = uniqueClubIds.size;
   const achievements: AthleteAchievement[] = [];
 
-  if (activeFutureBookingsCount > 0) {
-    achievements.push({
-      id: 'first-booking',
-      title: 'Первая запись на тренировку',
-      description: 'Открывается, пока у тебя есть хотя бы одна активная запись.',
-      current: 1,
-      target: 1,
-      unlocked: true,
-    });
-  }
+  achievements.push({
+    id: 'first-booking',
+    title: 'Первая запись на тренировку',
+    description: 'Сделать первую активную запись на тренировку.',
+    current: Math.min(activeFutureBookingsCount, 1),
+    target: 1,
+    unlocked: activeFutureBookingsCount > 0,
+  });
 
   achievements.push(
     {

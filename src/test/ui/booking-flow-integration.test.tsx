@@ -242,7 +242,8 @@ describe('booking-flow integration (Step 16.9)', () => {
         'Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.',
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText('Первая запись на тренировку')).not.toBeInTheDocument();
+    expect(screen.getByText('Первая запись на тренировку')).toBeInTheDocument();
+    expect(screen.getAllByText('0/1').length).toBeGreaterThan(0);
 
     cleanup();
     loginAsProvider();

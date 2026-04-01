@@ -773,8 +773,9 @@ describe('AthleteProfilePage', () => {
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
     expect(screen.queryByText('Активная запись учтена')).not.toBeInTheDocument();
-    expect(screen.getByText('54% общего прогресса')).toBeInTheDocument();
-    expect(screen.queryByText('Первая запись на тренировку')).not.toBeInTheDocument();
+    expect(screen.getByText('47% общего прогресса')).toBeInTheDocument();
+    expect(screen.getByText('Первая запись на тренировку')).toBeInTheDocument();
+    expect(screen.getByText('0/1')).toBeInTheDocument();
     expect(screen.getByTestId('athlete-summary-achievements')).toHaveTextContent('3');
     expect(
       within(screen.getByTestId('athlete-upcoming-section')).queryByText('Утреннее плавание'),
@@ -819,8 +820,9 @@ describe('AthleteProfilePage', () => {
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
     expect(screen.queryByText('Активная запись учтена')).not.toBeInTheDocument();
-    expect(screen.getByText('54% общего прогресса')).toBeInTheDocument();
-    expect(screen.queryByText('Первая запись на тренировку')).not.toBeInTheDocument();
+    expect(screen.getByText('47% общего прогресса')).toBeInTheDocument();
+    expect(screen.getByText('Первая запись на тренировку')).toBeInTheDocument();
+    expect(screen.getByText('0/1')).toBeInTheDocument();
     expect(screen.getByTestId('athlete-summary-achievements')).toHaveTextContent('3');
     expect(within(historySection).getByText('1 завершено')).toBeInTheDocument();
     expect(within(historySection).getByText('Утренняя хатха-йога')).toBeInTheDocument();
