@@ -1,6 +1,9 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
+import {
+  getAthleteAchievementProgressSummary,
+  getAthleteAchievements,
+} from '@/components/profile/athlete-achievements';
 import type { AthleteAchievementId, Booking, Review } from '@/types';
 
 const bookings: Booking[] = [
@@ -139,6 +142,34 @@ describe('getAthleteAchievements', () => {
       unlocked: false,
       current: 5,
       target: 10,
+    });
+  });
+
+  it('добавляет live-progress от активной записи без смешивания completed-only достижений', () => {
+    const achievements = getAthleteAchievements({
+      athleteUserId: 1,
+      bookings,
+      reviews,
+    });
+
+    const summaryWithoutActiveBooking = getAthleteAchievementProgressSummary({
+      achievements,
+      activeFutureBookingsCount: 0,
+    });
+    const summaryWithActiveBooking = getAthleteAchievementProgressSummary({
+      achievements,
+      activeFutureBookingsCount: 1,
+    });
+
+    expect(summaryWithoutActiveBooking).toMatchObject({
+      unlockedAchievementsCount: 6,
+      overallProgressPercent: 93,
+      hasActiveBookingSignal: false,
+    });
+    expect(summaryWithActiveBooking).toMatchObject({
+      unlockedAchievementsCount: 6,
+      overallProgressPercent: 94,
+      hasActiveBookingSignal: true,
     });
   });
 

@@ -12,8 +12,11 @@ import {
   getAthleteActiveFutureBookings,
   getAthleteUpcomingProfileBookings,
 } from '@/components/profile/athlete-bookings';
+import {
+  getAthleteAchievementProgressSummary,
+  getAthleteAchievements,
+} from '@/components/profile/athlete-achievements';
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
-import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { ActionNotice, Badge, Button, Card } from '@/components/ui';
@@ -183,15 +186,28 @@ export function AthleteProfilePage({
       }),
     [athleteUserId, athleteBookings],
   );
+  const athleteAchievementProgressSummary = useMemo(
+    () =>
+      getAthleteAchievementProgressSummary({
+        achievements: athleteAchievements,
+        activeFutureBookingsCount: activeFutureBookings.length,
+      }),
+    [activeFutureBookings.length, athleteAchievements],
+  );
   const athleteSummary = useMemo(
     () =>
       getAthleteSummary({
-        achievementsCount: athleteAchievements.filter((achievement) => achievement.unlocked).length,
+        achievementsCount: athleteAchievementProgressSummary.unlockedAchievementsCount,
         bookings: athleteBookings,
         upcomingBookingsCount: activeFutureBookings.length,
         reviews: athleteReviews,
       }),
-    [activeFutureBookings.length, athleteAchievements, athleteBookings, athleteReviews],
+    [
+      activeFutureBookings.length,
+      athleteAchievementProgressSummary.unlockedAchievementsCount,
+      athleteBookings,
+      athleteReviews,
+    ],
   );
   const upcomingBookings = useMemo(
     () =>
@@ -377,7 +393,10 @@ export function AthleteProfilePage({
           </div>
         </Card>
 
-        <AthleteAchievementsSection achievements={athleteAchievements} />
+        <AthleteAchievementsSection
+          achievements={athleteAchievements}
+          progressSummary={athleteAchievementProgressSummary}
+        />
 
         <Card className="p-6 sm:p-8" data-testid="athlete-upcoming-section">
           <div className="flex flex-wrap items-center justify-between gap-3">

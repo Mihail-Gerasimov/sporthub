@@ -493,6 +493,8 @@ describe('AthleteProfilePage', () => {
 
     expect(screen.getByRole('heading', { name: 'Ачивки спортсмена' })).toBeInTheDocument();
     expect(screen.getByText('Общий прогресс')).toBeInTheDocument();
+    expect(screen.getByText('Активная запись учтена')).toBeInTheDocument();
+    expect(screen.getByText('60% общего прогресса')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Открытые ачивки' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ачивки в процессе' })).toBeInTheDocument();
     expect(screen.getByText('Первый отзыв')).toBeInTheDocument();
@@ -745,9 +747,15 @@ describe('AthleteProfilePage', () => {
     );
 
     const upcomingSection = screen.getByTestId('athlete-upcoming-section');
+    const historySection = screen.getByTestId('athlete-history-section');
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('1');
+    expect(screen.getByText('Активная запись учтена')).toBeInTheDocument();
+    expect(screen.getByText('60% общего прогресса')).toBeInTheDocument();
     expect(within(upcomingSection).getByText('Утреннее плавание')).toBeInTheDocument();
+    expect(within(historySection).getByText('1 завершено')).toBeInTheDocument();
+    expect(within(historySection).getByText('Утренняя хатха-йога')).toBeInTheDocument();
+    expect(within(historySection).queryByText('Утреннее плавание')).not.toBeInTheDocument();
 
     rerender(
       <AthleteProfilePage
@@ -761,6 +769,8 @@ describe('AthleteProfilePage', () => {
     );
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
+    expect(screen.queryByText('Активная запись учтена')).not.toBeInTheDocument();
+    expect(screen.getByText('54% общего прогресса')).toBeInTheDocument();
     expect(
       within(screen.getByTestId('athlete-upcoming-section')).queryByText('Утреннее плавание'),
     ).not.toBeInTheDocument();
@@ -769,6 +779,69 @@ describe('AthleteProfilePage', () => {
         'Пока нет будущих записей. Новые бронирования появятся здесь после записи на занятия.',
       ),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('athlete-history-section')).getByText('1 завершено'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('athlete-history-section')).getByText('Утренняя хатха-йога'),
+    ).toBeInTheDocument();
+  });
+
+  it('после create-like обновления поднимает progress summary и не смешивает активную запись с историей', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    const bookingsWithoutActiveBooking = profileBookings.filter((booking) => booking.id !== 1);
+    const { rerender } = render(
+      <AthleteProfilePage
+        bookings={bookingsWithoutActiveBooking}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    const historySection = screen.getByTestId('athlete-history-section');
+
+    expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
+    expect(screen.queryByText('Активная запись учтена')).not.toBeInTheDocument();
+    expect(screen.getByText('54% общего прогресса')).toBeInTheDocument();
+    expect(within(historySection).getByText('1 завершено')).toBeInTheDocument();
+    expect(within(historySection).getByText('Утренняя хатха-йога')).toBeInTheDocument();
+    expect(within(historySection).queryByText('Утреннее плавание')).not.toBeInTheDocument();
+
+    rerender(
+      <AthleteProfilePage
+        bookings={profileBookings}
+        clubs={profileClubs}
+        reviews={profileReviews}
+        schedule={profileSchedule}
+        trainers={profileTrainers}
+        users={profileUsers}
+      />,
+    );
+
+    expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('1');
+    expect(screen.getByText('Активная запись учтена')).toBeInTheDocument();
+    expect(screen.getByText('60% общего прогресса')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('athlete-upcoming-section')).getByText('Утреннее плавание'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('athlete-history-section')).getByText('1 завершено'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('athlete-history-section')).queryByText('Утреннее плавание'),
+    ).not.toBeInTheDocument();
   });
 
   it('показывает notice и делает refresh при отмене записи из upcoming-карточки', async () => {

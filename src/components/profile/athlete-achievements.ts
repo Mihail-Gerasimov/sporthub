@@ -9,6 +9,12 @@ export type AthleteAchievement = {
   unlocked: boolean;
 };
 
+export type AthleteAchievementProgressSummary = {
+  hasActiveBookingSignal: boolean;
+  overallProgressPercent: number;
+  unlockedAchievementsCount: number;
+};
+
 type GetAthleteAchievementsInput = {
   athleteUserId: number | null;
   bookings: Booking[];
@@ -91,6 +97,23 @@ function getMaxCompletedBookingsWithinSevenDays(bookings: Booking[]) {
   return maxCount;
 }
 
+function getOverallProgressPercent(
+  achievements: AthleteAchievement[],
+  hasActiveBookingSignal: boolean,
+) {
+  const totalProgress = achievements.reduce((accumulator, achievement) => {
+    return accumulator + achievement.current / achievement.target;
+  }, 0);
+  const totalUnits = achievements.length + (hasActiveBookingSignal ? 1 : 0);
+  const progressWithBookingSignal = totalProgress + (hasActiveBookingSignal ? 1 : 0);
+
+  if (totalUnits === 0) {
+    return 0;
+  }
+
+  return Math.round((progressWithBookingSignal / totalUnits) * 100);
+}
+
 export function getAthleteAchievements({
   athleteUserId,
   bookings,
@@ -170,4 +193,20 @@ export function getAthleteAchievements({
       unlocked: completedVisitsCount >= 10,
     },
   ];
+}
+
+export function getAthleteAchievementProgressSummary({
+  achievements,
+  activeFutureBookingsCount,
+}: {
+  achievements: AthleteAchievement[];
+  activeFutureBookingsCount: number;
+}): AthleteAchievementProgressSummary {
+  const hasActiveBookingSignal = activeFutureBookingsCount > 0;
+
+  return {
+    hasActiveBookingSignal,
+    overallProgressPercent: getOverallProgressPercent(achievements, hasActiveBookingSignal),
+    unlockedAchievementsCount: achievements.filter((achievement) => achievement.unlocked).length,
+  };
 }

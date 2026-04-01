@@ -1,27 +1,21 @@
 import { Badge, Card } from '@/components/ui';
 
-import type { AthleteAchievement } from '@/components/profile/athlete-achievements';
+import type {
+  AthleteAchievement,
+  AthleteAchievementProgressSummary,
+} from '@/components/profile/athlete-achievements';
 
 type AthleteAchievementsSectionProps = {
   achievements: AthleteAchievement[];
+  progressSummary: AthleteAchievementProgressSummary;
 };
 
-function getOverallProgressPercent(achievements: AthleteAchievement[]) {
-  if (achievements.length === 0) {
-    return 0;
-  }
-
-  const totalProgress = achievements.reduce((accumulator, achievement) => {
-    return accumulator + achievement.current / achievement.target;
-  }, 0);
-
-  return Math.round((totalProgress / achievements.length) * 100);
-}
-
-export function AthleteAchievementsSection({ achievements }: AthleteAchievementsSectionProps) {
+export function AthleteAchievementsSection({
+  achievements,
+  progressSummary,
+}: AthleteAchievementsSectionProps) {
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const inProgressAchievements = achievements.filter((achievement) => !achievement.unlocked);
-  const overallProgressPercent = getOverallProgressPercent(achievements);
 
   return (
     <Card className="p-6 sm:p-8">
@@ -34,20 +28,25 @@ export function AthleteAchievementsSection({ achievements }: AthleteAchievements
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge tone="success">{unlockedAchievements.length} открыто</Badge>
-          <Badge tone="outline">{overallProgressPercent}% общего прогресса</Badge>
+          <Badge tone="success">{progressSummary.unlockedAchievementsCount} открыто</Badge>
+          {progressSummary.hasActiveBookingSignal ? (
+            <Badge tone="teal">Активная запись учтена</Badge>
+          ) : null}
+          <Badge tone="outline">{progressSummary.overallProgressPercent}% общего прогресса</Badge>
         </div>
       </div>
 
       <div className="mt-6 rounded-card border border-line bg-canvas p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-ink">Общий прогресс</p>
-          <span className="text-sm font-medium text-muted">{overallProgressPercent}%</span>
+          <span className="text-sm font-medium text-muted">
+            {progressSummary.overallProgressPercent}%
+          </span>
         </div>
         <div className="mt-3 h-3 overflow-hidden rounded-pill bg-panel">
           <div
             className="h-full rounded-pill bg-accent transition-[width]"
-            style={{ width: `${overallProgressPercent}%` }}
+            style={{ width: `${progressSummary.overallProgressPercent}%` }}
           />
         </div>
       </div>
