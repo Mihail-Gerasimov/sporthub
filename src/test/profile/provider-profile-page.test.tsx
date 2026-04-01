@@ -163,7 +163,7 @@ describe('ProviderProfilePage', () => {
             userId: 1,
             clubId: 1,
             sportId: 3,
-            date: '2026-03-18',
+            date: '2099-03-18',
             status: 'confirmed',
             paymentStatus: 'paid',
             totalPrice: 1100,
@@ -598,5 +598,97 @@ describe('ProviderProfilePage', () => {
     );
 
     expect(screen.getByTestId('provider-summary-publications')).toHaveTextContent('2');
+  });
+
+  it('синхронно обновляет KPI и блок входящих записей после create и hard-delete букинга', () => {
+    loginAsProvider();
+
+    const activeBooking = {
+      id: 77,
+      createdAt: '2026-03-19T14:30:00.000Z',
+      scheduleId: 701,
+      ownerType: 'club' as const,
+      ownerId: 1,
+      userId: 1,
+      clubId: 1,
+      sportId: 3,
+      date: '2099-04-18',
+      status: 'confirmed' as const,
+      paymentStatus: 'paid' as const,
+      totalPrice: 1300,
+    };
+
+    const athleteUser = {
+      id: 1,
+      createdAt: '2026-03-17T09:00:00.000Z',
+      role: 'athlete' as const,
+      name: 'Алексей Миронов',
+      email: 'alexey@sporthub.local',
+      phone: '+7 999 123-45-67',
+      password: 'secret',
+      favoriteClubIds: [],
+    };
+
+    const bookingSchedule = {
+      id: 701,
+      createdAt: '2026-03-19T14:00:00.000Z',
+      ownerType: 'club' as const,
+      ownerId: 1,
+      clubId: 1,
+      sportId: 3,
+      title: 'Вечерняя группа',
+      date: '2099-04-18',
+      startTime: '19:00',
+      endTime: '20:00',
+      durationMinutes: 60,
+      level: 'all_levels' as const,
+      capacity: 12,
+      bookedCount: 1,
+      price: 1300,
+      room: 'Зал №2',
+    };
+
+    const { rerender } = render(
+      <ProviderProfilePage
+        bookings={[]}
+        clubs={[providerClub]}
+        reviews={[]}
+        schedule={[bookingSchedule]}
+        trainers={[]}
+        users={[athleteUser]}
+      />,
+    );
+
+    expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
+    expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();
+
+    rerender(
+      <ProviderProfilePage
+        bookings={[activeBooking]}
+        clubs={[providerClub]}
+        reviews={[]}
+        schedule={[bookingSchedule]}
+        trainers={[]}
+        users={[athleteUser]}
+      />,
+    );
+
+    expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('1');
+    expect(screen.getByText('Алексей Миронов')).toBeInTheDocument();
+    expect(screen.getByText('Вечерняя группа')).toBeInTheDocument();
+
+    rerender(
+      <ProviderProfilePage
+        bookings={[]}
+        clubs={[providerClub]}
+        reviews={[]}
+        schedule={[bookingSchedule]}
+        trainers={[]}
+        users={[athleteUser]}
+      />,
+    );
+
+    expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
+    expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();
   });
 });

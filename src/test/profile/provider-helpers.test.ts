@@ -1,7 +1,7 @@
 // Тесты бизнес-логики провайдер-кабинета (Step 12.3)
 import { describe, expect, it } from 'vitest';
 
-import type { Booking, Club, Review, Trainer } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
 import {
   getProviderClubs,
   getProviderIncomingBookings,
@@ -137,7 +137,7 @@ const bookings: Booking[] = [
     userId: 1,
     clubId: 1,
     sportId: 3,
-    date: '2026-03-18',
+    date: '2099-03-18',
     status: 'confirmed',
     paymentStatus: 'paid',
     totalPrice: 1100,
@@ -151,7 +151,7 @@ const bookings: Booking[] = [
     userId: 1,
     trainerId: 3,
     sportId: 2,
-    date: '2026-03-20',
+    date: '2099-03-20',
     status: 'pending',
     paymentStatus: 'unpaid',
     totalPrice: 1600,
@@ -165,10 +165,63 @@ const bookings: Booking[] = [
     userId: 1,
     clubId: 3,
     sportId: 1,
-    date: '2026-03-18',
+    date: '2099-03-18',
     status: 'completed',
     paymentStatus: 'paid',
     totalPrice: 800,
+  },
+];
+
+const schedule: Schedule[] = [
+  {
+    id: 3,
+    createdAt: '2026-03-18T09:00:00.000Z',
+    ownerType: 'club',
+    ownerId: 1,
+    clubId: 1,
+    sportId: 3,
+    title: 'Групповая дорожка',
+    date: '2099-03-18',
+    startTime: '08:00',
+    endTime: '09:00',
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 12,
+    bookedCount: 1,
+    price: 1100,
+    room: 'Дорожка 3',
+  },
+  {
+    id: 1003,
+    createdAt: '2026-03-19T13:30:00.000Z',
+    ownerType: 'trainer',
+    ownerId: 3,
+    affiliatedClubId: 2,
+    trainerId: 3,
+    sportId: 2,
+    title: 'Персональная техника удара',
+    date: '2099-03-20',
+    startTime: '18:30',
+    endTime: '19:30',
+    durationMinutes: 60,
+    level: 'intermediate',
+    capacity: 1,
+    bookedCount: 1,
+    price: 1600,
+    room: 'Зал единоборств',
+  },
+];
+
+const users: User[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    role: 'athlete',
+    name: 'Алексей Миронов',
+    email: 'alexey@sporthub.local',
+    phone: '+7 999 123-45-67',
+    password: 'secret',
+    favoriteClubIds: [],
   },
 ];
 
@@ -232,17 +285,50 @@ describe('getProviderTrainers', () => {
 });
 
 describe('getProviderIncomingBookings', () => {
-  it('возвращает только букинги на сущности провайдера', () => {
-    const providerClubIds = [1, 2];
-    const providerTrainerIds = [1, 3];
-    const result = getProviderIncomingBookings(bookings, providerClubIds, providerTrainerIds);
+  it('возвращает только активные входящие записи провайдера и обогащает их контекстом карточки', () => {
+    const result = getProviderIncomingBookings({
+      bookings,
+      clubs,
+      providerClubIds: [1, 2],
+      providerTrainerIds: [1, 3],
+      schedule,
+      todayDateKey: '2099-03-18',
+      trainers,
+      users,
+    });
 
-    // Букинг 1: clubId 1 (провайдер), Букинг 2: trainerId 3 (провайдер), Букинг 3: clubId 3 (чужой)
-    expect(result.map((b) => b.id).sort()).toEqual([1, 2]);
+    expect(result.map((booking) => booking.id)).toEqual([1, 2]);
+    expect(result[0]).toMatchObject({
+      athleteEmail: 'alexey@sporthub.local',
+      athleteName: 'Алексей Миронов',
+      bookingTypeLabel: 'Услуга клуба',
+      contextLabel: 'Volna Aquatic Club',
+      locationLabel: 'Volna Aquatic Club · Дорожка 3',
+      timeLabel: '08:00 - 09:00',
+      title: 'Групповая дорожка',
+    });
+    expect(result[1]).toMatchObject({
+      athleteEmail: 'alexey@sporthub.local',
+      athleteName: 'Алексей Миронов',
+      bookingTypeLabel: 'Услуга тренера',
+      contextLabel: 'Тимур Каримов · North Ring',
+      locationLabel: 'North Ring · Зал единоборств',
+      timeLabel: '18:30 - 19:30',
+      title: 'Персональная техника удара',
+    });
   });
 
-  it('возвращает пустой массив если нет входящих записей', () => {
-    const result = getProviderIncomingBookings(bookings, [999], [999]);
+  it('возвращает пустой массив если нет активных входящих записей на сегодня и позже', () => {
+    const result = getProviderIncomingBookings({
+      bookings,
+      clubs,
+      providerClubIds: [1, 2],
+      providerTrainerIds: [1, 3],
+      schedule,
+      todayDateKey: '2100-01-01',
+      trainers,
+      users,
+    });
 
     expect(result).toEqual([]);
   });
@@ -267,7 +353,16 @@ describe('getProviderSummary', () => {
   it('считает правильную сводку', () => {
     const providerClubs = clubs.filter((c) => c.managedByUserId === PROVIDER_USER_ID);
     const providerTrainers = trainers.filter((t) => t.managedByUserId === PROVIDER_USER_ID);
-    const providerBookings = bookings.filter((b) => b.id === 1 || b.id === 2);
+    const providerBookings = getProviderIncomingBookings({
+      bookings,
+      clubs,
+      providerClubIds: [1, 2],
+      providerTrainerIds: [1, 3],
+      schedule,
+      todayDateKey: '2099-03-18',
+      trainers,
+      users,
+    });
     const providerReviews = reviews.filter((r) => r.id === 1 || r.id === 2);
     const result = getProviderSummary(
       providerClubs,

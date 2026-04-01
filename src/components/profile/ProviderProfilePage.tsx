@@ -23,13 +23,15 @@ import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/rever
 import type { ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, EntityId, Offering, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, EntityId, Offering, Review, Schedule, Trainer, User } from '@/types';
 
 type ProviderProfilePageProps = {
   bookings?: Booking[];
   clubs?: Club[];
   reviews?: Review[];
+  schedule?: Schedule[];
   trainers?: Trainer[];
+  users?: User[];
 };
 
 type PublishModalMode = 'create' | 'edit';
@@ -112,7 +114,9 @@ export function ProviderProfilePage({
   bookings = [],
   clubs = [],
   reviews = [],
+  schedule = [],
   trainers = [],
+  users = [],
 }: ProviderProfilePageProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
@@ -310,8 +314,17 @@ export function ProviderProfilePage({
   const providerClubIds = useMemo(() => providerClubs.map((c) => c.id), [providerClubs]);
   const providerTrainerIds = useMemo(() => providerTrainers.map((t) => t.id), [providerTrainers]);
   const providerBookings = useMemo(
-    () => getProviderIncomingBookings(bookings, providerClubIds, providerTrainerIds),
-    [bookings, providerClubIds, providerTrainerIds],
+    () =>
+      getProviderIncomingBookings({
+        bookings,
+        clubs,
+        providerClubIds,
+        providerTrainerIds,
+        schedule,
+        trainers,
+        users,
+      }),
+    [bookings, clubs, providerClubIds, providerTrainerIds, schedule, trainers, users],
   );
   const providerReviews = useMemo(
     () => getProviderReviews(reviews, providerClubIds, providerTrainerIds),

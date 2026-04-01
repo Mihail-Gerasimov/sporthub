@@ -1,5 +1,12 @@
 // Бизнес-логика провайдер-кабинета: фильтрация клубов, тренеров, букингов, отзывов и сводка.
-import type { Booking, Club, Review, Trainer } from '@/types';
+import {
+  getBookingClubId,
+  getBookingTrainerId,
+  getDateKeyInTimeZone,
+  getScheduleClubId,
+  getScheduleTrainerId,
+} from '@/lib/utils';
+import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
 
 /** Сводка KPI провайдера для дэшборда */
 export type ProviderSummary = {
@@ -8,6 +15,131 @@ export type ProviderSummary = {
   reviewsCount: number;
   averageRating: number;
 };
+
+export type ProviderIncomingBookingStatusTone = 'success' | 'outline' | 'teal' | 'danger';
+
+export type ProviderIncomingBooking = {
+  athleteEmail: string;
+  athleteName: string;
+  bookingTypeLabel: string;
+  contextLabel: string;
+  date: string;
+  endTime: string;
+  id: number;
+  locationLabel: string;
+  paymentLabel: string;
+  startTime: string;
+  statusLabel: string;
+  statusTone: ProviderIncomingBookingStatusTone;
+  timeLabel: string;
+  title: string;
+  totalPrice: number;
+};
+
+type GetProviderIncomingBookingsInput = {
+  bookings: Booking[];
+  clubs?: Club[];
+  providerClubIds: number[];
+  providerTrainerIds: number[];
+  schedule?: Schedule[];
+  todayDateKey?: string;
+  trainers?: Trainer[];
+  users?: User[];
+};
+
+const ACTIVE_BOOKING_STATUSES = new Set<Booking['status']>(['confirmed', 'pending']);
+
+const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
+  pending: 'Ожидает подтверждения',
+  confirmed: 'Подтверждена',
+  completed: 'Завершена',
+  cancelled: 'Отменена',
+};
+
+const BOOKING_STATUS_TONES: Record<Booking['status'], ProviderIncomingBookingStatusTone> = {
+  pending: 'outline',
+  confirmed: 'success',
+  completed: 'teal',
+  cancelled: 'danger',
+};
+
+const PAYMENT_STATUS_LABELS: Record<Booking['paymentStatus'], string> = {
+  paid: 'Оплачено',
+  unpaid: 'Не оплачено',
+  refunded: 'Возврат оформлен',
+};
+
+/** Возвращает короткую человекочитаемую метку типа входящей записи. */
+function getProviderBookingTypeLabel(
+  booking: Pick<Booking, 'ownerType' | 'clubId' | 'trainerId'>,
+): string {
+  if (booking.ownerType === 'trainer') {
+    return 'Услуга тренера';
+  }
+
+  if (booking.ownerType === 'club') {
+    return 'Услуга клуба';
+  }
+
+  if (booking.clubId !== undefined) {
+    return 'Услуга клуба';
+  }
+
+  if (booking.trainerId !== undefined) {
+    return 'Услуга тренера';
+  }
+
+  return 'Запись SportHub';
+}
+
+/** Собирает строку времени слота в единый лейбл для карточки. */
+function getProviderBookingTimeLabel(slot: Pick<Schedule, 'startTime' | 'endTime'> | undefined) {
+  if (!slot?.startTime) {
+    return 'Время уточняется';
+  }
+
+  if (!slot.endTime) {
+    return slot.startTime;
+  }
+
+  return `${slot.startTime} - ${slot.endTime}`;
+}
+
+/** Возвращает краткий контекст «к кому / куда», чтобы не путать записи между публикациями. */
+function getProviderBookingContextLabel({
+  booking,
+  clubName,
+  trainerName,
+}: {
+  booking: Pick<Booking, 'ownerType' | 'trainerId'>;
+  clubName: string;
+  trainerName: string;
+}) {
+  if (booking.ownerType === 'trainer' || booking.trainerId !== undefined) {
+    return clubName === 'Локация уточняется' ? trainerName : `${trainerName} · ${clubName}`;
+  }
+
+  return clubName;
+}
+
+/** Собирает строку локации слота: площадка и комната, если она есть. */
+function getProviderBookingLocationLabel({
+  clubName,
+  slot,
+  trainerName,
+}: {
+  clubName: string;
+  slot: Pick<Schedule, 'room'> | undefined;
+  trainerName: string;
+}) {
+  const baseLabel = clubName !== 'Локация уточняется' ? clubName : trainerName;
+
+  if (!slot?.room) {
+    return baseLabel;
+  }
+
+  return `${baseLabel} · ${slot.room}`;
+}
 
 /** Клубы, управляемые провайдером */
 export function getProviderClubs(clubs: Club[], providerUserId: number): Club[] {
@@ -21,24 +153,91 @@ export function getProviderTrainers(trainers: Trainer[], providerUserId: number)
 
 /** Входящие записи на клубы и тренеров провайдера */
 export function getProviderIncomingBookings(
-  bookings: Booking[],
-  providerClubIds: number[],
-  providerTrainerIds: number[],
-): Booking[] {
+  input: GetProviderIncomingBookingsInput,
+): ProviderIncomingBooking[] {
+  const {
+    bookings,
+    clubs = [],
+    providerClubIds,
+    providerTrainerIds,
+    schedule = [],
+    todayDateKey = getDateKeyInTimeZone(),
+    trainers = [],
+    users = [],
+  } = input;
   const clubIdSet = new Set(providerClubIds);
   const trainerIdSet = new Set(providerTrainerIds);
+  const clubById = new Map(clubs.map((club) => [club.id, club]));
+  const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
+  const scheduleById = new Map(schedule.map((slot) => [slot.id, slot]));
+  const userById = new Map(users.map((user) => [user.id, user]));
 
-  return bookings.filter((booking) => {
-    if (booking.clubId && clubIdSet.has(booking.clubId)) {
-      return true;
-    }
+  return bookings
+    .filter(
+      (booking) => booking.date >= todayDateKey && ACTIVE_BOOKING_STATUSES.has(booking.status),
+    )
+    .filter((booking) => {
+      const bookingClubId = getBookingClubId(booking);
+      const bookingTrainerId = getBookingTrainerId(booking);
 
-    if (booking.trainerId && trainerIdSet.has(booking.trainerId)) {
-      return true;
-    }
+      if (bookingClubId !== null && clubIdSet.has(bookingClubId)) {
+        return true;
+      }
 
-    return false;
-  });
+      if (bookingTrainerId !== null && trainerIdSet.has(bookingTrainerId)) {
+        return true;
+      }
+
+      return false;
+    })
+    .map((booking) => {
+      const slot = scheduleById.get(booking.scheduleId);
+      const athlete = userById.get(booking.userId);
+      const resolvedClubId = getBookingClubId(booking) ?? (slot ? getScheduleClubId(slot) : null);
+      const resolvedTrainerId =
+        getBookingTrainerId(booking) ?? (slot ? getScheduleTrainerId(slot) : null);
+      const clubName =
+        resolvedClubId !== null
+          ? (clubById.get(resolvedClubId)?.name ?? 'Локация уточняется')
+          : 'Локация уточняется';
+      const trainerName =
+        resolvedTrainerId !== null
+          ? (trainerById.get(resolvedTrainerId)?.name ?? 'Тренер SportHub')
+          : 'Тренер SportHub';
+      const startTime = slot?.startTime ?? 'Время уточняется';
+
+      return {
+        athleteEmail: athlete?.email ?? 'Email уточняется',
+        athleteName: athlete?.name ?? 'Спортсмен SportHub',
+        bookingTypeLabel: getProviderBookingTypeLabel(booking),
+        contextLabel: getProviderBookingContextLabel({
+          booking,
+          clubName,
+          trainerName,
+        }),
+        date: booking.date,
+        endTime: slot?.endTime ?? '',
+        id: booking.id,
+        locationLabel: getProviderBookingLocationLabel({
+          clubName,
+          slot,
+          trainerName,
+        }),
+        paymentLabel: PAYMENT_STATUS_LABELS[booking.paymentStatus],
+        startTime,
+        statusLabel: BOOKING_STATUS_LABELS[booking.status],
+        statusTone: BOOKING_STATUS_TONES[booking.status],
+        timeLabel: getProviderBookingTimeLabel(slot),
+        title: slot?.title ?? 'Занятие SportHub',
+        totalPrice: booking.totalPrice,
+      } satisfies ProviderIncomingBooking;
+    })
+    .sort((left, right) => {
+      const leftTimestamp = `${left.date}T${left.startTime}`;
+      const rightTimestamp = `${right.date}T${right.startTime}`;
+
+      return leftTimestamp.localeCompare(rightTimestamp);
+    });
 }
 
 /** Отзывы на клубы и тренеров провайдера */
@@ -67,7 +266,7 @@ export function getProviderReviews(
 export function getProviderSummary(
   providerClubs: Club[],
   providerTrainers: Trainer[],
-  providerBookings: Booking[],
+  providerBookings: ProviderIncomingBooking[],
   providerReviews: Review[],
 ): ProviderSummary {
   const publicationsCount = providerClubs.length + providerTrainers.length;

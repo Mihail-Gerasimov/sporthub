@@ -2,36 +2,42 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
 import { ProviderBookingsSection } from '@/components/profile/ProviderBookingsSection';
-import type { Booking } from '@/types';
 
-const bookings: Booking[] = [
+const bookings: ProviderIncomingBooking[] = [
   {
     id: 1,
-    createdAt: '2026-03-18T10:00:00.000Z',
-    scheduleId: 3,
-    ownerType: 'club',
-    ownerId: 1,
-    userId: 1,
-    clubId: 1,
-    sportId: 3,
-    date: '2026-03-18',
-    status: 'confirmed',
-    paymentStatus: 'paid',
+    athleteEmail: 'alexey@sporthub.local',
+    athleteName: 'Алексей Миронов',
+    bookingTypeLabel: 'Услуга клуба',
+    contextLabel: 'Volna Aquatic Club',
+    date: '2099-03-18',
+    endTime: '09:00',
+    locationLabel: 'Volna Aquatic Club · Дорожка 3',
+    paymentLabel: 'Оплачено',
+    startTime: '08:00',
+    statusLabel: 'Подтверждена',
+    statusTone: 'success',
+    timeLabel: '08:00 - 09:00',
+    title: 'Групповая дорожка',
     totalPrice: 1150,
   },
   {
     id: 2,
-    createdAt: '2026-03-19T14:30:00.000Z',
-    scheduleId: 1003,
-    ownerType: 'trainer',
-    ownerId: 3,
-    userId: 1,
-    trainerId: 3,
-    sportId: 2,
-    date: '2026-03-20',
-    status: 'pending',
-    paymentStatus: 'unpaid',
+    athleteEmail: 'alexey@sporthub.local',
+    athleteName: 'Алексей Миронов',
+    bookingTypeLabel: 'Услуга тренера',
+    contextLabel: 'Тимур Каримов · North Ring',
+    date: '2099-03-20',
+    endTime: '19:30',
+    locationLabel: 'North Ring · Зал единоборств',
+    paymentLabel: 'Не оплачено',
+    startTime: '18:30',
+    statusLabel: 'Ожидает подтверждения',
+    statusTone: 'outline',
+    timeLabel: '18:30 - 19:30',
+    title: 'Персональная техника удара',
     totalPrice: 1600,
   },
 ];
@@ -45,21 +51,26 @@ describe('ProviderBookingsSection', () => {
     expect(screen.getByText(/1 600/)).toBeInTheDocument();
   });
 
-  it('отображает статус и дату каждой записи', () => {
+  it('отображает спортсмена, услугу, статус и дату каждой записи', () => {
     render(<ProviderBookingsSection bookings={bookings} />);
 
+    expect(screen.getAllByText('Алексей Миронов')).toHaveLength(2);
+    expect(screen.getByText('Групповая дорожка')).toBeInTheDocument();
+    expect(screen.getByText('Персональная техника удара')).toBeInTheDocument();
     expect(screen.getByText('Подтверждена')).toBeInTheDocument();
-    expect(screen.getByText('Ожидает')).toBeInTheDocument();
-    // Даты
+    expect(screen.getByText('Ожидает подтверждения')).toBeInTheDocument();
     expect(screen.getByText(/18 марта/)).toBeInTheDocument();
     expect(screen.getByText(/20 марта/)).toBeInTheDocument();
   });
 
-  it('отображает тип сущности (клуб или тренер)', () => {
+  it('отображает тип записи, контекст и работает как read-only карточка', () => {
     render(<ProviderBookingsSection bookings={bookings} />);
 
-    expect(screen.getByText('Клуб')).toBeInTheDocument();
-    expect(screen.getByText('Тренер')).toBeInTheDocument();
+    expect(screen.getByText('Услуга клуба')).toBeInTheDocument();
+    expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
+    expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
+    expect(screen.getByText('Тимур Каримов · North Ring')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('показывает пустое состояние при отсутствии записей', () => {

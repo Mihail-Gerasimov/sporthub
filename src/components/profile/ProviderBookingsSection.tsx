@@ -1,32 +1,11 @@
 // Секция «Входящие записи» кабинета провайдера — список букингов на клубы и тренеров.
 import { Badge, Card } from '@/components/ui';
-import { formatDate } from '@/lib/utils';
-import type { Booking } from '@/types';
+import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
+import { formatDate, formatPrice } from '@/lib/utils';
 
 type ProviderBookingsSectionProps = {
-  bookings: Booking[];
+  bookings: ProviderIncomingBooking[];
 };
-
-/** Локализованные метки статусов записей */
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Ожидает',
-  confirmed: 'Подтверждена',
-  completed: 'Завершена',
-  cancelled: 'Отменена',
-};
-
-/** Цвета бейджей по статусу */
-const STATUS_TONES: Record<string, 'success' | 'outline' | 'danger' | 'teal'> = {
-  pending: 'outline',
-  confirmed: 'success',
-  completed: 'teal',
-  cancelled: 'danger',
-};
-
-/** Форматирование цены с пробелами (1 150 ₽) */
-function formatPrice(price: number): string {
-  return `${price.toLocaleString('ru-RU')} ₽`;
-}
 
 export function ProviderBookingsSection({ bookings }: ProviderBookingsSectionProps) {
   return (
@@ -36,40 +15,58 @@ export function ProviderBookingsSection({ bookings }: ProviderBookingsSectionPro
       {bookings.length > 0 ? (
         <div className="mt-6 grid gap-4">
           {bookings.map((booking) => (
-            <div
+            <article
               key={booking.id}
-              className="grid gap-4 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.4fr_1fr_auto]"
+              className="grid gap-4 rounded-card border border-line bg-canvas p-4 lg:grid-cols-[1.6fr_1fr_auto]"
             >
               <div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge tone={STATUS_TONES[booking.status] ?? 'outline'}>
-                    {STATUS_LABELS[booking.status] ?? booking.status}
-                  </Badge>
-                  <Badge tone="outline">{booking.clubId ? 'Клуб' : 'Тренер'}</Badge>
+                  <Badge tone={booking.statusTone}>{booking.statusLabel}</Badge>
+                  <Badge tone="outline">{booking.bookingTypeLabel}</Badge>
                 </div>
 
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Стоимость
-                </p>
-                <p className="mt-2 text-xl font-semibold text-ink">
+                <h3 className="mt-4 text-lg font-semibold text-ink">{booking.title}</h3>
+                <p className="mt-3 text-sm font-semibold text-ink">{booking.athleteName}</p>
+                <p className="mt-1 text-sm text-muted">{booking.athleteEmail}</p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                      К кому / куда
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-ink">{booking.contextLabel}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                      Локация
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-ink">{booking.locationLabel}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Дата
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-ink">
+                    {formatDate(booking.date, { day: 'numeric', month: 'long' })}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">{booking.timeLabel}</p>
+                </div>
+
+                <p className="mt-2 text-base font-semibold text-ink">
                   {formatPrice(booking.totalPrice)}
                 </p>
+                <p className="text-sm text-muted">{booking.paymentLabel}</p>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">Дата</p>
-                <p className="mt-2 text-base font-semibold text-ink">
-                  {formatDate(booking.date, { day: 'numeric', month: 'long' })}
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  {booking.paymentStatus === 'paid' ? 'Оплачено' : 'Не оплачено'}
-                </p>
-              </div>
-
-              <div className="flex items-start md:justify-end">
+              <div className="flex items-start justify-between gap-2 lg:flex-col lg:items-end">
                 <Badge tone="outline">ID: {booking.id}</Badge>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       ) : (
