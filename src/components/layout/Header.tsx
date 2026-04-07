@@ -19,11 +19,16 @@ export function Header() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isImpersonating = useAuthStore((state) => state.isImpersonating);
   const logout = useAuthStore((state) => state.logout);
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
   const cabinetConfig = getPersonalCabinetConfig(accountType);
   // Универсальная ссылка в кабинет — работает и для athlete, и для provider
   const cabinetHref = cabinetConfig?.profilePath ?? null;
+
+  // Admin без impersonation → ссылка на «Панель управления» вместо кабинета
+  const isAdminDirect = isAdmin && !isImpersonating;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
@@ -62,13 +67,25 @@ export function Header() {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden min-w-0 text-right md:block">
                 <p className="truncate text-sm font-semibold leading-5 text-ink">{user.name}</p>
-                {accountType ? (
+                {isAdminDirect ? (
+                  <p className="text-[11px] uppercase tracking-[0.12em] leading-4 text-muted">
+                    Администратор
+                  </p>
+                ) : accountType ? (
                   <p className="text-[11px] uppercase tracking-[0.12em] leading-4 text-muted">
                     {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
                   </p>
                 ) : null}
               </div>
-              {cabinetHref ? (
+              {isAdminDirect ? (
+                <Link
+                  href="/service-portal/dashboard"
+                  aria-label="Панель управления"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink transition-colors hover:border-accent hover:text-accent"
+                >
+                  {accountInitial}
+                </Link>
+              ) : cabinetHref ? (
                 <Link
                   href={cabinetHref}
                   aria-label="Перейти в личный кабинет"

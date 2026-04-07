@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AppShell } from '@/components/layout/AppShell';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 import {
   AUTH_STORE_DEFAULT_STATE,
   MVP_PROVIDER_USER_ID,
