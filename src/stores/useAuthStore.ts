@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { AuthAccountType } from '@/types';
+import type { AuthAccountType, UserRole } from '@/types';
 
 export type AuthSessionUser = {
   id?: number;
@@ -25,12 +25,21 @@ type AuthSessionPayload = {
 };
 
 type AuthState = {
+  // --- Существующие поля (без изменений) ---
   user: AuthSessionUser | null;
   accountType: AuthAccountType | null;
   isAuthenticated: boolean;
   login: (payload: AuthSessionPayload) => void;
   register: (payload: AuthSessionPayload) => void;
   logout: () => void;
+
+  // --- Новые поля Phase 17: параллельный admin-трек ---
+  isAdmin: boolean;
+  isImpersonating: boolean;
+  adminOriginalUser: AuthSessionUser | null;
+  adminLogin: (user: AuthSessionUser) => void;
+  startImpersonation: (targetUser: AuthSessionUser, targetAccountType: AuthAccountType) => void;
+  stopImpersonation: () => void;
 };
 
 export const AUTH_STORAGE_KEY = 'sporthub-auth-store';
@@ -44,7 +53,13 @@ export const AUTH_STORE_DEFAULT_STATE = {
   user: null,
   accountType: null,
   isAuthenticated: false,
-} satisfies Pick<AuthState, 'user' | 'accountType' | 'isAuthenticated'>;
+  isAdmin: false,
+  isImpersonating: false,
+  adminOriginalUser: null,
+} satisfies Pick<
+  AuthState,
+  'user' | 'accountType' | 'isAuthenticated' | 'isAdmin' | 'isImpersonating' | 'adminOriginalUser'
+>;
 
 function createAuthenticatedState(payload: AuthSessionPayload) {
   return {
@@ -52,6 +67,16 @@ function createAuthenticatedState(payload: AuthSessionPayload) {
     accountType: payload.accountType,
     isAuthenticated: true,
   } satisfies Pick<AuthState, 'user' | 'accountType' | 'isAuthenticated'>;
+}
+
+/**
+ * Маппинг DB-роли пользователя в frontend AuthAccountType.
+ * athlete → 'athlete', club_owner/trainer → 'provider', admin → null.
+ */
+export function userRoleToAccountType(role: UserRole): AuthAccountType | null {
+  if (role === 'athlete') return 'athlete';
+  if (role === 'club_owner' || role === 'trainer') return 'provider';
+  return null;
 }
 
 export const PERSONAL_CABINET_CONFIG: Record<AuthAccountType, PersonalCabinetConfig> = {
@@ -81,16 +106,57 @@ export function getPersonalCabinetConfig(accountType: AuthAccountType | null) {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...AUTH_STORE_DEFAULT_STATE,
+
       login: (payload) => {
         set(createAuthenticatedState(payload));
       },
+
       register: (payload) => {
         set(createAuthenticatedState(payload));
       },
+
       logout: () => {
         set(AUTH_STORE_DEFAULT_STATE);
+      },
+
+      // --- Admin actions ---
+
+      adminLogin: (user) => {
+        set({
+          user,
+          isAuthenticated: true,
+          isAdmin: true,
+          accountType: null,
+          isImpersonating: false,
+          adminOriginalUser: null,
+        });
+      },
+
+      startImpersonation: (targetUser, targetAccountType) => {
+        const state = get();
+
+        // Guard: impersonation доступен только для admin
+        if (!state.isAdmin) return;
+
+        set({
+          adminOriginalUser: state.user,
+          user: targetUser,
+          accountType: targetAccountType,
+          isImpersonating: true,
+        });
+      },
+
+      stopImpersonation: () => {
+        const state = get();
+
+        set({
+          user: state.adminOriginalUser,
+          accountType: null,
+          isImpersonating: false,
+          adminOriginalUser: null,
+        });
       },
     }),
     {
@@ -100,6 +166,9 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         accountType: state.accountType,
         isAuthenticated: state.isAuthenticated,
+        isAdmin: state.isAdmin,
+        isImpersonating: state.isImpersonating,
+        adminOriginalUser: state.adminOriginalUser,
       }),
     },
   ),
