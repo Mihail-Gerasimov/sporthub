@@ -369,9 +369,14 @@ export function ProviderProfilePage({
                 <Badge tone="outline">{cabinetConfig?.title ?? 'Кабинет представителя'}</Badge>
               </div>
 
-              <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight text-ink">
-                Кабинет представителя
-              </h1>
+              <div className="mt-5 flex flex-wrap items-baseline gap-3">
+                <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
+                  Кабинет представителя
+                </h1>
+                {user.id != null ? (
+                  <span className="text-sm font-mono text-muted">ID: #{user.id}</span>
+                ) : null}
+              </div>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
                 Управляйте своими клубами и тренерами, отслеживайте записи и отзывы.
               </p>
