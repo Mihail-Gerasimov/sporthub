@@ -1,10 +1,12 @@
-import type { AuthAccountType, BookingStatus, PaymentStatus, UserRole } from '@/types';
+import type { AuthAccountType, BookingStatus, PaymentStatus, UserRole, UserStatus } from '@/types';
 
 export const DEFAULT_CITY = 'Самара';
 export const DEFAULT_LOCALE = 'ru-RU';
 export const DEFAULT_TIME_ZONE = 'Europe/Samara';
 
 export const USER_ROLES: UserRole[] = ['athlete', 'trainer', 'club_owner', 'admin'];
+
+export const USER_STATUSES: UserStatus[] = ['active', 'banned', 'suspended'];
 
 export const AUTH_ACCOUNT_TYPE_LABELS: Record<AuthAccountType, string> = {
   provider: 'Представитель спортивных услуг',

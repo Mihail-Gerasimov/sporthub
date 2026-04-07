@@ -7,6 +7,9 @@ export type AuthAccountType = 'provider' | 'athlete';
 
 export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
 
+// Статус пользователя: active по умолчанию, banned/suspended — для будущей модерации
+export type UserStatus = 'active' | 'banned' | 'suspended';
+
 export type CatalogOwnerType = 'club' | 'trainer';
 
 export type AthleteAchievementId =
@@ -169,6 +172,7 @@ export interface Review extends BaseEntity {
 
 export interface User extends BaseEntity {
   role: UserRole;
+  status?: UserStatus;
   name: string;
   email: string;
   phone: string;
