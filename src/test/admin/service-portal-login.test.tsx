@@ -3,7 +3,7 @@
  * Покрывают: рендер формы, фейк-вход admin, отказ для чужого email,
  * guard redirect для неавторизованного доступа.
  */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ServicePortalLoginForm } from '@/components/admin/ServicePortalLoginForm';
@@ -69,7 +69,9 @@ describe('Service Portal Login (Step 17.3)', () => {
       vi.useRealTimers();
     });
 
-    it('отклоняет произвольный email с ошибкой', async () => {
+    it('фейк-вход работает для любого валидного email', async () => {
+      vi.useFakeTimers();
+
       render(<ServicePortalLoginForm />);
 
       fireEvent.change(screen.getByLabelText('Email'), {
@@ -80,12 +82,18 @@ describe('Service Portal Login (Step 17.3)', () => {
       });
       fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
-      await waitFor(() => {
-        expect(screen.getByText(/нет доступа/i)).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(600);
       });
 
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
-      expect(useAuthStore.getState().isAdmin).toBe(false);
+      const state = useAuthStore.getState();
+
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.isAdmin).toBe(true);
+      expect(state.user?.id).toBe(MVP_ADMIN_USER_ID);
+      expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+
+      vi.useRealTimers();
     });
 
     it('показывает ошибки валидации для пустых полей', () => {

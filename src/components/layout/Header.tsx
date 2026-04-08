@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui';
@@ -22,6 +23,8 @@ export function Header() {
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isImpersonating = useAuthStore((state) => state.isImpersonating);
   const logout = useAuthStore((state) => state.logout);
+  const stopImpersonation = useAuthStore((state) => state.stopImpersonation);
+  const router = useRouter();
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
   const cabinetConfig = getPersonalCabinetConfig(accountType);
   // Универсальная ссылка в кабинет — работает и для athlete, и для provider
@@ -31,7 +34,7 @@ export function Header() {
   const isAdminDirect = isAdmin && !isImpersonating;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-panel/90 backdrop-blur-md">
+    <header className="border-b border-line/80 bg-panel/90 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
         <Link href="/" className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-card bg-accent text-lg font-bold text-panel">
@@ -106,7 +109,12 @@ export function Header() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  logout();
+                  if (isImpersonating) {
+                    stopImpersonation();
+                    router.push('/service-portal/dashboard');
+                  } else {
+                    logout();
+                  }
                 }}
               >
                 Выйти

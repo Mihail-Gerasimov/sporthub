@@ -13,8 +13,11 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
-      <ImpersonationBanner />
-      <Header />
+      {/* Sticky-обёртка: баннер и хедер прилипают как единый блок */}
+      <div className="sticky top-0 z-40">
+        <ImpersonationBanner />
+        <Header />
+      </div>
       <main className="flex-1 pb-28 md:pb-0">{children}</main>
       <AuthModal />
       <Footer />

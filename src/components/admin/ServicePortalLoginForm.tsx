@@ -62,12 +62,6 @@ export function ServicePortalLoginForm() {
       return;
     }
 
-    // Проверка что email совпадает с admin seed
-    if (form.email.toLowerCase() !== ADMIN_SEED_EMAIL) {
-      setErrors({ general: 'Нет доступа. Этот email не зарегистрирован как администратор.' });
-      return;
-    }
-
     // Fake-вход с задержкой (аналог AuthModal)
     setIsSubmitting(true);
 

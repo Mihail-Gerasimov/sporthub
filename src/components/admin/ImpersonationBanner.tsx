@@ -23,7 +23,7 @@ export function ImpersonationBanner() {
   }
 
   return (
-    <div className="sticky top-0 z-50 border-b border-warning/30 bg-warning/10 px-4 py-2">
+    <div className="border-b border-warning/30 bg-warning/10 px-4 py-2">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-sm">
         <p className="font-medium text-ink">
           Вы работаете от имени <span className="font-semibold">{user?.name}</span>{' '}

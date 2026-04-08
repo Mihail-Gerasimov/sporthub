@@ -1,5 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Мокаем next/navigation (Header использует useRouter)
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 import { Header } from '@/components/layout/Header';
 import { AUTH_STORAGE_KEY, AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';

@@ -3,7 +3,16 @@
  * что Header и Footer следуют минималистичному стилю.
  */
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Мокаем next/navigation (Header использует useRouter)
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';

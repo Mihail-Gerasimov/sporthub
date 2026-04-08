@@ -141,6 +141,54 @@ describe('Impersonation flow (Step 17.5)', () => {
     });
   });
 
+  // --- Header «Выйти» при impersonation ---
+
+  describe('Header logout при impersonation', () => {
+    it('«Выйти» при impersonation вызывает stopImpersonation и redirect в панель', () => {
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
+      });
+
+      render(<Header />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
+
+      // После stopImpersonation — admin-сессия сохранена
+      const state = useAuthStore.getState();
+
+      expect(state.user).toEqual(adminUser);
+      expect(state.isAdmin).toBe(true);
+      expect(state.isImpersonating).toBe(false);
+      expect(state.isAuthenticated).toBe(true);
+      expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+    });
+
+    it('«Выйти» без impersonation делает обычный logout', () => {
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+      });
+
+      render(<Header />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
+
+      const state = useAuthStore.getState();
+
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+  });
+
   // --- AuthModal блокировка ---
 
   describe('AuthModal блокировка', () => {
