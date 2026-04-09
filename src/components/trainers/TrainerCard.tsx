@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { Badge, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { cn, formatDate, formatPrice } from '@/lib/utils';
+import { cn, formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
@@ -49,7 +49,7 @@ export function TrainerCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-2">
               <Badge className="bg-panel/16 text-panel" tone="outline">
-                {trainer.city}
+                {formatCityDisplay(trainer.city)}
               </Badge>
               {highlighted ? (
                 <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
@@ -119,7 +119,7 @@ export function TrainerCard({
           <div>
             <p
               className={cn(
-                'text-sm font-medium leading-relaxed text-muted',
+                'line-clamp-3 text-sm font-medium leading-relaxed text-muted',
                 isCarousel && 'min-h-[3.5rem]',
               )}
             >
@@ -166,7 +166,7 @@ export function TrainerCard({
 
           {/* Футер: bio + ссылка на запись */}
           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
-            <p className="max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
+            <p className="line-clamp-2 max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
 
             {trainer.nextSlotId ? (
               <Link

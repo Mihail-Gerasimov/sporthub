@@ -1,4 +1,5 @@
 import { Badge, Card } from '@/components/ui';
+import { formatCityDisplay } from '@/lib/utils';
 
 import type { AthleteFavoriteTrainer } from '@/components/profile/athlete-favorites';
 import type { Club } from '@/types';
@@ -43,7 +44,7 @@ export function AthleteFavoritesSection({
                 {favoriteClubs.map((club) => (
                   <div key={club.id} className="rounded-card border border-line bg-canvas p-4">
                     <div className="flex flex-wrap gap-2">
-                      <Badge tone="outline">{club.city}</Badge>
+                      <Badge tone="outline">{formatCityDisplay(club.city)}</Badge>
                       {club.isFeatured ? <Badge tone="success">Featured</Badge> : null}
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{club.name}</p>

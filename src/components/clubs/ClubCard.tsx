@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { Badge, Card, Rating } from '@/components/ui';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatCityDisplay, formatPrice } from '@/lib/utils';
 import type { Club, Sport } from '@/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
@@ -52,7 +52,7 @@ export function ClubCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-2">
               <Badge className="bg-panel/14 text-panel" tone="outline">
-                {club.city}
+                {formatCityDisplay(club.city)}
               </Badge>
               {club.isFeatured ? (
                 <Badge className="border-panel/20 bg-panel/12 text-panel" tone="outline">
@@ -103,7 +103,7 @@ export function ClubCard({
           <div>
             <p
               className={cn(
-                'text-sm font-medium text-muted',
+                'line-clamp-3 text-sm font-medium text-muted',
                 isCarousel && 'min-h-[3.5rem] leading-relaxed',
               )}
             >

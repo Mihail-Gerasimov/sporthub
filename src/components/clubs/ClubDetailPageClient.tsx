@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
-import { formatDate, formatPhone, formatPrice } from '@/lib/utils';
+import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
 
@@ -271,7 +271,7 @@ export function ClubDetailPageClient({
           {/* Инфо клуба — на мобильном сверху, на xl справа */}
           <Card className="flex h-full flex-col gap-5 p-6 xl:order-last sm:p-7">
             <div className="flex flex-wrap gap-2">
-              <Badge tone="accent">{club.city}</Badge>
+              <Badge tone="accent">{formatCityDisplay(club.city)}</Badge>
               <Badge tone="outline">{club.reviewCount} отзывов</Badge>
               <Badge tone="teal">{club.distanceKm.toFixed(1)} км</Badge>
             </div>
@@ -289,7 +289,7 @@ export function ClubDetailPageClient({
               </div>
             </div>
 
-            <p className="text-base leading-relaxed text-muted">{club.description}</p>
+            <p className="break-words text-base leading-relaxed text-muted">{club.description}</p>
 
             <div className="grid gap-4 rounded-card border border-line bg-canvas p-4 sm:grid-cols-2">
               <div>

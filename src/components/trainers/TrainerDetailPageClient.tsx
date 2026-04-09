@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { formatDate, formatPrice } from '@/lib/utils';
+import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Offering, Review, Schedule, Sport, Trainer } from '@/types';
 
@@ -283,7 +283,7 @@ export function TrainerDetailPageClient({
           {/* Инфо тренера — на мобильном сверху, на xl справа */}
           <Card className="flex h-full flex-col gap-5 p-6 xl:order-last sm:p-7">
             <div className="flex flex-wrap gap-2">
-              {trainer.city ? <Badge tone="accent">{trainer.city}</Badge> : null}
+              {trainer.city ? <Badge tone="accent">{formatCityDisplay(trainer.city)}</Badge> : null}
               <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
               <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>
             </div>
@@ -303,7 +303,7 @@ export function TrainerDetailPageClient({
               </div>
             </div>
 
-            <p className="text-base leading-relaxed text-muted">{trainer.bio}</p>
+            <p className="break-words text-base leading-relaxed text-muted">{trainer.bio}</p>
 
             <div className="grid gap-4 rounded-card border border-line bg-canvas p-4 sm:grid-cols-2">
               <div>

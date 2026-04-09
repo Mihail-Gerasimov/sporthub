@@ -71,6 +71,13 @@ export function formatPhone(value: string): string {
   return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}-${thirdPart}`;
 }
 
+/** Display-формат города: добавляет приписку «г.» (display-only) */
+export function formatCityDisplay(city: string): string {
+  if (!city.trim()) return '';
+  if (city.startsWith('г. ') || city.startsWith('г.')) return city;
+  return `г. ${city}`;
+}
+
 export function getTimeUntil(value: string | Date, now = new Date()): string {
   const targetDate = value instanceof Date ? value : new Date(value);
 
