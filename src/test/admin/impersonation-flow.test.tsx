@@ -82,6 +82,25 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(screen.getByRole('button', { name: /вернуться в панель/i })).toBeInTheDocument();
     });
 
+    it('использует плотный заметный фон (не полупрозрачный)', () => {
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
+      });
+
+      const { container } = render(<ImpersonationBanner />);
+
+      const banner = container.firstChild as HTMLElement;
+      // Фон должен быть плотным (bg-warning), а не полупрозрачным (bg-warning/10)
+      expect(banner.className).toContain('bg-warning');
+      expect(banner.className).not.toMatch(/bg-warning\/\d/);
+    });
+
     it('кнопка «Вернуться в панель» вызывает stopImpersonation и redirect', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
