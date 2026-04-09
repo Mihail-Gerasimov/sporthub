@@ -24,8 +24,18 @@ export const publishClubSchema = z.object({
   city: z.string().trim().min(1, 'Город обязателен'),
   address: z.string().trim().min(1, 'Адрес обязателен'),
   description: z.string().trim().min(50, 'Описание — минимум 50 символов'),
-  phone: z.string().trim().min(1, 'Телефон обязателен'),
-  email: z.string().trim().default(''),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Телефон обязателен')
+    .regex(/^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/, 'Некорректный формат телефона'),
+  email: z
+    .string()
+    .trim()
+    .default('')
+    .refine((val) => val === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+      message: 'Некорректный формат email',
+    }),
   priceFrom: z.string().regex(/^\d+$/, 'Цена должна быть числом'),
   disciplines: z.array(z.string().trim().min(1)).min(1, 'Выберите хотя бы одну дисциплину'),
   tags: z.array(z.string()),
@@ -49,7 +59,12 @@ export const publishTrainerSchema = z.object({
   offeringDescription: z.string().trim().min(1, 'Описание услуги обязательно'),
   offeringFormat: z.string().trim().min(1, 'Формат занятий обязателен'),
   offeringPrice: z.string().regex(/^\d+$/, 'Цена должна быть числом'),
-  offeringDuration: z.string().regex(/^\d+$/, 'Длительность должна быть числом'),
+  offeringDuration: z
+    .string()
+    .regex(/^\d+$/, 'Длительность должна быть числом')
+    .refine((val) => Number(val) % 5 === 0, {
+      message: 'Длительность должна быть кратна 5 минутам (например, 55 или 60)',
+    }),
   offeringLocation: z.string().trim().min(1, 'Место проведения обязательно'),
   clubId: z.number().int().positive().nullable(),
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),

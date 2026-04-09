@@ -73,6 +73,32 @@ function createInitialState(): ClubFormState {
   };
 }
 
+// --- Маска телефона ---
+
+/** Форматирует ввод телефона в формат +7 (XXX) XXX-XX-XX */
+function applyPhoneMask(raw: string): string {
+  // Оставляем только цифры
+  const digits = raw.replace(/\D/g, '');
+
+  // Убираем ведущую 8 или 7, начинаем с +7
+  let d = digits;
+  if (d.startsWith('8') || d.startsWith('7')) {
+    d = d.slice(1);
+  }
+
+  // Ограничиваем 10 цифрами после +7
+  d = d.slice(0, 10);
+
+  let result = '+7';
+  if (d.length > 0) result += ` (${d.slice(0, 3)}`;
+  if (d.length >= 3) result += ')';
+  if (d.length > 3) result += ` ${d.slice(3, 6)}`;
+  if (d.length > 6) result += `-${d.slice(6, 8)}`;
+  if (d.length > 8) result += `-${d.slice(8, 10)}`;
+
+  return result;
+}
+
 // --- Компонент ---
 
 type PublishModalMode = 'create' | 'edit';
@@ -364,7 +390,7 @@ export function PublishClubModal({
                 value={form.phone}
                 error={errors.phone}
                 onChange={(e) => {
-                  updateField('phone', e.target.value);
+                  updateField('phone', applyPhoneMask(e.target.value));
                 }}
               />
               <Input

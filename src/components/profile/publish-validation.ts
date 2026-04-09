@@ -50,10 +50,36 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+/** Проверка формата российского телефона (+7 (XXX) XXX-XX-XX) */
+function isValidPhone(value: string): boolean {
+  return /^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/.test(value);
+}
+
+/** Проверка: город / имя — только буквы (кириллица, латиница), пробелы, дефисы */
+function isValidNameOrCity(value: string): boolean {
+  return /^[a-zA-Zа-яА-ЯёЁ\s-]+$/.test(value);
+}
+
+/** Проверка: адрес — буквы, цифры, точки, запятые, дефисы, пробелы, косая черта */
+function isValidAddress(value: string): boolean {
+  return /^[a-zA-Zа-яА-ЯёЁ0-9\s.,\-/]+$/.test(value);
+}
+
+/** Проверка: описание — обычная пунктуация, без мусора (&^#$@%) */
+function isValidDescription(value: string): boolean {
+  return !/[&^#$@%]/.test(value);
+}
+
 /** Проверка что строка — положительное число */
 function isPositiveNumber(value: string): boolean {
   const num = Number(value);
   return value.trim() !== '' && !Number.isNaN(num) && num > 0;
+}
+
+/** Проверка что длительность кратна 5 минутам */
+function isDurationMultipleOf5(value: string): boolean {
+  const num = Number(value);
+  return !Number.isNaN(num) && num > 0 && num % 5 === 0;
 }
 
 /** Проверка минимальной длины текстового поля */
@@ -85,17 +111,25 @@ export function validateClubForm(form: ClubFormInput): Record<string, string> {
   }
   if (!form.city.trim()) {
     errors.city = 'Укажите город';
+  } else if (!isValidNameOrCity(form.city.trim())) {
+    errors.city = 'Город может содержать только буквы, пробелы и дефисы';
   }
   if (!form.address.trim()) {
     errors.address = 'Укажите адрес';
+  } else if (!isValidAddress(form.address.trim())) {
+    errors.address = 'Адрес содержит недопустимые символы';
   }
   if (!form.description.trim()) {
     errors.description = 'Добавьте описание';
   } else if (!hasMinLength(form.description, 50)) {
     errors.description = 'Описание должно содержать минимум 50 символов';
+  } else if (!isValidDescription(form.description)) {
+    errors.description = 'Описание содержит недопустимые символы';
   }
   if (!form.phone.trim()) {
     errors.phone = 'Укажите телефон';
+  } else if (!isValidPhone(form.phone.trim())) {
+    errors.phone = 'Некорректный формат телефона';
   }
 
   // Email — необязательный, но если заполнен, проверяем формат
@@ -127,20 +161,30 @@ export function validateTrainerForm(form: TrainerFormInput): Record<string, stri
 
   if (!form.firstName.trim()) {
     errors.firstName = 'Укажите имя';
+  } else if (!isValidNameOrCity(form.firstName.trim())) {
+    errors.firstName = 'Имя может содержать только буквы, пробелы и дефисы';
   }
   if (!form.lastName.trim()) {
     errors.lastName = 'Укажите фамилию';
+  } else if (!isValidNameOrCity(form.lastName.trim())) {
+    errors.lastName = 'Фамилия может содержать только буквы, пробелы и дефисы';
   }
   if (!form.city.trim()) {
     errors.city = 'Укажите город';
+  } else if (!isValidNameOrCity(form.city.trim())) {
+    errors.city = 'Город может содержать только буквы, пробелы и дефисы';
   }
   if (!form.address.trim()) {
     errors.address = 'Укажите адрес';
+  } else if (!isValidAddress(form.address.trim())) {
+    errors.address = 'Адрес содержит недопустимые символы';
   }
   if (!form.bio.trim()) {
     errors.bio = 'Добавьте описание о себе';
   } else if (!hasMinLength(form.bio, 50)) {
     errors.bio = 'Описание должно содержать минимум 50 символов';
+  } else if (!isValidDescription(form.bio)) {
+    errors.bio = 'Описание содержит недопустимые символы';
   }
   if (!isPositiveNumber(form.experience)) {
     errors.experience = 'Укажите опыт (положительное число)';
@@ -168,6 +212,8 @@ export function validateTrainerForm(form: TrainerFormInput): Record<string, stri
   }
   if (!isPositiveNumber(form.offeringDuration)) {
     errors.offeringDuration = 'Укажите длительность (положительное число)';
+  } else if (!isDurationMultipleOf5(form.offeringDuration)) {
+    errors.offeringDuration = 'Длительность должна быть кратна 5 минутам (например, 55 или 60)';
   }
   if (!form.offeringLocation.trim()) {
     errors.offeringLocation = 'Укажите место проведения';

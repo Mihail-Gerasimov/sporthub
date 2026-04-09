@@ -107,6 +107,16 @@ describe('validateClubForm', () => {
     expect(errors.phone).toBeDefined();
   });
 
+  it('принимает валидный российский телефон', () => {
+    const errors = validateClubForm({ ...validClubForm(), phone: '+7 (999) 123-45-67' });
+    expect(errors.phone).toBeUndefined();
+  });
+
+  it('отклоняет невалидный формат телефона', () => {
+    const errors = validateClubForm({ ...validClubForm(), phone: '123' });
+    expect(errors.phone).toBeDefined();
+  });
+
   it('проверяет формат email', () => {
     const errors = validateClubForm({ ...validClubForm(), email: 'не-email' });
     expect(errors.email).toBeDefined();
@@ -115,6 +125,38 @@ describe('validateClubForm', () => {
   it('принимает пустой email (необязательное поле для клуба)', () => {
     const errors = validateClubForm({ ...validClubForm(), email: '' });
     expect(errors.email).toBeUndefined();
+  });
+
+  // --- Санитизация текстовых полей ---
+
+  it('отклоняет мусор в поле город', () => {
+    const errors = validateClubForm({ ...validClubForm(), city: 'ааадл.(;,.,ШГ2342fsdf' });
+    expect(errors.city).toBeDefined();
+  });
+
+  it('принимает корректный город', () => {
+    const errors = validateClubForm({ ...validClubForm(), city: 'Санкт-Петербург' });
+    expect(errors.city).toBeUndefined();
+  });
+
+  it('отклоняет мусор в поле адрес', () => {
+    const errors = validateClubForm({
+      ...validClubForm(),
+      address: 'ул. <script>alert(1)</script>',
+    });
+    expect(errors.address).toBeDefined();
+  });
+
+  it('принимает корректный адрес', () => {
+    const errors = validateClubForm({ ...validClubForm(), address: 'ул. Ленина, д. 5/2' });
+    expect(errors.address).toBeUndefined();
+  });
+
+  it('отклоняет мусорные символы в описании', () => {
+    const garbage =
+      'Описание клуба с мусором &^#$@% и ещё всякого, но длина минимум пятьдесят символов тут набрана';
+    const errors = validateClubForm({ ...validClubForm(), description: garbage });
+    expect(errors.description).toBeDefined();
   });
 
   it('требует цену от (положительное число)', () => {
@@ -206,6 +248,44 @@ describe('validateTrainerForm', () => {
   it('требует формат работы', () => {
     const errors = validateTrainerForm({ ...validTrainerForm(), workFormat: '' });
     expect(errors.workFormat).toBeDefined();
+  });
+
+  // --- Санитизация текстовых полей ---
+
+  it('отклоняет мусор в поле город у тренера', () => {
+    const errors = validateTrainerForm({ ...validTrainerForm(), city: 'ааадл.(;,.,ШГ2342fsdf' });
+    expect(errors.city).toBeDefined();
+  });
+
+  it('принимает корректный город у тренера', () => {
+    const errors = validateTrainerForm({ ...validTrainerForm(), city: 'Нижний Новгород' });
+    expect(errors.city).toBeUndefined();
+  });
+
+  it('отклоняет мусор в имени тренера', () => {
+    const errors = validateTrainerForm({ ...validTrainerForm(), firstName: 'Иван123!' });
+    expect(errors.firstName).toBeDefined();
+  });
+
+  it('отклоняет мусор в фамилии тренера', () => {
+    const errors = validateTrainerForm({ ...validTrainerForm(), lastName: 'Иванов@#$' });
+    expect(errors.lastName).toBeDefined();
+  });
+
+  // --- Длительность кратно 5 ---
+
+  it('отклоняет длительность не кратную 5', () => {
+    const errors = validateTrainerForm({ ...validTrainerForm(), offeringDuration: '51' });
+    expect(errors.offeringDuration).toBeDefined();
+    expect(errors.offeringDuration).toContain('кратна 5');
+  });
+
+  it('принимает длительность кратную 5', () => {
+    const errors55 = validateTrainerForm({ ...validTrainerForm(), offeringDuration: '55' });
+    expect(errors55.offeringDuration).toBeUndefined();
+
+    const errors60 = validateTrainerForm({ ...validTrainerForm(), offeringDuration: '60' });
+    expect(errors60.offeringDuration).toBeUndefined();
   });
 
   it('требует описание, формат, цену и длительность услуги', () => {
