@@ -33,7 +33,7 @@ export function AthleteFavoritesSection({
 
       {hasFavorites ? (
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
-          <Card className="p-6 sm:p-7" data-testid="athlete-favorite-clubs-card">
+          <Card className="min-w-0 p-6 sm:p-7" data-testid="athlete-favorite-clubs-card">
             <div data-testid="athlete-favorite-clubs">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-ink">Избранные клубы</h3>
@@ -48,7 +48,7 @@ export function AthleteFavoritesSection({
                       {club.isFeatured ? <Badge tone="success">Featured</Badge> : null}
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{club.name}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                    <p className="mt-2 line-clamp-3 break-all text-sm leading-relaxed text-muted">
                       {club.shortDescription}
                     </p>
                     <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
@@ -60,7 +60,7 @@ export function AthleteFavoritesSection({
             </div>
           </Card>
 
-          <Card className="p-6 sm:p-7" data-testid="athlete-favorite-trainers-card">
+          <Card className="min-w-0 p-6 sm:p-7" data-testid="athlete-favorite-trainers-card">
             <div data-testid="athlete-favorite-trainers">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-ink">Избранные тренеры</h3>
@@ -74,7 +74,9 @@ export function AthleteFavoritesSection({
                       <Badge tone="teal">{trainer.reasonLabel}</Badge>
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{trainer.name}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{trainer.bio}</p>
+                    <p className="mt-2 line-clamp-3 break-all text-sm leading-relaxed text-muted">
+                      {trainer.bio}
+                    </p>
                     <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                       {trainer.specialties.join(' • ')}
                     </p>
