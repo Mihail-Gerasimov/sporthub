@@ -179,4 +179,6 @@ export interface User extends BaseEntity {
   password: string;
   avatarUrl?: string;
   favoriteClubIds: EntityId[];
+  // Город пользователя (MVP: display-only, без редактирования из ЛК)
+  city?: string;
 }

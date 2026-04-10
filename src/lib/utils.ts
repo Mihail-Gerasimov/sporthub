@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@/lib/constants';
-import type { Booking, EntityId, Schedule, Trainer } from '@/types';
+import type { Booking, Coordinates, EntityId, Schedule, Trainer } from '@/types';
 
 type ClassNameValue = string | false | null | undefined;
 
@@ -149,4 +149,25 @@ export function getBookingClubId(
 
 export function getBookingTrainerId(booking: Pick<Booking, 'trainerId'>): EntityId | null {
   return booking.trainerId ?? null;
+}
+
+/**
+ * Нормализует название города: первая буква каждого слова заглавная, остальные строчные.
+ * "саМара" → "Самара", "САНКТ-ПЕТЕРБУРГ" → "Санкт-Петербург"
+ */
+export function normalizeCity(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+
+  return trimmed
+    .toLowerCase()
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('-');
+}
+
+/** Проверяет, что координаты заданы и не являются заглушкой {0, 0} */
+export function isValidCoordinates(coords: Coordinates | undefined): boolean {
+  if (!coords) return false;
+  return coords.lat !== 0 && coords.lng !== 0;
 }

@@ -9,7 +9,8 @@
     "phone": "+7 (927) 000-10-10",
     "password": "sporthub123",
     "avatarUrl": "/images/users/alexey-smirnov.jpg",
-    "favoriteClubIds": []
+    "favoriteClubIds": [],
+    "city": "Самара"
   },
   {
     "id": 2,
@@ -21,7 +22,8 @@
     "phone": "+7 (927) 000-20-20",
     "password": "sporthub123",
     "avatarUrl": "/images/users/marina-krylova.jpg",
-    "favoriteClubIds": []
+    "favoriteClubIds": [],
+    "city": "Самара"
   },
   {
     "id": 3,

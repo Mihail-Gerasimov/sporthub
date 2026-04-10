@@ -1,6 +1,29 @@
-import type { AuthAccountType, BookingStatus, PaymentStatus, UserRole, UserStatus } from '@/types';
+import type {
+  AuthAccountType,
+  BookingStatus,
+  Coordinates,
+  PaymentStatus,
+  UserRole,
+  UserStatus,
+} from '@/types';
 
 export const DEFAULT_CITY = 'Самара';
+
+// Координаты центра карты по умолчанию (Самара)
+export const DEFAULT_MAP_CENTER: Coordinates = { lat: 53.195878, lng: 50.100202 };
+
+// Зум карты по умолчанию
+export const DEFAULT_MAP_ZOOM = 12;
+
+// Список городов для селектора на главной и в publish-модалках
+export const AVAILABLE_CITIES: { name: string; coordinates: Coordinates }[] = [
+  { name: 'Самара', coordinates: { lat: 53.195878, lng: 50.100202 } },
+  { name: 'Москва', coordinates: { lat: 55.7558, lng: 37.6173 } },
+  { name: 'Санкт-Петербург', coordinates: { lat: 59.9343, lng: 30.3351 } },
+  { name: 'Казань', coordinates: { lat: 55.7887, lng: 49.1221 } },
+  { name: 'Екатеринбург', coordinates: { lat: 56.8389, lng: 60.6057 } },
+  { name: 'Тольятти', coordinates: { lat: 53.5078, lng: 49.4204 } },
+];
 export const DEFAULT_LOCALE = 'ru-RU';
 export const DEFAULT_TIME_ZONE = 'Europe/Samara';
 
