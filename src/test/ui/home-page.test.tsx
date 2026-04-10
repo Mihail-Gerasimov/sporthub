@@ -51,9 +51,8 @@ describe('Home page', () => {
     expect(
       screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
     ).toBeInTheDocument();
-    // Карта теперь placeholder
+    // Карта — секция с заголовком (без API-ключа → fallback провайдера)
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
@@ -64,8 +63,8 @@ describe('Home page', () => {
     expect(
       screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
     ).toBeInTheDocument();
-    // Карта не меняется при переключении mode — остаётся placeholder
-    expect(screen.getByText('Карта — скоро здесь')).toBeInTheDocument();
+    // Карта не меняется при переключении mode
+    expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
     expect(

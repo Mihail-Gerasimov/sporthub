@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { buildTrainerDirectory, getTrainerAvailability } from '@/components/trainers';
 import { Badge } from '@/components/ui';
 import { PopularNearby } from '@/components/clubs';
-import { MapPreviewSection } from '@/components/map';
+import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 import { getClubs, getOfferings, getSchedule, getSports, getTrainers } from '@/lib/db';
@@ -212,7 +212,7 @@ export default async function Home() {
           sports={searchFilterSports}
           trainerCount={trainerDirectory.length}
         />
-        <MapPreviewSection />
+        <MapSection />
         <CatalogResultsSection
           clubs={clubs}
           sports={searchFilterSports}
