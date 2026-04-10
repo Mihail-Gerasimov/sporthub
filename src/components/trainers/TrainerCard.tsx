@@ -166,7 +166,9 @@ export function TrainerCard({
 
           {/* Футер: bio + ссылка на запись */}
           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
-            <p className="line-clamp-2 max-w-xs text-sm leading-relaxed text-muted">{trainer.bio}</p>
+            <p className="line-clamp-2 max-w-xs text-sm leading-relaxed text-muted">
+              {trainer.bio}
+            </p>
 
             {trainer.nextSlotId ? (
               <Link
