@@ -5,6 +5,14 @@
  */
 import { z } from 'zod';
 
+/** Опциональные координаты, полученные через Geocoder */
+const coordinatesSchema = z
+  .object({
+    lat: z.number(),
+    lng: z.number(),
+  })
+  .optional();
+
 /** Слот расписания (общий для клуба и тренера) */
 const scheduleSlotSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -40,6 +48,7 @@ export const publishClubSchema = z.object({
   disciplines: z.array(z.string().trim().min(1)).min(1, 'Выберите хотя бы одну дисциплину'),
   tags: z.array(z.string()),
   amenities: z.array(z.string()),
+  coordinates: coordinatesSchema,
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
   userId: z.number().int().positive('ID пользователя обязателен'),
 });
@@ -67,6 +76,7 @@ export const publishTrainerSchema = z.object({
     }),
   offeringLocation: z.string().trim().min(1, 'Место проведения обязательно'),
   clubId: z.number().int().positive().nullable(),
+  coordinates: coordinatesSchema,
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
   userId: z.number().int().positive('ID пользователя обязателен'),
 });
@@ -105,6 +115,8 @@ export type ClubFormState = {
   disciplines: string[];
   tags: string[];
   amenities: string[];
+  /** Координаты, полученные через Geocoder (опциональны — публикация возможна и без них) */
+  coordinates?: { lat: number; lng: number };
   scheduleSlots: ScheduleSlotForm[];
 };
 
@@ -126,5 +138,7 @@ export type TrainerFormState = {
   offeringDuration: string;
   offeringLocation: string;
   clubId: number | null;
+  /** Координаты, полученные через Geocoder (опциональны — публикация возможна и без них) */
+  coordinates?: { lat: number; lng: number };
   scheduleSlots: ScheduleSlotForm[];
 };

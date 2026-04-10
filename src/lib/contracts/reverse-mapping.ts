@@ -5,6 +5,7 @@
  */
 import sportsData from '@/data/sports.json';
 import type { ClubFormState, ScheduleSlotForm, TrainerFormState } from '@/lib/schemas/publish';
+import { isValidCoordinates } from '@/lib/utils';
 import type { Club, EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
 /* --- Справочники для обратного маппинга --- */
@@ -61,6 +62,8 @@ export function mapClubToFormState(
     disciplines: club.sportIds.map((id) => sportIdToName[id]).filter(Boolean),
     tags: club.tags,
     amenities: club.amenities,
+    // Восстанавливаем координаты только если они валидные (не {0,0})
+    ...(isValidCoordinates(club.coordinates) ? { coordinates: club.coordinates } : {}),
     scheduleSlots: schedules.map(mapScheduleToSlotForm),
   };
 }
@@ -101,6 +104,8 @@ export function mapTrainerToFormState(
     offeringDuration: String(offering.durationMinutes),
     offeringLocation: offering.address,
     clubId: trainer.affiliatedClubId ?? null,
+    // Восстанавливаем координаты только если они валидные (не {0,0})
+    ...(isValidCoordinates(trainer.coordinates) ? { coordinates: trainer.coordinates } : {}),
     scheduleSlots: schedules.map(mapScheduleToSlotForm),
   };
 }

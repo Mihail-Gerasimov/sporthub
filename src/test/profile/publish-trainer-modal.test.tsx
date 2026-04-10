@@ -69,7 +69,7 @@ describe('PublishTrainerModal', () => {
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Александр' } });
     fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Иванов' } });
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
-    fireEvent.change(screen.getByLabelText('Адрес / локация'), {
+    fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });
     fireEvent.change(screen.getByLabelText('О себе'), {
@@ -156,7 +156,7 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByLabelText('Имя')).toBeInTheDocument();
     expect(screen.getByLabelText('Фамилия')).toBeInTheDocument();
     expect(screen.getByLabelText('Город')).toBeInTheDocument();
-    expect(screen.getByLabelText('Адрес / локация')).toBeInTheDocument();
+    expect(screen.getByLabelText('Адрес')).toBeInTheDocument();
     expect(screen.getByLabelText('О себе')).toBeInTheDocument();
     expect(screen.getByLabelText('Опыт (лет)')).toBeInTheDocument();
   });

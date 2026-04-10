@@ -3,10 +3,12 @@
 
 import { useEffect, useState } from 'react';
 
+import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { Chip, Input } from '@/components/ui';
+import { DEFAULT_CITY } from '@/lib/constants';
 import type { ClubFormState } from '@/lib/schemas/publish';
 
 // --- Справочники для выбора ---
@@ -49,7 +51,7 @@ const AVAILABLE_AMENITIES = [
 function createInitialState(): ClubFormState {
   return {
     name: '',
-    city: '',
+    city: DEFAULT_CITY,
     address: '',
     description: '',
     phone: '',
@@ -154,6 +156,7 @@ function buildClubPayload(form: ClubFormState, userId: number, entityId?: number
     disciplines: form.disciplines,
     tags: form.tags,
     amenities: form.amenities,
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     scheduleSlots: form.scheduleSlots.map((slot) => {
       if (entityId === undefined) {
         const nextSlot = { ...slot };
@@ -341,26 +344,21 @@ export function PublishClubModal({
                 updateField('name', e.target.value);
               }}
             />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Город"
-                placeholder="Москва"
-                value={form.city}
-                error={errors.city}
-                onChange={(e) => {
-                  updateField('city', e.target.value);
-                }}
-              />
-              <Input
-                label="Адрес"
-                placeholder="ул. Спортивная, 10"
-                value={form.address}
-                error={errors.address}
-                onChange={(e) => {
-                  updateField('address', e.target.value);
-                }}
-              />
-            </div>
+            <AddressGeocoder
+              city={form.city}
+              address={form.address}
+              onCityChange={(city) => {
+                updateField('city', city);
+              }}
+              onAddressChange={(address) => {
+                updateField('address', address);
+              }}
+              onCoordinatesChange={(coords) => {
+                setForm((prev) => ({ ...prev, coordinates: coords }));
+              }}
+              cityError={errors.city}
+              addressError={errors.address}
+            />
 
             {/* Краткое описание — textarea */}
             <div className="flex flex-col gap-2">

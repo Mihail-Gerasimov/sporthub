@@ -100,7 +100,7 @@ export function mapClubFormToEntities(
     address: form.address,
     phone: form.phone,
     ...(form.email ? { email: form.email } : {}),
-    coordinates: { lat: 0, lng: 0 },
+    coordinates: form.coordinates ?? { lat: 0, lng: 0 },
     sportIds,
     imageUrls: [],
     amenities: form.amenities,
@@ -131,7 +131,7 @@ export function mapClubFormToEntities(
     durationMinutes: 60,
     capacity: 20,
     address: form.address,
-    coordinates: { lat: 0, lng: 0 },
+    coordinates: form.coordinates ?? { lat: 0, lng: 0 },
   };
 
   /* Слоты расписания */
@@ -184,6 +184,7 @@ export function mapClubFormToUpdateInput(
       amenities: form.amenities,
       tags: form.tags,
       priceFrom: Number(form.priceFrom),
+      ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
     offering: {
       ownerType: 'club',
@@ -195,6 +196,7 @@ export function mapClubFormToUpdateInput(
       durationMinutes: 60,
       capacity: 20,
       address: form.address,
+      ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
     schedules: form.scheduleSlots.map((slot) => ({
       ...(slot.id !== undefined ? { id: slot.id } : {}),

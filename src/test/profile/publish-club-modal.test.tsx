@@ -175,7 +175,7 @@ describe('PublishClubModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
     expect(screen.getByText('Укажите название клуба')).toBeInTheDocument();
-    expect(screen.getByText('Укажите город')).toBeInTheDocument();
+    // Город по умолчанию «Самара» (DEFAULT_CITY), поэтому ошибки «Укажите город» нет
     expect(screen.getByText('Необходимо выбрать хотя бы 1 направление')).toBeInTheDocument();
     expect(screen.getByText('Проверьте обязательные поля формы')).toBeInTheDocument();
   });

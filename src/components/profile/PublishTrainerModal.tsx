@@ -3,10 +3,12 @@
 
 import { useEffect, useState } from 'react';
 
+import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { Chip, Input, Select } from '@/components/ui';
+import { DEFAULT_CITY } from '@/lib/constants';
 import type { TrainerFormState } from '@/lib/schemas/publish';
 
 /** Минимальная информация о клубе для select-привязки */
@@ -49,7 +51,7 @@ function createInitialState(): TrainerFormState {
   return {
     firstName: '',
     lastName: '',
-    city: '',
+    city: DEFAULT_CITY,
     address: '',
     bio: '',
     experience: '',
@@ -139,6 +141,7 @@ function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: 
     offeringDuration: form.offeringDuration,
     offeringLocation: form.offeringLocation,
     clubId: form.clubId,
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     scheduleSlots: form.scheduleSlots.map((slot) => {
       if (entityId === undefined) {
         const nextSlot = { ...slot };
@@ -338,26 +341,21 @@ export function PublishTrainerModal({
                 }}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Город"
-                placeholder="Москва"
-                value={form.city}
-                error={errors.city}
-                onChange={(e) => {
-                  updateField('city', e.target.value);
-                }}
-              />
-              <Input
-                label="Адрес / локация"
-                placeholder="ул. Спортивная, 10"
-                value={form.address}
-                error={errors.address}
-                onChange={(e) => {
-                  updateField('address', e.target.value);
-                }}
-              />
-            </div>
+            <AddressGeocoder
+              city={form.city}
+              address={form.address}
+              onCityChange={(city) => {
+                updateField('city', city);
+              }}
+              onAddressChange={(address) => {
+                updateField('address', address);
+              }}
+              onCoordinatesChange={(coords) => {
+                setForm((prev) => ({ ...prev, coordinates: coords }));
+              }}
+              cityError={errors.city}
+              addressError={errors.address}
+            />
 
             {/* Краткое описание — textarea */}
             <div className="flex flex-col gap-2">
@@ -599,20 +597,15 @@ export function PublishTrainerModal({
             </div>
 
             {/* Адрес проведения тренировки */}
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Укажите адрес проведения тренировки"
-                placeholder="ул. Спортивная, 10, Зал №3"
-                value={form.offeringLocation}
-                error={errors.offeringLocation}
-                onChange={(e) => {
-                  updateField('offeringLocation', e.target.value);
-                }}
-              />
-              <p className="text-xs text-muted">
-                Автоопределение адреса и работа с картой будут доступны в следующих обновлениях
-              </p>
-            </div>
+            <Input
+              label="Укажите адрес проведения тренировки"
+              placeholder="ул. Спортивная, 10, Зал №3"
+              value={form.offeringLocation}
+              error={errors.offeringLocation}
+              onChange={(e) => {
+                updateField('offeringLocation', e.target.value);
+              }}
+            />
           </div>
         </section>
 

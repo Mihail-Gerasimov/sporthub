@@ -91,7 +91,7 @@ export function mapTrainerFormToEntities(
     sportIds,
     city: form.city,
     address: form.address,
-    coordinates: { lat: 0, lng: 0 },
+    coordinates: form.coordinates ?? { lat: 0, lng: 0 },
     ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
     managedByUserId,
     source: 'provider',
@@ -114,7 +114,7 @@ export function mapTrainerFormToEntities(
     durationMinutes: Number(form.offeringDuration),
     capacity: 1,
     address: form.offeringLocation,
-    coordinates: { lat: 0, lng: 0 },
+    coordinates: form.coordinates ?? { lat: 0, lng: 0 },
   };
 
   /* Слоты расписания */
@@ -166,6 +166,7 @@ export function mapTrainerFormToUpdateInput(
       city: form.city,
       address: form.address,
       ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
+      ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
     offering: {
       ownerType: 'trainer',
@@ -178,6 +179,7 @@ export function mapTrainerFormToUpdateInput(
       durationMinutes: Number(form.offeringDuration),
       capacity: 1,
       address: form.offeringLocation,
+      ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
     schedules: form.scheduleSlots.map((slot) => ({
       ...(slot.id !== undefined ? { id: slot.id } : {}),
