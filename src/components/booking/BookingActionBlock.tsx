@@ -291,7 +291,7 @@ export function BookingActionBlock({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <div className="rounded-card border border-line bg-panel-strong px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
               Кто записывается

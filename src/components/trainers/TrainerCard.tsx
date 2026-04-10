@@ -119,7 +119,7 @@ export function TrainerCard({
           <div>
             <p
               className={cn(
-                'line-clamp-3 text-sm font-medium leading-relaxed text-muted',
+                'line-clamp-3 break-words text-sm font-medium leading-relaxed text-muted',
                 isCarousel && 'min-h-[3.5rem]',
               )}
             >

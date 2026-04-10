@@ -281,7 +281,7 @@ export function TrainerDetailPageClient({
         {/* ═══ Hero + Info ═══ */}
         <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           {/* Инфо тренера — на мобильном сверху, на xl справа */}
-          <Card className="flex h-full flex-col gap-5 p-6 xl:order-last sm:p-7">
+          <Card className="flex h-full min-w-0 flex-col gap-5 overflow-hidden p-6 xl:order-last sm:p-7">
             <div className="flex flex-wrap gap-2">
               {trainer.city ? <Badge tone="accent">{formatCityDisplay(trainer.city)}</Badge> : null}
               <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
