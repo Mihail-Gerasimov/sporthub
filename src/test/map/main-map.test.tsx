@@ -1,5 +1,5 @@
-// Тесты MainMap (Step 19.6)
-// Покрывают: skeleton до загрузки API, рендер контейнера карты, инициализация с центром и зумом
+// Тесты MainMap (Step 19.6 + 19.7)
+// Покрывают: skeleton, error, рендер карты, инициализация, empty state маркеров
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -18,10 +18,22 @@ vi.mock('@/stores/useFilterStore', () => ({
     selector({ selectedCity: 'Самара' }),
 }));
 
+/* --- Мокаем useMapMarkers --- */
+const mockUseMapMarkers = vi.fn().mockReturnValue([]);
+
+vi.mock('@/components/map/useMapMarkers', () => ({
+  useMapMarkers: (...args: unknown[]) => mockUseMapMarkers(...args),
+}));
+
 /* --- Мокаем ymaps3 глобально (используем function, не arrow — нужен new) --- */
 const mockSetLocation = vi.fn();
 const mockAddChild = vi.fn();
-const mockYMapInstance = { addChild: mockAddChild, setLocation: mockSetLocation };
+const mockRemoveChild = vi.fn();
+const mockYMapInstance = {
+  addChild: mockAddChild,
+  removeChild: mockRemoveChild,
+  setLocation: mockSetLocation,
+};
 const MockYMap = vi.fn(function () {
   return mockYMapInstance;
 });
@@ -37,11 +49,18 @@ const MockYMapDefaultFeaturesLayer = vi.fn(function () {});
 // Импорт после моков
 const { MainMap } = await import('@/components/map/MainMap');
 
-describe('MainMap (Step 19.6)', () => {
+/* --- Дефолтные props --- */
+const defaultProps = {
+  clubs: [],
+  trainers: [],
+  sports: [],
+};
+
+describe('MainMap (Step 19.6 + 19.7)', () => {
   it('показывает skeleton-loader пока API не загружен', () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: false, error: null });
 
-    render(<MainMap />);
+    render(<MainMap {...defaultProps} />);
 
     expect(screen.getByTestId('map-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('yandex-map-container')).not.toBeInTheDocument();
@@ -50,7 +69,7 @@ describe('MainMap (Step 19.6)', () => {
   it('показывает сообщение об ошибке при error', () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: false, error: 'Ошибка загрузки' });
 
-    render(<MainMap />);
+    render(<MainMap {...defaultProps} />);
 
     expect(screen.getByText(/ошибка загрузки/i)).toBeInTheDocument();
   });
@@ -58,7 +77,7 @@ describe('MainMap (Step 19.6)', () => {
   it('рендерит контейнер карты после загрузки API', () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
 
-    render(<MainMap />);
+    render(<MainMap {...defaultProps} />);
 
     expect(screen.getByTestId('yandex-map-container')).toBeInTheDocument();
     expect(screen.queryByTestId('map-skeleton')).not.toBeInTheDocument();
@@ -68,7 +87,7 @@ describe('MainMap (Step 19.6)', () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
     MockYMap.mockClear();
 
-    render(<MainMap />);
+    render(<MainMap {...defaultProps} />);
 
     expect(MockYMap).toHaveBeenCalledWith(
       expect.any(HTMLElement),
@@ -87,10 +106,40 @@ describe('MainMap (Step 19.6)', () => {
     MockYMapDefaultSchemeLayer.mockClear();
     MockYMapDefaultFeaturesLayer.mockClear();
 
-    render(<MainMap />);
+    render(<MainMap {...defaultProps} />);
 
     expect(MockYMapDefaultSchemeLayer).toHaveBeenCalled();
     expect(MockYMapDefaultFeaturesLayer).toHaveBeenCalled();
     expect(mockAddChild).toHaveBeenCalledTimes(2);
+  });
+
+  it('показывает empty state когда маркеров нет', () => {
+    mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
+    mockUseMapMarkers.mockReturnValue([]);
+
+    render(<MainMap {...defaultProps} />);
+
+    expect(screen.getByTestId('map-empty-state')).toBeInTheDocument();
+    expect(screen.getByText(/пока нет доступных услуг/i)).toBeInTheDocument();
+  });
+
+  it('не показывает empty state когда маркеры есть', () => {
+    mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
+    mockUseMapMarkers.mockReturnValue([
+      {
+        id: 1,
+        slug: 'test',
+        name: 'Test',
+        sportName: 'Йога',
+        address: 'ул. Мира',
+        rating: 4.5,
+        coordinates: { lat: 53, lng: 50 },
+        type: 'club',
+      },
+    ]);
+
+    render(<MainMap {...defaultProps} />);
+
+    expect(screen.queryByTestId('map-empty-state')).not.toBeInTheDocument();
   });
 });

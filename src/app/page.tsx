@@ -212,7 +212,7 @@ export default async function Home() {
           sports={searchFilterSports}
           trainerCount={trainerDirectory.length}
         />
-        <MapSection />
+        <MapSection clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
         <CatalogResultsSection
           clubs={clubs}
           sports={searchFilterSports}
