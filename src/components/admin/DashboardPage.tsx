@@ -9,7 +9,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Badge, Button, Card, Input } from '@/components/ui';
+import { Badge, Button, Card, Input, Select } from '@/components/ui';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
@@ -166,38 +166,26 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
         {/* Динамическая панель фильтров */}
         {showFilters ? (
           <div className="flex flex-wrap gap-4 rounded-card border border-line bg-panel p-4">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="role-filter" className="text-xs font-semibold text-muted">
-                Роль
-              </label>
-              <select
-                id="role-filter"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-                className="rounded-card border border-line bg-panel px-3 py-2 text-sm text-ink"
-              >
-                <option value="all">Все роли</option>
-                <option value="athlete">Спортсмены</option>
-                <option value="provider">Провайдеры</option>
-              </select>
-            </div>
+            <Select
+              label="Роль"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+            >
+              <option value="all">Все роли</option>
+              <option value="athlete">Спортсмены</option>
+              <option value="provider">Провайдеры</option>
+            </Select>
 
-            <div className="flex flex-col gap-1">
-              <label htmlFor="status-filter" className="text-xs font-semibold text-muted">
-                Статус
-              </label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                className="rounded-card border border-line bg-panel px-3 py-2 text-sm text-ink"
-              >
-                <option value="all">Все статусы</option>
-                <option value="active">Активные</option>
-                <option value="banned">Заблокированные</option>
-                <option value="suspended">Приостановленные</option>
-              </select>
-            </div>
+            <Select
+              label="Статус"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            >
+              <option value="all">Все статусы</option>
+              <option value="active">Активные</option>
+              <option value="banned">Заблокированные</option>
+              <option value="suspended">Приостановленные</option>
+            </Select>
           </div>
         ) : null}
       </div>

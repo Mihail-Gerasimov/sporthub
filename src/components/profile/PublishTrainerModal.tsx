@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
-import { Chip, Input } from '@/components/ui';
+import { Chip, Input, Select } from '@/components/ui';
 import type { TrainerFormState } from '@/lib/schemas/publish';
 
 /** Минимальная информация о клубе для select-привязки */
@@ -427,27 +427,21 @@ export function PublishTrainerModal({
           <h3 className="font-display text-lg font-semibold text-ink">Специализация</h3>
           <div className="mt-4 flex flex-col gap-4">
             {/* Основной вид спорта — select */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="trainer-sport" className="text-sm font-semibold text-ink">
-                Основной вид спорта
-              </label>
-              <select
-                id="trainer-sport"
-                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.sport ? 'border-red-400' : 'border-line'}`}
-                value={form.sport}
-                onChange={(e) => {
-                  updateField('sport', e.target.value);
-                }}
-              >
-                <option value="">Выберите вид спорта</option>
-                {AVAILABLE_SPORTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              {errors.sport ? <p className="text-xs text-red-500">{errors.sport}</p> : null}
-            </div>
+            <Select
+              label="Основной вид спорта"
+              value={form.sport}
+              error={errors.sport}
+              onChange={(e) => {
+                updateField('sport', e.target.value);
+              }}
+            >
+              <option value="">Выберите вид спорта</option>
+              {AVAILABLE_SPORTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
 
             {/* Тип — chips (переименовано из «Специализации») */}
             <div className="flex flex-col gap-2">
@@ -503,8 +497,7 @@ export function PublishTrainerModal({
             деятельности больше.
           </p>
           <div className="mt-3">
-            <select
-              className="w-full rounded-card border border-line bg-panel px-4 py-3 text-sm text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
+            <Select
               value={form.clubId ?? ''}
               onChange={(e) => {
                 const val = e.target.value;
@@ -520,7 +513,7 @@ export function PublishTrainerModal({
                   {club.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </section>
 

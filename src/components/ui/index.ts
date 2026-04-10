@@ -5,6 +5,7 @@ export { Card } from '@/components/ui/Card';
 export { Chip } from '@/components/ui/Chip';
 export { Input } from '@/components/ui/Input';
 export { Modal } from '@/components/ui/Modal';
+export { Select } from '@/components/ui/Select';
 export { Rating } from '@/components/ui/Rating';
 export { Skeleton } from '@/components/ui/Skeleton';
 export { StoreShowcase } from '@/components/ui/StoreShowcase';
