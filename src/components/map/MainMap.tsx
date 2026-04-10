@@ -3,10 +3,11 @@
  * Инициализируется с центром на выбранный город, зумом из DEFAULT_MAP_ZOOM.
  * При смене города — перецентрируется на координаты из AVAILABLE_CITIES.
  * Маркеры формируются хуком useMapMarkers и добавляются как YMapMarker.
+ * ymaps3.ready обязателен для JS API 3.0 — конструкторы доступны только после его resolve.
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Club, EntityId } from '@/types';
 import { AVAILABLE_CITIES, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
@@ -22,12 +23,37 @@ type MainMapProps = {
   sports: Array<{ id: EntityId; name: string }>;
 };
 
+/** Тип глобального объекта ymaps3 после await ready */
+type Ymaps3Api = {
+  ready: Promise<void>;
+  YMap: new (
+    container: HTMLElement,
+    options: { location: { center: [number, number]; zoom: number } },
+  ) => {
+    addChild: (child: unknown) => unknown;
+    removeChild: (child: unknown) => void;
+    setLocation: (loc: unknown) => void;
+    destroy: () => void;
+  };
+  YMapDefaultSchemeLayer: new () => unknown;
+  YMapDefaultFeaturesLayer: new () => unknown;
+  YMapMarker: new (
+    options: { coordinates: [number, number]; onClick?: () => void },
+    element: HTMLElement,
+  ) => unknown;
+};
+
 /** Получить координаты города из AVAILABLE_CITIES или fallback на DEFAULT_MAP_CENTER */
 function getCityCenter(cityName: string): [number, number] {
   const city = AVAILABLE_CITIES.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
   const coords = city?.coordinates ?? DEFAULT_MAP_CENTER;
   // Яндекс Maps API принимает [lng, lat]
   return [coords.lng, coords.lat];
+}
+
+/** Получить ymaps3 из globalThis */
+function getYmaps3(): Ymaps3Api | null {
+  return ((globalThis as Record<string, unknown>).ymaps3 as Ymaps3Api) ?? null;
 }
 
 /** HTML-контент маркера для YMapMarker */
@@ -54,13 +80,21 @@ function createPopupElement(marker: MapMarkerData): HTMLElement {
   const el = document.createElement('div');
   el.className = 'map-marker-popup';
   el.style.cssText =
-    'background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:160px;max-width:240px;font-size:13px;line-height:1.4;pointer-events:auto';
+    'background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:160px;max-width:240px;font-size:13px;line-height:1.4;pointer-events:auto;cursor:pointer';
   el.innerHTML = `
     <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px">${marker.name}</div>
     ${marker.sportName ? `<div style="color:#666;font-size:12px">${marker.sportName}</div>` : ''}
     <div style="color:#888;font-size:12px;margin-top:2px">${marker.address}</div>
     ${marker.rating > 0 ? `<div style="color:#d85a32;font-size:12px;margin-top:4px;font-weight:600">${marker.rating.toFixed(1)} ★</div>` : ''}
+    <div style="color:#d85a32;font-size:11px;margin-top:6px;text-align:right">Подробнее →</div>
   `;
+
+  // Клик по popup → переход на деталку
+  const path = marker.type === 'club' ? `/clubs/${marker.slug}` : `/trainers/${marker.slug}`;
+  el.addEventListener('click', () => {
+    window.location.href = path;
+  });
+
   return el;
 }
 
@@ -70,46 +104,47 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
   const markers = useMapMarkers({ clubs, trainers, sports });
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
+  // Флаг: карта инициализирована (после ymaps3.ready + создание карты)
+  const [isMapReady, setIsMapReady] = useState(false);
   // Храним ссылки на текущие маркеры для очистки
   const markerObjectsRef = useRef<unknown[]>([]);
   // Храним текущий popup для закрытия
   const activePopupRef = useRef<unknown>(null);
 
-  // Инициализация карты после загрузки API
+  // Инициализация карты: скрипт загружен → await ymaps3.ready → создать карту
   useEffect(() => {
     if (!isLoaded || !containerRef.current || mapInstanceRef.current) return;
 
-    const ymaps = (globalThis as Record<string, unknown>).ymaps3 as {
-      YMap: new (
-        container: HTMLElement,
-        options: { location: { center: [number, number]; zoom: number } },
-      ) => {
-        addChild: (child: unknown) => unknown;
-        removeChild: (child: unknown) => void;
-        setLocation: (loc: unknown) => void;
-      };
-      YMapDefaultSchemeLayer: new () => unknown;
-      YMapDefaultFeaturesLayer: new () => unknown;
-    };
+    const ymaps3 = getYmaps3();
+    if (!ymaps3) return;
 
-    if (!ymaps) return;
+    let cancelled = false;
 
-    const map = new ymaps.YMap(containerRef.current, {
-      location: {
-        center: getCityCenter(selectedCity),
-        zoom: DEFAULT_MAP_ZOOM,
-      },
+    ymaps3.ready.then(() => {
+      if (cancelled || !containerRef.current || mapInstanceRef.current) return;
+
+      const map = new ymaps3.YMap(containerRef.current, {
+        location: {
+          center: getCityCenter(selectedCity),
+          zoom: DEFAULT_MAP_ZOOM,
+        },
+      });
+
+      map.addChild(new ymaps3.YMapDefaultSchemeLayer());
+      map.addChild(new ymaps3.YMapDefaultFeaturesLayer());
+
+      mapInstanceRef.current = map;
+      setIsMapReady(true);
     });
 
-    map.addChild(new ymaps.YMapDefaultSchemeLayer());
-    map.addChild(new ymaps.YMapDefaultFeaturesLayer());
-
-    mapInstanceRef.current = map;
+    return () => {
+      cancelled = true;
+    };
   }, [isLoaded, selectedCity]);
 
   // Перецентрирование при смене города
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
+    if (!isMapReady || !mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current as {
       setLocation: (loc: { center: [number, number]; zoom: number; duration?: number }) => void;
@@ -120,23 +155,14 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
       zoom: DEFAULT_MAP_ZOOM,
       duration: 400,
     });
-  }, [selectedCity]);
+  }, [selectedCity, isMapReady]);
 
   // Обновление маркеров при изменении фильтров
   useEffect(() => {
-    if (!mapInstanceRef.current || !isLoaded) return;
+    if (!isMapReady || !mapInstanceRef.current) return;
 
-    const ymaps = (globalThis as Record<string, unknown>).ymaps3 as {
-      YMapMarker: new (
-        options: {
-          coordinates: [number, number];
-          onClick?: () => void;
-        },
-        element: HTMLElement,
-      ) => unknown;
-    };
-
-    if (!ymaps?.YMapMarker) return;
+    const ymaps3 = getYmaps3();
+    if (!ymaps3?.YMapMarker) return;
 
     const map = mapInstanceRef.current as {
       addChild: (child: unknown) => unknown;
@@ -167,9 +193,9 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
     for (const marker of markers) {
       const pinEl = createMarkerElement(marker);
 
-      // Клик — показать popup или перейти на деталку
+      // Клик по маркеру — показать popup (клик по popup → навигация на деталку)
       const handleClick = () => {
-        // Если popup уже открыт — навигация
+        // Если popup уже открыт — закрываем
         if (activePopupRef.current) {
           try {
             map.removeChild(activePopupRef.current);
@@ -177,16 +203,12 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
             // Уже удалён
           }
           activePopupRef.current = null;
-
-          const path =
-            marker.type === 'club' ? `/clubs/${marker.slug}` : `/trainers/${marker.slug}`;
-          window.location.href = path;
           return;
         }
 
-        // Первый клик — показать popup
+        // Показать popup
         const popupEl = createPopupElement(marker);
-        const popup = new ymaps.YMapMarker(
+        const popup = new ymaps3.YMapMarker(
           { coordinates: [marker.coordinates.lng, marker.coordinates.lat] },
           popupEl,
         );
@@ -208,7 +230,7 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
         setTimeout(() => document.addEventListener('click', closePopup), 0);
       };
 
-      const yMapMarker = new ymaps.YMapMarker(
+      const yMapMarker = new ymaps3.YMapMarker(
         {
           coordinates: [marker.coordinates.lng, marker.coordinates.lat],
           onClick: handleClick,
@@ -218,7 +240,7 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
       map.addChild(yMapMarker);
       markerObjectsRef.current.push(yMapMarker);
     }
-  }, [markers, isLoaded]);
+  }, [markers, isMapReady]);
 
   // Ошибка загрузки
   if (error) {
@@ -246,7 +268,7 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
       <div
         ref={containerRef}
         data-testid="yandex-map-container"
-        className="min-h-[20rem] overflow-hidden rounded-card border border-line sm:min-h-[24rem] lg:min-h-[28rem]"
+        className="h-[20rem] overflow-hidden rounded-card border border-line sm:h-[24rem] lg:h-[28rem]"
       />
       {/* Empty state — нет маркеров для текущих фильтров */}
       {markers.length === 0 && (

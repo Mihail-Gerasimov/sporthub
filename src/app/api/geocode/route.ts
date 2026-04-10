@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
     const geocodeQuery = `${city}, ${address}`;
     const url = `${GEOCODER_BASE_URL}?apikey=${apiKey}&geocode=${encodeURIComponent(geocodeQuery)}&format=json&results=1`;
 
-    const geocoderResponse = await fetch(url);
+    // Referer обязателен — ограничение ключа Яндекс.Карт по HTTP Referer
+    const geocoderResponse = await fetch(url, {
+      headers: { Referer: 'http://localhost' },
+    });
     const geocoderData = await geocoderResponse.json();
 
     const geoObjects = geocoderData?.response?.GeoObjectCollection?.featureMember ?? [];

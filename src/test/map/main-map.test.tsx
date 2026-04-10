@@ -1,6 +1,6 @@
 // Тесты MainMap (Step 19.6 + 19.7)
 // Покрывают: skeleton, error, рендер карты, инициализация, empty state маркеров
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
@@ -41,6 +41,7 @@ const MockYMapDefaultSchemeLayer = vi.fn(function () {});
 const MockYMapDefaultFeaturesLayer = vi.fn(function () {});
 
 (globalThis as Record<string, unknown>).ymaps3 = {
+  ready: Promise.resolve(),
   YMap: MockYMap,
   YMapDefaultSchemeLayer: MockYMapDefaultSchemeLayer,
   YMapDefaultFeaturesLayer: MockYMapDefaultFeaturesLayer,
@@ -74,20 +75,24 @@ describe('MainMap (Step 19.6 + 19.7)', () => {
     expect(screen.getByText(/ошибка загрузки/i)).toBeInTheDocument();
   });
 
-  it('рендерит контейнер карты после загрузки API', () => {
+  it('рендерит контейнер карты после загрузки API', async () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
 
-    render(<MainMap {...defaultProps} />);
+    await act(async () => {
+      render(<MainMap {...defaultProps} />);
+    });
 
     expect(screen.getByTestId('yandex-map-container')).toBeInTheDocument();
     expect(screen.queryByTestId('map-skeleton')).not.toBeInTheDocument();
   });
 
-  it('инициализирует карту с DEFAULT_MAP_CENTER и DEFAULT_MAP_ZOOM', () => {
+  it('инициализирует карту с DEFAULT_MAP_CENTER и DEFAULT_MAP_ZOOM', async () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
     MockYMap.mockClear();
 
-    render(<MainMap {...defaultProps} />);
+    await act(async () => {
+      render(<MainMap {...defaultProps} />);
+    });
 
     expect(MockYMap).toHaveBeenCalledWith(
       expect.any(HTMLElement),
@@ -100,30 +105,34 @@ describe('MainMap (Step 19.6 + 19.7)', () => {
     );
   });
 
-  it('добавляет слои по умолчанию (scheme + features)', () => {
+  it('добавляет слои по умолчанию (scheme + features)', async () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
     mockAddChild.mockClear();
     MockYMapDefaultSchemeLayer.mockClear();
     MockYMapDefaultFeaturesLayer.mockClear();
 
-    render(<MainMap {...defaultProps} />);
+    await act(async () => {
+      render(<MainMap {...defaultProps} />);
+    });
 
     expect(MockYMapDefaultSchemeLayer).toHaveBeenCalled();
     expect(MockYMapDefaultFeaturesLayer).toHaveBeenCalled();
     expect(mockAddChild).toHaveBeenCalledTimes(2);
   });
 
-  it('показывает empty state когда маркеров нет', () => {
+  it('показывает empty state когда маркеров нет', async () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
     mockUseMapMarkers.mockReturnValue([]);
 
-    render(<MainMap {...defaultProps} />);
+    await act(async () => {
+      render(<MainMap {...defaultProps} />);
+    });
 
     expect(screen.getByTestId('map-empty-state')).toBeInTheDocument();
     expect(screen.getByText(/пока нет доступных услуг/i)).toBeInTheDocument();
   });
 
-  it('не показывает empty state когда маркеры есть', () => {
+  it('не показывает empty state когда маркеры есть', async () => {
     mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
     mockUseMapMarkers.mockReturnValue([
       {
@@ -138,7 +147,9 @@ describe('MainMap (Step 19.6 + 19.7)', () => {
       },
     ]);
 
-    render(<MainMap {...defaultProps} />);
+    await act(async () => {
+      render(<MainMap {...defaultProps} />);
+    });
 
     expect(screen.queryByTestId('map-empty-state')).not.toBeInTheDocument();
   });
