@@ -22,10 +22,12 @@ export function ClubList({
 }: ClubListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
+  const selectedCity = useFilterStore((state) => state.selectedCity);
 
   const filteredClubs = filterClubs({
     clubs,
     searchQuery,
+    selectedCity,
     selectedSportId,
     sports,
   });

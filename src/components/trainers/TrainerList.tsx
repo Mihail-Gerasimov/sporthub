@@ -21,9 +21,11 @@ export function TrainerList({
 }: TrainerListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
+  const selectedCity = useFilterStore((state) => state.selectedCity);
 
   const filteredTrainers = filterTrainers({
     searchQuery,
+    selectedCity,
     selectedSportId,
     trainers,
   });

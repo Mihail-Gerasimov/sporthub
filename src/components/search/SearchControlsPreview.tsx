@@ -3,6 +3,7 @@
 import type { Sport } from '@/types';
 
 import { Badge, Card, Chip } from '@/components/ui';
+import { CitySelector } from '@/components/search/CitySelector';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SportFilters } from '@/components/search/SportFilters';
 import { useFilterStore } from '@/stores/useFilterStore';
@@ -37,6 +38,7 @@ export function SearchControlsPreview({
 }: SearchControlsPreviewProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
   const searchQuery = useFilterStore((state) => state.searchQuery);
+  const selectedCity = useFilterStore((state) => state.selectedCity);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
   const setDiscoveryMode = useFilterStore((state) => state.setDiscoveryMode);
 
@@ -59,7 +61,7 @@ export function SearchControlsPreview({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge tone="accent">Самара</Badge>
+            <Badge tone="accent">{selectedCity}</Badge>
             <Badge tone="outline">{sports.length} направлений</Badge>
             <Badge tone="teal">
               {activeCatalogCount} {activeCatalogLabel}
@@ -67,23 +69,30 @@ export function SearchControlsPreview({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Chip
-            active={discoveryMode === 'clubs'}
-            onClick={() => {
-              setDiscoveryMode('clubs');
-            }}
-          >
-            {DISCOVERY_MODE_COPY.clubs.modeLabel}
-          </Chip>
-          <Chip
-            active={discoveryMode === 'trainers'}
-            onClick={() => {
-              setDiscoveryMode('trainers');
-            }}
-          >
-            {DISCOVERY_MODE_COPY.trainers.modeLabel}
-          </Chip>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Chip
+              active={discoveryMode === 'clubs'}
+              onClick={() => {
+                setDiscoveryMode('clubs');
+              }}
+            >
+              {DISCOVERY_MODE_COPY.clubs.modeLabel}
+            </Chip>
+            <Chip
+              active={discoveryMode === 'trainers'}
+              onClick={() => {
+                setDiscoveryMode('trainers');
+              }}
+            >
+              {DISCOVERY_MODE_COPY.trainers.modeLabel}
+            </Chip>
+          </div>
+
+          {/* Селектор города — фильтрует каталог и карту */}
+          <div className="w-full sm:w-auto sm:min-w-[180px]">
+            <CitySelector />
+          </div>
         </div>
 
         <SearchBar />

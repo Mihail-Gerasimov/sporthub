@@ -7,6 +7,8 @@ type FilterClubsOptions = {
   sports: ClubListSport[];
   searchQuery: string;
   selectedSportId: EntityId | null;
+  /** Фильтр по городу (case-insensitive). Пустая строка — без фильтра. */
+  selectedCity?: string;
 };
 
 function normalize(value: string): string {
@@ -16,13 +18,17 @@ function normalize(value: string): string {
 export function filterClubs({
   clubs,
   searchQuery,
+  selectedCity = '',
   selectedSportId,
   sports,
 }: FilterClubsOptions): Club[] {
   const normalizedSearch = normalize(searchQuery);
+  const normalizedCity = normalize(selectedCity);
 
   return clubs.filter((club) => {
     const matchesSport = selectedSportId === null || club.sportIds.includes(selectedSportId);
+
+    const matchesCity = normalizedCity === '' || normalize(club.city) === normalizedCity;
 
     const searchStack = [
       club.name,
@@ -39,6 +45,6 @@ export function filterClubs({
 
     const matchesSearch = normalizedSearch === '' || searchStack.includes(normalizedSearch);
 
-    return matchesSport && matchesSearch;
+    return matchesSport && matchesCity && matchesSearch;
   });
 }
