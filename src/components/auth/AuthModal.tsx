@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { z } from 'zod';
 
-import { AUTH_ACCOUNT_TYPE_OPTIONS } from '@/lib/constants';
+import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@/lib/constants';
 import { formatPhone } from '@/lib/utils';
 import type { AuthAccountType } from '@/types';
 
@@ -116,6 +116,7 @@ function createLoginSessionUser(email: string, accountType: AuthAccountType): Au
     id,
     name: localPart || 'sporthub-user',
     email,
+    city: DEFAULT_CITY,
   };
 }
 
@@ -217,6 +218,7 @@ function createRegisterSessionUser(
     name: form.name.trim(),
     email: form.email.trim(),
     phone: normalizedPhoneDigits ? formatPhone(normalizedPhoneDigits) : undefined,
+    city: DEFAULT_CITY,
   };
 }
 

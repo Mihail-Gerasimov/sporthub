@@ -284,7 +284,7 @@ export function AthleteProfilePage({
                 историей, избранным и отзывами. Дальше пойдём в сценарий записи и подтверждения.
               </p>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-card border border-line bg-canvas p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                     Email
@@ -298,6 +298,15 @@ export function AthleteProfilePage({
                   </p>
                   <p className="mt-3 text-base font-semibold text-ink">
                     {user.phone ?? 'Будет добавлен позже'}
+                  </p>
+                </div>
+
+                <div className="rounded-card border border-line bg-canvas p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Город
+                  </p>
+                  <p className="mt-3 text-base font-semibold text-ink">
+                    {user.city ? `г. ${user.city}` : 'не указан'}
                   </p>
                 </div>
               </div>

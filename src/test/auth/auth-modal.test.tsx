@@ -310,6 +310,7 @@ describe('AuthModal', () => {
       name: 'Марина Крылова',
       email: 'marina@studio.local',
       phone: '+7 (927) 000-20-20',
+      city: 'Самара',
     });
     expect(
       screen.queryByRole('dialog', { name: 'Войти или создать профиль' }),

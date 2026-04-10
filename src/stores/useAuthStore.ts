@@ -11,6 +11,7 @@ export type AuthSessionUser = {
   email: string;
   phone?: string;
   avatarUrl?: string;
+  city?: string;
 };
 
 export type PersonalCabinetConfig = {
