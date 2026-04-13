@@ -26,7 +26,7 @@ export type AthleteAchievementId =
 export type EntitySource = 'provider' | 'seed';
 
 // Статус публикации сущности
-export type EntityStatus = 'published' | 'draft';
+export type EntityStatus = 'published' | 'draft' | 'hidden';
 
 // Типы действий для системы логирования активности платформы
 // Phase 20 — publish, booking, admin
@@ -110,6 +110,10 @@ export interface Club extends BaseEntity {
   source?: EntitySource;
   // Статус публикации
   status?: EntityStatus;
+  // Поля модерации (заполняются при скрытии админом)
+  hideReason?: string;
+  hiddenByUserId?: EntityId;
+  hiddenAt?: ISODateTimeString;
 }
 
 export interface Trainer extends BaseEntity {
@@ -137,6 +141,10 @@ export interface Trainer extends BaseEntity {
   source?: EntitySource;
   // Статус публикации
   status?: EntityStatus;
+  // Поля модерации (заполняются при скрытии админом)
+  hideReason?: string;
+  hiddenByUserId?: EntityId;
+  hiddenAt?: ISODateTimeString;
 }
 
 export interface Offering extends BaseEntity {

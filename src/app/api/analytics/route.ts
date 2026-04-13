@@ -92,8 +92,8 @@ export async function GET(request: Request) {
 
     /* --- Фильтрация hidden-сущностей (defense-in-depth для Phase 22) --- */
     // Phase 22 добавит 'hidden' в EntityStatus; пока cast к string для TS strict
-    let clubs = allClubs.filter((c: Club) => (c.status as string) !== 'hidden');
-    let trainers = allTrainers.filter((t: Trainer) => (t.status as string) !== 'hidden');
+    let clubs = allClubs.filter((c: Club) => c.status !== 'hidden');
+    let trainers = allTrainers.filter((t: Trainer) => t.status !== 'hidden');
 
     /* --- Фильтрация по городу --- */
     if (city) {

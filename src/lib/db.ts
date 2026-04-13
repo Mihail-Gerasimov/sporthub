@@ -861,6 +861,8 @@ export async function updateClubPublication(
 
   assertNoDuplicateScheduleIds(input.schedules, 'клуба');
 
+  // Auto-restore: если клуб скрыт модератором — восстановить при редактировании
+  const wasHidden = currentClub.status === 'hidden';
   const club: Club = {
     ...currentClub,
     name: input.club.name,
@@ -874,6 +876,9 @@ export async function updateClubPublication(
     amenities: input.club.amenities,
     tags: input.club.tags,
     priceFrom: input.club.priceFrom,
+    ...(wasHidden
+      ? { status: 'published' as const, hideReason: undefined, hiddenByUserId: undefined, hiddenAt: undefined }
+      : {}),
   };
 
   const offering: Offering = {
@@ -999,6 +1004,8 @@ export async function updateTrainerPublication(
 
   assertNoDuplicateScheduleIds(input.schedules, 'тренера');
 
+  // Auto-restore: если тренер скрыт модератором — восстановить при редактировании
+  const wasHidden = currentTrainer.status === 'hidden';
   const affiliatedClubId = input.trainer.affiliatedClubId ?? null;
   const trainerBase: Trainer = {
     ...currentTrainer,
@@ -1011,6 +1018,9 @@ export async function updateTrainerPublication(
     city: input.trainer.city,
     address: input.trainer.address,
     sportId: input.trainer.sportIds[0],
+    ...(wasHidden
+      ? { status: 'published' as const, hideReason: undefined, hiddenByUserId: undefined, hiddenAt: undefined }
+      : {}),
   };
   const trainer = normalizeTrainer(
     affiliatedClubId === null
@@ -1129,6 +1139,90 @@ export async function updateTrainerPublication(
   await writeCollectionsWithRollback(collections);
 
   return { trainer, offering, schedules };
+}
+
+/**
+ * Скрыть публикацию (клуб или тренер) — модерация.
+ * Устанавливает status='hidden', причину скрытия и id модератора.
+ */
+export async function hideEntity(
+  entityType: CatalogOwnerType,
+  entityId: EntityId,
+  reason: string,
+  moderatorId: EntityId,
+): Promise<Club | Trainer> {
+  if (entityType === 'club') {
+    const clubs = await readCollection('clubs');
+    const idx = clubs.findIndex((c) => c.id === entityId);
+    if (idx === -1) throw new Error('Клуб не найден');
+    const updated: Club = {
+      ...clubs[idx],
+      status: 'hidden',
+      hideReason: reason,
+      hiddenByUserId: moderatorId,
+      hiddenAt: createTimestamp(),
+    };
+    const next = [...clubs];
+    next[idx] = updated;
+    await writeCollection('clubs', next);
+    return updated;
+  }
+
+  const trainers = await readCollection('trainers');
+  const idx = trainers.findIndex((t) => t.id === entityId);
+  if (idx === -1) throw new Error('Тренер не найден');
+  const updated: Trainer = {
+    ...trainers[idx],
+    status: 'hidden',
+    hideReason: reason,
+    hiddenByUserId: moderatorId,
+    hiddenAt: createTimestamp(),
+  };
+  const next = [...trainers];
+  next[idx] = updated;
+  await writeCollection('trainers', next);
+  return updated;
+}
+
+/**
+ * Восстановить публикацию (клуб или тренер) — снять скрытие.
+ * Возвращает status='published', очищает поля модерации.
+ */
+export async function unhideEntity(
+  entityType: CatalogOwnerType,
+  entityId: EntityId,
+): Promise<Club | Trainer> {
+  if (entityType === 'club') {
+    const clubs = await readCollection('clubs');
+    const idx = clubs.findIndex((c) => c.id === entityId);
+    if (idx === -1) throw new Error('Клуб не найден');
+    const updated: Club = {
+      ...clubs[idx],
+      status: 'published',
+      hideReason: undefined,
+      hiddenByUserId: undefined,
+      hiddenAt: undefined,
+    };
+    const next = [...clubs];
+    next[idx] = updated;
+    await writeCollection('clubs', next);
+    return updated;
+  }
+
+  const trainers = await readCollection('trainers');
+  const idx = trainers.findIndex((t) => t.id === entityId);
+  if (idx === -1) throw new Error('Тренер не найден');
+  const updated: Trainer = {
+    ...trainers[idx],
+    status: 'published',
+    hideReason: undefined,
+    hiddenByUserId: undefined,
+    hiddenAt: undefined,
+  };
+  const next = [...trainers];
+  next[idx] = updated;
+  await writeCollection('trainers', next);
+  return updated;
 }
 
 /**
