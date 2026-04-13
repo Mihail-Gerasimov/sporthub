@@ -832,10 +832,11 @@ export async function updateClubPublication(
   input: UpdateClubPublicationInput,
 ): Promise<ClubPublicationResult> {
   const now = createTimestamp();
-  const [clubs, offerings, schedule] = await Promise.all([
+  const [clubs, offerings, schedule, bookings] = await Promise.all([
     readCollection('clubs'),
     readCollection('offerings'),
     readCollection('schedule'),
+    readCollection('bookings'),
   ]);
 
   const currentClub = clubs.find((club) => club.id === input.clubId);
@@ -934,11 +935,29 @@ export async function updateClubPublication(
     ...schedules,
   ];
 
-  await writeCollectionsWithRollback([
+  // Синхронизация даты букингов при переносе слота расписания
+  let nextBookings = bookings;
+  for (const newSlot of schedules) {
+    const oldSlot = currentScheduleById.get(newSlot.id);
+    if (oldSlot && oldSlot.date !== newSlot.date) {
+      nextBookings = nextBookings.map((b) =>
+        b.scheduleId === newSlot.id ? { ...b, date: newSlot.date } : b,
+      );
+    }
+  }
+
+  const collections: Parameters<typeof writeCollectionsWithRollback>[0] = [
     { key: 'clubs', next: nextClubs, previous: clubs },
     { key: 'offerings', next: nextOfferings, previous: offerings },
     { key: 'schedule', next: nextSchedule, previous: schedule },
-  ]);
+  ];
+
+  // Bookings пишем только если были изменения
+  if (nextBookings !== bookings) {
+    collections.push({ key: 'bookings', next: nextBookings, previous: bookings });
+  }
+
+  await writeCollectionsWithRollback(collections);
 
   return { club, offering, schedules };
 }
@@ -951,10 +970,11 @@ export async function updateTrainerPublication(
   input: UpdateTrainerPublicationInput,
 ): Promise<TrainerPublicationResult> {
   const now = createTimestamp();
-  const [trainers, offerings, schedule] = await Promise.all([
+  const [trainers, offerings, schedule, bookings] = await Promise.all([
     readCollection('trainers'),
     readCollection('offerings'),
     readCollection('schedule'),
+    readCollection('bookings'),
   ]);
 
   const currentTrainer = trainers.find((trainer) => trainer.id === input.trainerId);
@@ -1084,11 +1104,29 @@ export async function updateTrainerPublication(
     ...schedules,
   ];
 
-  await writeCollectionsWithRollback([
+  // Синхронизация даты букингов при переносе слота расписания
+  let nextBookings = bookings;
+  for (const newSlot of schedules) {
+    const oldSlot = currentScheduleById.get(newSlot.id);
+    if (oldSlot && oldSlot.date !== newSlot.date) {
+      nextBookings = nextBookings.map((b) =>
+        b.scheduleId === newSlot.id ? { ...b, date: newSlot.date } : b,
+      );
+    }
+  }
+
+  const collections: Parameters<typeof writeCollectionsWithRollback>[0] = [
     { key: 'trainers', next: nextTrainers, previous: trainers },
     { key: 'offerings', next: nextOfferings, previous: offerings },
     { key: 'schedule', next: nextSchedule, previous: schedule },
-  ]);
+  ];
+
+  // Bookings пишем только если были изменения
+  if (nextBookings !== bookings) {
+    collections.push({ key: 'bookings', next: nextBookings, previous: bookings });
+  }
+
+  await writeCollectionsWithRollback(collections);
 
   return { trainer, offering, schedules };
 }
