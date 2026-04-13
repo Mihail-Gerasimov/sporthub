@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { cancelBooking } from '@/lib/db';
+import { logAction } from '@/lib/logAction';
 
 const deleteBookingSchema = z
   .object({
@@ -35,6 +36,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { userId } = validationResult.data;
 
     await cancelBooking({ bookingId, userId });
+
+    // Логируем отмену записи (fire-and-forget)
+    logAction({
+      action: 'booking_cancel',
+      actorId: userId,
+      actorRole: 'athlete',
+      entityType: 'booking',
+      entityId: bookingId,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

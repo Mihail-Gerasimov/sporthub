@@ -14,6 +14,7 @@ import {
   updateTrainerPublication,
 } from '@/lib/db';
 import { mapTrainerFormToUpdateInput } from '@/lib/contracts/publish-trainer';
+import { logAction } from '@/lib/logAction';
 import { publishTrainerSchema } from '@/lib/schemas/publish';
 import { getTrainerPrimarySportId } from '@/lib/utils';
 
@@ -143,6 +144,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       mapTrainerFormToUpdateInput(formData, trainerId, userId),
     );
 
+    // Логируем обновление тренера (fire-and-forget)
+    logAction({
+      action: 'publish_update',
+      actorId: userId,
+      actorRole: 'club_owner',
+      entityType: 'trainer',
+      entityId: trainerId,
+      meta: { name: result.trainer.name },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       data: result,
@@ -176,7 +187,20 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const trainerId = validationResult.data;
 
+    // Fetch-before-delete: захватываем данные для лога до каскадного удаления
+    const trainer = await getTrainerById(trainerId);
+
     await deleteTrainerPublication(trainerId);
+
+    // Логируем удаление тренера (fire-and-forget)
+    logAction({
+      action: 'publish_delete',
+      actorId: trainer?.managedByUserId ?? 0,
+      actorRole: 'club_owner',
+      entityType: 'trainer',
+      entityId: trainerId,
+      meta: { name: trainer?.name ?? 'unknown' },
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

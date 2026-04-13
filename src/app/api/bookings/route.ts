@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { createBookingAtomic, getBookings, getUserById } from '@/lib/db';
+import { logAction } from '@/lib/logAction';
 
 const bookingsQuerySchema = z.object({
   userId: z.preprocess((value) => {
@@ -106,6 +107,16 @@ export async function POST(request: Request) {
     }
 
     const booking = await createBookingAtomic({ scheduleId, userId });
+
+    // Логируем создание записи (fire-and-forget)
+    logAction({
+      action: 'booking_create',
+      actorId: booking.userId,
+      actorRole: 'athlete',
+      entityType: 'booking',
+      entityId: booking.id,
+      meta: { scheduleId: booking.scheduleId, sportId: booking.sportId, date: booking.date },
+    }).catch(() => {});
 
     return NextResponse.json(
       {

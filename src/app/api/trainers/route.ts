@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { createTrainerPublication, getOfferings, getTrainers, getUserById } from '@/lib/db';
 import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
+import { logAction } from '@/lib/logAction';
 import { publishTrainerSchema } from '@/lib/schemas/publish';
 
 const trainersQuerySchema = z.object({
@@ -128,6 +129,16 @@ export async function POST(request: Request) {
 
     // Атомарно создаём в JSON через db.ts
     const result = await createTrainerPublication(entities);
+
+    // Логируем создание тренера (fire-and-forget)
+    logAction({
+      action: 'publish_create',
+      actorId: userId,
+      actorRole: 'club_owner',
+      entityType: 'trainer',
+      entityId: result.trainer.id,
+      meta: { name: result.trainer.name, city: result.trainer.city },
+    }).catch(() => {});
 
     return NextResponse.json(
       {

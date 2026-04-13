@@ -14,6 +14,7 @@ import {
   updateClubPublication,
 } from '@/lib/db';
 import { mapClubFormToUpdateInput } from '@/lib/contracts/publish-club';
+import { logAction } from '@/lib/logAction';
 import { publishClubSchema } from '@/lib/schemas/publish';
 
 const clubIdSchema = z.coerce.number().int().positive();
@@ -138,6 +139,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const result = await updateClubPublication(mapClubFormToUpdateInput(formData, clubId, userId));
 
+    // Логируем обновление клуба (fire-and-forget)
+    logAction({
+      action: 'publish_update',
+      actorId: userId,
+      actorRole: 'club_owner',
+      entityType: 'club',
+      entityId: clubId,
+      meta: { name: result.club.name },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       data: result,
@@ -171,7 +182,20 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const clubId = validationResult.data;
 
+    // Fetch-before-delete: захватываем данные для лога до каскадного удаления
+    const club = await getClubById(clubId);
+
     await deleteClubPublication(clubId);
+
+    // Логируем удаление клуба (fire-and-forget)
+    logAction({
+      action: 'publish_delete',
+      actorId: club?.managedByUserId ?? 0,
+      actorRole: 'club_owner',
+      entityType: 'club',
+      entityId: clubId,
+      meta: { name: club?.name ?? 'unknown' },
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

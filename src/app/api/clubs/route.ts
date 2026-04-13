@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { createClubPublication, getClubs, getUserById } from '@/lib/db';
 import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
+import { logAction } from '@/lib/logAction';
 import { publishClubSchema } from '@/lib/schemas/publish';
 
 const clubsQuerySchema = z.object({
@@ -131,6 +132,16 @@ export async function POST(request: Request) {
 
     // Атомарно создаём в JSON через db.ts
     const result = await createClubPublication(entities);
+
+    // Логируем создание клуба (fire-and-forget)
+    logAction({
+      action: 'publish_create',
+      actorId: userId,
+      actorRole: 'club_owner',
+      entityType: 'club',
+      entityId: result.club.id,
+      meta: { name: result.club.name, city: result.club.city },
+    }).catch(() => {});
 
     return NextResponse.json(
       {
