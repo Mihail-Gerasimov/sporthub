@@ -72,7 +72,6 @@ function getUserStats(
 
 export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPageProps) {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,12 +129,13 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
     // Логируем начало impersonation (fire-and-forget)
     // actorId = текущий admin (ДО impersonation), entityId = target user
+    const adminUser = useAuthStore.getState().adminOriginalUser ?? useAuthStore.getState().user;
     fetch('/api/logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'admin_impersonate_start',
-        actorId: user?.id ?? 0,
+        actorId: adminUser?.id ?? 0,
         actorRole: 'admin',
         entityType: 'user',
         entityId: targetSessionUser.id,
