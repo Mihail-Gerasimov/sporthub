@@ -58,6 +58,7 @@ src/data/offerings.json
 src/data/schedule.json
 src/data/bookings.json
 src/data/reviews.json
+src/data/logs.json
 
 # typescript
 *.tsbuildinfo
