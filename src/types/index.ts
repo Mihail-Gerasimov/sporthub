@@ -28,6 +28,35 @@ export type EntitySource = 'provider' | 'seed';
 // Статус публикации сущности
 export type EntityStatus = 'published' | 'draft';
 
+// Типы действий для системы логирования активности платформы
+// Phase 20 — publish, booking, admin
+export type LogAction =
+  | 'publish_create'
+  | 'publish_update'
+  | 'publish_delete'
+  | 'booking_create'
+  | 'booking_cancel'
+  | 'admin_login'
+  | 'admin_impersonate_start'
+  | 'admin_impersonate_stop'
+  // Phase 22 — moderation (зарезервировано)
+  | 'moderation_hide'
+  | 'moderation_unhide'
+  | 'moderation_auto_restore';
+
+// Тип сущности, затронутой действием
+export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user';
+
+// Запись лога активности платформы
+export interface LogEntry extends BaseEntity {
+  action: LogAction;
+  actorId: EntityId;
+  actorRole: UserRole;
+  entityType: LogEntityType;
+  entityId: EntityId;
+  meta?: Record<string, unknown>;
+}
+
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';

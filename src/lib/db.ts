@@ -9,6 +9,7 @@ import type {
   CatalogOwnerType,
   Club,
   EntityId,
+  LogEntry,
   Offering,
   Review,
   Schedule,
@@ -22,6 +23,7 @@ import type {
 type DataCollectionMap = {
   bookings: Booking[];
   clubs: Club[];
+  logs: LogEntry[];
   offerings: Offering[];
   reviews: Review[];
   schedule: Schedule[];
@@ -163,6 +165,7 @@ export type ScheduleSlotContext = {
 const DATA_FILES: { [Key in keyof DataCollectionMap]: string } = {
   bookings: 'bookings.json',
   clubs: 'clubs.json',
+  logs: 'logs.json',
   offerings: 'offerings.json',
   reviews: 'reviews.json',
   schedule: 'schedule.json',
@@ -674,6 +677,29 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
   await writeCollection('reviews', reviews);
 
   return review;
+}
+
+// --- Логи активности платформы (Phase 20) ---
+
+/** Чтение всех записей логов. */
+export async function getLogs(): Promise<LogEntry[]> {
+  return readCollection('logs');
+}
+
+/** Добавление одной записи лога с автогенерацией id и createdAt. */
+export async function appendLog(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry> {
+  const logs = await readCollection('logs');
+
+  const logEntry: LogEntry = {
+    id: getNextEntityId(logs),
+    createdAt: createTimestamp(),
+    ...entry,
+  };
+
+  logs.push(logEntry);
+  await writeCollection('logs', logs);
+
+  return logEntry;
 }
 
 /**

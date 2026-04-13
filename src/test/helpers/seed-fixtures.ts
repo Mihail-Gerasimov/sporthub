@@ -364,5 +364,6 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     ]),
     write('reviews.json', fixtureReviews),
     write('bookings.json', fixtureBookings),
+    write('logs.json', []),
   ]);
 }
