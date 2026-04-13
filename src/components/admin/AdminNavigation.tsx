@@ -14,6 +14,7 @@ const adminNavItems = [
   { href: '/service-portal/dashboard', label: 'Пользователи' },
   { href: '/service-portal/analytics', label: 'Аналитика' },
   { href: '/service-portal/moderation', label: 'Модерация' },
+  { href: '/service-portal/logs', label: 'Логи' },
   { href: '/service-portal/finance', label: 'Финансы' },
 ];
 
