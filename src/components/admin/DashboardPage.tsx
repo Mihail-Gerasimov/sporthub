@@ -72,6 +72,7 @@ function getUserStats(
 
 export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPageProps) {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,6 +127,21 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     };
 
     startImpersonation(targetSessionUser, targetAccountType);
+
+    // Логируем начало impersonation (fire-and-forget)
+    // actorId = текущий admin (ДО impersonation), entityId = target user
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'admin_impersonate_start',
+        actorId: user?.id ?? 0,
+        actorRole: 'admin',
+        entityType: 'user',
+        entityId: targetSessionUser.id,
+        meta: { targetUserName: targetSessionUser.name, targetAccountType },
+      }),
+    }).catch(() => {});
 
     const profilePath = targetAccountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
 

@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getLogs } from '@/lib/db';
-import type { LogAction } from '@/types';
+import { appendLog, getLogs } from '@/lib/db';
+import type { LogAction, LogEntityType, UserRole } from '@/types';
 
 /** Допустимые значения action для валидации */
 const LOG_ACTIONS: LogAction[] = [
@@ -78,5 +78,43 @@ export async function GET(request: Request) {
       { success: false, error: 'Не удалось получить логи' },
       { status: 500 },
     );
+  }
+}
+
+/** Допустимые значения для валидации entityType и actorRole */
+const LOG_ENTITY_TYPES: LogEntityType[] = ['club', 'trainer', 'booking', 'user'];
+const ACTOR_ROLES: UserRole[] = ['athlete', 'trainer', 'club_owner', 'admin'];
+
+const createLogSchema = z.object({
+  action: z.string().refine((v) => LOG_ACTIONS.includes(v as LogAction), 'Недопустимое действие'),
+  actorId: z.number().int().positive(),
+  actorRole: z.string().refine((v) => ACTOR_ROLES.includes(v as UserRole), 'Недопустимая роль'),
+  entityType: z
+    .string()
+    .refine((v) => LOG_ENTITY_TYPES.includes(v as LogEntityType), 'Недопустимый тип сущности'),
+  entityId: z.number().int().positive(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+});
+
+/** POST /api/logs — запись лога из клиентского кода (admin-действия) */
+export async function POST(request: Request) {
+  try {
+    const rawBody = await request.json();
+    const parsed = createLogSchema.safeParse(rawBody);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректные данные лога' },
+        { status: 400 },
+      );
+    }
+
+    const logEntry = await appendLog(parsed.data as Parameters<typeof appendLog>[0]);
+
+    return NextResponse.json({ success: true, data: logEntry }, { status: 201 });
+  } catch (error) {
+    console.error('Ошибка записи лога:', error);
+
+    return NextResponse.json({ success: false, error: 'Не удалось записать лог' }, { status: 500 });
   }
 }

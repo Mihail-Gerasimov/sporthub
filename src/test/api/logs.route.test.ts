@@ -1,11 +1,11 @@
 /**
- * Тесты GET /api/logs — первый paginated endpoint проекта.
- * Phase 20 — Step 20.3: фильтрация, сортировка, пагинация.
+ * Тесты GET/POST /api/logs.
+ * Phase 20 — Step 20.3 (GET) + Step 20.5 (POST).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { GET } from '@/app/api/logs/route';
-import { appendLog } from '@/lib/db';
+import { GET, POST } from '@/app/api/logs/route';
+import { appendLog, getLogs } from '@/lib/db';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -181,5 +181,106 @@ describe('GET /api/logs', () => {
     expect(json.total).toBe(0);
     expect(json.offset).toBe(0);
     expect(json.limit).toBe(50);
+  });
+});
+
+describe('POST /api/logs — запись логов из клиента (Step 20.5)', () => {
+  let dataDirectory: string;
+
+  beforeEach(async () => {
+    dataDirectory = await createIsolatedDataDirectory();
+    await seedTestData(dataDirectory);
+    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+  });
+
+  afterEach(async () => {
+    delete process.env.SPORT_HUB_DATA_DIRECTORY;
+    await removeIsolatedDataDirectory(dataDirectory);
+  });
+
+  it('валидный payload → запись создаётся, статус 201', async () => {
+    const request = new Request('http://localhost/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'admin_login',
+        actorId: 3,
+        actorRole: 'admin',
+        entityType: 'user',
+        entityId: 3,
+      }),
+    });
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(json.success).toBe(true);
+    expect(json.data.action).toBe('admin_login');
+    expect(json.data.actorId).toBe(3);
+    expect(json.data.id).toBeDefined();
+    expect(json.data.createdAt).toBeDefined();
+
+    // Проверяем что запись реально в коллекции
+    const logs = await getLogs();
+    expect(logs).toHaveLength(1);
+  });
+
+  it('невалидный payload (пропущены обязательные поля) → 400', async () => {
+    const request = new Request('http://localhost/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'admin_login' }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    const json = await response.json();
+    expect(json.success).toBe(false);
+  });
+
+  it('невалидный action → 400', async () => {
+    const request = new Request('http://localhost/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'invalid_action',
+        actorId: 3,
+        actorRole: 'admin',
+        entityType: 'user',
+        entityId: 3,
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+  });
+
+  it('admin_impersonate_start сохраняет meta с targetUserName', async () => {
+    const request = new Request('http://localhost/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'admin_impersonate_start',
+        actorId: 3,
+        actorRole: 'admin',
+        entityType: 'user',
+        entityId: 1,
+        meta: { targetUserName: 'Иван Спортсмен', targetAccountType: 'athlete' },
+      }),
+    });
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(json.data.actorId).toBe(3);
+    expect(json.data.entityId).toBe(1);
+    expect(json.data.meta).toMatchObject({
+      targetUserName: 'Иван Спортсмен',
+      targetAccountType: 'athlete',
+    });
   });
 });

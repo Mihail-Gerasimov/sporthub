@@ -66,11 +66,26 @@ export function ServicePortalLoginForm() {
     setIsSubmitting(true);
 
     setTimeout(() => {
-      adminLogin({
+      const sessionUser = {
         id: MVP_ADMIN_USER_ID,
         name: 'Администратор SportHub',
         email: ADMIN_SEED_EMAIL,
-      });
+      };
+
+      adminLogin(sessionUser);
+
+      // Логируем вход админа (fire-and-forget)
+      fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'admin_login',
+          actorId: sessionUser.id,
+          actorRole: 'admin',
+          entityType: 'user',
+          entityId: sessionUser.id,
+        }),
+      }).catch(() => {});
 
       setIsSubmitting(false);
       router.push('/service-portal/dashboard');

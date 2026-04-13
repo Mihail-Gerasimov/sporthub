@@ -13,11 +13,26 @@ export function ImpersonationBanner() {
   const router = useRouter();
   const isImpersonating = useAuthStore((s) => s.isImpersonating);
   const user = useAuthStore((s) => s.user);
+  const adminOriginalUser = useAuthStore((s) => s.adminOriginalUser);
   const stopImpersonation = useAuthStore((s) => s.stopImpersonation);
 
   if (!isImpersonating) return null;
 
   function handleReturn() {
+    // Логируем завершение impersonation ПЕРЕД stopImpersonation (fire-and-forget)
+    // actorId = adminOriginalUser (настоящий админ), entityId = target user
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'admin_impersonate_stop',
+        actorId: adminOriginalUser?.id ?? 0,
+        actorRole: 'admin',
+        entityType: 'user',
+        entityId: user?.id ?? 0,
+      }),
+    }).catch(() => {});
+
     stopImpersonation();
     router.push('/service-portal/dashboard');
   }
