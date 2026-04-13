@@ -1,15 +1,18 @@
 /**
- * Placeholder — Модерация. Будет реализована в будущих фазах.
+ * Страница модерации публикаций в админ-панели.
+ * Server component: загружает виды спорта и рендерит клиентский ModerationPage.
  */
+import { getSports } from '@/lib/db';
+import { ModerationPage } from '@/components/admin/ModerationPage';
+
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'SportHub — Модерация',
 };
 
-export default function ModerationPage() {
-  return (
-    <div className="rounded-card border border-line bg-panel p-8 text-center">
-      <h1 className="font-display text-2xl font-semibold text-ink">Модерация</h1>
-      <p className="mt-2 text-muted">Раздел в разработке</p>
-    </div>
-  );
+export default async function ModerationPageRoute() {
+  const sports = await getSports();
+
+  return <ModerationPage sports={sports.map((s) => ({ id: s.id, name: s.name }))} />;
 }
