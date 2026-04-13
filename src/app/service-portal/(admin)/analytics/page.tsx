@@ -1,15 +1,19 @@
 /**
- * Placeholder — Аналитика. Будет реализована в будущих фазах.
+ * Страница аналитики admin-панели.
+ * Server component: загружает список видов спорта и передаёт в клиентский дашборд.
  */
+import { getSports } from '@/lib/db';
+
+import { AnalyticsDashboard } from '@/components/admin/analytics/AnalyticsDashboard';
+
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'SportHub — Аналитика',
 };
 
-export default function AnalyticsPage() {
-  return (
-    <div className="rounded-card border border-line bg-panel p-8 text-center">
-      <h1 className="font-display text-2xl font-semibold text-ink">Аналитика</h1>
-      <p className="mt-2 text-muted">Раздел в разработке</p>
-    </div>
-  );
+export default async function AnalyticsPage() {
+  const sports = await getSports();
+
+  return <AnalyticsDashboard sports={sports} />;
 }
