@@ -34,6 +34,8 @@ function PublicationCard({
   rating,
   reviewCount,
   href,
+  isHidden,
+  hideReason,
   onEdit,
   onDelete,
 }: {
@@ -42,6 +44,8 @@ function PublicationCard({
   rating: number;
   reviewCount: number;
   href: string;
+  isHidden?: boolean;
+  hideReason?: string;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
@@ -55,6 +59,14 @@ function PublicationCard({
         <h3 className="text-base font-semibold text-ink group-hover:text-accent">{name}</h3>
         <Badge tone={type === 'Клуб' ? 'success' : 'outline'}>{type}</Badge>
       </div>
+
+      {/* Badge скрытия модератором */}
+      {isHidden && (
+        <div className="mt-2 space-y-1">
+          <Badge tone="danger">Скрыто администратором</Badge>
+          {hideReason && <p className="text-xs text-danger">{hideReason}</p>}
+        </div>
+      )}
 
       <div className="mt-3 flex items-center justify-between text-sm text-muted">
         <div className="flex items-center gap-3">
@@ -121,6 +133,8 @@ export function ProviderPublicationsSection({
               rating={club.rating}
               reviewCount={club.reviewCount}
               href={`/clubs/${club.slug}`}
+              isHidden={club.status === 'hidden'}
+              hideReason={club.hideReason}
               onEdit={
                 onEdit
                   ? () => {
@@ -146,6 +160,8 @@ export function ProviderPublicationsSection({
               rating={trainer.rating}
               reviewCount={trainer.reviewCount}
               href={`/trainers/${trainer.slug}`}
+              isHidden={trainer.status === 'hidden'}
+              hideReason={trainer.hideReason}
               onEdit={
                 onEdit
                   ? () => {

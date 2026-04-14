@@ -164,4 +164,46 @@ describe('ProviderPublicationsSection', () => {
 
     confirmMock.mockRestore();
   });
+
+  it('рендерит badge «Скрыто администратором» для hidden публикации', () => {
+    const hiddenClub: Club[] = [
+      {
+        ...clubs[0],
+        status: 'hidden',
+        hideReason: 'Нарушение правил',
+        hiddenByUserId: 3,
+        hiddenAt: '2026-04-14T10:00:00.000Z',
+      },
+    ];
+
+    render(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} />);
+
+    expect(screen.getByText('Скрыто администратором')).toBeInTheDocument();
+    expect(screen.getByText('Нарушение правил')).toBeInTheDocument();
+  });
+
+  it('кнопка «Редактировать» доступна для hidden публикации', () => {
+    const onEdit = vi.fn();
+    const hiddenClub: Club[] = [
+      {
+        ...clubs[0],
+        status: 'hidden',
+        hideReason: 'Тест',
+      },
+    ];
+
+    render(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} onEdit={onEdit} />);
+
+    const editButton = screen.getByRole('button', { name: 'Редактировать' });
+
+    expect(editButton).toBeInTheDocument();
+    fireEvent.click(editButton);
+    expect(onEdit).toHaveBeenCalledWith('club', 1);
+  });
+
+  it('НЕ показывает badge скрытия для published публикации', () => {
+    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
+
+    expect(screen.queryByText('Скрыто администратором')).not.toBeInTheDocument();
+  });
 });
