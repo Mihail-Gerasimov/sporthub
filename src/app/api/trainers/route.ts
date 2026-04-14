@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
     const normalizedAffiliatedClubId = affiliatedClubId ?? clubId;
     let trainers = await getTrainers();
 
+    // Скрытые публикации не показываем в публичном каталоге
+    trainers = trainers.filter((trainer) => trainer.status !== 'hidden');
+
     if (normalizedAffiliatedClubId !== undefined) {
       const offerings = await getOfferings();
       const trainerIds = new Set(

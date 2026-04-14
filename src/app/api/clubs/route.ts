@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
     const { minRating, search, sportId } = validationResult.data;
     let clubs = await getClubs();
 
+    // Скрытые публикации не показываем в публичном каталоге
+    clubs = clubs.filter((club) => club.status !== 'hidden');
+
     if (sportId !== undefined) {
       clubs = clubs.filter((club) => club.sportIds.includes(sportId));
     }

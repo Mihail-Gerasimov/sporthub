@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
+import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
   getClubBySlug,
   getOfferings,
@@ -32,6 +33,11 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
 
   if (!club) {
     notFound();
+  }
+
+  // Скрытая публикация — показываем уведомление вместо контента
+  if (club.status === 'hidden') {
+    return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
   const [offerings, sports, trainers, schedule, reviews, users] = await Promise.all([

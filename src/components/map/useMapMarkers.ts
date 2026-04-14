@@ -45,6 +45,9 @@ export function useMapMarkers({ clubs, trainers, sports }: UseMapMarkersOptions)
     if (discoveryMode === 'clubs') {
       return clubs
         .filter((club) => {
+          // Defense-in-depth: скрытые публикации не должны попасть через API,
+          // но дополнительно фильтруем на клиенте
+          if (club.status === 'hidden') return false;
           if (!isValidCoordinates(club.coordinates)) return false;
           if (selectedSportId !== null && !club.sportIds.includes(selectedSportId)) return false;
           if (normalizedCity && club.city.trim().toLowerCase() !== normalizedCity) return false;
@@ -64,6 +67,8 @@ export function useMapMarkers({ clubs, trainers, sports }: UseMapMarkersOptions)
 
     return trainers
       .filter((trainer) => {
+        // Defense-in-depth: скрытые не должны отображаться на карте
+        if ((trainer as { status?: string }).status === 'hidden') return false;
         if (!isValidCoordinates(trainer.coordinates)) return false;
         if (selectedSportId !== null && !trainer.sportIds.includes(selectedSportId)) return false;
         if (normalizedCity && trainer.city.trim().toLowerCase() !== normalizedCity) return false;

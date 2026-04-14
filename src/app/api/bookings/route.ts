@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { createBookingAtomic, getBookings, getUserById } from '@/lib/db';
+import { createBookingAtomic, getBookings, getScheduleSlotContext, getUserById } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
 
 const bookingsQuerySchema = z.object({
@@ -104,6 +104,23 @@ export async function POST(request: Request) {
         },
         { status: 403 },
       );
+    }
+
+    // Проверяем что parent-сущность не скрыта модератором
+    const slotContext = await getScheduleSlotContext(scheduleId);
+
+    if (slotContext) {
+      const parentEntity = slotContext.club ?? slotContext.trainer;
+
+      if (parentEntity?.status === 'hidden') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Публикация скрыта, запись невозможна',
+          },
+          { status: 403 },
+        );
+      }
     }
 
     const booking = await createBookingAtomic({ scheduleId, userId });

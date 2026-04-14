@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
+import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
   getClubById,
   getOfferings,
@@ -32,6 +33,11 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
 
   if (!trainer) {
     notFound();
+  }
+
+  // Скрытая публикация — показываем уведомление вместо контента
+  if (trainer.status === 'hidden') {
+    return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
   /* Параллельная загрузка всех связанных данных */
