@@ -877,7 +877,12 @@ export async function updateClubPublication(
     tags: input.club.tags,
     priceFrom: input.club.priceFrom,
     ...(wasHidden
-      ? { status: 'published' as const, hideReason: undefined, hiddenByUserId: undefined, hiddenAt: undefined }
+      ? {
+          status: 'published' as const,
+          hideReason: undefined,
+          hiddenByUserId: undefined,
+          hiddenAt: undefined,
+        }
       : {}),
   };
 
@@ -1019,7 +1024,12 @@ export async function updateTrainerPublication(
     address: input.trainer.address,
     sportId: input.trainer.sportIds[0],
     ...(wasHidden
-      ? { status: 'published' as const, hideReason: undefined, hiddenByUserId: undefined, hiddenAt: undefined }
+      ? {
+          status: 'published' as const,
+          hideReason: undefined,
+          hiddenByUserId: undefined,
+          hiddenAt: undefined,
+        }
       : {}),
   };
   const trainer = normalizeTrainer(

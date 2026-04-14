@@ -248,9 +248,7 @@ describe('GET /api/publications', () => {
     await createClubPublication(clubInput);
     await createTrainerPublication(trainerInput);
 
-    const res = await getPublications(
-      new Request('http://localhost/api/publications'),
-    );
+    const res = await getPublications(new Request('http://localhost/api/publications'));
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.total).toBe(countBefore + 2);
@@ -286,9 +284,7 @@ describe('GET /api/publications', () => {
     await createClubPublication(clubInput);
     await createTrainerPublication(trainerInput);
 
-    const res = await getPublications(
-      new Request('http://localhost/api/publications?type=club'),
-    );
+    const res = await getPublications(new Request('http://localhost/api/publications?type=club'));
     const json = await res.json();
     expect(json.data.every((d: { type: string }) => d.type === 'club')).toBe(true);
   });

@@ -28,10 +28,7 @@ export async function POST(request: Request) {
     }
 
     if (!entityId || typeof entityId !== 'number') {
-      return NextResponse.json(
-        { success: false, error: 'Некорректный entityId' },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: 'Некорректный entityId' }, { status: 400 });
     }
 
     if (!moderatorId || typeof moderatorId !== 'number') {
