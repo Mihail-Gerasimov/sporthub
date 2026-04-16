@@ -171,3 +171,19 @@ export function isValidCoordinates(coords: Coordinates | undefined): boolean {
   if (!coords) return false;
   return coords.lat !== 0 && coords.lng !== 0;
 }
+
+/**
+ * Вычисляет bounding box вокруг центра города (~15 км в каждую сторону).
+ * Используется для ограничения подсказок Yandex Geosuggest в пределах города.
+ * Возвращает [[lng1, lat1], [lng2, lat2]] — юго-западный и северо-восточный углы.
+ */
+export function getCityBoundingBox(center: Coordinates): [[number, number], [number, number]] {
+  // ~15 км в градусах: 1° широты ≈ 111 км, 1° долготы ≈ 111 * cos(lat) км
+  const latOffset = 15 / 111;
+  const lngOffset = 15 / (111 * Math.cos((center.lat * Math.PI) / 180));
+
+  return [
+    [center.lng - lngOffset, center.lat - latOffset],
+    [center.lng + lngOffset, center.lat + latOffset],
+  ];
+}

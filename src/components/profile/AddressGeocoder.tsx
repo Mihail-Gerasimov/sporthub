@@ -1,20 +1,26 @@
 /**
  * Секция геокодирования адреса для publish-модалок.
- * Адрес + кнопка «Проверить адрес».
+ * Автокомплит адреса через Yandex Geosuggest + кнопка «Проверить адрес» (fallback).
  * Город вынесен в CitySuggestInput (Phase 23, Step 23.3).
+ * Подсказки ограничены bounding box города (Step 23.5).
  */
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import type { Coordinates } from '@/types';
 import { Button, Input } from '@/components/ui';
+import { useSuggest } from '@/hooks/useSuggest';
+import { getCityBoundingBox } from '@/lib/utils';
 
 /** Статус проверки адреса */
 type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error';
 
 type AddressGeocoderProps = {
-  /** Город из form-state (нужен для геокодирования) */
+  /** Город из form-state (нужен для геокодирования и ограничения подсказок) */
   city: string;
+  /** Координаты центра города (для bounding box подсказок) */
+  cityCoordinates?: Coordinates;
   address: string;
   onAddressChange: (address: string) => void;
   onCoordinatesChange: (coords: { lat: number; lng: number } | undefined) => void;
@@ -23,6 +29,7 @@ type AddressGeocoderProps = {
 
 export function AddressGeocoder({
   city,
+  cityCoordinates,
   address,
   onAddressChange,
   onCoordinatesChange,
@@ -31,6 +38,21 @@ export function AddressGeocoder({
   const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>('idle');
   const [geocodeMessage, setGeocodeMessage] = useState('');
 
+  // Управление dropdown подсказок
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Bounding box для подсказок: если есть координаты города — ограничиваем ~15 км
+  const boundedBy = cityCoordinates ? getCityBoundingBox(cityCoordinates) : undefined;
+
+  // Автокомплит адреса через Yandex Geosuggest
+  const { suggestions } = useSuggest({
+    text: address,
+    types: 'geo',
+    boundedBy,
+    enabled: showDropdown && address.trim().length >= 2,
+  });
+
   /** Сброс состояния геокодирования */
   function resetGeocode() {
     setGeocodeStatus('idle');
@@ -38,17 +60,8 @@ export function AddressGeocoder({
     onCoordinatesChange(undefined);
   }
 
-  /** Проверка адреса через POST /api/geocode */
-  async function handleCheckAddress() {
-    const trimmedCity = city.trim();
-    const trimmedAddress = address.trim();
-
-    if (!trimmedCity || !trimmedAddress) {
-      setGeocodeStatus('error');
-      setGeocodeMessage('Укажите город и адрес');
-      return;
-    }
-
+  /** Геокодирование адреса через POST /api/geocode */
+  async function geocodeAddress(targetCity: string, targetAddress: string) {
     setGeocodeStatus('loading');
     setGeocodeMessage('');
 
@@ -56,7 +69,7 @@ export function AddressGeocoder({
       const response = await fetch('/api/geocode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: trimmedCity, address: trimmedAddress }),
+        body: JSON.stringify({ city: targetCity, address: targetAddress }),
       });
 
       const data = await response.json();
@@ -77,19 +90,78 @@ export function AddressGeocoder({
     }
   }
 
+  /** Проверка адреса кнопкой */
+  async function handleCheckAddress() {
+    const trimmedCity = city.trim();
+    const trimmedAddress = address.trim();
+
+    if (!trimmedCity || !trimmedAddress) {
+      setGeocodeStatus('error');
+      setGeocodeMessage('Укажите город и адрес');
+      return;
+    }
+
+    await geocodeAddress(trimmedCity, trimmedAddress);
+  }
+
+  /** Выбор подсказки из dropdown */
+  function handleSelectSuggestion(title: string) {
+    onAddressChange(title);
+    setShowDropdown(false);
+
+    // Автоматическое геокодирование при выборе подсказки
+    const trimmedCity = city.trim();
+    if (trimmedCity) {
+      geocodeAddress(trimmedCity, title);
+    }
+  }
+
+  /** Обработка blur: закрываем dropdown с задержкой (чтобы клик по опции успел сработать) */
+  function handleBlur(e: React.FocusEvent) {
+    if (containerRef.current?.contains(e.relatedTarget as Node)) return;
+    setTimeout(() => setShowDropdown(false), 150);
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Адрес — текстовое поле */}
-      <Input
-        label="Адрес"
-        placeholder="ул. Ленина, 15"
-        value={address}
-        error={addressError}
-        onChange={(e) => {
-          onAddressChange(e.target.value);
-          resetGeocode();
-        }}
-      />
+    <div ref={containerRef} className="flex flex-col gap-4" onBlur={handleBlur}>
+      {/* Адрес — поле с автокомплитом */}
+      <div className="relative">
+        <Input
+          label="Адрес"
+          placeholder="ул. Ленина, 15"
+          value={address}
+          error={addressError}
+          autoComplete="off"
+          onFocus={() => setShowDropdown(true)}
+          onChange={(e) => {
+            onAddressChange(e.target.value);
+            setShowDropdown(true);
+            resetGeocode();
+          }}
+        />
+
+        {/* Dropdown подсказок */}
+        {showDropdown && suggestions.length > 0 && (
+          <ul
+            role="listbox"
+            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-card border border-line bg-panel shadow-card"
+          >
+            {suggestions.map((item) => (
+              <li
+                key={item.value}
+                role="option"
+                aria-selected={false}
+                className="cursor-pointer px-3 py-2 text-sm text-ink transition-colors hover:bg-canvas"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleSelectSuggestion(item.title)}
+              >
+                <span className="font-medium">{item.title}</span>
+                {item.subtitle && <span className="ml-1 text-muted">{item.subtitle}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* Кнопка проверки + статус */}
       <div className="flex flex-col gap-2">

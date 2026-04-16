@@ -1,9 +1,10 @@
-// Тесты хелперов карты (Step 19.1)
+// Тесты хелперов карты (Step 19.1, дополнено Step 23.5)
 // normalizeCity — нормализация регистра города
 // isValidCoordinates — валидация координат для маркеров
+// getCityBoundingBox — bounding box вокруг центра города
 import { describe, expect, it } from 'vitest';
 
-import { isValidCoordinates, normalizeCity } from '@/lib/utils';
+import { getCityBoundingBox, isValidCoordinates, normalizeCity } from '@/lib/utils';
 
 describe('normalizeCity', () => {
   it('нормализует lowercase → каноничный вид', () => {
@@ -63,5 +64,41 @@ describe('isValidCoordinates', () => {
 
   it('возвращает false если только lng === 0', () => {
     expect(isValidCoordinates({ lat: 53.1, lng: 0 })).toBe(false);
+  });
+});
+
+describe('getCityBoundingBox', () => {
+  it('возвращает bounding box в формате [[lng1, lat1], [lng2, lat2]]', () => {
+    const bbox = getCityBoundingBox({ lat: 53.195, lng: 50.1 });
+
+    expect(bbox).toHaveLength(2);
+    expect(bbox[0]).toHaveLength(2);
+    expect(bbox[1]).toHaveLength(2);
+
+    // Юго-западный угол (меньшие координаты)
+    expect(bbox[0][0]).toBeLessThan(50.1);
+    expect(bbox[0][1]).toBeLessThan(53.195);
+
+    // Северо-восточный угол (большие координаты)
+    expect(bbox[1][0]).toBeGreaterThan(50.1);
+    expect(bbox[1][1]).toBeGreaterThan(53.195);
+  });
+
+  it('bounding box примерно ±15 км (~0.135° по широте)', () => {
+    const bbox = getCityBoundingBox({ lat: 53.195, lng: 50.1 });
+
+    const latDelta = bbox[1][1] - bbox[0][1];
+    // 30 км ≈ 0.27° широты (±15 км)
+    expect(latDelta).toBeCloseTo(0.27, 1);
+  });
+
+  it('bounding box для экватора: долгота ≈ широте', () => {
+    const bbox = getCityBoundingBox({ lat: 0, lng: 30 });
+
+    const latDelta = bbox[1][1] - bbox[0][1];
+    const lngDelta = bbox[1][0] - bbox[0][0];
+
+    // На экваторе 1° широты ≈ 1° долготы
+    expect(Math.abs(latDelta - lngDelta)).toBeLessThan(0.01);
   });
 });

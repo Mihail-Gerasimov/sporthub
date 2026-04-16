@@ -362,6 +362,7 @@ export function PublishClubModal({
               />
               <AddressGeocoder
                 city={form.city}
+                cityCoordinates={form.cityCoordinates}
                 address={form.address}
                 onAddressChange={(address) => {
                   updateField('address', address);
