@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 
 import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
+import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
@@ -341,21 +342,32 @@ export function PublishTrainerModal({
                 }}
               />
             </div>
-            <AddressGeocoder
-              city={form.city}
-              address={form.address}
-              onCityChange={(city) => {
-                updateField('city', city);
-              }}
-              onAddressChange={(address) => {
-                updateField('address', address);
-              }}
-              onCoordinatesChange={(coords) => {
-                setForm((prev) => ({ ...prev, coordinates: coords }));
-              }}
-              cityError={errors.city}
-              addressError={errors.address}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CitySuggestInput
+                value={form.city}
+                cityCoordinates={form.cityCoordinates}
+                onChange={(city, coords) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    city,
+                    cityCoordinates: coords,
+                    coordinates: undefined,
+                  }));
+                }}
+                error={errors.city}
+              />
+              <AddressGeocoder
+                city={form.city}
+                address={form.address}
+                onAddressChange={(address) => {
+                  updateField('address', address);
+                }}
+                onCoordinatesChange={(coords) => {
+                  setForm((prev) => ({ ...prev, coordinates: coords }));
+                }}
+                addressError={errors.address}
+              />
+            </div>
 
             {/* Краткое описание — textarea */}
             <div className="flex flex-col gap-2">

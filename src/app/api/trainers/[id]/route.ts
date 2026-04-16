@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import {
+  appendCity,
   deleteTrainerPublication,
   getClubById,
   getReviews,
@@ -138,6 +139,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         { success: false, error: 'Пользователь не найден' },
         { status: 404 },
       );
+    }
+
+    // Runtime-добавление нового города при редактировании
+    if (formData.city && formData.cityCoordinates) {
+      await appendCity({
+        name: formData.city,
+        coordinates: formData.cityCoordinates,
+      });
     }
 
     const result = await updateTrainerPublication(

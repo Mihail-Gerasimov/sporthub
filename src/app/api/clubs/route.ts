@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { createClubPublication, getClubs, getUserById } from '@/lib/db';
+import { appendCity, createClubPublication, getClubs, getUserById } from '@/lib/db';
 import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
 import { logAction } from '@/lib/logAction';
 import { publishClubSchema } from '@/lib/schemas/publish';
@@ -128,6 +128,14 @@ export async function POST(request: Request) {
         },
         { status: 404 },
       );
+    }
+
+    // Runtime-добавление нового города (дедупликация в appendCity)
+    if (formData.city && formData.cityCoordinates) {
+      await appendCity({
+        name: formData.city,
+        coordinates: formData.cityCoordinates,
+      });
     }
 
     // Маппим форму → сущности через контракт

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { createTrainerPublication, getOfferings, getTrainers, getUserById } from '@/lib/db';
+import {
+  appendCity,
+  createTrainerPublication,
+  getOfferings,
+  getTrainers,
+  getUserById,
+} from '@/lib/db';
 import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
 import { logAction } from '@/lib/logAction';
 import { publishTrainerSchema } from '@/lib/schemas/publish';
@@ -125,6 +131,14 @@ export async function POST(request: Request) {
         },
         { status: 404 },
       );
+    }
+
+    // Runtime-добавление нового города (дедупликация в appendCity)
+    if (formData.city && formData.cityCoordinates) {
+      await appendCity({
+        name: formData.city,
+        coordinates: formData.cityCoordinates,
+      });
     }
 
     // Маппим форму → сущности через контракт

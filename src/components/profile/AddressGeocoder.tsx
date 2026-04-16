@@ -1,60 +1,35 @@
 /**
  * Секция геокодирования адреса для publish-модалок.
- * Город (select из AVAILABLE_CITIES + ручной ввод) + адрес + кнопка «Проверить адрес».
- * Step 19.3
+ * Адрес + кнопка «Проверить адрес».
+ * Город вынесен в CitySuggestInput (Phase 23, Step 23.3).
  */
 'use client';
 
 import { useState } from 'react';
 
-import { Button, Input, Select } from '@/components/ui';
-import { AVAILABLE_CITIES, DEFAULT_CITY } from '@/lib/constants';
+import { Button, Input } from '@/components/ui';
 
 /** Статус проверки адреса */
 type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error';
 
 type AddressGeocoderProps = {
+  /** Город из form-state (нужен для геокодирования) */
   city: string;
   address: string;
-  onCityChange: (city: string) => void;
   onAddressChange: (address: string) => void;
   onCoordinatesChange: (coords: { lat: number; lng: number } | undefined) => void;
-  cityError?: string;
   addressError?: string;
 };
-
-/** Названия городов из AVAILABLE_CITIES для select */
-const CITY_OPTIONS = AVAILABLE_CITIES.map((c) => c.name);
 
 export function AddressGeocoder({
   city,
   address,
-  onCityChange,
   onAddressChange,
   onCoordinatesChange,
-  cityError,
   addressError,
 }: AddressGeocoderProps) {
   const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>('idle');
   const [geocodeMessage, setGeocodeMessage] = useState('');
-  /** Режим ручного ввода города (не из списка) */
-  const [customCity, setCustomCity] = useState(false);
-
-  /** Определяем значение select: если город в списке — его имя, иначе «other» */
-  const selectValue = !customCity && CITY_OPTIONS.includes(city) ? city : 'other';
-
-  /** Обработка выбора города из select */
-  function handleCitySelect(value: string) {
-    if (value === 'other') {
-      setCustomCity(true);
-      onCityChange('');
-    } else {
-      setCustomCity(false);
-      onCityChange(value);
-    }
-    // Сброс координат при смене города
-    resetGeocode();
-  }
 
   /** Сброс состояния геокодирования */
   function resetGeocode() {
@@ -104,62 +79,17 @@ export function AddressGeocoder({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Город — select или ручной ввод */}
-        {customCity ? (
-          <div className="flex flex-col gap-2">
-            <Input
-              label="Город"
-              placeholder="Введите название города"
-              value={city}
-              error={cityError}
-              onChange={(e) => {
-                onCityChange(e.target.value);
-                resetGeocode();
-              }}
-            />
-            <button
-              type="button"
-              className="self-start text-xs text-accent hover:underline"
-              onClick={() => {
-                setCustomCity(false);
-                onCityChange(DEFAULT_CITY);
-                resetGeocode();
-              }}
-            >
-              Выбрать из списка
-            </button>
-          </div>
-        ) : (
-          <Select
-            label="Город"
-            value={selectValue}
-            error={cityError}
-            onChange={(e) => {
-              handleCitySelect(e.target.value);
-            }}
-          >
-            {CITY_OPTIONS.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-            <option value="other">Другой...</option>
-          </Select>
-        )}
-
-        {/* Адрес — текстовое поле */}
-        <Input
-          label="Адрес"
-          placeholder="ул. Ленина, 15"
-          value={address}
-          error={addressError}
-          onChange={(e) => {
-            onAddressChange(e.target.value);
-            resetGeocode();
-          }}
-        />
-      </div>
+      {/* Адрес — текстовое поле */}
+      <Input
+        label="Адрес"
+        placeholder="ул. Ленина, 15"
+        value={address}
+        error={addressError}
+        onChange={(e) => {
+          onAddressChange(e.target.value);
+          resetGeocode();
+        }}
+      />
 
       {/* Кнопка проверки + статус */}
       <div className="flex flex-col gap-2">
