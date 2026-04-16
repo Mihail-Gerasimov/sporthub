@@ -344,6 +344,43 @@ export const fixtureBookings: Booking[] = [
   },
 ];
 
+// --- Фикстуры справочников (Phase 23) ---
+// Минимальный seed для тестов — покрывает основные сценарии
+export const fixtureCities = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Самара',
+    coordinates: { lat: 53.195878, lng: 50.100202 },
+  },
+  {
+    id: 2,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    name: 'Москва',
+    coordinates: { lat: 55.7558, lng: 37.6173 },
+  },
+];
+
+export const fixtureTags = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Для начинающих' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Бассейн' },
+];
+
+export const fixtureAmenities = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Парковка' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Душевые' },
+];
+
+export const fixtureWorkFormats = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'В зале' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Онлайн' },
+];
+
+export const fixtureSpecialties = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Подготовка к соревнованиям' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Реабилитация' },
+];
+
 /**
  * Записывает полный набор тестовых фикстур в указанную директорию.
  * Перезаписывает пустые JSON-файлы тестовыми данными.
@@ -365,5 +402,11 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     write('reviews.json', fixtureReviews),
     write('bookings.json', fixtureBookings),
     write('logs.json', []),
+    // Справочники (Phase 23)
+    write('cities.json', fixtureCities),
+    write('tags.json', fixtureTags),
+    write('amenities.json', fixtureAmenities),
+    write('work-formats.json', fixtureWorkFormats),
+    write('specialties.json', fixtureSpecialties),
   ]);
 }

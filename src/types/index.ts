@@ -75,6 +75,34 @@ export interface Coordinates {
   lng: number;
 }
 
+// --- Справочники (Phase 23) ---
+
+// Город с координатами центра для карты и геосервисов
+export interface City extends BaseEntity {
+  name: string;
+  coordinates: Coordinates;
+}
+
+// Тег публикации (клуба)
+export interface Tag extends BaseEntity {
+  name: string;
+}
+
+// Удобство клуба (amenity)
+export interface Amenity extends BaseEntity {
+  name: string;
+}
+
+// Формат работы тренера
+export interface WorkFormat extends BaseEntity {
+  name: string;
+}
+
+// Специализация тренера
+export interface Specialty extends BaseEntity {
+  name: string;
+}
+
 export interface Sport extends BaseEntity {
   name: string;
   slug: string;

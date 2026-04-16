@@ -5,31 +5,41 @@ import path from 'node:path';
 
 import { getProjectDataDirectory } from '@/lib/projectPaths';
 import type {
+  Amenity,
   Booking,
   CatalogOwnerType,
+  City,
   Club,
   EntityId,
   LogEntry,
   Offering,
   Review,
   Schedule,
+  Specialty,
   Sport,
+  Tag,
   Trainer,
   User,
+  WorkFormat,
 } from '@/types';
 
 // STUB: заменить на Prisma при переходе на PostgreSQL.
 
 type DataCollectionMap = {
+  amenities: Amenity[];
   bookings: Booking[];
+  cities: City[];
   clubs: Club[];
   logs: LogEntry[];
   offerings: Offering[];
   reviews: Review[];
   schedule: Schedule[];
+  specialties: Specialty[];
   sports: Sport[];
+  tags: Tag[];
   trainers: Trainer[];
   users: User[];
+  workFormats: WorkFormat[];
 };
 
 type EntityWithOverridableFields<Entity, Keys extends keyof Entity> = Omit<Entity, Keys> &
@@ -163,15 +173,20 @@ export type ScheduleSlotContext = {
 };
 
 const DATA_FILES: { [Key in keyof DataCollectionMap]: string } = {
+  amenities: 'amenities.json',
   bookings: 'bookings.json',
+  cities: 'cities.json',
   clubs: 'clubs.json',
   logs: 'logs.json',
   offerings: 'offerings.json',
   reviews: 'reviews.json',
   schedule: 'schedule.json',
+  specialties: 'specialties.json',
   sports: 'sports.json',
+  tags: 'tags.json',
   trainers: 'trainers.json',
   users: 'users.json',
+  workFormats: 'work-formats.json',
 };
 
 function getDataDirectory(): string {
@@ -518,6 +533,64 @@ export async function getScheduleSlotContext(id: EntityId): Promise<ScheduleSlot
 
 export async function getSports(): Promise<Sport[]> {
   return readCollection('sports');
+}
+
+// --- Справочники (Phase 23) ---
+
+/** Нормализация названия города для сравнения при дедупликации. */
+function normalizeCity(name: string): string {
+  return name.trim().toLocaleLowerCase('ru-RU');
+}
+
+/** Чтение списка городов. */
+export async function getCities(): Promise<City[]> {
+  return readCollection('cities');
+}
+
+/**
+ * Добавление города с дедупликацией.
+ * Если город с таким именем уже существует — возвращает его без создания дубликата.
+ */
+export async function appendCity(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
+  const cities = await readCollection('cities');
+
+  // Дедупликация по нормализованному имени
+  const existing = cities.find((c) => normalizeCity(c.name) === normalizeCity(data.name));
+
+  if (existing) {
+    return existing;
+  }
+
+  const city: City = {
+    id: getNextEntityId(cities),
+    createdAt: createTimestamp(),
+    ...data,
+  };
+
+  cities.push(city);
+  await writeCollection('cities', cities);
+
+  return city;
+}
+
+/** Чтение справочника тегов. */
+export async function getTags(): Promise<Tag[]> {
+  return readCollection('tags');
+}
+
+/** Чтение справочника удобств. */
+export async function getAmenities(): Promise<Amenity[]> {
+  return readCollection('amenities');
+}
+
+/** Чтение справочника форматов работы тренера. */
+export async function getWorkFormats(): Promise<WorkFormat[]> {
+  return readCollection('workFormats');
+}
+
+/** Чтение справочника специализаций тренера. */
+export async function getSpecialties(): Promise<Specialty[]> {
+  return readCollection('specialties');
 }
 
 export async function getReviews(): Promise<Review[]> {
