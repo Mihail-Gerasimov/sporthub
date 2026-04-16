@@ -1,14 +1,9 @@
-// Тесты констант карты и seed-данных (Step 19.1)
-// Проверяют наличие констант карты и города в seed-пользователях
+// Тесты констант карты и seed-данных (Step 19.1, обновлён Step 23.4)
+// Проверяют наличие констант карты, города из cities.json и seed-пользователей
 import { describe, expect, it } from 'vitest';
 
-import {
-  AVAILABLE_CITIES,
-  DEFAULT_CITY,
-  DEFAULT_MAP_CENTER,
-  DEFAULT_MAP_ZOOM,
-} from '@/lib/constants';
-import { getUsers } from '@/lib/db';
+import { DEFAULT_CITY, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import { getCities, getUsers } from '@/lib/db';
 
 describe('константы карты', () => {
   it('DEFAULT_MAP_CENTER содержит координаты Самары', () => {
@@ -20,20 +15,23 @@ describe('константы карты', () => {
     expect(Number.isInteger(DEFAULT_MAP_ZOOM)).toBe(true);
   });
 
-  it('AVAILABLE_CITIES — массив с хотя бы одним городом', () => {
-    expect(Array.isArray(AVAILABLE_CITIES)).toBe(true);
-    expect(AVAILABLE_CITIES.length).toBeGreaterThan(0);
+  it('getCities() — возвращает массив с хотя бы одним городом', async () => {
+    const cities = await getCities();
+    expect(Array.isArray(cities)).toBe(true);
+    expect(cities.length).toBeGreaterThan(0);
   });
 
-  it('AVAILABLE_CITIES содержит Самару как дефолтный город', () => {
-    const samara = AVAILABLE_CITIES.find((c) => c.name === DEFAULT_CITY);
+  it('getCities() содержит Самару как дефолтный город', async () => {
+    const cities = await getCities();
+    const samara = cities.find((c) => c.name === DEFAULT_CITY);
     expect(samara).toBeDefined();
     expect(samara!.coordinates.lat).toBeCloseTo(53.195878, 2);
     expect(samara!.coordinates.lng).toBeCloseTo(50.100202, 2);
   });
 
-  it('каждый город в AVAILABLE_CITIES имеет name и coordinates', () => {
-    for (const city of AVAILABLE_CITIES) {
+  it('каждый город из getCities() имеет name и coordinates', async () => {
+    const cities = await getCities();
+    for (const city of cities) {
       expect(city.name).toBeTruthy();
       expect(typeof city.coordinates.lat).toBe('number');
       expect(typeof city.coordinates.lng).toBe('number');

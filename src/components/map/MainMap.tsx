@@ -1,7 +1,7 @@
 /**
  * Живая Яндекс Карта на главной странице.
  * Инициализируется с центром на выбранный город, зумом из DEFAULT_MAP_ZOOM.
- * При смене города — перецентрируется на координаты из AVAILABLE_CITIES.
+ * При смене города — перецентрируется на координаты из GET /api/cities.
  * Маркеры формируются хуком useMapMarkers и добавляются как YMapMarker.
  * ymaps3.ready обязателен для JS API 3.0 — конструкторы доступны только после его resolve.
  */
@@ -9,8 +9,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import type { Club, EntityId } from '@/types';
-import { AVAILABLE_CITIES, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import type { City, Club, EntityId } from '@/types';
+import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
 import { useYandexMap } from '@/components/map/YandexMapProvider';
 import { useMapMarkers, type MapMarkerData } from '@/components/map/useMapMarkers';
 import { useFilterStore } from '@/stores/useFilterStore';
@@ -43,9 +43,9 @@ type Ymaps3Api = {
   ) => unknown;
 };
 
-/** Получить координаты города из AVAILABLE_CITIES или fallback на DEFAULT_MAP_CENTER */
-function getCityCenter(cityName: string): [number, number] {
-  const city = AVAILABLE_CITIES.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
+/** Получить координаты города из загруженного списка или fallback на DEFAULT_MAP_CENTER */
+function getCityCenter(cityName: string, cities: City[]): [number, number] {
+  const city = cities.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
   const coords = city?.coordinates ?? DEFAULT_MAP_CENTER;
   // Яндекс Maps API принимает [lng, lat]
   return [coords.lng, coords.lat];
@@ -110,6 +110,18 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
   const markerObjectsRef = useRef<unknown[]>([]);
   // Храним текущий popup для закрытия
   const activePopupRef = useRef<unknown>(null);
+  // Динамический список городов для определения центра
+  const [cities, setCities] = useState<City[]>([]);
+
+  // Загрузка списка городов
+  useEffect(() => {
+    fetch('/api/cities')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setCities(json.data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Инициализация карты: скрипт загружен → await ymaps3.ready → создать карту
   useEffect(() => {
@@ -125,7 +137,7 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
 
       const map = new ymaps3.YMap(containerRef.current, {
         location: {
-          center: getCityCenter(selectedCity),
+          center: getCityCenter(selectedCity, cities),
           zoom: DEFAULT_MAP_ZOOM,
         },
       });
@@ -140,7 +152,7 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, selectedCity]);
+  }, [isLoaded, selectedCity, cities]);
 
   // Перецентрирование при смене города
   useEffect(() => {
@@ -151,11 +163,11 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
     };
 
     map.setLocation({
-      center: getCityCenter(selectedCity),
+      center: getCityCenter(selectedCity, cities),
       zoom: DEFAULT_MAP_ZOOM,
       duration: 400,
     });
-  }, [selectedCity, isMapReady]);
+  }, [selectedCity, isMapReady, cities]);
 
   // Обновление маркеров при изменении фильтров
   useEffect(() => {

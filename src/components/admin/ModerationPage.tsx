@@ -7,10 +7,10 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
+import type { City } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { AVAILABLE_CITIES } from '@/lib/constants';
 
 import { HideReasonModal } from './HideReasonModal';
 
@@ -34,6 +34,18 @@ interface ModerationPageProps {
 
 export function ModerationPage({ sports }: ModerationPageProps) {
   const user = useAuthStore((s) => s.user);
+
+  // Динамический список городов для фильтра
+  const [cities, setCities] = useState<City[]>([]);
+
+  useEffect(() => {
+    fetch('/api/cities')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setCities(json.data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Фильтры
   const [statusFilter, setStatusFilter] = useState('all');
@@ -173,8 +185,8 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           className="rounded-pill border border-line bg-canvas px-4 py-2.5 text-sm text-ink"
         >
           <option value="">Все города</option>
-          {AVAILABLE_CITIES.map((c) => (
-            <option key={c.name} value={c.name}>
+          {cities.map((c) => (
+            <option key={c.id} value={c.name}>
               {c.name}
             </option>
           ))}

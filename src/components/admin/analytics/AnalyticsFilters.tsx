@@ -4,10 +4,11 @@
  */
 'use client';
 
+import { useEffect, useState } from 'react';
+
+import type { City, Sport } from '@/types';
 import { Select } from '@/components/ui';
-import { AVAILABLE_CITIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import type { Sport } from '@/types';
 
 /** Тип фильтров аналитики */
 export type AnalyticsFiltersState = {
@@ -37,6 +38,18 @@ export function AnalyticsFilters({
   sports,
   isLoading,
 }: AnalyticsFiltersProps) {
+  // Динамический список городов для фильтра
+  const [cities, setCities] = useState<City[]>([]);
+
+  useEffect(() => {
+    fetch('/api/cities')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setCities(json.data);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:flex-wrap">
       {/* Чипы периода */}
@@ -68,8 +81,8 @@ export function AnalyticsFilters({
           onChange={(e) => onFiltersChange({ ...filters, city: e.target.value })}
         >
           <option value="">Все города</option>
-          {AVAILABLE_CITIES.map((c) => (
-            <option key={c.name} value={c.name}>
+          {cities.map((c) => (
+            <option key={c.id} value={c.name}>
               {c.name}
             </option>
           ))}

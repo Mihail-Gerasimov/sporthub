@@ -1,9 +1,9 @@
 /**
  * Тесты фильтров аналитики.
- * Phase 21 — Step 21.4.
+ * Phase 21 — Step 21.4, обновлён Step 23.4.
  */
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { AnalyticsFilters } from '@/components/admin/analytics/AnalyticsFilters';
 import type { Sport } from '@/types';
@@ -31,10 +31,25 @@ const mockSports: Sport[] = [
   },
 ];
 
+const mockCities = [
+  { id: 1, name: 'Самара', coordinates: { lat: 53.19, lng: 50.1 }, createdAt: '' },
+  { id: 2, name: 'Москва', coordinates: { lat: 55.75, lng: 37.61 }, createdAt: '' },
+];
+
 const defaultFilters = { period: 'all' as const, city: '', sportId: '' };
 
+beforeEach(() => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+    json: () => Promise.resolve({ success: true, data: mockCities }),
+  } as Response);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('AnalyticsFilters', () => {
-  it('рендерит все фильтры', () => {
+  it('рендерит все фильтры', async () => {
     render(
       <AnalyticsFilters
         filters={defaultFilters}
@@ -53,6 +68,11 @@ describe('AnalyticsFilters', () => {
     /* Селекты города и спорта */
     expect(screen.getByLabelText('Город')).toBeInTheDocument();
     expect(screen.getByLabelText('Вид спорта')).toBeInTheDocument();
+
+    // Ждём загрузки городов
+    await waitFor(() => {
+      expect(screen.getByText('Самара')).toBeInTheDocument();
+    });
   });
 
   it('клик по чипу периода вызывает onFiltersChange', () => {
@@ -70,7 +90,7 @@ describe('AnalyticsFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ ...defaultFilters, period: 'week' });
   });
 
-  it('смена города вызывает onFiltersChange', () => {
+  it('смена города вызывает onFiltersChange', async () => {
     const onChange = vi.fn();
     render(
       <AnalyticsFilters
@@ -80,6 +100,11 @@ describe('AnalyticsFilters', () => {
         isLoading={false}
       />,
     );
+
+    // Ждём загрузки городов из API
+    await waitFor(() => {
+      expect(screen.getByText('Самара')).toBeInTheDocument();
+    });
 
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Самара' } });
     expect(onChange).toHaveBeenCalledWith({ ...defaultFilters, city: 'Самара' });
