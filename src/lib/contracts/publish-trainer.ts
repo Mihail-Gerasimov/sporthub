@@ -3,7 +3,6 @@
  * Маппит форму PublishTrainerModal → persisted-сущности: trainer + offering + schedule[].
  * Step 14.4
  */
-import sportsData from '@/data/sports.json';
 import type { UpdateTrainerPublicationInput } from '@/lib/db';
 import type { EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
@@ -22,12 +21,6 @@ export interface TrainerPublishEntities {
 }
 
 /* --- Хелперы --- */
-
-/** Словарь название спорта → id из sports.json */
-const sportNameToId: Record<string, EntityId> = {};
-for (const sport of sportsData) {
-  sportNameToId[sport.name] = sport.id;
-}
 
 /** Генерация slug: lowercase, пробелы → дефисы, только a-z0-9- и кириллица */
 function generateSlug(name: string): string {
@@ -72,8 +65,7 @@ export function mapTrainerFormToEntities(
 ): TrainerPublishEntities {
   const now = new Date().toISOString();
   const trainerId = nextEntityId();
-  const sportId = sportNameToId[form.sport];
-  const sportIds: EntityId[] = sportId != null ? [sportId] : [];
+  const sportIds = form.sportIds;
 
   /* Тренер */
   const trainer: Trainer = {
@@ -84,7 +76,8 @@ export function mapTrainerFormToEntities(
     bio: form.bio,
     avatarUrl: '',
     experienceYears: Number(form.experience),
-    specialties: form.specializations,
+    specialtyIds: form.specialtyIds,
+    workFormatIds: form.workFormatIds,
     rating: 0,
     reviewCount: 0,
     priceFrom: Number(form.offeringPrice),
@@ -92,6 +85,10 @@ export function mapTrainerFormToEntities(
     city: form.city,
     address: form.address,
     coordinates: form.coordinates ?? { lat: 0, lng: 0 },
+    ...(form.phone ? { phone: form.phone } : {}),
+    ...(form.vk ? { vk: form.vk } : {}),
+    ...(form.telegram ? { telegram: form.telegram } : {}),
+    ...(form.facebook ? { facebook: form.facebook } : {}),
     ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
     managedByUserId,
     source: 'provider',
@@ -150,8 +147,7 @@ export function mapTrainerFormToUpdateInput(
   trainerId: EntityId,
   managedByUserId: EntityId,
 ): UpdateTrainerPublicationInput {
-  const sportId = sportNameToId[form.sport];
-  const sportIds: EntityId[] = sportId != null ? [sportId] : [];
+  const sportIds = form.sportIds;
 
   return {
     trainerId,
@@ -160,11 +156,16 @@ export function mapTrainerFormToUpdateInput(
       name: `${form.firstName} ${form.lastName}`,
       bio: form.bio,
       experienceYears: Number(form.experience),
-      specialties: form.specializations,
+      specialtyIds: form.specialtyIds,
+      workFormatIds: form.workFormatIds,
       priceFrom: Number(form.offeringPrice),
       sportIds,
       city: form.city,
       address: form.address,
+      phone: form.phone || undefined,
+      vk: form.vk || undefined,
+      telegram: form.telegram || undefined,
+      facebook: form.facebook || undefined,
       ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
       ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },

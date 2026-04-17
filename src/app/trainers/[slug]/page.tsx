@@ -8,6 +8,7 @@ import {
   getOfferings,
   getReviews,
   getSchedule,
+  getSpecialties,
   getSports,
   getTrainerBySlug,
   getUsers,
@@ -41,8 +42,9 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   }
 
   /* Параллельная загрузка всех связанных данных */
-  const [offerings, sports, schedule, reviews, users] = await Promise.all([
+  const [offerings, specialties, sports, schedule, reviews, users] = await Promise.all([
     getOfferings(),
+    getSpecialties(),
     getSports(),
     getSchedule({ ownerType: 'all' }),
     getReviews(),
@@ -92,6 +94,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
       reviewAuthors={reviewAuthors}
       reviews={trainerReviews}
       schedule={trainerSchedule}
+      specialties={specialties}
       sports={trainerSports}
       trainer={trainer}
     />

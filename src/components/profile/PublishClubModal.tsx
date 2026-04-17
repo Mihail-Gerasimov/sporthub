@@ -12,39 +12,41 @@ import { Chip, Input } from '@/components/ui';
 import { DEFAULT_CITY } from '@/lib/constants';
 import type { ClubFormState } from '@/lib/schemas/publish';
 
-// --- Справочники для выбора ---
+// --- Справочники для выбора (id из JSON-коллекций) ---
 
-const AVAILABLE_DISCIPLINES = [
-  'Йога',
-  'Бокс',
-  'Плавание',
-  'Кроссфит',
-  'Танцы',
-  'Тренажёрный зал',
-  'Единоборства',
-  'Пилатес',
+const SPORT_OPTIONS = [
+  { id: 1, name: 'Йога' },
+  { id: 2, name: 'Бокс' },
+  { id: 3, name: 'Плавание' },
+  { id: 4, name: 'Кроссфит' },
+  { id: 5, name: 'Танцы' },
+  { id: 6, name: 'Тренажёрный зал' },
+  { id: 7, name: 'Единоборства' },
+  { id: 8, name: 'Пилатес' },
 ];
 
-const AVAILABLE_TAGS = [
-  'Утренние группы',
-  'Вечерние группы',
-  'Интенсив',
-  'Спокойный формат',
-  'Восстановление',
-  'Экспресс-сессии',
-  'После работы',
-  'Фитнес',
+const TAG_OPTIONS = [
+  { id: 1, name: 'Для начинающих' },
+  { id: 2, name: 'Для детей' },
+  { id: 3, name: 'Для продвинутых' },
+  { id: 4, name: 'Бассейн' },
+  { id: 5, name: 'Восстановление' },
+  { id: 6, name: 'Силовые' },
+  { id: 7, name: 'Кардио' },
+  { id: 13, name: 'Утренние группы' },
+  { id: 14, name: 'Вечерние группы' },
 ];
 
-const AVAILABLE_AMENITIES = [
-  'Парковка',
-  'Душевые',
-  'Раздевалки',
-  'Шкафчики',
-  'Сауна',
-  'Кардио-зона',
-  'Свободные веса',
-  'Пробная тренировка',
+const AMENITY_OPTIONS = [
+  { id: 1, name: 'Парковка' },
+  { id: 2, name: 'Душевые' },
+  { id: 3, name: 'Раздевалки' },
+  { id: 4, name: 'Сауна' },
+  { id: 5, name: 'Бассейн 25 м' },
+  { id: 6, name: 'Кондиционер' },
+  { id: 7, name: 'Wi-Fi' },
+  { id: 10, name: 'Прокат инвентаря' },
+  { id: 12, name: 'Тренажёры' },
 ];
 
 // --- Начальное состояние формы ---
@@ -58,9 +60,12 @@ function createInitialState(): ClubFormState {
     phone: '',
     email: '',
     priceFrom: '',
-    disciplines: [],
-    tags: [],
-    amenities: [],
+    sportIds: [],
+    tagIds: [],
+    amenityIds: [],
+    vk: '',
+    telegram: '',
+    facebook: '',
     scheduleSlots: [
       {
         title: '',
@@ -126,9 +131,9 @@ type PublishClubApiErrorBody = {
 function cloneClubFormState(form: ClubFormState): ClubFormState {
   return {
     ...form,
-    disciplines: [...form.disciplines],
-    tags: [...form.tags],
-    amenities: [...form.amenities],
+    sportIds: [...form.sportIds],
+    tagIds: [...form.tagIds],
+    amenityIds: [...form.amenityIds],
     scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
   };
 }
@@ -154,9 +159,9 @@ function buildClubPayload(form: ClubFormState, userId: number, entityId?: number
     phone: form.phone,
     email: form.email,
     priceFrom: form.priceFrom,
-    disciplines: form.disciplines,
-    tags: form.tags,
-    amenities: form.amenities,
+    sportIds: form.sportIds,
+    tagIds: form.tagIds,
+    amenityIds: form.amenityIds,
     ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     scheduleSlots: form.scheduleSlots.map((slot) => {
       if (entityId === undefined) {
@@ -304,11 +309,11 @@ export function PublishClubModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Toggle элемента в массиве (disciplines, tags, amenities)
-  function toggleArrayItem(field: 'disciplines' | 'tags' | 'amenities', item: string) {
+  // Toggle числового id в массиве (sportIds, tagIds, amenityIds)
+  function toggleIdItem(field: 'sportIds' | 'tagIds' | 'amenityIds', id: number) {
     setForm((prev) => {
       const current = prev[field];
-      const next = current.includes(item) ? current.filter((v) => v !== item) : [...current, item];
+      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
       return { ...prev, [field]: next };
     });
   }
@@ -468,21 +473,19 @@ export function PublishClubModal({
           <h3 className="font-display text-lg font-semibold text-ink">Направления клуба</h3>
           <p className="mt-1 text-sm text-muted">Выберите минимум 1 направление</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {AVAILABLE_DISCIPLINES.map((d) => (
+            {SPORT_OPTIONS.map((s) => (
               <Chip
-                key={d}
-                active={form.disciplines.includes(d)}
+                key={s.id}
+                active={form.sportIds.includes(s.id)}
                 onClick={() => {
-                  toggleArrayItem('disciplines', d);
+                  toggleIdItem('sportIds', s.id);
                 }}
               >
-                {d}
+                {s.name}
               </Chip>
             ))}
           </div>
-          {errors.disciplines ? (
-            <p className="mt-2 text-xs text-red-500">{errors.disciplines}</p>
-          ) : null}
+          {errors.sportIds ? <p className="mt-2 text-xs text-red-500">{errors.sportIds}</p> : null}
         </section>
 
         <hr className="border-line" />
@@ -491,15 +494,15 @@ export function PublishClubModal({
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Добавить теги</h3>
           <div className="mt-3 flex flex-wrap gap-2">
-            {AVAILABLE_TAGS.map((tag) => (
+            {TAG_OPTIONS.map((t) => (
               <Chip
-                key={tag}
-                active={form.tags.includes(tag)}
+                key={t.id}
+                active={form.tagIds.includes(t.id)}
                 onClick={() => {
-                  toggleArrayItem('tags', tag);
+                  toggleIdItem('tagIds', t.id);
                 }}
               >
-                {tag}
+                {t.name}
               </Chip>
             ))}
           </div>
@@ -511,15 +514,15 @@ export function PublishClubModal({
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Удобства клуба</h3>
           <div className="mt-3 flex flex-wrap gap-2">
-            {AVAILABLE_AMENITIES.map((a) => (
+            {AMENITY_OPTIONS.map((a) => (
               <Chip
-                key={a}
-                active={form.amenities.includes(a)}
+                key={a.id}
+                active={form.amenityIds.includes(a.id)}
                 onClick={() => {
-                  toggleArrayItem('amenities', a);
+                  toggleIdItem('amenityIds', a.id);
                 }}
               >
-                {a}
+                {a.name}
               </Chip>
             ))}
           </div>

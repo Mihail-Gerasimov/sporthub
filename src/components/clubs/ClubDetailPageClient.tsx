@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
+import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@/types';
 
 const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
@@ -16,12 +16,15 @@ type ReviewWithAuthor = Review & {
 };
 
 type ClubDetailPageClientProps = {
+  amenities: Amenity[];
   club: Club;
-  sports: Sport[];
-  trainers: Trainer[];
-  schedule: Schedule[];
   reviews: Review[];
   reviewAuthors: Record<number, string>;
+  schedule: Schedule[];
+  specialties: Specialty[];
+  sports: Sport[];
+  tags: Tag[];
+  trainers: Trainer[];
 };
 
 type ReviewFormState = {
@@ -148,11 +151,14 @@ function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
 }
 
 export function ClubDetailPageClient({
+  amenities,
   club,
   reviewAuthors,
   reviews,
   schedule,
+  specialties,
   sports,
+  tags,
   trainers,
 }: ClubDetailPageClientProps) {
   const accountType = useAuthStore((state) => state.accountType);
@@ -169,6 +175,16 @@ export function ClubDetailPageClient({
   });
   const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  /* Словари id → name для отображения */
+  const tagNameById = useMemo(() => Object.fromEntries(tags.map((t) => [t.id, t.name])), [tags]);
+  const amenityNameById = useMemo(
+    () => Object.fromEntries(amenities.map((a) => [a.id, a.name])),
+    [amenities],
+  );
+  const specialtyNameById = useMemo(
+    () => Object.fromEntries(specialties.map((s) => [s.id, s.name])),
+    [specialties],
+  );
   const scheduleGroups = useMemo(
     () => buildScheduleGroups(schedule, trainers, sports),
     [schedule, sports, trainers],
@@ -314,14 +330,14 @@ export function ClubDetailPageClient({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {club.tags.map((tag) => (
-                <Badge key={tag} tone="outline">
-                  {tag}
+              {club.tagIds.map((id) => (
+                <Badge key={`tag-${id}`} tone="outline">
+                  {tagNameById[id] ?? `#${id}`}
                 </Badge>
               ))}
-              {club.amenities.map((amenity) => (
-                <Badge key={amenity} tone="teal">
-                  {amenity}
+              {club.amenityIds.map((id) => (
+                <Badge key={`amenity-${id}`} tone="teal">
+                  {amenityNameById[id] ?? `#${id}`}
                 </Badge>
               ))}
             </div>
@@ -426,9 +442,9 @@ export function ClubDetailPageClient({
                         <Badge tone="teal">{formatPrice(trainer.priceFrom)}</Badge>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {trainer.specialties.map((specialty) => (
-                          <Badge key={specialty} tone="outline">
-                            {specialty}
+                        {trainer.specialtyIds.map((id) => (
+                          <Badge key={id} tone="outline">
+                            {specialtyNameById[id] ?? `#${id}`}
                           </Badge>
                         ))}
                       </div>

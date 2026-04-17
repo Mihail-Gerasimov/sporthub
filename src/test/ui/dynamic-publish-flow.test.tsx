@@ -88,9 +88,12 @@ function buildClubPayload(targetDate: string) {
     phone: '+7 (846) 300-00-11',
     email: 'hello@startswim.ru',
     priceFrom: '1500',
-    disciplines: ['Плавание'],
-    tags: ['Новая публикация', 'Утренние слоты'],
-    amenities: ['Бассейн 25 м', 'Раздевалки'],
+    sportIds: [3],
+    tagIds: [1],
+    amenityIds: [1],
+    vk: '',
+    telegram: '',
+    facebook: '',
     scheduleSlots: [
       {
         title: 'Стартовая группа по плаванию',
@@ -115,9 +118,13 @@ function buildTrainerPayload(clubId: number, targetDate: string) {
     address: 'ул. Ново-Садовая, 101',
     bio: 'Тренер по плаванию, который помогает быстро собрать технику, вернуть уверенность в воде и перейти от редких посещений к стабильному персональному режиму.',
     experience: '6',
-    sport: 'Плавание',
-    specializations: ['Техника кроля', 'Персональные тренировки'],
-    workFormat: 'В клубе',
+    sportIds: [3],
+    specialtyIds: [1],
+    workFormatIds: [1],
+    phone: '+7 (846) 300-00-11',
+    vk: '',
+    telegram: '',
+    facebook: '',
     offeringName: 'Персональная тренировка по плаванию',
     offeringDescription:
       'Индивидуальная сессия с фокусом на технику, дыхание и разбор ошибок по каждому отрезку.',
@@ -262,7 +269,7 @@ describe('dynamic publish-flow phase regression (Step 14.12)', () => {
     expect(screen.getByRole('heading', { name: 'Start Swim Lab' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Расписание на неделю' })).toBeInTheDocument();
     expect(screen.getByText('Стартовая группа по плаванию')).toBeInTheDocument();
-    expect(screen.getByText('Новая публикация')).toBeInTheDocument();
+    expect(screen.getByText('Для начинающих')).toBeInTheDocument();
   });
 
   it('проходит полный trainer flow: provider create -> cabinet update -> trainer catalog -> detail -> booking', async () => {

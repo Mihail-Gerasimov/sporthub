@@ -24,9 +24,13 @@ describe('PublishTrainerModal', () => {
     address: 'ул. Лесная, 23к1',
     bio: 'Тренер по плаванию с акцентом на технику, дыхание и подготовку к любительским стартам.',
     experience: '9',
-    sport: 'Плавание',
-    specializations: ['Персональные тренировки'],
-    workFormat: 'В клубе',
+    sportIds: [3],
+    specialtyIds: [1],
+    workFormatIds: [1],
+    phone: '+7 (846) 300-00-11',
+    vk: '',
+    telegram: '',
+    facebook: '',
     offeringName: 'Персональная тренировка: Плавание',
     offeringDescription: 'Индивидуальная работа над техникой плавания и скоростью.',
     offeringFormat: 'Индивидуальная',
@@ -79,11 +83,13 @@ describe('PublishTrainerModal', () => {
       },
     });
     fireEvent.change(screen.getByLabelText('Опыт (лет)'), { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText('Основной вид спорта'), {
-      target: { value: 'Бокс' },
+    fireEvent.change(screen.getByLabelText('Телефон'), {
+      target: { value: '+7 (846) 300-00-11' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Персональные тренировки' }));
-    fireEvent.click(screen.getByRole('button', { name: 'В клубе' }));
+    // Выбор через Chip-кнопки (id-based multi-select)
+    fireEvent.click(screen.getByRole('button', { name: 'Бокс' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Подготовка к соревнованиям' }));
+    fireEvent.click(screen.getByRole('button', { name: 'В зале' }));
     fireEvent.change(screen.getByLabelText('Название услуги'), {
       target: { value: 'Персональная тренировка' },
     });
@@ -167,11 +173,11 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
-  it('рендерит секцию «Специализация» с полями sport, тип, workFormat', () => {
+  it('рендерит секцию «Специализация» с chips для sport, тип, workFormat', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     expect(screen.getByText('Специализация')).toBeInTheDocument();
-    expect(screen.getByLabelText('Основной вид спорта')).toBeInTheDocument();
+    expect(screen.getByText('Виды спорта')).toBeInTheDocument();
     expect(screen.getByText('Тип')).toBeInTheDocument();
     expect(screen.getByText('Формат работы')).toBeInTheDocument();
   });
@@ -182,7 +188,8 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Связать себя с клубом')).toBeInTheDocument();
     expect(screen.getByText(/Вы можете указать спортивный клуб/)).toBeInTheDocument();
     const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBeGreaterThanOrEqual(2);
+    // clubId — единственный combobox (sport/specialty/workFormat стали chips)
+    expect(selects.length).toBeGreaterThanOrEqual(1);
   });
 
   it('отображает переданные клубы в select привязки', () => {
@@ -274,7 +281,7 @@ describe('PublishTrainerModal', () => {
       firstName: 'Александр',
       lastName: 'Иванов',
       userId: 2,
-      workFormat: 'В клубе',
+      workFormatIds: [1],
     });
     expect(payload).not.toHaveProperty('certificates');
     expect(payload).not.toHaveProperty('gallery');

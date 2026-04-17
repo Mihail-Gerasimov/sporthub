@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Offering, Review, Schedule, Sport, Trainer } from '@/types';
+import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
 
 /* Моковые данные тренера */
 const trainer: Trainer = {
@@ -14,7 +14,8 @@ const trainer: Trainer = {
   bio: 'Тренер по плаванию с мягким входом для взрослых новичков.',
   avatarUrl: '/images/trainers/marina.jpg',
   experienceYears: 9,
-  specialties: ['Кроль', 'Дыхание'],
+  specialtyIds: [8, 9],
+  workFormatIds: [1],
   rating: 4.9,
   reviewCount: 28,
   priceFrom: 1400,
@@ -36,6 +37,11 @@ const sports: Sport[] = [
   },
 ];
 
+const specialties: Specialty[] = [
+  { id: 8, createdAt: '2026-03-17T09:00:00.000Z', name: 'Кроль' },
+  { id: 9, createdAt: '2026-03-17T09:00:00.000Z', name: 'Дыхание' },
+];
+
 const affiliatedClub: Club = {
   id: 1,
   createdAt: '2026-03-17T09:00:00.000Z',
@@ -49,8 +55,8 @@ const affiliatedClub: Club = {
   coordinates: { lat: 53.2129, lng: 50.1245 },
   sportIds: [3],
   imageUrls: [],
-  amenities: [],
-  tags: [],
+  amenityIds: [],
+  tagIds: [],
   rating: 4.8,
   reviewCount: 64,
   priceFrom: 900,
@@ -117,6 +123,7 @@ const defaultProps = {
   reviewAuthors,
   reviews,
   schedule,
+  specialties,
   sports,
   trainer,
 };

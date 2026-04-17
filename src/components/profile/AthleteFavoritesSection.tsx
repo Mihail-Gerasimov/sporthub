@@ -78,7 +78,7 @@ export function AthleteFavoritesSection({
                       {trainer.bio}
                     </p>
                     <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      {trainer.specialties.join(' • ')}
+                      {trainer.specialtyIds.join(' • ')}
                     </p>
                   </div>
                 ))}

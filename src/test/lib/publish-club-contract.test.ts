@@ -13,9 +13,12 @@ const validForm = {
   phone: '+7 (846) 300-00-01',
   email: 'hello@fitzone.ru',
   priceFrom: '1200',
-  disciplines: ['Йога', 'Кроссфит'],
-  tags: ['Утренние группы', 'После работы'],
-  amenities: ['Парковка', 'Душевые'],
+  sportIds: [1, 4],
+  tagIds: [1, 2],
+  amenityIds: [1, 2],
+  vk: '',
+  telegram: '',
+  facebook: '',
   scheduleSlots: [
     {
       title: 'Утренняя йога',
@@ -55,8 +58,8 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(club.phone).toBe('+7 (846) 300-00-01');
     expect(club.email).toBe('hello@fitzone.ru');
     expect(club.priceFrom).toBe(1200);
-    expect(club.tags).toEqual(['Утренние группы', 'После работы']);
-    expect(club.amenities).toEqual(['Парковка', 'Душевые']);
+    expect(club.tagIds).toEqual([1, 2]);
+    expect(club.amenityIds).toEqual([1, 2]);
   });
 
   it('генерирует slug из name (kebab-case, lowercase)', () => {
@@ -71,9 +74,9 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(validForm.description.startsWith(club.shortDescription.replace(/…$/, ''))).toBe(true);
   });
 
-  it('маппит disciplines (names) → sportIds через sports.json', () => {
+  it('маппит sportIds → sportIds напрямую', () => {
     const { club } = mapClubFormToEntities(validForm, PROVIDER_USER_ID);
-    // Йога = 1, Кроссфит = 4
+    // sportIds: [1, 4] — Йога, Кроссфит
     expect(club.sportIds).toEqual([1, 4]);
   });
 
@@ -154,12 +157,12 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(s0.ownerId).toBe(club.id);
     expect(s0.clubId).toBe(club.id);
     expect(s0.offeringId).toBe(offering.id);
-    // sportId по discipline name
-    expect(s0.sportId).toBe(1); // Йога
+    // sportId = sportIds[0] из формы (все слоты получают первый sportId)
+    expect(s0.sportId).toBe(1); // Йога (sportIds[0])
 
     const s1 = schedules[1];
     expect(s1.title).toBe('Кроссфит вечер');
-    expect(s1.sportId).toBe(4); // Кроссфит
+    expect(s1.sportId).toBe(1); // sportIds[0] — по-слотовой маппинг будет в Step 23.9
   });
 
   /* --- Форма без email --- */
@@ -172,9 +175,9 @@ describe('publish-club contract (Step 14.3)', () => {
 
   /* --- Неизвестная дисциплина --- */
 
-  it('неизвестная дисциплина игнорируется при маппинге sportIds', () => {
-    const formUnknown = { ...validForm, disciplines: ['Йога', 'Квиддич'] };
-    const { club } = mapClubFormToEntities(formUnknown, PROVIDER_USER_ID);
-    expect(club.sportIds).toEqual([1]);
+  it('sportIds передаются напрямую без фильтрации', () => {
+    const formWithIds = { ...validForm, sportIds: [1, 999] };
+    const { club } = mapClubFormToEntities(formWithIds, PROVIDER_USER_ID);
+    expect(club.sportIds).toEqual([1, 999]);
   });
 });

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Club, Review, Schedule, Sport, Trainer } from '@/types';
+import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@/types';
 
 const club: Club = {
   id: 1,
@@ -24,8 +24,8 @@ const club: Club = {
   },
   sportIds: [3, 8],
   imageUrls: ['/images/clubs/volna-1.jpg', '/images/clubs/volna-2.jpg'],
-  amenities: ['Бассейн 25 м', 'Сауна'],
-  tags: ['Бассейн', 'Восстановление'],
+  amenityIds: [1, 2],
+  tagIds: [1, 2],
   rating: 4.8,
   reviewCount: 64,
   priceFrom: 900,
@@ -68,7 +68,8 @@ const trainers: Trainer[] = [
     bio: 'Тренер по плаванию с мягким входом для взрослых новичков.',
     avatarUrl: '/images/trainers/marina.jpg',
     experienceYears: 9,
-    specialties: ['Кроль', 'Дыхание'],
+    specialtyIds: [1, 2],
+    workFormatIds: [1],
     rating: 4.9,
     reviewCount: 28,
     priceFrom: 1400,
@@ -107,6 +108,21 @@ const reviews: Review[] = [
   },
 ];
 
+/* Справочники для резолвинга id → name */
+const tags: Tag[] = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Для начинающих' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Для детей' },
+];
+
+const amenities: Amenity[] = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Парковка' },
+  { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Душевые' },
+];
+
+const specialties: Specialty[] = [
+  { id: 1, createdAt: '2026-03-17T09:00:00.000Z', name: 'Подготовка к соревнованиям' },
+];
+
 describe('ClubDetailPageClient', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -122,11 +138,14 @@ describe('ClubDetailPageClient', () => {
   it('рендерит заглушки вместо реальных изображений и публичный контент клуба', () => {
     render(
       <ClubDetailPageClient
+        amenities={amenities}
         club={club}
         reviews={reviews}
         reviewAuthors={{ 1: 'Алексей Смирнов' }}
         schedule={schedule}
+        specialties={specialties}
         sports={sports}
+        tags={tags}
         trainers={trainers}
       />,
     );
@@ -150,11 +169,14 @@ describe('ClubDetailPageClient', () => {
 
     render(
       <ClubDetailPageClient
+        amenities={amenities}
         club={club}
         reviews={reviews}
         reviewAuthors={{ 1: 'Алексей Смирнов' }}
         schedule={schedule}
+        specialties={specialties}
         sports={sports}
+        tags={tags}
         trainers={trainers}
       />,
     );
@@ -192,11 +214,14 @@ describe('ClubDetailPageClient', () => {
 
     render(
       <ClubDetailPageClient
+        amenities={amenities}
         club={club}
         reviews={reviews}
         reviewAuthors={{ 1: 'Алексей Смирнов' }}
         schedule={schedule}
+        specialties={specialties}
         sports={sports}
+        tags={tags}
         trainers={trainers}
       />,
     );
@@ -238,11 +263,14 @@ describe('ClubDetailPageClient', () => {
 
     render(
       <ClubDetailPageClient
+        amenities={amenities}
         club={club}
         reviews={reviews}
         reviewAuthors={{ 1: 'Алексей Смирнов' }}
         schedule={schedule}
+        specialties={specialties}
         sports={sports}
+        tags={tags}
         trainers={trainers}
       />,
     );
@@ -277,11 +305,14 @@ describe('ClubDetailPageClient', () => {
   it('содержит slug-ссылку на страницу тренера в секции тренеров', () => {
     render(
       <ClubDetailPageClient
+        amenities={amenities}
         club={club}
         reviews={reviews}
         reviewAuthors={{ 1: 'Алексей Смирнов' }}
         schedule={schedule}
+        specialties={specialties}
         sports={sports}
+        tags={tags}
         trainers={trainers}
       />,
     );

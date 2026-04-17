@@ -10,7 +10,7 @@ import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Offering, Review, Schedule, Sport, Trainer } from '@/types';
+import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
 
 const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
@@ -74,6 +74,7 @@ type TrainerDetailPageClientProps = {
   reviewAuthors: Record<number, string>;
   reviews: Review[];
   schedule: Schedule[];
+  specialties: Specialty[];
   sports: Sport[];
   trainer: Trainer;
 };
@@ -179,6 +180,7 @@ export function TrainerDetailPageClient({
   reviewAuthors,
   reviews,
   schedule,
+  specialties,
   sports,
   trainer,
 }: TrainerDetailPageClientProps) {
@@ -194,6 +196,11 @@ export function TrainerDetailPageClient({
   const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const scheduleGroups = useMemo(() => buildScheduleGroups(schedule, sports), [schedule, sports]);
+  /* Словарь specialtyId → name для отображения */
+  const specialtyNameById = useMemo(
+    () => Object.fromEntries(specialties.map((s) => [s.id, s.name])),
+    [specialties],
+  );
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
 
   useEffect(() => {
@@ -368,10 +375,10 @@ export function TrainerDetailPageClient({
               </p>
               <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Специализации</h2>
             </div>
-            <Badge tone="outline">{trainer.specialties.length + sports.length} направлений</Badge>
+            <Badge tone="outline">{trainer.specialtyIds.length + sports.length} направлений</Badge>
           </div>
 
-          {sports.length > 0 || trainer.specialties.length > 0 ? (
+          {sports.length > 0 || trainer.specialtyIds.length > 0 ? (
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               {sports.map((sport) => (
                 <div
@@ -387,16 +394,18 @@ export function TrainerDetailPageClient({
                   </div>
                 </div>
               ))}
-              {trainer.specialties.map((specialty) => (
+              {trainer.specialtyIds.map((id) => (
                 <div
-                  key={specialty}
+                  key={id}
                   className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
                 >
                   <span className="mt-1 text-2xl" aria-hidden="true">
                     🎯
                   </span>
                   <div>
-                    <p className="text-lg font-semibold text-ink">{specialty}</p>
+                    <p className="text-lg font-semibold text-ink">
+                      {specialtyNameById[id] ?? `#${id}`}
+                    </p>
                   </div>
                 </div>
               ))}

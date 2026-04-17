@@ -19,7 +19,7 @@ export type TrainerDirectoryItem = {
   bio: string;
   avatarUrl: string;
   experienceYears: number;
-  specialties: string[];
+  specialtyIds: EntityId[];
   rating: number;
   reviewCount: number;
   priceFrom: number;
@@ -139,7 +139,7 @@ export function buildTrainerDirectory({
       const searchText = [
         trainer.name,
         trainer.bio,
-        trainer.specialties.join(' '),
+        trainer.specialtyIds.join(' '),
         sportsForTrainer.map((sport) => sport.name).join(' '),
         offeringsForTrainer
           .map((offering) => `${offering.title} ${offering.description}`)
@@ -158,7 +158,7 @@ export function buildTrainerDirectory({
           bio: trainer.bio,
           avatarUrl: trainer.avatarUrl,
           experienceYears: trainer.experienceYears,
-          specialties: trainer.specialties,
+          specialtyIds: trainer.specialtyIds,
           rating: trainer.rating,
           reviewCount: trainer.reviewCount,
           priceFrom: trainer.priceFrom,

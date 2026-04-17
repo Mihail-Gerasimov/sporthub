@@ -15,9 +15,12 @@ function validClubForm() {
     phone: '+7 999 123-45-67',
     email: 'info@club.ru',
     priceFrom: '500',
-    disciplines: ['Йога'],
-    tags: [],
-    amenities: [],
+    sportIds: [3],
+    tagIds: [],
+    amenityIds: [],
+    vk: '',
+    telegram: '',
+    facebook: '',
     scheduleSlots: [
       {
         title: 'Утренняя йога',
@@ -43,9 +46,13 @@ function validTrainerForm() {
     address: 'ул. Спортивная, 10',
     bio: 'Опытный тренер по боксу с большим стажем, который работает с новичками и готовит спортсменов к турнирам.',
     experience: '5',
-    sport: 'Бокс',
-    specializations: ['Персональные тренировки'],
-    workFormat: 'В клубе',
+    sportIds: [3],
+    specialtyIds: [1],
+    workFormatIds: [1],
+    phone: '+7 (846) 300-00-11',
+    vk: '',
+    telegram: '',
+    facebook: '',
     offeringName: 'Персональная тренировка',
     offeringDescription: 'Индивидуальное занятие по технике, защите и работе на лапах.',
     offeringFormat: 'Индивидуальная',
@@ -168,18 +175,18 @@ describe('validateClubForm', () => {
   });
 
   it('требует минимум 1 направление', () => {
-    const errors = validateClubForm({ ...validClubForm(), disciplines: [] });
-    expect(errors.disciplines).toBeDefined();
+    const errors = validateClubForm({ ...validClubForm(), sportIds: [] });
+    expect(errors.sportIds).toBeDefined();
   });
 
-  it('не валидирует tags и amenities как обязательные поля', () => {
+  it('не валидирует tagIds и amenityIds как обязательные поля', () => {
     const errors = validateClubForm({
       ...validClubForm(),
-      tags: [],
-      amenities: [],
+      tagIds: [],
+      amenityIds: [],
     });
-    expect(errors.tags).toBeUndefined();
-    expect(errors.amenities).toBeUndefined();
+    expect(errors.tagIds).toBeUndefined();
+    expect(errors.amenityIds).toBeUndefined();
   });
 
   it('требует заполненное стартовое расписание', () => {
@@ -236,18 +243,18 @@ describe('validateTrainerForm', () => {
   });
 
   it('требует основной вид спорта', () => {
-    const errors = validateTrainerForm({ ...validTrainerForm(), sport: '' });
-    expect(errors.sport).toBeDefined();
+    const errors = validateTrainerForm({ ...validTrainerForm(), sportIds: [] });
+    expect(errors.sportIds).toBeDefined();
   });
 
   it('требует минимум 1 специализацию', () => {
-    const errors = validateTrainerForm({ ...validTrainerForm(), specializations: [] });
-    expect(errors.specializations).toBeDefined();
+    const errors = validateTrainerForm({ ...validTrainerForm(), specialtyIds: [] });
+    expect(errors.specialtyIds).toBeDefined();
   });
 
   it('требует формат работы', () => {
-    const errors = validateTrainerForm({ ...validTrainerForm(), workFormat: '' });
-    expect(errors.workFormat).toBeDefined();
+    const errors = validateTrainerForm({ ...validTrainerForm(), workFormatIds: [] });
+    expect(errors.workFormatIds).toBeDefined();
   });
 
   // --- Санитизация текстовых полей ---

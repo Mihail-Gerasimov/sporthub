@@ -946,8 +946,11 @@ export async function updateClubPublication(
     phone: input.club.phone,
     email: input.club.email,
     sportIds: input.club.sportIds,
-    amenities: input.club.amenities,
-    tags: input.club.tags,
+    amenityIds: input.club.amenityIds,
+    tagIds: input.club.tagIds,
+    vk: input.club.vk,
+    telegram: input.club.telegram,
+    facebook: input.club.facebook,
     priceFrom: input.club.priceFrom,
     ...(wasHidden
       ? {
@@ -1090,11 +1093,16 @@ export async function updateTrainerPublication(
     name: input.trainer.name,
     bio: input.trainer.bio,
     experienceYears: input.trainer.experienceYears,
-    specialties: input.trainer.specialties,
+    specialtyIds: input.trainer.specialtyIds,
+    workFormatIds: input.trainer.workFormatIds,
     priceFrom: input.trainer.priceFrom,
     sportIds: input.trainer.sportIds,
     city: input.trainer.city,
     address: input.trainer.address,
+    phone: input.trainer.phone,
+    vk: input.trainer.vk,
+    telegram: input.trainer.telegram,
+    facebook: input.trainer.facebook,
     sportId: input.trainer.sportIds[0],
     ...(wasHidden
       ? {

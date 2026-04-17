@@ -23,7 +23,8 @@ const trainerFixture: Trainer = {
   bio: 'Независимый тренер по функциональному тренингу.',
   avatarUrl: '/images/trainers/ilya-romanov.jpg',
   experienceYears: 8,
-  specialties: ['Функциональный тренинг', 'Выносливость'],
+  specialtyIds: [1, 2],
+  workFormatIds: [1],
   rating: 4.8,
   reviewCount: 12,
   priceFrom: 1800,
@@ -154,7 +155,7 @@ describe('Domain model contracts', () => {
 
   it('определяет source и status как строгие union-типы для публикаций', () => {
     expectTypeOf<EntitySource>().toEqualTypeOf<'provider' | 'seed'>();
-    expectTypeOf<EntityStatus>().toEqualTypeOf<'published' | 'draft'>();
+    expectTypeOf<EntityStatus>().toEqualTypeOf<'published' | 'draft' | 'hidden'>();
   });
 
   it('Club содержит поля source, status и managedByUserId для динамического каталога', () => {
@@ -189,8 +190,8 @@ describe('Domain model contracts', () => {
       coordinates: { lat: 0, lng: 0 },
       sportIds: [1],
       imageUrls: ['/images/placeholder-club.jpg'],
-      amenities: [],
-      tags: [],
+      amenityIds: [],
+      tagIds: [],
       rating: 0,
       reviewCount: 0,
       priceFrom: 1500,
@@ -220,7 +221,8 @@ describe('Domain model contracts', () => {
       bio: 'Тестовый тренер.',
       avatarUrl: '/images/placeholder-trainer.jpg',
       experienceYears: 5,
-      specialties: ['Фитнес'],
+      specialtyIds: [1],
+      workFormatIds: [1],
       rating: 0,
       reviewCount: 0,
       priceFrom: 2000,

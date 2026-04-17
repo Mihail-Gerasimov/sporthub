@@ -11,9 +11,13 @@ const validForm = {
   address: 'ул. Спортивная, 10',
   bio: 'Персональный тренер по боксу. Готовлю к соревнованиям и работаю с начинающими. Стаж более 8 лет.',
   experience: '8',
-  sport: 'Бокс',
-  specializations: ['Персональные тренировки', 'Подготовка к соревнованиям'],
-  workFormat: 'В клубе',
+  sportIds: [2],
+  specialtyIds: [1, 2],
+  workFormatIds: [1],
+  phone: '+7 (846) 300-00-11',
+  vk: '',
+  telegram: '',
+  facebook: '',
   offeringName: 'Персональная тренировка по боксу',
   offeringDescription: 'Индивидуальное занятие: техника ударов, защита, работа на снарядах.',
   offeringFormat: 'Индивидуальная',
@@ -58,7 +62,7 @@ describe('publish-trainer contract (Step 14.4)', () => {
     expect(trainer.address).toBe('ул. Спортивная, 10');
     expect(trainer.bio).toBe(validForm.bio);
     expect(trainer.experienceYears).toBe(8);
-    expect(trainer.specialties).toEqual(['Персональные тренировки', 'Подготовка к соревнованиям']);
+    expect(trainer.specialtyIds).toEqual([1, 2]);
     expect(trainer.priceFrom).toBe(2500);
   });
 
@@ -67,9 +71,9 @@ describe('publish-trainer contract (Step 14.4)', () => {
     expect(trainer.slug).toBe('александр-иванов');
   });
 
-  it('маппит sport (name) → sportIds через sports.json', () => {
+  it('маппит sportIds → sportIds напрямую', () => {
     const { trainer } = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
-    // Бокс = 2
+    // sportIds: [2] — Бокс
     expect(trainer.sportIds).toEqual([2]);
   });
 
@@ -177,17 +181,17 @@ describe('publish-trainer contract (Step 14.4)', () => {
 
   /* --- Неизвестный спорт --- */
 
-  it('неизвестный спорт даёт пустой sportIds', () => {
-    const formUnknown = { ...validForm, sport: 'Квиддич' };
-    const { trainer } = mapTrainerFormToEntities(formUnknown, PROVIDER_USER_ID);
+  it('пустой sportIds → пустой sportIds', () => {
+    const formEmpty = { ...validForm, sportIds: [] };
+    const { trainer } = mapTrainerFormToEntities(formEmpty, PROVIDER_USER_ID);
     expect(trainer.sportIds).toEqual([]);
   });
 
   /* --- Future/stub-поля не в контракте --- */
 
-  it('future/stub-поля (workFormat) не попадают в persisted trainer', () => {
+  it('workFormatIds попадает в persisted trainer', () => {
     const { trainer } = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
-    // workFormat — UI-only, не сохраняется в Trainer
-    expect((trainer as unknown as Record<string, unknown>).workFormat).toBeUndefined();
+    // workFormatIds теперь сохраняется в Trainer
+    expect(trainer.workFormatIds).toEqual([1]);
   });
 });

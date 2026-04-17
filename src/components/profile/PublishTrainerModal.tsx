@@ -18,33 +18,54 @@ type ClubOption = {
   name: string;
 };
 
-// --- Справочники для выбора ---
+// --- Справочники для выбора (id из JSON-коллекций) ---
 
-const AVAILABLE_SPORTS = [
-  'Йога',
-  'Бокс',
-  'Плавание',
-  'Кроссфит',
-  'Танцы',
-  'Единоборства',
-  'Пилатес',
-  'Лёгкая атлетика',
+const SPORT_OPTIONS = [
+  { id: 1, name: 'Йога' },
+  { id: 2, name: 'Бокс' },
+  { id: 3, name: 'Плавание' },
+  { id: 4, name: 'Кроссфит' },
+  { id: 5, name: 'Танцы' },
+  { id: 7, name: 'Единоборства' },
+  { id: 8, name: 'Пилатес' },
 ];
 
-const AVAILABLE_SPECIALIZATIONS = [
-  'Персональные тренировки',
-  'Групповые занятия',
-  'Детские группы',
-  'Реабилитация',
-  'Подготовка к соревнованиям',
-  'Снижение веса',
-  'Набор массы',
-  'Растяжка',
+const SPECIALTY_OPTIONS = [
+  { id: 1, name: 'Подготовка к соревнованиям' },
+  { id: 2, name: 'Реабилитация' },
+  { id: 3, name: 'Детские группы' },
+  { id: 4, name: 'Похудение' },
+  { id: 5, name: 'Набор мышечной массы' },
+  { id: 6, name: 'Растяжка и гибкость' },
+  { id: 7, name: 'Постановка техники' },
+  { id: 10, name: 'Силовые тренировки' },
 ];
 
-const AVAILABLE_WORK_FORMATS = ['В клубе', 'На выезде', 'Онлайн', 'Смешанный'];
+const WORK_FORMAT_OPTIONS = [
+  { id: 1, name: 'В зале' },
+  { id: 2, name: 'На выезде' },
+  { id: 3, name: 'Онлайн' },
+  { id: 4, name: 'На открытом воздухе' },
+];
 
 const AVAILABLE_OFFERING_FORMATS = ['Индивидуальная', 'Групповая', 'Мини-группа'];
+
+/** Маска телефона: +7 (XXX) XXX-XX-XX */
+function applyPhoneMask(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  let d = digits;
+  if (d.startsWith('8') || d.startsWith('7')) d = d.slice(1);
+  d = d.slice(0, 10);
+
+  let result = '+7';
+  if (d.length > 0) result += ` (${d.slice(0, 3)}`;
+  if (d.length >= 3) result += ')';
+  if (d.length > 3) result += ` ${d.slice(3, 6)}`;
+  if (d.length > 6) result += `-${d.slice(6, 8)}`;
+  if (d.length > 8) result += `-${d.slice(8, 10)}`;
+
+  return result;
+}
 
 // --- Начальное состояние формы ---
 
@@ -56,9 +77,13 @@ function createInitialState(): TrainerFormState {
     address: '',
     bio: '',
     experience: '',
-    sport: '',
-    specializations: [],
-    workFormat: '',
+    sportIds: [],
+    specialtyIds: [],
+    workFormatIds: [],
+    phone: '',
+    vk: '',
+    telegram: '',
+    facebook: '',
     offeringName: '',
     offeringDescription: '',
     offeringFormat: '',
@@ -107,7 +132,9 @@ type PublishTrainerApiErrorBody = {
 function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
   return {
     ...form,
-    specializations: [...form.specializations],
+    specialtyIds: [...form.specialtyIds],
+    sportIds: [...form.sportIds],
+    workFormatIds: [...form.workFormatIds],
     scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
   };
 }
@@ -132,9 +159,10 @@ function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: 
     address: form.address,
     bio: form.bio,
     experience: form.experience,
-    sport: form.sport,
-    specializations: form.specializations,
-    workFormat: form.workFormat,
+    phone: form.phone,
+    sportIds: form.sportIds,
+    specialtyIds: form.specialtyIds,
+    workFormatIds: form.workFormatIds,
     offeringName: form.offeringName,
     offeringDescription: form.offeringDescription,
     offeringFormat: form.offeringFormat,
@@ -290,12 +318,12 @@ export function PublishTrainerModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Toggle элемента в массиве specializations
-  function toggleSpecialization(item: string) {
+  // Toggle числового id в массиве (specialtyIds, sportIds, workFormatIds)
+  function toggleIdItem(field: 'specialtyIds' | 'sportIds' | 'workFormatIds', id: number) {
     setForm((prev) => {
-      const current = prev.specializations;
-      const next = current.includes(item) ? current.filter((v) => v !== item) : [...current, item];
-      return { ...prev, specializations: next };
+      const current = prev[field];
+      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
+      return { ...prev, [field]: next };
     });
   }
 
@@ -388,16 +416,28 @@ export function PublishTrainerModal({
               {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : null}
             </div>
 
-            <Input
-              label="Опыт (лет)"
-              type="number"
-              placeholder="5"
-              value={form.experience}
-              error={errors.experience}
-              onChange={(e) => {
-                updateField('experience', e.target.value);
-              }}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Опыт (лет)"
+                type="number"
+                placeholder="5"
+                value={form.experience}
+                error={errors.experience}
+                onChange={(e) => {
+                  updateField('experience', e.target.value);
+                }}
+              />
+              <Input
+                label="Телефон"
+                type="tel"
+                placeholder="+7 (999) 123-45-67"
+                value={form.phone}
+                error={errors.phone}
+                onChange={(e) => {
+                  updateField('phone', applyPhoneMask(e.target.value));
+                }}
+              />
+            </div>
           </div>
         </section>
 
@@ -437,41 +477,45 @@ export function PublishTrainerModal({
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Специализация</h3>
           <div className="mt-4 flex flex-col gap-4">
-            {/* Основной вид спорта — select */}
-            <Select
-              label="Основной вид спорта"
-              value={form.sport}
-              error={errors.sport}
-              onChange={(e) => {
-                updateField('sport', e.target.value);
-              }}
-            >
-              <option value="">Выберите вид спорта</option>
-              {AVAILABLE_SPORTS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
+            {/* Виды спорта — chips (multi-select) */}
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-ink">Виды спорта</p>
+              <div className="flex flex-wrap gap-2">
+                {SPORT_OPTIONS.map((s) => (
+                  <Chip
+                    key={s.id}
+                    active={form.sportIds.includes(s.id)}
+                    onClick={() => {
+                      toggleIdItem('sportIds', s.id);
+                    }}
+                  >
+                    {s.name}
+                  </Chip>
+                ))}
+              </div>
+              {errors.sportIds ? (
+                <p className="mt-1 text-xs text-red-500">{errors.sportIds}</p>
+              ) : null}
+            </div>
 
             {/* Тип — chips (переименовано из «Специализации») */}
             <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-ink">Тип</p>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_SPECIALIZATIONS.map((spec) => (
+                {SPECIALTY_OPTIONS.map((spec) => (
                   <Chip
-                    key={spec}
-                    active={form.specializations.includes(spec)}
+                    key={spec.id}
+                    active={form.specialtyIds.includes(spec.id)}
                     onClick={() => {
-                      toggleSpecialization(spec);
+                      toggleIdItem('specialtyIds', spec.id);
                     }}
                   >
-                    {spec}
+                    {spec.name}
                   </Chip>
                 ))}
               </div>
-              {errors.specializations ? (
-                <p className="mt-1 text-xs text-red-500">{errors.specializations}</p>
+              {errors.specialtyIds ? (
+                <p className="mt-1 text-xs text-red-500">{errors.specialtyIds}</p>
               ) : null}
             </div>
 
@@ -479,20 +523,20 @@ export function PublishTrainerModal({
             <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-ink">Формат работы</p>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_WORK_FORMATS.map((wf) => (
+                {WORK_FORMAT_OPTIONS.map((wf) => (
                   <Chip
-                    key={wf}
-                    active={form.workFormat === wf}
+                    key={wf.id}
+                    active={form.workFormatIds.includes(wf.id)}
                     onClick={() => {
-                      updateField('workFormat', wf);
+                      toggleIdItem('workFormatIds', wf.id);
                     }}
                   >
-                    {wf}
+                    {wf.name}
                   </Chip>
                 ))}
               </div>
-              {errors.workFormat ? (
-                <p className="mt-1 text-xs text-red-500">{errors.workFormat}</p>
+              {errors.workFormatIds ? (
+                <p className="mt-1 text-xs text-red-500">{errors.workFormatIds}</p>
               ) : null}
             </div>
           </div>

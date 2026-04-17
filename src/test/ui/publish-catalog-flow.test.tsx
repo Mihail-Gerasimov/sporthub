@@ -114,7 +114,7 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
     expect(screen.getByRole('heading', { name: 'Start Swim Lab' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Расписание на неделю' })).toBeInTheDocument();
     expect(screen.getByText('Стартовая группа по плаванию')).toBeInTheDocument();
-    expect(screen.getByText('Новая публикация')).toBeInTheDocument();
+    expect(screen.getByText('Для начинающих')).toBeInTheDocument();
   });
 
   it('открывает detail page нового тренера по slug после публикации', async () => {

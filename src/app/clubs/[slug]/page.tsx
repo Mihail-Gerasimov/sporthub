@@ -4,11 +4,14 @@ import { notFound } from 'next/navigation';
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
+  getAmenities,
   getClubBySlug,
   getOfferings,
   getReviews,
   getSchedule,
+  getSpecialties,
   getSports,
+  getTags,
   getTrainers,
   getUsers,
 } from '@/lib/db';
@@ -40,14 +43,18 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
-  const [offerings, sports, trainers, schedule, reviews, users] = await Promise.all([
-    getOfferings(),
-    getSports(),
-    getTrainers(),
-    getSchedule(),
-    getReviews(),
-    getUsers(),
-  ]);
+  const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews, users] =
+    await Promise.all([
+      getAmenities(),
+      getOfferings(),
+      getSpecialties(),
+      getSports(),
+      getTags(),
+      getTrainers(),
+      getSchedule(),
+      getReviews(),
+      getUsers(),
+    ]);
 
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   const clubTrainerIds = new Set(
@@ -78,11 +85,14 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
 
   return (
     <ClubDetailPageClient
+      amenities={amenities}
       club={club}
       reviewAuthors={reviewAuthors}
       reviews={clubReviews}
       schedule={clubSchedule}
+      specialties={specialties}
       sports={clubSports}
+      tags={tags}
       trainers={clubTrainers}
     />
   );

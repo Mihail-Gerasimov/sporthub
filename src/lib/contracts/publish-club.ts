@@ -3,7 +3,6 @@
  * Маппит форму PublishClubModal → persisted-сущности: club + offering + schedule[].
  * Step 14.3
  */
-import sportsData from '@/data/sports.json';
 import type { UpdateClubPublicationInput } from '@/lib/db';
 import type { ScheduleSlotForm, ClubFormState } from '@/lib/schemas/publish';
 import type { Club, EntityId, Offering, Schedule } from '@/types';
@@ -22,12 +21,6 @@ export interface ClubPublishEntities {
 }
 
 /* --- Хелперы --- */
-
-/** Словарь название спорта → id из sports.json */
-const sportNameToId: Record<string, EntityId> = {};
-for (const sport of sportsData) {
-  sportNameToId[sport.name] = sport.id;
-}
 
 /** Генерация slug: lowercase, пробелы → дефисы, только a-z0-9- и кириллица */
 function generateSlug(name: string): string {
@@ -57,11 +50,6 @@ function makeShortDescription(description: string): string {
   return `${description.slice(0, lastSpace > 0 ? lastSpace : 120)}…`;
 }
 
-/** Маппинг названий дисциплин → sportIds */
-function disciplinesToSportIds(disciplines: string[]): EntityId[] {
-  return disciplines.map((name) => sportNameToId[name]).filter((id): id is EntityId => id != null);
-}
-
 /** Расчёт durationMinutes из startTime/endTime (HH:MM) */
 function calcDuration(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(':').map(Number);
@@ -86,7 +74,7 @@ export function mapClubFormToEntities(
 ): ClubPublishEntities {
   const now = new Date().toISOString();
   const clubId = nextEntityId();
-  const sportIds = disciplinesToSportIds(form.disciplines);
+  const sportIds = form.sportIds;
 
   /* Клуб */
   const club: Club = {
@@ -100,11 +88,14 @@ export function mapClubFormToEntities(
     address: form.address,
     phone: form.phone,
     ...(form.email ? { email: form.email } : {}),
+    ...(form.vk ? { vk: form.vk } : {}),
+    ...(form.telegram ? { telegram: form.telegram } : {}),
+    ...(form.facebook ? { facebook: form.facebook } : {}),
     coordinates: form.coordinates ?? { lat: 0, lng: 0 },
     sportIds,
     imageUrls: [],
-    amenities: form.amenities,
-    tags: form.tags,
+    amenityIds: form.amenityIds,
+    tagIds: form.tagIds,
     rating: 0,
     reviewCount: 0,
     priceFrom: Number(form.priceFrom),
@@ -142,7 +133,7 @@ export function mapClubFormToEntities(
     ownerType: 'club' as const,
     ownerId: clubId,
     clubId,
-    sportId: sportNameToId[slot.discipline] ?? sportIds[0] ?? 0,
+    sportId: sportIds[0] ?? 0,
     title: slot.title,
     date: slot.date,
     startTime: slot.startTime,
@@ -167,7 +158,7 @@ export function mapClubFormToUpdateInput(
   clubId: EntityId,
   managedByUserId: EntityId,
 ): UpdateClubPublicationInput {
-  const sportIds = disciplinesToSportIds(form.disciplines);
+  const sportIds = form.sportIds;
 
   return {
     clubId,
@@ -180,9 +171,12 @@ export function mapClubFormToUpdateInput(
       address: form.address,
       phone: form.phone,
       email: form.email || undefined,
+      vk: form.vk || undefined,
+      telegram: form.telegram || undefined,
+      facebook: form.facebook || undefined,
       sportIds,
-      amenities: form.amenities,
-      tags: form.tags,
+      amenityIds: form.amenityIds,
+      tagIds: form.tagIds,
       priceFrom: Number(form.priceFrom),
       ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
@@ -200,7 +194,7 @@ export function mapClubFormToUpdateInput(
     },
     schedules: form.scheduleSlots.map((slot) => ({
       ...(slot.id !== undefined ? { id: slot.id } : {}),
-      sportId: sportNameToId[slot.discipline] ?? sportIds[0] ?? 0,
+      sportId: sportIds[0] ?? 0,
       title: slot.title,
       date: slot.date,
       startTime: slot.startTime,

@@ -5,6 +5,8 @@
  */
 import { z } from 'zod';
 
+import type { EntityId } from '@/types';
+
 /** Опциональные координаты, полученные через Geocoder */
 const coordinatesSchema = z
   .object({
@@ -45,9 +47,12 @@ export const publishClubSchema = z.object({
       message: 'Некорректный формат email',
     }),
   priceFrom: z.string().regex(/^\d+$/, 'Цена должна быть числом'),
-  disciplines: z.array(z.string().trim().min(1)).min(1, 'Выберите хотя бы одну дисциплину'),
-  tags: z.array(z.string()),
-  amenities: z.array(z.string()),
+  sportIds: z.array(z.number()).min(1, 'Выберите хотя бы одно направление'),
+  tagIds: z.array(z.number()),
+  amenityIds: z.array(z.number()),
+  vk: z.string().trim().default(''),
+  telegram: z.string().trim().default(''),
+  facebook: z.string().trim().default(''),
   coordinates: coordinatesSchema,
   cityCoordinates: coordinatesSchema,
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
@@ -62,9 +67,17 @@ export const publishTrainerSchema = z.object({
   address: z.string().trim().min(1, 'Адрес обязателен'),
   bio: z.string().trim().min(50, 'Описание — минимум 50 символов'),
   experience: z.string().regex(/^\d+$/, 'Стаж должен быть числом'),
-  sport: z.string().trim().min(1, 'Выберите вид спорта'),
-  specializations: z.array(z.string().trim().min(1)).min(1, 'Выберите хотя бы одну специализацию'),
-  workFormat: z.string().trim().min(1, 'Формат работы обязателен'),
+  sportIds: z.array(z.number()).min(1, 'Выберите вид спорта'),
+  specialtyIds: z.array(z.number()).min(1, 'Выберите хотя бы одну специализацию'),
+  workFormatIds: z.array(z.number()).min(1, 'Формат работы обязателен'),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Телефон обязателен')
+    .regex(/^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/, 'Некорректный формат телефона'),
+  vk: z.string().trim().default(''),
+  telegram: z.string().trim().default(''),
+  facebook: z.string().trim().default(''),
   offeringName: z.string().trim().min(1, 'Название услуги обязательно'),
   offeringDescription: z.string().trim().min(1, 'Описание услуги обязательно'),
   offeringFormat: z.string().trim().min(1, 'Формат занятий обязателен'),
@@ -114,9 +127,13 @@ export type ClubFormState = {
   phone: string;
   email: string;
   priceFrom: string;
-  disciplines: string[];
-  tags: string[];
-  amenities: string[];
+  sportIds: EntityId[];
+  tagIds: EntityId[];
+  amenityIds: EntityId[];
+  // Контакты — соцсети
+  vk: string;
+  telegram: string;
+  facebook: string;
   /** Координаты, полученные через Geocoder (опциональны — публикация возможна и без них) */
   coordinates?: { lat: number; lng: number };
   /** Координаты центра города для runtime-добавления в cities.json */
@@ -132,9 +149,14 @@ export type TrainerFormState = {
   address: string;
   bio: string;
   experience: string;
-  sport: string;
-  specializations: string[];
-  workFormat: string;
+  sportIds: EntityId[];
+  specialtyIds: EntityId[];
+  workFormatIds: EntityId[];
+  // Контакты
+  phone: string;
+  vk: string;
+  telegram: string;
+  facebook: string;
   offeringName: string;
   offeringDescription: string;
   offeringFormat: string;

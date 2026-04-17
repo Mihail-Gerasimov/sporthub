@@ -33,7 +33,7 @@ export function ClubCard({
   const isCarousel = variant === 'carousel';
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   const previewSports = clubSports.slice(0, isCarousel ? 2 : 3);
-  const previewTags = club.tags.slice(0, isCarousel ? 2 : 3);
+  const previewTags = club.tagIds.slice(0, isCarousel ? 2 : 3);
 
   return (
     <Link href={`/clubs/${club.slug}`} className="group block h-full w-full">
@@ -121,9 +121,9 @@ export function ClubCard({
               isCarousel && 'min-h-[5.5rem] content-start',
             )}
           >
-            {previewTags.map((tag) => (
-              <Badge key={tag} tone="outline">
-                {tag}
+            {previewTags.map((id) => (
+              <Badge key={id} tone="outline">
+                {id}
               </Badge>
             ))}
             {previewSports.map((sport) => (

@@ -19,9 +19,12 @@ const validClubPayload = {
   phone: '+7 (846) 300-00-01',
   email: 'hello@fitzone.ru',
   priceFrom: '1200',
-  disciplines: ['Йога', 'Кроссфит'],
-  tags: ['Утренние группы', 'После работы'],
-  amenities: ['Парковка', 'Душевые'],
+  sportIds: [1, 4],
+  tagIds: [1, 2],
+  amenityIds: [1, 2],
+  vk: '',
+  telegram: '',
+  facebook: '',
   scheduleSlots: [
     {
       title: 'Утренняя йога',
@@ -46,9 +49,12 @@ const validClubPatchPayload = {
   phone: '+7 (846) 200-11-99',
   email: 'premium@volna-club.ru',
   priceFrom: '1500',
-  disciplines: ['Плавание', 'Пилатес'],
-  tags: ['Плавание', 'Восстановление'],
-  amenities: ['Бассейн 50 м', 'SPA'],
+  sportIds: [3, 8],
+  tagIds: [1, 2],
+  amenityIds: [1, 2],
+  vk: '',
+  telegram: '',
+  facebook: '',
   scheduleSlots: [
     {
       id: 1,

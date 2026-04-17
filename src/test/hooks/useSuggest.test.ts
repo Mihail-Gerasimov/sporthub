@@ -122,7 +122,7 @@ describe('useSuggest', () => {
 
     // Первый запрос — перехватываем abort
     fetchSpy.mockImplementationOnce(
-      (_url, init) =>
+      (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
             abortedFirst = true;

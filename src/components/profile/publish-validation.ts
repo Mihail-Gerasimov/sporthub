@@ -1,7 +1,8 @@
-// Чистые функции валидации publish-форм (Step 13.5).
+// Чистые функции валидации publish-форм (Step 13.5, обновлено Phase 23).
 // Возвращают объект ошибок { fieldName: 'Сообщение' } или пустой объект.
 
 import type { ScheduleSlotForm } from '@/lib/schemas/publish';
+import type { EntityId } from '@/types';
 
 // --- Типы форм (дублируем для валидации, т.к. оригиналы — локальные в модалках) ---
 
@@ -14,9 +15,9 @@ type ClubFormInput = {
   phone: string;
   email: string;
   priceFrom: string;
-  disciplines: string[];
-  tags?: string[];
-  amenities?: string[];
+  sportIds: EntityId[];
+  tagIds?: EntityId[];
+  amenityIds?: EntityId[];
   scheduleSlots?: ScheduleSlotForm[];
   // Остальные поля не участвуют в валидации MVP
 };
@@ -29,9 +30,10 @@ type TrainerFormInput = {
   address: string;
   bio: string;
   experience: string;
-  sport: string;
-  specializations: string[];
-  workFormat: string;
+  sportIds: EntityId[];
+  specialtyIds: EntityId[];
+  workFormatIds: EntityId[];
+  phone: string;
   offeringName: string;
   offeringDescription: string;
   offeringFormat: string;
@@ -141,8 +143,8 @@ export function validateClubForm(form: ClubFormInput): Record<string, string> {
     errors.priceFrom = 'Укажите цену (положительное число)';
   }
 
-  if (form.disciplines.length === 0) {
-    errors.disciplines = 'Необходимо выбрать хотя бы 1 направление';
+  if (form.sportIds.length === 0) {
+    errors.sportIds = 'Необходимо выбрать хотя бы 1 направление';
   }
 
   if (!form.scheduleSlots || form.scheduleSlots.length === 0) {
@@ -189,14 +191,19 @@ export function validateTrainerForm(form: TrainerFormInput): Record<string, stri
   if (!isPositiveNumber(form.experience)) {
     errors.experience = 'Укажите опыт (положительное число)';
   }
-  if (!form.sport.trim()) {
-    errors.sport = 'Выберите основной вид спорта';
+  if (!form.phone.trim()) {
+    errors.phone = 'Укажите телефон';
+  } else if (!isValidPhone(form.phone.trim())) {
+    errors.phone = 'Некорректный формат телефона';
   }
-  if (form.specializations.length === 0) {
-    errors.specializations = 'Выберите минимум 1 специализацию';
+  if (form.sportIds.length === 0) {
+    errors.sportIds = 'Выберите основной вид спорта';
   }
-  if (!form.workFormat.trim()) {
-    errors.workFormat = 'Выберите формат работы';
+  if (form.specialtyIds.length === 0) {
+    errors.specialtyIds = 'Выберите минимум 1 специализацию';
+  }
+  if (form.workFormatIds.length === 0) {
+    errors.workFormatIds = 'Выберите формат работы';
   }
   if (!form.offeringName.trim()) {
     errors.offeringName = 'Укажите название услуги';

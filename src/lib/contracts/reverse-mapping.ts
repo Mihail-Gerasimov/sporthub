@@ -10,7 +10,7 @@ import type { Club, EntityId, Offering, OfferingFormat, Schedule, Trainer } from
 
 /* --- Справочники для обратного маппинга --- */
 
-/** Словарь sportId → название спорта из sports.json */
+/** Словарь sportId → название спорта (используется только для ScheduleSlotForm.discipline) */
 const sportIdToName: Record<EntityId, string> = {};
 for (const sport of sportsData) {
   sportIdToName[sport.id] = sport.name;
@@ -59,9 +59,12 @@ export function mapClubToFormState(
     phone: club.phone,
     email: club.email ?? '',
     priceFrom: String(club.priceFrom),
-    disciplines: club.sportIds.map((id) => sportIdToName[id]).filter(Boolean),
-    tags: club.tags,
-    amenities: club.amenities,
+    sportIds: [...club.sportIds],
+    tagIds: [...club.tagIds],
+    amenityIds: [...club.amenityIds],
+    vk: club.vk ?? '',
+    telegram: club.telegram ?? '',
+    facebook: club.facebook ?? '',
     // Восстанавливаем координаты только если они валидные (не {0,0})
     ...(isValidCoordinates(club.coordinates) ? { coordinates: club.coordinates } : {}),
     scheduleSlots: schedules.map(mapScheduleToSlotForm),
@@ -84,9 +87,6 @@ export function mapTrainerToFormState(
   const firstName = nameParts[0] ?? '';
   const lastName = nameParts.slice(1).join(' ');
 
-  // Определяем основной вид спорта из sportIds
-  const sport = trainer.sportIds[0] != null ? (sportIdToName[trainer.sportIds[0]] ?? '') : '';
-
   return {
     firstName,
     lastName,
@@ -94,9 +94,13 @@ export function mapTrainerToFormState(
     address: trainer.address ?? '',
     bio: trainer.bio,
     experience: String(trainer.experienceYears),
-    sport,
-    specializations: [...trainer.specialties],
-    workFormat: offering.format === 'personal' ? 'Индивидуально' : 'В клубе',
+    sportIds: [...trainer.sportIds],
+    specialtyIds: [...trainer.specialtyIds],
+    workFormatIds: [...trainer.workFormatIds],
+    phone: trainer.phone ?? '',
+    vk: trainer.vk ?? '',
+    telegram: trainer.telegram ?? '',
+    facebook: trainer.facebook ?? '',
     offeringName: offering.title,
     offeringDescription: offering.description,
     offeringFormat: offeringFormatReverseMap[offering.format] ?? 'Индивидуальная',

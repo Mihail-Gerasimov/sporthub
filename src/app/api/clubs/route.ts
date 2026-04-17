@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           club.shortDescription,
           club.description,
           club.address,
-          ...club.tags,
+          ...club.tagIds.map(String),
         ]
           .join(' ')
           .toLowerCase();

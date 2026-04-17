@@ -34,7 +34,7 @@ export function filterClubs({
       club.name,
       club.shortDescription,
       club.description,
-      club.tags.join(' '),
+      club.tagIds.join(' '),
       sports
         .filter((sport) => club.sportIds.includes(sport.id))
         .map((sport) => sport.name)

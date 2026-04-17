@@ -41,14 +41,7 @@ describe('ID аккаунта в ЛК (Step 17.6)', () => {
     });
 
     render(
-      <AthleteProfilePage
-        bookings={[]}
-        clubs={[]}
-        schedule={[]}
-        sports={[]}
-        trainers={[]}
-        reviews={[]}
-      />,
+      <AthleteProfilePage bookings={[]} clubs={[]} schedule={[]} trainers={[]} reviews={[]} />,
     );
 
     expect(screen.getByText(`ID: #${MVP_ATHLETE_USER_ID}`)).toBeInTheDocument();
@@ -70,10 +63,8 @@ describe('ID аккаунта в ЛК (Step 17.6)', () => {
       <ProviderProfilePage
         bookings={[]}
         clubs={[]}
-        offerings={[]}
         reviews={[]}
         schedule={[]}
-        sports={[]}
         trainers={[]}
         users={[]}
       />,

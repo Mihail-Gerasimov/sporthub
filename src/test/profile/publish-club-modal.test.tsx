@@ -22,9 +22,12 @@ describe('PublishClubModal', () => {
     phone: '+7 (846) 200-11-01',
     email: 'hello@volna-club.ru',
     priceFrom: '900',
-    disciplines: ['Плавание', 'Пилатес'],
-    tags: ['Восстановление'],
-    amenities: ['Бассейн 25 м'],
+    sportIds: [3],
+    tagIds: [1],
+    amenityIds: [1],
+    vk: '',
+    telegram: '',
+    facebook: '',
     scheduleSlots: [
       {
         id: 15,
@@ -212,7 +215,7 @@ describe('PublishClubModal', () => {
     expect(payload).toMatchObject({
       name: 'FitZone Studio',
       userId: 2,
-      disciplines: ['Йога'],
+      sportIds: [1], // Chip 'Йога' → id 1
     });
     expect(payload).not.toHaveProperty('website');
     expect(payload).not.toHaveProperty('featured');

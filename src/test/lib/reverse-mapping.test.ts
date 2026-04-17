@@ -26,8 +26,8 @@ function makeClub(overrides: Partial<Club> = {}): Club {
     coordinates: { lat: 55.75, lng: 37.62 },
     sportIds: [1, 4], // Йога (1), Кроссфит (4)
     imageUrls: ['/images/club1.jpg'],
-    amenities: ['Парковка', 'Душ'],
-    tags: ['Утренние группы'],
+    amenityIds: [1, 2],
+    tagIds: [1],
     rating: 4.5,
     reviewCount: 12,
     priceFrom: 1200,
@@ -115,7 +115,8 @@ function makeTrainer(overrides: Partial<Trainer> = {}): Trainer {
     bio: 'Описание тренера длиной более пятидесяти символов для прохождения валидации формы публикации.',
     avatarUrl: '',
     experienceYears: 5,
-    specialties: ['Персональные тренировки', 'Групповые занятия'],
+    specialtyIds: [1, 2],
+    workFormatIds: [1],
     rating: 4.8,
     reviewCount: 20,
     priceFrom: 2000,
@@ -198,24 +199,24 @@ describe('mapClubToFormState (Step 15.2)', () => {
     expect(form.priceFrom).toBe('1200');
   });
 
-  it('восстанавливает disciplines из sportIds через sports.json', () => {
+  it('восстанавливает sportIds из sportIds клуба', () => {
     const club = makeClub({ sportIds: [1, 4] });
     const form = mapClubToFormState(club, makeClubOffering(), []);
 
-    expect(form.disciplines).toContain('Йога');
-    expect(form.disciplines).toContain('Кроссфит');
-    expect(form.disciplines).toHaveLength(2);
+    expect(form.sportIds).toContain(1);
+    expect(form.sportIds).toContain(4);
+    expect(form.sportIds).toHaveLength(2);
   });
 
-  it('сохраняет tags и amenities', () => {
+  it('сохраняет tagIds и amenityIds', () => {
     const club = makeClub({
-      tags: ['Утренние группы', 'Выходные'],
-      amenities: ['Парковка', 'Душ'],
+      tagIds: [1, 2],
+      amenityIds: [1, 2],
     });
     const form = mapClubToFormState(club, makeClubOffering(), []);
 
-    expect(form.tags).toEqual(['Утренние группы', 'Выходные']);
-    expect(form.amenities).toEqual(['Парковка', 'Душ']);
+    expect(form.tagIds).toEqual([1, 2]);
+    expect(form.amenityIds).toEqual([1, 2]);
   });
 
   it('маппит schedule slots с сохранением id', () => {
@@ -252,7 +253,7 @@ describe('mapClubToFormState (Step 15.2)', () => {
 
   it('обрабатывает клуб без email (undefined → пустая строка)', () => {
     const club = makeClub();
-    delete (club as Record<string, unknown>).email;
+    delete (club as unknown as Record<string, unknown>).email;
     const form = mapClubToFormState(club, makeClubOffering(), []);
 
     expect(form.email).toBe('');
@@ -285,18 +286,18 @@ describe('mapTrainerToFormState (Step 15.2)', () => {
     expect(form.experience).toBe('5');
   });
 
-  it('восстанавливает sport из sportIds через sports.json', () => {
+  it('восстанавливает sportIds из sportIds тренера', () => {
     const trainer = makeTrainer({ sportIds: [2] }); // Бокс
     const form = mapTrainerToFormState(trainer, makeTrainerOffering(), []);
 
-    expect(form.sport).toBe('Бокс');
+    expect(form.sportIds).toEqual([2]);
   });
 
-  it('восстанавливает specializations из specialties', () => {
-    const trainer = makeTrainer({ specialties: ['Персональные тренировки', 'Групповые занятия'] });
+  it('восстанавливает specialtyIds из specialtyIds тренера', () => {
+    const trainer = makeTrainer({ specialtyIds: [1, 2] });
     const form = mapTrainerToFormState(trainer, makeTrainerOffering(), []);
 
-    expect(form.specializations).toEqual(['Персональные тренировки', 'Групповые занятия']);
+    expect(form.specialtyIds).toEqual([1, 2]);
   });
 
   it('восстанавливает offering-поля из primary offering', () => {
@@ -350,19 +351,18 @@ describe('mapTrainerToFormState (Step 15.2)', () => {
 
   it('clubId = null если affiliatedClubId отсутствует', () => {
     const trainer = makeTrainer();
-    delete (trainer as Record<string, unknown>).affiliatedClubId;
+    delete (trainer as unknown as Record<string, unknown>).affiliatedClubId;
     const form = mapTrainerToFormState(trainer, makeTrainerOffering(), []);
 
     expect(form.clubId).toBeNull();
   });
 
-  it('восстанавливает workFormat (пока hardcoded из offering)', () => {
+  it('восстанавливает workFormatIds из workFormatIds тренера', () => {
     const form = mapTrainerToFormState(makeTrainer(), makeTrainerOffering(), []);
 
-    // workFormat не сохраняется в persisted-сущностях напрямую,
-    // для MVP используем fallback
-    expect(typeof form.workFormat).toBe('string');
-    expect(form.workFormat.length).toBeGreaterThan(0);
+    // workFormatIds восстанавливается из persisted-сущности
+    expect(Array.isArray(form.workFormatIds)).toBe(true);
+    expect(form.workFormatIds.length).toBeGreaterThan(0);
   });
 
   it('маппит schedule slots тренера с сохранением id', () => {

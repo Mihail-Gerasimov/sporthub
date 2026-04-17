@@ -44,9 +44,12 @@ describe('shared form-state типы (Step 15.1)', () => {
       phone: '+7 (999) 123-45-67',
       email: 'info@fitzone.ru',
       priceFrom: '1200',
-      disciplines: ['Йога', 'Кроссфит'],
-      tags: ['Утренние группы'],
-      amenities: ['Парковка'],
+      sportIds: [1, 4],
+      tagIds: [1],
+      amenityIds: [1],
+      vk: '',
+      telegram: '',
+      facebook: '',
       scheduleSlots: [
         {
           title: 'Утренняя йога',
@@ -64,7 +67,7 @@ describe('shared form-state типы (Step 15.1)', () => {
     // Все поля присутствуют
     expect(form.name).toBe('FitZone Studio');
     expect(form.scheduleSlots).toHaveLength(1);
-    expect(form.disciplines).toContain('Йога');
+    expect(form.sportIds).toContain(1);
   });
 
   it('TrainerFormState содержит все активные MVP-поля тренера', () => {
@@ -75,9 +78,13 @@ describe('shared form-state типы (Step 15.1)', () => {
       address: 'ул. Спортивная, 10',
       bio: 'Описание тренера длиной более пятидесяти символов для прохождения валидации формы публикации.',
       experience: '5',
-      sport: 'Бокс',
-      specializations: ['Персональные тренировки'],
-      workFormat: 'В клубе',
+      sportIds: [2],
+      specialtyIds: [1],
+      workFormatIds: [1],
+      phone: '+7 (846) 300-00-11',
+      vk: '',
+      telegram: '',
+      facebook: '',
       offeringName: 'Персональная тренировка',
       offeringDescription: 'Индивидуальная тренировка',
       offeringFormat: 'Индивидуальная',
@@ -100,7 +107,7 @@ describe('shared form-state типы (Step 15.1)', () => {
     };
 
     expect(form.firstName).toBe('Александр');
-    expect(form.specializations).toContain('Персональные тренировки');
+    expect(form.specialtyIds).toContain(1);
     expect(form.clubId).toBeNull();
   });
 });
@@ -118,9 +125,12 @@ describe('edit payload использует те же Zod-схемы, что и 
     phone: '+7 (999) 123-45-67',
     email: '',
     priceFrom: '1200',
-    disciplines: ['Йога'],
-    tags: [],
-    amenities: [],
+    sportIds: [1],
+    tagIds: [],
+    amenityIds: [],
+    vk: '',
+    telegram: '',
+    facebook: '',
     scheduleSlots: [
       {
         title: 'Йога',
@@ -143,9 +153,13 @@ describe('edit payload использует те же Zod-схемы, что и 
     address: 'ул. Спортивная, 10',
     bio: 'Описание тренера длиной более пятидесяти символов для прохождения валидации формы публикации.',
     experience: '5',
-    sport: 'Бокс',
-    specializations: ['Персональные тренировки'],
-    workFormat: 'В клубе',
+    sportIds: [2],
+    specialtyIds: [1],
+    workFormatIds: [1],
+    phone: '+7 (846) 300-00-11',
+    vk: '',
+    telegram: '',
+    facebook: '',
     offeringName: 'Персональная тренировка',
     offeringDescription: 'Индивидуальная тренировка',
     offeringFormat: 'Индивидуальная',
@@ -174,8 +188,7 @@ describe('edit payload использует те же Zod-схемы, что и 
   });
 
   it('publishClubSchema отклоняет partial payload без обязательных полей', () => {
-    const partial = { ...validClubPayload };
-    delete partial.name;
+    const { name: _name, ...partial } = validClubPayload;
     const result = publishClubSchema.safeParse(partial);
     expect(result.success).toBe(false);
   });
@@ -186,8 +199,7 @@ describe('edit payload использует те же Zod-схемы, что и 
   });
 
   it('publishTrainerSchema отклоняет partial payload без обязательных полей', () => {
-    const partial = { ...validTrainerPayload };
-    delete partial.firstName;
+    const { firstName: _firstName, ...partial } = validTrainerPayload;
     const result = publishTrainerSchema.safeParse(partial);
     expect(result.success).toBe(false);
   });

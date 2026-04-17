@@ -12,7 +12,7 @@ const trainer: TrainerDirectoryItem = {
   bio: 'Тренер по плаванию.',
   avatarUrl: '/images/trainers/marina.jpg',
   experienceYears: 9,
-  specialties: ['Кроль'],
+  specialtyIds: [1],
   rating: 4.9,
   reviewCount: 28,
   priceFrom: 1400,

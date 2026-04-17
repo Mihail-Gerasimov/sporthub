@@ -24,9 +24,12 @@ const validClubForm = {
   phone: '+7 (846) 300-00-01',
   email: 'hello@fitzone.ru',
   priceFrom: '1200',
-  disciplines: ['Йога', 'Кроссфит'],
-  tags: ['Утренние группы'],
-  amenities: ['Парковка'],
+  sportIds: [1, 4],
+  tagIds: [1],
+  amenityIds: [1],
+  vk: '',
+  telegram: '',
+  facebook: '',
   scheduleSlots: [
     {
       title: 'Утренняя йога',
@@ -48,9 +51,13 @@ const validTrainerForm = {
   address: 'ул. Спортивная, 10',
   bio: 'Персональный тренер по боксу. Готовлю к соревнованиям и работаю с начинающими. Стаж более 8 лет.',
   experience: '8',
-  sport: 'Бокс',
-  specializations: ['Персональные тренировки'],
-  workFormat: 'В клубе',
+  sportIds: [2],
+  specialtyIds: [1],
+  workFormatIds: [1],
+  phone: '+7 (846) 300-00-11',
+  vk: '',
+  telegram: '',
+  facebook: '',
   offeringName: 'Тренировка по боксу',
   offeringDescription: 'Индивидуальное занятие',
   offeringFormat: 'Индивидуальная',
@@ -89,8 +96,8 @@ function makeClub(overrides: Partial<Club> = {}): Club {
     coordinates: { lat: 53.195878, lng: 50.100202 },
     sportIds: [1, 4],
     imageUrls: [],
-    amenities: ['Парковка'],
-    tags: ['Утренние группы'],
+    amenityIds: [1],
+    tagIds: [1],
     rating: 4.5,
     reviewCount: 12,
     priceFrom: 1200,
@@ -156,7 +163,8 @@ function makeTrainer(overrides: Partial<Trainer> = {}): Trainer {
     bio: 'Описание тренера длиной более пятидесяти символов для прохождения валидации формы публикации.',
     avatarUrl: '',
     experienceYears: 8,
-    specialties: ['Персональные тренировки'],
+    specialtyIds: [1],
+    workFormatIds: [1],
     rating: 4.8,
     reviewCount: 20,
     priceFrom: 2500,
@@ -390,7 +398,7 @@ describe('reverse-mapping координат в form state (Step 19.3)', () => {
 
   it('mapTrainerToFormState — без координат = undefined', () => {
     const trainer = makeTrainer();
-    delete (trainer as Record<string, unknown>).coordinates;
+    delete (trainer as unknown as Record<string, unknown>).coordinates;
     const form = mapTrainerToFormState(trainer, makeTrainerOffering(), makeTrainerSchedules());
 
     expect(form.coordinates).toBeUndefined();

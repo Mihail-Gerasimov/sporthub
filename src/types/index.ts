@@ -125,8 +125,12 @@ export interface Club extends BaseEntity {
   coordinates: Coordinates;
   sportIds: EntityId[];
   imageUrls: string[];
-  amenities: string[];
-  tags: string[];
+  amenityIds: EntityId[];
+  tagIds: EntityId[];
+  // Контакты — соцсети (phone и email уже есть)
+  vk?: string;
+  telegram?: string;
+  facebook?: string;
   rating: number;
   reviewCount: number;
   priceFrom: number;
@@ -150,7 +154,9 @@ export interface Trainer extends BaseEntity {
   bio: string;
   avatarUrl: string;
   experienceYears: number;
-  specialties: string[];
+  specialtyIds: EntityId[];
+  // Форматы работы тренера (новое поле, ранее только form-state)
+  workFormatIds: EntityId[];
   rating: number;
   reviewCount: number;
   priceFrom: number;
@@ -158,6 +164,11 @@ export interface Trainer extends BaseEntity {
   city?: string;
   address?: string;
   coordinates?: Coordinates;
+  // Контакты тренера (phone опционален для обратной совместимости seed)
+  phone?: string;
+  vk?: string;
+  telegram?: string;
+  facebook?: string;
   affiliatedClubId?: EntityId;
   // STUB: сохранить переходную совместимость до миграции JSON и API на offerings.
   clubId?: EntityId;
