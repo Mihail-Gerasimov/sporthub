@@ -34,7 +34,7 @@ const validForm = {
       price: '2500',
       capacity: '1',
       location: 'Зал единоборств',
-      discipline: 'Бокс',
+      sportId: 2,
     },
     {
       title: 'Вечерняя тренировка',
@@ -44,7 +44,7 @@ const validForm = {
       price: '2500',
       capacity: '1',
       location: 'Зал единоборств',
-      discipline: 'Бокс',
+      sportId: 2,
     },
   ],
 };

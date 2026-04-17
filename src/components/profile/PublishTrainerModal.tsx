@@ -73,7 +73,7 @@ function createInitialState(): TrainerFormState {
         price: '',
         capacity: '',
         location: '',
-        discipline: '',
+        sportId: 0,
       },
     ],
   };
@@ -670,6 +670,8 @@ export function PublishTrainerModal({
               onChange={(slots) => {
                 setForm((prev) => ({ ...prev, scheduleSlots: slots }));
               }}
+              sportIds={form.sportIds}
+              sports={sports}
             />
           </div>
           {errors.scheduleSlots ? (

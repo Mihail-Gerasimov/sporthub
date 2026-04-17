@@ -30,7 +30,7 @@ function validClubForm() {
         price: '900',
         capacity: '12',
         location: 'Зал №1',
-        discipline: 'Йога',
+        sportId: 1,
       },
     ],
   };
@@ -69,7 +69,7 @@ function validTrainerForm() {
         price: '2000',
         capacity: '1',
         location: 'Зал №3',
-        discipline: 'Бокс',
+        sportId: 2,
       },
     ],
   };

@@ -40,7 +40,7 @@ function createInitialState(): ClubFormState {
         price: '',
         capacity: '',
         location: '',
-        discipline: '',
+        sportId: 0,
       },
     ],
   };
@@ -528,6 +528,8 @@ export function PublishClubModal({
               onChange={(slots) => {
                 setForm((prev) => ({ ...prev, scheduleSlots: slots }));
               }}
+              sportIds={form.sportIds}
+              sports={sports}
             />
           </div>
           {errors.scheduleSlots ? (

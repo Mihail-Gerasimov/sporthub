@@ -243,12 +243,12 @@ describe('mapClubToFormState (Step 15.2)', () => {
     expect(form.scheduleSlots[1].title).toBe('Кроссфит');
   });
 
-  it('восстанавливает discipline слота из sportId через sports.json', () => {
-    const schedules = makeClubSchedules(); // sportId: 1 (Йога), sportId: 5 (Кроссфит)
+  it('восстанавливает sportId слота напрямую из Schedule.sportId', () => {
+    const schedules = makeClubSchedules(); // sportId: 1 (Йога), sportId: 4 (Кроссфит)
     const form = mapClubToFormState(makeClub(), makeClubOffering(), schedules);
 
-    expect(form.scheduleSlots[0].discipline).toBe('Йога');
-    expect(form.scheduleSlots[1].discipline).toBe('Кроссфит');
+    expect(form.scheduleSlots[0].sportId).toBe(1);
+    expect(form.scheduleSlots[1].sportId).toBe(4);
   });
 
   it('обрабатывает клуб без email (undefined → пустая строка)', () => {
@@ -381,7 +381,7 @@ describe('mapTrainerToFormState (Step 15.2)', () => {
     expect(form.scheduleSlots[0].price).toBe('2000');
     expect(form.scheduleSlots[0].capacity).toBe('1');
     expect(form.scheduleSlots[0].location).toBe('Зал №3');
-    expect(form.scheduleSlots[0].discipline).toBe('Бокс');
+    expect(form.scheduleSlots[0].sportId).toBe(2);
   });
 });
 

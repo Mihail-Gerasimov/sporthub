@@ -15,7 +15,7 @@ function emptySlot(): ScheduleSlotForm {
     price: '',
     capacity: '',
     location: '',
-    discipline: '',
+    sportId: 0,
   };
 }
 

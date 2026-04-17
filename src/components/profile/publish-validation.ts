@@ -99,7 +99,7 @@ function isScheduleSlotComplete(slot: ScheduleSlotForm): boolean {
     isPositiveNumber(slot.price) &&
     isPositiveNumber(slot.capacity) &&
     slot.location.trim() !== '' &&
-    slot.discipline.trim() !== ''
+    slot.sportId > 0
   );
 }
 

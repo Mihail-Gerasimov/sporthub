@@ -28,7 +28,7 @@ const validForm = {
       price: '900',
       capacity: '15',
       location: 'Зал №1',
-      discipline: 'Йога',
+      sportId: 1,
     },
     {
       title: 'Кроссфит вечер',
@@ -38,7 +38,7 @@ const validForm = {
       price: '1200',
       capacity: '10',
       location: 'Зал №2',
-      discipline: 'Кроссфит',
+      sportId: 4,
     },
   ],
 };
@@ -157,12 +157,12 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(s0.ownerId).toBe(club.id);
     expect(s0.clubId).toBe(club.id);
     expect(s0.offeringId).toBe(offering.id);
-    // sportId = sportIds[0] из формы (все слоты получают первый sportId)
-    expect(s0.sportId).toBe(1); // Йога (sportIds[0])
+    // sportId берётся напрямую из слота формы (Step 23.9)
+    expect(s0.sportId).toBe(1); // Йога (slot.sportId)
 
     const s1 = schedules[1];
     expect(s1.title).toBe('Кроссфит вечер');
-    expect(s1.sportId).toBe(1); // sportIds[0] — по-слотовой маппинг будет в Step 23.9
+    expect(s1.sportId).toBe(4); // Кроссфит (slot.sportId)
   });
 
   /* --- Форма без email --- */

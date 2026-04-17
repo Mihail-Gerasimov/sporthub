@@ -39,7 +39,7 @@ const validClubForm = {
       price: '900',
       capacity: '15',
       location: 'Зал №1',
-      discipline: 'Йога',
+      sportId: 1,
     },
   ],
 };
@@ -74,7 +74,7 @@ const validTrainerForm = {
       price: '2500',
       capacity: '1',
       location: 'Зал единоборств',
-      discipline: 'Бокс',
+      sportId: 2,
     },
   ],
 };

@@ -125,7 +125,7 @@ export function mapClubFormToEntities(
     coordinates: form.coordinates ?? { lat: 0, lng: 0 },
   };
 
-  /* Слоты расписания */
+  /* Слоты расписания — sportId берётся напрямую из слота формы */
   const schedules: Schedule[] = form.scheduleSlots.map((slot) => ({
     id: nextEntityId(),
     createdAt: now,
@@ -133,7 +133,7 @@ export function mapClubFormToEntities(
     ownerType: 'club' as const,
     ownerId: clubId,
     clubId,
-    sportId: sportIds[0] ?? 0,
+    sportId: slot.sportId,
     title: slot.title,
     date: slot.date,
     startTime: slot.startTime,
@@ -194,7 +194,7 @@ export function mapClubFormToUpdateInput(
     },
     schedules: form.scheduleSlots.map((slot) => ({
       ...(slot.id !== undefined ? { id: slot.id } : {}),
-      sportId: sportIds[0] ?? 0,
+      sportId: slot.sportId,
       title: slot.title,
       date: slot.date,
       startTime: slot.startTime,

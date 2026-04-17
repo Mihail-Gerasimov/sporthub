@@ -59,7 +59,7 @@ describe('PublishClubModal', () => {
         price: '1100',
         capacity: '12',
         location: 'Большой бассейн',
-        discipline: 'Плавание',
+        sportId: 3,
       },
     ],
   };
@@ -135,9 +135,8 @@ describe('PublishClubModal', () => {
     fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал №1' },
     });
-    fireEvent.change(screen.getByLabelText('Направление'), {
-      target: { value: 'Йога' },
-    });
+    // Направление auto-select: при одном sportId (Йога) useEffect в ScheduleSlotsEditor
+    // автоматически ставит sportId = 1 во всех слотах
   }
 
   it('рендерит заголовок модалки', () => {

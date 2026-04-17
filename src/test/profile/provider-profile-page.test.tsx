@@ -549,9 +549,7 @@ describe('ProviderProfilePage', () => {
     fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал №1' },
     });
-    fireEvent.change(screen.getByLabelText('Направление'), {
-      target: { value: 'Йога' },
-    });
+    // Направление auto-select: при одном sportId useEffect ставит sportId = 1
 
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 

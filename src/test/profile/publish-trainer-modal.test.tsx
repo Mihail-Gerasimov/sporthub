@@ -70,7 +70,7 @@ describe('PublishTrainerModal', () => {
         price: '1900',
         capacity: '1',
         location: 'Бассейн 1',
-        discipline: 'Плавание',
+        sportId: 3,
       },
     ],
   };
@@ -166,9 +166,7 @@ describe('PublishTrainerModal', () => {
     fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал единоборств' },
     });
-    fireEvent.change(screen.getByLabelText('Направление'), {
-      target: { value: 'Бокс' },
-    });
+    // Направление auto-select: при одном sportId useEffect автоматически ставит sportId
   }
 
   it('рендерит заголовок модалки', () => {

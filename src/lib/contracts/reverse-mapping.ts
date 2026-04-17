@@ -3,18 +3,9 @@
  * Обратное преобразование к publish-club.ts / publish-trainer.ts.
  * Step 15.2
  */
-import sportsData from '@/data/sports.json';
 import type { ClubFormState, ScheduleSlotForm, TrainerFormState } from '@/lib/schemas/publish';
 import { isValidCoordinates } from '@/lib/utils';
-import type { Club, EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
-
-/* --- Справочники для обратного маппинга --- */
-
-/** Словарь sportId → название спорта (используется только для ScheduleSlotForm.discipline) */
-const sportIdToName: Record<EntityId, string> = {};
-for (const sport of sportsData) {
-  sportIdToName[sport.id] = sport.name;
-}
+import type { Club, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
 /** Обратный маппинг OfferingFormat → русское название для формы */
 const offeringFormatReverseMap: Record<OfferingFormat, string> = {
@@ -25,7 +16,7 @@ const offeringFormatReverseMap: Record<OfferingFormat, string> = {
 
 /* --- Общий маппинг слотов расписания --- */
 
-/** Маппит persisted Schedule → ScheduleSlotForm с сохранением id */
+/** Маппит persisted Schedule → ScheduleSlotForm с сохранением id и sportId */
 function mapScheduleToSlotForm(schedule: Schedule): ScheduleSlotForm {
   return {
     id: schedule.id,
@@ -36,7 +27,7 @@ function mapScheduleToSlotForm(schedule: Schedule): ScheduleSlotForm {
     price: String(schedule.price),
     capacity: String(schedule.capacity),
     location: schedule.room ?? '',
-    discipline: sportIdToName[schedule.sportId] ?? '',
+    sportId: schedule.sportId,
   };
 }
 

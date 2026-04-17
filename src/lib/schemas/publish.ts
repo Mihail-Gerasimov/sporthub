@@ -15,21 +15,28 @@ const coordinatesSchema = z
   })
   .optional();
 
+/** Regex: время с шагом 10 минут (00, 10, 20, 30, 40, 50) */
+const TIME_STEP_10_REGEX = /^([01]\d|2[0-3]):[0-5]0$/;
+
 /** Слот расписания (общий для клуба и тренера) */
 const scheduleSlotSchema = z.object({
   id: z.number().int().positive().optional(),
   title: z.string().trim().min(1, 'Название слота обязательно'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Формат даты: YYYY-MM-DD'),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Формат времени: HH:MM'),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Формат времени: HH:MM'),
+  startTime: z
+    .string()
+    .regex(TIME_STEP_10_REGEX, 'Время должно быть кратно 10 минутам (например, 09:00, 09:30)'),
+  endTime: z
+    .string()
+    .regex(TIME_STEP_10_REGEX, 'Время должно быть кратно 10 минутам (например, 10:00, 10:30)'),
   price: z.string().regex(/^\d+$/, 'Цена должна быть числом'),
   capacity: z.string().regex(/^\d+$/, 'Вместимость должна быть числом'),
   location: z.string().trim().min(1, 'Место проведения обязательно'),
-  discipline: z.string().trim().min(1, 'Дисциплина обязательна'),
+  sportId: z.number().int().positive('Направление обязательно'),
 });
 
-/** Схема публикации клуба */
-export const publishClubSchema = z.object({
+/** Базовая схема публикации клуба (без cross-field refine) */
+const publishClubBaseSchema = z.object({
   name: z.string().trim().min(2, 'Название клуба обязательно'),
   city: z.string().trim().min(1, 'Город обязателен'),
   address: z.string().trim().min(1, 'Адрес обязателен'),
@@ -59,8 +66,18 @@ export const publishClubSchema = z.object({
   userId: z.number().int().positive('ID пользователя обязателен'),
 });
 
-/** Схема публикации тренера */
-export const publishTrainerSchema = z.object({
+/** Схема публикации клуба с cross-field валидацией: slot.sportId ∈ sportIds */
+export const publishClubSchema = publishClubBaseSchema.refine(
+  (data) => data.scheduleSlots.every((slot) => data.sportIds.includes(slot.sportId)),
+  {
+    message:
+      'В слотах используется направление, которое не выбрано в публикации. Поправьте слоты или добавьте направление.',
+    path: ['scheduleSlots'],
+  },
+);
+
+/** Базовая схема публикации тренера (без cross-field refine) */
+const publishTrainerBaseSchema = z.object({
   firstName: z.string().trim().min(1, 'Имя обязательно'),
   lastName: z.string().trim().min(1, 'Фамилия обязательна'),
   city: z.string().trim().min(1, 'Город обязателен'),
@@ -96,6 +113,16 @@ export const publishTrainerSchema = z.object({
   userId: z.number().int().positive('ID пользователя обязателен'),
 });
 
+/** Схема публикации тренера с cross-field валидацией: slot.sportId ∈ sportIds */
+export const publishTrainerSchema = publishTrainerBaseSchema.refine(
+  (data) => data.scheduleSlots.every((slot) => data.sportIds.includes(slot.sportId)),
+  {
+    message:
+      'В слотах используется направление, которое не выбрано в публикации. Поправьте слоты или добавьте направление.',
+    path: ['scheduleSlots'],
+  },
+);
+
 export type PublishClubPayload = z.infer<typeof publishClubSchema>;
 export type PublishTrainerPayload = z.infer<typeof publishTrainerSchema>;
 
@@ -115,7 +142,8 @@ export type ScheduleSlotForm = {
   price: string;
   capacity: string;
   location: string;
-  discipline: string;
+  /** ID вида спорта из справочника (вместо текстового discipline) */
+  sportId: number;
 };
 
 /** Состояние формы клуба (create и edit) */
