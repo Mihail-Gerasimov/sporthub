@@ -299,4 +299,31 @@ describe('TrainerDetailPageClient', () => {
     expect(screen.getByText('Выбери оценку.')).toBeInTheDocument();
     expect(screen.getByText('Напиши пару слов о впечатлении.')).toBeInTheDocument();
   });
+
+  it('отображает блок контактов с phone, vk, telegram (Step 23.10)', () => {
+    const trainerWithContacts: Trainer = {
+      ...trainer,
+      phone: '+7 (927) 111-22-33',
+      vk: 'https://vk.com/marina_swim',
+      telegram: 'https://t.me/marina_swim',
+      facebook: '',
+    };
+
+    render(<TrainerDetailPageClient {...defaultProps} trainer={trainerWithContacts} />);
+
+    // Телефон
+    expect(screen.getByText('+7 (927) 111-22-33')).toBeInTheDocument();
+
+    // VK и Telegram — ссылки
+    const vkLink = screen.getByRole('link', { name: /vk/i });
+
+    expect(vkLink).toHaveAttribute('href', 'https://vk.com/marina_swim');
+
+    const tgLink = screen.getByRole('link', { name: /telegram/i });
+
+    expect(tgLink).toHaveAttribute('href', 'https://t.me/marina_swim');
+
+    // Facebook пустой — не отображается
+    expect(screen.queryByRole('link', { name: /facebook/i })).not.toBeInTheDocument();
+  });
 });

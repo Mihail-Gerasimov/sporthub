@@ -1,14 +1,16 @@
 import Link from 'next/link';
 
 import { Badge, Card, Rating } from '@/components/ui';
-import { cn, formatCityDisplay, formatPrice } from '@/lib/utils';
-import type { Club, Sport } from '@/types';
+import { buildDictMap, cn, formatCityDisplay, formatPrice } from '@/lib/utils';
+import type { Club, Sport, Tag } from '@/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 type ClubCardProps = {
   club: Club;
   sports: ClubCardSport[];
+  /** Справочник тегов для резолвинга tagIds → имена */
+  tags?: Tag[];
   highlighted?: boolean;
   variant?: 'default' | 'carousel';
 };
@@ -28,12 +30,19 @@ export function ClubCard({
   club,
   highlighted = false,
   sports,
+  tags = [],
   variant = 'default',
 }: ClubCardProps) {
   const isCarousel = variant === 'carousel';
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   const previewSports = clubSports.slice(0, isCarousel ? 2 : 3);
-  const previewTags = club.tagIds.slice(0, isCarousel ? 2 : 3);
+  const previewTagIds = club.tagIds.slice(0, isCarousel ? 2 : 3);
+  // Резолвинг tagIds → имена через справочник
+  const tagMap = buildDictMap(tags);
+  const previewTags = previewTagIds.map((id) => ({
+    id,
+    name: tagMap.get(id)?.name ?? `#${id}`,
+  }));
 
   return (
     <Link href={`/clubs/${club.slug}`} className="group block h-full w-full">
@@ -121,9 +130,9 @@ export function ClubCard({
               isCarousel && 'min-h-[5.5rem] content-start',
             )}
           >
-            {previewTags.map((id) => (
-              <Badge key={id} tone="outline">
-                {id}
+            {previewTags.map((tag) => (
+              <Badge key={tag.id} tone="outline">
+                {tag.name}
               </Badge>
             ))}
             {previewSports.map((sport) => (

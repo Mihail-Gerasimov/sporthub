@@ -26,13 +26,15 @@ import {
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Schedule, Specialty, Trainer, User } from '@/types';
 
 type AthleteProfilePageProps = {
   bookings?: Booking[];
   clubs?: Club[];
   reviews?: Review[];
   schedule?: Schedule[];
+  /** Справочник специализаций для отображения в избранных тренерах */
+  specialties?: Specialty[];
   trainers?: Trainer[];
   users?: User[];
 };
@@ -134,6 +136,7 @@ export function AthleteProfilePage({
   clubs = [],
   reviews = [],
   schedule = [],
+  specialties = [],
   trainers = [],
   users = [],
 }: AthleteProfilePageProps) {
@@ -451,6 +454,7 @@ export function AthleteProfilePage({
         <AthleteFavoritesSection
           favoriteClubs={favorites.clubs}
           favoriteTrainers={favorites.trainers}
+          specialties={specialties}
         />
 
         <AthleteFeedbackSettingsSection

@@ -52,6 +52,7 @@ const stubTrainer: TrainerDirectoryItem = {
   sportIds: [1],
   sports: [{ id: 1, name: 'Бокс', icon: '🥊' }],
   specialtyIds: [1],
+  specialtyNames: ['Подготовка к соревнованиям'],
   address: 'ул. Спартаковская, 10',
   coordinates: { lat: 55.75, lng: 37.62 },
   distanceKm: 3.0,

@@ -316,6 +316,36 @@ export function ClubDetailPageClient({
                   <p>{formatPhone(club.phone)}</p>
                   {club.email ? <p>{club.email}</p> : null}
                   {club.website ? <p>{club.website}</p> : null}
+                  {club.vk ? (
+                    <a
+                      href={club.vk}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      VK
+                    </a>
+                  ) : null}
+                  {club.telegram ? (
+                    <a
+                      href={club.telegram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      Telegram
+                    </a>
+                  ) : null}
+                  {club.facebook ? (
+                    <a
+                      href={club.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      Facebook
+                    </a>
+                  ) : null}
                 </div>
               </div>
               <div>

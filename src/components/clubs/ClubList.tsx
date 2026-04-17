@@ -1,6 +1,6 @@
 'use client';
 
-import type { Club, EntityId } from '@/types';
+import type { Club, EntityId, Tag } from '@/types';
 
 import { Badge, Card } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
@@ -10,6 +10,8 @@ import { useFilterStore } from '@/stores/useFilterStore';
 type ClubListProps = {
   clubs: Club[];
   sports: ClubListSport[];
+  /** Справочник тегов для резолвинга tagIds → имена в карточках */
+  tags?: Tag[];
   selectedClubId?: EntityId | null;
   embedded?: boolean;
 };
@@ -19,6 +21,7 @@ export function ClubList({
   embedded = false,
   selectedClubId = null,
   sports,
+  tags = [],
 }: ClubListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
@@ -30,6 +33,7 @@ export function ClubList({
     selectedCity,
     selectedSportId,
     sports,
+    tags,
   });
 
   const content =
@@ -41,6 +45,7 @@ export function ClubList({
             club={club}
             highlighted={selectedClubId === club.id}
             sports={sports}
+            tags={tags}
           />
         ))}
       </div>

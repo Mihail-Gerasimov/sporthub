@@ -1,18 +1,23 @@
 import { Badge, Card } from '@/components/ui';
-import { formatCityDisplay } from '@/lib/utils';
+import { buildDictMap, formatCityDisplay } from '@/lib/utils';
 
 import type { AthleteFavoriteTrainer } from '@/components/profile/athlete-favorites';
-import type { Club } from '@/types';
+import type { Club, Specialty } from '@/types';
 
 type AthleteFavoritesSectionProps = {
   favoriteClubs: Club[];
   favoriteTrainers: AthleteFavoriteTrainer[];
+  /** Справочник специализаций для резолвинга specialtyIds → имена */
+  specialties?: Specialty[];
 };
 
 export function AthleteFavoritesSection({
   favoriteClubs,
   favoriteTrainers,
+  specialties = [],
 }: AthleteFavoritesSectionProps) {
+  // Справочник для O(1) lookup specialtyId → name
+  const specialtyMap = buildDictMap(specialties);
   const hasFavorites = favoriteClubs.length > 0 || favoriteTrainers.length > 0;
 
   return (
@@ -78,7 +83,9 @@ export function AthleteFavoritesSection({
                       {trainer.bio}
                     </p>
                     <p className="mt-4 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      {trainer.specialtyIds.join(' • ')}
+                      {trainer.specialtyIds
+                        .map((id) => specialtyMap.get(id)?.name ?? `#${id}`)
+                        .join(' · ')}
                     </p>
                   </div>
                 ))}

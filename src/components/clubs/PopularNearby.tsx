@@ -6,7 +6,7 @@ import { ClubCard } from '@/components/clubs/ClubCard';
 import { PopularTrainers } from '@/components/trainers';
 import { Badge, Button, Card } from '@/components/ui';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport } from '@/types';
+import type { Club, Sport, Tag } from '@/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers';
 
@@ -15,6 +15,8 @@ type PopularNearbySport = Pick<Sport, 'id' | 'name' | 'icon'>;
 type PopularNearbyProps = {
   clubs: Club[];
   sports: PopularNearbySport[];
+  /** Справочник тегов для резолвинга tagIds → имена в карточках */
+  tags?: Tag[];
   trainers: TrainerDirectoryItem[];
 };
 
@@ -34,7 +36,7 @@ function sortByPopularity(clubs: Club[]): Club[] {
   });
 }
 
-export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
+export function PopularNearby({ clubs, sports, tags = [], trainers }: PopularNearbyProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
   const popularClubs = sortByPopularity(clubs).slice(0, 6);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -116,7 +118,7 @@ export function PopularNearby({ clubs, sports, trainers }: PopularNearbyProps) {
                     key={club.id}
                     className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
                   >
-                    <ClubCard club={club} sports={sports} variant="carousel" />
+                    <ClubCard club={club} sports={sports} tags={tags} variant="carousel" />
                   </div>
                 ))}
               </div>

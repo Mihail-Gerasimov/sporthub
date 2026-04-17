@@ -1,10 +1,13 @@
-import type { Club, EntityId, Sport } from '@/types';
+import { resolveNames } from '@/lib/utils';
+import type { Club, EntityId, Sport, Tag } from '@/types';
 
 export type ClubListSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 type FilterClubsOptions = {
   clubs: Club[];
   sports: ClubListSport[];
+  /** Справочник тегов для резолвинга tagIds → имена в поиске */
+  tags?: Tag[];
   searchQuery: string;
   selectedSportId: EntityId | null;
   /** Фильтр по городу (case-insensitive). Пустая строка — без фильтра. */
@@ -21,6 +24,7 @@ export function filterClubs({
   selectedCity = '',
   selectedSportId,
   sports,
+  tags = [],
 }: FilterClubsOptions): Club[] {
   const normalizedSearch = normalize(searchQuery);
   const normalizedCity = normalize(selectedCity);
@@ -34,7 +38,7 @@ export function filterClubs({
       club.name,
       club.shortDescription,
       club.description,
-      club.tagIds.join(' '),
+      resolveNames(club.tagIds, tags).join(' '),
       sports
         .filter((sport) => club.sportIds.includes(sport.id))
         .map((sport) => sport.name)

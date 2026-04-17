@@ -2,11 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ClubCard } from '@/components/clubs/ClubCard';
-import type { Club, Sport } from '@/types';
+import type { Club, Sport, Tag } from '@/types';
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [
   { id: 3, name: 'Плавание', icon: '🏊' },
   { id: 8, name: 'Пилатес', icon: '🤸' },
+];
+
+const tags: Tag[] = [
+  { id: 1, name: 'Бассейн', createdAt: '2026-01-01T00:00:00.000Z' },
+  { id: 2, name: 'Групповые', createdAt: '2026-01-01T00:00:00.000Z' },
+  { id: 3, name: 'Детские секции', createdAt: '2026-01-01T00:00:00.000Z' },
 ];
 
 const club: Club = {
@@ -35,12 +41,27 @@ const club: Club = {
 
 describe('ClubCard', () => {
   it('сохраняет компактную плашку фото даже при выделении карточки на карте', () => {
-    render(<ClubCard club={club} highlighted sports={sports} />);
+    render(<ClubCard club={club} highlighted sports={sports} tags={tags} />);
 
     const mediaPreviewPill = screen.getByTestId('club-card-media-pill');
 
     expect(screen.getByText('Выбрано на карте')).toBeInTheDocument();
     expect(mediaPreviewPill.className).toContain('whitespace-nowrap');
     expect(mediaPreviewPill.className).toContain('shrink-0');
+  });
+
+  it('отображает имена тегов вместо id (Step 23.10)', () => {
+    render(<ClubCard club={club} sports={sports} tags={tags} />);
+
+    expect(screen.getByText('Бассейн')).toBeInTheDocument();
+    expect(screen.getByText('Групповые')).toBeInTheDocument();
+    expect(screen.getByText('Детские секции')).toBeInTheDocument();
+  });
+
+  it('показывает fallback для неизвестного tagId', () => {
+    const clubWithUnknownTag = { ...club, tagIds: [999] };
+    render(<ClubCard club={clubWithUnknownTag} sports={sports} tags={tags} />);
+
+    expect(screen.getByText('#999')).toBeInTheDocument();
   });
 });

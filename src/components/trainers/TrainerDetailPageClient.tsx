@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
+import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
 
@@ -328,6 +328,48 @@ export function TrainerDetailPageClient({
                 <p className="mt-3 text-2xl font-semibold text-ink">{offerings.length}</p>
               </div>
             </div>
+
+            {/* Блок контактов тренера (Step 23.10) */}
+            {(trainer.phone || trainer.vk || trainer.telegram || trainer.facebook) && (
+              <div className="rounded-card border border-line bg-canvas p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Контакты
+                </p>
+                <div className="mt-3 space-y-2 text-sm leading-relaxed text-ink">
+                  {trainer.phone ? <p>{formatPhone(trainer.phone)}</p> : null}
+                  {trainer.vk ? (
+                    <a
+                      href={trainer.vk}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      VK
+                    </a>
+                  ) : null}
+                  {trainer.telegram ? (
+                    <a
+                      href={trainer.telegram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      Telegram
+                    </a>
+                  ) : null}
+                  {trainer.facebook ? (
+                    <a
+                      href={trainer.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-accent-strong hover:underline"
+                    >
+                      Facebook
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Hero — gradient cover с инициалами */}

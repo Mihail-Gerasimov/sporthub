@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { appendCity, createClubPublication, getClubs, getUserById } from '@/lib/db';
+import { appendCity, createClubPublication, getClubs, getTags, getUserById } from '@/lib/db';
 import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
 import { logAction } from '@/lib/logAction';
 import { publishClubSchema } from '@/lib/schemas/publish';
+import { resolveNames } from '@/lib/utils';
 
 const clubsQuerySchema = z.object({
   sportId: z.preprocess((value) => {
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
 
     if (search !== undefined) {
       const normalizedSearch = search.toLowerCase();
+      // Загружаем справочник тегов для резолвинга tagIds → имена в поисковом индексе
+      const tags = await getTags();
 
       clubs = clubs.filter((club) => {
         const searchIndex = [
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
           club.shortDescription,
           club.description,
           club.address,
-          ...club.tagIds.map(String),
+          ...resolveNames(club.tagIds, tags),
         ]
           .join(' ')
           .toLowerCase();

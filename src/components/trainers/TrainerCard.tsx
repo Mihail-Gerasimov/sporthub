@@ -19,7 +19,7 @@ export function TrainerCard({
 }: TrainerCardProps) {
   const isCarousel = variant === 'carousel';
   const previewSports = trainer.sports.slice(0, isCarousel ? 2 : 3);
-  const previewSpecialties = trainer.specialtyIds.slice(0, isCarousel ? 2 : 3);
+  const previewSpecialties = trainer.specialtyNames.slice(0, isCarousel ? 2 : 3);
   const nextSlotLabel =
     trainer.nextSlotDate && trainer.nextSlotStartTime
       ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
@@ -152,9 +152,9 @@ export function TrainerCard({
 
           {/* Сильные стороны */}
           <div className={cn('flex flex-wrap gap-2', isCarousel && 'min-h-[5.5rem] content-start')}>
-            {previewSpecialties.map((id) => (
-              <Badge key={id} tone="outline">
-                {id}
+            {previewSpecialties.map((name) => (
+              <Badge key={name} tone="outline">
+                {name}
               </Badge>
             ))}
             {previewSports.map((sport) => (

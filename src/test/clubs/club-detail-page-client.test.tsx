@@ -322,4 +322,37 @@ describe('ClubDetailPageClient', () => {
       '/trainers/marina-sokolova',
     );
   });
+
+  it('отображает соцсети в блоке контактов, если заполнены (Step 23.10)', () => {
+    const clubWithSocials: Club = {
+      ...club,
+      vk: 'https://vk.com/volna',
+      telegram: 'https://t.me/volna',
+      facebook: '',
+    };
+
+    render(
+      <ClubDetailPageClient
+        amenities={amenities}
+        club={clubWithSocials}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        specialties={specialties}
+        sports={sports}
+        tags={tags}
+        trainers={trainers}
+      />,
+    );
+
+    const vkLink = screen.getByRole('link', { name: /vk/i });
+
+    expect(vkLink).toHaveAttribute('href', 'https://vk.com/volna');
+
+    const tgLink = screen.getByRole('link', { name: /telegram/i });
+
+    expect(tgLink).toHaveAttribute('href', 'https://t.me/volna');
+    // facebook пустой — не должен отображаться
+    expect(screen.queryByRole('link', { name: /facebook/i })).not.toBeInTheDocument();
+  });
 });

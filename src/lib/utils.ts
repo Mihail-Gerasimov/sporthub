@@ -1,6 +1,19 @@
 import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@/lib/constants';
 import type { Booking, Coordinates, EntityId, Schedule, Trainer } from '@/types';
 
+// --- Хелперы для резолвинга EntityId[] → display names (Step 23.10) ---
+
+/** Строит Map<id, T> из массива объектов с полем id — O(1) lookup */
+export function buildDictMap<T extends { id: EntityId }>(items: T[]): Map<EntityId, T> {
+  return new Map(items.map((item) => [item.id, item]));
+}
+
+/** Резолвит массив EntityId в массив имён по справочнику. Неизвестные id пропускаются. */
+export function resolveNames(ids: EntityId[], dict: { id: EntityId; name: string }[]): string[] {
+  const map = buildDictMap(dict);
+  return ids.map((id) => map.get(id)?.name).filter((name): name is string => name !== undefined);
+}
+
 type ClassNameValue = string | false | null | undefined;
 
 export function cn(...values: ClassNameValue[]): string {

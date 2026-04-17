@@ -13,6 +13,7 @@ const trainer: TrainerDirectoryItem = {
   avatarUrl: '/images/trainers/marina.jpg',
   experienceYears: 9,
   specialtyIds: [1],
+  specialtyNames: ['Подготовка к соревнованиям'],
   rating: 4.9,
   reviewCount: 28,
   priceFrom: 1400,
@@ -52,5 +53,17 @@ describe('TrainerCard', () => {
       'href',
       '/booking/1',
     );
+  });
+
+  it('отображает имена специализаций вместо id (Step 23.10)', () => {
+    const trainerWithNames: TrainerDirectoryItem = {
+      ...trainer,
+      specialtyIds: [1, 2],
+      specialtyNames: ['Подготовка к соревнованиям', 'Реабилитация'],
+    };
+    render(<TrainerCard trainer={trainerWithNames} />);
+
+    expect(screen.getByText('Подготовка к соревнованиям')).toBeInTheDocument();
+    expect(screen.getByText('Реабилитация')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { APP_LIMITS, DEFAULT_CITY } from '@/lib/constants';
+import { resolveNames } from '@/lib/utils';
 import type {
   Club,
   Coordinates,
@@ -6,6 +7,7 @@ import type {
   Offering,
   OfferingFormat,
   Schedule,
+  Specialty,
   Sport,
   Trainer,
 } from '@/types';
@@ -20,6 +22,8 @@ export type TrainerDirectoryItem = {
   avatarUrl: string;
   experienceYears: number;
   specialtyIds: EntityId[];
+  /** Display-имена специализаций, резолвленные из справочника */
+  specialtyNames: string[];
   rating: number;
   reviewCount: number;
   priceFrom: number;
@@ -62,6 +66,8 @@ type BuildTrainerDirectoryInput = {
   clubs: Club[];
   offerings: Offering[];
   schedule: Schedule[];
+  /** Справочник специализаций для резолвинга specialtyIds → имена */
+  specialties?: Specialty[];
   sports: TrainerPreviewSport[];
   trainers: Trainer[];
 };
@@ -80,6 +86,7 @@ export function buildTrainerDirectory({
   clubs,
   offerings,
   schedule,
+  specialties = [],
   sports,
   trainers,
 }: BuildTrainerDirectoryInput): TrainerDirectoryItem[] {
@@ -136,10 +143,13 @@ export function buildTrainerDirectory({
       const venueName = venueClub?.name ?? null;
       const venueLabel = venueName ?? address;
 
+      // Резолвим имена специализаций из справочника
+      const specialtyNames = resolveNames(trainer.specialtyIds, specialties);
+
       const searchText = [
         trainer.name,
         trainer.bio,
-        trainer.specialtyIds.join(' '),
+        specialtyNames.join(' '),
         sportsForTrainer.map((sport) => sport.name).join(' '),
         offeringsForTrainer
           .map((offering) => `${offering.title} ${offering.description}`)
@@ -159,6 +169,7 @@ export function buildTrainerDirectory({
           avatarUrl: trainer.avatarUrl,
           experienceYears: trainer.experienceYears,
           specialtyIds: trainer.specialtyIds,
+          specialtyNames,
           rating: trainer.rating,
           reviewCount: trainer.reviewCount,
           priceFrom: trainer.priceFrom,

@@ -75,6 +75,7 @@ function makeTrainer(overrides: Partial<TrainerDirectoryItem> = {}): TrainerDire
     avatarUrl: '',
     experienceYears: 5,
     specialtyIds: [],
+    specialtyNames: [],
     rating: 4.0,
     reviewCount: 5,
     priceFrom: 1000,

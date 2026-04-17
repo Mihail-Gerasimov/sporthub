@@ -7,21 +7,32 @@ import { PopularNearby } from '@/components/clubs';
 import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
-import { getClubs, getOfferings, getSchedule, getSports, getTrainers } from '@/lib/db';
+import {
+  getClubs,
+  getOfferings,
+  getSchedule,
+  getSpecialties,
+  getSports,
+  getTags,
+  getTrainers,
+} from '@/lib/db';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
 // Отключаем статическую оптимизацию, чтобы витрина обновлялась после изменений публикаций.
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const [clubs, clubSchedule, offerings, sports, trainerSchedule, trainers] = await Promise.all([
-    getClubs(),
-    getSchedule(),
-    getOfferings(),
-    getSports(),
-    getSchedule({ ownerType: 'trainer' }),
-    getTrainers(),
-  ]);
+  const [clubs, clubSchedule, offerings, specialties, sports, tags, trainerSchedule, trainers] =
+    await Promise.all([
+      getClubs(),
+      getSchedule(),
+      getOfferings(),
+      getSpecialties(),
+      getSports(),
+      getTags(),
+      getSchedule({ ownerType: 'trainer' }),
+      getTrainers(),
+    ]);
   const todayDateKey = getDateKeyInTimeZone();
   const upcomingSessions = getUpcomingSessions({
     clubs,
@@ -37,6 +48,7 @@ export default async function Home() {
     clubs,
     offerings,
     schedule: trainerSchedule,
+    specialties,
     sports: searchFilterSports,
     trainers,
   });
@@ -216,9 +228,15 @@ export default async function Home() {
         <CatalogResultsSection
           clubs={clubs}
           sports={searchFilterSports}
+          tags={tags}
           trainers={trainerDirectory}
         />
-        <PopularNearby clubs={clubs} sports={searchFilterSports} trainers={trainerDirectory} />
+        <PopularNearby
+          clubs={clubs}
+          sports={searchFilterSports}
+          tags={tags}
+          trainers={trainerDirectory}
+        />
         <UpcomingSessions
           dateLabel={upcomingSessionsLabel}
           sessions={upcomingSessions}
