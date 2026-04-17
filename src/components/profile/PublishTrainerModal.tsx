@@ -8,7 +8,9 @@ import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
-import { Chip, Input, Select } from '@/components/ui';
+import { TagSelector } from '@/components/profile/TagSelector';
+import type { TagSelectorItem } from '@/components/profile/TagSelector';
+import { Input, Select } from '@/components/ui';
 import { DEFAULT_CITY } from '@/lib/constants';
 import type { TrainerFormState } from '@/lib/schemas/publish';
 
@@ -18,36 +20,7 @@ type ClubOption = {
   name: string;
 };
 
-// --- Справочники для выбора (id из JSON-коллекций) ---
-
-const SPORT_OPTIONS = [
-  { id: 1, name: 'Йога' },
-  { id: 2, name: 'Бокс' },
-  { id: 3, name: 'Плавание' },
-  { id: 4, name: 'Кроссфит' },
-  { id: 5, name: 'Танцы' },
-  { id: 7, name: 'Единоборства' },
-  { id: 8, name: 'Пилатес' },
-];
-
-const SPECIALTY_OPTIONS = [
-  { id: 1, name: 'Подготовка к соревнованиям' },
-  { id: 2, name: 'Реабилитация' },
-  { id: 3, name: 'Детские группы' },
-  { id: 4, name: 'Похудение' },
-  { id: 5, name: 'Набор мышечной массы' },
-  { id: 6, name: 'Растяжка и гибкость' },
-  { id: 7, name: 'Постановка техники' },
-  { id: 10, name: 'Силовые тренировки' },
-];
-
-const WORK_FORMAT_OPTIONS = [
-  { id: 1, name: 'В зале' },
-  { id: 2, name: 'На выезде' },
-  { id: 3, name: 'Онлайн' },
-  { id: 4, name: 'На открытом воздухе' },
-];
-
+/** Доступные форматы предоставляемой услуги (не TagSelector — 3 чипа, одиночный выбор) */
 const AVAILABLE_OFFERING_FORMATS = ['Индивидуальная', 'Групповая', 'Мини-группа'];
 
 /** Маска телефона: +7 (XXX) XXX-XX-XX */
@@ -120,6 +93,12 @@ type PublishTrainerModalProps = {
   mode?: PublishModalMode;
   entityId?: number | null;
   initialData?: TrainerFormState | null;
+  /** Справочник видов спорта (из SSR) */
+  sports?: TagSelectorItem[];
+  /** Справочник специализаций (из SSR) */
+  specialties?: TagSelectorItem[];
+  /** Справочник форматов работы (из SSR) */
+  workFormats?: TagSelectorItem[];
 };
 
 type PublishTrainerApiErrorBody = {
@@ -160,6 +139,9 @@ function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: 
     bio: form.bio,
     experience: form.experience,
     phone: form.phone,
+    vk: form.vk,
+    telegram: form.telegram,
+    facebook: form.facebook,
     sportIds: form.sportIds,
     specialtyIds: form.specialtyIds,
     workFormatIds: form.workFormatIds,
@@ -209,6 +191,9 @@ export function PublishTrainerModal({
   mode = 'create',
   entityId = null,
   initialData,
+  sports = [],
+  specialties = [],
+  workFormats = [],
 }: PublishTrainerModalProps) {
   const isEditMode = mode === 'edit';
   const [form, setForm] = useState<TrainerFormState>(() => resolveInitialState(mode, initialData));
@@ -318,15 +303,6 @@ export function PublishTrainerModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Toggle числового id в массиве (specialtyIds, sportIds, workFormatIds)
-  function toggleIdItem(field: 'specialtyIds' | 'sportIds' | 'workFormatIds', id: number) {
-    setForm((prev) => {
-      const current = prev[field];
-      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
-      return { ...prev, [field]: next };
-    });
-  }
-
   return (
     <PublishModalShell
       open={open}
@@ -398,7 +374,7 @@ export function PublishTrainerModal({
               />
             </div>
 
-            {/* Краткое описание — textarea */}
+            {/* О себе — textarea */}
             <div className="flex flex-col gap-2">
               <label htmlFor="trainer-bio" className="text-sm font-semibold text-ink">
                 О себе
@@ -416,28 +392,16 @@ export function PublishTrainerModal({
               {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Опыт (лет)"
-                type="number"
-                placeholder="5"
-                value={form.experience}
-                error={errors.experience}
-                onChange={(e) => {
-                  updateField('experience', e.target.value);
-                }}
-              />
-              <Input
-                label="Телефон"
-                type="tel"
-                placeholder="+7 (999) 123-45-67"
-                value={form.phone}
-                error={errors.phone}
-                onChange={(e) => {
-                  updateField('phone', applyPhoneMask(e.target.value));
-                }}
-              />
-            </div>
+            <Input
+              label="Опыт (лет)"
+              type="number"
+              placeholder="5"
+              value={form.experience}
+              error={errors.experience}
+              onChange={(e) => {
+                updateField('experience', e.target.value);
+              }}
+            />
           </div>
         </section>
 
@@ -473,72 +437,46 @@ export function PublishTrainerModal({
 
         <hr className="border-line" />
 
-        {/* Секция 3: Специализация */}
+        {/* Секция 3: Специализация — TagSelector для sports, specialties, workFormats */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Специализация</h3>
           <div className="mt-4 flex flex-col gap-4">
-            {/* Виды спорта — chips (multi-select) */}
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Виды спорта</p>
-              <div className="flex flex-wrap gap-2">
-                {SPORT_OPTIONS.map((s) => (
-                  <Chip
-                    key={s.id}
-                    active={form.sportIds.includes(s.id)}
-                    onClick={() => {
-                      toggleIdItem('sportIds', s.id);
-                    }}
-                  >
-                    {s.name}
-                  </Chip>
-                ))}
-              </div>
-              {errors.sportIds ? (
-                <p className="mt-1 text-xs text-red-500">{errors.sportIds}</p>
-              ) : null}
-            </div>
+            <TagSelector
+              label="Виды спорта"
+              items={sports}
+              selectedIds={form.sportIds}
+              onChange={(ids) => {
+                setForm((prev) => ({ ...prev, sportIds: ids }));
+              }}
+              placeholder="Поиск вида спорта..."
+            />
+            {errors.sportIds ? <p className="text-xs text-red-500">{errors.sportIds}</p> : null}
 
-            {/* Тип — chips (переименовано из «Специализации») */}
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Тип</p>
-              <div className="flex flex-wrap gap-2">
-                {SPECIALTY_OPTIONS.map((spec) => (
-                  <Chip
-                    key={spec.id}
-                    active={form.specialtyIds.includes(spec.id)}
-                    onClick={() => {
-                      toggleIdItem('specialtyIds', spec.id);
-                    }}
-                  >
-                    {spec.name}
-                  </Chip>
-                ))}
-              </div>
-              {errors.specialtyIds ? (
-                <p className="mt-1 text-xs text-red-500">{errors.specialtyIds}</p>
-              ) : null}
-            </div>
+            <TagSelector
+              label="Специализации"
+              items={specialties}
+              selectedIds={form.specialtyIds}
+              onChange={(ids) => {
+                setForm((prev) => ({ ...prev, specialtyIds: ids }));
+              }}
+              placeholder="Поиск специализации..."
+            />
+            {errors.specialtyIds ? (
+              <p className="text-xs text-red-500">{errors.specialtyIds}</p>
+            ) : null}
 
-            {/* Формат работы — chips */}
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Формат работы</p>
-              <div className="flex flex-wrap gap-2">
-                {WORK_FORMAT_OPTIONS.map((wf) => (
-                  <Chip
-                    key={wf.id}
-                    active={form.workFormatIds.includes(wf.id)}
-                    onClick={() => {
-                      toggleIdItem('workFormatIds', wf.id);
-                    }}
-                  >
-                    {wf.name}
-                  </Chip>
-                ))}
-              </div>
-              {errors.workFormatIds ? (
-                <p className="mt-1 text-xs text-red-500">{errors.workFormatIds}</p>
-              ) : null}
-            </div>
+            <TagSelector
+              label="Формат работы"
+              items={workFormats}
+              selectedIds={form.workFormatIds}
+              onChange={(ids) => {
+                setForm((prev) => ({ ...prev, workFormatIds: ids }));
+              }}
+              placeholder="Поиск формата..."
+            />
+            {errors.workFormatIds ? (
+              <p className="text-xs text-red-500">{errors.workFormatIds}</p>
+            ) : null}
           </div>
         </section>
 
@@ -574,7 +512,52 @@ export function PublishTrainerModal({
 
         <hr className="border-line" />
 
-        {/* Секция 5: Услуга тренера */}
+        {/* Секция 5: Контактная информация */}
+        <section>
+          <h3 className="font-display text-lg font-semibold text-ink">Контактная информация</h3>
+          <div className="mt-4 flex flex-col gap-4">
+            <Input
+              label="Телефон"
+              type="tel"
+              placeholder="+7 (999) 123-45-67"
+              value={form.phone}
+              error={errors.phone}
+              onChange={(e) => {
+                updateField('phone', applyPhoneMask(e.target.value));
+              }}
+            />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Input
+                label="ВКонтакте"
+                placeholder="vk.com/your-profile или username"
+                value={form.vk}
+                onChange={(e) => {
+                  updateField('vk', e.target.value);
+                }}
+              />
+              <Input
+                label="Telegram"
+                placeholder="@username или ссылка"
+                value={form.telegram}
+                onChange={(e) => {
+                  updateField('telegram', e.target.value);
+                }}
+              />
+              <Input
+                label="Facebook"
+                placeholder="Ссылка на страницу"
+                value={form.facebook}
+                onChange={(e) => {
+                  updateField('facebook', e.target.value);
+                }}
+              />
+            </div>
+          </div>
+        </section>
+
+        <hr className="border-line" />
+
+        {/* Секция 6: Услуга тренера */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Услуга тренера</h3>
           <p className="mt-1 text-sm text-muted">Опишите первую услугу, которую предлагаете</p>
@@ -609,20 +592,27 @@ export function PublishTrainerModal({
               ) : null}
             </div>
 
-            {/* Формат услуги — chips */}
+            {/* Формат предоставляемой услуги — 3 чипа, одиночный выбор */}
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-ink">Формат услуги</p>
+              <p className="text-sm font-semibold text-ink">Формат предоставляемой услуги</p>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_OFFERING_FORMATS.map((f) => (
-                  <Chip
+                  <button
                     key={f}
-                    active={form.offeringFormat === f}
+                    type="button"
+                    aria-pressed={form.offeringFormat === f}
+                    className={`rounded-pill border px-4 py-2 text-sm font-semibold transition-colors ${
+                      form.offeringFormat === f
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
+                    }`}
                     onClick={() => {
-                      updateField('offeringFormat', f);
+                      // Клик по выбранному — снимает выбор
+                      updateField('offeringFormat', form.offeringFormat === f ? '' : f);
                     }}
                   >
                     {f}
-                  </Chip>
+                  </button>
                 ))}
               </div>
               {errors.offeringFormat ? (
@@ -632,7 +622,7 @@ export function PublishTrainerModal({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="Цена (₽)"
+                label="Укажите цену данной услуги"
                 type="number"
                 placeholder="2000"
                 value={form.offeringPrice}
@@ -668,10 +658,12 @@ export function PublishTrainerModal({
 
         <hr className="border-line" />
 
-        {/* Секция 6: Стартовое расписание */}
+        {/* Секция 7: Добавить тренировочный слот */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Стартовое расписание</h3>
-          <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 слотов расписания.</p>
+          <h3 className="font-display text-lg font-semibold text-ink">
+            Добавить тренировочный слот
+          </h3>
+          <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 тренировочных слотов</p>
           <div className="mt-3">
             <ScheduleSlotsEditor
               slots={form.scheduleSlots}
@@ -687,7 +679,7 @@ export function PublishTrainerModal({
 
         <hr className="border-line" />
 
-        {/* Секция 7: Дополнительные возможности */}
+        {/* Секция 8: Дополнительные возможности */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">
             Дополнительные возможности
@@ -697,7 +689,6 @@ export function PublishTrainerModal({
               'Видео / галерея',
               'Образование / сертификаты',
               'Достижения',
-              'Соцсети / сайт',
               'Работа в нескольких клубах',
               'Пакеты / абонементы',
               'Онлайн-формат',

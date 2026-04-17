@@ -1,9 +1,28 @@
-// Тесты модалки публикации тренера (Step 13.4 / Step 14.6)
+// Тесты модалки публикации тренера (Step 13.4 / Step 14.6 / Step 23.8)
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
+import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import type { TrainerFormState } from '@/lib/schemas/publish';
+
+/** Мок-справочники для TagSelector */
+const mockSports: TagSelectorItem[] = [
+  { id: 1, name: 'Йога' },
+  { id: 2, name: 'Бокс' },
+  { id: 3, name: 'Плавание' },
+];
+
+const mockSpecialties: TagSelectorItem[] = [
+  { id: 1, name: 'Подготовка к соревнованиям' },
+  { id: 2, name: 'Реабилитация' },
+];
+
+const mockWorkFormats: TagSelectorItem[] = [
+  { id: 1, name: 'В зале' },
+  { id: 2, name: 'На выезде' },
+  { id: 3, name: 'Онлайн' },
+];
 
 describe('PublishTrainerModal', () => {
   const fetchMock = vi.fn();
@@ -16,6 +35,9 @@ describe('PublishTrainerModal', () => {
       { id: 1, name: 'FitZone Studio' },
       { id: 2, name: 'PowerGym' },
     ],
+    sports: mockSports,
+    specialties: mockSpecialties,
+    workFormats: mockWorkFormats,
   };
   const editInitialData: TrainerFormState = {
     firstName: 'Марина',
@@ -69,6 +91,19 @@ describe('PublishTrainerModal', () => {
     });
   }
 
+  /** Заполняет TagSelector: находит контейнер по лейблу → клик «+ Добавить» → клик по option */
+  function selectTagSelectorItem(label: string, itemName: string) {
+    // TagSelector обёрнут в div.flex.flex-col.gap-2 с первым child — span с лейблом
+    const labelEl = screen.getByText(label);
+    const container = labelEl.closest('.flex.flex-col') ?? document.body;
+    const addButton = Array.from(container.querySelectorAll('button')).find(
+      (btn) => btn.textContent?.trim() === '+ Добавить',
+    );
+    if (addButton) fireEvent.click(addButton);
+    const option = screen.getByRole('option', { name: itemName });
+    fireEvent.click(option);
+  }
+
   function fillValidTrainerForm() {
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Александр' } });
     fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Иванов' } });
@@ -86,27 +121,31 @@ describe('PublishTrainerModal', () => {
     fireEvent.change(screen.getByLabelText('Телефон'), {
       target: { value: '+7 (846) 300-00-11' },
     });
-    // Выбор через Chip-кнопки (id-based multi-select)
-    fireEvent.click(screen.getByRole('button', { name: 'Бокс' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Подготовка к соревнованиям' }));
-    fireEvent.click(screen.getByRole('button', { name: 'В зале' }));
+    // Выбор через TagSelector
+    selectTagSelectorItem('Виды спорта', 'Бокс');
+    selectTagSelectorItem('Специализации', 'Подготовка к соревнованиям');
+    selectTagSelectorItem('Формат работы', 'В зале');
+    // Услуга тренера
     fireEvent.change(screen.getByLabelText('Название услуги'), {
       target: { value: 'Персональная тренировка' },
     });
     fireEvent.change(screen.getByLabelText('Описание услуги'), {
       target: { value: 'Индивидуальное занятие по технике, защите и работе на лапах.' },
     });
+    // Формат услуги — через aria-pressed button
     fireEvent.click(screen.getByRole('button', { name: 'Индивидуальная' }));
-
-    const priceInputs = screen.getAllByLabelText('Цена (₽)');
-    fireEvent.change(priceInputs[0], { target: { value: '2000' } });
+    // Цена и длительность
+    fireEvent.change(screen.getByLabelText('Укажите цену данной услуги'), {
+      target: { value: '2000' },
+    });
     fireEvent.change(screen.getByLabelText('Длительность (мин)'), {
       target: { value: '60' },
     });
     fireEvent.change(screen.getByLabelText('Укажите адрес проведения тренировки'), {
       target: { value: 'Зал №3' },
     });
-    fireEvent.change(screen.getByLabelText('Название занятия'), {
+    // Слот расписания
+    fireEvent.change(screen.getByLabelText('Укажите название тренировочного слота'), {
       target: { value: 'Утренняя тренировка' },
     });
     fireEvent.change(screen.getByLabelText('Дата'), {
@@ -118,11 +157,13 @@ describe('PublishTrainerModal', () => {
     fireEvent.change(screen.getByLabelText('Окончание'), {
       target: { value: '10:00' },
     });
-    fireEvent.change(priceInputs[1], { target: { value: '2000' } });
+    fireEvent.change(screen.getByLabelText('Укажите цену данной тренировки'), {
+      target: { value: '2000' },
+    });
     fireEvent.change(screen.getByLabelText('Кол-во мест'), {
       target: { value: '1' },
     });
-    fireEvent.change(screen.getByLabelText('Зал'), {
+    fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал единоборств' },
     });
     fireEvent.change(screen.getByLabelText('Направление'), {
@@ -152,7 +193,9 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
     expect(screen.getByLabelText('Имя')).toHaveValue('Марина');
     expect(screen.getByLabelText('Фамилия')).toHaveValue('Соколова');
-    expect(screen.getByLabelText('Название занятия')).toHaveValue('Техника кроля');
+    expect(screen.getByLabelText('Укажите название тренировочного слота')).toHaveValue(
+      'Техника кроля',
+    );
   });
 
   it('рендерит секцию «Основная информация» с полями firstName, lastName, city, address, bio, experience', () => {
@@ -173,12 +216,14 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
-  it('рендерит секцию «Специализация» с chips для sport, тип, workFormat', () => {
+  it('рендерит секцию «Специализация» с TagSelector для sport, специализация, workFormat', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     expect(screen.getByText('Специализация')).toBeInTheDocument();
     expect(screen.getByText('Виды спорта')).toBeInTheDocument();
-    expect(screen.getByText('Тип')).toBeInTheDocument();
+    // «Специализация» как лейбл TagSelector (внутри секции «Специализация»)
+    const specSection = screen.getByText('Специализация').closest('section');
+    expect(specSection).not.toBeNull();
     expect(screen.getByText('Формат работы')).toBeInTheDocument();
   });
 
@@ -188,7 +233,6 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Связать себя с клубом')).toBeInTheDocument();
     expect(screen.getByText(/Вы можете указать спортивный клуб/)).toBeInTheDocument();
     const selects = screen.getAllByRole('combobox');
-    // clubId — единственный combobox (sport/specialty/workFormat стали chips)
     expect(selects.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -204,21 +248,60 @@ describe('PublishTrainerModal', () => {
     expect(clubSelect).toHaveTextContent('PowerGym');
   });
 
-  it('рендерит секцию «Услуга тренера» с полями offering', () => {
+  it('рендерит секцию «Контактная информация» с phone, vk, telegram, facebook', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    expect(screen.getByText('Контактная информация')).toBeInTheDocument();
+    expect(screen.getByLabelText('Телефон')).toBeInTheDocument();
+    expect(screen.getByLabelText('ВКонтакте')).toBeInTheDocument();
+    expect(screen.getByLabelText('Telegram')).toBeInTheDocument();
+    expect(screen.getByLabelText('Facebook')).toBeInTheDocument();
+  });
+
+  it('рендерит секцию «Услуга тренера» с обновлёнными лейблами', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
     expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
     expect(screen.getByLabelText('Название услуги')).toBeInTheDocument();
     expect(screen.getByLabelText('Описание услуги')).toBeInTheDocument();
-    expect(screen.getAllByLabelText('Цена (₽)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Формат предоставляемой услуги')).toBeInTheDocument();
+    expect(screen.getByLabelText('Укажите цену данной услуги')).toBeInTheDocument();
     expect(screen.getByLabelText('Длительность (мин)')).toBeInTheDocument();
     expect(screen.getByLabelText('Укажите адрес проведения тренировки')).toBeInTheDocument();
   });
 
-  it('рендерит секции «Стартовое расписание» и «Дополнительные возможности»', () => {
+  it('«Формат предоставляемой услуги» — 3 кнопки с aria-pressed, одиночный выбор', () => {
     render(<PublishTrainerModal {...defaultProps} />);
 
-    expect(screen.getByText('Стартовое расписание')).toBeInTheDocument();
+    const individualBtn = screen.getByRole('button', { name: 'Индивидуальная' });
+    const gruppoBtn = screen.getByRole('button', { name: 'Групповая' });
+    const miniBtn = screen.getByRole('button', { name: 'Мини-группа' });
+
+    // Все изначально не выбраны
+    expect(individualBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(gruppoBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(miniBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // Клик по «Индивидуальная» — выбирает
+    fireEvent.click(individualBtn);
+    expect(individualBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(gruppoBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // Клик по «Групповая» — переключает
+    fireEvent.click(gruppoBtn);
+    expect(gruppoBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(individualBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // Клик по выбранному — снимает выбор
+    fireEvent.click(gruppoBtn);
+    expect(gruppoBtn).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('рендерит секции «Добавить тренировочный слот» и «Дополнительные возможности»', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    expect(screen.getByText('Добавить тренировочный слот')).toBeInTheDocument();
+    expect(screen.getByText('Добавьте от 1 до 3 тренировочных слотов')).toBeInTheDocument();
     expect(screen.getByText('Дополнительные возможности')).toBeInTheDocument();
   });
 
@@ -254,7 +337,40 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByText('Проверьте обязательные поля формы')).toBeInTheDocument();
   });
 
-  it('отправляет реальный payload и закрывает модалку после успешного submit', async () => {
+  it('phone пустой — валидация блокирует submit', () => {
+    render(<PublishTrainerModal {...defaultProps} />);
+
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Тест' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    expect(screen.getByText('Укажите телефон')).toBeInTheDocument();
+  });
+
+  it('vk/telegram/facebook пустые — submit проходит', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse({ success: true, data: { trainer: { id: 11 } } }, 201),
+    );
+
+    render(<PublishTrainerModal {...defaultProps} />);
+    fillValidTrainerForm();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(requestInit?.body));
+
+    expect(payload.vk).toBe('');
+    expect(payload.telegram).toBe('');
+    expect(payload.facebook).toBe('');
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onSuccess).toHaveBeenCalledWith('Тренер опубликован. Кабинет обновлён.');
+  });
+
+  it('отправляет реальный payload с id из TagSelector', async () => {
     fetchMock.mockResolvedValue(
       createJsonResponse(
         {
@@ -281,12 +397,14 @@ describe('PublishTrainerModal', () => {
       firstName: 'Александр',
       lastName: 'Иванов',
       userId: 2,
-      workFormatIds: [1],
+      sportIds: [2], // Бокс
+      specialtyIds: [1], // Подготовка к соревнованиям
+      workFormatIds: [1], // В зале
+      offeringFormat: 'Индивидуальная',
     });
     expect(payload).not.toHaveProperty('certificates');
     expect(payload).not.toHaveProperty('gallery');
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
-    expect(defaultProps.onSuccess).toHaveBeenCalledWith('Тренер опубликован. Кабинет обновлён.');
   });
 
   it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
@@ -402,6 +520,8 @@ describe('PublishTrainerModal', () => {
 
     expect(screen.getByLabelText('Имя')).toHaveValue('Анна');
     expect(screen.getByLabelText('Фамилия')).toHaveValue('Миронова');
-    expect(screen.getByLabelText('Название занятия')).toHaveValue('Мягкая растяжка в воде');
+    expect(screen.getByLabelText('Укажите название тренировочного слота')).toHaveValue(
+      'Мягкая растяжка в воде',
+    );
   });
 });

@@ -34,13 +34,13 @@ describe('ScheduleSlotsEditor', () => {
   it('рендерит поля слота: название, дата, время начала, время окончания, цена, кол-во мест, локация, направление', () => {
     render(<ScheduleSlotsEditor {...defaultProps} />);
 
-    expect(screen.getByLabelText('Название занятия')).toBeInTheDocument();
+    expect(screen.getByLabelText('Укажите название тренировочного слота')).toBeInTheDocument();
     expect(screen.getByLabelText('Дата')).toBeInTheDocument();
     expect(screen.getByLabelText('Начало')).toBeInTheDocument();
     expect(screen.getByLabelText('Окончание')).toBeInTheDocument();
-    expect(screen.getByLabelText('Цена (₽)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Укажите цену данной тренировки')).toBeInTheDocument();
     expect(screen.getByLabelText('Кол-во мест')).toBeInTheDocument();
-    expect(screen.getByLabelText('Зал')).toBeInTheDocument();
+    expect(screen.getByLabelText('Место проведения')).toBeInTheDocument();
     expect(screen.getByLabelText('Направление')).toBeInTheDocument();
   });
 

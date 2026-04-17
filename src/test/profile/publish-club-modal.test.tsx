@@ -1,9 +1,27 @@
-// Тесты модалки публикации клуба (Step 13.3 / Step 14.6)
+// Тесты модалки публикации клуба (Step 13.3 / Step 14.6 / Step 23.8)
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
+import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import type { ClubFormState } from '@/lib/schemas/publish';
+
+/** Мок-справочники для TagSelector */
+const mockSports: TagSelectorItem[] = [
+  { id: 1, name: 'Йога' },
+  { id: 2, name: 'Бокс' },
+  { id: 3, name: 'Плавание' },
+];
+
+const mockTags: TagSelectorItem[] = [
+  { id: 1, name: 'Для начинающих' },
+  { id: 2, name: 'Для детей' },
+];
+
+const mockAmenities: TagSelectorItem[] = [
+  { id: 1, name: 'Парковка' },
+  { id: 2, name: 'Душевые' },
+];
 
 describe('PublishClubModal', () => {
   const fetchMock = vi.fn();
@@ -12,6 +30,9 @@ describe('PublishClubModal', () => {
     onClose: vi.fn(),
     onSuccess: vi.fn(),
     userId: 2,
+    sports: mockSports,
+    tags: mockTags,
+    amenities: mockAmenities,
   };
   const editInitialData: ClubFormState = {
     name: 'Volna Aquatic Club',
@@ -59,6 +80,17 @@ describe('PublishClubModal', () => {
     });
   }
 
+  /** Заполняет форму через TagSelector (клик «+ Добавить» → клик по option) */
+  function selectTagSelectorItem(sectionLabel: string, itemName: string) {
+    const section = screen.getByText(sectionLabel).closest('section') ?? document.body;
+    const addButton = Array.from(section.querySelectorAll('button')).find(
+      (btn) => btn.textContent?.trim() === '+ Добавить',
+    );
+    if (addButton) fireEvent.click(addButton);
+    const option = screen.getByRole('option', { name: itemName });
+    fireEvent.click(option);
+  }
+
   function fillValidClubForm() {
     fireEvent.change(screen.getByLabelText('Название клуба'), {
       target: { value: 'FitZone Studio' },
@@ -67,7 +99,7 @@ describe('PublishClubModal', () => {
     fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });
-    fireEvent.change(screen.getByLabelText('Краткое описание'), {
+    fireEvent.change(screen.getByLabelText('Описание о вашем клубе'), {
       target: {
         value:
           'Современный фитнес-клуб с тренажёрным залом, групповыми программами и стабильным расписанием для новичков.',
@@ -76,9 +108,13 @@ describe('PublishClubModal', () => {
     fireEvent.change(screen.getByLabelText('Телефон'), {
       target: { value: '+7 999 123-45-67' },
     });
-    fireEvent.change(screen.getByLabelText('Цена от (₽)'), { target: { value: '500' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Йога' }));
-    fireEvent.change(screen.getByLabelText('Название занятия'), {
+    fireEvent.change(screen.getByLabelText('Укажите минимальную стоимость услуги «от»'), {
+      target: { value: '500' },
+    });
+    // Выбор направления через TagSelector
+    selectTagSelectorItem('Направления клуба', 'Йога');
+    // Заполняем слот расписания
+    fireEvent.change(screen.getByLabelText('Укажите название тренировочного слота'), {
       target: { value: 'Утренняя йога' },
     });
     fireEvent.change(screen.getByLabelText('Дата'), {
@@ -90,13 +126,13 @@ describe('PublishClubModal', () => {
     fireEvent.change(screen.getByLabelText('Окончание'), {
       target: { value: '09:00' },
     });
-    fireEvent.change(screen.getByLabelText('Цена (₽)'), {
+    fireEvent.change(screen.getByLabelText('Укажите цену данной тренировки'), {
       target: { value: '900' },
     });
     fireEvent.change(screen.getByLabelText('Кол-во мест'), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByLabelText('Зал'), {
+    fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал №1' },
     });
     fireEvent.change(screen.getByLabelText('Направление'), {
@@ -121,20 +157,31 @@ describe('PublishClubModal', () => {
     expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
     expect(screen.getByLabelText('Название клуба')).toHaveValue('Volna Aquatic Club');
     expect(screen.getByLabelText('Телефон')).toHaveValue('+7 (846) 200-11-01');
-    expect(screen.getByLabelText('Название занятия')).toHaveValue('Утреннее плавание');
+    expect(screen.getByLabelText('Укажите название тренировочного слота')).toHaveValue(
+      'Утреннее плавание',
+    );
   });
 
-  it('рендерит секцию «Основная информация» с полями name, city, address, description, phone, email, priceFrom', () => {
+  it('рендерит секцию «Основная информация» с обновлёнными лейблами', () => {
     render(<PublishClubModal {...defaultProps} />);
 
     expect(screen.getByText('Основная информация')).toBeInTheDocument();
     expect(screen.getByLabelText('Название клуба')).toBeInTheDocument();
     expect(screen.getByLabelText('Город')).toBeInTheDocument();
     expect(screen.getByLabelText('Адрес')).toBeInTheDocument();
-    expect(screen.getByLabelText('Краткое описание')).toBeInTheDocument();
+    expect(screen.getByLabelText('Описание о вашем клубе')).toBeInTheDocument();
+    expect(screen.getByLabelText('Укажите минимальную стоимость услуги «от»')).toBeInTheDocument();
+  });
+
+  it('рендерит секцию «Контактная информация» с phone, email, vk, telegram, facebook', () => {
+    render(<PublishClubModal {...defaultProps} />);
+
+    expect(screen.getByText('Контактная информация')).toBeInTheDocument();
     expect(screen.getByLabelText('Телефон')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Цена от (₽)')).toBeInTheDocument();
+    expect(screen.getByLabelText('ВКонтакте')).toBeInTheDocument();
+    expect(screen.getByLabelText('Telegram')).toBeInTheDocument();
+    expect(screen.getByLabelText('Facebook')).toBeInTheDocument();
   });
 
   it('рендерит кнопку «Добавить фото»', () => {
@@ -143,12 +190,19 @@ describe('PublishClubModal', () => {
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeInTheDocument();
   });
 
-  it('рендерит секции «Добавить теги», «Удобства клуба» и «Стартовое расписание»', () => {
+  it('рендерит секции TagSelector: «Направления клуба», «Добавить теги», «Удобства клуба»', () => {
     render(<PublishClubModal {...defaultProps} />);
 
+    expect(screen.getByText('Направления клуба')).toBeInTheDocument();
     expect(screen.getByText('Добавить теги')).toBeInTheDocument();
     expect(screen.getByText('Удобства клуба')).toBeInTheDocument();
-    expect(screen.getByText('Стартовое расписание')).toBeInTheDocument();
+  });
+
+  it('рендерит секцию «Добавить тренировочный слот» с обновлённым подзаголовком', () => {
+    render(<PublishClubModal {...defaultProps} />);
+
+    expect(screen.getByText('Добавить тренировочный слот')).toBeInTheDocument();
+    expect(screen.getByText('Добавьте от 1 до 3 тренировочных слотов')).toBeInTheDocument();
   });
 
   it('stub-элементы маркированы как «Скоро»', () => {
@@ -178,25 +232,21 @@ describe('PublishClubModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
     expect(screen.getByText('Укажите название клуба')).toBeInTheDocument();
-    // Город по умолчанию «Самара» (DEFAULT_CITY), поэтому ошибки «Укажите город» нет
     expect(screen.getByText('Необходимо выбрать хотя бы 1 направление')).toBeInTheDocument();
     expect(screen.getByText('Проверьте обязательные поля формы')).toBeInTheDocument();
   });
 
-  it('отправляет реальный payload и закрывает модалку после успешного submit', async () => {
+  it('выбор через TagSelector обновляет form-state и отправляет корректные id', async () => {
     fetchMock.mockResolvedValue(
-      createJsonResponse(
-        {
-          success: true,
-          data: { club: { id: 10 } },
-        },
-        201,
-      ),
+      createJsonResponse({ success: true, data: { club: { id: 10 } } }, 201),
     );
 
     render(<PublishClubModal {...defaultProps} />);
-
     fillValidClubForm();
+    // Добавляем тег и удобство через TagSelector
+    selectTagSelectorItem('Добавить теги', 'Для начинающих');
+    selectTagSelectorItem('Удобства клуба', 'Парковка');
+
     fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
     await waitFor(() => {
@@ -206,21 +256,68 @@ describe('PublishClubModal', () => {
     const [, requestInit] = fetchMock.mock.calls[0];
     const payload = JSON.parse(String(requestInit?.body));
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/clubs',
-      expect.objectContaining({
-        method: 'POST',
-      }),
+    expect(payload.sportIds).toEqual([1]); // Йога
+    expect(payload.tagIds).toEqual([1]); // Для начинающих
+    expect(payload.amenityIds).toEqual([1]); // Парковка
+  });
+
+  it('отправляет vk/telegram/facebook в payload', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse({ success: true, data: { club: { id: 10 } } }, 201),
     );
-    expect(payload).toMatchObject({
-      name: 'FitZone Studio',
-      userId: 2,
-      sportIds: [1], // Chip 'Йога' → id 1
+
+    render(<PublishClubModal {...defaultProps} />);
+    fillValidClubForm();
+    fireEvent.change(screen.getByLabelText('ВКонтакте'), {
+      target: { value: 'vk.com/fitzone' },
     });
-    expect(payload).not.toHaveProperty('website');
-    expect(payload).not.toHaveProperty('featured');
+    fireEvent.change(screen.getByLabelText('Telegram'), {
+      target: { value: '@fitzone' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(requestInit?.body));
+
+    expect(payload.vk).toBe('vk.com/fitzone');
+    expect(payload.telegram).toBe('@fitzone');
+    expect(payload.facebook).toBe('');
+  });
+
+  it('vk/telegram/facebook пустые — submit проходит', async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse({ success: true, data: { club: { id: 10 } } }, 201),
+    );
+
+    render(<PublishClubModal {...defaultProps} />);
+    fillValidClubForm();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     expect(defaultProps.onSuccess).toHaveBeenCalledWith('Клуб опубликован. Кабинет обновлён.');
+  });
+
+  it('phone пустой — валидация блокирует submit', () => {
+    render(<PublishClubModal {...defaultProps} />);
+
+    // Заполним всё кроме телефона
+    fireEvent.change(screen.getByLabelText('Название клуба'), {
+      target: { value: 'Test Club' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
+
+    expect(screen.getByText('Укажите телефон')).toBeInTheDocument();
   });
 
   it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {

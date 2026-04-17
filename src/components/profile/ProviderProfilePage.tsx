@@ -23,15 +23,34 @@ import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/rever
 import type { ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Booking, Club, EntityId, Offering, Review, Schedule, Trainer, User } from '@/types';
+import type {
+  Amenity,
+  Booking,
+  Club,
+  EntityId,
+  Offering,
+  Review,
+  Schedule,
+  Specialty,
+  Sport,
+  Tag,
+  Trainer,
+  User,
+  WorkFormat,
+} from '@/types';
 
 type ProviderProfilePageProps = {
+  amenities?: Amenity[];
   bookings?: Booking[];
   clubs?: Club[];
   reviews?: Review[];
   schedule?: Schedule[];
+  specialties?: Specialty[];
+  sports?: Sport[];
+  tags?: Tag[];
   trainers?: Trainer[];
   users?: User[];
+  workFormats?: WorkFormat[];
 };
 
 type PublishModalMode = 'create' | 'edit';
@@ -111,12 +130,17 @@ function ProviderAccessDeniedState() {
 }
 
 export function ProviderProfilePage({
+  amenities = [],
   bookings = [],
   clubs = [],
   reviews = [],
   schedule = [],
+  specialties = [],
+  sports = [],
+  tags = [],
   trainers = [],
   users = [],
+  workFormats = [],
 }: ProviderProfilePageProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
@@ -537,6 +561,9 @@ export function ProviderProfilePage({
           mode={clubModalMode}
           entityId={clubEditEntityId}
           initialData={clubInitialData}
+          sports={sports}
+          tags={tags}
+          amenities={amenities}
         />
         <PublishTrainerModal
           open={isTrainerModalOpen}
@@ -549,6 +576,9 @@ export function ProviderProfilePage({
           mode={trainerModalMode}
           entityId={trainerEditEntityId}
           initialData={trainerInitialData}
+          sports={sports}
+          specialties={specialties}
+          workFormats={workFormats}
         />
       </div>
       {actionNotice ? <ActionNotice message={actionNotice} /> : null}

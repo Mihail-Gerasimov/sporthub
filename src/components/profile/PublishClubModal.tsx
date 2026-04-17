@@ -8,46 +8,11 @@ import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
-import { Chip, Input } from '@/components/ui';
+import { TagSelector } from '@/components/profile/TagSelector';
+import type { TagSelectorItem } from '@/components/profile/TagSelector';
+import { Input } from '@/components/ui';
 import { DEFAULT_CITY } from '@/lib/constants';
 import type { ClubFormState } from '@/lib/schemas/publish';
-
-// --- Справочники для выбора (id из JSON-коллекций) ---
-
-const SPORT_OPTIONS = [
-  { id: 1, name: 'Йога' },
-  { id: 2, name: 'Бокс' },
-  { id: 3, name: 'Плавание' },
-  { id: 4, name: 'Кроссфит' },
-  { id: 5, name: 'Танцы' },
-  { id: 6, name: 'Тренажёрный зал' },
-  { id: 7, name: 'Единоборства' },
-  { id: 8, name: 'Пилатес' },
-];
-
-const TAG_OPTIONS = [
-  { id: 1, name: 'Для начинающих' },
-  { id: 2, name: 'Для детей' },
-  { id: 3, name: 'Для продвинутых' },
-  { id: 4, name: 'Бассейн' },
-  { id: 5, name: 'Восстановление' },
-  { id: 6, name: 'Силовые' },
-  { id: 7, name: 'Кардио' },
-  { id: 13, name: 'Утренние группы' },
-  { id: 14, name: 'Вечерние группы' },
-];
-
-const AMENITY_OPTIONS = [
-  { id: 1, name: 'Парковка' },
-  { id: 2, name: 'Душевые' },
-  { id: 3, name: 'Раздевалки' },
-  { id: 4, name: 'Сауна' },
-  { id: 5, name: 'Бассейн 25 м' },
-  { id: 6, name: 'Кондиционер' },
-  { id: 7, name: 'Wi-Fi' },
-  { id: 10, name: 'Прокат инвентаря' },
-  { id: 12, name: 'Тренажёры' },
-];
 
 // --- Начальное состояние формы ---
 
@@ -119,6 +84,12 @@ type PublishClubModalProps = {
   mode?: PublishModalMode;
   entityId?: number | null;
   initialData?: ClubFormState | null;
+  /** Справочник видов спорта (из SSR) */
+  sports?: TagSelectorItem[];
+  /** Справочник тегов (из SSR) */
+  tags?: TagSelectorItem[];
+  /** Справочник удобств (из SSR) */
+  amenities?: TagSelectorItem[];
 };
 
 type PublishClubApiErrorBody = {
@@ -162,6 +133,9 @@ function buildClubPayload(form: ClubFormState, userId: number, entityId?: number
     sportIds: form.sportIds,
     tagIds: form.tagIds,
     amenityIds: form.amenityIds,
+    vk: form.vk,
+    telegram: form.telegram,
+    facebook: form.facebook,
     ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     scheduleSlots: form.scheduleSlots.map((slot) => {
       if (entityId === undefined) {
@@ -200,6 +174,9 @@ export function PublishClubModal({
   mode = 'create',
   entityId = null,
   initialData,
+  sports = [],
+  tags = [],
+  amenities = [],
 }: PublishClubModalProps) {
   const isEditMode = mode === 'edit';
   const [form, setForm] = useState<ClubFormState>(() => resolveInitialState(mode, initialData));
@@ -309,15 +286,6 @@ export function PublishClubModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Toggle числового id в массиве (sportIds, tagIds, amenityIds)
-  function toggleIdItem(field: 'sportIds' | 'tagIds' | 'amenityIds', id: number) {
-    setForm((prev) => {
-      const current = prev[field];
-      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
-      return { ...prev, [field]: next };
-    });
-  }
-
   return (
     <PublishModalShell
       open={open}
@@ -379,14 +347,14 @@ export function PublishClubModal({
               />
             </div>
 
-            {/* Краткое описание — textarea */}
+            {/* Описание о клубе — textarea */}
             <div className="flex flex-col gap-2">
               <label htmlFor="club-description" className="text-sm font-semibold text-ink">
-                Краткое описание
+                Описание о вашем клубе
               </label>
               <textarea
                 id="club-description"
-                placeholder="Расскажите о клубе в 2-3 предложениях"
+                placeholder="Расскажите о вашем клубе"
                 rows={3}
                 className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.description ? 'border-red-400' : 'border-line'}`}
                 value={form.description}
@@ -399,32 +367,9 @@ export function PublishClubModal({
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Телефон"
-                type="tel"
-                placeholder="+7 (999) 123-45-67"
-                value={form.phone}
-                error={errors.phone}
-                onChange={(e) => {
-                  updateField('phone', applyPhoneMask(e.target.value));
-                }}
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="info@club.ru"
-                value={form.email}
-                error={errors.email}
-                onChange={(e) => {
-                  updateField('email', e.target.value);
-                }}
-              />
-            </div>
-
-            {/* Цена от — перенесена из «Теги и удобства» */}
+            {/* Цена от */}
             <Input
-              label="Цена от (₽)"
+              label="Укажите минимальную стоимость услуги «от»"
               type="number"
               placeholder="500"
               value={form.priceFrom}
@@ -468,72 +413,115 @@ export function PublishClubModal({
 
         <hr className="border-line" />
 
-        {/* Секция 3: Направления клуба */}
+        {/* Секция 3: Направления клуба — TagSelector */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Направления клуба</h3>
-          <p className="mt-1 text-sm text-muted">Выберите минимум 1 направление</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {SPORT_OPTIONS.map((s) => (
-              <Chip
-                key={s.id}
-                active={form.sportIds.includes(s.id)}
-                onClick={() => {
-                  toggleIdItem('sportIds', s.id);
-                }}
-              >
-                {s.name}
-              </Chip>
-            ))}
-          </div>
+          <TagSelector
+            label="Направления клуба"
+            items={sports}
+            selectedIds={form.sportIds}
+            onChange={(ids) => {
+              setForm((prev) => ({ ...prev, sportIds: ids }));
+            }}
+            placeholder="Поиск направления..."
+          />
           {errors.sportIds ? <p className="mt-2 text-xs text-red-500">{errors.sportIds}</p> : null}
         </section>
 
         <hr className="border-line" />
 
-        {/* Секция 4: Добавить теги */}
+        {/* Секция 4: Добавить теги — TagSelector */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Добавить теги</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {TAG_OPTIONS.map((t) => (
-              <Chip
-                key={t.id}
-                active={form.tagIds.includes(t.id)}
-                onClick={() => {
-                  toggleIdItem('tagIds', t.id);
+          <TagSelector
+            label="Добавить теги"
+            items={tags}
+            selectedIds={form.tagIds}
+            onChange={(ids) => {
+              setForm((prev) => ({ ...prev, tagIds: ids }));
+            }}
+            placeholder="Поиск тега..."
+          />
+        </section>
+
+        <hr className="border-line" />
+
+        {/* Секция 5: Удобства клуба — TagSelector */}
+        <section>
+          <TagSelector
+            label="Удобства клуба"
+            items={amenities}
+            selectedIds={form.amenityIds}
+            onChange={(ids) => {
+              setForm((prev) => ({ ...prev, amenityIds: ids }));
+            }}
+            placeholder="Поиск удобства..."
+          />
+        </section>
+
+        <hr className="border-line" />
+
+        {/* Секция 6: Контактная информация */}
+        <section>
+          <h3 className="font-display text-lg font-semibold text-ink">Контактная информация</h3>
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Телефон"
+                type="tel"
+                placeholder="+7 (999) 123-45-67"
+                value={form.phone}
+                error={errors.phone}
+                onChange={(e) => {
+                  updateField('phone', applyPhoneMask(e.target.value));
                 }}
-              >
-                {t.name}
-              </Chip>
-            ))}
+              />
+              <Input
+                label="Email"
+                type="email"
+                placeholder="info@club.ru"
+                value={form.email}
+                error={errors.email}
+                onChange={(e) => {
+                  updateField('email', e.target.value);
+                }}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Input
+                label="ВКонтакте"
+                placeholder="vk.com/your-club или username"
+                value={form.vk}
+                onChange={(e) => {
+                  updateField('vk', e.target.value);
+                }}
+              />
+              <Input
+                label="Telegram"
+                placeholder="@yourclub или ссылка"
+                value={form.telegram}
+                onChange={(e) => {
+                  updateField('telegram', e.target.value);
+                }}
+              />
+              <Input
+                label="Facebook"
+                placeholder="Ссылка на страницу"
+                value={form.facebook}
+                onChange={(e) => {
+                  updateField('facebook', e.target.value);
+                }}
+              />
+            </div>
           </div>
         </section>
 
         <hr className="border-line" />
 
-        {/* Секция 5: Удобства клуба */}
+        {/* Секция 7: Добавить тренировочный слот */}
         <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Удобства клуба</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {AMENITY_OPTIONS.map((a) => (
-              <Chip
-                key={a.id}
-                active={form.amenityIds.includes(a.id)}
-                onClick={() => {
-                  toggleIdItem('amenityIds', a.id);
-                }}
-              >
-                {a.name}
-              </Chip>
-            ))}
-          </div>
-        </section>
-
-        <hr className="border-line" />
-
-        {/* Секция 6: Стартовое расписание */}
-        <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Стартовое расписание</h3>
-          <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 слотов расписания.</p>
+          <h3 className="font-display text-lg font-semibold text-ink">
+            Добавить тренировочный слот
+          </h3>
+          <p className="mt-1 text-sm text-muted">Добавьте от 1 до 3 тренировочных слотов</p>
           <div className="mt-3">
             <ScheduleSlotsEditor
               slots={form.scheduleSlots}
@@ -549,14 +537,13 @@ export function PublishClubModal({
 
         <hr className="border-line" />
 
-        {/* Секция 7: Дополнительные возможности */}
+        {/* Секция 8: Дополнительные возможности */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">
             Дополнительные возможности
           </h3>
           <div className="mt-3 flex flex-col gap-2">
             {[
-              'Сайт / соцсети',
               'Полное описание',
               'Featured / промо',
               'Расширенный блок тренеров',

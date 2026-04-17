@@ -68,8 +68,8 @@ export function ScheduleSlotsEditor({ slots, onChange, maxSlots = 3 }: ScheduleS
           {/* Поля слота */}
           <div className="mt-3 flex flex-col gap-3">
             <Input
-              label="Название занятия"
-              placeholder="Утренняя йога"
+              label="Укажите название тренировочного слота"
+              placeholder="Например: Тренировка по боксу"
               value={slot.title}
               onChange={(e) => {
                 updateSlotField(index, 'title', e.target.value);
@@ -105,7 +105,7 @@ export function ScheduleSlotsEditor({ slots, onChange, maxSlots = 3 }: ScheduleS
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
-                label="Цена (₽)"
+                label="Укажите цену данной тренировки"
                 type="number"
                 placeholder="500"
                 value={slot.price}
@@ -126,8 +126,8 @@ export function ScheduleSlotsEditor({ slots, onChange, maxSlots = 3 }: ScheduleS
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
-                label="Зал"
-                placeholder="Зал №1"
+                label="Место проведения"
+                placeholder="Например: Зал №2, Большой ринг, Татами 1"
                 value={slot.location}
                 onChange={(e) => {
                   updateSlotField(index, 'location', e.target.value);

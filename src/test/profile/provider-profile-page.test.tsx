@@ -483,7 +483,22 @@ describe('ProviderProfilePage', () => {
       user: { id: MVP_PROVIDER_USER_ID, name: 'Марина', email: 'm@b.ru' },
     });
 
-    render(<ProviderProfilePage />);
+    render(
+      <ProviderProfilePage
+        sports={[
+          {
+            id: 1,
+            createdAt: '',
+            name: 'Йога',
+            slug: 'yoga',
+            description: '',
+            icon: '',
+            imageUrl: '',
+            isPopular: true,
+          },
+        ]}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /Опубликовать клуб/ }));
     fireEvent.change(screen.getByLabelText('Название клуба'), {
@@ -493,7 +508,7 @@ describe('ProviderProfilePage', () => {
     fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });
-    fireEvent.change(screen.getByLabelText('Краткое описание'), {
+    fireEvent.change(screen.getByLabelText('Описание о вашем клубе'), {
       target: {
         value:
           'Современный фитнес-клуб с тренажёрным залом, групповыми программами и стабильным расписанием для новичков.',
@@ -502,9 +517,18 @@ describe('ProviderProfilePage', () => {
     fireEvent.change(screen.getByLabelText('Телефон'), {
       target: { value: '+7 999 123-45-67' },
     });
-    fireEvent.change(screen.getByLabelText('Цена от (₽)'), { target: { value: '500' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Йога' }));
-    fireEvent.change(screen.getByLabelText('Название занятия'), {
+    fireEvent.change(screen.getByLabelText('Укажите минимальную стоимость услуги «от»'), {
+      target: { value: '500' },
+    });
+    // Выбор направления через TagSelector: «+ Добавить» → option
+    const sportSection = screen.getByText('Направления клуба').closest('section')!;
+    const addBtn = Array.from(sportSection.querySelectorAll('button')).find(
+      (btn) => btn.textContent?.trim() === '+ Добавить',
+    )!;
+    fireEvent.click(addBtn);
+    fireEvent.click(screen.getByRole('option', { name: 'Йога' }));
+
+    fireEvent.change(screen.getByLabelText('Укажите название тренировочного слота'), {
       target: { value: 'Утренняя йога' },
     });
     fireEvent.change(screen.getByLabelText('Дата'), {
@@ -516,13 +540,13 @@ describe('ProviderProfilePage', () => {
     fireEvent.change(screen.getByLabelText('Окончание'), {
       target: { value: '09:00' },
     });
-    fireEvent.change(screen.getByLabelText('Цена (₽)'), {
+    fireEvent.change(screen.getByLabelText('Укажите цену данной тренировки'), {
       target: { value: '900' },
     });
     fireEvent.change(screen.getByLabelText('Кол-во мест'), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByLabelText('Зал'), {
+    fireEvent.change(screen.getByLabelText('Место проведения'), {
       target: { value: 'Зал №1' },
     });
     fireEvent.change(screen.getByLabelText('Направление'), {
