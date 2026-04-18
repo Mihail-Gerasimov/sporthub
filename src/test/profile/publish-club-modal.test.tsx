@@ -95,7 +95,10 @@ describe('PublishClubModal', () => {
     fireEvent.change(screen.getByLabelText('Название клуба'), {
       target: { value: 'FitZone Studio' },
     });
+    // CitySuggestInput обновляет form.city только на blur (или при выборе подсказки),
+    // поэтому после change эмулируем blur, чтобы родитель получил значение.
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.blur(screen.getByLabelText('Город'));
     fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });

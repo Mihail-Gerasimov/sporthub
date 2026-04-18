@@ -40,11 +40,21 @@ export function CitySuggestInput({
   // Ref на контейнер для обработки blur
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { suggestions, loading } = useSuggest({
+  const {
+    suggestions,
+    loading,
+    error: suggestError,
+    hasSearched,
+  } = useSuggest({
     text: inputValue,
     types: 'locality',
     enabled: showDropdown,
   });
+
+  // Флаг видимости dropdown-панели: показываем любое состояние (loading/error/empty/list),
+  // если пользователь активно ищет (≥2 символа и dropdown открыт).
+  const dropdownOpen = showDropdown && inputValue.trim().length >= 2;
+  const hasNoResults = hasSearched && !loading && !suggestError && suggestions.length === 0;
 
   /** Обработка ввода в поле */
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -107,53 +117,72 @@ export function CitySuggestInput({
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <Input
-        label={label}
-        placeholder="Начните вводить название города"
-        value={inputValue}
-        error={error}
-        onChange={handleInputChange}
-        onFocus={() => {
-          if (inputValue.trim().length >= 2) {
-            setShowDropdown(true);
-          }
-        }}
-        onBlur={handleBlur}
-        autoComplete="off"
-      />
+    // Внешний div — грид-элемент (не relative), спокойно тянется по высоте
+    // вместе с соседями. Dropdown-позиционирование вынесено во внутренний .relative,
+    // который оборачивает только Input — так top-full всегда прилипает к нижней
+    // границе поля ввода, а не растянутой грид-ячейки.
+    <div ref={containerRef}>
+      <div className="relative">
+        <Input
+          label={label}
+          placeholder="Начните вводить название города"
+          value={inputValue}
+          error={error}
+          onChange={handleInputChange}
+          onFocus={() => {
+            if (inputValue.trim().length >= 2) {
+              setShowDropdown(true);
+            }
+          }}
+          onBlur={handleBlur}
+          autoComplete="off"
+        />
 
-      {/* Индикатор загрузки */}
-      {loading && showDropdown && <p className="mt-1 text-xs text-muted">Поиск...</p>}
+        {/* Dropdown подсказок с видимыми состояниями loading/error/empty */}
+        {dropdownOpen && (
+          <div
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-card border border-line bg-panel shadow-card"
+            role="listbox"
+          >
+            {loading && suggestions.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted">Поиск...</p>
+            ) : null}
 
-      {/* Dropdown подсказок */}
-      {showDropdown && suggestions.length > 0 && (
-        <ul
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-card border border-line bg-panel shadow-lg"
-          role="listbox"
-        >
-          {suggestions.map((item, index) => (
-            <li key={`${item.value}-${index}`}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                className="flex w-full flex-col px-3 py-2 text-left text-sm transition-colors hover:bg-surface"
-                onMouseDown={(e) => {
-                  // Предотвращаем blur до обработки клика
-                  e.preventDefault();
-                }}
-                onClick={() => {
-                  handleSelect(item.title, item.subtitle);
-                }}
-              >
-                <span className="font-medium text-ink">{item.title}</span>
-                {item.subtitle ? <span className="text-xs text-muted">{item.subtitle}</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            {suggestError ? <p className="px-3 py-2 text-sm text-red-500">{suggestError}</p> : null}
+
+            {hasNoResults ? (
+              <p className="px-3 py-2 text-sm text-muted">Ничего не найдено</p>
+            ) : null}
+
+            {suggestions.length > 0 ? (
+              <ul>
+                {suggestions.map((item, index) => (
+                  <li key={`${item.value}-${index}`}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      className="flex w-full flex-col px-3 py-2 text-left text-sm transition-colors hover:bg-surface"
+                      onMouseDown={(e) => {
+                        // Предотвращаем blur до обработки клика
+                        e.preventDefault();
+                      }}
+                      onClick={() => {
+                        handleSelect(item.title, item.subtitle);
+                      }}
+                    >
+                      <span className="font-medium text-ink">{item.title}</span>
+                      {item.subtitle ? (
+                        <span className="text-xs text-muted">{item.subtitle}</span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

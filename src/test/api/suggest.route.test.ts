@@ -98,10 +98,14 @@ describe('POST /api/suggest', () => {
   it('маппит типы Yandex корректно', async () => {
     fetchSpy.mockResolvedValueOnce(
       makeYandexSuggestResponse([
-        { title: { text: 'ул. Ленина' }, tags: ['street'] },
-        { title: { text: 'ул. Ленина, 5' }, tags: ['house'] },
-        { title: { text: 'Парк' }, tags: ['toponym'] },
-        { title: { text: 'Самара' }, tags: ['locality'] },
+        { title: { text: 'ул. Ленина' }, subtitle: { text: 'Самара, Россия' }, tags: ['street'] },
+        {
+          title: { text: 'ул. Ленина, 5' },
+          subtitle: { text: 'Самара, Россия' },
+          tags: ['house'],
+        },
+        { title: { text: 'Парк' }, subtitle: { text: 'Самара, Россия' }, tags: ['toponym'] },
+        { title: { text: 'Самара' }, subtitle: { text: 'Россия' }, tags: ['locality'] },
       ]) as Response,
     );
 
@@ -201,6 +205,51 @@ describe('POST /api/suggest', () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.data.suggestions).toEqual([]);
+  });
+
+  it('отфильтровывает подсказки с явным маркером зарубежной страны (США, Украина и т.п.)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeYandexSuggestResponse([
+        // Российский город с региональным subtitle без слова «Россия» — должен пройти
+        {
+          title: { text: 'Самара' },
+          subtitle: { text: 'Самарская область' },
+          tags: ['locality'],
+        },
+        // Российский город вообще без subtitle — должен пройти
+        { title: { text: 'Москва' }, tags: ['locality'] },
+        // Российский город с явным «Россия» — тоже проходит
+        {
+          title: { text: 'Санкт-Петербург' },
+          subtitle: { text: 'Россия' },
+          tags: ['locality'],
+        },
+        // Зарубежный город — отсекается
+        {
+          title: { text: 'Сан-Франциско' },
+          subtitle: { text: 'Калифорния, США' },
+          tags: ['locality'],
+        },
+        // Украинский город — отсекается
+        {
+          title: { text: 'Киев' },
+          subtitle: { text: 'Украина' },
+          tags: ['locality'],
+        },
+      ]) as Response,
+    );
+
+    const request = makeRequest({ text: 'Са' });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.data.suggestions.map((s: { title: string }) => s.title)).toEqual([
+      'Самара',
+      'Москва',
+      'Санкт-Петербург',
+    ]);
   });
 
   it('корректно обрабатывает ограничение results', async () => {

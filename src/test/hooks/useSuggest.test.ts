@@ -206,4 +206,76 @@ describe('useSuggest', () => {
     const callBody = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
     expect(callBody.types).toBe('locality');
   });
+
+  it('выставляет hasSearched=true после успешного ответа', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeApiResponse([{ title: 'Самара', value: 'Самара', type: 'locality' }]) as Response,
+    );
+
+    const { result } = renderHook(() => useSuggest({ text: 'Самара' }));
+
+    expect(result.current.hasSearched).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(result.current.hasSearched).toBe(true);
+  });
+
+  it('hasSearched=true даже при пустом результате (для UI "Ничего не найдено")', async () => {
+    fetchSpy.mockResolvedValueOnce(makeApiResponse([]) as Response);
+
+    const { result } = renderHook(() => useSuggest({ text: 'zzzz' }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(result.current.hasSearched).toBe(true);
+    expect(result.current.suggestions).toEqual([]);
+  });
+
+  it('не делает повторный fetch при нестабильном boundedBy на том же text', async () => {
+    // Regression: boundedBy передавался как новый массив на каждый рендер родителя,
+    // из-за чего useCallback пересоздавался, effect перезапускался и abort отменял запрос.
+    fetchSpy.mockResolvedValue(
+      makeApiResponse([{ title: 'ул. Ленина', value: 'ул. Ленина', type: 'street' }]) as Response,
+    );
+
+    const { result, rerender } = renderHook(
+      ({ boundedBy }: { boundedBy: [[number, number], [number, number]] }) =>
+        useSuggest({ text: 'Ленина', boundedBy }),
+      {
+        initialProps: {
+          boundedBy: [
+            [1, 2],
+            [3, 4],
+          ] as [[number, number], [number, number]],
+        },
+      },
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(result.current.suggestions).toHaveLength(1);
+
+    // Перерендерим с новым ref на boundedBy — effect не должен перезапуститься
+    rerender({
+      boundedBy: [
+        [1, 2],
+        [3, 4],
+      ] as [[number, number], [number, number]],
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // Fetch по-прежнему вызван один раз (кэш не затронут, effect не перезапущен на том же text)
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
 });

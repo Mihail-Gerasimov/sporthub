@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.YANDEX_SUGGEST_API_KEY;
 
   if (!apiKey) {
+    console.error('[/api/suggest] YANDEX_SUGGEST_API_KEY is not set');
     return NextResponse.json(
       { success: false, error: 'API-ключ Yandex Geosuggest не настроен' },
       { status: 500 },
@@ -80,11 +81,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Формируем параметры запроса
+    // Формируем параметры запроса. lang в формате BCP-47 (ru_RU) —
+    // с просто 'ru' Yandex Geosuggest может вернуть меньше/пустых результатов.
     const params = new URLSearchParams({
       apikey: apiKey,
       text,
-      lang: 'ru',
+      lang: 'ru_RU',
       results: String(results ?? DEFAULT_RESULTS),
     });
 
@@ -101,13 +103,17 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
+    // Referer обязателен — ограничение ключа Яндекса по домену (см. /api/geocode).
+    // При server-to-server запросе заголовок не выставляется автоматически.
     const response = await fetch(`${SUGGEST_BASE_URL}?${params.toString()}`, {
       signal: controller.signal,
+      headers: { Referer: 'http://localhost' },
     });
 
     clearTimeout(timeout);
 
     if (response.status === 429) {
+      console.error('[/api/suggest] Yandex rate limit 429 for text:', text);
       return NextResponse.json(
         { success: false, error: 'Превышен лимит запросов к Yandex Geosuggest' },
         { status: 429 },
@@ -115,6 +121,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok) {
+      // Пытаемся достать тело ответа для диагностики, но не падаем если текста нет
+      let bodyText = '';
+      try {
+        bodyText = await response.text();
+      } catch {
+        // ignore — тело опционально, статуса достаточно для лога
+      }
+      console.error('[/api/suggest] Yandex non-OK', response.status, bodyText.slice(0, 300));
       return NextResponse.json(
         { success: false, error: 'Ошибка Yandex Geosuggest API' },
         { status: 502 },
@@ -141,9 +155,74 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // MVP только для России. Whitelist "subtitle должен содержать 'Россия'"
+    // слишком жёсткий: Яндекс для локальных русских городов часто отдаёт subtitle
+    // без страны («Самарская область») или вовсе пустой subtitle у столиц.
+    // Поэтому используем blacklist: пропускаем всё, кроме подсказок с явным
+    // маркером зарубежной страны в subtitle. Item без subtitle пропускаем.
+    const FOREIGN_MARKERS = [
+      'сша',
+      'usa',
+      'украина',
+      'беларусь',
+      'казахстан',
+      'узбекистан',
+      'грузия',
+      'армения',
+      'азербайджан',
+      'киргизия',
+      'таджикистан',
+      'молдова',
+      'латвия',
+      'литва',
+      'эстония',
+      'финляндия',
+      'польша',
+      'китай',
+      'монголия',
+      'турция',
+      'германия',
+      'испания',
+      'италия',
+      'франция',
+      'великобритания',
+      'япония',
+      'индия',
+      'канада',
+      'мексика',
+      'бразилия',
+      'аргентина',
+      'австралия',
+      'израиль',
+      'египет',
+      'оаэ',
+      'таиланд',
+      'вьетнам',
+      'швеция',
+      'норвегия',
+      'дания',
+      'нидерланды',
+      'бельгия',
+      'австрия',
+      'швейцария',
+      'чехия',
+      'венгрия',
+      'румыния',
+      'болгария',
+      'греция',
+      'португалия',
+      'ирландия',
+    ];
+
+    const russiaOnly = suggestions.filter((s) => {
+      if (!s.subtitle) return true;
+      const lower = s.subtitle.toLowerCase();
+      return !FOREIGN_MARKERS.some((m) => lower.includes(m));
+    });
+
     return NextResponse.json({
       success: true,
-      data: { suggestions },
+      data: { suggestions: russiaOnly },
     });
   } catch (error) {
     // Таймаут AbortController

@@ -504,7 +504,9 @@ describe('ProviderProfilePage', () => {
     fireEvent.change(screen.getByLabelText('Название клуба'), {
       target: { value: 'FitZone Studio' },
     });
+    // CitySuggestInput обновляет form.city только на blur.
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.blur(screen.getByLabelText('Город'));
     fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });

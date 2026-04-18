@@ -11,7 +11,6 @@ import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Input, Select } from '@/components/ui';
-import { DEFAULT_CITY } from '@/lib/constants';
 import type { TrainerFormState } from '@/lib/schemas/publish';
 
 /** Минимальная информация о клубе для select-привязки */
@@ -46,7 +45,7 @@ function createInitialState(): TrainerFormState {
   return {
     firstName: '',
     lastName: '',
-    city: DEFAULT_CITY,
+    city: '',
     address: '',
     bio: '',
     experience: '',

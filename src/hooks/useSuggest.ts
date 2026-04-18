@@ -1,10 +1,12 @@
 /**
  * Клиентский хук для работы с Yandex Geosuggest через /api/suggest.
  * Debounce 300ms, кэш последнего запроса, AbortController, gating по длине.
+ * types и boundedBy читаются через refs, чтобы нестабильные ref-ы в родителе
+ * не запускали главный effect на каждом рендере (иначе in-flight запрос отменяется).
  */
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { SuggestItem, SuggestItemType } from '@/app/api/suggest/route';
 
@@ -29,6 +31,8 @@ export interface UseSuggestResult {
   suggestions: SuggestItem[];
   loading: boolean;
   error: string | null;
+  /** true после первого успешного (или пустого) ответа от сервера — нужен UI для показа «Ничего не найдено» */
+  hasSearched: boolean;
 }
 
 export function useSuggest({
@@ -40,6 +44,7 @@ export function useSuggest({
   const [suggestions, setSuggestions] = useState<SuggestItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   // Кэш последнего успешного запроса
   const cacheRef = useRef<{ text: string; suggestions: SuggestItem[] } | null>(null);
@@ -47,15 +52,60 @@ export function useSuggest({
   // AbortController для отмены in-flight запросов
   const controllerRef = useRef<AbortController | null>(null);
 
-  const fetchSuggestions = useCallback(
-    async (query: string, signal: AbortSignal) => {
+  // Рефы на types и boundedBy — читаются внутри fetch, не участвуют в dep-ах effect
+  const typesRef = useRef(types);
+  const boundedByRef = useRef(boundedBy);
+
+  // Обновляем рефы при каждом рендере — их новое значение подхватится в следующем запросе
+  typesRef.current = types;
+  boundedByRef.current = boundedBy;
+
+  useEffect(() => {
+    // Отмена предыдущего in-flight запроса
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+
+    // Gating: хук выключен или текст слишком короткий
+    if (!enabled || text.trim().length < MIN_TEXT_LENGTH) {
+      setSuggestions([]);
+      setLoading(false);
+      setError(null);
+      setHasSearched(false);
+      return;
+    }
+
+    const trimmed = text.trim();
+
+    // Кэш: если текст совпадает с последним запросом — отдаём из кэша
+    if (cacheRef.current && cacheRef.current.text === trimmed) {
+      setSuggestions(cacheRef.current.suggestions);
+      setLoading(false);
+      setError(null);
+      setHasSearched(true);
+      return;
+    }
+
+    // Debounce
+    const timer = setTimeout(() => {
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      void fetchSuggestions(trimmed, controller.signal);
+    }, DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+    };
+
+    // Внутренний fetch — замыкается на актуальные рефы types/boundedBy,
+    // поэтому в deps effect не нужно их включать.
+    async function fetchSuggestions(query: string, signal: AbortSignal) {
       setLoading(true);
       setError(null);
 
       try {
         const payload: Record<string, unknown> = { text: query };
-        if (types) payload.types = types;
-        if (boundedBy) payload.boundedBy = boundedBy;
+        if (typesRef.current) payload.types = typesRef.current;
+        if (boundedByRef.current) payload.boundedBy = boundedByRef.current;
 
         const response = await fetch('/api/suggest', {
           method: 'POST',
@@ -74,56 +124,26 @@ export function useSuggest({
           const items: SuggestItem[] = data.data.suggestions;
           setSuggestions(items);
           cacheRef.current = { text: query, suggestions: items };
+          setHasSearched(true);
         } else {
           setError(data.error ?? 'Ошибка при получении подсказок');
           setSuggestions([]);
+          setHasSearched(true);
         }
-      } catch {
+      } catch (err) {
         if (signal.aborted) return;
+        // AbortError не считаем ошибкой пользователю
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         setError('Ошибка сети');
         setSuggestions([]);
+        setHasSearched(true);
       } finally {
         if (!signal.aborted) {
           setLoading(false);
         }
       }
-    },
-    [types, boundedBy],
-  );
-
-  useEffect(() => {
-    // Отмена предыдущего in-flight запроса
-    controllerRef.current?.abort();
-    controllerRef.current = null;
-
-    // Gating: хук выключен или текст слишком короткий
-    if (!enabled || text.trim().length < MIN_TEXT_LENGTH) {
-      setSuggestions([]);
-      setLoading(false);
-      setError(null);
-      return;
     }
-
-    const trimmed = text.trim();
-
-    // Кэш: если текст совпадает с последним запросом — отдаём из кэша
-    if (cacheRef.current && cacheRef.current.text === trimmed) {
-      setSuggestions(cacheRef.current.suggestions);
-      setLoading(false);
-      return;
-    }
-
-    // Debounce
-    const timer = setTimeout(() => {
-      const controller = new AbortController();
-      controllerRef.current = controller;
-      fetchSuggestions(trimmed, controller.signal);
-    }, DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [text, enabled, fetchSuggestions]);
+  }, [text, enabled]);
 
   // Очистка AbortController при размонтировании
   useEffect(() => {
@@ -132,5 +152,5 @@ export function useSuggest({
     };
   }, []);
 
-  return { suggestions, loading, error };
+  return { suggestions, loading, error, hasSearched };
 }

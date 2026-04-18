@@ -11,7 +11,6 @@ import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Input } from '@/components/ui';
-import { DEFAULT_CITY } from '@/lib/constants';
 import type { ClubFormState } from '@/lib/schemas/publish';
 
 // --- Начальное состояние формы ---
@@ -19,7 +18,7 @@ import type { ClubFormState } from '@/lib/schemas/publish';
 function createInitialState(): ClubFormState {
   return {
     name: '',
-    city: DEFAULT_CITY,
+    city: '',
     address: '',
     description: '',
     phone: '',

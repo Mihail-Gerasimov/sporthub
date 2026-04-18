@@ -46,12 +46,16 @@ export function AddressGeocoder({
   const boundedBy = cityCoordinates ? getCityBoundingBox(cityCoordinates) : undefined;
 
   // Автокомплит адреса через Yandex Geosuggest
-  const { suggestions } = useSuggest({
+  const { suggestions, loading, error, hasSearched } = useSuggest({
     text: address,
     types: 'geo',
     boundedBy,
     enabled: showDropdown && address.trim().length >= 2,
   });
+
+  // Видимость dropdown-панели — показываем любое состояние (loading/error/empty/list)
+  const dropdownOpen = showDropdown && address.trim().length >= 2;
+  const hasNoResults = hasSearched && !loading && !error && suggestions.length === 0;
 
   /** Сброс состояния геокодирования */
   function resetGeocode() {
@@ -140,26 +144,40 @@ export function AddressGeocoder({
           }}
         />
 
-        {/* Dropdown подсказок */}
-        {showDropdown && suggestions.length > 0 && (
-          <ul
+        {/* Dropdown подсказок с видимыми состояниями loading/error/empty */}
+        {dropdownOpen && (
+          <div
             role="listbox"
             className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-card border border-line bg-panel shadow-card"
           >
-            {suggestions.map((item) => (
-              <li
-                key={item.value}
-                role="option"
-                aria-selected={false}
-                className="cursor-pointer px-3 py-2 text-sm text-ink transition-colors hover:bg-canvas"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSelectSuggestion(item.title)}
-              >
-                <span className="font-medium">{item.title}</span>
-                {item.subtitle && <span className="ml-1 text-muted">{item.subtitle}</span>}
-              </li>
-            ))}
-          </ul>
+            {loading && suggestions.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted">Поиск...</p>
+            ) : null}
+
+            {error ? <p className="px-3 py-2 text-sm text-red-500">{error}</p> : null}
+
+            {hasNoResults ? (
+              <p className="px-3 py-2 text-sm text-muted">Ничего не найдено</p>
+            ) : null}
+
+            {suggestions.length > 0 ? (
+              <ul>
+                {suggestions.map((item) => (
+                  <li
+                    key={item.value}
+                    role="option"
+                    aria-selected={false}
+                    className="cursor-pointer px-3 py-2 text-sm text-ink transition-colors hover:bg-canvas"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectSuggestion(item.title)}
+                  >
+                    <span className="font-medium">{item.title}</span>
+                    {item.subtitle && <span className="ml-1 text-muted">{item.subtitle}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         )}
       </div>
 

@@ -107,7 +107,10 @@ describe('PublishTrainerModal', () => {
   function fillValidTrainerForm() {
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Александр' } });
     fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Иванов' } });
+    // CitySuggestInput обновляет form.city только на blur (или при выборе подсказки),
+    // поэтому после change эмулируем blur, чтобы родитель получил значение.
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Москва' } });
+    fireEvent.blur(screen.getByLabelText('Город'));
     fireEvent.change(screen.getByLabelText('Адрес'), {
       target: { value: 'ул. Спортивная, 10' },
     });
