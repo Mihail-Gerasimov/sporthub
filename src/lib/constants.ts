@@ -32,7 +32,19 @@ export const AUTH_ACCOUNT_TYPE_OPTIONS = [
   { value: 'athlete', label: AUTH_ACCOUNT_TYPE_LABELS.athlete },
 ] as const;
 
-export const BOOKING_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
+// Phase 24: полный список значений BookingStatus (включая @deprecated 'cancelled',
+// который удалится в Step 24.3 при переходе cancelBooking на soft-cancel через FSM).
+export const BOOKING_STATUSES: BookingStatus[] = [
+  'pending',
+  'confirmed',
+  'completed',
+  'no_show',
+  'unmarked',
+  'rejected_by_provider',
+  'cancelled_by_athlete',
+  'cancelled_by_provider',
+  'cancelled',
+];
 
 export const PAYMENT_STATUSES: PaymentStatus[] = ['unpaid', 'paid', 'refunded'];
 

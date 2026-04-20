@@ -2,17 +2,28 @@ import { describe, expectTypeOf, expect, it } from 'vitest';
 
 import type {
   Booking,
+  BookingActor,
+  BookingStatus,
+  BookingStatusTransition,
+  CancellationPolicy,
+  CancelReason,
   CatalogOwnerType,
   Club,
   Coordinates,
   EntityId,
   EntitySource,
   EntityStatus,
+  ISODateTimeString,
+  LogAction,
+  Notification,
+  NotificationType,
   Offering,
   OfferingFormat,
   Review,
   Schedule,
   Trainer,
+  TrainerClubLink,
+  TrainerClubLinkStatus,
 } from '@/types';
 
 const trainerFixture: Trainer = {
@@ -210,6 +221,129 @@ describe('Domain model contracts', () => {
     expect(newClub.isFeatured).toBe(false);
     expect(newClub.distanceKm).toBe(0);
     expect(newClub.coordinates).toEqual({ lat: 0, lng: 0 });
+  });
+
+  // --- Phase 24: FSM booking, привязка тренер↔клуб, уведомления ---
+
+  it('Phase 24: BookingStatus содержит 8 значений FSM + deprecated cancelled', () => {
+    expectTypeOf<BookingStatus>().toMatchTypeOf<
+      | 'pending'
+      | 'confirmed'
+      | 'completed'
+      | 'no_show'
+      | 'unmarked'
+      | 'rejected_by_provider'
+      | 'cancelled_by_athlete'
+      | 'cancelled_by_provider'
+      | 'cancelled'
+    >();
+  });
+
+  it('Phase 24: BookingActor описывает инициатора перехода FSM', () => {
+    expectTypeOf<BookingActor>().toEqualTypeOf<'athlete' | 'provider' | 'admin' | 'system'>();
+  });
+
+  it('Phase 24: CancellationPolicy содержит 4 preset-значения', () => {
+    expectTypeOf<CancellationPolicy>().toEqualTypeOf<
+      'free_anytime' | 'free_until_24h' | 'free_until_2h' | 'no_refund'
+    >();
+  });
+
+  it('Phase 24: CancelReason различает on_time и late', () => {
+    expectTypeOf<CancelReason>().toEqualTypeOf<'on_time' | 'late'>();
+  });
+
+  it('Phase 24: BookingStatusTransition описывает запись истории переходов', () => {
+    expectTypeOf<BookingStatusTransition>().toMatchTypeOf<{
+      from: BookingStatus | null;
+      to: BookingStatus;
+      actor: BookingActor;
+      actorUserId?: EntityId;
+      at: ISODateTimeString;
+      reason?: string;
+    }>();
+  });
+
+  it('Phase 24: Booking расширен полями FSM (history, snapshot, cancel/complete metadata)', () => {
+    expectTypeOf<Booking>().toMatchTypeOf<{
+      statusHistory?: BookingStatusTransition[];
+      cancellationPolicySnapshot?: CancellationPolicy;
+      cancelledBy?: BookingActor;
+      cancelReason?: CancelReason;
+      completedAt?: ISODateTimeString;
+    }>();
+  });
+
+  it('Phase 24: Offering получает cancellationPolicy и trainerClubLinkId', () => {
+    expectTypeOf<Offering>().toMatchTypeOf<{
+      cancellationPolicy?: CancellationPolicy;
+      trainerClubLinkId?: EntityId;
+    }>();
+  });
+
+  it('Phase 24: TrainerClubLinkStatus — 4 состояния жизненного цикла', () => {
+    expectTypeOf<TrainerClubLinkStatus>().toEqualTypeOf<
+      'pending' | 'confirmed' | 'rejected' | 'revoked'
+    >();
+  });
+
+  it('Phase 24: TrainerClubLink описывает двустороннюю привязку тренер↔клуб', () => {
+    expectTypeOf<TrainerClubLink>().toMatchTypeOf<{
+      trainerId: EntityId;
+      clubId: EntityId;
+      status: TrainerClubLinkStatus;
+      initiatedBy: 'trainer' | 'club';
+      approvedAt?: ISODateTimeString;
+      revokedAt?: ISODateTimeString;
+      revokedBy?: 'trainer' | 'club' | 'admin';
+    }>();
+  });
+
+  it('Phase 24: NotificationType покрывает FSM booking, link-события и карантин', () => {
+    expectTypeOf<NotificationType>().toMatchTypeOf<
+      | 'booking_confirmed'
+      | 'booking_rejected'
+      | 'booking_cancelled_by_athlete'
+      | 'booking_cancelled_by_provider'
+      | 'booking_completed'
+      | 'booking_no_show'
+      | 'booking_auto_expired'
+      | 'link_requested'
+      | 'link_approved'
+      | 'link_rejected'
+      | 'link_revoked'
+      | 'quarantine_start'
+      | 'quarantine_end'
+      | 'quarantine_lifted_by_admin'
+    >();
+  });
+
+  it('Phase 24: Notification описывает in-app уведомление', () => {
+    expectTypeOf<Notification>().toMatchTypeOf<{
+      userId: EntityId;
+      type: NotificationType;
+      payload: Record<string, unknown>;
+      readAt?: ISODateTimeString;
+    }>();
+  });
+
+  it('Phase 24: LogAction расширен 14 значениями FSM/links/карантина/reliability', () => {
+    expectTypeOf<LogAction>().toMatchTypeOf<
+      | 'booking_confirm'
+      | 'booking_reject'
+      | 'booking_check_in_completed'
+      | 'booking_check_in_no_show'
+      | 'booking_auto_expire'
+      | 'link_request'
+      | 'link_approve'
+      | 'link_reject'
+      | 'link_revoke'
+      | 'quarantine_start'
+      | 'quarantine_end'
+      | 'quarantine_admin_lift'
+      | 'reliability_recompute'
+      | 'admin_hard_delete_booking'
+    >();
   });
 
   it('новая публикация тренера имеет корректный shape с safe defaults', () => {

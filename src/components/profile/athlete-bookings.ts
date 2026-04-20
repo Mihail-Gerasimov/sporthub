@@ -34,10 +34,17 @@ type GetAthleteUpcomingProfileBookingsInput = {
 
 const ACTIVE_BOOKING_STATUSES = new Set<Booking['status']>(['confirmed', 'pending']);
 
+// Phase 24: лейблы для всех 9 значений BookingStatus.
+// Временные тексты для новых FSM-статусов — финальная UX-формулировка в Step 24.13 (Reliability UI).
 const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   pending: 'Ожидает подтверждения',
   confirmed: 'Подтверждена',
   completed: 'Завершена',
+  no_show: 'Не пришёл',
+  unmarked: 'Не отмечено',
+  rejected_by_provider: 'Отклонена провайдером',
+  cancelled_by_athlete: 'Отменена вами',
+  cancelled_by_provider: 'Отменена провайдером',
   cancelled: 'Отменена',
 };
 
@@ -45,6 +52,11 @@ const BOOKING_STATUS_TONES: Record<Booking['status'], UpcomingProfileBookingStat
   pending: 'outline',
   confirmed: 'success',
   completed: 'teal',
+  no_show: 'danger',
+  unmarked: 'outline',
+  rejected_by_provider: 'danger',
+  cancelled_by_athlete: 'danger',
+  cancelled_by_provider: 'danger',
   cancelled: 'danger',
 };
 

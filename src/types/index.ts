@@ -30,6 +30,8 @@ export type EntityStatus = 'published' | 'draft' | 'hidden';
 
 // Типы действий для системы логирования активности платформы
 // Phase 20 — publish, booking, admin
+// Phase 22 — moderation
+// Phase 24 — FSM booking, trainer-club-links, карантин, reliability, admin hard-delete
 export type LogAction =
   | 'publish_create'
   | 'publish_update'
@@ -39,10 +41,28 @@ export type LogAction =
   | 'admin_login'
   | 'admin_impersonate_start'
   | 'admin_impersonate_stop'
-  // Phase 22 — moderation (зарезервировано)
+  // Phase 22 — moderation
   | 'moderation_hide'
   | 'moderation_unhide'
-  | 'moderation_auto_restore';
+  | 'moderation_auto_restore'
+  // Phase 24 — FSM booking и действия провайдера
+  | 'booking_confirm'
+  | 'booking_reject'
+  | 'booking_check_in_completed'
+  | 'booking_check_in_no_show'
+  | 'booking_auto_expire'
+  // Phase 24 — trainer↔club link (двусторонняя привязка)
+  | 'link_request'
+  | 'link_approve'
+  | 'link_reject'
+  | 'link_revoke'
+  // Phase 24 — карантин и reliability
+  | 'quarantine_start'
+  | 'quarantine_end'
+  | 'quarantine_admin_lift'
+  | 'reliability_recompute'
+  // Phase 24 — админский hard-delete booking'а
+  | 'admin_hard_delete_booking';
 
 // Тип сущности, затронутой действием
 export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user';
@@ -57,7 +77,44 @@ export interface LogEntry extends BaseEntity {
   meta?: Record<string, unknown>;
 }
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+// Статусы FSM booking'а (Phase 24).
+// 'cancelled' оставлен как @deprecated для совместимости с существующим seed
+// и тестами до Step 24.3, где cancelBooking() переходит на soft-cancel через
+// transitionBooking() и маппится в cancelled_by_athlete. В Step 24.3 'cancelled'
+// удаляется из union полностью.
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'no_show'
+  | 'unmarked'
+  | 'rejected_by_provider'
+  | 'cancelled_by_athlete'
+  | 'cancelled_by_provider'
+  // @deprecated Phase 24 Step 24.3 — удалится при переходе cancelBooking на FSM-soft-cancel
+  | 'cancelled';
+
+// Инициатор перехода в FSM. 'system' — ленивые автопереходы runLazyBookingTransitions.
+export type BookingActor = 'athlete' | 'provider' | 'admin' | 'system';
+
+// Preset политики отмены, сохраняется как snapshot в Booking.cancellationPolicySnapshot.
+// Окна бесплатной отмены задаются в DISCIPLINE_CONFIG.lateCancel.freeUntil.
+export type CancellationPolicy = 'free_anytime' | 'free_until_24h' | 'free_until_2h' | 'no_refund';
+
+// Подстатус отмены атлетом: вычисляется по snapshot-policy в момент отмены.
+// on_time — в пределах окна бесплатной отмены. late — за окном, влияет на рейтинг.
+export type CancelReason = 'on_time' | 'late';
+
+// Запись одного перехода FSM booking'а, хранится в Booking.statusHistory.
+// from=null для самой первой записи (создание booking'а в pending).
+export interface BookingStatusTransition {
+  from: BookingStatus | null;
+  to: BookingStatus;
+  actor: BookingActor;
+  actorUserId?: EntityId;
+  at: ISODateTimeString;
+  reason?: string;
+}
 
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 
@@ -169,8 +226,17 @@ export interface Trainer extends BaseEntity {
   vk?: string;
   telegram?: string;
   facebook?: string;
+  /**
+   * @deprecated Phase 24 Step 24.8 — поле удалится при переходе на TrainerClubLink.
+   * Источник правды связи тренер↔клуб переезжает в коллекцию trainer-club-links.json
+   * со статусами pending/confirmed/rejected/revoked. Чтения через
+   * getTrainerClubLinks({ trainerId, status: 'confirmed' }).
+   */
   affiliatedClubId?: EntityId;
-  // STUB: сохранить переходную совместимость до миграции JSON и API на offerings.
+  /**
+   * @deprecated Phase 24 Step 24.8 — удалится вместе с affiliatedClubId.
+   * Исходно было STUB переходной совместимости до миграции на offerings.
+   */
   clubId?: EntityId;
   // STUB: сохранить переходную совместимость до появления primarySportId и новой выдачи.
   sportId?: EntityId;
@@ -189,7 +255,27 @@ export interface Trainer extends BaseEntity {
 export interface Offering extends BaseEntity {
   ownerType: CatalogOwnerType;
   ownerId: EntityId;
+  /**
+   * @deprecated Phase 24 Step 24.8 — поле удалится при переходе на TrainerClubLink.
+   * Для услуг тренера "в клубе" вместо этого поля используется trainerClubLinkId,
+   * который ссылается на confirmed-link в trainer-club-links.json. Чтения клуба
+   * у тренера идут через getTrainerClubLinks({ status: 'confirmed' }).
+   */
   affiliatedClubId?: EntityId;
+  /**
+   * Phase 24: Ссылка на confirmed TrainerClubLink для услуг тренера "в клубе".
+   * Если undefined — услуга частная, оказывается тренером независимо. Если указано
+   * — offering привязан к подтверждённой связи; при revoke-link связанные offerings
+   * помечаются как частные (auto-detach, см. Step 24.10).
+   */
+  trainerClubLinkId?: EntityId;
+  /**
+   * Phase 24: Политика отмены, выбирается провайдером при публикации.
+   * При создании booking'а значение клонируется в Booking.cancellationPolicySnapshot —
+   * условия нельзя ужесточить задним числом. Опционально в TS для совместимости
+   * с существующим seed (read-fallback 'free_until_24h'), обязательно в Zod-схеме.
+   */
+  cancellationPolicy?: CancellationPolicy;
   sportId: EntityId;
   title: string;
   description: string;
@@ -236,6 +322,36 @@ export interface Booking extends BaseEntity {
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   totalPrice: number;
+  /**
+   * Phase 24: Полная история переходов FSM. Первая запись (from=null, to='pending')
+   * пишется при создании booking'а в createBookingAtomic. Далее каждый вызов
+   * transitionBooking() добавляет новый элемент с actor/actorUserId/timestamp/reason.
+   * Optional для совместимости с seed до Step 24.3; после Step 24.3 при чтении всегда есть.
+   */
+  statusHistory?: BookingStatusTransition[];
+  /**
+   * Phase 24: Snapshot cancellation-policy offering'а на момент создания booking'а.
+   * Используется для расчёта cancelReason (on_time/late) через DISCIPLINE_CONFIG.lateCancel.
+   * Защищает атлета от задним числом ужесточённых условий.
+   * Optional для совместимости с seed (read-fallback 'free_until_24h').
+   */
+  cancellationPolicySnapshot?: CancellationPolicy;
+  /**
+   * Phase 24: Инициатор финального перехода в cancelled_by_athlete,
+   * cancelled_by_provider или rejected_by_provider. Заполняется при
+   * soft-cancel (Step 24.3/24.4).
+   */
+  cancelledBy?: BookingActor;
+  /**
+   * Phase 24: Подстатус отмены атлетом (on_time/late). Определяется через
+   * computeCancelReason() по snapshot-policy и времени отмены относительно startAt.
+   */
+  cancelReason?: CancelReason;
+  /**
+   * Phase 24: Время check-in completed от провайдера. Фиксируется в transitionBooking
+   * при переходе confirmed → completed.
+   */
+  completedAt?: ISODateTimeString;
 }
 
 export interface Review extends BaseEntity {
@@ -257,4 +373,79 @@ export interface User extends BaseEntity {
   favoriteClubIds: EntityId[];
   // Город пользователя (MVP: display-only, без редактирования из ЛК)
   city?: string;
+  /**
+   * Phase 24: Ручное снятие карантина админом. Если указано и дата позже последнего
+   * no_show, атлет не считается в карантине, даже при 3+ no_show подряд.
+   * Заполняется через POST /api/admin/users/[id]/lift-quarantine (Step 24.15).
+   */
+  quarantineLiftedAt?: ISODateTimeString;
+}
+
+// --- Phase 24: Уведомления ---
+
+// Типы in-app уведомлений. Расширяется при добавлении новых триггерных событий.
+// Payload каждой type-ветки типизируется consumer-ом (notify() и UI-маппингом).
+export type NotificationType =
+  // booking FSM
+  | 'booking_confirmed'
+  | 'booking_rejected'
+  | 'booking_cancelled_by_athlete'
+  | 'booking_cancelled_by_provider'
+  | 'booking_completed'
+  | 'booking_no_show'
+  | 'booking_auto_expired'
+  // trainer↔club link
+  | 'link_requested'
+  | 'link_approved'
+  | 'link_rejected'
+  | 'link_revoked'
+  // карантин атлета
+  | 'quarantine_start'
+  | 'quarantine_end'
+  | 'quarantine_lifted_by_admin';
+
+/**
+ * In-app уведомление пользователю. Создаётся хелпером notify() из Step 24.5
+ * на каждом FSM-переходе booking'а и link-переходе. Доставка — polling через
+ * bell-icon в Header'е (Step 24.7). Архитектурно готово к SSE/WebSocket — payload
+ * сериализуем, type строго типизирован.
+ */
+export interface Notification extends BaseEntity {
+  userId: EntityId;
+  type: NotificationType;
+  payload: Record<string, unknown>;
+  readAt?: ISODateTimeString;
+}
+
+// --- Phase 24: Двусторонняя привязка тренер↔клуб ---
+
+// Состояния жизненного цикла TrainerClubLink.
+// pending — тренер отправил запрос, клуб ещё не ответил.
+// confirmed — клуб подтвердил (публичная связь активна).
+// rejected — клуб отказал (публично не отображается).
+// revoked — активная связь разорвана любой стороной (или админом принудительно).
+export type TrainerClubLinkStatus = 'pending' | 'confirmed' | 'rejected' | 'revoked';
+
+/**
+ * Двусторонняя привязка тренер↔клуб. Единственный источник правды связи
+ * (поля Trainer.affiliatedClubId и Offering.affiliatedClubId удаляются в Step 24.8).
+ * Создаётся тренером при публикации/редактировании, переводится в confirmed клубом
+ * через approve. Публичные поверхности читают только записи со status='confirmed'.
+ */
+export interface TrainerClubLink extends BaseEntity {
+  trainerId: EntityId;
+  clubId: EntityId;
+  status: TrainerClubLinkStatus;
+  initiatedBy: 'trainer' | 'club';
+  // Заполняется при approve (pending → confirmed) — actor и timestamp клуба.
+  approvedAt?: ISODateTimeString;
+  approvedByUserId?: EntityId;
+  // Заполняется при reject (pending → rejected).
+  rejectedAt?: ISODateTimeString;
+  rejectedByUserId?: EntityId;
+  rejectionReason?: string;
+  // Заполняется при revoke (confirmed → revoked). revokedBy фиксирует сторону.
+  revokedAt?: ISODateTimeString;
+  revokedByUserId?: EntityId;
+  revokedBy?: 'trainer' | 'club' | 'admin';
 }

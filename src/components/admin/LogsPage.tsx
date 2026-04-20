@@ -10,7 +10,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Button, Card, Select, Skeleton } from '@/components/ui';
 import type { LogAction, LogEntry } from '@/types';
 
-// Маппинг LogAction → human-readable русские метки
+// Маппинг LogAction → human-readable русские метки.
+// Phase 24 добавляет 14 новых значений (FSM booking, trainer↔club-link, карантин,
+// reliability, admin hard-delete); финальные формулировки уточняются в Step 24.15
+// вместе с расширением фильтров страницы логов.
 const ACTION_LABELS: Record<LogAction, string> = {
   publish_create: 'Публикация создана',
   publish_update: 'Публикация обновлена',
@@ -23,6 +26,24 @@ const ACTION_LABELS: Record<LogAction, string> = {
   moderation_hide: 'Публикация скрыта',
   moderation_unhide: 'Публикация восстановлена',
   moderation_auto_restore: 'Публикация авто-восстановлена',
+  // Phase 24 — FSM booking
+  booking_confirm: 'Запись подтверждена',
+  booking_reject: 'Запись отклонена',
+  booking_check_in_completed: 'Check-in: тренировка проведена',
+  booking_check_in_no_show: 'Check-in: спортсмен не пришёл',
+  booking_auto_expire: 'Запись авто-отменена (истёк срок)',
+  // Phase 24 — trainer↔club link
+  link_request: 'Запрос привязки тренер↔клуб',
+  link_approve: 'Привязка подтверждена',
+  link_reject: 'Привязка отклонена',
+  link_revoke: 'Привязка разорвана',
+  // Phase 24 — карантин и reliability
+  quarantine_start: 'Карантин начался',
+  quarantine_end: 'Карантин завершён',
+  quarantine_admin_lift: 'Карантин снят администратором',
+  reliability_recompute: 'Рейтинг пересчитан',
+  // Phase 24 — админский hard-delete
+  admin_hard_delete_booking: 'Запись удалена администратором',
 };
 
 // Тон badge для типа действия
