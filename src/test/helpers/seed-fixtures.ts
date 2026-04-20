@@ -157,6 +157,7 @@ export const fixtureTrainer5: Trainer = {
 };
 
 // --- Фикстуры услуг ---
+// Phase 24: все offering-фикстуры получают cancellationPolicy='free_until_24h' по дефолту.
 export const fixtureClubOffering: Offering = {
   id: 1,
   createdAt: '2026-03-17T09:00:00.000Z',
@@ -172,6 +173,7 @@ export const fixtureClubOffering: Offering = {
   capacity: 12,
   address: 'ул. Лесная, 23к1',
   coordinates: { lat: 53.2129, lng: 50.1245 },
+  cancellationPolicy: 'free_until_24h',
 };
 
 export const fixtureTrainerOffering: Offering = {
@@ -189,6 +191,7 @@ export const fixtureTrainerOffering: Offering = {
   capacity: 1,
   address: 'ул. Лесная, 23к1',
   coordinates: { lat: 53.2129, lng: 50.1245 },
+  cancellationPolicy: 'free_until_24h',
 };
 
 // --- Фикстуры расписания ---
@@ -411,5 +414,8 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     write('amenities.json', fixtureAmenities),
     write('work-formats.json', fixtureWorkFormats),
     write('specialties.json', fixtureSpecialties),
+    // Phase 24: новые коллекции (по умолчанию пустые — тесты сами засеивают при необходимости)
+    write('notifications.json', []),
+    write('trainer-club-links.json', []),
   ]);
 }

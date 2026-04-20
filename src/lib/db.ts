@@ -12,6 +12,7 @@ import type {
   Club,
   EntityId,
   LogEntry,
+  Notification,
   Offering,
   Review,
   Schedule,
@@ -19,6 +20,8 @@ import type {
   Sport,
   Tag,
   Trainer,
+  TrainerClubLink,
+  TrainerClubLinkStatus,
   User,
   WorkFormat,
 } from '@/types';
@@ -31,6 +34,7 @@ type DataCollectionMap = {
   cities: City[];
   clubs: Club[];
   logs: LogEntry[];
+  notifications: Notification[];
   offerings: Offering[];
   reviews: Review[];
   schedule: Schedule[];
@@ -38,6 +42,7 @@ type DataCollectionMap = {
   sports: Sport[];
   tags: Tag[];
   trainers: Trainer[];
+  trainerClubLinks: TrainerClubLink[];
   users: User[];
   workFormats: WorkFormat[];
 };
@@ -178,6 +183,7 @@ const DATA_FILES: { [Key in keyof DataCollectionMap]: string } = {
   cities: 'cities.json',
   clubs: 'clubs.json',
   logs: 'logs.json',
+  notifications: 'notifications.json',
   offerings: 'offerings.json',
   reviews: 'reviews.json',
   schedule: 'schedule.json',
@@ -185,6 +191,7 @@ const DATA_FILES: { [Key in keyof DataCollectionMap]: string } = {
   sports: 'sports.json',
   tags: 'tags.json',
   trainers: 'trainers.json',
+  trainerClubLinks: 'trainer-club-links.json',
   users: 'users.json',
   workFormats: 'work-formats.json',
 };
@@ -591,6 +598,215 @@ export async function getWorkFormats(): Promise<WorkFormat[]> {
 /** Чтение справочника специализаций тренера. */
 export async function getSpecialties(): Promise<Specialty[]> {
   return readCollection('specialties');
+}
+
+// --- Phase 24: Уведомления (in-app notifications) ---
+
+/** Опции фильтрации при чтении списка уведомлений. */
+export type GetNotificationsOptions = {
+  userId?: EntityId;
+  unreadOnly?: boolean;
+  offset?: number;
+  limit?: number;
+};
+
+/**
+ * Чтение уведомлений с опциональными фильтрами. Сортировка — по createdAt DESC
+ * (самые свежие первыми). offset/limit применяются после фильтрации.
+ */
+export async function getNotifications(
+  options: GetNotificationsOptions = {},
+): Promise<Notification[]> {
+  const all = await readCollection('notifications');
+
+  let filtered = all;
+
+  if (options.userId !== undefined) {
+    filtered = filtered.filter((notification) => notification.userId === options.userId);
+  }
+
+  if (options.unreadOnly) {
+    filtered = filtered.filter((notification) => notification.readAt === undefined);
+  }
+
+  // Сортировка по createdAt DESC — свежие уведомления выводятся первыми
+  const sorted = filtered
+    .slice()
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+  const offset = options.offset ?? 0;
+  const limit = options.limit;
+
+  return limit === undefined ? sorted.slice(offset) : sorted.slice(offset, offset + limit);
+}
+
+/**
+ * Создание уведомления. Payload сериализуем (JSON-совместим). id и createdAt
+ * проставляются сервером — вызывающий передаёт только userId/type/payload.
+ */
+export async function createNotification(
+  data: Omit<Notification, 'id' | 'createdAt'>,
+): Promise<Notification> {
+  const notifications = await readCollection('notifications');
+
+  const notification: Notification = {
+    id: getNextEntityId(notifications),
+    createdAt: createTimestamp(),
+    ...data,
+  };
+
+  notifications.push(notification);
+  await writeCollection('notifications', notifications);
+
+  return notification;
+}
+
+/**
+ * Пометка одного уведомления прочитанным (устанавливает readAt = сейчас).
+ * Бросает ошибку, если id не найден. Если readAt уже установлен — перезаписывает
+ * текущим временем (идемпотентно безопасно, но в UI вызов делается один раз).
+ */
+export async function markNotificationRead(id: EntityId): Promise<Notification> {
+  const notifications = await readCollection('notifications');
+  const index = notifications.findIndex((notification) => notification.id === id);
+
+  if (index === -1) {
+    throw new Error('Уведомление не найдено');
+  }
+
+  const updated: Notification = {
+    ...notifications[index],
+    readAt: createTimestamp(),
+  };
+
+  notifications[index] = updated;
+  await writeCollection('notifications', notifications);
+
+  return updated;
+}
+
+/**
+ * Массовая пометка всех непрочитанных уведомлений пользователя прочитанными.
+ * Возвращает количество обновлённых записей (0, если непрочитанных не было).
+ */
+export async function markAllNotificationsRead(userId: EntityId): Promise<number> {
+  const notifications = await readCollection('notifications');
+  const timestamp = createTimestamp();
+  let updatedCount = 0;
+
+  const next = notifications.map((notification) => {
+    if (notification.userId === userId && notification.readAt === undefined) {
+      updatedCount += 1;
+      return { ...notification, readAt: timestamp };
+    }
+
+    return notification;
+  });
+
+  if (updatedCount > 0) {
+    await writeCollection('notifications', next);
+  }
+
+  return updatedCount;
+}
+
+/** Быстрый счётчик непрочитанных уведомлений пользователя — для bell-icon. */
+export async function getUnreadNotificationCount(userId: EntityId): Promise<number> {
+  const notifications = await readCollection('notifications');
+  return notifications.filter(
+    (notification) => notification.userId === userId && notification.readAt === undefined,
+  ).length;
+}
+
+// --- Phase 24: Двусторонняя привязка тренер↔клуб ---
+
+/** Опции фильтрации при чтении списка TrainerClubLink. */
+export type GetTrainerClubLinksOptions = {
+  trainerId?: EntityId;
+  clubId?: EntityId;
+  status?: TrainerClubLinkStatus;
+};
+
+/**
+ * Чтение привязок тренер↔клуб с опциональными фильтрами. Сортировка —
+ * по createdAt DESC (самые свежие сверху). Для публичных поверхностей обычно
+ * используется фильтр status='confirmed'. inbox-подача провайдера — status='pending'.
+ */
+export async function getTrainerClubLinks(
+  options: GetTrainerClubLinksOptions = {},
+): Promise<TrainerClubLink[]> {
+  const all = await readCollection('trainerClubLinks');
+
+  let filtered = all;
+
+  if (options.trainerId !== undefined) {
+    filtered = filtered.filter((link) => link.trainerId === options.trainerId);
+  }
+
+  if (options.clubId !== undefined) {
+    filtered = filtered.filter((link) => link.clubId === options.clubId);
+  }
+
+  if (options.status !== undefined) {
+    filtered = filtered.filter((link) => link.status === options.status);
+  }
+
+  return filtered.slice().sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+/** Точечное чтение одной привязки по id — для админских инструментов и guard'ов. */
+export async function getTrainerClubLinkById(id: EntityId): Promise<TrainerClubLink | null> {
+  const links = await readCollection('trainerClubLinks');
+  return links.find((link) => link.id === id) ?? null;
+}
+
+/**
+ * Создание нового link-request'а. Базовый статус — любой из TrainerClubLinkStatus,
+ * но в типовом сценарии (Step 24.9) тренер создаёт связь со status='pending'.
+ * id и createdAt проставляются сервером.
+ */
+export async function createTrainerClubLink(
+  data: Omit<TrainerClubLink, 'id' | 'createdAt'>,
+): Promise<TrainerClubLink> {
+  const links = await readCollection('trainerClubLinks');
+
+  const link: TrainerClubLink = {
+    id: getNextEntityId(links),
+    createdAt: createTimestamp(),
+    ...data,
+  };
+
+  links.push(link);
+  await writeCollection('trainerClubLinks', links);
+
+  return link;
+}
+
+/**
+ * Обновление существующей привязки — для approve/reject/revoke переходов
+ * (Step 24.8). Принимает частичный patch с новым статусом и actor/timestamp
+ * полями. id и createdAt из patch игнорируются. Бросает ошибку, если не найден.
+ */
+export async function updateTrainerClubLink(
+  id: EntityId,
+  patch: Partial<Omit<TrainerClubLink, 'id' | 'createdAt'>>,
+): Promise<TrainerClubLink> {
+  const links = await readCollection('trainerClubLinks');
+  const index = links.findIndex((link) => link.id === id);
+
+  if (index === -1) {
+    throw new Error('Привязка тренер↔клуб не найдена');
+  }
+
+  const updated: TrainerClubLink = {
+    ...links[index],
+    ...patch,
+  };
+
+  links[index] = updated;
+  await writeCollection('trainerClubLinks', links);
+
+  return updated;
 }
 
 export async function getReviews(): Promise<Review[]> {
