@@ -972,30 +972,30 @@ function computeCancelReason(
 }
 
 /**
- * Маппит FSM-переход в NotificationType и вызывает notify() для заинтересованной
- * стороны. В Step 24.3 notify() — stub (noop); Step 24.5 включит доставку через
- * createNotification. Получателя провайдерских уведомлений добавит Step 24.5 через
- * slot-context (сейчас все адресуются атлету).
+ * Маппит FSM-переход в NotificationType и awaitит notify() для заинтересованной
+ * стороны. Phase 24 Step 24.5: notify() awaitable — запись в notifications.json
+ * гарантирована до возврата transitionBooking. Получателя провайдерских уведомлений
+ * расширим в Step 24.8 (через slot-context и link-данные).
  */
-function dispatchTransitionNotifications(
+async function dispatchTransitionNotifications(
   booking: Booking,
   transition: BookingStatusTransition,
-): void {
+): Promise<void> {
   const athleteId = booking.userId;
 
   switch (transition.to) {
     case 'confirmed':
-      notify(athleteId, 'booking_confirmed', { bookingId: booking.id });
+      await notify(athleteId, 'booking_confirmed', { bookingId: booking.id });
       return;
     case 'rejected_by_provider':
-      notify(athleteId, 'booking_rejected', {
+      await notify(athleteId, 'booking_rejected', {
         bookingId: booking.id,
         reason: transition.reason,
       });
       return;
     case 'cancelled_by_athlete':
-      // TODO Step 24.5: notify провайдеру через slot-context.
-      notify(athleteId, 'booking_cancelled_by_athlete', {
+      // TODO Step 24.8: notify провайдеру через slot-context / link-данные.
+      await notify(athleteId, 'booking_cancelled_by_athlete', {
         bookingId: booking.id,
         cancelReason: booking.cancelReason,
       });
@@ -1004,14 +1004,14 @@ function dispatchTransitionNotifications(
       // actor='system' — ленивый auto-expire pending (см. runLazyBookingTransitions).
       const type: NotificationType =
         transition.actor === 'system' ? 'booking_auto_expired' : 'booking_cancelled_by_provider';
-      notify(athleteId, type, { bookingId: booking.id });
+      await notify(athleteId, type, { bookingId: booking.id });
       return;
     }
     case 'completed':
-      notify(athleteId, 'booking_completed', { bookingId: booking.id });
+      await notify(athleteId, 'booking_completed', { bookingId: booking.id });
       return;
     case 'no_show':
-      notify(athleteId, 'booking_no_show', { bookingId: booking.id });
+      await notify(athleteId, 'booking_no_show', { bookingId: booking.id });
       return;
     case 'unmarked':
       // Служебный финал — атлету не шлём, попадёт в админ-аналитику.
@@ -1099,7 +1099,7 @@ export async function transitionBooking(input: TransitionBookingInput): Promise<
     { key: 'schedule', next: updatedSchedule, previous: schedule },
   ]);
 
-  dispatchTransitionNotifications(updatedBooking, transition);
+  await dispatchTransitionNotifications(updatedBooking, transition);
 
   return updatedBooking;
 }

@@ -1,27 +1,37 @@
-// Phase 24: хелпер для отправки in-app уведомлений. Вызывается из FSM-переходов
-// booking'а (Step 24.3) и link-переходов (Step 24.8). Архитектурно готов к SSE/WebSocket
-// — в будущем меняется только внутренняя реализация доставки, сигнатура стабильна.
+// Phase 24 Step 24.5: реальная реализация notify() — fire-and-forget обёртка над
+// createNotification() из db.ts. В Step 24.3 функция была noop-stub'ом; теперь
+// транзакции FSM booking'а (transitionBooking) и link-переходы (Step 24.8) создают
+// записи в notifications.json через этот хелпер.
 //
-// STUB в Step 24.3: noop. Реальная реализация в Step 24.5 — fire-and-forget обёртка над
-// createNotification() из db.ts с silent catch (по паттерну logAction).
+// Архитектура готова к SSE/WebSocket: вызывающий код не знает как именно
+// уведомление доставляется; в будущем меняется только внутренняя реализация
+// (createNotification + emit в стрим) без правок вызывающей стороны.
+//
+// Паттерн fire-and-forget повторяет logAction (src/lib/logAction.ts): silent catch
+// гарантирует, что ошибка notify никогда не блокирует основной flow.
 
 import 'server-only';
 
 import type { EntityId, NotificationType } from '@/types';
 
 /**
- * Отправка уведомления пользователю. Fire-and-forget — не блокирует вызывающий flow.
- * В Step 24.3 функция ничего не делает (stub) — позволяет transitionBooking
- * уже содержать вызовы notify() по всем переходам без зависимости от db.ts.
+ * Отправка уведомления пользователю. Возвращает Promise<void>, который разрешается
+ * после записи в notifications.json (или при silent catch ошибки). Вызывающий код
+ * решает сам: await — гарантированная доставка (в тестах, в транзакционных вызовах),
+ * .catch(() => {}) — fire-and-forget (в client-mutations, где блокировать не надо).
+ *
+ * Dynamic import `@/lib/db` защищает от циклической зависимости db.ts ↔ notify.ts.
+ * Ошибки поглощаются с логом — отсутствие уведомления не должно ломать основной flow.
  */
-export function notify(
+export async function notify(
   userId: EntityId,
   type: NotificationType,
   payload: Record<string, unknown> = {},
-): void {
-  // STUB: Step 24.5 заменит на реальный createNotification({userId, type, payload}).catch(...).
-  // void-использование защищает от eslint/unused-vars предупреждений без семантики.
-  void userId;
-  void type;
-  void payload;
+): Promise<void> {
+  try {
+    const { createNotification } = await import('@/lib/db');
+    await createNotification({ userId, type, payload });
+  } catch (error) {
+    console.error('[notify] failed:', error);
+  }
 }
