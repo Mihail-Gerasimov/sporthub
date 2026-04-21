@@ -191,6 +191,62 @@ describe('Bookings API', () => {
     });
   });
 
+  // Phase 24 Step 24.14: guard карантина — 403 при isAthleteInQuarantine.
+  it('возвращает 403 с error=quarantine, если атлет в карантине', async () => {
+    // Засеиваем 3 no_show подряд для userId=1, дата — недавний no_show.
+    const bookingsPath = path.join(dataDirectory, 'bookings.json');
+    const quarantineBookings = [
+      {
+        id: 900,
+        createdAt: '2026-03-10T00:00:00.000Z',
+        scheduleId: 999,
+        userId: 1,
+        sportId: 3,
+        date: '2026-03-15',
+        status: 'no_show',
+        paymentStatus: 'paid',
+        totalPrice: 1000,
+      },
+      {
+        id: 901,
+        createdAt: '2026-03-12T00:00:00.000Z',
+        scheduleId: 999,
+        userId: 1,
+        sportId: 3,
+        date: '2026-03-17',
+        status: 'no_show',
+        paymentStatus: 'paid',
+        totalPrice: 1000,
+      },
+      {
+        id: 902,
+        createdAt: '2026-03-14T00:00:00.000Z',
+        scheduleId: 999,
+        userId: 1,
+        sportId: 3,
+        date: '2026-03-18',
+        status: 'no_show',
+        paymentStatus: 'paid',
+        totalPrice: 1000,
+      },
+    ];
+    await writeFile(bookingsPath, JSON.stringify(quarantineBookings, null, 2), 'utf8');
+
+    const response = await POST(
+      new Request('http://localhost:3000/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleId: 1001, userId: 1 }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.success).toBe(false);
+    expect(body.error).toBe('quarantine');
+    expect(typeof body.until).toBe('string');
+  });
+
   /* --- DELETE /api/bookings/[id] --- */
 
   describe('DELETE /api/bookings/[id]', () => {

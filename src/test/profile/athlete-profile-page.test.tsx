@@ -891,6 +891,12 @@ describe('AthleteProfilePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
 
+    // Phase 24 Step 24.14: booking на 2026-03-19 — на момент теста уже в прошлом
+    // (≈2026-04-21), политика free_until_24h → late-cancel, открывается warning-модалка.
+    // Подтверждаем отмену через «Всё равно отменить».
+    const confirmBtn = await screen.findByRole('button', { name: 'Всё равно отменить' });
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/bookings/1',

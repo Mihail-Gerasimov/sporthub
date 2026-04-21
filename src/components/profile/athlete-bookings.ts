@@ -17,6 +17,8 @@ export type UpcomingProfileBooking = {
   timeLabel: string;
   title: string;
   trainerName: string;
+  /** Phase 24 Step 24.14: snapshot-policy booking'а — нужен для client-side late-cancel warning. */
+  cancellationPolicySnapshot?: import('@/types').CancellationPolicy;
 };
 
 type GetAthleteActiveFutureBookingsInput = {
@@ -161,6 +163,9 @@ export function getAthleteUpcomingProfileBookings({
         timeLabel: getBookingTimeLabel(slot),
         title: slot?.title ?? 'Занятие SportHub',
         trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
+        ...(booking.cancellationPolicySnapshot
+          ? { cancellationPolicySnapshot: booking.cancellationPolicySnapshot }
+          : {}),
       } satisfies UpcomingProfileBooking;
     })
     .sort((left, right) => {

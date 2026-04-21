@@ -20,7 +20,7 @@ import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
 import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
-import { computeAthleteReliability } from '@/lib/reliability';
+import { computeAthleteReliability, isAthleteInQuarantine } from '@/lib/reliability';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -157,6 +157,14 @@ export function AthleteProfilePage({
       athleteUserId === null ? null : computeAthleteReliability(athleteBookings, athleteUserId),
     [athleteBookings, athleteUserId],
   );
+  // Phase 24 Step 24.14: статус карантина — плашка сверху кабинета, если inQuarantine.
+  const quarantineStatus = useMemo(
+    () =>
+      athleteUserId === null
+        ? { inQuarantine: false as const }
+        : isAthleteInQuarantine(athleteBookings, athleteUserId, new Date()),
+    [athleteBookings, athleteUserId],
+  );
   const athleteReviews = useMemo(
     () =>
       athleteUserId === null ? [] : reviews.filter((review) => review.userId === athleteUserId),
@@ -256,6 +264,47 @@ export function AthleteProfilePage({
   return (
     <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
+        {/* Phase 24 Step 24.14: плашка карантина — сверху, если атлет в quarantine. */}
+        {quarantineStatus.inQuarantine ? (
+          <Card
+            className="border-danger/40 bg-danger/10 p-5 sm:p-6"
+            data-testid="athlete-quarantine-banner"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-danger">
+                  Карантин
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink">
+                  Вы временно не можете создавать новые записи
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  {quarantineStatus.reason ??
+                    'Из-за повторных пропусков новые бронирования временно ограничены.'}
+                </p>
+                {quarantineStatus.until ? (
+                  <p className="mt-1 text-sm text-muted">
+                    Карантин действует до{' '}
+                    <span className="font-semibold text-ink">
+                      {new Date(quarantineStatus.until).toLocaleDateString('ru-RU', {
+                        day: '2-digit',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    .
+                  </p>
+                ) : null}
+                <p className="mt-2 text-xs text-muted">
+                  Репутация восстанавливается после первой успешно проведённой тренировки по
+                  окончании карантина.
+                </p>
+              </div>
+              <Badge tone="danger">Active</Badge>
+            </div>
+          </Card>
+        ) : null}
         <Card className="p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">

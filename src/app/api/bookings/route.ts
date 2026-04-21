@@ -13,6 +13,7 @@ import {
   runLazyBookingTransitions,
 } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
+import { isAthleteInQuarantine } from '@/lib/reliability';
 
 const bookingsQuerySchema = z.object({
   userId: z.preprocess((value) => {
@@ -116,6 +117,23 @@ export async function POST(request: Request) {
         {
           success: false,
           error: 'Запись доступна только спортсмену',
+        },
+        { status: 403 },
+      );
+    }
+
+    // Phase 24 Step 24.14: guard карантина — 403 если атлет в quarantine.
+    // Клиент разбирает payload (error='quarantine', until=ISO) и показывает
+    // соответствующее сообщение вместо generic-error.
+    const allBookings = await getBookings();
+    const quarantine = isAthleteInQuarantine(allBookings, userId, new Date());
+    if (quarantine.inQuarantine) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'quarantine',
+          until: quarantine.until,
+          reason: quarantine.reason,
         },
         { status: 403 },
       );

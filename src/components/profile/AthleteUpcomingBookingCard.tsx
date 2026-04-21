@@ -3,7 +3,8 @@
 import { startTransition, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Badge, Button } from '@/components/ui';
+import { Badge, Button, Modal } from '@/components/ui';
+import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { formatDate } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 
@@ -19,6 +20,20 @@ type BookingCancelResponse = {
   error?: string;
 };
 
+/** Phase 24 Step 24.14: client-side детектор late-cancel — покажет warning-модалку
+ * до реального DELETE. Логика дублирует `computeCancelReason` сервера для UX, сервер
+ * всё равно пересчитывает reason авторитетно.
+ */
+function isLateCancelPreview(booking: UpcomingProfileBooking, now: Date): boolean {
+  const policy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
+  const freeUntilHours = DISCIPLINE_CONFIG.lateCancel.freeUntil[policy];
+  if (!Number.isFinite(freeUntilHours)) return false;
+  if (freeUntilHours === 0) return true;
+  const startAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const hoursBeforeStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return hoursBeforeStart < freeUntilHours;
+}
+
 export function AthleteUpcomingBookingCard({
   athleteUserId,
   booking,
@@ -26,6 +41,8 @@ export function AthleteUpcomingBookingCard({
   const router = useRouter();
   const addToast = useToastStore((state) => state.addToast);
   const [isCancelling, setIsCancelling] = useState(false);
+  // Phase 24 Step 24.14: state для warning-модалки перед late-cancel.
+  const [isLateWarnOpen, setIsLateWarnOpen] = useState(false);
 
   async function handleCancelBooking() {
     if (athleteUserId === null) {
@@ -112,12 +129,38 @@ export function AthleteUpcomingBookingCard({
           loading={isCancelling}
           variant="outline"
           onClick={() => {
+            // Phase 24 Step 24.14: если отмена late — показываем warning-модалку;
+            // иначе отменяем сразу.
+            if (isLateCancelPreview(booking, new Date())) {
+              setIsLateWarnOpen(true);
+              return;
+            }
             void handleCancelBooking();
           }}
         >
           Отменить запись
         </Button>
       </div>
+      <Modal open={isLateWarnOpen} onClose={() => setIsLateWarnOpen(false)} title="Поздняя отмена">
+        <p className="text-sm leading-relaxed text-muted">
+          Эта отмена будет засчитана как поздняя и снизит ваш рейтинг надёжности. Вы уверены, что
+          хотите продолжить?
+        </p>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => setIsLateWarnOpen(false)}>
+            Оставить запись
+          </Button>
+          <Button
+            loading={isCancelling}
+            onClick={() => {
+              setIsLateWarnOpen(false);
+              void handleCancelBooking();
+            }}
+          >
+            Всё равно отменить
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
