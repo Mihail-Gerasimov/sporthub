@@ -65,7 +65,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// MVP: запись сразу confirmed. pending зарезервирован для будущего payment-flow.
+// Phase 24: запись создаётся в pending, ждёт подтверждения провайдером
+// (confirm/reject — Step 24.4 action-endpoints). Ленивый auto-cancel pending за 1 час
+// до слота через runLazyBookingTransitions (Step 24.4).
 export async function POST(request: Request) {
   try {
     const rawBody = await request.json();

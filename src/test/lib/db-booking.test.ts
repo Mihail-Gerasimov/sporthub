@@ -1,4 +1,7 @@
-// Тесты atomic booking-flow в db.ts: create, cancel (hard-delete), rollback (Step 16.2)
+// Тесты atomic booking-flow в db.ts: create (стартовый pending + snapshot policy),
+// cancel (soft-cancel через FSM) и rollback.
+// Phase 24 Step 24.3 — переписано под FSM: booking создаётся в pending, cancelBooking
+// не удаляет запись, а переводит в cancelled_by_athlete со statusHistory и cancelReason.
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -33,10 +36,10 @@ describe('db booking helpers', () => {
     await removeIsolatedDataDirectory(dataDirectory);
   });
 
-  /* --- createBookingAtomic --- */
+  /* --- createBookingAtomic (Phase 24: стартовый pending + snapshot policy) --- */
 
   describe('createBookingAtomic', () => {
-    it('создаёт booking и увеличивает bookedCount за один atomic write', async () => {
+    it('создаёт booking в статусе pending с snapshot-policy и увеличивает bookedCount', async () => {
       const bookingsBefore = await getBookings();
       const scheduleBefore = await getSchedule({ ownerType: 'all' });
       const slot1001Before = scheduleBefore.find((s) => s.id === 1001)!;
@@ -48,23 +51,35 @@ describe('db booking helpers', () => {
         userId: 1,
       });
 
-      // Booking создан с правильными данными
+      // Phase 24: booking создаётся в pending, ждёт подтверждения провайдера.
       expect(result).toMatchObject({
         scheduleId: 1001,
         userId: 1,
-        status: 'confirmed',
+        status: 'pending',
         paymentStatus: 'unpaid',
       });
       expect(result.id).toBeDefined();
       expect(result.createdAt).toBeDefined();
 
-      // bookedCount увеличен
+      // Phase 24: snapshot cancellation-policy клонирован с offering (seed = free_until_24h).
+      expect(result.cancellationPolicySnapshot).toBe('free_until_24h');
+
+      // Phase 24: первый переход в statusHistory (from=null → to=pending, actor=athlete).
+      expect(result.statusHistory).toHaveLength(1);
+      expect(result.statusHistory?.[0]).toMatchObject({
+        from: null,
+        to: 'pending',
+        actor: 'athlete',
+        actorUserId: 1,
+      });
+
+      // bookedCount увеличен — pending физически занимает слот.
       const scheduleAfter = await getSchedule({ ownerType: 'all' });
       const slot1001After = scheduleAfter.find((s) => s.id === 1001)!;
 
       expect(slot1001After.bookedCount).toBe(1);
 
-      // Количество bookings увеличилось на 1
+      // Количество bookings увеличилось на 1.
       const bookingsAfter = await getBookings();
 
       expect(bookingsAfter.length).toBe(bookingsBefore.length + 1);
@@ -137,34 +152,45 @@ describe('db booking helpers', () => {
     });
   });
 
-  /* --- cancelBooking (hard-delete) --- */
+  /* --- cancelBooking (Phase 24: soft-cancel через FSM) --- */
 
   describe('cancelBooking', () => {
-    it('физически удаляет booking из JSON и уменьшает bookedCount', async () => {
-      // Сначала создаём booking
+    it('переводит booking в cancelled_by_athlete, не удаляя запись, и освобождает слот', async () => {
+      // Создаём booking (pending, bookedCount=1)
       const created = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
       const scheduleMid = await getSchedule({ ownerType: 'all' });
 
       expect(scheduleMid.find((s) => s.id === 1001)!.bookedCount).toBe(1);
 
-      // Отменяем
+      // Soft-cancel через FSM
       await cancelBooking({ bookingId: created.id, userId: 1 });
 
-      // Booking физически отсутствует в JSON
+      // Phase 24: booking остаётся в JSON со status='cancelled_by_athlete' + statusHistory.
       const bookingsRaw = await readFile(path.join(dataDirectory, 'bookings.json'), 'utf8');
       const bookings = JSON.parse(bookingsRaw) as Booking[];
-      const deletedBooking = bookings.find((b) => b.id === created.id);
+      const cancelled = bookings.find((b) => b.id === created.id);
 
-      expect(deletedBooking).toBeUndefined();
+      expect(cancelled).toBeDefined();
+      expect(cancelled?.status).toBe('cancelled_by_athlete');
+      expect(cancelled?.cancelledBy).toBe('athlete');
+      expect(cancelled?.cancelReason).toBeDefined();
+      // statusHistory: pending (initial) + cancelled_by_athlete (soft-cancel).
+      expect(cancelled?.statusHistory).toHaveLength(2);
+      expect(cancelled?.statusHistory?.[1]).toMatchObject({
+        from: 'pending',
+        to: 'cancelled_by_athlete',
+        actor: 'athlete',
+        actorUserId: 1,
+      });
 
-      // bookedCount уменьшился
+      // bookedCount уменьшился — слот свободен для другого атлета.
       const scheduleAfter = await getSchedule({ ownerType: 'all' });
 
       expect(scheduleAfter.find((s) => s.id === 1001)!.bookedCount).toBe(0);
     });
 
-    it('выбрасывает ошибку при попытке удалить чужой booking', async () => {
-      // Booking id=1 принадлежит userId=1
+    it('выбрасывает ошибку при попытке отменить чужой booking (ownership-guard)', async () => {
+      // Booking id=1 (seed) принадлежит userId=1, другой userId не имеет прав.
       await expect(cancelBooking({ bookingId: 1, userId: 999 })).rejects.toThrow();
     });
 
@@ -172,28 +198,28 @@ describe('db booking helpers', () => {
       await expect(cancelBooking({ bookingId: 99999, userId: 1 })).rejects.toThrow();
     });
 
-    it('после hard-delete пользователь может заново записаться на тот же slot', async () => {
-      // Создаём → отменяем → снова создаём
+    it('после soft-cancel пользователь может заново записаться на тот же слот', async () => {
+      // Создаём → soft-cancel → снова создаём. Duplicate guard срабатывает только
+      // по ACTIVE (pending/confirmed); cancelled_by_athlete — терминал, не блокирует.
       const first = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
 
       await cancelBooking({ bookingId: first.id, userId: 1 });
 
-      // Повторная запись должна пройти
       const second = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
 
       expect(second.scheduleId).toBe(1001);
       expect(second.userId).toBe(1);
       expect(second.id).toBeDefined();
+      expect(second.id).not.toBe(first.id); // новый id
+      expect(second.status).toBe('pending');
     });
 
     it('откатывает изменения при ошибке записи (atomicity)', async () => {
-      // Создаём booking для отмены
       const created = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
       const bookingsBefore = await getBookings();
       const scheduleBefore = await getSchedule({ ownerType: 'all' });
       let shouldFail = true;
 
-      // Симулируем ошибку при записи schedule коллекции
       __setWriteCollectionTestHookForTests((key) => {
         if (shouldFail && key === 'schedule') {
           shouldFail = false;
@@ -205,7 +231,7 @@ describe('db booking helpers', () => {
         'Simulated cancel write failure',
       );
 
-      // Booking не удалён, bookedCount не изменился
+      // Rollback: booking остался в pending, bookedCount не менялся.
       const bookingsAfter = await getBookings();
       const scheduleAfter = await getSchedule({ ownerType: 'all' });
 

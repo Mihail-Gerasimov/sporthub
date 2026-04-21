@@ -30,6 +30,7 @@ import { GET as getBookingsRoute, POST as createBookingRoute } from '@/app/api/b
 import BookingPage from '@/app/booking/[scheduleId]/page';
 import AthleteProfileRoute from '@/app/profile/athlete/page';
 import ProviderProfileRoute from '@/app/profile/provider/page';
+import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { getDateKeyInTimeZone } from '@/lib/utils';
 import {
   AUTH_STORAGE_KEY,
@@ -251,7 +252,11 @@ describe('booking-flow integration (Step 16.9)', () => {
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
     expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();
-    expect(await readBookingsFromJson()).toEqual([]);
+    // Phase 24: soft-cancel оставляет запись в JSON со status='cancelled_by_athlete'.
+    const bookingsAfterTrainerCancel = await readBookingsFromJson();
+    expect(
+      bookingsAfterTrainerCancel.every((booking) => !ACTIVE_BOOKING_STATUSES.has(booking.status)),
+    ).toBe(true);
     expect(
       (await readScheduleFromJson()).find((slot) => slot.id === trainerSlotId)?.bookedCount,
     ).toBe(0);
@@ -329,7 +334,11 @@ describe('booking-flow integration (Step 16.9)', () => {
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
     expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();
-    expect(await readBookingsFromJson()).toEqual([]);
+    // Phase 24: soft-cancel — booking остаётся, но не в ACTIVE.
+    const bookingsAfterClubCancel = await readBookingsFromJson();
+    expect(
+      bookingsAfterClubCancel.every((booking) => !ACTIVE_BOOKING_STATUSES.has(booking.status)),
+    ).toBe(true);
     expect((await readScheduleFromJson()).find((slot) => slot.id === clubSlotId)?.bookedCount).toBe(
       0,
     );

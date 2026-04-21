@@ -1,3 +1,4 @@
+import { CANCELLED_BOOKING_STATUSES, COMPLETED_BOOKING_STATUSES } from '@/lib/booking-status';
 import type { AthleteAchievementId, Booking, Review } from '@/types';
 
 export type AthleteAchievement = {
@@ -49,11 +50,16 @@ function getBookingStreakWithoutCancellation(bookings: Booking[], athleteUserId:
     return 0;
   }
 
+  // Phase 24: streak проведённых тренировок — считаем от самых свежих назад, пока
+  // не упрёмся в отмену. Переход на FSM-наборы: completed-like (проведение) vs
+  // cancelled-like (отмена/отказ). no_show и unmarked в streak не учитываются —
+  // это "прошло, но не проведено", нейтральный финал без положительного вклада.
   const bookingHistory = bookings
     .filter(
       (booking) =>
         booking.userId === athleteUserId &&
-        (booking.status === 'completed' || booking.status === 'cancelled'),
+        (COMPLETED_BOOKING_STATUSES.has(booking.status) ||
+          CANCELLED_BOOKING_STATUSES.has(booking.status)),
     )
     .sort((left, right) => {
       const leftTimestamp = getDateValue(left.date);
@@ -70,9 +76,11 @@ function getBookingStreakWithoutCancellation(bookings: Booking[], athleteUserId:
       continue;
     }
 
-    if (booking.status === 'cancelled') {
+    if (CANCELLED_BOOKING_STATUSES.has(booking.status)) {
       break;
     }
+
+    // no_show / unmarked — нейтральные финалы, не ломают streak и не засчитываются.
   }
 
   return streak;

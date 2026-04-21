@@ -77,11 +77,13 @@ export interface LogEntry extends BaseEntity {
   meta?: Record<string, unknown>;
 }
 
-// Статусы FSM booking'а (Phase 24).
-// 'cancelled' оставлен как @deprecated для совместимости с существующим seed
-// и тестами до Step 24.3, где cancelBooking() переходит на soft-cancel через
-// transitionBooking() и маппится в cancelled_by_athlete. В Step 24.3 'cancelled'
-// удаляется из union полностью.
+// Статусы FSM booking'а (Phase 24, Step 24.3).
+// Старое значение 'cancelled' удалено: cancelBooking() переведён на soft-cancel
+// через transitionBooking(), маппится в 'cancelled_by_athlete'. Полный набор FSM:
+// pending / confirmed — активные (ACTIVE_BOOKING_STATUSES).
+// completed / no_show / unmarked — финалы проведения (COMPLETED_BOOKING_STATUSES).
+// rejected_by_provider / cancelled_by_athlete / cancelled_by_provider — отмены
+// и отказы (CANCELLED_BOOKING_STATUSES).
 export type BookingStatus =
   | 'pending'
   | 'confirmed'
@@ -90,9 +92,7 @@ export type BookingStatus =
   | 'unmarked'
   | 'rejected_by_provider'
   | 'cancelled_by_athlete'
-  | 'cancelled_by_provider'
-  // @deprecated Phase 24 Step 24.3 — удалится при переходе cancelBooking на FSM-soft-cancel
-  | 'cancelled';
+  | 'cancelled_by_provider';
 
 // Инициатор перехода в FSM. 'system' — ленивые автопереходы runLazyBookingTransitions.
 export type BookingActor = 'athlete' | 'provider' | 'admin' | 'system';

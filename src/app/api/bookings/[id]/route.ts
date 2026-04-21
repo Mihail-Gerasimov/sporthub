@@ -1,4 +1,8 @@
-// API отмены записи: DELETE /api/bookings/[id] (Step 16.2 — hard-delete)
+// API отмены записи: DELETE /api/bookings/[id].
+// Phase 24 (Step 24.3): soft-cancel через FSM — booking остаётся в bookings.json
+// со status='cancelled_by_athlete' и заполненным cancelReason (on_time/late по
+// snapshot-policy). Hard-delete доступен только админу через DELETE /api/admin/bookings/[id]
+// (Step 24.4).
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 

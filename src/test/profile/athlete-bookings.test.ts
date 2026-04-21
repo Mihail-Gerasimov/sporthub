@@ -70,7 +70,7 @@ const bookings: Booking[] = [
     trainerId: 2,
     sportId: 2,
     date: '2026-03-21',
-    status: 'cancelled',
+    status: 'cancelled_by_athlete',
     paymentStatus: 'refunded',
     totalPrice: 1400,
   },

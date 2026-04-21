@@ -1,3 +1,4 @@
+import { CANCELLED_BOOKING_STATUSES } from '@/lib/booking-status';
 import type { Booking, Club, Review, Trainer, User } from '@/types';
 
 export type AthleteFavoriteTrainer = Trainer & {
@@ -63,8 +64,11 @@ export function getAthleteFavorites({
   const favoriteClubs = favoriteClubIds
     .map((favoriteClubId) => clubs.find((club) => club.id === favoriteClubId) ?? null)
     .filter((club): club is Club => club !== null);
+  // Phase 24: фильтруем по отсутствию в множестве отменённых/отклонённых статусов —
+  // совместимо с FSM (cancelled_by_athlete / cancelled_by_provider / rejected_by_provider).
   const activeBookings = bookings.filter(
-    (booking) => booking.userId === athleteUserId && booking.status !== 'cancelled',
+    (booking) =>
+      booking.userId === athleteUserId && !CANCELLED_BOOKING_STATUSES.has(booking.status),
   );
   const athleteReviews = reviews.filter((review) => review.userId === athleteUserId);
 

@@ -1,3 +1,4 @@
+import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import type { Booking, Club, Schedule, Trainer } from '@/types';
 
@@ -32,9 +33,7 @@ type GetAthleteUpcomingProfileBookingsInput = {
   trainers: Trainer[];
 };
 
-const ACTIVE_BOOKING_STATUSES = new Set<Booking['status']>(['confirmed', 'pending']);
-
-// Phase 24: лейблы для всех 9 значений BookingStatus.
+// Phase 24: лейблы для всех 8 значений BookingStatus.
 // Временные тексты для новых FSM-статусов — финальная UX-формулировка в Step 24.13 (Reliability UI).
 const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   pending: 'Ожидает подтверждения',
@@ -45,7 +44,6 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   rejected_by_provider: 'Отклонена провайдером',
   cancelled_by_athlete: 'Отменена вами',
   cancelled_by_provider: 'Отменена провайдером',
-  cancelled: 'Отменена',
 };
 
 const BOOKING_STATUS_TONES: Record<Booking['status'], UpcomingProfileBookingStatusTone> = {
@@ -57,7 +55,6 @@ const BOOKING_STATUS_TONES: Record<Booking['status'], UpcomingProfileBookingStat
   rejected_by_provider: 'danger',
   cancelled_by_athlete: 'danger',
   cancelled_by_provider: 'danger',
-  cancelled: 'danger',
 };
 
 function getBookingTypeLabel(booking: Pick<Booking, 'ownerType' | 'clubId' | 'trainerId'>) {

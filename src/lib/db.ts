@@ -3,16 +3,25 @@ import 'server-only';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
+import { DISCIPLINE_CONFIG, type DisciplineConfig } from '@/lib/discipline-config';
+import { notify } from '@/lib/notify';
 import { getProjectDataDirectory } from '@/lib/projectPaths';
 import type {
   Amenity,
   Booking,
+  BookingActor,
+  BookingStatus,
+  BookingStatusTransition,
+  CancellationPolicy,
+  CancelReason,
   CatalogOwnerType,
   City,
   Club,
   EntityId,
   LogEntry,
   Notification,
+  NotificationType,
   Offering,
   Review,
   Schedule,
@@ -836,17 +845,273 @@ export type CreateBookingAtomicInput = {
 };
 
 /**
- * Input для отмены booking (hard-delete).
+ * Input для отмены booking атлетом (Phase 24: soft-cancel через FSM).
+ * Hard-delete доступен только через hardDeleteBooking (admin).
  */
 export type CancelBookingInput = {
   bookingId: EntityId;
   userId: EntityId;
 };
 
+// --- Phase 24: FSM booking'а ---
+
 /**
- * Atomic-создание записи: booking + bookedCount++ единым rollback-сценарием.
- * Проверяет: существование слота, capacity, duplicate.
- * MVP: запись сразу confirmed. pending зарезервирован для будущего payment-flow.
+ * Карта допустимых переходов FSM. Финальные статусы (completed, no_show, unmarked,
+ * rejected_by_provider, cancelled_by_*) не имеют исходящих переходов — админ использует
+ * hardDeleteBooking для полного удаления. pending ведёт в 4 ветви финала; confirmed
+ * добавляет check-in (completed / no_show) и ленивый unmarked.
+ */
+const FSM_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  pending: ['confirmed', 'rejected_by_provider', 'cancelled_by_athlete', 'cancelled_by_provider'],
+  confirmed: ['completed', 'no_show', 'cancelled_by_athlete', 'cancelled_by_provider', 'unmarked'],
+  completed: [],
+  no_show: [],
+  unmarked: [],
+  rejected_by_provider: [],
+  cancelled_by_athlete: [],
+  cancelled_by_provider: [],
+};
+
+/**
+ * Карта разрешённых акторов на каждый переход. Ключ — "from->to".
+ * admin опускается в проверке — админ имеет право на любой валидный FSM-переход
+ * (через инструменты Step 24.15). system — только для ленивых автопереходов.
+ */
+const TRANSITION_ACTORS: Partial<Record<string, BookingActor[]>> = {
+  'pending->confirmed': ['provider'],
+  'pending->rejected_by_provider': ['provider'],
+  'pending->cancelled_by_athlete': ['athlete'],
+  'pending->cancelled_by_provider': ['provider', 'system'],
+  'confirmed->completed': ['provider'],
+  'confirmed->no_show': ['provider'],
+  'confirmed->cancelled_by_athlete': ['athlete'],
+  'confirmed->cancelled_by_provider': ['provider'],
+  'confirmed->unmarked': ['system'],
+};
+
+/**
+ * Валидирует переход FSM по двум осям: допустимость (from→to есть в FSM_TRANSITIONS)
+ * и право актора (admin — всегда; остальные — по TRANSITION_ACTORS). Бросает ошибку
+ * с понятным русским сообщением, маппится на 4xx в API-роутах Step 24.4.
+ */
+function validateTransition(from: BookingStatus, to: BookingStatus, actor: BookingActor): void {
+  const allowed = FSM_TRANSITIONS[from];
+
+  if (!allowed || !allowed.includes(to)) {
+    throw new Error(`Недопустимый переход booking: ${from} → ${to}`);
+  }
+
+  if (actor === 'admin') {
+    return;
+  }
+
+  const key = `${from}->${to}`;
+  const allowedActors = TRANSITION_ACTORS[key];
+
+  if (!allowedActors || !allowedActors.includes(actor)) {
+    throw new Error(`Actor '${actor}' не может выполнять переход ${from} → ${to}`);
+  }
+}
+
+/**
+ * Правила изменения Schedule.bookedCount при переходе. Phase 24-семантика:
+ * bookedCount — "физически занятые места", не "активные записи". Любая ветка отмены
+ * или отказа освобождает место; финалы проведения (completed/no_show/unmarked)
+ * не трогают счётчик — место уже было занято.
+ */
+function getBookedCountDelta(from: BookingStatus, to: BookingStatus): number {
+  if (
+    to === 'cancelled_by_athlete' ||
+    to === 'cancelled_by_provider' ||
+    to === 'rejected_by_provider'
+  ) {
+    return -1;
+  }
+
+  return 0;
+}
+
+// Парсит дату+время слота в абсолютный Date. MVP-конвенция: datetime в локальной TZ
+// процесса. При миграции на Prisma — переход на TIMESTAMPTZ без смены API utility.
+function getSlotStartAt(slot: Schedule): Date {
+  return new Date(`${slot.date}T${slot.startTime}:00`);
+}
+
+function getSlotEndAt(slot: Schedule): Date {
+  return new Date(`${slot.date}T${slot.endTime}:00`);
+}
+
+/**
+ * Вычисляет cancelReason для отмены атлетом: on_time (в пределах окна бесплатной
+ * отмены по snapshot-policy) или late (за окном). Snapshot-policy хранится в
+ * booking.cancellationPolicySnapshot — задним числом ужесточить нельзя.
+ * free_anytime → Infinity (всегда on_time); no_refund → 0 (всегда late).
+ */
+function computeCancelReason(
+  booking: Booking,
+  slot: Schedule | null,
+  now: Date,
+  config: DisciplineConfig = DISCIPLINE_CONFIG,
+): CancelReason {
+  const policy: CancellationPolicy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
+  const freeUntilHours = config.lateCancel.freeUntil[policy];
+
+  if (!Number.isFinite(freeUntilHours)) {
+    return 'on_time';
+  }
+
+  // Защитный дефолт: если слот не найден (удалён параллельно), считаем отмену поздней.
+  if (!slot) {
+    return 'late';
+  }
+
+  const startAt = getSlotStartAt(slot);
+  const hoursBeforeStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  return hoursBeforeStart >= freeUntilHours ? 'on_time' : 'late';
+}
+
+/**
+ * Маппит FSM-переход в NotificationType и вызывает notify() для заинтересованной
+ * стороны. В Step 24.3 notify() — stub (noop); Step 24.5 включит доставку через
+ * createNotification. Получателя провайдерских уведомлений добавит Step 24.5 через
+ * slot-context (сейчас все адресуются атлету).
+ */
+function dispatchTransitionNotifications(
+  booking: Booking,
+  transition: BookingStatusTransition,
+): void {
+  const athleteId = booking.userId;
+
+  switch (transition.to) {
+    case 'confirmed':
+      notify(athleteId, 'booking_confirmed', { bookingId: booking.id });
+      return;
+    case 'rejected_by_provider':
+      notify(athleteId, 'booking_rejected', {
+        bookingId: booking.id,
+        reason: transition.reason,
+      });
+      return;
+    case 'cancelled_by_athlete':
+      // TODO Step 24.5: notify провайдеру через slot-context.
+      notify(athleteId, 'booking_cancelled_by_athlete', {
+        bookingId: booking.id,
+        cancelReason: booking.cancelReason,
+      });
+      return;
+    case 'cancelled_by_provider': {
+      // actor='system' — ленивый auto-expire pending (см. runLazyBookingTransitions).
+      const type: NotificationType =
+        transition.actor === 'system' ? 'booking_auto_expired' : 'booking_cancelled_by_provider';
+      notify(athleteId, type, { bookingId: booking.id });
+      return;
+    }
+    case 'completed':
+      notify(athleteId, 'booking_completed', { bookingId: booking.id });
+      return;
+    case 'no_show':
+      notify(athleteId, 'booking_no_show', { bookingId: booking.id });
+      return;
+    case 'unmarked':
+      // Служебный финал — атлету не шлём, попадёт в админ-аналитику.
+      return;
+    default:
+      return;
+  }
+}
+
+/** Input универсального FSM-перехода. API-роуты Step 24.4 — тонкие обёртки над transitionBooking. */
+export interface TransitionBookingInput {
+  bookingId: EntityId;
+  to: BookingStatus;
+  actor: BookingActor;
+  actorUserId?: EntityId;
+  reason?: string;
+  /** Overridable для тестов и ленивых автопереходов (now фиксируется на старте сканирования). */
+  now?: Date;
+}
+
+/**
+ * Ядро FSM: атомарно переводит booking в target-статус с записью в bookings.json
+ * и schedule.json (bookedCount по таблице), добавляет запись в statusHistory,
+ * фиксирует cancelledBy/cancelReason/completedAt по семантике target'а, уведомляет
+ * получателей через notify(). Rollback при ошибке любой записи коллекции.
+ */
+export async function transitionBooking(input: TransitionBookingInput): Promise<Booking> {
+  const now = input.now ?? new Date();
+  const [bookings, schedule] = await Promise.all([getBookings(), readCollection('schedule')]);
+
+  const bookingIndex = bookings.findIndex((candidate) => candidate.id === input.bookingId);
+
+  if (bookingIndex === -1) {
+    throw new Error('Запись не найдена');
+  }
+
+  const booking = bookings[bookingIndex];
+
+  validateTransition(booking.status, input.to, input.actor);
+
+  const transition: BookingStatusTransition = {
+    from: booking.status,
+    to: input.to,
+    actor: input.actor,
+    actorUserId: input.actorUserId,
+    at: now.toISOString(),
+    reason: input.reason,
+  };
+
+  const updatedBooking: Booking = {
+    ...booking,
+    status: input.to,
+    statusHistory: [...(booking.statusHistory ?? []), transition],
+  };
+
+  if (input.to === 'cancelled_by_athlete') {
+    const slot = schedule.find((candidate) => candidate.id === booking.scheduleId) ?? null;
+    updatedBooking.cancelledBy = input.actor;
+    updatedBooking.cancelReason = computeCancelReason(booking, slot, now);
+  } else if (input.to === 'cancelled_by_provider' || input.to === 'rejected_by_provider') {
+    updatedBooking.cancelledBy = input.actor;
+  } else if (input.to === 'completed') {
+    updatedBooking.completedAt = now.toISOString();
+  }
+
+  const delta = getBookedCountDelta(booking.status, input.to);
+  const updatedSchedule = [...schedule];
+
+  if (delta !== 0) {
+    const slotIndex = schedule.findIndex((slot) => slot.id === booking.scheduleId);
+
+    if (slotIndex !== -1) {
+      updatedSchedule[slotIndex] = {
+        ...schedule[slotIndex],
+        bookedCount: Math.max(0, schedule[slotIndex].bookedCount + delta),
+      };
+    }
+  }
+
+  const updatedBookings = [...bookings];
+  updatedBookings[bookingIndex] = updatedBooking;
+
+  await writeCollectionsWithRollback([
+    { key: 'bookings', next: updatedBookings, previous: bookings },
+    { key: 'schedule', next: updatedSchedule, previous: schedule },
+  ]);
+
+  dispatchTransitionNotifications(updatedBooking, transition);
+
+  return updatedBooking;
+}
+
+/**
+ * Atomic-создание booking (Phase 24): каждая новая запись стартует в pending, ждёт
+ * подтверждения провайдером. statusHistory фиксирует первый переход (from=null →
+ * to=pending, actor=athlete). cancellationPolicySnapshot клонируется с offering
+ * (read-fallback 'free_until_24h' защищает от seed без policy). bookedCount +1
+ * с момента pending — слот физически занят ожиданием подтверждения.
+ * Duplicate guard блокируется только при наличии ACTIVE booking'а (pending/confirmed);
+ * после финала атлет может заново записаться на тот же слот.
  */
 export async function createBookingAtomic(input: CreateBookingAtomicInput): Promise<Booking> {
   const [bookings, schedule, slotContext] = await Promise.all([
@@ -861,9 +1126,11 @@ export async function createBookingAtomic(input: CreateBookingAtomicInput): Prom
 
   const { affiliatedClub, club, offering, schedule: slot, trainer } = slotContext;
 
-  // После hard-delete cancelled записей нет в JSON → любой existing = duplicate
   const duplicate = bookings.find(
-    (booking) => booking.userId === input.userId && booking.scheduleId === input.scheduleId,
+    (booking) =>
+      booking.userId === input.userId &&
+      booking.scheduleId === input.scheduleId &&
+      ACTIVE_BOOKING_STATUSES.has(booking.status),
   );
 
   if (duplicate) {
@@ -874,10 +1141,20 @@ export async function createBookingAtomic(input: CreateBookingAtomicInput): Prom
     throw new Error('Свободных мест нет');
   }
 
-  // Собираем booking
+  const timestamp = createTimestamp();
+  const snapshot: CancellationPolicy = offering?.cancellationPolicy ?? 'free_until_24h';
+
+  const initialTransition: BookingStatusTransition = {
+    from: null,
+    to: 'pending',
+    actor: 'athlete',
+    actorUserId: input.userId,
+    at: timestamp,
+  };
+
   const booking: Booking = {
     id: getNextEntityId(bookings),
-    createdAt: createTimestamp(),
+    createdAt: timestamp,
     scheduleId: input.scheduleId,
     offeringId: slot.offeringId,
     ownerType: slot.ownerType,
@@ -888,23 +1165,23 @@ export async function createBookingAtomic(input: CreateBookingAtomicInput): Prom
     trainerId: trainer?.id ?? slot.trainerId,
     sportId: offering?.sportId ?? slot.sportId,
     date: slot.date,
-    status: 'confirmed',
+    status: 'pending',
     paymentStatus: 'unpaid',
     totalPrice: offering?.price ?? slot.price,
+    cancellationPolicySnapshot: snapshot,
+    statusHistory: [initialTransition],
   };
 
-  // Обновляем bookedCount в schedule
-  const rawSlotIndex = schedule.findIndex((item) => item.id === input.scheduleId);
+  const slotIndex = schedule.findIndex((item) => item.id === input.scheduleId);
   const updatedSchedule = [...schedule];
 
-  updatedSchedule[rawSlotIndex] = {
-    ...schedule[rawSlotIndex],
-    bookedCount: schedule[rawSlotIndex].bookedCount + 1,
+  updatedSchedule[slotIndex] = {
+    ...schedule[slotIndex],
+    bookedCount: schedule[slotIndex].bookedCount + 1,
   };
 
   const updatedBookings = [...bookings, booking];
 
-  // Atomic write: bookings + schedule
   await writeCollectionsWithRollback([
     { key: 'bookings', next: updatedBookings, previous: bookings },
     { key: 'schedule', next: updatedSchedule, previous: schedule },
@@ -914,43 +1191,148 @@ export async function createBookingAtomic(input: CreateBookingAtomicInput): Prom
 }
 
 /**
- * Отмена записи: hard-delete booking + bookedCount-- единым rollback-сценарием.
- * Проверяет ownership: только владелец записи может отменить.
+ * Отмена booking атлетом (Phase 24: soft-cancel через FSM). Тонкая обёртка над
+ * transitionBooking(to=cancelled_by_athlete). Ownership-guard — до вызова FSM,
+ * чтобы ошибка прав шла конкретным русским сообщением (маппится на 403 в роуте).
  */
 export async function cancelBooking(input: CancelBookingInput): Promise<void> {
-  const [bookings, schedule] = await Promise.all([getBookings(), readCollection('schedule')]);
+  const bookings = await getBookings();
+  const booking = bookings.find((candidate) => candidate.id === input.bookingId);
 
-  const bookingIndex = bookings.findIndex((booking) => booking.id === input.bookingId);
-
-  if (bookingIndex === -1) {
+  if (!booking) {
     throw new Error('Запись не найдена');
   }
-
-  const booking = bookings[bookingIndex];
 
   if (booking.userId !== input.userId) {
     throw new Error('Недостаточно прав для отмены записи');
   }
 
-  // Удаляем booking из массива (hard-delete)
-  const updatedBookings = bookings.filter((b) => b.id !== input.bookingId);
+  await transitionBooking({
+    bookingId: input.bookingId,
+    to: 'cancelled_by_athlete',
+    actor: 'athlete',
+    actorUserId: input.userId,
+  });
+}
 
-  // Уменьшаем bookedCount
-  const slotIndex = schedule.findIndex((item) => item.id === booking.scheduleId);
-  const updatedSchedule = [...schedule];
+/** Input админского hard-delete booking'а (Step 24.4 — DELETE /api/admin/bookings/[id]). */
+export interface HardDeleteBookingInput {
+  bookingId: EntityId;
+  adminUserId: EntityId;
+}
 
-  if (slotIndex !== -1) {
-    updatedSchedule[slotIndex] = {
-      ...schedule[slotIndex],
-      bookedCount: Math.max(0, schedule[slotIndex].bookedCount - 1),
-    };
+/**
+ * Phase 24 admin-only: физическое удаление booking'а. Используется только в
+ * DELETE /api/admin/bookings/[id] под admin-guard (Step 24.4). В отличие от
+ * cancelBooking (soft-cancel), запись полностью исчезает из bookings.json вместе
+ * со statusHistory — не остаётся в источнике правды для рейтинга/аналитики.
+ * Откатывает bookedCount, только если booking был в ACTIVE-фазе; терминальные
+ * статусы не трогает (слот уже прошёл или был освобождён переходом).
+ */
+export async function hardDeleteBooking(input: HardDeleteBookingInput): Promise<void> {
+  const [bookings, schedule] = await Promise.all([getBookings(), readCollection('schedule')]);
+
+  const booking = bookings.find((candidate) => candidate.id === input.bookingId);
+
+  if (!booking) {
+    throw new Error('Запись не найдена');
   }
 
-  // Atomic write: bookings + schedule
+  const updatedBookings = bookings.filter((candidate) => candidate.id !== input.bookingId);
+  const updatedSchedule = [...schedule];
+
+  if (ACTIVE_BOOKING_STATUSES.has(booking.status)) {
+    const slotIndex = schedule.findIndex((slot) => slot.id === booking.scheduleId);
+
+    if (slotIndex !== -1) {
+      updatedSchedule[slotIndex] = {
+        ...schedule[slotIndex],
+        bookedCount: Math.max(0, schedule[slotIndex].bookedCount - 1),
+      };
+    }
+  }
+
   await writeCollectionsWithRollback([
     { key: 'bookings', next: updatedBookings, previous: bookings },
     { key: 'schedule', next: updatedSchedule, previous: schedule },
   ]);
+}
+
+/** Сводка по ленивым автопереходам — для отчётов вызывающей стороны и тестов. */
+export interface LazyBookingTransitionsResult {
+  autoCancelledPending: number;
+  autoUnmarked: number;
+}
+
+/**
+ * Phase 24: ленивые автопереходы FSM без cron. Идемпотентная — повторный вызов
+ * на тех же данных не триггерит повторных переходов (pending уже ушёл в
+ * cancelled_by_provider, confirmed уже в unmarked). Вызывается в 3 точках
+ * (Step 24.4):
+ *   - GET /api/bookings
+ *   - src/app/profile/athlete/page.tsx (до чтения bookings)
+ *   - src/app/profile/provider/page.tsx (до чтения bookings)
+ */
+export async function runLazyBookingTransitions(
+  now: Date = new Date(),
+  config: DisciplineConfig = DISCIPLINE_CONFIG,
+): Promise<LazyBookingTransitionsResult> {
+  const [bookings, schedule] = await Promise.all([getBookings(), readCollection('schedule')]);
+
+  const scheduleById = new Map(schedule.map((slot) => [slot.id, slot]));
+  const autoCancelMs = config.pending.autoCancelHoursBeforeStart * 60 * 60 * 1000;
+  const unmarkMs = config.checkIn.windowHoursAfterEnd * 60 * 60 * 1000;
+
+  const toCancel: Booking[] = [];
+  const toUnmark: Booking[] = [];
+
+  for (const booking of bookings) {
+    const slot = scheduleById.get(booking.scheduleId);
+
+    if (!slot) {
+      continue;
+    }
+
+    if (booking.status === 'pending') {
+      const startAt = getSlotStartAt(slot);
+
+      if (now.getTime() >= startAt.getTime() - autoCancelMs) {
+        toCancel.push(booking);
+      }
+    } else if (booking.status === 'confirmed') {
+      const endAt = getSlotEndAt(slot);
+
+      if (now.getTime() > endAt.getTime() + unmarkMs) {
+        toUnmark.push(booking);
+      }
+    }
+  }
+
+  // Последовательное применение: если один переход упадёт (race по файлу), остальные
+  // попадут в следующий вызов — идемпотентность сохраняется.
+  for (const booking of toCancel) {
+    await transitionBooking({
+      bookingId: booking.id,
+      to: 'cancelled_by_provider',
+      actor: 'system',
+      reason: 'auto_cancel_pending_expired',
+      now,
+    });
+  }
+
+  for (const booking of toUnmark) {
+    await transitionBooking({
+      bookingId: booking.id,
+      to: 'unmarked',
+      actor: 'system',
+      now,
+    });
+  }
+
+  return {
+    autoCancelledPending: toCancel.length,
+    autoUnmarked: toUnmark.length,
+  };
 }
 
 export async function createReview(input: CreateReviewInput): Promise<Review> {

@@ -1,4 +1,5 @@
 // Бизнес-логика провайдер-кабинета: фильтрация клубов, тренеров, букингов, отзывов и сводка.
+import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import {
   getBookingClubId,
   getBookingTrainerId,
@@ -47,9 +48,7 @@ type GetProviderIncomingBookingsInput = {
   users?: User[];
 };
 
-const ACTIVE_BOOKING_STATUSES = new Set<Booking['status']>(['confirmed', 'pending']);
-
-// Phase 24: лейблы для всех 9 значений BookingStatus.
+// Phase 24: лейблы для всех 8 значений BookingStatus.
 // Временные тексты для новых FSM-статусов — финальная UX-формулировка в Step 24.13 (Reliability UI).
 const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   pending: 'Ожидает подтверждения',
@@ -60,7 +59,6 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   rejected_by_provider: 'Отклонена',
   cancelled_by_athlete: 'Отменена спортсменом',
   cancelled_by_provider: 'Отменена вами',
-  cancelled: 'Отменена',
 };
 
 const BOOKING_STATUS_TONES: Record<Booking['status'], ProviderIncomingBookingStatusTone> = {
@@ -72,7 +70,6 @@ const BOOKING_STATUS_TONES: Record<Booking['status'], ProviderIncomingBookingSta
   rejected_by_provider: 'danger',
   cancelled_by_athlete: 'danger',
   cancelled_by_provider: 'danger',
-  cancelled: 'danger',
 };
 
 const PAYMENT_STATUS_LABELS: Record<Booking['paymentStatus'], string> = {

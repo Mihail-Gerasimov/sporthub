@@ -54,6 +54,7 @@ describe('Bookings API', () => {
 
     expect(postResponse.status).toBe(201);
     expect(postBody.success).toBe(true);
+    // Phase 24: POST создаёт booking в pending, ждёт подтверждения провайдером.
     expect(postBody.data).toMatchObject({
       scheduleId: 1001,
       offeringId: 101,
@@ -64,11 +65,18 @@ describe('Bookings API', () => {
       trainerId: 1,
       sportId: 3,
       date: '2026-03-20',
-      status: 'confirmed',
+      status: 'pending',
       paymentStatus: 'unpaid',
       totalPrice: 1400,
+      cancellationPolicySnapshot: 'free_until_24h',
     });
     expect(postBody.data.clubId).toBeUndefined();
+    expect(postBody.data.statusHistory).toHaveLength(1);
+    expect(postBody.data.statusHistory[0]).toMatchObject({
+      from: null,
+      to: 'pending',
+      actor: 'athlete',
+    });
 
     const getResponse = await GET(new NextRequest('http://localhost:3000/api/bookings?userId=1'));
     const getBody = await getResponse.json();
@@ -210,15 +218,18 @@ describe('Bookings API', () => {
       expect(deleteResponse.status).toBe(200);
       expect(deleteBody.success).toBe(true);
 
-      // Booking физически отсутствует
+      // Phase 24: soft-cancel — booking остаётся в JSON со status='cancelled_by_athlete'.
       const bookingsPath = path.join(dataDirectory, 'bookings.json');
       const bookingsRaw = await readFile(bookingsPath, 'utf8');
       const bookings = JSON.parse(bookingsRaw);
-      const deletedBooking = bookings.find((b: { id: number }) => b.id === bookingId);
+      const cancelled = bookings.find((b: { id: number }) => b.id === bookingId);
 
-      expect(deletedBooking).toBeUndefined();
+      expect(cancelled).toBeDefined();
+      expect(cancelled.status).toBe('cancelled_by_athlete');
+      expect(cancelled.cancelledBy).toBe('athlete');
+      expect(cancelled.cancelReason).toBeDefined();
 
-      // bookedCount вернулся к 0
+      // bookedCount всё равно освободился — слот доступен для следующего атлета.
       const schedulePath = path.join(dataDirectory, 'schedule.json');
       const scheduleRaw = await readFile(schedulePath, 'utf8');
       const schedule = JSON.parse(scheduleRaw) as Schedule[];
