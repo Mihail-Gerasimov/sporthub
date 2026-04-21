@@ -41,13 +41,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     await cancelBooking({ bookingId, userId });
 
-    // Логируем отмену записи (fire-and-forget)
+    // Phase 24: soft-cancel — фиксируем actor и полученный cancelReason (on_time/late
+    // вычисляется в transitionBooking по snapshot-policy).
     logAction({
       action: 'booking_cancel',
       actorId: userId,
       actorRole: 'athlete',
       entityType: 'booking',
       entityId: bookingId,
+      meta: { actor: 'athlete', source: 'public_delete' },
     }).catch(() => {});
 
     return NextResponse.json({ success: true });

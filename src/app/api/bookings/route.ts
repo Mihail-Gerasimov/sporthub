@@ -1,8 +1,17 @@
-// API записей: получение и создание booking (Step 16.2 — atomic flow)
+// API записей: получение и создание booking.
+// Phase 24 (Step 24.4): перед GET bookings вызываем runLazyBookingTransitions —
+// pending-заявки за 1 час до слота авто-отменяются в cancelled_by_provider,
+// confirmed через 48 часов после endAt переходят в unmarked. Идемпотентно.
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { createBookingAtomic, getBookings, getScheduleSlotContext, getUserById } from '@/lib/db';
+import {
+  createBookingAtomic,
+  getBookings,
+  getScheduleSlotContext,
+  getUserById,
+  runLazyBookingTransitions,
+} from '@/lib/db';
 import { logAction } from '@/lib/logAction';
 
 const bookingsQuerySchema = z.object({
@@ -37,6 +46,10 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Phase 24: триггерим ленивые автопереходы FSM перед чтением. Идемпотентно —
+    // не создаёт лишних переходов при повторных вызовах.
+    await runLazyBookingTransitions();
 
     const bookings = await getBookings();
     const userBookings = bookings

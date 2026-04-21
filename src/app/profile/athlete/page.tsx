@@ -1,4 +1,6 @@
 // Серверная страница кабинета спортсмена должна читать живые JSON-данные без статической заморозки.
+// Phase 24 (Step 24.4): перед чтением bookings триггерим ленивые FSM-переходы
+// (auto-cancel pending за 1h до слота, auto-unmark confirmed через 48h). Идемпотентно.
 import {
   getBookings,
   getClubs,
@@ -7,6 +9,7 @@ import {
   getSpecialties,
   getTrainers,
   getUsers,
+  runLazyBookingTransitions,
 } from '@/lib/db';
 import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
 
@@ -14,6 +17,8 @@ import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
 export const dynamic = 'force-dynamic';
 
 export default async function AthleteProfileRoute() {
+  await runLazyBookingTransitions();
+
   const [bookings, clubs, reviews, schedule, specialties, trainers, users] = await Promise.all([
     getBookings(),
     getClubs(),

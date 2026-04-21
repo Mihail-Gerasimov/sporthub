@@ -1,9 +1,12 @@
-// Тесты API записей: POST /api/bookings, DELETE /api/bookings/[id] (Step 16.2)
+// Тесты API записей: POST /api/bookings, DELETE /api/bookings/[id].
+// Phase 24 (Step 24.4): GET /api/bookings триггерит runLazyBookingTransitions,
+// поэтому тесты с seed-слотом 1001 (2026-03-20) фиксируют "сейчас" на день до
+// слота, чтобы не словить auto-cancel pending при текущей системной дате.
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DELETE } from '@/app/api/bookings/[id]/route';
 import { GET, POST } from '@/app/api/bookings/route';
@@ -21,9 +24,14 @@ describe('Bookings API', () => {
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+    // Фиксируем "сейчас" до даты seed-слотов, чтобы runLazyBookingTransitions не
+    // триггерила auto-cancel на старых seed-pending при выполнении GET /api/bookings.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-19T06:00:00'));
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
     await removeIsolatedDataDirectory(dataDirectory);
   });
