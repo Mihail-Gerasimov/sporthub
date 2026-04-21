@@ -203,9 +203,22 @@ export interface QuarantineResult {
 }
 
 /**
+ * Опции для `isAthleteInQuarantine`. Phase 24 Step 24.15: `quarantineLiftedAt`
+ * — отметка админа о ручном снятии карантина (поле `User.quarantineLiftedAt`).
+ * Если есть lift и он позже последнего no_show — карантин считается снятым,
+ * даже если по окну/триггеру атлет формально в нём.
+ */
+export interface QuarantineOptions {
+  config?: DisciplineConfig;
+  quarantineLiftedAt?: ISODateTimeString | null;
+}
+
+/**
  * Определяет, находится ли атлет в карантине. Правило: N подряд no_show без
  * разрыва через completed в окне последних `windowDays` → карантин до
  * endAt_last_no_show + `durationDays`. Если текущее время ≥ until — карантин снят.
+ * Если админ снял карантин (quarantineLiftedAt) и lift позже последнего no_show —
+ * карантин тоже снят.
  *
  * Сортировка booking'ов — по `completedAt` (если есть) или `date`. Для событий одного
  * дня используется стабильный fallback — порядок из массива.
@@ -214,8 +227,10 @@ export function isAthleteInQuarantine(
   bookings: Booking[],
   userId: EntityId,
   now: Date,
-  config: DisciplineConfig = DISCIPLINE_CONFIG,
+  options: QuarantineOptions = {},
 ): QuarantineResult {
+  const config = options.config ?? DISCIPLINE_CONFIG;
+  const quarantineLiftedAt = options.quarantineLiftedAt ?? null;
   const windowMs = config.quarantine.windowDays * 24 * 60 * 60 * 1000;
   const windowStart = new Date(now.getTime() - windowMs);
 
@@ -239,12 +254,19 @@ export function isAthleteInQuarantine(
   if (!allNoShow) return { inQuarantine: false };
 
   const lastNoShow = lastN[lastN.length - 1];
-  const untilDate = new Date(
-    new Date(lastNoShow.sortKey).getTime() + config.quarantine.durationDays * 24 * 60 * 60 * 1000,
-  );
+  const lastNoShowTime = new Date(lastNoShow.sortKey).getTime();
+  const untilDate = new Date(lastNoShowTime + config.quarantine.durationDays * 24 * 60 * 60 * 1000);
 
   if (now.getTime() >= untilDate.getTime()) {
     return { inQuarantine: false };
+  }
+
+  // Phase 24 Step 24.15: ручное снятие админом. Lift после последнего no_show снимает карантин.
+  if (quarantineLiftedAt) {
+    const liftTime = new Date(quarantineLiftedAt).getTime();
+    if (liftTime >= lastNoShowTime) {
+      return { inQuarantine: false };
+    }
   }
 
   return {

@@ -224,7 +224,7 @@ describe('isAthleteInQuarantine', () => {
   const now = new Date('2026-04-21T00:00:00.000Z');
 
   it('нет карантина при 0 bookings', () => {
-    expect(isAthleteInQuarantine([], 1, now, config)).toEqual({ inQuarantine: false });
+    expect(isAthleteInQuarantine([], 1, now, { config })).toEqual({ inQuarantine: false });
   });
 
   it('нет карантина при < 3 no_show подряд', () => {
@@ -232,7 +232,7 @@ describe('isAthleteInQuarantine', () => {
       makeBooking({ id: 1, status: 'no_show', date: '2026-04-10' }),
       makeBooking({ id: 2, status: 'no_show', date: '2026-04-15' }),
     ];
-    expect(isAthleteInQuarantine(bookings, 1, now, config).inQuarantine).toBe(false);
+    expect(isAthleteInQuarantine(bookings, 1, now, { config }).inQuarantine).toBe(false);
   });
 
   it('3 no_show подряд в окне 30 дней → карантин 7 дней', () => {
@@ -241,7 +241,7 @@ describe('isAthleteInQuarantine', () => {
       makeBooking({ id: 2, status: 'no_show', date: '2026-04-15' }),
       makeBooking({ id: 3, status: 'no_show', date: '2026-04-20' }),
     ];
-    const result = isAthleteInQuarantine(bookings, 1, now, config);
+    const result = isAthleteInQuarantine(bookings, 1, now, { config });
     expect(result.inQuarantine).toBe(true);
     expect(result.until).toBeDefined();
   });
@@ -258,7 +258,7 @@ describe('isAthleteInQuarantine', () => {
       makeBooking({ id: 3, status: 'no_show', date: '2026-04-15' }),
       makeBooking({ id: 4, status: 'no_show', date: '2026-04-20' }),
     ];
-    const result = isAthleteInQuarantine(bookings, 1, now, config);
+    const result = isAthleteInQuarantine(bookings, 1, now, { config });
     // Последние 3: completed, no_show, no_show — НЕ все no_show
     expect(result.inQuarantine).toBe(false);
   });
@@ -270,7 +270,7 @@ describe('isAthleteInQuarantine', () => {
       makeBooking({ id: 3, status: 'no_show', date: '2026-04-05' }),
     ];
     // last no_show 2026-04-05 23:59 + 7 дней ≈ 2026-04-12. now = 21 апреля.
-    const result = isAthleteInQuarantine(bookings, 1, now, config);
+    const result = isAthleteInQuarantine(bookings, 1, now, { config });
     expect(result.inQuarantine).toBe(false);
   });
 
@@ -280,6 +280,35 @@ describe('isAthleteInQuarantine', () => {
       makeBooking({ id: 2, userId: 2, status: 'no_show', date: '2026-04-19' }),
       makeBooking({ id: 3, userId: 2, status: 'no_show', date: '2026-04-20' }),
     ];
-    expect(isAthleteInQuarantine(bookings, 1, now, config).inQuarantine).toBe(false);
+    expect(isAthleteInQuarantine(bookings, 1, now, { config }).inQuarantine).toBe(false);
+  });
+
+  // Phase 24 Step 24.15: admin-снятие карантина через User.quarantineLiftedAt.
+  it('quarantineLiftedAt после последнего no_show → inQuarantine=false', () => {
+    const bookings = [
+      makeBooking({ id: 1, status: 'no_show', date: '2026-04-18' }),
+      makeBooking({ id: 2, status: 'no_show', date: '2026-04-19' }),
+      makeBooking({ id: 3, status: 'no_show', date: '2026-04-20' }),
+    ];
+    // last no_show ≈ 2026-04-20T23:59:59Z; lift через день после
+    const result = isAthleteInQuarantine(bookings, 1, now, {
+      config,
+      quarantineLiftedAt: '2026-04-21T00:00:00.000Z',
+    });
+    expect(result.inQuarantine).toBe(false);
+  });
+
+  it('quarantineLiftedAt ДО последнего no_show → карантин действует', () => {
+    const bookings = [
+      makeBooking({ id: 1, status: 'no_show', date: '2026-04-18' }),
+      makeBooking({ id: 2, status: 'no_show', date: '2026-04-19' }),
+      makeBooking({ id: 3, status: 'no_show', date: '2026-04-20' }),
+    ];
+    // lift был раньше последнего no_show — не считается (новый инцидент после снятия)
+    const result = isAthleteInQuarantine(bookings, 1, now, {
+      config,
+      quarantineLiftedAt: '2026-04-15T00:00:00.000Z',
+    });
+    expect(result.inQuarantine).toBe(true);
   });
 });

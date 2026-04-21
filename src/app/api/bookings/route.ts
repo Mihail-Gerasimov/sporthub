@@ -125,8 +125,11 @@ export async function POST(request: Request) {
     // Phase 24 Step 24.14: guard карантина — 403 если атлет в quarantine.
     // Клиент разбирает payload (error='quarantine', until=ISO) и показывает
     // соответствующее сообщение вместо generic-error.
+    // Step 24.15: учитываем админское снятие карантина через user.quarantineLiftedAt.
     const allBookings = await getBookings();
-    const quarantine = isAthleteInQuarantine(allBookings, userId, new Date());
+    const quarantine = isAthleteInQuarantine(allBookings, userId, new Date(), {
+      quarantineLiftedAt: user.quarantineLiftedAt ?? null,
+    });
     if (quarantine.inQuarantine) {
       return NextResponse.json(
         {

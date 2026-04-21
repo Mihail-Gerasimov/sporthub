@@ -19,6 +19,7 @@ import type {
   City,
   Club,
   EntityId,
+  ISODateTimeString,
   LogEntry,
   Notification,
   NotificationType,
@@ -877,6 +878,28 @@ export async function getUsers(): Promise<User[]> {
 export async function getUserById(id: EntityId): Promise<User | null> {
   const users = await getUsers();
   return users.find((user) => user.id === id) ?? null;
+}
+
+/**
+ * Phase 24 Step 24.15: admin-снятие карантина атлета. Ставит `quarantineLiftedAt = now`
+ * в `users.json`. Используется в `POST /api/admin/users/[id]/lift-quarantine`.
+ * Возвращает обновлённого User. Бросает 'Пользователь не найден' если user.id отсутствует.
+ */
+export async function liftUserQuarantine(userId: EntityId): Promise<User> {
+  const users = await getUsers();
+  const targetIndex = users.findIndex((user) => user.id === userId);
+
+  if (targetIndex === -1) {
+    throw new Error('Пользователь не найден');
+  }
+
+  const now = new Date().toISOString() as ISODateTimeString;
+  const updated: User = { ...users[targetIndex], quarantineLiftedAt: now };
+  const nextUsers = [...users];
+  nextUsers[targetIndex] = updated;
+
+  await writeCollectionsWithRollback([{ key: 'users', next: nextUsers, previous: users }]);
+  return updated;
 }
 
 /**

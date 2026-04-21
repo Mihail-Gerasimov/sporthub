@@ -158,12 +158,19 @@ export function AthleteProfilePage({
     [athleteBookings, athleteUserId],
   );
   // Phase 24 Step 24.14: статус карантина — плашка сверху кабинета, если inQuarantine.
+  // Step 24.15: учитываем админское снятие (User.quarantineLiftedAt).
+  const athleteUser = useMemo(
+    () => (athleteUserId === null ? null : (users.find((u) => u.id === athleteUserId) ?? null)),
+    [users, athleteUserId],
+  );
   const quarantineStatus = useMemo(
     () =>
       athleteUserId === null
         ? { inQuarantine: false as const }
-        : isAthleteInQuarantine(athleteBookings, athleteUserId, new Date()),
-    [athleteBookings, athleteUserId],
+        : isAthleteInQuarantine(athleteBookings, athleteUserId, new Date(), {
+            quarantineLiftedAt: athleteUser?.quarantineLiftedAt ?? null,
+          }),
+    [athleteBookings, athleteUserId, athleteUser],
   );
   const athleteReviews = useMemo(
     () =>

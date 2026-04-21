@@ -10,9 +10,17 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Card, Input, Select } from '@/components/ui';
+import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
+import {
+  computeAthleteReliability,
+  isAthleteInQuarantine,
+  type QuarantineResult,
+  type ReliabilityResult,
+} from '@/lib/reliability';
 import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Trainer, User, UserRole } from '@/types';
 
 type DashboardPageProps = {
@@ -73,11 +81,16 @@ function getUserStats(
 export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPageProps) {
   const router = useRouter();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  // Phase 24 Step 24.15: локальный оверлей снятых карантинов. Server persist’ит
+  // через quarantineLiftedAt, но перерендер страницы происходит через router.refresh —
+  // оверлей нужен только для того, чтобы не дёргать кнопку повторно до refresh.
+  const [liftedUserIds, setLiftedUserIds] = useState<Set<number>>(new Set());
 
   // Исключаем admin из списка
   const nonAdminUsers = useMemo(() => users.filter((u) => u.role !== 'admin'), [users]);
@@ -148,6 +161,48 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     router.push(profilePath);
   }
 
+  /** Phase 24 Step 24.15: снятие карантина — POST к admin endpoint + локальный overlay. */
+  async function handleLiftQuarantine(userId: number) {
+    const adminUserId = useAuthStore.getState().user?.id ?? 0;
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/lift-quarantine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId }),
+      });
+      const body = (await response.json()) as { success: boolean; error?: string };
+      if (!response.ok || !body.success) {
+        addToast({ message: body.error ?? 'Не удалось снять карантин', tone: 'error' });
+        return;
+      }
+      setLiftedUserIds((prev) => new Set(prev).add(userId));
+      addToast({ message: 'Карантин снят', tone: 'success' });
+      router.refresh();
+    } catch {
+      addToast({ message: 'Ошибка при снятии карантина', tone: 'error' });
+    }
+  }
+
+  /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) — даёт точку приложения для кэш-слоя. */
+  async function handleRecomputeReliability(userId: number) {
+    const adminUserId = useAuthStore.getState().user?.id ?? 0;
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/recompute-reliability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId }),
+      });
+      const body = (await response.json()) as { success: boolean; error?: string };
+      if (!response.ok || !body.success) {
+        addToast({ message: body.error ?? 'Не удалось пересчитать', tone: 'error' });
+        return;
+      }
+      addToast({ message: 'Рейтинг пересчитан', tone: 'success' });
+    } catch {
+      addToast({ message: 'Ошибка при пересчёте рейтинга', tone: 'error' });
+    }
+  }
+
   return (
     <div className="w-full max-w-5xl">
       {/* Заголовок */}
@@ -215,13 +270,26 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
         <div className="flex flex-col gap-4">
           {filteredUsers.map((user) => {
             const stats = getUserStats(user, bookings, clubs, trainers);
+            // Phase 24 Step 24.15: reliability и карантин считаются на лету только для атлетов.
+            const reliability =
+              user.role === 'athlete' ? computeAthleteReliability(bookings, user.id) : null;
+            const quarantine =
+              user.role === 'athlete' && !liftedUserIds.has(user.id)
+                ? isAthleteInQuarantine(bookings, user.id, new Date(), {
+                    quarantineLiftedAt: user.quarantineLiftedAt ?? null,
+                  })
+                : { inQuarantine: false as const };
 
             return (
               <UserCard
                 key={user.id}
                 user={user}
                 stats={stats}
+                reliability={reliability}
+                quarantine={quarantine}
                 onImpersonate={() => handleImpersonate(user)}
+                onLiftQuarantine={() => handleLiftQuarantine(user.id)}
+                onRecomputeReliability={() => handleRecomputeReliability(user.id)}
               />
             );
           })}
@@ -236,10 +304,32 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 type UserCardProps = {
   user: User;
   stats: { label: string; value: number };
+  /** Phase 24 Step 24.15: reliability (null для не-атлета). */
+  reliability: ReliabilityResult | null;
+  /** Phase 24 Step 24.15: статус карантина (inQuarantine=false для не-атлета). */
+  quarantine: QuarantineResult | { inQuarantine: false };
   onImpersonate: () => void;
+  onLiftQuarantine: () => void;
+  onRecomputeReliability: () => void;
 };
 
-function UserCard({ user, stats, onImpersonate }: UserCardProps) {
+function formatQuarantineUntil(until: string): string {
+  const date = new Date(until);
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function UserCard({
+  user,
+  stats,
+  reliability,
+  quarantine,
+  onImpersonate,
+  onLiftQuarantine,
+  onRecomputeReliability,
+}: UserCardProps) {
+  const isAthlete = user.role === 'athlete';
+  const inQuarantine = quarantine.inQuarantine;
+
   return (
     <article>
       <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -251,6 +341,12 @@ function UserCard({ user, stats, onImpersonate }: UserCardProps) {
             <Badge tone={user.status === 'active' ? 'success' : 'danger'}>
               {user.status ?? 'active'}
             </Badge>
+            {reliability ? (
+              <ReliabilityBadge reliability={reliability} compact showDetails />
+            ) : null}
+            {inQuarantine && quarantine.until ? (
+              <Badge tone="danger">Карантин до {formatQuarantineUntil(quarantine.until)}</Badge>
+            ) : null}
           </div>
 
           <p className="text-sm text-muted">{user.email}</p>
@@ -260,7 +356,17 @@ function UserCard({ user, stats, onImpersonate }: UserCardProps) {
           </p>
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {isAthlete && inQuarantine ? (
+            <Button variant="outline" size="sm" onClick={onLiftQuarantine}>
+              Снять карантин
+            </Button>
+          ) : null}
+          {isAthlete ? (
+            <Button variant="outline" size="sm" onClick={onRecomputeReliability}>
+              Пересчитать рейтинг
+            </Button>
+          ) : null}
           <Button variant="secondary" size="sm" onClick={onImpersonate}>
             Войти как пользователь
           </Button>
