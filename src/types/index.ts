@@ -65,7 +65,7 @@ export type LogAction =
   | 'admin_hard_delete_booking';
 
 // Тип сущности, затронутой действием
-export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user';
+export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user' | 'trainer_club_link';
 
 // Запись лога активности платформы
 export interface LogEntry extends BaseEntity {
