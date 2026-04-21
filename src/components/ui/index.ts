@@ -6,6 +6,7 @@ export { Input } from '@/components/ui/Input';
 export { Modal } from '@/components/ui/Modal';
 export { Select } from '@/components/ui/Select';
 export { Rating } from '@/components/ui/Rating';
+export { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 export { Skeleton } from '@/components/ui/Skeleton';
 export { StoreShowcase } from '@/components/ui/StoreShowcase';
 export { UiShowcase } from '@/components/ui/UiShowcase';

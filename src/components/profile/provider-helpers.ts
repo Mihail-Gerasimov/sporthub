@@ -22,6 +22,8 @@ export type ProviderIncomingBookingStatusTone = 'success' | 'outline' | 'teal' |
 export type ProviderIncomingBooking = {
   athleteEmail: string;
   athleteName: string;
+  /** Phase 24 Step 24.13: id атлета для резолва его reliability в UI. */
+  athleteUserId: number;
   bookingTypeLabel: string;
   contextLabel: string;
   date: string;
@@ -218,6 +220,7 @@ export function getProviderIncomingBookings(
       return {
         athleteEmail: athlete?.email ?? 'Email уточняется',
         athleteName: athlete?.name ?? 'Спортсмен SportHub',
+        athleteUserId: booking.userId,
         bookingTypeLabel: getProviderBookingTypeLabel(booking),
         contextLabel: getProviderBookingContextLabel({
           booking,

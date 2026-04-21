@@ -1,13 +1,20 @@
 // Секция «Входящие записи» кабинета провайдера — список букингов на клубы и тренеров.
-import { Badge, Card } from '@/components/ui';
+import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
+import { computeAthleteReliability } from '@/lib/reliability';
 import { formatDate, formatPrice } from '@/lib/utils';
+import type { Booking } from '@/types';
 
 type ProviderBookingsSectionProps = {
   bookings: ProviderIncomingBooking[];
+  /** Phase 24 Step 24.13: полный список bookings для расчёта reliability атлета per-card. */
+  allBookings?: Booking[];
 };
 
-export function ProviderBookingsSection({ bookings }: ProviderBookingsSectionProps) {
+export function ProviderBookingsSection({
+  bookings,
+  allBookings = [],
+}: ProviderBookingsSectionProps) {
   return (
     <Card className="p-6 sm:p-8">
       <h2 className="font-display text-2xl font-semibold text-ink">Входящие записи</h2>
@@ -26,7 +33,15 @@ export function ProviderBookingsSection({ bookings }: ProviderBookingsSectionPro
                 </div>
 
                 <h3 className="mt-4 text-lg font-semibold text-ink">{booking.title}</h3>
-                <p className="mt-3 text-sm font-semibold text-ink">{booking.athleteName}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-ink">{booking.athleteName}</p>
+                  {/* Phase 24 Step 24.13: reliability атлета — бейдж с деталями для provider'а. */}
+                  <ReliabilityBadge
+                    reliability={computeAthleteReliability(allBookings, booking.athleteUserId)}
+                    showDetails
+                    compact
+                  />
+                </div>
                 <p className="mt-1 text-sm text-muted">{booking.athleteEmail}</p>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">

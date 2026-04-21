@@ -19,7 +19,8 @@ import {
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
-import { Badge, Button, Card } from '@/components/ui';
+import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
+import { computeAthleteReliability } from '@/lib/reliability';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -149,6 +150,12 @@ export function AthleteProfilePage({
     () =>
       athleteUserId === null ? [] : bookings.filter((booking) => booking.userId === athleteUserId),
     [athleteUserId, bookings],
+  );
+  // Phase 24 Step 24.13: reliability атлета считается client-side на основе bookings.
+  const athleteReliability = useMemo(
+    () =>
+      athleteUserId === null ? null : computeAthleteReliability(athleteBookings, athleteUserId),
+    [athleteBookings, athleteUserId],
   );
   const athleteReviews = useMemo(
     () =>
@@ -398,6 +405,64 @@ export function AthleteProfilePage({
           achievements={athleteAchievements}
           progressSummary={athleteAchievementProgressSummary}
         />
+
+        {/* Phase 24 Step 24.13: «Мой рейтинг надёжности».
+            Показываем ReliabilityBadge атлета + числа completed/no_show/late_cancel.
+            Для new user (completed<5) — плашка «Нужно ещё N записей до показа рейтинга». */}
+        {athleteReliability ? (
+          <Card className="p-6 sm:p-8" data-testid="athlete-reliability-section">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                  Надёжность
+                </p>
+                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+                  Мой рейтинг надёжности
+                </h2>
+              </div>
+              <ReliabilityBadge reliability={athleteReliability} showDetails />
+            </div>
+            {athleteReliability.isNewUser ? (
+              <p className="mt-4 text-sm leading-relaxed text-muted">
+                Рейтинг покажется после {5 - athleteReliability.completedCount} успешных тренировок.
+                Пока {athleteReliability.completedCount} завершённых из{' '}
+                {athleteReliability.totalRelevant}.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-card border border-line bg-canvas p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Выполнено
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-ink">
+                    {Math.round(athleteReliability.completionRate * 100)}%
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {athleteReliability.completedCount} из {athleteReliability.totalRelevant}
+                  </p>
+                </div>
+                <div className="rounded-card border border-line bg-canvas p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Не пришёл
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-ink">
+                    {athleteReliability.noShowCount}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">Фиксация провайдером</p>
+                </div>
+                <div className="rounded-card border border-line bg-canvas p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Поздняя отмена
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-ink">
+                    {athleteReliability.lateCancelCount}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">Вне окна отмены</p>
+                </div>
+              </div>
+            )}
+          </Card>
+        ) : null}
 
         <Card className="p-6 sm:p-8" data-testid="athlete-upcoming-section">
           <div className="flex flex-wrap items-center justify-between gap-3">

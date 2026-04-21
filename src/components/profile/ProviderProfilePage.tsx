@@ -520,7 +520,7 @@ export function ProviderProfilePage({
         />
 
         {/* Входящие записи */}
-        <ProviderBookingsSection bookings={providerBookings} />
+        <ProviderBookingsSection bookings={providerBookings} allBookings={bookings} />
 
         {/* Отзывы на мои услуги */}
         <ProviderReviewsSection reviews={providerReviews} />
