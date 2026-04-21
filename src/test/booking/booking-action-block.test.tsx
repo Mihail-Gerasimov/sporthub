@@ -1,6 +1,10 @@
 // Тесты client action block на booking page: состояния, create-flow и notices (Step 16.3)
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+// Phase 24 Step 24.6: используем renderWithToast для автоматического монтирования
+// ToastStack рядом с компонентом — toast-сообщения проверяются через screen.
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({
   refreshMock: vi.fn(),

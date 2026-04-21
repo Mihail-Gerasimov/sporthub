@@ -3,16 +3,15 @@
 /* Клиентский компонент детальной страницы тренера /trainers/[slug] */
 
 import Link from 'next/link';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
+import { Badge, Button, Card, Rating } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
-
-const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
 /* Отзыв с именем автора */
 type ReviewWithAuthor = Review & {
@@ -188,7 +187,7 @@ export function TrainerDetailPageClient({
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const sessionUser = useAuthStore((state) => state.user);
   const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
-  const [notice, setNotice] = useState<string | null>(null);
+  const addToast = useToastStore((state) => state.addToast);
   const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
     mapReviewsWithAuthors(reviews, reviewAuthors),
   );
@@ -203,22 +202,8 @@ export function TrainerDetailPageClient({
   );
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
 
-  useEffect(() => {
-    if (!notice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setNotice(null);
-    }, AUTH_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [notice]);
-
-  function showActionNotice(message: string) {
-    setNotice(message);
+  function showActionNotice(message: string, tone: 'info' | 'success' | 'error' = 'info') {
+    addToast({ message, tone });
   }
 
   async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -273,7 +258,7 @@ export function TrainerDetailPageClient({
       ]);
       setReviewForm({ rating: 0, text: '' });
       setReviewErrors({});
-      showActionNotice('Отзыв отправлен.');
+      showActionNotice('Отзыв отправлен.', 'success');
     } catch (error) {
       console.error('Ошибка отправки отзыва со страницы тренера:', error);
       setReviewErrors({ submit: 'Не удалось отправить отзыв.' });
@@ -739,7 +724,7 @@ export function TrainerDetailPageClient({
         </section>
       </div>
 
-      {notice ? <ActionNotice message={notice} /> : null}
+      {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
     </div>
   );
 }

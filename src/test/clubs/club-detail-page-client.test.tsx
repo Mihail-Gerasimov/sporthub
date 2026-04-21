@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
@@ -193,8 +194,9 @@ describe('ClubDetailPageClient', () => {
       screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
     ).toBeInTheDocument();
 
+    // Phase 24: toast auto-dismiss через 4000 мс (ранее ActionNotice истекал на 3200).
     await act(async () => {
-      vi.advanceTimersByTime(3200);
+      vi.advanceTimersByTime(4500);
     });
 
     expect(

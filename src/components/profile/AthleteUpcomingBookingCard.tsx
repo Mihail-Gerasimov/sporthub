@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 
 import { Badge, Button } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { useToastStore } from '@/stores/useToastStore';
 
 import type { UpcomingProfileBooking } from '@/components/profile/athlete-bookings';
 
 type AthleteUpcomingBookingCardProps = {
   athleteUserId: number | null;
   booking: UpcomingProfileBooking;
-  onActionNotice: (message: string) => void;
 };
 
 type BookingCancelResponse = {
@@ -22,14 +22,17 @@ type BookingCancelResponse = {
 export function AthleteUpcomingBookingCard({
   athleteUserId,
   booking,
-  onActionNotice,
 }: AthleteUpcomingBookingCardProps) {
   const router = useRouter();
+  const addToast = useToastStore((state) => state.addToast);
   const [isCancelling, setIsCancelling] = useState(false);
 
   async function handleCancelBooking() {
     if (athleteUserId === null) {
-      onActionNotice('Не удалось определить пользователя для отмены записи');
+      addToast({
+        message: 'Не удалось определить пользователя для отмены записи',
+        tone: 'error',
+      });
       return;
     }
 
@@ -48,16 +51,19 @@ export function AthleteUpcomingBookingCard({
       const result = (await response.json()) as BookingCancelResponse;
 
       if (!response.ok || !result.success) {
-        onActionNotice(result.error ?? 'Не удалось отменить запись');
+        addToast({ message: result.error ?? 'Не удалось отменить запись', tone: 'error' });
         return;
       }
 
-      onActionNotice('Запись отменена. Блок ближайших занятий обновлён.');
+      addToast({
+        message: 'Запись отменена. Блок ближайших занятий обновлён.',
+        tone: 'success',
+      });
       startTransition(() => {
         router.refresh();
       });
     } catch {
-      onActionNotice('Ошибка при отмене записи');
+      addToast({ message: 'Ошибка при отмене записи', tone: 'error' });
     } finally {
       setIsCancelling(false);
     }

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { refreshMock } = vi.hoisted(() => ({

@@ -1,15 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { ActionNotice, Badge, Button, Card, Rating } from '@/components/ui';
+import { Badge, Button, Card, Rating } from '@/components/ui';
+import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@/types';
-
-const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
 type ReviewWithAuthor = Review & {
   authorName: string;
@@ -165,7 +164,7 @@ export function ClubDetailPageClient({
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const sessionUser = useAuthStore((state) => state.user);
   const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
-  const [notice, setNotice] = useState<string | null>(null);
+  const addToast = useToastStore((state) => state.addToast);
   const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
     mapReviewsWithAuthors(reviews, reviewAuthors),
   );
@@ -192,22 +191,8 @@ export function ClubDetailPageClient({
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
   const hasMediaGallery = club.imageUrls.length > 0;
 
-  useEffect(() => {
-    if (!notice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setNotice(null);
-    }, AUTH_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [notice]);
-
-  function showActionNotice(message: string) {
-    setNotice(message);
+  function showActionNotice(message: string, tone: 'info' | 'success' | 'error' = 'info') {
+    addToast({ message, tone });
   }
 
   async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -269,7 +254,7 @@ export function ClubDetailPageClient({
         text: '',
       });
       setReviewErrors({});
-      showActionNotice('Отзыв отправлен.');
+      showActionNotice('Отзыв отправлен.', 'success');
     } catch (error) {
       console.error('Ошибка отправки отзыва со страницы клуба:', error);
       setReviewErrors({
@@ -699,7 +684,7 @@ export function ClubDetailPageClient({
         </section>
       </div>
 
-      {notice ? <ActionNotice message={notice} /> : null}
+      {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
     </div>
   );
 }

@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { startTransition, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { ActionNotice, Badge, Button, Card } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 import type { Booking } from '@/types';
@@ -34,8 +35,6 @@ type BookingCreateResponse = {
   error?: string;
 };
 
-const ACTION_NOTICE_TIMEOUT_MS = 4000;
-
 export function BookingActionBlock({
   scheduleId,
   slotTitle,
@@ -51,24 +50,10 @@ export function BookingActionBlock({
   const accountType = useAuthStore((state) => state.accountType);
   const user = useAuthStore((state) => state.user);
   const athleteUserId = useAuthStore(selectAthleteActionUserId);
+  const addToast = useToastStore((state) => state.addToast);
   const [existingBookingId, setExistingBookingId] = useState<number | null>(null);
   const [isCheckingBookingState, setIsCheckingBookingState] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!actionNotice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setActionNotice(null);
-    }, ACTION_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [actionNotice]);
 
   useEffect(() => {
     if (!isAuthenticated || accountType !== 'athlete' || !athleteUserId) {
@@ -128,7 +113,6 @@ export function BookingActionBlock({
     }
 
     setIsSubmitting(true);
-    setActionNotice(null);
 
     try {
       const response = await fetch('/api/bookings', {
@@ -144,17 +128,17 @@ export function BookingActionBlock({
       const result = (await response.json()) as BookingCreateResponse;
 
       if (!response.ok || !result.success || !result.data) {
-        setActionNotice(result.error ?? 'Не удалось подтвердить запись');
+        addToast({ message: result.error ?? 'Не удалось подтвердить запись', tone: 'error' });
         return;
       }
 
       setExistingBookingId(result.data.id);
-      setActionNotice('Запись подтверждена. Слот закреплён за вами.');
+      addToast({ message: 'Запись подтверждена. Слот закреплён за вами.', tone: 'success' });
       startTransition(() => {
         router.refresh();
       });
     } catch {
-      setActionNotice('Ошибка при подтверждении записи');
+      addToast({ message: 'Ошибка при подтверждении записи', tone: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -320,7 +304,7 @@ export function BookingActionBlock({
         {renderPrimaryAction()}
       </Card>
 
-      {actionNotice ? <ActionNotice message={actionNotice} /> : null}
+      {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
     </>
   );
 }

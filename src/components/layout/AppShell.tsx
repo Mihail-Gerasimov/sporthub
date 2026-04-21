@@ -5,6 +5,8 @@ import { AuthModal } from '@/components/auth';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
+// Phase 24 (Step 24.6): глобальный стек toast-уведомлений для собственных действий.
+import { ToastStack } from '@/components/ui/ToastStack';
 
 type AppShellProps = {
   children: ReactNode;
@@ -22,6 +24,7 @@ export function AppShell({ children }: AppShellProps) {
       <AuthModal />
       <Footer />
       <MobileNav />
+      <ToastStack />
     </div>
   );
 }

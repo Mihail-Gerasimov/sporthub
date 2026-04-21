@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { TrainerAvailability } from '@/components/trainers';
-import { ActionNotice, Badge, Card } from '@/components/ui';
+import { Badge, Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';
+import { useToastStore } from '@/stores/useToastStore';
 
 import type { UpcomingSessionItem } from '@/components/schedule/getUpcomingSessions';
 import type { TrainerAvailabilityItem } from '@/components/trainers';
@@ -18,9 +19,6 @@ type UpcomingSessionsProps = {
   trainerDateLabel: string;
   trainerSlots: TrainerAvailabilityItem[];
 };
-
-/* Таймаут показа уведомления (мс) */
-const AUTH_NOTICE_TIMEOUT_MS = 3200;
 
 /* Русская плюрализация для «место/места/мест» */
 function getPlacesLabel(value: number): string {
@@ -48,22 +46,7 @@ export function UpcomingSessions({
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const accountType = useAuthStore((state) => state.accountType);
   const router = useRouter();
-  const [notice, setNotice] = useState<string | null>(null);
-
-  /* Автоскрытие уведомления */
-  useEffect(() => {
-    if (!notice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setNotice(null);
-    }, AUTH_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [notice]);
+  const addToast = useToastStore((state) => state.addToast);
 
   /* Обработчик клика по карточке занятия — проверяет auth */
   const handleSessionClick = useCallback(
@@ -71,10 +54,13 @@ export function UpcomingSessions({
       if (isAuthenticated && accountType === 'athlete') {
         router.push(`/booking/${scheduleId}`);
       } else {
-        setNotice('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен');
+        addToast({
+          message: 'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
+          tone: 'info',
+        });
       }
     },
-    [accountType, isAuthenticated, router],
+    [accountType, addToast, isAuthenticated, router],
   );
 
   if (discoveryMode === 'trainers') {
@@ -172,7 +158,7 @@ export function UpcomingSessions({
         </Card>
       )}
 
-      {notice ? <ActionNotice message={notice} /> : null}
+      {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
     </section>
   );
 }

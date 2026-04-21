@@ -1,5 +1,6 @@
 // Тесты страницы кабинета провайдера (Steps 12.4, 13.1, 15.6)
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { refreshMock } = vi.hoisted(() => ({

@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useMemo, useRef, useState } from 'react';
 
 import {
   getProviderClubs,
@@ -18,10 +18,11 @@ import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSect
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
-import { ActionNotice, Badge, Button, Card } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 import type { ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type {
   Amenity,
@@ -162,25 +163,11 @@ export function ProviderProfilePage({
   const [trainerEditClubOption, setTrainerEditClubOption] = useState<TrainerClubOption | null>(
     null,
   );
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const addToast = useToastStore((state) => state.addToast);
   const editBootstrapRequestIdRef = useRef(0);
 
-  useEffect(() => {
-    if (!actionNotice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setActionNotice(null);
-    }, 4000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [actionNotice]);
-
   function handlePublishSuccess(message: string) {
-    setActionNotice(message);
+    addToast({ message, tone: 'success' });
     startTransition(() => {
       router.refresh();
     });
@@ -235,15 +222,15 @@ export function ProviderProfilePage({
       const result = await response.json();
 
       if (result.success) {
-        setActionNotice('Публикация удалена');
+        addToast({ message: 'Публикация удалена', tone: 'success' });
         startTransition(() => {
           router.refresh();
         });
       } else {
-        setActionNotice(result.error ?? 'Не удалось удалить публикацию');
+        addToast({ message: result.error ?? 'Не удалось удалить публикацию', tone: 'error' });
       }
     } catch {
-      setActionNotice('Ошибка при удалении публикации');
+      addToast({ message: 'Ошибка при удалении публикации', tone: 'error' });
     }
   }
 
@@ -272,7 +259,10 @@ export function ProviderProfilePage({
           !primaryOffering ||
           !Array.isArray(schedule)
         ) {
-          setActionNotice(result.error ?? 'Не удалось загрузить клуб для редактирования');
+          addToast({
+            message: result.error ?? 'Не удалось загрузить клуб для редактирования',
+            tone: 'error',
+          });
           return;
         }
 
@@ -301,7 +291,10 @@ export function ProviderProfilePage({
         !primaryOffering ||
         !Array.isArray(schedule)
       ) {
-        setActionNotice(result.error ?? 'Не удалось загрузить тренера для редактирования');
+        addToast({
+          message: result.error ?? 'Не удалось загрузить тренера для редактирования',
+          tone: 'error',
+        });
         return;
       }
 
@@ -322,7 +315,10 @@ export function ProviderProfilePage({
         return;
       }
 
-      setActionNotice('Ошибка при загрузке публикации для редактирования');
+      addToast({
+        message: 'Ошибка при загрузке публикации для редактирования',
+        tone: 'error',
+      });
     }
   }
 
@@ -581,7 +577,7 @@ export function ProviderProfilePage({
           workFormats={workFormats}
         />
       </div>
-      {actionNotice ? <ActionNotice message={actionNotice} /> : null}
+      {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
     </div>
   );
 }

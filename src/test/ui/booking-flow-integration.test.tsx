@@ -1,5 +1,8 @@
 // Сквозные интеграционные тесты booking-flow: booking page -> API -> JSON -> athlete/provider cabinets.
+// Phase 24 Step 24.6: между cleanup и render вызываем resetToasts, чтобы не переносить
+// toast'ы предыдущего render'а в новый ToastStack (иначе getByRole('status') находит несколько).
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { resetToasts } from '@/test/helpers/render-with-toast';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +33,7 @@ import { GET as getBookingsRoute, POST as createBookingRoute } from '@/app/api/b
 import BookingPage from '@/app/booking/[scheduleId]/page';
 import AthleteProfileRoute from '@/app/profile/athlete/page';
 import ProviderProfileRoute from '@/app/profile/provider/page';
+import { ToastStack } from '@/components/ui/ToastStack';
 import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { getDateKeyInTimeZone } from '@/lib/utils';
 import {
@@ -39,6 +43,7 @@ import {
   MVP_PROVIDER_USER_ID,
   useAuthStore,
 } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 import {
   createIsolatedDataDirectory,
@@ -62,10 +67,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     useUIStore.setState({ isAuthModalOpen: false });
     refreshMock.mockReset();
     vi.stubGlobal('fetch', routeBackedFetch);
+    // Phase 24 Step 24.6: toast-стек нужен в DOM, чтобы getByText/getByRole('status')
+    // находили сообщения, диспатченные через addToast. Очищаем store перед тестом.
+    useToastStore.getState().clearToasts();
   });
 
   afterEach(async () => {
     cleanup();
+    resetToasts();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
     localStorage.removeItem(AUTH_STORAGE_KEY);
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
@@ -151,10 +160,14 @@ describe('booking-flow integration (Step 16.9)', () => {
   }
 
   async function renderBookingPage(scheduleId: number) {
+    const bookingPage = await BookingPage({
+      params: Promise.resolve({ scheduleId: String(scheduleId) }),
+    });
     return render(
-      await BookingPage({
-        params: Promise.resolve({ scheduleId: String(scheduleId) }),
-      }),
+      <>
+        {bookingPage}
+        <ToastStack />
+      </>,
     );
   }
 
@@ -200,8 +213,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     ).toBe(1);
 
     cleanup();
+    resetToasts();
     loginAsAthlete();
-    render(await AthleteProfileRoute());
+    render(
+      <>
+        {await AthleteProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('1');
     expect(
@@ -210,8 +229,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     expect(screen.getByText('Первая запись на тренировку')).toBeInTheDocument();
 
     cleanup();
+    resetToasts();
     loginAsProvider();
-    render(await ProviderProfileRoute());
+    render(
+      <>
+        {await ProviderProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('1');
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
@@ -220,8 +245,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     expect(screen.getByText('Ilya Volkov · Start Swim Lab')).toBeInTheDocument();
 
     cleanup();
+    resetToasts();
     loginAsAthlete();
-    render(await AthleteProfileRoute());
+    render(
+      <>
+        {await AthleteProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
 
@@ -234,8 +265,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     expect(refreshMock).toHaveBeenCalledTimes(2);
 
     cleanup();
+    resetToasts();
     loginAsAthlete();
-    render(await AthleteProfileRoute());
+    render(
+      <>
+        {await AthleteProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('0');
     expect(
@@ -247,8 +284,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     expect(screen.getAllByText('0/1').length).toBeGreaterThan(0);
 
     cleanup();
+    resetToasts();
     loginAsProvider();
-    render(await ProviderProfileRoute());
+    render(
+      <>
+        {await ProviderProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
     expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();
@@ -292,8 +335,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     });
 
     cleanup();
+    resetToasts();
     loginAsAthlete();
-    render(await AthleteProfileRoute());
+    render(
+      <>
+        {await AthleteProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('athlete-summary-upcoming')).toHaveTextContent('1');
     expect(
@@ -308,8 +357,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     ).toBeInTheDocument();
 
     cleanup();
+    resetToasts();
     loginAsProvider();
-    render(await ProviderProfileRoute());
+    render(
+      <>
+        {await ProviderProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('1');
     expect(screen.getByText('Стартовая группа по плаванию')).toBeInTheDocument();
@@ -317,8 +372,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     expect(screen.getByText('Услуга клуба')).toBeInTheDocument();
 
     cleanup();
+    resetToasts();
     loginAsAthlete();
-    render(await AthleteProfileRoute());
+    render(
+      <>
+        {await AthleteProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
 
@@ -329,8 +390,14 @@ describe('booking-flow integration (Step 16.9)', () => {
     });
 
     cleanup();
+    resetToasts();
     loginAsProvider();
-    render(await ProviderProfileRoute());
+    render(
+      <>
+        {await ProviderProfileRoute()}
+        <ToastStack />
+      </>,
+    );
 
     expect(screen.getByTestId('provider-summary-bookings')).toHaveTextContent('0');
     expect(screen.getByText('Нет входящих записей')).toBeInTheDocument();

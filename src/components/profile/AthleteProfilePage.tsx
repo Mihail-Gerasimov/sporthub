@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { AthleteAchievementsSection } from '@/components/profile/AthleteAchievementsSection';
 import { AthleteFeedbackSettingsSection } from '@/components/profile/AthleteFeedbackSettingsSection';
@@ -19,7 +19,7 @@ import {
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
-import { ActionNotice, Badge, Button, Card } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
@@ -45,8 +45,6 @@ type AthleteSummary = {
   reviewsCount: number;
   upcomingBookingsCount: number;
 };
-
-const ACTION_NOTICE_TIMEOUT_MS = 4000;
 
 function getUpcomingBookingsLabel(count: number) {
   const remainder10 = count % 10;
@@ -146,21 +144,6 @@ export function AthleteProfilePage({
   const athleteUserId = useAuthStore(selectAthleteActionUserId);
   const logout = useAuthStore((state) => state.logout);
   const cabinetConfig = getPersonalCabinetConfig(accountType);
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!actionNotice) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setActionNotice(null);
-    }, ACTION_NOTICE_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [actionNotice]);
 
   const athleteBookings = useMemo(
     () =>
@@ -436,7 +419,6 @@ export function AthleteProfilePage({
                   key={booking.id}
                   athleteUserId={athleteUserId}
                   booking={booking}
-                  onActionNotice={setActionNotice}
                 />
               ))}
             </div>
@@ -463,7 +445,7 @@ export function AthleteProfilePage({
           user={user}
         />
 
-        {actionNotice ? <ActionNotice message={actionNotice} /> : null}
+        {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
       </div>
     </div>
   );

@@ -32,7 +32,6 @@ describe('AthleteUpcomingBookingCard', () => {
           title: 'Персональная тренировка: Плавание',
           trainerName: 'Марина Соколова',
         }}
-        onActionNotice={vi.fn()}
       />,
     );
 

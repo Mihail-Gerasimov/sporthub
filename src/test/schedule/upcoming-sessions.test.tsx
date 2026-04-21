@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UpcomingSessions } from '@/components/schedule/UpcomingSessions';
