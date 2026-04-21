@@ -15,6 +15,19 @@ import type {
 
 export type TrainerPreviewSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
+/** Phase 24 Step 24.11: preview одной услуги тренера для каталога и detail-секций. */
+export type TrainerOfferingPreview = {
+  id: EntityId;
+  title: string;
+  format: OfferingFormat;
+  price: number;
+  durationMinutes: number;
+  /** Имя клуба, если услуга привязана к confirmed link; иначе null («частная»). */
+  venueClubName: string | null;
+  /** trainerClubLinkId у offering — нужен, чтобы отфильтровать offerings на странице клуба. */
+  trainerClubLinkId: EntityId | null;
+};
+
 export type TrainerDirectoryItem = {
   id: EntityId;
   name: string;
@@ -45,6 +58,8 @@ export type TrainerDirectoryItem = {
   nextSlotStartTime: string | null;
   availableSlotsCount: number;
   offeringTitles: string[];
+  /** Phase 24 Step 24.11: массив услуг тренера — для «Услуги» секции и агрегатов. */
+  offerings: TrainerOfferingPreview[];
   searchText: string;
 };
 
@@ -97,9 +112,13 @@ export function buildTrainerDirectory({
   const clubsById = new Map(clubs.map((club) => [club.id, club]));
   // Phase 24 Step 24.8: confirmed links по trainerId → clubId (authoritative).
   const confirmedClubIdByTrainerId = new Map<EntityId, EntityId>();
+  // Phase 24 Step 24.11: map linkId → clubName для резолва venue у multi-offering.
+  const clubNameByLinkId = new Map<EntityId, string>();
   for (const link of trainerClubLinks) {
     if (link.status === 'confirmed') {
       confirmedClubIdByTrainerId.set(link.trainerId, link.clubId);
+      const club = clubsById.get(link.clubId);
+      if (club) clubNameByLinkId.set(link.id, club.name);
     }
   }
   const trainerOfferings = offerings.filter((offering) => offering.ownerType === 'trainer');
@@ -182,7 +201,11 @@ export function buildTrainerDirectory({
           specialtyNames,
           rating: trainer.rating,
           reviewCount: trainer.reviewCount,
-          priceFrom: trainer.priceFrom,
+          // Phase 24 Step 24.11: min price по всем offerings — иначе fallback trainer.priceFrom.
+          priceFrom:
+            offeringsForTrainer.length > 0
+              ? Math.min(...offeringsForTrainer.map((offering) => offering.price))
+              : trainer.priceFrom,
           sportIds: trainer.sportIds,
           sports: sportsForTrainer,
           city: trainer.city ?? venueClub?.city ?? DEFAULT_CITY,
@@ -200,6 +223,19 @@ export function buildTrainerDirectory({
           nextSlotStartTime: nextSlot?.startTime ?? null,
           availableSlotsCount: availableSlots.length,
           offeringTitles: offeringsForTrainer.map((offering) => offering.title),
+          // Phase 24 Step 24.11: preview-массив услуг с venue-резолвом по trainerClubLinkId.
+          offerings: offeringsForTrainer.map((offering) => ({
+            id: offering.id,
+            title: offering.title,
+            format: offering.format,
+            price: offering.price,
+            durationMinutes: offering.durationMinutes,
+            venueClubName:
+              offering.trainerClubLinkId !== undefined
+                ? (clubNameByLinkId.get(offering.trainerClubLinkId) ?? null)
+                : null,
+            trainerClubLinkId: offering.trainerClubLinkId ?? null,
+          })),
           searchText,
         } satisfies TrainerDirectoryItem,
       ];

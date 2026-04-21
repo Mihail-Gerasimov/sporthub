@@ -510,6 +510,12 @@ export function TrainerDetailPageClient({
                       <Badge tone="teal">{getFormatLabel(offering.format)}</Badge>
                       <Badge tone="outline">{formatPrice(offering.price)}</Badge>
                       <Badge tone="outline">{offering.durationMinutes} мин</Badge>
+                      {/* Phase 24 Step 24.11: venue-бейдж per offering — «в клубе X» или «Частно». */}
+                      {offering.trainerClubLinkId !== undefined && affiliatedClub ? (
+                        <Badge tone="outline">В клубе «{affiliatedClub.name}»</Badge>
+                      ) : (
+                        <Badge tone="outline">Частно</Badge>
+                      )}
                     </div>
                   </div>
                 ))}
