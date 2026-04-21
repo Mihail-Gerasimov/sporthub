@@ -152,7 +152,9 @@ export function mapTrainerToFormState(
     offeringPrice: String(offering.price),
     offeringDuration: String(offering.durationMinutes),
     offeringLocation: offering.address,
-    clubId: trainer.affiliatedClubId ?? null,
+    // Phase 25 Step 25.1b: clubId формы тренера резолвится через confirmed
+    // TrainerClubLink, а не через удалённое поле `trainer.affiliatedClubId`.
+    clubId: links.find((link) => link.status === 'confirmed')?.clubId ?? null,
     // Восстанавливаем координаты только если они валидные (не {0,0})
     ...(isValidCoordinates(trainer.coordinates) ? { coordinates: trainer.coordinates } : {}),
     scheduleSlots: schedules.map(mapScheduleToSlotForm),

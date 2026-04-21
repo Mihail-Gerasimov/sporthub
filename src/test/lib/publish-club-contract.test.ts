@@ -126,7 +126,8 @@ describe('publish-club contract (Step 14.3)', () => {
   it('offering.ownerId совпадает с club.id', () => {
     const { club, offering } = mapClubFormToEntities(validForm, PROVIDER_USER_ID);
     expect(offering.ownerId).toBe(club.id);
-    expect(offering.affiliatedClubId).toBe(club.id);
+    // Phase 25 Step 25.1b: legacy `offering.affiliatedClubId` удалён; клуб клубной услуги
+    // резолвится через `ownerType='club' && ownerId=clubId`.
   });
 
   /* --- Schedule mapping --- */

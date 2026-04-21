@@ -152,6 +152,9 @@ const bookings: Booking[] = [
     ownerType: 'trainer',
     ownerId: 3,
     userId: 1,
+    // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. Для связки booking тренера
+    // с venue-клубом используется `clubId` напрямую на booking'е.
+    clubId: 2,
     trainerId: 3,
     sportId: 2,
     date: '2099-03-20',
@@ -199,7 +202,6 @@ const schedule: Schedule[] = [
     createdAt: '2026-03-19T13:30:00.000Z',
     ownerType: 'trainer',
     ownerId: 3,
-    affiliatedClubId: 2,
     trainerId: 3,
     sportId: 2,
     title: 'Персональная техника удара',

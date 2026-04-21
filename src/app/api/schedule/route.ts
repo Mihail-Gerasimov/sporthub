@@ -22,13 +22,10 @@ const scheduleQuerySchema = z.object({
 
     return Number(value);
   }, z.number().int().positive().optional()),
-  affiliatedClubId: z.preprocess((value) => {
-    if (typeof value !== 'string' || value.trim() === '') {
-      return undefined;
-    }
-
-    return Number(value);
-  }, z.number().int().positive().optional()),
+  // Phase 25 Step 25.1b: параметр `affiliatedClubId` удалён из схемы вместе с
+  // legacy полем `Schedule.affiliatedClubId`. Фильтр по клубу для тренерских слотов
+  // теперь резолвится через offering.trainerClubLinkId / confirmed TrainerClubLink
+  // в клиентских потребителях (home/catalog/detail), не на уровне этого endpoint'а.
   trainerId: z.preprocess((value) => {
     if (typeof value !== 'string' || value.trim() === '') {
       return undefined;
@@ -64,7 +61,6 @@ export async function GET(request: NextRequest) {
     const validationResult = scheduleQuerySchema.safeParse({
       ownerType: request.nextUrl.searchParams.get('ownerType'),
       clubId: request.nextUrl.searchParams.get('clubId'),
-      affiliatedClubId: request.nextUrl.searchParams.get('affiliatedClubId'),
       trainerId: request.nextUrl.searchParams.get('trainerId'),
       sportId: request.nextUrl.searchParams.get('sportId'),
       date: request.nextUrl.searchParams.get('date'),
@@ -80,16 +76,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { affiliatedClubId, clubId, date, ownerType, sportId, trainerId } = validationResult.data;
+    const { clubId, date, ownerType, sportId, trainerId } = validationResult.data;
     let schedule = await getSchedule({
       ownerType,
     });
 
     schedule = schedule.filter((slot) => slot.bookedCount < slot.capacity);
-
-    if (affiliatedClubId !== undefined) {
-      schedule = schedule.filter((slot) => slot.affiliatedClubId === affiliatedClubId);
-    }
 
     if (clubId !== undefined) {
       schedule = schedule.filter((slot) => slot.clubId === clubId);

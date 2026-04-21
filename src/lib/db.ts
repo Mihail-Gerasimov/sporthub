@@ -67,7 +67,6 @@ type PublicationScheduleInput = EntityWithOverridableFields<
   | 'offeringId'
   | 'ownerType'
   | 'ownerId'
-  | 'affiliatedClubId'
   | 'clubId'
   | 'trainerId'
   | 'bookedCount'
@@ -81,13 +80,10 @@ export type CreateReviewInput = Omit<Review, 'id' | 'createdAt'>;
  */
 export interface CreateClubPublicationInput {
   club: EntityWithOverridableFields<Club, 'id' | 'createdAt'>;
-  offering: EntityWithOverridableFields<
-    Offering,
-    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId'
-  >;
+  offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId'>;
   schedules: EntityWithOverridableFields<
     Schedule,
-    'id' | 'createdAt' | 'ownerId' | 'clubId' | 'offeringId' | 'affiliatedClubId'
+    'id' | 'createdAt' | 'ownerId' | 'clubId' | 'offeringId'
   >[];
 }
 
@@ -107,8 +103,14 @@ export interface CreateTrainerPublicationInput {
   offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId'>;
   schedules: EntityWithOverridableFields<
     Schedule,
-    'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId' | 'affiliatedClubId'
+    'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId'
   >[];
+  /**
+   * Phase 25 Step 25.1b: если указан, при создании тренера автоматически создаётся
+   * confirmed `TrainerClubLink` (MVP provider управляет обеими сторонами). Пришло
+   * на замену legacy `trainer.affiliatedClubId`/`offering.affiliatedClubId`.
+   */
+  clubId?: EntityId;
   /**
    * Phase 24 Step 24.10: дополнительные услуги (multi-offering). Каждый элемент —
    * пара offering + его собственные schedule-слоты. id/createdAt/ownerId/offeringId
@@ -118,7 +120,7 @@ export interface CreateTrainerPublicationInput {
     offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId'>;
     schedules: EntityWithOverridableFields<
       Schedule,
-      'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId' | 'affiliatedClubId'
+      'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId'
     >[];
   }>;
 }
@@ -158,10 +160,7 @@ export interface UpdateClubPublicationInput {
     | 'source'
     | 'status'
   >;
-  offering: EntityWithOverridableFields<
-    Offering,
-    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
-  >;
+  offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId' | 'coordinates'>;
   schedules: PublicationScheduleInput[];
 }
 
@@ -179,7 +178,6 @@ export interface UpdateTrainerPublicationInput {
     | 'slug'
     | 'avatarUrl'
     | 'coordinates'
-    | 'clubId'
     | 'sportId'
     | 'rating'
     | 'reviewCount'
@@ -187,10 +185,7 @@ export interface UpdateTrainerPublicationInput {
     | 'source'
     | 'status'
   >;
-  offering: EntityWithOverridableFields<
-    Offering,
-    'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
-  >;
+  offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId' | 'coordinates'>;
   schedules: PublicationScheduleInput[];
   /**
    * Phase 25 Step 25.1a: дополнительные услуги (multi-offering) в режиме full-replace.
@@ -201,10 +196,7 @@ export interface UpdateTrainerPublicationInput {
    * которые ещё не передают его.
    */
   additionalOfferings?: Array<{
-    offering: EntityWithOverridableFields<
-      Offering,
-      'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
-    >;
+    offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId' | 'coordinates'>;
     schedules: PublicationScheduleInput[];
   }>;
 }
@@ -406,8 +398,9 @@ function normalizeSlugLookupValue(slug: string): string {
   return decodedSlug.normalize('NFC').toLocaleLowerCase('ru-RU');
 }
 
+// Phase 25 Step 25.1b: normalizeTrainer больше не проставляет legacy
+// `affiliatedClubId`/`clubId` — связь с клубом живёт в trainer-club-links.json.
 function normalizeTrainer(trainer: Trainer): Trainer {
-  const affiliatedClubId = trainer.affiliatedClubId ?? trainer.clubId;
   const sportIds =
     Array.isArray(trainer.sportIds) && trainer.sportIds.length > 0
       ? trainer.sportIds
@@ -417,8 +410,6 @@ function normalizeTrainer(trainer: Trainer): Trainer {
 
   return {
     ...trainer,
-    affiliatedClubId,
-    clubId: trainer.clubId ?? affiliatedClubId,
     sportIds,
     sportId: trainer.sportId ?? sportIds[0],
   };
@@ -437,8 +428,9 @@ function normalizeSchedule(
     scheduleItem.ownerId ??
     offering?.ownerId ??
     (ownerType === 'club' ? scheduleItem.clubId : scheduleItem.trainerId);
-  const affiliatedClubId =
-    scheduleItem.affiliatedClubId ?? offering?.affiliatedClubId ?? scheduleItem.clubId ?? undefined;
+  // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. `clubId` остаётся:
+  // для club-слотов = ownerId; для trainer-слотов — резолвится на уровне потребителя
+  // через offering.trainerClubLinkId → link.clubId (здесь не обогащаем).
   const clubId =
     scheduleItem.clubId ?? (ownerType === 'club' && ownerId !== undefined ? ownerId : undefined);
   const trainerId =
@@ -447,7 +439,6 @@ function normalizeSchedule(
 
   return {
     ...scheduleItem,
-    affiliatedClubId,
     clubId,
     offeringId: scheduleItem.offeringId ?? offering?.id,
     ownerId,
@@ -535,11 +526,12 @@ export async function getScheduleById(id: EntityId): Promise<Schedule | null> {
 }
 
 export async function getScheduleSlotContext(id: EntityId): Promise<ScheduleSlotContext | null> {
-  const [scheduleItem, offerings, clubs, trainers] = await Promise.all([
+  const [scheduleItem, offerings, clubs, trainers, links] = await Promise.all([
     getScheduleById(id),
     getOfferings(),
     getClubs(),
     getTrainers(),
+    getTrainerClubLinks({ status: 'confirmed' }),
   ]);
 
   if (!scheduleItem) {
@@ -564,12 +556,16 @@ export async function getScheduleSlotContext(id: EntityId): Promise<ScheduleSlot
       : offering?.ownerType === 'trainer'
         ? (trainerById.get(offering.ownerId) ?? null)
         : null;
-  const affiliatedClub =
-    scheduleItem.affiliatedClubId !== undefined
-      ? (clubById.get(scheduleItem.affiliatedClubId) ?? null)
-      : offering?.affiliatedClubId !== undefined
-        ? (clubById.get(offering.affiliatedClubId) ?? null)
-        : null;
+  // Phase 25 Step 25.1b: affiliatedClub для trainer-слотов резолвится через
+  // offering.trainerClubLinkId → confirmed TrainerClubLink. Для club-слотов =
+  // тот же club. Legacy offering.affiliatedClubId / schedule.affiliatedClubId удалены.
+  let affiliatedClub: Club | null = null;
+  if (offering?.ownerType === 'club') {
+    affiliatedClub = club;
+  } else if (offering?.ownerType === 'trainer' && offering.trainerClubLinkId !== undefined) {
+    const link = links.find((entry) => entry.id === offering.trainerClubLinkId);
+    affiliatedClub = link ? (clubById.get(link.clubId) ?? null) : null;
+  }
 
   return {
     affiliatedClub,
@@ -1225,9 +1221,11 @@ export async function createBookingAtomic(input: CreateBookingAtomicInput): Prom
     offeringId: slot.offeringId,
     ownerType: slot.ownerType,
     ownerId: slot.ownerId,
-    affiliatedClubId: slot.affiliatedClubId ?? affiliatedClub?.id,
     userId: input.userId,
-    clubId: club?.id,
+    // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. `clubId` booking'а —
+    // для club-слотов = сам club; для trainer-слотов = affiliatedClub (резолвится
+    // через offering.trainerClubLinkId → confirmed link) если есть, иначе undefined.
+    clubId: club?.id ?? affiliatedClub?.id,
     trainerId: trainer?.id ?? slot.trainerId,
     sportId: offering?.sportId ?? slot.sportId,
     date: slot.date,
@@ -1471,7 +1469,6 @@ export async function createClubPublication(
     id: offeringId,
     createdAt: now,
     ownerId: clubId,
-    affiliatedClubId: clubId,
   };
 
   const schedules: Schedule[] = input.schedules.map((slot) => {
@@ -1484,7 +1481,6 @@ export async function createClubPublication(
       offeringId,
       ownerId: clubId,
       clubId,
-      affiliatedClubId: clubId,
     };
   });
 
@@ -1510,10 +1506,11 @@ export async function createTrainerPublication(
 ): Promise<TrainerPublicationResult> {
   const now = createTimestamp();
 
-  const [trainers, offerings, schedule] = await Promise.all([
+  const [trainers, offerings, schedule, existingLinks] = await Promise.all([
     readCollection('trainers'),
     readCollection('offerings'),
     readCollection('schedule'),
+    readCollection('trainerClubLinks'),
   ]);
 
   const trainerId = getNextEntityId(trainers);
@@ -1526,14 +1523,20 @@ export async function createTrainerPublication(
     createdAt: now,
   };
 
+  // Phase 25 Step 25.1b: клуб для авто-создания confirmed-link берём из input.clubId
+  // (прежние legacy поля `trainer.affiliatedClubId`/`offering.affiliatedClubId` удалены).
+  // Id будущего link'а аллоцируется ДО atomic write — чтобы primary offering получил
+  // корректный `trainerClubLinkId` и публичные поверхности сразу резолвили club через link.
+  const affiliatedClubId = input.clubId;
+  const nextLinkId = affiliatedClubId !== undefined ? getNextEntityId(existingLinks) : undefined;
+
   const offering: Offering = {
     ...input.offering,
     id: offeringId,
     createdAt: now,
     ownerId: trainerId,
+    ...(nextLinkId !== undefined ? { trainerClubLinkId: nextLinkId } : {}),
   };
-
-  const affiliatedClubId = trainer.affiliatedClubId ?? offering.affiliatedClubId;
   const schedules: Schedule[] = input.schedules.map((slot) => {
     const id = nextScheduleId++;
 
@@ -1544,7 +1547,6 @@ export async function createTrainerPublication(
       offeringId,
       ownerId: trainerId,
       trainerId,
-      ...(affiliatedClubId !== undefined ? { affiliatedClubId } : {}),
     };
   });
 
@@ -1583,26 +1585,33 @@ export async function createTrainerPublication(
   const nextOfferings = [...offerings, offering, ...additionalOfferingEntities];
   const nextSchedule = [...schedule, ...schedules, ...additionalScheduleEntities];
 
-  await writeCollectionsWithRollback([
+  // Phase 24 Step 24.9c / Phase 25 Step 25.1b: auto-confirmed link для MVP provider
+  // (одна сторона управляет обеими). Пишется атомарно в одном write с trainers/offerings/schedule,
+  // чтобы public-поверхности, которые читают offering.trainerClubLinkId → link, видели
+  // согласованное состояние сразу.
+  const writes: Parameters<typeof writeCollectionsWithRollback>[0] = [
     { key: 'trainers', next: nextTrainers, previous: trainers },
     { key: 'offerings', next: nextOfferings, previous: offerings },
     { key: 'schedule', next: nextSchedule, previous: schedule },
-  ]);
-
-  // Phase 24 Step 24.9c: если при публикации указан clubId — автоматически создаём
-  // подтверждённую связь trainer↔club. В MVP provider управляет и клубом, и тренером,
-  // поэтому auto-approve. В Step 24.10 это поведение уточнится: форма будет создавать
-  // pending-запрос, если тренер привязывается к чужому клубу.
-  if (affiliatedClubId !== undefined) {
-    await createTrainerClubLink({
+  ];
+  if (affiliatedClubId !== undefined && nextLinkId !== undefined) {
+    const autoLink: TrainerClubLink = {
+      id: nextLinkId,
+      createdAt: now,
       trainerId,
       clubId: affiliatedClubId,
       status: 'confirmed',
       initiatedBy: 'trainer',
       approvedAt: now,
       approvedByUserId: input.trainer.managedByUserId,
+    };
+    writes.push({
+      key: 'trainerClubLinks',
+      next: [...existingLinks, autoLink],
+      previous: existingLinks,
     });
   }
+  await writeCollectionsWithRollback(writes);
 
   return {
     trainer,
@@ -1689,7 +1698,6 @@ export async function updateClubPublication(
     address: input.offering.address,
     ownerType: 'club',
     ownerId: input.clubId,
-    affiliatedClubId: input.clubId,
   };
 
   const schedules: Schedule[] = input.schedules.map((slotInput) => {
@@ -1709,7 +1717,6 @@ export async function updateClubPublication(
       offeringId: currentOffering.id,
       ownerType: 'club',
       ownerId: input.clubId,
-      affiliatedClubId: input.clubId,
       clubId: input.clubId,
       sportId: slotInput.sportId,
       title: slotInput.title,
@@ -1812,9 +1819,10 @@ export async function updateTrainerPublication(
 
   assertNoDuplicateScheduleIds(input.schedules, 'тренера');
 
-  // Auto-restore: если тренер скрыт модератором — восстановить при редактировании
+  // Auto-restore: если тренер скрыт модератором — восстановить при редактировании.
+  // Phase 25 Step 25.1b: legacy `trainer.affiliatedClubId`/`clubId` удалены; связь
+  // с клубом живёт в TrainerClubLink и не меняется через updateTrainerPublication.
   const wasHidden = currentTrainer.status === 'hidden';
-  const affiliatedClubId = input.trainer.affiliatedClubId ?? null;
   const trainerBase: Trainer = {
     ...currentTrainer,
     name: input.trainer.name,
@@ -1840,21 +1848,9 @@ export async function updateTrainerPublication(
         }
       : {}),
   };
-  const trainer = normalizeTrainer(
-    affiliatedClubId === null
-      ? {
-          ...trainerBase,
-          affiliatedClubId: undefined,
-          clubId: undefined,
-        }
-      : {
-          ...trainerBase,
-          affiliatedClubId,
-          clubId: affiliatedClubId,
-        },
-  );
+  const trainer = normalizeTrainer(trainerBase);
 
-  const offeringBase: Offering = {
+  const offering: Offering = {
     ...currentOffering,
     sportId: input.offering.sportId,
     title: input.offering.title,
@@ -1867,16 +1863,6 @@ export async function updateTrainerPublication(
     ownerType: 'trainer',
     ownerId: input.trainerId,
   };
-  const offering =
-    affiliatedClubId === null
-      ? {
-          ...offeringBase,
-          affiliatedClubId: undefined,
-        }
-      : {
-          ...offeringBase,
-          affiliatedClubId,
-        };
 
   const primarySchedules: Schedule[] = input.schedules.map((slotInput) => {
     const currentSlot =
@@ -1908,15 +1894,7 @@ export async function updateTrainerPublication(
       room: slotInput.room,
     };
 
-    return affiliatedClubId === null
-      ? {
-          ...baseSlot,
-          affiliatedClubId: undefined,
-        }
-      : {
-          ...baseSlot,
-          affiliatedClubId,
-        };
+    return baseSlot;
   });
 
   // Phase 25 Step 25.1a: full-replace дополнительных услуг.

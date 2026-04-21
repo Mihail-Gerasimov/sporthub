@@ -91,7 +91,9 @@ export function mapTrainerFormToEntities(
     ...(form.vk ? { vk: form.vk } : {}),
     ...(form.telegram ? { telegram: form.telegram } : {}),
     ...(form.facebook ? { facebook: form.facebook } : {}),
-    ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
+    // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён с Trainer. Клуб передаётся
+    // в createTrainerPublication через `input.clubId`, и там автоматически создаётся
+    // confirmed TrainerClubLink.
     managedByUserId,
     source: 'provider',
     status: 'published',
@@ -104,7 +106,6 @@ export function mapTrainerFormToEntities(
     createdAt: now,
     ownerType: 'trainer',
     ownerId: trainerId,
-    ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
     sportId: sportIds[0] ?? 0,
     title: form.offeringName,
     description: form.offeringDescription,
@@ -147,6 +148,9 @@ export function mapTrainerFormToEntities(
     trainer,
     offering,
     schedules,
+    // Phase 25 Step 25.1b: clubId передаётся отдельным полем; createTrainerPublication
+    // при наличии значения автоматически создаёт confirmed TrainerClubLink.
+    ...(form.clubId != null ? { clubId: form.clubId } : {}),
     ...(additionalOfferings.length > 0 ? { additionalOfferings } : {}),
   };
 }
@@ -226,13 +230,13 @@ export function mapTrainerFormToUpdateInput(
       vk: form.vk || undefined,
       telegram: form.telegram || undefined,
       facebook: form.facebook || undefined,
-      ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
+      // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён с Trainer/Offering.
+      // Управление связью тренер↔клуб идёт через TrainerClubLink (отдельное API).
       ...(form.coordinates ? { coordinates: form.coordinates } : {}),
     },
     offering: {
       ownerType: 'trainer',
       sportId: sportIds[0] ?? 0,
-      ...(form.clubId != null ? { affiliatedClubId: form.clubId } : {}),
       title: form.offeringName,
       description: form.offeringDescription,
       format: offeringFormatMap[form.offeringFormat] ?? 'personal',

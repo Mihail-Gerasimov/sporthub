@@ -312,7 +312,6 @@ describe('db publish — atomic create (Step 14.5)', () => {
       const result = await createClubPublication(clubInput);
 
       expect(result.offering.ownerId).toBe(result.club.id);
-      expect(result.offering.affiliatedClubId).toBe(result.club.id);
       expect(result.schedules[0].ownerId).toBe(result.club.id);
       expect(result.schedules[0].clubId).toBe(result.club.id);
       expect(result.schedules[0].offeringId).toBe(result.offering.id);
@@ -384,16 +383,22 @@ describe('db publish — atomic create (Step 14.5)', () => {
       expect(schedule.find((s) => s.id === result.schedules[0].id)).toBeTruthy();
     });
 
-    it('с clubId — проставляет affiliatedClubId на тренере и offering', async () => {
+    it('с clubId — создаёт confirmed TrainerClubLink (вместо legacy affiliatedClubId)', async () => {
+      // Phase 25 Step 25.1b: clubId передаётся отдельным полем, createTrainerPublication
+      // автоматически создаёт confirmed link; legacy `affiliatedClubId` удалён.
+      const { getTrainerClubLinks } = await import('@/lib/db');
       const inputWithClub = {
         ...trainerInput,
-        trainer: { ...trainerInput.trainer, affiliatedClubId: 1 },
-        offering: { ...trainerInput.offering, affiliatedClubId: 1 },
+        clubId: 1,
       };
       const result = await createTrainerPublication(inputWithClub);
 
-      expect(result.trainer.affiliatedClubId).toBe(1);
-      expect(result.offering.affiliatedClubId).toBe(1);
+      const links = await getTrainerClubLinks({
+        trainerId: result.trainer.id,
+        status: 'confirmed',
+      });
+      expect(links).toHaveLength(1);
+      expect(links[0].clubId).toBe(1);
     });
 
     it('не затирает существующие данные', async () => {
@@ -431,7 +436,6 @@ describe('db publish — atomic create (Step 14.5)', () => {
 
       expect(result.offering.id).toBe(offeringBefore?.id);
       expect(result.offering.ownerId).toBe(clubUpdateInput.clubId);
-      expect(result.offering.affiliatedClubId).toBe(clubUpdateInput.clubId);
 
       expect(result.schedules).toHaveLength(2);
       expect(result.schedules.find((slot) => slot.id === 1)?.createdAt).toBe(
@@ -523,7 +527,6 @@ describe('db publish — atomic create (Step 14.5)', () => {
 
       expect(result.offering.id).toBe(offeringBefore?.id);
       expect(result.offering.ownerId).toBe(trainerUpdateInput.trainerId);
-      expect(result.offering.affiliatedClubId).toBe(2);
 
       expect(result.schedules).toHaveLength(2);
       expect(result.schedules.find((slot) => slot.id === 1001)?.createdAt).toBe(

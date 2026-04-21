@@ -124,11 +124,8 @@ export function getTimeUntil(value: string | Date, now = new Date()): string {
   return 'меньше минуты';
 }
 
-export function getTrainerAffiliatedClubId(
-  trainer: Pick<Trainer, 'affiliatedClubId' | 'clubId'>,
-): EntityId | null {
-  return trainer.affiliatedClubId ?? trainer.clubId ?? null;
-}
+// Phase 25 Step 25.1b: getTrainerAffiliatedClubId удалён вместе с legacy-полями.
+// Клуб тренера теперь резолвится только через confirmed TrainerClubLink.
 
 export function getTrainerSportIds(trainer: Pick<Trainer, 'sportIds' | 'sportId'>): EntityId[] {
   if (Array.isArray(trainer.sportIds) && trainer.sportIds.length > 0) {
@@ -144,20 +141,20 @@ export function getTrainerPrimarySportId(
   return getTrainerSportIds(trainer)[0] ?? null;
 }
 
-export function getScheduleClubId(
-  scheduleItem: Pick<Schedule, 'affiliatedClubId' | 'clubId'>,
-): EntityId | null {
-  return scheduleItem.affiliatedClubId ?? scheduleItem.clubId ?? null;
+// Phase 25 Step 25.1b: legacy `Schedule.affiliatedClubId` удалён. Клуб слота резолвится
+// только через `clubId` (для club-слотов) или через offering.trainerClubLinkId → link.clubId
+// (для trainer-слотов) на уровне сервера, где есть доступ к offerings и links.
+export function getScheduleClubId(scheduleItem: Pick<Schedule, 'clubId'>): EntityId | null {
+  return scheduleItem.clubId ?? null;
 }
 
 export function getScheduleTrainerId(scheduleItem: Pick<Schedule, 'trainerId'>): EntityId | null {
   return scheduleItem.trainerId ?? null;
 }
 
-export function getBookingClubId(
-  booking: Pick<Booking, 'affiliatedClubId' | 'clubId'>,
-): EntityId | null {
-  return booking.affiliatedClubId ?? booking.clubId ?? null;
+// Phase 25 Step 25.1b: legacy `Booking.affiliatedClubId` удалён.
+export function getBookingClubId(booking: Pick<Booking, 'clubId'>): EntityId | null {
+  return booking.clubId ?? null;
 }
 
 export function getBookingTrainerId(booking: Pick<Booking, 'trainerId'>): EntityId | null {

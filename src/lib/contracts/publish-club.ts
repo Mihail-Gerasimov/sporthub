@@ -113,7 +113,6 @@ export function mapClubFormToEntities(
     createdAt: now,
     ownerType: 'club',
     ownerId: clubId,
-    affiliatedClubId: clubId,
     sportId: sportIds[0] ?? 0,
     title: `Занятия — ${form.name}`,
     description: form.description,

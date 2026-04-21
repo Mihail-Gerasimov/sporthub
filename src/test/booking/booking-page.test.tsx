@@ -25,7 +25,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { seedTestData } from '@/test/helpers/seed-fixtures';
+import { seedDefaultTrainerClubLink, seedTestData } from '@/test/helpers/seed-fixtures';
 
 describe('Booking page', () => {
   let dataDirectory: string;
@@ -33,6 +33,7 @@ describe('Booking page', () => {
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
+    await seedDefaultTrainerClubLink(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
     localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);

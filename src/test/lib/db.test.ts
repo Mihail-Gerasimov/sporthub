@@ -18,7 +18,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { seedTestData } from '@/test/helpers/seed-fixtures';
+import { seedDefaultTrainerClubLink, seedTestData } from '@/test/helpers/seed-fixtures';
 
 describe('db abstraction', () => {
   let dataDirectory: string;
@@ -26,6 +26,7 @@ describe('db abstraction', () => {
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
+    await seedDefaultTrainerClubLink(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
@@ -198,7 +199,6 @@ describe('db abstraction', () => {
       ownerId: 1,
       trainerId: 1,
       clubId: undefined,
-      affiliatedClubId: 1,
     });
     expect(slotContext).toMatchObject({
       schedule: expect.objectContaining({

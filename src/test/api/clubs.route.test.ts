@@ -151,7 +151,6 @@ describe('POST /api/clubs', () => {
     expect(body.data.offering).toMatchObject({
       ownerType: 'club',
       ownerId: body.data.club.id,
-      affiliatedClubId: body.data.club.id,
     });
     expect(body.data.schedules).toEqual(
       expect.arrayContaining([
@@ -263,7 +262,6 @@ describe('GET /api/clubs/[id] и PATCH /api/clubs/[id]', () => {
         id: 1,
         ownerType: 'club',
         ownerId: 1,
-        affiliatedClubId: 1,
       },
     });
     expect(body.data.schedule).toEqual(
@@ -306,7 +304,6 @@ describe('GET /api/clubs/[id] и PATCH /api/clubs/[id]', () => {
       id: 1,
       ownerType: 'club',
       ownerId: 1,
-      affiliatedClubId: 1,
       title: 'Занятия — Volna Aquatic Club Premium',
     });
     expect(body.data.schedules).toEqual(

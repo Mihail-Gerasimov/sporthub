@@ -8,7 +8,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { seedTestData } from '@/test/helpers/seed-fixtures';
+import { seedDefaultTrainerClubLink, seedTestData } from '@/test/helpers/seed-fixtures';
 
 const validTrainerPayload = {
   firstName: 'Александр',
@@ -100,6 +100,9 @@ describe('Trainers API', () => {
   beforeEach(async () => {
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
+    // Phase 25 Step 25.1b: seed confirmed-link trainer1↔club1 (заменяет удалённое
+    // legacy fixtureTrainer.affiliatedClubId=1).
+    await seedDefaultTrainerClubLink(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
@@ -191,7 +194,6 @@ describe('Trainers API', () => {
       id: 101,
       ownerType: 'trainer',
       ownerId: 1,
-      affiliatedClubId: 1,
     });
     expect(body.data.schedule).toEqual(
       expect.arrayContaining([
@@ -330,12 +332,10 @@ describe('Trainers API', () => {
       managedByUserId: 2,
       source: 'provider',
       status: 'published',
-      affiliatedClubId: 1,
     });
     expect(body.data.offering).toMatchObject({
       ownerType: 'trainer',
       ownerId: body.data.trainer.id,
-      affiliatedClubId: 1,
     });
     expect(body.data.schedules).toEqual(
       expect.arrayContaining([
@@ -344,7 +344,6 @@ describe('Trainers API', () => {
           ownerId: body.data.trainer.id,
           trainerId: body.data.trainer.id,
           offeringId: body.data.offering.id,
-          affiliatedClubId: 1,
         }),
       ]),
     );
@@ -438,13 +437,11 @@ describe('Trainers API', () => {
       name: 'Марина Сергеевна',
       slug: 'marina-sokolova',
       managedByUserId: 2,
-      affiliatedClubId: 2,
     });
     expect(body.data.offering).toMatchObject({
       id: 101,
       ownerType: 'trainer',
       ownerId: 1,
-      affiliatedClubId: 2,
       title: 'Персональная тренировка: Плавание PRO',
     });
     expect(body.data.schedules).toEqual(

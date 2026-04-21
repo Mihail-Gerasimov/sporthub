@@ -110,17 +110,17 @@ describe('publish-trainer contract (Step 14.4)', () => {
     expect(trainer.createdAt).toBeTruthy();
   });
 
-  /* --- Optional club link --- */
+  /* --- Optional club link (Phase 25 Step 25.1b: через отдельное поле clubId) --- */
 
-  it('без clubId — affiliatedClubId не задан', () => {
-    const { trainer } = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
-    expect(trainer.affiliatedClubId).toBeUndefined();
+  it('без clubId — в результате нет поля clubId', () => {
+    const result = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
+    expect((result as unknown as Record<string, unknown>).clubId).toBeUndefined();
   });
 
-  it('с clubId — маппит в affiliatedClubId', () => {
+  it('с clubId — передаётся в отдельное поле clubId создания (для авто-создания confirmed link)', () => {
     const formWithClub = { ...validForm, clubId: 42 };
-    const { trainer } = mapTrainerFormToEntities(formWithClub, PROVIDER_USER_ID);
-    expect(trainer.affiliatedClubId).toBe(42);
+    const result = mapTrainerFormToEntities(formWithClub, PROVIDER_USER_ID);
+    expect((result as unknown as { clubId?: number }).clubId).toBe(42);
   });
 
   /* --- Offering mapping --- */
@@ -144,10 +144,11 @@ describe('publish-trainer contract (Step 14.4)', () => {
     expect(offering.format).toBe('personal');
   });
 
-  it('offering с clubId получает affiliatedClubId', () => {
+  it('offering с clubId — больше НЕ проставляет legacy affiliatedClubId (Phase 25 Step 25.1b)', () => {
     const formWithClub = { ...validForm, clubId: 42 };
     const { offering } = mapTrainerFormToEntities(formWithClub, PROVIDER_USER_ID);
-    expect(offering.affiliatedClubId).toBe(42);
+    // Legacy поле удалено из типа Offering; связь теперь живёт в TrainerClubLink.
+    expect((offering as unknown as Record<string, unknown>).affiliatedClubId).toBeUndefined();
   });
 
   /* --- Schedule mapping --- */

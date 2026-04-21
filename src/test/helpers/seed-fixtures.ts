@@ -105,7 +105,6 @@ export const fixtureTrainer: Trainer = {
   city: 'Самара',
   address: 'ул. Лесная, 23к1',
   coordinates: { lat: 53.2129, lng: 50.1245 },
-  affiliatedClubId: 1,
   managedByUserId: 2,
   source: 'seed',
   status: 'published',
@@ -128,7 +127,6 @@ export const fixtureTrainer3: Trainer = {
   city: 'Самара',
   address: 'ул. Советская, 10',
   coordinates: { lat: 53.2001, lng: 50.11 },
-  affiliatedClubId: 2,
   managedByUserId: 2,
   source: 'seed',
   status: 'published',
@@ -163,7 +161,6 @@ export const fixtureClubOffering: Offering = {
   createdAt: '2026-03-17T09:00:00.000Z',
   ownerType: 'club',
   ownerId: 1,
-  affiliatedClubId: 1,
   sportId: 3,
   title: 'Утреннее плавание',
   description: 'Групповое утреннее плавание в бассейне 25 м.',
@@ -181,7 +178,6 @@ export const fixtureTrainerOffering: Offering = {
   createdAt: '2026-03-17T09:00:00.000Z',
   ownerType: 'trainer',
   ownerId: 1,
-  affiliatedClubId: 1,
   sportId: 3,
   title: 'Персональная тренировка: Плавание',
   description: 'Индивидуальная тренировка по плаванию.',
@@ -192,6 +188,10 @@ export const fixtureTrainerOffering: Offering = {
   address: 'ул. Лесная, 23к1',
   coordinates: { lat: 53.2129, lng: 50.1245 },
   cancellationPolicy: 'free_until_24h',
+  // Phase 25 Step 25.1b: ссылка на seeded link (trainer1↔club1). Резолвится в
+  // `affiliatedClub` только если тест вызвал `seedDefaultTrainerClubLink` и у
+  // записи status='confirmed'. Иначе affiliatedClub остаётся null.
+  trainerClubLinkId: 1,
 };
 
 // --- Фикстуры расписания ---
@@ -262,7 +262,6 @@ export const fixtureTrainerSlot: Schedule = {
   ownerType: 'trainer',
   ownerId: 1,
   trainerId: 1,
-  affiliatedClubId: 1,
   sportId: 3,
   title: 'Персональная тренировка: Плавание',
   date: '2026-03-20',
@@ -304,7 +303,6 @@ export const fixtureBookings: Booking[] = [
     offeringId: 1,
     ownerType: 'club',
     ownerId: 1,
-    affiliatedClubId: 1,
     userId: 1,
     clubId: 1,
     trainerId: 1,
@@ -321,7 +319,6 @@ export const fixtureBookings: Booking[] = [
     offeringId: 1,
     ownerType: 'club',
     ownerId: 1,
-    affiliatedClubId: 1,
     userId: 1,
     clubId: 1,
     trainerId: 1,
@@ -338,7 +335,6 @@ export const fixtureBookings: Booking[] = [
     offeringId: 1,
     ownerType: 'club',
     ownerId: 1,
-    affiliatedClubId: 1,
     userId: 1,
     clubId: 1,
     trainerId: 1,
@@ -387,6 +383,32 @@ export const fixtureSpecialties = [
   { id: 2, createdAt: '2026-03-17T09:00:00.000Z', name: 'Реабилитация' },
 ];
 
+// Phase 25 Step 25.1b: confirmed TrainerClubLink — вместо legacy fixtureTrainer.affiliatedClubId=1.
+// Тесты, проверяющие «тренер 1 связан с клубом 1», засеивают через seedDefaultTrainerClubLink.
+const DEFAULT_TRAINER_CLUB_LINK = {
+  id: 1,
+  createdAt: '2026-03-17T09:00:00.000Z',
+  trainerId: 1,
+  clubId: 1,
+  status: 'confirmed' as const,
+  initiatedBy: 'trainer' as const,
+  approvedAt: '2026-03-17T09:00:00.000Z',
+  approvedByUserId: 2,
+};
+
+/**
+ * Phase 25 Step 25.1b: засеивает confirmed-link trainer1↔club1 для тестов, которые
+ * в старой модели полагались на `fixtureTrainer.affiliatedClubId=1`. Вызывать после
+ * `seedTestData`, перед тестом.
+ */
+export async function seedDefaultTrainerClubLink(dataDirectory: string): Promise<void> {
+  await writeFile(
+    path.join(dataDirectory, 'trainer-club-links.json'),
+    `${JSON.stringify([DEFAULT_TRAINER_CLUB_LINK], null, 2)}\n`,
+    'utf8',
+  );
+}
+
 /**
  * Записывает полный набор тестовых фикстур в указанную директорию.
  * Перезаписывает пустые JSON-файлы тестовыми данными.
@@ -414,7 +436,10 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     write('amenities.json', fixtureAmenities),
     write('work-formats.json', fixtureWorkFormats),
     write('specialties.json', fixtureSpecialties),
-    // Phase 24: новые коллекции (по умолчанию пустые — тесты сами засеивают при необходимости)
+    // Phase 24: новые коллекции (по умолчанию пустые — тесты сами засеивают при необходимости).
+    // Phase 25 Step 25.1b: trainer-club-links остаются пустыми по умолчанию, чтобы
+    // CRUD-тесты ссылок работали на чистом срезе. Тесты, которым нужен confirmed-link
+    // тренера 1 к клубу 1, засеивают его сами через seedTrainerClubLink helper ниже.
     write('notifications.json', []),
     write('trainer-club-links.json', []),
   ]);

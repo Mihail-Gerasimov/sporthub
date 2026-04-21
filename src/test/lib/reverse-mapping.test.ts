@@ -342,18 +342,28 @@ describe('mapTrainerToFormState (Step 15.2)', () => {
     expect(miniGroupForm.offeringFormat).toBe('Мини-группа');
   });
 
-  it('восстанавливает clubId из affiliatedClubId тренера', () => {
-    const trainer = makeTrainer({ affiliatedClubId: 100 });
-    const form = mapTrainerToFormState(trainer, makeTrainerOffering(), []);
+  it('Phase 25 Step 25.1b: восстанавливает clubId из confirmed TrainerClubLink', () => {
+    const confirmedLink = {
+      id: 700,
+      createdAt: '2026-03-01T00:00:00.000Z',
+      trainerId: 400,
+      clubId: 100,
+      status: 'confirmed' as const,
+      initiatedBy: 'trainer' as const,
+    };
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      [],
+      [],
+      [confirmedLink],
+    );
 
     expect(form.clubId).toBe(100);
   });
 
-  it('clubId = null если affiliatedClubId отсутствует', () => {
-    const trainer = makeTrainer();
-    delete (trainer as unknown as Record<string, unknown>).affiliatedClubId;
-    const form = mapTrainerToFormState(trainer, makeTrainerOffering(), []);
-
+  it('clubId = null если нет confirmed TrainerClubLink', () => {
+    const form = mapTrainerToFormState(makeTrainer(), makeTrainerOffering(), [], [], []);
     expect(form.clubId).toBeNull();
   });
 

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import {
   appendCity,
   createTrainerPublication,
-  getOfferings,
   getTrainerClubLinks,
   getTrainers,
   getUserById,
@@ -63,20 +62,13 @@ export async function GET(request: NextRequest) {
     trainers = trainers.filter((trainer) => trainer.status !== 'hidden');
 
     if (normalizedAffiliatedClubId !== undefined) {
-      // Phase 24 Step 24.8: фильтр «тренеры клуба» идёт через confirmed TrainerClubLinks.
-      // Fallback на legacy offering.affiliatedClubId — временно до Step 24.10.
-      const [confirmedLinks, offerings] = await Promise.all([
-        getTrainerClubLinks({ clubId: normalizedAffiliatedClubId, status: 'confirmed' }),
-        getOfferings(),
-      ]);
+      // Phase 24 Step 24.8 / Phase 25 Step 25.1b: фильтр «тренеры клуба» только через
+      // confirmed TrainerClubLink. Legacy fallback `offering.affiliatedClubId` удалён.
+      const confirmedLinks = await getTrainerClubLinks({
+        clubId: normalizedAffiliatedClubId,
+        status: 'confirmed',
+      });
       const trainerIds = new Set<number>(confirmedLinks.map((link) => link.trainerId));
-      offerings
-        .filter(
-          (offering) =>
-            offering.ownerType === 'trainer' &&
-            offering.affiliatedClubId === normalizedAffiliatedClubId,
-        )
-        .forEach((offering) => trainerIds.add(offering.ownerId));
       trainers = trainers.filter((trainer) => trainerIds.has(trainer.id));
     }
 

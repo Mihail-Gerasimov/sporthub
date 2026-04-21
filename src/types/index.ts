@@ -226,18 +226,9 @@ export interface Trainer extends BaseEntity {
   vk?: string;
   telegram?: string;
   facebook?: string;
-  /**
-   * @deprecated Phase 24 Step 24.8 — поле удалится при переходе на TrainerClubLink.
-   * Источник правды связи тренер↔клуб переезжает в коллекцию trainer-club-links.json
-   * со статусами pending/confirmed/rejected/revoked. Чтения через
-   * getTrainerClubLinks({ trainerId, status: 'confirmed' }).
-   */
-  affiliatedClubId?: EntityId;
-  /**
-   * @deprecated Phase 24 Step 24.8 — удалится вместе с affiliatedClubId.
-   * Исходно было STUB переходной совместимости до миграции на offerings.
-   */
-  clubId?: EntityId;
+  // Phase 25 Step 25.1b: legacy `affiliatedClubId` и `clubId` удалены. Источник правды
+  // связи тренер↔клуб — коллекция trainer-club-links.json. Чтение через
+  // getTrainerClubLinks({ trainerId, status: 'confirmed' }).
   // STUB: сохранить переходную совместимость до появления primarySportId и новой выдачи.
   sportId?: EntityId;
   // Привязка к провайдеру (userId), управляющему этим тренером
@@ -255,13 +246,9 @@ export interface Trainer extends BaseEntity {
 export interface Offering extends BaseEntity {
   ownerType: CatalogOwnerType;
   ownerId: EntityId;
-  /**
-   * @deprecated Phase 24 Step 24.8 — поле удалится при переходе на TrainerClubLink.
-   * Для услуг тренера "в клубе" вместо этого поля используется trainerClubLinkId,
-   * который ссылается на confirmed-link в trainer-club-links.json. Чтения клуба
-   * у тренера идут через getTrainerClubLinks({ status: 'confirmed' }).
-   */
-  affiliatedClubId?: EntityId;
+  // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. Для услуг тренера «в клубе»
+  // используется `trainerClubLinkId` (ссылка на confirmed TrainerClubLink). Для club-услуг
+  // клуб резолвится через `ownerType='club' && ownerId=clubId`.
   /**
    * Phase 24: Ссылка на confirmed TrainerClubLink для услуг тренера "в клубе".
    * Если undefined — услуга частная, оказывается тренером независимо. Если указано
@@ -291,7 +278,9 @@ export interface Schedule extends BaseEntity {
   offeringId?: EntityId;
   ownerType?: CatalogOwnerType;
   ownerId?: EntityId;
-  affiliatedClubId?: EntityId;
+  // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. Клуб, в котором проходит слот,
+  // резолвится через `offeringId → offering.trainerClubLinkId → link.clubId` (для услуг
+  // тренера) или через `ownerType='club' && ownerId=clubId` / поле `clubId` (для клубных слотов).
   clubId?: EntityId;
   trainerId?: EntityId;
   sportId: EntityId;
@@ -313,7 +302,8 @@ export interface Booking extends BaseEntity {
   offeringId?: EntityId;
   ownerType?: CatalogOwnerType;
   ownerId?: EntityId;
-  affiliatedClubId?: EntityId;
+  // Phase 25 Step 25.1b: legacy `affiliatedClubId` удалён. Клуб booking'а резолвится через
+  // `clubId` (для club-услуг) или через цепочку offering → trainerClubLinkId → link.clubId.
   userId: EntityId;
   clubId?: EntityId;
   trainerId?: EntityId;

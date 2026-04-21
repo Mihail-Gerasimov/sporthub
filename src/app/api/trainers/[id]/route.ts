@@ -57,17 +57,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       getSchedule({ ownerType: 'trainer' }),
       getSports(),
     ]);
-    // Phase 24 Step 24.8: связанный клуб читаем через confirmed TrainerClubLink.
-    // Fallback — старое поле offering.affiliatedClubId (оставлено для seed без links).
+    // Phase 24 Step 24.8 / Phase 25 Step 25.1b: связанный клуб — только через confirmed
+    // TrainerClubLink. Legacy fallback `offering.affiliatedClubId` удалён.
     const confirmedLinks = await getTrainerClubLinks({
       trainerId,
       status: 'confirmed',
     });
-    const venueClubIdFromLink = confirmedLinks[0]?.clubId;
-    const legacyVenueClubId = offerings.find(
-      (offering) => offering.affiliatedClubId !== undefined,
-    )?.affiliatedClubId;
-    const venueClubId = venueClubIdFromLink ?? legacyVenueClubId;
+    const venueClubId = confirmedLinks[0]?.clubId;
     const affiliatedClub = venueClubId === undefined ? null : await getClubById(venueClubId);
 
     const trainerSports = sports.filter((item) => trainer.sportIds.includes(item.id));

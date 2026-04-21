@@ -60,14 +60,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const primaryOffering =
       offerings.find((offering) => offering.ownerType === 'club' && offering.ownerId === clubId) ??
       null;
-    // Phase 24 Step 24.8: тренеры клуба — через confirmed TrainerClubLinks.
-    // Fallback на legacy offering.affiliatedClubId оставляем до cleanup в Step 24.10.
+    // Phase 24 Step 24.8 / Phase 25 Step 25.1b: тренеры клуба — только через confirmed
+    // TrainerClubLink. Legacy fallback `offering.affiliatedClubId` удалён.
     const clubTrainerIds = new Set<number>(confirmedLinks.map((link) => link.trainerId));
-    offerings
-      .filter(
-        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
-      )
-      .forEach((offering) => clubTrainerIds.add(offering.ownerId));
 
     return NextResponse.json({
       success: true,
