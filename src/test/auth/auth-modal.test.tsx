@@ -10,6 +10,7 @@ vi.mock('next/navigation', () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
+  usePathname: () => '/',
 }));
 import {
   AUTH_STORE_DEFAULT_STATE,

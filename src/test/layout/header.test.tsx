@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Мокаем next/navigation (Header использует useRouter)
+// Мокаем next/navigation (Header использует useRouter,
+// а NotificationBell/useUnreadCountPolling — usePathname)
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
+  usePathname: () => '/',
 }));
 
 import { Header } from '@/components/layout/Header';

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { getPersonalCabinetConfig } from '@/stores/useAuthStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -68,6 +69,8 @@ export function Header() {
         <div className="flex items-center gap-3">
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2 sm:gap-3">
+              {/* Phase 24 Step 24.7: колокольчик уведомлений — виден только athlete/provider */}
+              <NotificationBell />
               <div className="hidden min-w-0 text-right md:block">
                 <p className="truncate text-sm font-semibold leading-5 text-ink">{user.name}</p>
                 {isAdminDirect ? (
