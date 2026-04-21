@@ -985,34 +985,18 @@ function getSlotEndAt(slot: Schedule): Date {
   return new Date(`${slot.date}T${slot.endTime}:00`);
 }
 
-/**
- * Вычисляет cancelReason для отмены атлетом: on_time (в пределах окна бесплатной
- * отмены по snapshot-policy) или late (за окном). Snapshot-policy хранится в
- * booking.cancellationPolicySnapshot — задним числом ужесточить нельзя.
- * free_anytime → Infinity (всегда on_time); no_refund → 0 (всегда late).
- */
+// Phase 24 Step 24.12: computeCancelReason — теперь чистая функция в reliability.ts,
+// импортируется как единый источник правды. Здесь оставлен re-export внутреннего
+// имени, чтобы не менять call-сайты внутри db.ts.
+import { computeCancelReason as computeCancelReasonPure } from '@/lib/reliability';
+
 function computeCancelReason(
   booking: Booking,
   slot: Schedule | null,
   now: Date,
   config: DisciplineConfig = DISCIPLINE_CONFIG,
 ): CancelReason {
-  const policy: CancellationPolicy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
-  const freeUntilHours = config.lateCancel.freeUntil[policy];
-
-  if (!Number.isFinite(freeUntilHours)) {
-    return 'on_time';
-  }
-
-  // Защитный дефолт: если слот не найден (удалён параллельно), считаем отмену поздней.
-  if (!slot) {
-    return 'late';
-  }
-
-  const startAt = getSlotStartAt(slot);
-  const hoursBeforeStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-  return hoursBeforeStart >= freeUntilHours ? 'on_time' : 'late';
+  return computeCancelReasonPure(booking, slot, now, config);
 }
 
 /**
