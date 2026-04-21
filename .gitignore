@@ -57,12 +57,14 @@ src/data/bookings.json
 src/data/cities.json
 src/data/clubs.json
 src/data/logs.json
+src/data/notifications.json
 src/data/offerings.json
 src/data/reviews.json
 src/data/schedule.json
 src/data/specialties.json
 src/data/sports.json
 src/data/tags.json
+src/data/trainer-club-links.json
 src/data/trainers.json
 src/data/users.json
 src/data/work-formats.json
