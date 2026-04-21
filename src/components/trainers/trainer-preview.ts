@@ -10,6 +10,7 @@ import type {
   Specialty,
   Sport,
   Trainer,
+  TrainerClubLink,
 } from '@/types';
 
 export type TrainerPreviewSport = Pick<Sport, 'id' | 'name' | 'icon'>;
@@ -70,6 +71,8 @@ type BuildTrainerDirectoryInput = {
   specialties?: Specialty[];
   sports: TrainerPreviewSport[];
   trainers: Trainer[];
+  /** Phase 24 Step 24.8: confirmed-связи тренер↔клуб для резолвинга venueClub. */
+  trainerClubLinks?: TrainerClubLink[];
 };
 
 type GetTrainerAvailabilityInput = {
@@ -89,8 +92,16 @@ export function buildTrainerDirectory({
   specialties = [],
   sports,
   trainers,
+  trainerClubLinks = [],
 }: BuildTrainerDirectoryInput): TrainerDirectoryItem[] {
   const clubsById = new Map(clubs.map((club) => [club.id, club]));
+  // Phase 24 Step 24.8: confirmed links по trainerId → clubId (authoritative).
+  const confirmedClubIdByTrainerId = new Map<EntityId, EntityId>();
+  for (const link of trainerClubLinks) {
+    if (link.status === 'confirmed') {
+      confirmedClubIdByTrainerId.set(link.trainerId, link.clubId);
+    }
+  }
   const trainerOfferings = offerings.filter((offering) => offering.ownerType === 'trainer');
   const trainerOfferingsByTrainerId = new Map<EntityId, Offering[]>();
   const trainerScheduleByTrainerId = new Map<EntityId, Schedule[]>();
@@ -128,10 +139,11 @@ export function buildTrainerDirectory({
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
       const primaryOffering = offeringsForTrainer[0] ?? null;
       const nextSlot = availableSlots[0] ?? null;
-      const venueClub =
-        primaryOffering?.affiliatedClubId !== undefined
-          ? (clubsById.get(primaryOffering.affiliatedClubId) ?? null)
-          : null;
+      // Phase 24 Step 24.8: venueClub сначала через confirmed link, fallback — legacy offering.affiliatedClubId.
+      const linkClubId = confirmedClubIdByTrainerId.get(trainer.id);
+      const legacyClubId = primaryOffering?.affiliatedClubId;
+      const venueClubId = linkClubId ?? legacyClubId;
+      const venueClub = venueClubId !== undefined ? (clubsById.get(venueClubId) ?? null) : null;
       const coordinates =
         trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
       const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;

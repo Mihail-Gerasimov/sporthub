@@ -11,6 +11,7 @@ import {
   getSpecialties,
   getSports,
   getTrainerBySlug,
+  getTrainerClubLinks,
   getUsers,
 } from '@/lib/db';
 
@@ -80,10 +81,18 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     return accumulator;
   }, {});
 
-  /* Связанный клуб (если тренер работает при клубе) */
-  const affiliatedClubId = trainerOfferings.find(
-    (offering) => offering.affiliatedClubId !== undefined,
-  )?.affiliatedClubId;
+  /* Связанный клуб (если тренер работает при клубе) — читаем через confirmed TrainerClubLink.
+   * Fallback: trainer.affiliatedClubId и offering.affiliatedClubId (seed без links, Step 24.8b). */
+  const confirmedLinks = await getTrainerClubLinks({
+    trainerId: trainer.id,
+    status: 'confirmed',
+  });
+  const affiliatedClubIdFromLink = confirmedLinks[0]?.clubId;
+  const legacyAffiliatedClubId =
+    trainer.affiliatedClubId ??
+    trainer.clubId ??
+    trainerOfferings.find((offering) => offering.affiliatedClubId !== undefined)?.affiliatedClubId;
+  const affiliatedClubId = affiliatedClubIdFromLink ?? legacyAffiliatedClubId;
   const affiliatedClub =
     affiliatedClubId === undefined ? null : await getClubById(affiliatedClubId);
 

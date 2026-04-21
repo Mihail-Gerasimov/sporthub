@@ -10,6 +10,7 @@ import {
   getReviews,
   getSchedule,
   getSports,
+  getTrainerClubLinks,
   getTrainers,
   getUserById,
   updateClubPublication,
@@ -48,23 +49,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const [offerings, reviews, schedule, sports, trainers] = await Promise.all([
+    const [offerings, reviews, schedule, sports, trainers, confirmedLinks] = await Promise.all([
       getOfferings(),
       getReviews(),
       getSchedule(),
       getSports(),
       getTrainers(),
+      getTrainerClubLinks({ clubId, status: 'confirmed' }),
     ]);
     const primaryOffering =
       offerings.find((offering) => offering.ownerType === 'club' && offering.ownerId === clubId) ??
       null;
-    const clubTrainerIds = new Set(
-      offerings
-        .filter(
-          (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
-        )
-        .map((offering) => offering.ownerId),
-    );
+    // Phase 24 Step 24.8: тренеры клуба — через confirmed TrainerClubLinks.
+    // Fallback на legacy offering.affiliatedClubId оставляем до cleanup в Step 24.10.
+    const clubTrainerIds = new Set<number>(confirmedLinks.map((link) => link.trainerId));
+    offerings
+      .filter(
+        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === clubId,
+      )
+      .forEach((offering) => clubTrainerIds.add(offering.ownerId));
 
     return NextResponse.json({
       success: true,

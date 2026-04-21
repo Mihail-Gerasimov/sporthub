@@ -12,6 +12,7 @@ import {
   getSpecialties,
   getSports,
   getTags,
+  getTrainerClubLinks,
   getTrainers,
   getUsers,
 } from '@/lib/db';
@@ -57,13 +58,15 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     ]);
 
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
-  const clubTrainerIds = new Set(
-    offerings
-      .filter(
-        (offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === club.id,
-      )
-      .map((offering) => offering.ownerId),
-  );
+  // Phase 24 Step 24.8: список связанных тренеров читаем через confirmed TrainerClubLinks.
+  // Fallback на legacy offering.affiliatedClubId — временно для seed без links.
+  const clubLinks = await getTrainerClubLinks({ clubId: club.id, status: 'confirmed' });
+  const linkedTrainerIds = new Set(clubLinks.map((link) => link.trainerId));
+  const legacyTrainerIds = offerings
+    .filter((offering) => offering.ownerType === 'trainer' && offering.affiliatedClubId === club.id)
+    .map((offering) => offering.ownerId);
+  legacyTrainerIds.forEach((id) => linkedTrainerIds.add(id));
+  const clubTrainerIds = linkedTrainerIds;
   const clubTrainers = trainers
     .filter((trainer) => clubTrainerIds.has(trainer.id))
     .sort((left, right) => right.rating - left.rating);

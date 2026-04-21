@@ -5,6 +5,7 @@ import {
   appendCity,
   createTrainerPublication,
   getOfferings,
+  getTrainerClubLinks,
   getTrainers,
   getUserById,
 } from '@/lib/db';
@@ -62,16 +63,20 @@ export async function GET(request: NextRequest) {
     trainers = trainers.filter((trainer) => trainer.status !== 'hidden');
 
     if (normalizedAffiliatedClubId !== undefined) {
-      const offerings = await getOfferings();
-      const trainerIds = new Set(
-        offerings
-          .filter(
-            (offering) =>
-              offering.ownerType === 'trainer' &&
-              offering.affiliatedClubId === normalizedAffiliatedClubId,
-          )
-          .map((offering) => offering.ownerId),
-      );
+      // Phase 24 Step 24.8: фильтр «тренеры клуба» идёт через confirmed TrainerClubLinks.
+      // Fallback на legacy offering.affiliatedClubId — временно до Step 24.10.
+      const [confirmedLinks, offerings] = await Promise.all([
+        getTrainerClubLinks({ clubId: normalizedAffiliatedClubId, status: 'confirmed' }),
+        getOfferings(),
+      ]);
+      const trainerIds = new Set<number>(confirmedLinks.map((link) => link.trainerId));
+      offerings
+        .filter(
+          (offering) =>
+            offering.ownerType === 'trainer' &&
+            offering.affiliatedClubId === normalizedAffiliatedClubId,
+        )
+        .forEach((offering) => trainerIds.add(offering.ownerId));
       trainers = trainers.filter((trainer) => trainerIds.has(trainer.id));
     }
 

@@ -14,6 +14,7 @@ import {
   getSpecialties,
   getSports,
   getTags,
+  getTrainerClubLinks,
   getTrainers,
 } from '@/lib/db';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
@@ -22,17 +23,27 @@ import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const [clubs, clubSchedule, offerings, specialties, sports, tags, trainerSchedule, trainers] =
-    await Promise.all([
-      getClubs(),
-      getSchedule(),
-      getOfferings(),
-      getSpecialties(),
-      getSports(),
-      getTags(),
-      getSchedule({ ownerType: 'trainer' }),
-      getTrainers(),
-    ]);
+  const [
+    clubs,
+    clubSchedule,
+    offerings,
+    specialties,
+    sports,
+    tags,
+    trainerSchedule,
+    trainers,
+    trainerClubLinks,
+  ] = await Promise.all([
+    getClubs(),
+    getSchedule(),
+    getOfferings(),
+    getSpecialties(),
+    getSports(),
+    getTags(),
+    getSchedule({ ownerType: 'trainer' }),
+    getTrainers(),
+    getTrainerClubLinks({ status: 'confirmed' }),
+  ]);
   const todayDateKey = getDateKeyInTimeZone();
   const upcomingSessions = getUpcomingSessions({
     clubs,
@@ -51,6 +62,7 @@ export default async function Home() {
     specialties,
     sports: searchFilterSports,
     trainers,
+    trainerClubLinks,
   });
   const trainerAvailability = getTrainerAvailability({
     schedule: trainerSchedule,

@@ -41,6 +41,9 @@ export async function clearCatalogCollections(dataDirectory: string): Promise<vo
     writeCollection(dataDirectory, 'reviews.json', []),
     writeCollection(dataDirectory, 'schedule.json', []),
     writeCollection(dataDirectory, 'trainers.json', []),
+    // Phase 24 Step 24.8: trainer↔club связи — очищаем вместе с клубами/тренерами,
+    // чтобы после clearExisting не оставалось «висящих» seed-link'ов.
+    writeCollection(dataDirectory, 'trainer-club-links.json', []),
   ]);
 }
 
