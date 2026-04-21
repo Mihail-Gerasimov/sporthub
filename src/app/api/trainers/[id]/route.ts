@@ -76,25 +76,34 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         ? null
         : (trainerSports.find((item) => item.id === primarySportId) ?? null);
 
+    // Phase 25 Step 25.1a: primary = первая offering в creation-order (из getTrainerOfferings).
+    // Additional = все остальные, сгруппированы со своими schedules для multi-offering edit.
+    const primaryOffering = offerings[0] ?? null;
+    const trainerSchedule = schedule
+      .filter((slot) => slot.trainerId === trainerId)
+      .sort((left, right) => {
+        const leftTimestamp = `${left.date}T${left.startTime}`;
+        const rightTimestamp = `${right.date}T${right.startTime}`;
+        return leftTimestamp.localeCompare(rightTimestamp);
+      });
+    const additionalOfferings = offerings.slice(1).map((additional) => ({
+      offering: additional,
+      schedules: trainerSchedule.filter((slot) => slot.offeringId === additional.id),
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
         trainer,
         affiliatedClub,
         club: affiliatedClub,
-        primaryOffering: offerings[0] ?? null,
-        offerings: offerings.sort((left, right) => left.price - right.price),
+        primaryOffering,
+        additionalOfferings,
+        offerings: [...offerings].sort((left, right) => left.price - right.price),
         primarySport,
         sport: primarySport,
         sports: trainerSports,
-        schedule: schedule
-          .filter((slot) => slot.trainerId === trainerId)
-          .sort((left, right) => {
-            const leftTimestamp = `${left.date}T${left.startTime}`;
-            const rightTimestamp = `${right.date}T${right.startTime}`;
-
-            return leftTimestamp.localeCompare(rightTimestamp);
-          }),
+        schedule: trainerSchedule,
         reviews: reviews
           .filter((review) => review.trainerId === trainerId)
           .sort((left, right) => right.createdAt.localeCompare(left.createdAt)),

@@ -567,6 +567,344 @@ describe('db publish — atomic create (Step 14.5)', () => {
         }),
       ).rejects.toThrow(/прав/i);
     });
+
+    /* --- Phase 25 Step 25.1a: update с additionalOfferings (full-replace массива) --- */
+
+    // Фабрика offerring-entry для additionalOfferings: используется во всех кейсах.
+    function makeAdditionalOfferingEntry(params: {
+      title: string;
+      sportId: number;
+      price: number;
+      date: string;
+      cancellationPolicy?: 'free_anytime' | 'free_until_24h' | 'free_until_2h' | 'no_refund';
+    }) {
+      return {
+        offering: {
+          ownerType: 'trainer' as const,
+          sportId: params.sportId,
+          title: params.title,
+          description: `Описание для ${params.title}`,
+          format: 'personal' as const,
+          price: params.price,
+          durationMinutes: 60,
+          capacity: 1,
+          address: 'ул. Тестовая, 1',
+          coordinates: { lat: 0, lng: 0 },
+          cancellationPolicy: params.cancellationPolicy ?? 'free_until_24h',
+        },
+        schedules: [
+          {
+            ownerType: 'trainer' as const,
+            sportId: params.sportId,
+            title: params.title,
+            date: params.date,
+            startTime: '10:00',
+            endTime: '11:00',
+            durationMinutes: 60,
+            level: 'all_levels' as const,
+            capacity: 1,
+            bookedCount: 0,
+            price: params.price,
+            room: 'Зал',
+          },
+        ],
+      };
+    }
+
+    it('update с additionalOfferings=[] удаляет все дополнительные услуги тренера', async () => {
+      // Сначала создаём тренера с 2 additional offerings через createTrainerPublication
+      const createResult = await createTrainerPublication({
+        ...trainerInput,
+        additionalOfferings: [
+          makeAdditionalOfferingEntry({
+            title: 'Доп услуга A',
+            sportId: 2,
+            price: 1500,
+            date: '2026-05-01',
+          }),
+          makeAdditionalOfferingEntry({
+            title: 'Доп услуга B',
+            sportId: 2,
+            price: 1800,
+            date: '2026-05-02',
+          }),
+        ],
+      });
+
+      expect(createResult.additionalOfferings).toHaveLength(2);
+
+      // Теперь update с пустым additionalOfferings
+      const updateInput = {
+        trainerId: createResult.trainer.id,
+        userId: 2,
+        trainer: {
+          ...trainerInput.trainer,
+          slug: createResult.trainer.slug,
+        },
+        offering: {
+          ...trainerInput.offering,
+          description: 'Обновлённое описание',
+        },
+        schedules: [
+          {
+            id: createResult.schedules[0].id,
+            ownerType: 'trainer' as const,
+            sportId: 2,
+            title: 'Утренняя тренировка',
+            date: '2026-04-01',
+            startTime: '09:00',
+            endTime: '10:00',
+            durationMinutes: 60,
+            level: 'all_levels' as const,
+            capacity: 1,
+            bookedCount: 0,
+            price: 2000,
+            room: 'Зал единоборств',
+          },
+        ],
+        additionalOfferings: [],
+      };
+
+      const result = await updateTrainerPublication(updateInput);
+
+      expect(result.additionalOfferings ?? []).toHaveLength(0);
+
+      // В БД остался только primary offering
+      const offeringsAfter = await getOfferings();
+      const trainerOfferings = offeringsAfter.filter(
+        (o) => o.ownerType === 'trainer' && o.ownerId === createResult.trainer.id,
+      );
+      expect(trainerOfferings).toHaveLength(1);
+      expect(trainerOfferings[0].id).toBe(createResult.offering.id);
+
+      // Schedule дополнительных услуг тоже удалены
+      const scheduleAfter = await getSchedule({ ownerType: 'trainer' });
+      const trainerSchedules = scheduleAfter.filter((s) => s.trainerId === createResult.trainer.id);
+      expect(trainerSchedules).toHaveLength(1);
+      expect(trainerSchedules[0].offeringId).toBe(createResult.offering.id);
+    });
+
+    it('update с additionalOfferings добавляет новые дополнительные услуги', async () => {
+      // Создаём тренера БЕЗ additional offerings
+      const createResult = await createTrainerPublication(trainerInput);
+      expect(createResult.additionalOfferings ?? []).toHaveLength(0);
+
+      // Update добавляет 2 новых additional offerings
+      const updateInput = {
+        trainerId: createResult.trainer.id,
+        userId: 2,
+        trainer: {
+          ...trainerInput.trainer,
+          slug: createResult.trainer.slug,
+        },
+        offering: trainerInput.offering,
+        schedules: [
+          {
+            id: createResult.schedules[0].id,
+            ownerType: 'trainer' as const,
+            sportId: 2,
+            title: 'Утренняя тренировка',
+            date: '2026-04-01',
+            startTime: '09:00',
+            endTime: '10:00',
+            durationMinutes: 60,
+            level: 'all_levels' as const,
+            capacity: 1,
+            bookedCount: 0,
+            price: 2000,
+            room: 'Зал единоборств',
+          },
+        ],
+        additionalOfferings: [
+          makeAdditionalOfferingEntry({
+            title: 'Новая доп A',
+            sportId: 2,
+            price: 1500,
+            date: '2026-05-10',
+          }),
+          makeAdditionalOfferingEntry({
+            title: 'Новая доп B',
+            sportId: 2,
+            price: 1800,
+            date: '2026-05-11',
+          }),
+        ],
+      };
+
+      const result = await updateTrainerPublication(updateInput);
+
+      expect(result.additionalOfferings).toHaveLength(2);
+
+      const offeringsAfter = await getOfferings();
+      const trainerOfferings = offeringsAfter.filter(
+        (o) => o.ownerType === 'trainer' && o.ownerId === createResult.trainer.id,
+      );
+      expect(trainerOfferings).toHaveLength(3); // primary + 2 new
+
+      const addedTitles = trainerOfferings.map((o) => o.title).sort();
+      expect(addedTitles).toContain('Новая доп A');
+      expect(addedTitles).toContain('Новая доп B');
+    });
+
+    it('update изменяет существующую additional offering (по id)', async () => {
+      // Создаём с 1 additional
+      const createResult = await createTrainerPublication({
+        ...trainerInput,
+        additionalOfferings: [
+          makeAdditionalOfferingEntry({
+            title: 'Исходная доп',
+            sportId: 2,
+            price: 1500,
+            date: '2026-05-01',
+          }),
+        ],
+      });
+      const existingAdditional = createResult.additionalOfferings![0];
+
+      // Update: меняем title и price существующей additional, сохраняя её id
+      const updateInput = {
+        trainerId: createResult.trainer.id,
+        userId: 2,
+        trainer: {
+          ...trainerInput.trainer,
+          slug: createResult.trainer.slug,
+        },
+        offering: trainerInput.offering,
+        schedules: [
+          {
+            id: createResult.schedules[0].id,
+            ownerType: 'trainer' as const,
+            sportId: 2,
+            title: 'Утренняя тренировка',
+            date: '2026-04-01',
+            startTime: '09:00',
+            endTime: '10:00',
+            durationMinutes: 60,
+            level: 'all_levels' as const,
+            capacity: 1,
+            bookedCount: 0,
+            price: 2000,
+            room: 'Зал единоборств',
+          },
+        ],
+        additionalOfferings: [
+          {
+            offering: {
+              ...existingAdditional.offering,
+              id: existingAdditional.offering.id,
+              title: 'Обновлённая доп',
+              price: 2100,
+            },
+            schedules: existingAdditional.schedules.map((s) => ({
+              ...s,
+              id: s.id,
+              price: 2100,
+            })),
+          },
+        ],
+      };
+
+      const result = await updateTrainerPublication(updateInput);
+
+      expect(result.additionalOfferings).toHaveLength(1);
+      expect(result.additionalOfferings![0].offering.id).toBe(existingAdditional.offering.id);
+      expect(result.additionalOfferings![0].offering.title).toBe('Обновлённая доп');
+      expect(result.additionalOfferings![0].offering.price).toBe(2100);
+      // createdAt сохраняется (update, не replace)
+      expect(result.additionalOfferings![0].offering.createdAt).toBe(
+        existingAdditional.offering.createdAt,
+      );
+
+      // В БД — 1 primary + 1 обновлённый additional
+      const offeringsAfter = await getOfferings();
+      const trainerOfferings = offeringsAfter.filter(
+        (o) => o.ownerType === 'trainer' && o.ownerId === createResult.trainer.id,
+      );
+      expect(trainerOfferings).toHaveLength(2);
+    });
+
+    it('update с диффом (1 сохраняется, 1 удаляется, 1 добавляется) — корректный результат', async () => {
+      // Создаём с 2 additional
+      const createResult = await createTrainerPublication({
+        ...trainerInput,
+        additionalOfferings: [
+          makeAdditionalOfferingEntry({
+            title: 'Сохраняемая',
+            sportId: 2,
+            price: 1500,
+            date: '2026-05-01',
+          }),
+          makeAdditionalOfferingEntry({
+            title: 'Удаляемая',
+            sportId: 2,
+            price: 1800,
+            date: '2026-05-02',
+          }),
+        ],
+      });
+
+      const keptAdditional = createResult.additionalOfferings![0];
+      // Удаляемая пропускается в update
+
+      const updateInput = {
+        trainerId: createResult.trainer.id,
+        userId: 2,
+        trainer: {
+          ...trainerInput.trainer,
+          slug: createResult.trainer.slug,
+        },
+        offering: trainerInput.offering,
+        schedules: [
+          {
+            id: createResult.schedules[0].id,
+            ownerType: 'trainer' as const,
+            sportId: 2,
+            title: 'Утренняя тренировка',
+            date: '2026-04-01',
+            startTime: '09:00',
+            endTime: '10:00',
+            durationMinutes: 60,
+            level: 'all_levels' as const,
+            capacity: 1,
+            bookedCount: 0,
+            price: 2000,
+            room: 'Зал единоборств',
+          },
+        ],
+        additionalOfferings: [
+          // keptAdditional с тем же id, без изменений (или с минимальным патчем)
+          {
+            offering: {
+              ...keptAdditional.offering,
+              id: keptAdditional.offering.id,
+            },
+            schedules: keptAdditional.schedules.map((s) => ({ ...s, id: s.id })),
+          },
+          // Новая additional
+          makeAdditionalOfferingEntry({
+            title: 'Добавленная',
+            sportId: 2,
+            price: 2000,
+            date: '2026-05-03',
+          }),
+        ],
+      };
+
+      const result = await updateTrainerPublication(updateInput);
+
+      expect(result.additionalOfferings).toHaveLength(2);
+      const titles = result.additionalOfferings!.map((x) => x.offering.title).sort();
+      expect(titles).toEqual(['Добавленная', 'Сохраняемая']);
+
+      // В БД — 1 primary + 2 additional (удалённая исчезла)
+      const offeringsAfter = await getOfferings();
+      const trainerOfferings = offeringsAfter.filter(
+        (o) => o.ownerType === 'trainer' && o.ownerId === createResult.trainer.id,
+      );
+      expect(trainerOfferings).toHaveLength(3);
+      const allTitles = trainerOfferings.map((o) => o.title).sort();
+      expect(allTitles).not.toContain('Удаляемая');
+    });
   });
 
   /* --- Множественные слоты --- */

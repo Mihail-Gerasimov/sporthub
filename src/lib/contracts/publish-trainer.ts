@@ -198,6 +198,9 @@ function buildAdditionalOfferingFromForm(
 /**
  * Маппит форму редактирования тренера в update-payload для db.ts.
  * Системные поля и slug сохраняются на уровне db.ts.
+ * Phase 25 Step 25.1a: передаёт `additionalOfferings` в update-payload для full-replace
+ * массива дополнительных услуг. Опциональное поле — если в форме его нет, update
+ * не трогает существующие additional; если массив пустой `[]`, db удаляет все additional.
  */
 export function mapTrainerFormToUpdateInput(
   form: TrainerPublishForm,
@@ -248,6 +251,57 @@ export function mapTrainerFormToUpdateInput(
       endTime: slot.endTime,
       durationMinutes: calcDuration(slot.startTime, slot.endTime),
       level: 'all_levels',
+      capacity: Number(slot.capacity),
+      price: Number(slot.price),
+      room: slot.location,
+    })),
+    ...(form.additionalOfferings !== undefined
+      ? {
+          additionalOfferings: form.additionalOfferings.map((item) =>
+            buildAdditionalOfferingForUpdate(item, sportIds),
+          ),
+        }
+      : {}),
+  };
+}
+
+/**
+ * Phase 25 Step 25.1a: строит {offering, schedules} entry для update-payload
+ * дополнительной услуги. Отличия от create-варианта:
+ *   - offering.id сохраняется, если указан (для update существующей) — db.ts делает diff по id.
+ *   - schedule.id тоже сохраняется per слот.
+ */
+function buildAdditionalOfferingForUpdate(
+  item: TrainerOfferingFormItem,
+  trainerSportIds: EntityId[],
+): NonNullable<UpdateTrainerPublicationInput['additionalOfferings']>[number] {
+  const fallbackSportId = item.scheduleSlots[0]?.sportId ?? trainerSportIds[0] ?? 0;
+  return {
+    offering: {
+      ...(item.id !== undefined ? { id: item.id } : {}),
+      ownerType: 'trainer' as const,
+      sportId: fallbackSportId,
+      title: item.title,
+      description: item.description,
+      format: offeringFormatMap[item.format] ?? 'personal',
+      price: Number(item.price),
+      durationMinutes: Number(item.duration),
+      capacity: 1,
+      address: item.location,
+      cancellationPolicy: item.cancellationPolicy,
+      ...(item.attachmentMode === 'club' && item.clubLinkId !== undefined
+        ? { trainerClubLinkId: item.clubLinkId }
+        : {}),
+    },
+    schedules: item.scheduleSlots.map((slot) => ({
+      ...(slot.id !== undefined ? { id: slot.id } : {}),
+      sportId: slot.sportId,
+      title: slot.title,
+      date: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      durationMinutes: calcDuration(slot.startTime, slot.endTime),
+      level: 'all_levels' as const,
       capacity: Number(slot.capacity),
       price: Number(slot.price),
       room: slot.location,

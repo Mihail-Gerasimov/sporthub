@@ -108,7 +108,8 @@ type PublishTrainerApiErrorBody = {
   success?: boolean;
 };
 
-/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами. */
+/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами.
+ * Phase 25 Step 25.1a: клонируем также additionalOfferings (включая каждый scheduleSlots). */
 function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
   return {
     ...form,
@@ -116,6 +117,14 @@ function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
     sportIds: [...form.sportIds],
     workFormatIds: [...form.workFormatIds],
     scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
+    ...(form.additionalOfferings !== undefined
+      ? {
+          additionalOfferings: form.additionalOfferings.map((item) => ({
+            ...item,
+            scheduleSlots: item.scheduleSlots.map((slot) => ({ ...slot })),
+          })),
+        }
+      : {}),
   };
 }
 

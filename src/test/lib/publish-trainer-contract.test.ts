@@ -1,7 +1,12 @@
 // Тесты create-контракта публикации тренера (Step 14.4)
+// Phase 25 Step 25.1a: +кейсы на additionalOfferings в update-контракте.
 import { describe, expect, it } from 'vitest';
 
-import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
+import {
+  mapTrainerFormToEntities,
+  mapTrainerFormToUpdateInput,
+} from '@/lib/contracts/publish-trainer';
+import type { TrainerOfferingFormItem } from '@/lib/schemas/publish';
 
 /* Минимальная валидная форма тренера */
 const validForm = {
@@ -193,5 +198,101 @@ describe('publish-trainer contract (Step 14.4)', () => {
     const { trainer } = mapTrainerFormToEntities(validForm, PROVIDER_USER_ID);
     // workFormatIds теперь сохраняется в Trainer
     expect(trainer.workFormatIds).toEqual([1]);
+  });
+
+  /* --- Phase 25 Step 25.1a: update-контракт с additionalOfferings --- */
+
+  it('mapTrainerFormToUpdateInput без additionalOfferings — поле отсутствует в payload', () => {
+    const result = mapTrainerFormToUpdateInput(validForm, 42, PROVIDER_USER_ID);
+    expect(result.trainerId).toBe(42);
+    expect(result.userId).toBe(PROVIDER_USER_ID);
+    expect(result.additionalOfferings).toBeUndefined();
+  });
+
+  it('mapTrainerFormToUpdateInput с additionalOfferings=[] — передаёт пустой массив для удаления', () => {
+    const formWithEmpty = {
+      ...validForm,
+      additionalOfferings: [] as TrainerOfferingFormItem[],
+    };
+    const result = mapTrainerFormToUpdateInput(formWithEmpty, 42, PROVIDER_USER_ID);
+    expect(result.additionalOfferings).toEqual([]);
+  });
+
+  it('mapTrainerFormToUpdateInput с новыми additionalOfferings — offering без id', () => {
+    const newOffering: TrainerOfferingFormItem = {
+      title: 'Новая услуга',
+      description: 'Описание новой услуги',
+      format: 'Групповая',
+      price: '1500',
+      duration: '90',
+      location: 'Зал А',
+      cancellationPolicy: 'free_until_24h',
+      attachmentMode: 'private',
+      scheduleSlots: [
+        {
+          title: 'Групповая тренировка',
+          date: '2026-05-01',
+          startTime: '10:00',
+          endTime: '11:30',
+          price: '1500',
+          capacity: '5',
+          location: 'Зал А',
+          sportId: 2,
+        },
+      ],
+    };
+    const result = mapTrainerFormToUpdateInput(
+      { ...validForm, additionalOfferings: [newOffering] },
+      42,
+      PROVIDER_USER_ID,
+    );
+    expect(result.additionalOfferings).toHaveLength(1);
+    const entry = result.additionalOfferings![0];
+    expect(entry.offering.id).toBeUndefined();
+    expect(entry.offering.title).toBe('Новая услуга');
+    expect(entry.offering.format).toBe('group');
+    expect(entry.offering.price).toBe(1500);
+    expect(entry.offering.durationMinutes).toBe(90);
+    expect(entry.offering.cancellationPolicy).toBe('free_until_24h');
+    expect(entry.schedules).toHaveLength(1);
+    expect(entry.schedules[0].title).toBe('Групповая тренировка');
+  });
+
+  it('mapTrainerFormToUpdateInput с существующей additional (с id) — сохраняет id для update', () => {
+    const existingOffering: TrainerOfferingFormItem = {
+      id: 501,
+      title: 'Существующая услуга',
+      description: 'Описание',
+      format: 'Индивидуальная',
+      price: '2000',
+      duration: '60',
+      location: 'Зал Б',
+      cancellationPolicy: 'no_refund',
+      attachmentMode: 'club',
+      clubLinkId: 777,
+      scheduleSlots: [
+        {
+          id: 1010,
+          title: 'Индивидуальная',
+          date: '2026-05-02',
+          startTime: '11:00',
+          endTime: '12:00',
+          price: '2000',
+          capacity: '1',
+          location: 'Зал Б',
+          sportId: 2,
+        },
+      ],
+    };
+    const result = mapTrainerFormToUpdateInput(
+      { ...validForm, additionalOfferings: [existingOffering] },
+      42,
+      PROVIDER_USER_ID,
+    );
+    const entry = result.additionalOfferings![0];
+    expect(entry.offering.id).toBe(501);
+    expect(entry.offering.trainerClubLinkId).toBe(777);
+    expect(entry.offering.cancellationPolicy).toBe('no_refund');
+    expect(entry.schedules[0].id).toBe(1010);
   });
 });

@@ -1,11 +1,24 @@
 /**
  * Reverse-mapping: persisted-сущности → form-state для предзаполнения edit-форм.
  * Обратное преобразование к publish-club.ts / publish-trainer.ts.
- * Step 15.2
+ * Step 15.2 + Phase 25 Step 25.1a (additionalOfferings и trainer-club-links).
  */
-import type { ClubFormState, ScheduleSlotForm, TrainerFormState } from '@/lib/schemas/publish';
+import type {
+  ClubFormState,
+  ScheduleSlotForm,
+  TrainerFormState,
+  TrainerOfferingFormItem,
+} from '@/lib/schemas/publish';
 import { isValidCoordinates } from '@/lib/utils';
-import type { Club, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
+import type {
+  CancellationPolicy,
+  Club,
+  Offering,
+  OfferingFormat,
+  Schedule,
+  Trainer,
+  TrainerClubLink,
+} from '@/types';
 
 /** Обратный маппинг OfferingFormat → русское название для формы */
 const offeringFormatReverseMap: Record<OfferingFormat, string> = {
@@ -65,13 +78,54 @@ export function mapClubToFormState(
 /* --- Reverse-mapping тренера --- */
 
 /**
+ * Phase 25 Step 25.1a: маппит один persisted Offering + его расписание →
+ * TrainerOfferingFormItem для additionalOfferings[] в форме.
+ * `attachmentMode` резолвится по `offering.trainerClubLinkId`: если link существует
+ * и `status === 'confirmed'` — 'club', иначе fallback на 'private'.
+ */
+function mapOfferingToTrainerFormItem(
+  offering: Offering,
+  schedules: Schedule[],
+  links: TrainerClubLink[],
+): TrainerOfferingFormItem {
+  const cancellationPolicy: CancellationPolicy = offering.cancellationPolicy ?? 'free_until_24h';
+  const linkId = offering.trainerClubLinkId;
+  const confirmedLink =
+    linkId !== undefined
+      ? links.find((link) => link.id === linkId && link.status === 'confirmed')
+      : undefined;
+  const attachmentMode: TrainerOfferingFormItem['attachmentMode'] = confirmedLink
+    ? 'club'
+    : 'private';
+
+  return {
+    id: offering.id,
+    title: offering.title,
+    description: offering.description,
+    format: offeringFormatReverseMap[offering.format] ?? 'Индивидуальная',
+    price: String(offering.price),
+    duration: String(offering.durationMinutes),
+    location: offering.address,
+    cancellationPolicy,
+    attachmentMode,
+    ...(confirmedLink ? { clubLinkId: confirmedLink.id } : {}),
+    scheduleSlots: schedules.map(mapScheduleToSlotForm),
+  };
+}
+
+/**
  * Маппит persisted тренер + primary offering + расписание → TrainerFormState.
  * Используется для предзаполнения edit-модалки тренера.
+ * Phase 25 Step 25.1a: опциональные `additionalOfferings` и `links` для multi-offering
+ * edit-flow — передавай, если бэкенд вернул дополнительные услуги и список связей
+ * тренер↔клуб (чтобы корректно резолвить `attachmentMode`/`clubLinkId`).
  */
 export function mapTrainerToFormState(
   trainer: Trainer,
   offering: Offering,
   schedules: Schedule[],
+  additionalOfferings?: Array<{ offering: Offering; schedules: Schedule[] }>,
+  links: TrainerClubLink[] = [],
 ): TrainerFormState {
   // Разделяем полное имя на firstName и lastName
   const nameParts = trainer.name.split(' ');
@@ -102,5 +156,12 @@ export function mapTrainerToFormState(
     // Восстанавливаем координаты только если они валидные (не {0,0})
     ...(isValidCoordinates(trainer.coordinates) ? { coordinates: trainer.coordinates } : {}),
     scheduleSlots: schedules.map(mapScheduleToSlotForm),
+    ...(additionalOfferings !== undefined
+      ? {
+          additionalOfferings: additionalOfferings.map((entry) =>
+            mapOfferingToTrainerFormItem(entry.offering, entry.schedules, links),
+          ),
+        }
+      : {}),
   };
 }

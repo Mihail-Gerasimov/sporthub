@@ -37,6 +37,7 @@ import type {
   Sport,
   Tag,
   Trainer,
+  TrainerClubLink,
   User,
   WorkFormat,
 } from '@/types';
@@ -80,7 +81,14 @@ type TrainerEditBootstrapResponse = {
     affiliatedClub?: Pick<Club, 'id' | 'name'> | null;
     primaryOffering?: Offering | null;
     schedule?: Schedule[];
+    /** Phase 25 Step 25.1a: дополнительные услуги тренера с их schedules для multi-offering edit. */
+    additionalOfferings?: Array<{ offering: Offering; schedules: Schedule[] }>;
   };
+};
+
+type TrainerClubLinksResponse = {
+  success?: boolean;
+  data?: TrainerClubLink[];
 };
 
 /** Состояние «Доступ ограничен» для неавторизованных или не-provider пользователей */
@@ -274,8 +282,14 @@ export function ProviderProfilePage({
         return;
       }
 
-      const response = await fetch(`/api/trainers/${entityId}`);
+      // Phase 25 Step 25.1a: параллельно забираем детали тренера (с additionalOfferings)
+      // и список его trainer-club-links (для резолва attachmentMode='club' / clubLinkId).
+      const [response, linksResponse] = await Promise.all([
+        fetch(`/api/trainers/${entityId}`),
+        fetch(`/api/trainer-club-links?trainerId=${entityId}`),
+      ]);
       const result = (await response.json()) as TrainerEditBootstrapResponse;
+      const linksResult = (await linksResponse.json()) as TrainerClubLinksResponse;
 
       if (requestId !== editBootstrapRequestIdRef.current) {
         return;
@@ -284,6 +298,8 @@ export function ProviderProfilePage({
       const trainer = result.data?.trainer;
       const primaryOffering = result.data?.primaryOffering;
       const schedule = result.data?.schedule;
+      const additionalOfferings = result.data?.additionalOfferings ?? [];
+      const trainerLinks = linksResult.success ? (linksResult.data ?? []) : [];
 
       if (
         !response.ok ||
@@ -299,9 +315,20 @@ export function ProviderProfilePage({
         return;
       }
 
+      // primarySchedule = schedule, принадлежащий primary offering (для mapTrainerToFormState).
+      const primarySchedule = schedule.filter((slot) => slot.offeringId === primaryOffering.id);
+
       setTrainerModalMode('edit');
       setTrainerEditEntityId(entityId);
-      setTrainerInitialData(mapTrainerToFormState(trainer, primaryOffering, schedule));
+      setTrainerInitialData(
+        mapTrainerToFormState(
+          trainer,
+          primaryOffering,
+          primarySchedule,
+          additionalOfferings,
+          trainerLinks,
+        ),
+      );
       setTrainerEditClubOption(
         result.data?.affiliatedClub
           ? {

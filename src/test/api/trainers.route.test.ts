@@ -210,6 +210,107 @@ describe('Trainers API', () => {
     });
   });
 
+  // Phase 25 Step 25.1a: GET возвращает additionalOfferings для multi-offering edit.
+  it('GET /api/trainers/[id] возвращает additionalOfferings с их schedules (multi-offering)', async () => {
+    // Добавляем 2 дополнительные offerings в seed через createTrainerPublication
+    const { createTrainerPublication } = await import('@/lib/db');
+    // Найдём trainerId=1 (fixtureTrainer). Создадим ещё одного тренера с additional.
+    const createResult = await createTrainerPublication({
+      trainer: {
+        name: 'Multi Trainer',
+        slug: 'multi-trainer',
+        bio: 'Тренер с несколькими услугами для проверки GET.',
+        avatarUrl: '',
+        experienceYears: 3,
+        specialtyIds: [1],
+        workFormatIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1000,
+        sportIds: [2],
+        city: 'Москва',
+        address: 'Addr',
+        coordinates: { lat: 0, lng: 0 },
+        managedByUserId: 2,
+        source: 'provider',
+        status: 'published',
+      },
+      offering: {
+        ownerType: 'trainer',
+        sportId: 2,
+        title: 'Primary offering',
+        description: 'Основная услуга',
+        format: 'personal',
+        price: 1000,
+        durationMinutes: 60,
+        capacity: 1,
+        address: 'Addr',
+        coordinates: { lat: 0, lng: 0 },
+      },
+      schedules: [],
+      additionalOfferings: [
+        {
+          offering: {
+            ownerType: 'trainer',
+            sportId: 2,
+            title: 'Extra A',
+            description: 'Доп A',
+            format: 'group',
+            price: 800,
+            durationMinutes: 60,
+            capacity: 5,
+            address: 'Addr',
+            coordinates: { lat: 0, lng: 0 },
+            cancellationPolicy: 'free_anytime',
+          },
+          schedules: [],
+        },
+        {
+          offering: {
+            ownerType: 'trainer',
+            sportId: 2,
+            title: 'Extra B',
+            description: 'Доп B',
+            format: 'group',
+            price: 1200,
+            durationMinutes: 90,
+            capacity: 3,
+            address: 'Addr',
+            coordinates: { lat: 0, lng: 0 },
+            cancellationPolicy: 'no_refund',
+          },
+          schedules: [],
+        },
+      ],
+    });
+
+    const response = await GETTrainerDetail(
+      new Request(`http://localhost:3000/api/trainers/${createResult.trainer.id}`),
+      { params: Promise.resolve({ id: String(createResult.trainer.id) }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    // primaryOffering — первая по creation order (id), не самая дешёвая
+    expect(body.data.primaryOffering).toMatchObject({
+      id: createResult.offering.id,
+      title: 'Primary offering',
+    });
+    // additionalOfferings — остальные с их schedules (empty array here)
+    expect(body.data.additionalOfferings).toHaveLength(2);
+    const titles = body.data.additionalOfferings.map(
+      (entry: { offering: { title: string } }) => entry.offering.title,
+    );
+    expect(titles).toEqual(expect.arrayContaining(['Extra A', 'Extra B']));
+    // У каждой есть schedules (массив, пусть даже пустой)
+    expect(
+      body.data.additionalOfferings.every((entry: { schedules: unknown[] }) =>
+        Array.isArray(entry.schedules),
+      ),
+    ).toBe(true);
+  });
+
   it('POST /api/trainers создаёт тренера, offering и schedule через publish payload', async () => {
     const response = await POST(
       new Request('http://localhost:3000/api/trainers', {

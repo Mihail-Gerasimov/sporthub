@@ -383,6 +383,169 @@ describe('mapTrainerToFormState (Step 15.2)', () => {
     expect(form.scheduleSlots[0].location).toBe('Зал №3');
     expect(form.scheduleSlots[0].sportId).toBe(2);
   });
+
+  /* --- Phase 25 Step 25.1a: mapping additionalOfferings + trainer-club-links --- */
+
+  it('без additionalOfferings параметра — form.additionalOfferings отсутствует (backward-compat)', () => {
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      makeTrainerSchedules(),
+    );
+    expect(form.additionalOfferings).toBeUndefined();
+  });
+
+  it('с пустым массивом additionalOfferings — form.additionalOfferings = []', () => {
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      makeTrainerSchedules(),
+      [],
+    );
+    expect(form.additionalOfferings).toEqual([]);
+  });
+
+  it('маппит additionalOfferings в TrainerOfferingFormItem[] с правильными полями', () => {
+    const extraOffering: Offering = {
+      id: 501,
+      createdAt: '2026-03-05T10:00:00.000Z',
+      ownerType: 'trainer',
+      ownerId: 400,
+      sportId: 2,
+      title: 'Дополнительная услуга',
+      description: 'Описание дополнительной услуги',
+      format: 'group',
+      price: 1500,
+      durationMinutes: 90,
+      capacity: 5,
+      address: 'Другой адрес',
+      cancellationPolicy: 'free_anytime',
+    };
+    const extraSchedule: Schedule = {
+      id: 602,
+      createdAt: '2026-03-05T10:00:00.000Z',
+      offeringId: 501,
+      ownerType: 'trainer',
+      ownerId: 400,
+      trainerId: 400,
+      sportId: 2,
+      title: 'Групповая тренировка',
+      date: '2026-04-10',
+      startTime: '15:00',
+      endTime: '16:30',
+      durationMinutes: 90,
+      level: 'all_levels',
+      capacity: 5,
+      bookedCount: 0,
+      price: 1500,
+      room: 'Групповой зал',
+    };
+
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      makeTrainerSchedules(),
+      [{ offering: extraOffering, schedules: [extraSchedule] }],
+    );
+
+    expect(form.additionalOfferings).toHaveLength(1);
+    const item = form.additionalOfferings![0];
+    expect(item.id).toBe(501);
+    expect(item.title).toBe('Дополнительная услуга');
+    expect(item.description).toBe('Описание дополнительной услуги');
+    expect(item.format).toBe('Групповая');
+    expect(item.price).toBe('1500');
+    expect(item.duration).toBe('90');
+    expect(item.location).toBe('Другой адрес');
+    expect(item.cancellationPolicy).toBe('free_anytime');
+    expect(item.attachmentMode).toBe('private');
+    expect(item.clubLinkId).toBeUndefined();
+    expect(item.scheduleSlots).toHaveLength(1);
+    expect(item.scheduleSlots[0].id).toBe(602);
+    expect(item.scheduleSlots[0].title).toBe('Групповая тренировка');
+  });
+
+  it('резолвит attachmentMode=club и clubLinkId по trainerClubLinkId offering + confirmed link', () => {
+    const confirmedLinkId = 701;
+    const extraOffering: Offering = {
+      id: 501,
+      createdAt: '2026-03-05T10:00:00.000Z',
+      ownerType: 'trainer',
+      ownerId: 400,
+      sportId: 2,
+      title: 'Клубная услуга',
+      description: 'В клубе',
+      format: 'group',
+      price: 1500,
+      durationMinutes: 60,
+      capacity: 5,
+      address: 'Адрес клуба',
+      cancellationPolicy: 'free_until_24h',
+      trainerClubLinkId: confirmedLinkId,
+    };
+
+    const confirmedLink = {
+      id: confirmedLinkId,
+      createdAt: '2026-03-01T00:00:00.000Z',
+      trainerId: 400,
+      clubId: 100,
+      status: 'confirmed' as const,
+      initiatedBy: 'trainer' as const,
+      approvedAt: '2026-03-02T00:00:00.000Z',
+      approvedByUserId: 2,
+    };
+
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      makeTrainerSchedules(),
+      [{ offering: extraOffering, schedules: [] }],
+      [confirmedLink],
+    );
+
+    expect(form.additionalOfferings).toHaveLength(1);
+    expect(form.additionalOfferings![0].attachmentMode).toBe('club');
+    expect(form.additionalOfferings![0].clubLinkId).toBe(confirmedLinkId);
+  });
+
+  it('если trainerClubLinkId указан, но нет confirmed link — attachmentMode=private (fallback)', () => {
+    const extraOffering: Offering = {
+      id: 501,
+      createdAt: '2026-03-05T10:00:00.000Z',
+      ownerType: 'trainer',
+      ownerId: 400,
+      sportId: 2,
+      title: 'Услуга с revoked link',
+      description: 'desc',
+      format: 'personal',
+      price: 2000,
+      durationMinutes: 60,
+      capacity: 1,
+      address: 'addr',
+      cancellationPolicy: 'free_until_24h',
+      trainerClubLinkId: 777,
+    };
+    // Передаём revoked link — не должно резолвиться как club.
+    const revokedLink = {
+      id: 777,
+      createdAt: '2026-03-01T00:00:00.000Z',
+      trainerId: 400,
+      clubId: 100,
+      status: 'revoked' as const,
+      initiatedBy: 'trainer' as const,
+    };
+
+    const form = mapTrainerToFormState(
+      makeTrainer(),
+      makeTrainerOffering(),
+      makeTrainerSchedules(),
+      [{ offering: extraOffering, schedules: [] }],
+      [revokedLink],
+    );
+
+    expect(form.additionalOfferings![0].attachmentMode).toBe('private');
+    expect(form.additionalOfferings![0].clubLinkId).toBeUndefined();
+  });
 });
 
 /* ========================================

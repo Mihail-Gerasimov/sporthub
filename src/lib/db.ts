@@ -192,6 +192,21 @@ export interface UpdateTrainerPublicationInput {
     'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
   >;
   schedules: PublicationScheduleInput[];
+  /**
+   * Phase 25 Step 25.1a: дополнительные услуги (multi-offering) в режиме full-replace.
+   * Diff по id: элементы с существующим `offering.id` обновляются (сохраняют createdAt),
+   * элементы без id создаются заново, не упомянутые существующие — удаляются (вместе с их schedule).
+   * Отсутствие поля в input означает «не трогать дополнительные услуги»; пустой массив `[]` —
+   * удалить все дополнительные услуги. Опциональное поле для обратной совместимости с местами,
+   * которые ещё не передают его.
+   */
+  additionalOfferings?: Array<{
+    offering: EntityWithOverridableFields<
+      Offering,
+      'id' | 'createdAt' | 'ownerId' | 'affiliatedClubId' | 'coordinates'
+    >;
+    schedules: PublicationScheduleInput[];
+  }>;
 }
 export type GetScheduleOptions = {
   ownerType?: CatalogOwnerType | 'all';
@@ -1777,11 +1792,23 @@ export async function updateTrainerPublication(
     throw new Error(`Основная услуга тренера с id ${input.trainerId} не найдена`);
   }
 
-  const currentSchedules = schedule.filter((slot) =>
-    isTrainerPublicationSchedule(slot, input.trainerId, currentOffering.id),
+  // Phase 25 Step 25.1a: текущие additional offerings тренера (всё, кроме primary).
+  const currentAdditionalOfferings = offerings.filter(
+    (offeringItem) =>
+      offeringItem.ownerType === 'trainer' &&
+      offeringItem.ownerId === input.trainerId &&
+      offeringItem.id !== currentOffering.id,
   );
-  const currentScheduleById = new Map(currentSchedules.map((slot) => [slot.id, slot]));
+  const currentAdditionalOfferingById = new Map(
+    currentAdditionalOfferings.map((offeringItem) => [offeringItem.id, offeringItem]),
+  );
+
+  const currentPrimarySchedules = schedule.filter((slot) => slot.offeringId === currentOffering.id);
+  const currentPrimaryScheduleById = new Map(
+    currentPrimarySchedules.map((slot) => [slot.id, slot]),
+  );
   let nextScheduleId = getNextEntityId(schedule);
+  let nextOfferingId = getNextEntityId(offerings);
 
   assertNoDuplicateScheduleIds(input.schedules, 'тренера');
 
@@ -1851,9 +1878,9 @@ export async function updateTrainerPublication(
           affiliatedClubId,
         };
 
-  const schedules: Schedule[] = input.schedules.map((slotInput) => {
+  const primarySchedules: Schedule[] = input.schedules.map((slotInput) => {
     const currentSlot =
-      slotInput.id !== undefined ? (currentScheduleById.get(slotInput.id) ?? null) : null;
+      slotInput.id !== undefined ? (currentPrimaryScheduleById.get(slotInput.id) ?? null) : null;
 
     if (slotInput.id !== undefined && !currentSlot) {
       throw new Error(`Слот тренера с id ${slotInput.id} не найден`);
@@ -1892,29 +1919,204 @@ export async function updateTrainerPublication(
         };
   });
 
-  const nextTrainers = trainers.map((trainerItem) =>
-    trainerItem.id === input.trainerId ? trainer : trainerItem,
-  );
-  const nextOfferings = offerings.map((offeringItem) =>
-    offeringItem.id === currentOffering.id ? offering : offeringItem,
-  );
-  const nextSchedule = [
-    ...schedule.filter(
-      (slot) => !isTrainerPublicationSchedule(slot, input.trainerId, currentOffering.id),
-    ),
-    ...schedules,
-  ];
+  // Phase 25 Step 25.1a: full-replace дополнительных услуг.
+  // Вход — список entries (offering + schedules). Diff по id:
+  //   - offering.id указан и есть среди текущих → UPDATE (createdAt сохраняется)
+  //   - offering.id указан, но не найден → throw
+  //   - offering.id отсутствует → CREATE (новый id)
+  //   - текущая additional не упомянута во вход → REMOVE (вместе со schedule)
+  // Если input.additionalOfferings === undefined — не трогаем существующие (обратная совместимость).
+  const processedAdditionalOfferings: Array<{ offering: Offering; schedules: Schedule[] }> = [];
+  const keptAdditionalOfferingIds = new Set<EntityId>();
+  const keptAdditionalScheduleIds = new Set<EntityId>();
 
-  // Синхронизация даты букингов при переносе слота расписания
+  if (input.additionalOfferings !== undefined) {
+    for (const extraInput of input.additionalOfferings) {
+      let extraOffering: Offering;
+      if (extraInput.offering.id !== undefined) {
+        const existing = currentAdditionalOfferingById.get(extraInput.offering.id);
+        if (!existing) {
+          throw new Error(
+            `Дополнительная услуга тренера с id ${extraInput.offering.id} не найдена`,
+          );
+        }
+        extraOffering = {
+          ...existing,
+          sportId: extraInput.offering.sportId,
+          title: extraInput.offering.title,
+          description: extraInput.offering.description,
+          format: extraInput.offering.format,
+          price: extraInput.offering.price,
+          durationMinutes: extraInput.offering.durationMinutes,
+          capacity: extraInput.offering.capacity,
+          address: extraInput.offering.address,
+          ...(extraInput.offering.cancellationPolicy
+            ? { cancellationPolicy: extraInput.offering.cancellationPolicy }
+            : {}),
+          ...(extraInput.offering.trainerClubLinkId !== undefined
+            ? { trainerClubLinkId: extraInput.offering.trainerClubLinkId }
+            : {}),
+          ownerType: 'trainer',
+          ownerId: input.trainerId,
+        };
+      } else {
+        extraOffering = {
+          ...(extraInput.offering as Omit<Offering, 'id' | 'createdAt' | 'ownerId'> & {
+            id?: EntityId;
+          }),
+          id: nextOfferingId++,
+          createdAt: now,
+          ownerType: 'trainer',
+          ownerId: input.trainerId,
+        } as Offering;
+      }
+      keptAdditionalOfferingIds.add(extraOffering.id);
+
+      // Schedules этой additional offering: diff по id (как у primary).
+      const existingSchedulesForExtra =
+        extraInput.offering.id !== undefined
+          ? schedule.filter((slot) => slot.offeringId === extraInput.offering.id)
+          : [];
+      const existingScheduleByIdForExtra = new Map(
+        existingSchedulesForExtra.map((slot) => [slot.id, slot]),
+      );
+
+      const extraSchedules: Schedule[] = extraInput.schedules.map((slotInput) => {
+        const currentSlot =
+          slotInput.id !== undefined
+            ? (existingScheduleByIdForExtra.get(slotInput.id) ?? null)
+            : null;
+
+        if (slotInput.id !== undefined && !currentSlot) {
+          throw new Error(`Слот дополнительной услуги тренера с id ${slotInput.id} не найден`);
+        }
+
+        const slotId = currentSlot?.id ?? nextScheduleId++;
+        const baseSlot: Schedule = {
+          ...currentSlot,
+          id: slotId,
+          createdAt: currentSlot?.createdAt ?? now,
+          offeringId: extraOffering.id,
+          ownerType: 'trainer',
+          ownerId: input.trainerId,
+          trainerId: input.trainerId,
+          sportId: slotInput.sportId,
+          title: slotInput.title,
+          date: slotInput.date,
+          startTime: slotInput.startTime,
+          endTime: slotInput.endTime,
+          durationMinutes: slotInput.durationMinutes,
+          level: currentSlot?.level ?? slotInput.level,
+          capacity: slotInput.capacity,
+          bookedCount: currentSlot?.bookedCount ?? 0,
+          price: slotInput.price,
+          room: slotInput.room,
+        };
+        keptAdditionalScheduleIds.add(slotId);
+        return baseSlot;
+      });
+
+      processedAdditionalOfferings.push({
+        offering: extraOffering,
+        schedules: extraSchedules,
+      });
+    }
+  } else {
+    // Не переданы — сохраняем существующие как есть.
+    for (const existing of currentAdditionalOfferings) {
+      keptAdditionalOfferingIds.add(existing.id);
+    }
+    for (const slot of schedule) {
+      if (slot.offeringId !== undefined && currentAdditionalOfferingById.has(slot.offeringId)) {
+        keptAdditionalScheduleIds.add(slot.id);
+      }
+    }
+  }
+
+  // Собираем итоговые коллекции. Offerings: сохраняем чужие как есть; primary — обновлённая;
+  // additional — либо обновлённые/новые (если input передан), либо существующие без правок.
+  const nextOfferings: Offering[] = [];
+  const additionalOfferingIdsInResult = new Set(
+    processedAdditionalOfferings.map((entry) => entry.offering.id),
+  );
+  for (const o of offerings) {
+    // Primary — уже заменяем на новую версию ниже.
+    if (o.id === currentOffering.id) continue;
+    // Существующая additional этого тренера — если input передан, мы уже обработали.
+    if (currentAdditionalOfferingById.has(o.id)) {
+      if (input.additionalOfferings === undefined) {
+        nextOfferings.push(o); // сохраняем как есть
+      }
+      // иначе — обработана в processedAdditionalOfferings (добавим в цикле ниже)
+      continue;
+    }
+    nextOfferings.push(o);
+  }
+  nextOfferings.push(offering);
+  for (const entry of processedAdditionalOfferings) {
+    if (!nextOfferings.some((o) => o.id === entry.offering.id)) {
+      nextOfferings.push(entry.offering);
+    } else {
+      // update — заменяем
+      const idx = nextOfferings.findIndex((o) => o.id === entry.offering.id);
+      nextOfferings[idx] = entry.offering;
+    }
+  }
+  void additionalOfferingIdsInResult;
+
+  // Schedule: не трогаем чужие, обновляем primary, и собираем additional.
+  const nextSchedule: Schedule[] = [];
+  for (const slot of schedule) {
+    // Не-тренерский или чужой тренер — сохраняем.
+    const isThisTrainerSlot =
+      slot.ownerType === 'trainer' &&
+      (slot.ownerId === input.trainerId || slot.trainerId === input.trainerId);
+    if (!isThisTrainerSlot) {
+      nextSchedule.push(slot);
+      continue;
+    }
+    // Primary-слоты этого тренера — уже заменяются на `primarySchedules` ниже.
+    if (slot.offeringId === currentOffering.id) continue;
+    // Additional-слоты: если input передан, сохраняем только kept; иначе — все.
+    if (input.additionalOfferings === undefined) {
+      nextSchedule.push(slot);
+      continue;
+    }
+    if (keptAdditionalScheduleIds.has(slot.id)) {
+      // будет заменён ниже обновлённой версией
+      continue;
+    }
+    // Этот additional-slot больше не в input — удаляем (не добавляем).
+  }
+  nextSchedule.push(...primarySchedules);
+  for (const entry of processedAdditionalOfferings) {
+    nextSchedule.push(...entry.schedules);
+  }
+
+  // Синхронизация даты букингов при переносе слота расписания (primary + additional)
   let nextBookings = bookings;
-  for (const newSlot of schedules) {
-    const oldSlot = currentScheduleById.get(newSlot.id);
+  for (const newSlot of primarySchedules) {
+    const oldSlot = currentPrimaryScheduleById.get(newSlot.id);
     if (oldSlot && oldSlot.date !== newSlot.date) {
       nextBookings = nextBookings.map((b) =>
         b.scheduleId === newSlot.id ? { ...b, date: newSlot.date } : b,
       );
     }
   }
+  for (const entry of processedAdditionalOfferings) {
+    for (const newSlot of entry.schedules) {
+      const oldSlot = schedule.find((slot) => slot.id === newSlot.id);
+      if (oldSlot && oldSlot.date !== newSlot.date) {
+        nextBookings = nextBookings.map((b) =>
+          b.scheduleId === newSlot.id ? { ...b, date: newSlot.date } : b,
+        );
+      }
+    }
+  }
+
+  const nextTrainers = trainers.map((trainerItem) =>
+    trainerItem.id === input.trainerId ? trainer : trainerItem,
+  );
 
   const collections: Parameters<typeof writeCollectionsWithRollback>[0] = [
     { key: 'trainers', next: nextTrainers, previous: trainers },
@@ -1929,7 +2131,14 @@ export async function updateTrainerPublication(
 
   await writeCollectionsWithRollback(collections);
 
-  return { trainer, offering, schedules };
+  return {
+    trainer,
+    offering,
+    schedules: primarySchedules,
+    ...(processedAdditionalOfferings.length > 0
+      ? { additionalOfferings: processedAdditionalOfferings }
+      : {}),
+  };
 }
 
 /**
