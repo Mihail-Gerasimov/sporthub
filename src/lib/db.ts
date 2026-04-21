@@ -108,6 +108,18 @@ export interface CreateTrainerPublicationInput {
     Schedule,
     'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId' | 'affiliatedClubId'
   >[];
+  /**
+   * Phase 24 Step 24.10: дополнительные услуги (multi-offering). Каждый элемент —
+   * пара offering + его собственные schedule-слоты. id/createdAt/ownerId/offeringId
+   * проставляются атомарно внутри createTrainerPublication.
+   */
+  additionalOfferings?: Array<{
+    offering: EntityWithOverridableFields<Offering, 'id' | 'createdAt' | 'ownerId'>;
+    schedules: EntityWithOverridableFields<
+      Schedule,
+      'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId' | 'affiliatedClubId'
+    >[];
+  }>;
 }
 
 /** Результат atomic-создания тренера */
@@ -115,6 +127,11 @@ export interface TrainerPublicationResult {
   trainer: Trainer;
   offering: Offering;
   schedules: Schedule[];
+  /** Phase 24 Step 24.10: созданные дополнительные услуги + их расписание (в том же порядке, что вход). */
+  additionalOfferings?: Array<{
+    offering: Offering;
+    schedules: Schedule[];
+  }>;
 }
 
 /**
@@ -818,6 +835,33 @@ export async function updateTrainerClubLink(
   return updated;
 }
 
+/**
+ * Phase 24 Step 24.10d: отвязывает все offerings, привязанные к указанному link'у
+ * (поле `trainerClubLinkId` сбрасывается в undefined → услуга становится «частной»).
+ * Возвращает количество обновлённых offerings. Вызывается из revoke-эндпоинта после
+ * успешной смены статуса link'а: при разрыве связи тренер↔клуб услуги автоматически
+ * переходят в приватные, чтобы публичные поверхности не показывали «в клубе X».
+ */
+export async function detachOfferingsFromLink(linkId: EntityId): Promise<number> {
+  const offerings = await readCollection('offerings');
+  let updatedCount = 0;
+
+  const next = offerings.map((offering) => {
+    if (offering.trainerClubLinkId === linkId) {
+      updatedCount += 1;
+      const { trainerClubLinkId: _unused, ...rest } = offering;
+      return rest as Offering;
+    }
+    return offering;
+  });
+
+  if (updatedCount > 0) {
+    await writeCollection('offerings', next);
+  }
+
+  return updatedCount;
+}
+
 export async function getReviews(): Promise<Review[]> {
   return readCollection('reviews');
 }
@@ -1482,9 +1526,40 @@ export async function createTrainerPublication(
     };
   });
 
+  // Phase 24 Step 24.10: дополнительные услуги (multi-offering).
+  // Аллокация id идёт последовательно от next-значения существующих коллекций,
+  // так все новые offerings + schedule попадают в один атомарный write.
+  let nextOfferingId = offeringId + 1;
+  const additionalOfferingsOut: Array<{ offering: Offering; schedules: Schedule[] }> = [];
+  const additionalOfferingEntities: Offering[] = [];
+  const additionalScheduleEntities: Schedule[] = [];
+
+  if (input.additionalOfferings) {
+    for (const extra of input.additionalOfferings) {
+      const extraOfferingId = nextOfferingId++;
+      const extraOffering: Offering = {
+        ...extra.offering,
+        id: extraOfferingId,
+        createdAt: now,
+        ownerId: trainerId,
+      };
+      const extraSchedules: Schedule[] = extra.schedules.map((slot) => ({
+        ...slot,
+        id: nextScheduleId++,
+        createdAt: now,
+        offeringId: extraOfferingId,
+        ownerId: trainerId,
+        trainerId,
+      }));
+      additionalOfferingEntities.push(extraOffering);
+      additionalScheduleEntities.push(...extraSchedules);
+      additionalOfferingsOut.push({ offering: extraOffering, schedules: extraSchedules });
+    }
+  }
+
   const nextTrainers = [...trainers, trainer];
-  const nextOfferings = [...offerings, offering];
-  const nextSchedule = [...schedule, ...schedules];
+  const nextOfferings = [...offerings, offering, ...additionalOfferingEntities];
+  const nextSchedule = [...schedule, ...schedules, ...additionalScheduleEntities];
 
   await writeCollectionsWithRollback([
     { key: 'trainers', next: nextTrainers, previous: trainers },
@@ -1507,7 +1582,12 @@ export async function createTrainerPublication(
     });
   }
 
-  return { trainer, offering, schedules };
+  return {
+    trainer,
+    offering,
+    schedules,
+    ...(additionalOfferingsOut.length > 0 ? { additionalOfferings: additionalOfferingsOut } : {}),
+  };
 }
 
 /**

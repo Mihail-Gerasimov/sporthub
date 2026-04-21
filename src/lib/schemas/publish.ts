@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 
-import type { EntityId } from '@/types';
+import type { CancellationPolicy, EntityId } from '@/types';
 
 /** Опциональные координаты, полученные через Geocoder */
 const coordinatesSchema = z
@@ -76,6 +76,35 @@ export const publishClubSchema = publishClubBaseSchema.refine(
   },
 );
 
+/** Phase 24 Step 24.10: единая схема одной offering-карточки тренера (multi-offering).
+ * attachmentMode='club' требует clubLinkId (id confirmed TrainerClubLink тренера).
+ * attachmentMode='private' — clubLinkId отсутствует; услуга оказывается тренером самостоятельно. */
+const trainerOfferingItemSchema = z
+  .object({
+    id: z.number().int().positive().optional(),
+    title: z.string().trim().min(1, 'Название услуги обязательно'),
+    description: z.string().trim().min(1, 'Описание услуги обязательно'),
+    format: z.string().trim().min(1, 'Формат занятий обязателен'),
+    price: z.string().regex(/^\d+$/, 'Цена должна быть числом'),
+    duration: z
+      .string()
+      .regex(/^\d+$/, 'Длительность должна быть числом')
+      .refine((val) => Number(val) % 5 === 0, {
+        message: 'Длительность должна быть кратна 5 минутам',
+      }),
+    location: z.string().trim().min(1, 'Место проведения обязательно'),
+    cancellationPolicy: z
+      .enum(['free_anytime', 'free_until_24h', 'free_until_2h', 'no_refund'])
+      .default('free_until_24h'),
+    attachmentMode: z.enum(['club', 'private']),
+    clubLinkId: z.number().int().positive().optional(),
+    scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
+  })
+  .refine((data) => data.attachmentMode !== 'club' || typeof data.clubLinkId === 'number', {
+    message: 'Для услуги «в клубе» обязательно выбрать подтверждённую связь',
+    path: ['clubLinkId'],
+  });
+
 /** Базовая схема публикации тренера (без cross-field refine) */
 const publishTrainerBaseSchema = z.object({
   firstName: z.string().trim().min(1, 'Имя обязательно'),
@@ -110,6 +139,10 @@ const publishTrainerBaseSchema = z.object({
   coordinates: coordinatesSchema,
   cityCoordinates: coordinatesSchema,
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
+  // Phase 24 Step 24.10: дополнительные услуги тренера (multi-offering).
+  // Основная услуга остаётся в плоских offering*-полях (первая карточка),
+  // каждая доп. карточка — полный TrainerOfferingFormItem со своим расписанием.
+  additionalOfferings: z.array(trainerOfferingItemSchema).optional().default([]),
   userId: z.number().int().positive('ID пользователя обязателен'),
 });
 
@@ -169,6 +202,27 @@ export type ClubFormState = {
   scheduleSlots: ScheduleSlotForm[];
 };
 
+/**
+ * Phase 24 Step 24.10: одна offering-карточка в multi-offering UI тренера.
+ * Используется в `TrainerFormState.additionalOfferings`. «Основная» услуга
+ * по-прежнему живёт в плоских offering*-полях для обратной совместимости
+ * с тестами и текущим UI; доп. услуги — в массиве.
+ */
+export type TrainerOfferingFormItem = {
+  id?: EntityId;
+  title: string;
+  description: string;
+  format: string;
+  price: string;
+  duration: string;
+  location: string;
+  cancellationPolicy: CancellationPolicy;
+  attachmentMode: 'club' | 'private';
+  /** ID confirmed TrainerClubLink тренера — обязателен при attachmentMode='club'. */
+  clubLinkId?: EntityId;
+  scheduleSlots: ScheduleSlotForm[];
+};
+
 /** Состояние формы тренера (create и edit) */
 export type TrainerFormState = {
   firstName: string;
@@ -197,4 +251,10 @@ export type TrainerFormState = {
   /** Координаты центра города для runtime-добавления в cities.json */
   cityCoordinates?: { lat: number; lng: number };
   scheduleSlots: ScheduleSlotForm[];
+  /**
+   * Phase 24 Step 24.10: multi-offering тренера. Дополнительные услуги к основной
+   * (которая остаётся в плоских offering*-полях и первом scheduleSlots[]).
+   * Каждый элемент — independent offering с собственным attachmentMode и расписанием.
+   */
+  additionalOfferings?: TrainerOfferingFormItem[];
 };

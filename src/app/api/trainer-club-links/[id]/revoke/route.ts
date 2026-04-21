@@ -11,6 +11,7 @@ import { isManagerOfClub, isManagerOfTrainer } from '@/lib/link-guards';
 import { logAction } from '@/lib/logAction';
 import { notify } from '@/lib/notify';
 import {
+  detachOfferingsFromLink,
   getClubById,
   getTrainerById,
   getTrainerClubLinkById,
@@ -85,6 +86,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       revokedBy,
     });
 
+    // Phase 24 Step 24.10d: все offerings тренера, привязанные к этому link'у,
+    // переходят в приватные (поле trainerClubLinkId сбрасывается). Публичные
+    // поверхности перестают показывать клуб рядом с такими услугами.
+    const detachedCount = await detachOfferingsFromLink(linkId);
+
     // Уведомляем противоположную сторону (не инициатора revoke).
     const [trainer, club] = await Promise.all([
       getTrainerById(link.trainerId),
@@ -114,7 +120,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       actorRole: revokedBy === 'admin' ? 'admin' : 'club_owner',
       entityType: 'trainer_club_link',
       entityId: linkId,
-      meta: { trainerId: link.trainerId, clubId: link.clubId, revokedBy },
+      meta: { trainerId: link.trainerId, clubId: link.clubId, revokedBy, detachedCount },
     }).catch(() => {});
 
     return NextResponse.json({ success: true, data: updated });

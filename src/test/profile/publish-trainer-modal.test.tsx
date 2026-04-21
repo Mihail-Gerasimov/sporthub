@@ -625,4 +625,37 @@ describe('PublishTrainerModal', () => {
       });
     });
   });
+
+  // Phase 24 Step 24.10c: multi-offering editor в модалке тренера.
+  describe('AdditionalOfferingsEditor (Step 24.10c)', () => {
+    it('рендерит кнопку «+ Добавить услугу» и добавляет новую карточку по клику', () => {
+      render(<PublishTrainerModal {...defaultProps} />);
+
+      const addBtn = screen.getByRole('button', { name: '+ Добавить услугу' });
+      expect(addBtn).toBeInTheDocument();
+
+      fireEvent.click(addBtn);
+      expect(screen.getByTestId('additional-offering-0')).toBeInTheDocument();
+    });
+
+    it('новая карточка начинается с attachmentMode=private (кнопка «Частно» активна)', () => {
+      render(<PublishTrainerModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '+ Добавить услугу' }));
+
+      const card = screen.getByTestId('additional-offering-0');
+      const privateBtn = card.querySelector('[aria-pressed="true"]');
+      expect(privateBtn).toHaveTextContent('Частно');
+    });
+
+    it('кнопка «Удалить» убирает карточку', () => {
+      render(<PublishTrainerModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '+ Добавить услугу' }));
+      expect(screen.getByTestId('additional-offering-0')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+      expect(screen.queryByTestId('additional-offering-0')).not.toBeInTheDocument();
+    });
+  });
 });

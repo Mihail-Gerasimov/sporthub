@@ -11,7 +11,14 @@ import { POST as approveRoute } from '@/app/api/trainer-club-links/[id]/approve/
 import { POST as rejectRoute } from '@/app/api/trainer-club-links/[id]/reject/route';
 import { POST as revokeRoute } from '@/app/api/trainer-club-links/[id]/revoke/route';
 import { GET as listRoute, POST as createRoute } from '@/app/api/trainer-club-links/route';
-import { createTrainerClubLink, getNotifications, getTrainerClubLinks } from '@/lib/db';
+import {
+  createTrainerClubLink,
+  getNotifications,
+  getOfferings,
+  getTrainerClubLinks,
+} from '@/lib/db';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -324,6 +331,58 @@ describe('Trainer↔Club Link API — Phase 24 Step 24.8', () => {
       );
 
       expect(response.status).toBe(409);
+    });
+  });
+
+  describe('Step 24.10d: auto-detach offerings при revoke', () => {
+    it('после revoke offerings с этим trainerClubLinkId теряют поле trainerClubLinkId', async () => {
+      const link = await createTrainerClubLink({
+        trainerId: 1,
+        clubId: 1,
+        status: 'confirmed',
+        initiatedBy: 'trainer',
+      });
+
+      // Сеем offering с привязкой к этому link'у
+      const offeringsPath = path.join(dataDirectory, 'offerings.json');
+      await writeFile(
+        offeringsPath,
+        JSON.stringify(
+          [
+            {
+              id: 1001,
+              createdAt: '2026-04-20T00:00:00.000Z',
+              ownerType: 'trainer',
+              ownerId: 1,
+              trainerClubLinkId: link.id,
+              sportId: 3,
+              title: 'Йога в клубе',
+              description: 'desc',
+              format: 'group',
+              price: 1000,
+              durationMinutes: 60,
+              capacity: 1,
+              address: 'Зал',
+              coordinates: { lat: 0, lng: 0 },
+            },
+          ],
+          null,
+          2,
+        ),
+        'utf8',
+      );
+
+      const response = await revokeRoute(
+        createRouteRequest(`/api/trainer-club-links/${link.id}/revoke`, { userId: 2 }),
+        { params: Promise.resolve({ id: String(link.id) }) },
+      );
+
+      expect(response.status).toBe(200);
+
+      const offerings = await getOfferings();
+      const detached = offerings.find((o) => o.id === 1001);
+      expect(detached).toBeDefined();
+      expect(detached?.trainerClubLinkId).toBeUndefined();
     });
   });
 

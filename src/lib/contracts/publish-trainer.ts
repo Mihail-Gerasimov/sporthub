@@ -3,10 +3,10 @@
  * Маппит форму PublishTrainerModal → persisted-сущности: trainer + offering + schedule[].
  * Step 14.4
  */
-import type { UpdateTrainerPublicationInput } from '@/lib/db';
+import type { CreateTrainerPublicationInput, UpdateTrainerPublicationInput } from '@/lib/db';
 import type { EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@/types';
 
-import type { TrainerFormState } from '@/lib/schemas/publish';
+import type { TrainerFormState, TrainerOfferingFormItem } from '@/lib/schemas/publish';
 
 /* --- Типы формы — реэкспорт из единого источника publish.ts --- */
 
@@ -18,6 +18,8 @@ export interface TrainerPublishEntities {
   trainer: Trainer;
   offering: Offering;
   schedules: Schedule[];
+  /** Phase 24 Step 24.10: дополнительные услуги с их расписанием, если заполнены в форме. */
+  additionalOfferings?: CreateTrainerPublicationInput['additionalOfferings'];
 }
 
 /* --- Хелперы --- */
@@ -135,7 +137,62 @@ export function mapTrainerFormToEntities(
     room: slot.location,
   }));
 
-  return { trainer, offering, schedules };
+  // Phase 24 Step 24.10: дополнительные услуги (multi-offering) из form.additionalOfferings.
+  // id/createdAt/ownerId/offeringId проставит createTrainerPublication, здесь — смысловые поля.
+  const additionalOfferings = (form.additionalOfferings ?? []).map((item) =>
+    buildAdditionalOfferingFromForm(item, sportIds),
+  );
+
+  return {
+    trainer,
+    offering,
+    schedules,
+    ...(additionalOfferings.length > 0 ? { additionalOfferings } : {}),
+  };
+}
+
+/** Phase 24 Step 24.10: строит пару {offering, schedules} для одной карточки multi-offering. */
+function buildAdditionalOfferingFromForm(
+  item: TrainerOfferingFormItem,
+  trainerSportIds: EntityId[],
+): {
+  offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
+  schedules: Omit<Schedule, 'id' | 'createdAt' | 'ownerId' | 'trainerId' | 'offeringId'>[];
+} {
+  const fallbackSportId = item.scheduleSlots[0]?.sportId ?? trainerSportIds[0] ?? 0;
+  const offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'> = {
+    ownerType: 'trainer',
+    sportId: fallbackSportId,
+    title: item.title,
+    description: item.description,
+    format: offeringFormatMap[item.format] ?? 'personal',
+    price: Number(item.price),
+    durationMinutes: Number(item.duration),
+    capacity: 1,
+    address: item.location,
+    coordinates: { lat: 0, lng: 0 },
+    cancellationPolicy: item.cancellationPolicy,
+    ...(item.attachmentMode === 'club' && item.clubLinkId !== undefined
+      ? { trainerClubLinkId: item.clubLinkId }
+      : {}),
+  };
+
+  const schedules = item.scheduleSlots.map((slot) => ({
+    ownerType: 'trainer' as const,
+    sportId: slot.sportId,
+    title: slot.title,
+    date: slot.date,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    durationMinutes: calcDuration(slot.startTime, slot.endTime),
+    level: 'all_levels' as const,
+    capacity: Number(slot.capacity),
+    bookedCount: 0,
+    price: Number(slot.price),
+    room: slot.location,
+  }));
+
+  return { offering, schedules };
 }
 
 /**
