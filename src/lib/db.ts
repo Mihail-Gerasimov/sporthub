@@ -1492,6 +1492,21 @@ export async function createTrainerPublication(
     { key: 'schedule', next: nextSchedule, previous: schedule },
   ]);
 
+  // Phase 24 Step 24.9c: если при публикации указан clubId — автоматически создаём
+  // подтверждённую связь trainer↔club. В MVP provider управляет и клубом, и тренером,
+  // поэтому auto-approve. В Step 24.10 это поведение уточнится: форма будет создавать
+  // pending-запрос, если тренер привязывается к чужому клубу.
+  if (affiliatedClubId !== undefined) {
+    await createTrainerClubLink({
+      trainerId,
+      clubId: affiliatedClubId,
+      status: 'confirmed',
+      initiatedBy: 'trainer',
+      approvedAt: now,
+      approvedByUserId: input.trainer.managedByUserId,
+    });
+  }
+
   return { trainer, offering, schedules };
 }
 

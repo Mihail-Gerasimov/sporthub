@@ -13,6 +13,7 @@ import {
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
 import { ProviderBookingsSection } from '@/components/profile/ProviderBookingsSection';
+import { ProviderLinkRequestsSection } from '@/components/profile/ProviderLinkRequestsSection';
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSection';
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
@@ -509,6 +510,13 @@ export function ProviderProfilePage({
           trainers={providerTrainers}
           onEdit={handleEditPublication}
           onDelete={handleDeletePublication}
+        />
+
+        {/* Phase 24 Step 24.9b: входящие запросы от тренеров на связь с клубами провайдера */}
+        <ProviderLinkRequestsSection
+          providerClubs={providerClubs}
+          trainers={trainers}
+          userId={providerUserId}
         />
 
         {/* Входящие записи */}

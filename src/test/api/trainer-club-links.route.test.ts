@@ -292,11 +292,29 @@ describe('Trainer↔Club Link API — Phase 24 Step 24.8', () => {
       expect(response.status).toBe(403);
     });
 
-    it('409, если status != confirmed', async () => {
+    it('тренер может отозвать pending-запрос (тоже переход в revoked)', async () => {
       const link = await createTrainerClubLink({
         trainerId: 1,
         clubId: 1,
         status: 'pending',
+        initiatedBy: 'trainer',
+      });
+
+      const response = await revokeRoute(
+        createRouteRequest(`/api/trainer-club-links/${link.id}/revoke`, { userId: 2 }),
+        { params: Promise.resolve({ id: String(link.id) }) },
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data.status).toBe('revoked');
+    });
+
+    it('409, если link уже rejected или revoked', async () => {
+      const link = await createTrainerClubLink({
+        trainerId: 1,
+        clubId: 1,
+        status: 'rejected',
         initiatedBy: 'trainer',
       });
 

@@ -81,18 +81,15 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     return accumulator;
   }, {});
 
-  /* Связанный клуб (если тренер работает при клубе) — читаем через confirmed TrainerClubLink.
-   * Fallback: trainer.affiliatedClubId и offering.affiliatedClubId (seed без links, Step 24.8b). */
+  /* Phase 24 Step 24.9c: связанный клуб на публичной карточке — ТОЛЬКО через confirmed
+   * TrainerClubLink. Legacy-поля trainer.affiliatedClubId/offering.affiliatedClubId на
+   * публичных поверхностях не используются. Для новых публикаций createTrainerPublication
+   * автоматически создаёт confirmed-link (в MVP owner одной стороны auto-approves). */
   const confirmedLinks = await getTrainerClubLinks({
     trainerId: trainer.id,
     status: 'confirmed',
   });
-  const affiliatedClubIdFromLink = confirmedLinks[0]?.clubId;
-  const legacyAffiliatedClubId =
-    trainer.affiliatedClubId ??
-    trainer.clubId ??
-    trainerOfferings.find((offering) => offering.affiliatedClubId !== undefined)?.affiliatedClubId;
-  const affiliatedClubId = affiliatedClubIdFromLink ?? legacyAffiliatedClubId;
+  const affiliatedClubId = confirmedLinks[0]?.clubId;
   const affiliatedClub =
     affiliatedClubId === undefined ? null : await getClubById(affiliatedClubId);
 

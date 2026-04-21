@@ -409,15 +409,15 @@ describe('PublishTrainerModal', () => {
   });
 
   it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
-    fetchMock.mockResolvedValue(
-      createJsonResponse(
-        {
-          success: true,
-          data: { trainer: { id: 1 } },
-        },
-        200,
-      ),
-    );
+    // Phase 24 Step 24.9a: модалка на open'е делает GET /api/trainer-club-links (фоновый fetchLinks).
+    // Разделяем fetch-mock: для links → пустой список, для trainer PATCH → success.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.startsWith('/api/trainer-club-links')) {
+        return createJsonResponse({ success: true, data: [] }, 200);
+      }
+      return createJsonResponse({ success: true, data: { trainer: { id: 1 } } }, 200);
+    });
 
     render(
       <PublishTrainerModal
@@ -432,18 +432,20 @@ describe('PublishTrainerModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const patchCalls = fetchMock.mock.calls.filter(
+        ([url]) => typeof url === 'string' && url.startsWith('/api/trainers/'),
+      );
+      expect(patchCalls).toHaveLength(1);
     });
 
-    const [, requestInit] = fetchMock.mock.calls[0];
+    const patchCall = fetchMock.mock.calls.find(
+      ([url]) => typeof url === 'string' && url.startsWith('/api/trainers/'),
+    );
+    const [, requestInit] = patchCall ?? [];
     const payload = JSON.parse(String(requestInit?.body));
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/trainers/1',
-      expect.objectContaining({
-        method: 'PATCH',
-      }),
-    );
+    expect(patchCall?.[0]).toBe('/api/trainers/1');
+    expect(patchCall?.[1]).toMatchObject({ method: 'PATCH' });
     expect(payload.firstName).toBe('Марина PRO');
     expect(payload.scheduleSlots[0].id).toBe(1001);
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
@@ -524,5 +526,103 @@ describe('PublishTrainerModal', () => {
     expect(screen.getByLabelText('Укажите название тренировочного слота')).toHaveValue(
       'Мягкая растяжка в воде',
     );
+  });
+
+  // Phase 24 Step 24.9a: request-flow для привязки тренер↔клуб в edit-режиме.
+  describe('Link-flow (edit mode)', () => {
+    it('в edit-режиме показывает статус confirmed-link и кнопку «Отвязать от клуба»', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.startsWith('/api/trainer-club-links')) {
+          return createJsonResponse(
+            {
+              success: true,
+              data: [
+                {
+                  id: 42,
+                  createdAt: '2026-04-20T00:00:00.000Z',
+                  trainerId: 1,
+                  clubId: 1,
+                  status: 'confirmed',
+                  initiatedBy: 'trainer',
+                },
+              ],
+            },
+            200,
+          );
+        }
+        return createJsonResponse({ success: true }, 200);
+      });
+
+      render(
+        <PublishTrainerModal
+          {...defaultProps}
+          mode="edit"
+          entityId={1}
+          initialData={editInitialData}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/работаете в клубе «FitZone Studio»/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Отвязать от клуба' })).toBeInTheDocument();
+    });
+
+    it('в edit-режиме без активной связи позволяет отправить запрос клубу', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.startsWith('/api/trainer-club-links') && init?.method === 'POST') {
+          return createJsonResponse(
+            {
+              success: true,
+              data: {
+                id: 10,
+                createdAt: '2026-04-21T00:00:00.000Z',
+                trainerId: 1,
+                clubId: 2,
+                status: 'pending',
+                initiatedBy: 'trainer',
+              },
+            },
+            201,
+          );
+        }
+        if (url.startsWith('/api/trainer-club-links')) {
+          return createJsonResponse({ success: true, data: [] }, 200);
+        }
+        return createJsonResponse({ success: true }, 200);
+      });
+
+      render(
+        <PublishTrainerModal
+          {...defaultProps}
+          mode="edit"
+          entityId={1}
+          initialData={editInitialData}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Отправить запрос клубу' })).toBeInTheDocument();
+      });
+
+      const select = screen
+        .getByTestId('trainer-club-link-section')
+        .querySelector('select') as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: '2' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Отправить запрос клубу' }));
+
+      await waitFor(() => {
+        const postCall = fetchMock.mock.calls.find(
+          ([url, init]) =>
+            typeof url === 'string' &&
+            url === '/api/trainer-club-links' &&
+            (init as RequestInit | undefined)?.method === 'POST',
+        );
+        expect(postCall).toBeDefined();
+      });
+    });
   });
 });

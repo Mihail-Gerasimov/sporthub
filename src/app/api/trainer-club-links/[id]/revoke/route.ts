@@ -47,9 +47,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: false, error: 'Связь не найдена' }, { status: 404 });
     }
 
-    if (link.status !== 'confirmed') {
+    // Phase 24 Step 24.9a: revoke допускает оба состояния — `pending` (тренер отзывает
+    // ещё не одобренный запрос) и `confirmed` (любая сторона или admin разрывает связь).
+    if (link.status !== 'confirmed' && link.status !== 'pending') {
       return NextResponse.json(
-        { success: false, error: 'Связь не в состоянии confirmed' },
+        { success: false, error: 'Связь уже завершена (rejected/revoked)' },
         { status: 409 },
       );
     }

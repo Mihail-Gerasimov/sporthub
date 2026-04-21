@@ -304,12 +304,18 @@ describe('ProviderProfilePage', () => {
   it('сначала загружает club edit-context и только потом открывает edit-модалку', async () => {
     let resolveBootstrap: ((value: Response) => void) | undefined;
 
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolveBootstrap = resolve;
-        }),
-    );
+    // Phase 24 Step 24.9b: ProviderLinkRequestsSection делает фоновый GET
+    // /api/trainer-club-links?clubId=... — для этого теста сразу отвечаем пустым списком,
+    // а endpoint /api/clubs/1 ставим в отдельный пендинг для проверки ордера.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.startsWith('/api/trainer-club-links')) {
+        return createJsonResponse({ success: true, data: [] }, 200);
+      }
+      return new Promise<Response>((resolve) => {
+        resolveBootstrap = resolve;
+      });
+    });
 
     loginAsProvider();
 
@@ -317,7 +323,10 @@ describe('ProviderProfilePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/clubs/1');
+    const bootstrapCall = fetchMock.mock.calls.find(
+      ([url]) => typeof url === 'string' && url === '/api/clubs/1',
+    );
+    expect(bootstrapCall).toBeDefined();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     resolveBootstrap?.(
@@ -376,17 +385,38 @@ describe('ProviderProfilePage', () => {
     expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument();
   });
 
-  it('открывает edit-модалку тренера и сохраняет привязанный клуб из bootstrap-контекста', async () => {
-    fetchMock.mockResolvedValue(
-      createJsonResponse(
+  it('открывает edit-модалку тренера и показывает привязанный клуб из confirmed link', async () => {
+    // Phase 24 Step 24.9a: в edit-режиме модалка читает текущую связь через
+    // GET /api/trainer-club-links?trainerId=X; если есть confirmed — показывается статус.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.startsWith('/api/trainer-club-links?trainerId=1')) {
+        return createJsonResponse(
+          {
+            success: true,
+            data: [
+              {
+                id: 77,
+                createdAt: '2026-04-20T00:00:00.000Z',
+                trainerId: 1,
+                clubId: 99,
+                status: 'confirmed',
+                initiatedBy: 'trainer',
+              },
+            ],
+          },
+          200,
+        );
+      }
+      if (url.startsWith('/api/trainer-club-links')) {
+        return createJsonResponse({ success: true, data: [] }, 200);
+      }
+      return createJsonResponse(
         {
           success: true,
           data: {
             trainer: providerTrainer,
-            affiliatedClub: {
-              id: 99,
-              name: 'Wave Arena',
-            },
+            affiliatedClub: { id: 99, name: 'Wave Arena' },
             primaryOffering: {
               id: 22,
               createdAt: '2026-03-17T09:00:00.000Z',
@@ -424,8 +454,8 @@ describe('ProviderProfilePage', () => {
           },
         },
         200,
-      ),
-    );
+      );
+    });
 
     loginAsProvider();
 
@@ -438,19 +468,25 @@ describe('ProviderProfilePage', () => {
     });
 
     const dialog = screen.getByRole('dialog');
-    const affiliatedClubOption = screen.getByRole('option', { name: 'Wave Arena' });
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/trainers/1');
     expect(dialog.querySelector('h2')).toHaveTextContent('Редактировать тренера');
     expect(screen.getByDisplayValue('Марина')).toBeInTheDocument();
-    expect(affiliatedClubOption).toBeInTheDocument();
-    expect((affiliatedClubOption as HTMLOptionElement).selected).toBe(true);
+
+    // В edit-режиме confirmed-link отображается как статус «Работаете в клубе ...».
+    // Соответствующая секция находится внутри диалога.
+    await waitFor(() => {
+      expect(screen.getByText(/работаете в клубе «Wave Arena»/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'Отвязать от клуба' })).toBeInTheDocument();
   });
 
   it('сохраняет delete-flow после подключения action «Редактировать»', async () => {
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    fetchMock.mockResolvedValue(createJsonResponse({ success: true }, 200));
+    // Phase 24 Step 24.9b: ProviderLinkRequestsSection тоже делает fetch; чтобы каждый
+    // вызов получал свежий Response (без body consumed), используем mockImplementation.
+    fetchMock.mockImplementation(async () => createJsonResponse({ success: true, data: [] }, 200));
 
     loginAsProvider();
 
@@ -462,7 +498,10 @@ describe('ProviderProfilePage', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/clubs/1', { method: 'DELETE' });
     });
 
-    expect(refreshMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    });
+
     expect(screen.getByRole('status')).toHaveTextContent('Публикация удалена');
 
     confirmMock.mockRestore();

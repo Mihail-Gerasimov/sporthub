@@ -1,7 +1,7 @@
 // Модалка публикации тренера — единая форма create/edit с submit через API.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
@@ -10,8 +10,9 @@ import { validateTrainerForm } from '@/components/profile/publish-validation';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
-import { Input, Select } from '@/components/ui';
+import { Button, Input, Select } from '@/components/ui';
 import type { TrainerFormState } from '@/lib/schemas/publish';
+import type { TrainerClubLink } from '@/types';
 
 /** Минимальная информация о клубе для select-привязки */
 type ClubOption = {
@@ -202,6 +203,39 @@ export function PublishTrainerModal({
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
   const [submitNoticeTone, setSubmitNoticeTone] = useState<'info' | 'danger'>('info');
 
+  // Phase 24 Step 24.9a: state для управления привязкой тренера к клубу через links API.
+  // currentLink — последний active link (pending|confirmed), либо null;
+  // linkHistory — последний не-active (rejected|revoked) для плашки «новый запрос».
+  const [currentLink, setCurrentLink] = useState<TrainerClubLink | null>(null);
+  const [linkHistory, setLinkHistory] = useState<TrainerClubLink | null>(null);
+  const [linkPendingAction, setLinkPendingAction] = useState(false);
+  const [linkActionError, setLinkActionError] = useState<string | null>(null);
+  const [linkRequestClubId, setLinkRequestClubId] = useState<number | null>(null);
+
+  // Загружаем актуальные link'и тренера в edit-режиме при открытии.
+  // trainerId = entityId; публичные статусы отображаются на основе response.
+  const fetchLinks = useCallback(async () => {
+    if (!isEditMode || entityId === null) return;
+    try {
+      const response = await fetch(`/api/trainer-club-links?trainerId=${entityId}`);
+      if (!response.ok) return;
+      const body = (await response.json()) as {
+        success: boolean;
+        data?: TrainerClubLink[];
+      };
+      if (!body.success || !body.data) return;
+      const active =
+        body.data.find((link) => link.status === 'pending' || link.status === 'confirmed') ?? null;
+      setCurrentLink(active);
+      // Последняя неактивная — для подсказки «Отправить новый запрос».
+      const lastInactive =
+        body.data.find((link) => link.status === 'rejected' || link.status === 'revoked') ?? null;
+      setLinkHistory(active ? null : lastInactive);
+    } catch {
+      // silent — UI просто покажет форму выбора клуба
+    }
+  }, [entityId, isEditMode]);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -213,7 +247,68 @@ export function PublishTrainerModal({
     setIsSubmitting(false);
     setSubmitNotice(null);
     setSubmitNoticeTone('info');
-  }, [entityId, initialData, mode, open]);
+    // Сбрасываем состояние привязки — дальше fetchLinks подтянет актуальное.
+    setCurrentLink(null);
+    setLinkHistory(null);
+    setLinkActionError(null);
+    setLinkRequestClubId(null);
+    void fetchLinks();
+  }, [entityId, initialData, mode, open, fetchLinks]);
+
+  // Действия над link'ом в edit-режиме (trainerId = entityId).
+  const submitLinkRequest = useCallback(
+    async (clubId: number) => {
+      if (!isEditMode || entityId === null || userId === null) return;
+      setLinkPendingAction(true);
+      setLinkActionError(null);
+      try {
+        const response = await fetch('/api/trainer-club-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trainerId: entityId, clubId, userId }),
+        });
+        const body = (await response.json()) as { success: boolean; error?: string };
+        if (!response.ok || !body.success) {
+          setLinkActionError(body.error ?? 'Не удалось отправить запрос');
+          return;
+        }
+        await fetchLinks();
+        setLinkRequestClubId(null);
+      } finally {
+        setLinkPendingAction(false);
+      }
+    },
+    [isEditMode, entityId, userId, fetchLinks],
+  );
+
+  const submitLinkRevoke = useCallback(async () => {
+    if (!currentLink || userId === null) return;
+    setLinkPendingAction(true);
+    setLinkActionError(null);
+    try {
+      // Для pending вызываем тот же revoke-эндпоинт — но backend требует confirmed.
+      // На pending сторона тренера просто отзывает: backend в Step 24.9 расширим, сейчас
+      // используем простой fallback — шлём revoke только для confirmed. Для pending
+      // фактически используем тот же endpoint: backend 409 отдаст, если не confirmed.
+      const endpoint =
+        currentLink.status === 'pending'
+          ? `/api/trainer-club-links/${currentLink.id}/revoke`
+          : `/api/trainer-club-links/${currentLink.id}/revoke`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const body = (await response.json()) as { success: boolean; error?: string };
+      if (!response.ok || !body.success) {
+        setLinkActionError(body.error ?? 'Не удалось отозвать запрос');
+        return;
+      }
+      await fetchLinks();
+    } finally {
+      setLinkPendingAction(false);
+    }
+  }, [currentLink, userId, fetchLinks]);
 
   // Сброс формы при закрытии
   function handleClose() {
@@ -481,32 +576,101 @@ export function PublishTrainerModal({
 
         <hr className="border-line" />
 
-        {/* Секция 4: Связать себя с клубом */}
+        {/* Секция 4: Связать себя с клубом.
+            Phase 24 Step 24.9a: в edit-режиме работаем через API links (pending/confirmed/revoked),
+            в create-режиме остаётся простой Select — после создания тренера связь отправляется
+            отдельным запросом в Step 24.10 (multi-offering). */}
         <section>
           <h3 className="font-display text-lg font-semibold text-ink">Связать себя с клубом</h3>
           <p className="mt-1 text-sm text-muted">
             Вы можете указать спортивный клуб, в котором работаете, чтобы спортсмены узнали о вашей
             деятельности больше.
           </p>
-          <div className="mt-3">
-            <Select
-              value={form.clubId ?? ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setForm((prev) => ({
-                  ...prev,
-                  clubId: val ? Number(val) : null,
-                }));
-              }}
-            >
-              <option value="">Без привязки к клубу</option>
-              {clubs.map((club) => (
-                <option key={club.id} value={club.id}>
-                  {club.name}
-                </option>
-              ))}
-            </Select>
-          </div>
+          {isEditMode ? (
+            <div className="mt-3 flex flex-col gap-3" data-testid="trainer-club-link-section">
+              {/* Активная связь pending/confirmed — показываем статус и кнопку «Отозвать» */}
+              {currentLink ? (
+                <div className="rounded-card border border-line bg-canvas p-4">
+                  <p className="text-sm font-semibold text-ink">
+                    {currentLink.status === 'pending'
+                      ? `Запрос отправлен в клуб «${clubs.find((c) => c.id === currentLink.clubId)?.name ?? 'Клуб'}»`
+                      : `Работаете в клубе «${clubs.find((c) => c.id === currentLink.clubId)?.name ?? 'Клуб'}»`}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {currentLink.status === 'pending'
+                      ? 'Ожидается подтверждение клубом. Вы можете отозвать запрос.'
+                      : 'Связь подтверждена — клуб отображается на публичной странице.'}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    disabled={linkPendingAction}
+                    onClick={() => {
+                      void submitLinkRevoke();
+                    }}
+                  >
+                    {currentLink.status === 'pending' ? 'Отозвать запрос' : 'Отвязать от клуба'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {linkHistory ? (
+                    <p className="text-xs text-muted">
+                      {linkHistory.status === 'rejected'
+                        ? 'Предыдущий запрос был отклонён клубом. Можно отправить новый запрос.'
+                        : 'Предыдущая связь была разорвана. Можно отправить новый запрос.'}
+                    </p>
+                  ) : null}
+                  <Select
+                    value={linkRequestClubId ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLinkRequestClubId(val ? Number(val) : null);
+                    }}
+                  >
+                    <option value="">Выберите клуб для связи</option>
+                    {clubs.map((club) => (
+                      <option key={club.id} value={club.id}>
+                        {club.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={linkRequestClubId === null || linkPendingAction}
+                    onClick={() => {
+                      if (linkRequestClubId !== null) void submitLinkRequest(linkRequestClubId);
+                    }}
+                  >
+                    Отправить запрос клубу
+                  </Button>
+                </div>
+              )}
+              {linkActionError ? <p className="text-xs text-red-500">{linkActionError}</p> : null}
+            </div>
+          ) : (
+            <div className="mt-3">
+              <Select
+                value={form.clubId ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    clubId: val ? Number(val) : null,
+                  }));
+                }}
+              >
+                <option value="">Без привязки к клубу</option>
+                {clubs.map((club) => (
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
         </section>
 
         <hr className="border-line" />

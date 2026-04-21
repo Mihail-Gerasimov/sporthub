@@ -139,11 +139,9 @@ export function buildTrainerDirectory({
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
       const primaryOffering = offeringsForTrainer[0] ?? null;
       const nextSlot = availableSlots[0] ?? null;
-      // Phase 24 Step 24.8: venueClub сначала через confirmed link, fallback — legacy offering.affiliatedClubId.
+      // Phase 24 Step 24.9c: venueClub в каталоге — ТОЛЬКО через confirmed TrainerClubLink.
       const linkClubId = confirmedClubIdByTrainerId.get(trainer.id);
-      const legacyClubId = primaryOffering?.affiliatedClubId;
-      const venueClubId = linkClubId ?? legacyClubId;
-      const venueClub = venueClubId !== undefined ? (clubsById.get(venueClubId) ?? null) : null;
+      const venueClub = linkClubId !== undefined ? (clubsById.get(linkClubId) ?? null) : null;
       const coordinates =
         trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
       const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;
