@@ -911,6 +911,16 @@ export async function getProviderClientNoteById(id: EntityId): Promise<ProviderC
 }
 
 /**
+ * SSR-чтение всех заметок в системе без фильтров. Используется только server-side
+ * из `/profile/provider/clients/page.tsx`, где providerUserId на момент рендера
+ * ещё неизвестен (auth живёт в клиентском store). Клиент сам фильтрует по текущей
+ * сессии через `notesByClient`. НЕ должна использоваться в API-роутах.
+ */
+export async function getAllProviderClientNotes(): Promise<ProviderClientNote[]> {
+  return readCollection('providerClientNotes');
+}
+
+/**
  * Создание новой заметки провайдера. id/createdAt/updatedAt проставляются сервером
  * (updatedAt при создании === createdAt). Никакой guard-логики здесь нет — вызывающий
  * API-эндпоинт обязан сам проверить `isClientOfProvider`.
