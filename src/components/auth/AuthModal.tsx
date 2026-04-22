@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { z } from 'zod';
 
 import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@/lib/constants';
@@ -8,12 +8,7 @@ import { formatPhone } from '@/lib/utils';
 import type { AuthAccountType } from '@/types';
 
 import { Button, Chip, Input, Modal } from '@/components/ui';
-import {
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
-  useAuthStore,
-  type AuthSessionUser,
-} from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 type AuthTab = 'login' | 'register';
@@ -47,7 +42,6 @@ const DEFAULT_REGISTER_FORM: RegisterFormState = {
 
 const DEFAULT_LOGIN_ERRORS: LoginFormErrors = {};
 const DEFAULT_REGISTER_ERRORS: RegisterFormErrors = {};
-const AUTH_SUBMIT_DELAY_MS = 600;
 
 const loginFormSchema = z.object({
   email: z.email('Укажи корректный email.'),
@@ -105,19 +99,6 @@ function getLoginValidationErrors(form: LoginFormState): LoginFormErrors {
 
     return accumulator;
   }, {});
-}
-
-// Создаёт MVP-пользователя при логине: athlete → id 1, provider → id 2
-function createLoginSessionUser(email: string, accountType: AuthAccountType): AuthSessionUser {
-  const [localPart] = email.split('@');
-  const id = accountType === 'athlete' ? MVP_ATHLETE_USER_ID : MVP_PROVIDER_USER_ID;
-
-  return {
-    id,
-    name: localPart || 'sporthub-user',
-    email,
-    city: DEFAULT_CITY,
-  };
 }
 
 function getNormalizedRussianPhoneDigits(value: string): string | null {
@@ -205,23 +186,6 @@ function getRegisterValidationErrors(form: RegisterFormState): RegisterFormError
   }, {});
 }
 
-// Создаёт MVP-пользователя при регистрации: athlete → id 1, provider → id 2
-function createRegisterSessionUser(
-  form: RegisterFormState,
-  accountType: AuthAccountType,
-): AuthSessionUser {
-  const normalizedPhoneDigits = getNormalizedRussianPhoneDigits(form.phone);
-  const id = accountType === 'athlete' ? MVP_ATHLETE_USER_ID : MVP_PROVIDER_USER_ID;
-
-  return {
-    id,
-    name: form.name.trim(),
-    email: form.email.trim(),
-    phone: normalizedPhoneDigits ? formatPhone(normalizedPhoneDigits) : undefined,
-    city: DEFAULT_CITY,
-  };
-}
-
 /** Кнопка-иконка переключения видимости пароля */
 function PasswordToggle({ visible, onClick }: { visible: boolean; onClick: () => void }) {
   return (
@@ -291,16 +255,6 @@ export function AuthModal() {
   const registerTabId = useId();
   const loginPanelId = useId();
   const registerPanelId = useId();
-  const submitTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current !== null) {
-        window.clearTimeout(submitTimeoutRef.current);
-      }
-    };
-  }, []);
-
   function resetModalState() {
     setActiveTab('login');
     setLoginAccountType(null);
@@ -313,11 +267,6 @@ export function AuthModal() {
     setIsRegisterSubmitting(false);
     setShowLoginPassword(false);
     setShowRegisterPassword(false);
-
-    if (submitTimeoutRef.current !== null) {
-      window.clearTimeout(submitTimeoutRef.current);
-      submitTimeoutRef.current = null;
-    }
   }
 
   function handleCloseModal() {
@@ -325,7 +274,9 @@ export function AuthModal() {
     resetModalState();
   }
 
-  function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
+  // Phase 26 Step 26.7: fake-auth через fetch к /api/auth/login.
+  // Сервер проверяет email в users.json и возвращает sanitized-user.
+  async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!loginAccountType || isLoginSubmitting) {
@@ -346,16 +297,37 @@ export function AuthModal() {
 
     setIsLoginSubmitting(true);
 
-    submitTimeoutRef.current = window.setTimeout(() => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedLoginForm.email,
+          accountType: loginAccountType,
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        setLoginErrors({ email: json.error ?? 'Не удалось войти' });
+        setIsLoginSubmitting(false);
+        return;
+      }
+
       login({
         accountType: loginAccountType,
-        user: createLoginSessionUser(normalizedLoginForm.email, loginAccountType),
+        user: json.data,
       });
       handleCloseModal();
-    }, AUTH_SUBMIT_DELAY_MS);
+    } catch {
+      setLoginErrors({ email: 'Сетевая ошибка, попробуй позже' });
+      setIsLoginSubmitting(false);
+    }
   }
 
-  function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
+  // Phase 26 Step 26.7: fake-auth регистрация через /api/auth/register.
+  // Сервер пишет нового user в users.json через db.createUser.
+  async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!registerAccountType || isRegisterSubmitting) {
@@ -378,13 +350,44 @@ export function AuthModal() {
 
     setIsRegisterSubmitting(true);
 
-    submitTimeoutRef.current = window.setTimeout(() => {
+    try {
+      const normalizedPhoneDigits = getNormalizedRussianPhoneDigits(normalizedRegisterForm.phone);
+      const formattedPhone = normalizedPhoneDigits ? formatPhone(normalizedPhoneDigits) : '';
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: normalizedRegisterForm.name,
+          email: normalizedRegisterForm.email,
+          phone: formattedPhone,
+          password: normalizedRegisterForm.password,
+          accountType: registerAccountType,
+          city: DEFAULT_CITY,
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        // 409 — email занят; прочие — общее сообщение в поле email.
+        const errorMessage =
+          response.status === 409
+            ? 'Email уже зарегистрирован'
+            : (json.error ?? 'Не удалось создать аккаунт');
+        setRegisterErrors({ email: errorMessage });
+        setIsRegisterSubmitting(false);
+        return;
+      }
+
       register({
         accountType: registerAccountType,
-        user: createRegisterSessionUser(normalizedRegisterForm, registerAccountType),
+        user: json.data,
       });
       handleCloseModal();
-    }, AUTH_SUBMIT_DELAY_MS);
+    } catch {
+      setRegisterErrors({ email: 'Сетевая ошибка, попробуй позже' });
+      setIsRegisterSubmitting(false);
+    }
   }
 
   return (

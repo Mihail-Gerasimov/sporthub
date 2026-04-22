@@ -1,5 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// Phase 26 Step 26.7: AuthModal теперь шлёт fetch к /api/auth/login и
+// /api/auth/register. Тесты используют fetchMock, старые fake-timers убраны.
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AppShell } from '@/components/layout/AppShell';
@@ -12,17 +14,17 @@ vi.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
 }));
-import {
-  AUTH_STORE_DEFAULT_STATE,
-  MVP_PROVIDER_USER_ID,
-  useAuthStore,
-} from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 describe('AuthModal', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
     localStorage.clear();
     vi.useRealTimers();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
 
     useUIStore.setState({
       isAuthModalOpen: false,
@@ -30,6 +32,17 @@ describe('AuthModal', () => {
 
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
   });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function jsonResponse(body: unknown, status: number) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   it('открывается из Header и закрывается по кнопке и overlay', () => {
     render(
@@ -107,6 +120,7 @@ describe('AuthModal', () => {
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('показывает ошибки валидации email и пароля в сценарии входа', () => {
@@ -128,10 +142,25 @@ describe('AuthModal', () => {
     expect(screen.getByText('Укажи корректный email.')).toBeInTheDocument();
     expect(screen.getByText('Пароль должен быть не короче 6 символов.')).toBeInTheDocument();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('выполняет stub-вход, закрывает модалку и обновляет Header', async () => {
-    vi.useFakeTimers();
+  it('выполняет login-fetch, закрывает модалку и обновляет Header', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: {
+            id: 2,
+            name: 'Марина Крылова',
+            email: 'marina@studio.local',
+            phone: '+7 (927) 000-20-20',
+            city: 'Самара',
+          },
+        },
+        200,
+      ),
+    );
 
     render(
       <AppShell>
@@ -148,31 +177,41 @@ describe('AuthModal', () => {
       target: { value: '123456' },
     });
 
-    const submitButton = screen.getByRole('button', { name: 'Продолжить вход' });
-
-    fireEvent.click(submitButton);
-
-    expect(screen.getByRole('button', { name: /Продолжить вход/i })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-
     await act(async () => {
-      vi.advanceTimersByTime(600);
+      fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
     });
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    await waitFor(() => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
     expect(useAuthStore.getState().accountType).toBe('provider');
     expect(useAuthStore.getState().user?.email).toBe('marina@studio.local');
     expect(
       screen.queryByRole('dialog', { name: 'Войти или создать профиль' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('marina')).toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
-  it('для спортсмена привязывает auth-session к fake user id для athlete-only действий', async () => {
-    vi.useFakeTimers();
+  it('для спортсмена получает user.id из server response', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: {
+            id: 1,
+            name: 'Алексей Смирнов',
+            email: 'alexey@sporthub.local',
+            phone: '+7 (927) 000-10-10',
+            city: 'Самара',
+          },
+        },
+        200,
+      ),
+    );
 
     render(
       <AppShell>
@@ -188,14 +227,42 @@ describe('AuthModal', () => {
     fireEvent.change(screen.getByLabelText('Пароль'), {
       target: { value: '123456' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
 
     await act(async () => {
-      vi.advanceTimersByTime(600);
+      fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
     });
 
-    expect(useAuthStore.getState().accountType).toBe('athlete');
+    await waitFor(() => {
+      expect(useAuthStore.getState().accountType).toBe('athlete');
+    });
     expect(useAuthStore.getState().user?.id).toBe(1);
+  });
+
+  it('login: 404 от сервера показывает ошибку в форме, модалка остаётся', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ success: false, error: 'Пользователь не найден' }, 404),
+    );
+
+    useUIStore.setState({ isAuthModalOpen: true });
+    render(<AuthModal />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'nope@nowhere.local' },
+    });
+    fireEvent.change(screen.getByLabelText('Пароль'), {
+      target: { value: '123456' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Продолжить вход' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Пользователь не найден/i)).toBeInTheDocument();
+    });
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
   });
 
   it('не запускает регистрацию без выбранного типа аккаунта', () => {
@@ -227,6 +294,7 @@ describe('AuthModal', () => {
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('показывает маску телефона и ошибки валидации в сценарии регистрации', () => {
@@ -263,10 +331,25 @@ describe('AuthModal', () => {
     expect(screen.getByText('Укажи телефон в формате +7 (999) 000-00-00.')).toBeInTheDocument();
     expect(screen.getByText('Пароль должен быть не короче 6 символов.')).toBeInTheDocument();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('выполняет stub-регистрацию, закрывает модалку и сохраняет accountType с телефоном', async () => {
-    vi.useFakeTimers();
+  it('выполняет register-fetch, закрывает модалку и сохраняет accountType', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: {
+            id: 8,
+            name: 'Марина Крылова',
+            email: 'marina-new@studio.local',
+            phone: '+7 (927) 000-20-20',
+            city: 'Самара',
+          },
+        },
+        201,
+      ),
+    );
 
     render(
       <AppShell>
@@ -281,7 +364,7 @@ describe('AuthModal', () => {
       target: { value: 'Марина Крылова' },
     });
     fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: 'marina@studio.local' },
+      target: { value: 'marina-new@studio.local' },
     });
     fireEvent.change(screen.getByLabelText('Телефон'), {
       target: { value: '89270002020' },
@@ -290,32 +373,54 @@ describe('AuthModal', () => {
       target: { value: '123456' },
     });
 
-    const submitButton = screen.getByRole('button', { name: 'Создать аккаунт' });
-
-    fireEvent.click(submitButton);
-
-    expect(screen.getByRole('button', { name: /Создать аккаунт/i })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-
     await act(async () => {
-      vi.advanceTimersByTime(600);
+      fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
     });
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    await waitFor(() => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
     expect(useAuthStore.getState().accountType).toBe('provider');
-    expect(useAuthStore.getState().user).toEqual({
-      id: MVP_PROVIDER_USER_ID,
+    expect(useAuthStore.getState().user).toMatchObject({
+      id: 8,
       name: 'Марина Крылова',
-      email: 'marina@studio.local',
-      phone: '+7 (927) 000-20-20',
-      city: 'Самара',
+      email: 'marina-new@studio.local',
     });
     expect(
       screen.queryByRole('dialog', { name: 'Войти или создать профиль' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/register',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('register: 409 от сервера показывает «Email уже зарегистрирован», модалка остаётся', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ success: false, error: 'Email уже зарегистрирован' }, 409),
+    );
+
+    useUIStore.setState({ isAuthModalOpen: true });
+    render(<AuthModal />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дубликат' } });
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'alexey@sporthub.local' },
+    });
+    fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '89270001010' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: '123456' } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Email уже зарегистрирован/i)).toBeInTheDocument();
+    });
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
   });
 });

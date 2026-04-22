@@ -1041,6 +1041,27 @@ export async function getUserById(id: EntityId): Promise<User | null> {
 }
 
 /**
+ * Phase 26 Step 26.7: создание нового пользователя при регистрации через
+ * AuthModal. Паттерн совпадает с createTrainerClubLink/createProviderClientNote:
+ * id и createdAt назначаются сервером. Email-uniqueness проверяется на уровне
+ * роута /api/auth/register (чтобы эта функция оставалась простой CRUD).
+ */
+export async function createUser(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+  const users = await readCollection('users');
+
+  const user: User = {
+    id: getNextEntityId(users),
+    createdAt: createTimestamp(),
+    ...data,
+  };
+
+  users.push(user);
+  await writeCollection('users', users);
+
+  return user;
+}
+
+/**
  * Phase 24 Step 24.15: admin-снятие карантина атлета. Ставит `quarantineLiftedAt = now`
  * в `users.json`. Используется в `POST /api/admin/users/[id]/lift-quarantine`.
  * Возвращает обновлённого User. Бросает 'Пользователь не найден' если user.id отсутствует.
