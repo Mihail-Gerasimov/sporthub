@@ -8,13 +8,13 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
-import { useUIStore } from '@/stores/useUIStore';
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type {
   Booking,
   Club,
@@ -39,40 +39,6 @@ type ProviderDashboardProps = {
 const APPROACHING_CHECKIN_WINDOW_MS = 6 * 60 * 60 * 1000;
 const CHECK_IN_WINDOW_MS = DISCIPLINE_CONFIG.checkIn.windowHoursAfterEnd * 60 * 60 * 1000;
 const DAY_KEYS_IN_WEEK = 7;
-
-function AccessDeniedCard() {
-  const openAuthModal = useUIStore((state) => state.openAuthModal);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
-
-  const message = isAuthenticated
-    ? 'Ты вошёл как спортсмен. Dashboard провайдера недоступен.'
-    : 'Dashboard провайдера доступен только после входа.';
-
-  return (
-    <Card className="p-6 sm:p-8" data-testid="provider-dashboard-access-denied">
-      <div className="flex flex-wrap gap-2">
-        <Badge tone="danger">Provider only</Badge>
-        {accountType === 'athlete' ? <Badge tone="outline">Athlete session</Badge> : null}
-      </div>
-      <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-ink">
-        Доступ ограничен
-      </h1>
-      <p className="mt-4 text-base leading-relaxed text-muted">{message}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        {!isAuthenticated ? (
-          <Button onClick={() => openAuthModal()}>Войти или зарегистрироваться</Button>
-        ) : null}
-        <Link
-          href="/"
-          className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-        >
-          Вернуться на главную
-        </Link>
-      </div>
-    </Card>
-  );
-}
 
 /** Helper: проверяет, относится ли booking к набору club/trainer id'ов провайдера. */
 function belongsToProvider(
@@ -269,7 +235,7 @@ export function ProviderDashboard({
   }, [providerTrainers, offerings, providerBookings]);
 
   if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard />;
+    return <AccessDeniedCard requiredRole="provider" testId="provider-dashboard-access-denied" />;
   }
 
   if (isEmpty) {

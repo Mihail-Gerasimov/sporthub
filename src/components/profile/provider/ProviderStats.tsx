@@ -5,16 +5,15 @@
 // хранимых snapshot'ов. Default window — 12 мес, toggle «всё время».
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
+import { Card, ReliabilityBadge } from '@/components/ui';
 import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
 import { cn, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { useUIStore } from '@/stores/useUIStore';
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@/types';
 
 const ALL_VALUE = '__all__';
@@ -53,40 +52,6 @@ type ProviderStatsProps = {
   schedule?: Schedule[];
   sports?: Sport[];
 };
-
-function AccessDeniedCard() {
-  const openAuthModal = useUIStore((s) => s.openAuthModal);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const accountType = useAuthStore((s) => s.accountType);
-
-  const message = isAuthenticated
-    ? 'Ты вошёл как спортсмен. Статистика провайдера недоступна.'
-    : 'Статистика провайдера доступна после входа как провайдер.';
-
-  return (
-    <Card className="p-6 sm:p-8" data-testid="provider-stats-access-denied">
-      <div className="flex flex-wrap gap-2">
-        <Badge tone="danger">Provider only</Badge>
-        {accountType === 'athlete' ? <Badge tone="outline">Athlete session</Badge> : null}
-      </div>
-      <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-ink">
-        Доступ ограничен
-      </h1>
-      <p className="mt-4 text-base leading-relaxed text-muted">{message}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        {!isAuthenticated ? (
-          <Button onClick={() => openAuthModal()}>Войти или зарегистрироваться</Button>
-        ) : null}
-        <Link
-          href="/"
-          className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-        >
-          Вернуться на главную
-        </Link>
-      </div>
-    </Card>
-  );
-}
 
 export function ProviderStats({
   bookings = [],
@@ -271,7 +236,7 @@ export function ProviderStats({
   }, [filteredBookings]);
 
   if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard />;
+    return <AccessDeniedCard requiredRole="provider" testId="provider-stats-access-denied" />;
   }
 
   const isProviderEmpty = providerClubs.length === 0 && providerTrainers.length === 0;

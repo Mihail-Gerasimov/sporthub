@@ -4,7 +4,6 @@
 // Всё считается на лету из bookings + schedule + reliability без хранимых snapshot'ов.
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
   Bar,
@@ -28,7 +27,7 @@ import {
   getAthleteAchievements,
 } from '@/components/profile/athlete-achievements';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
-import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { computeCurrentStreak, computeMaxStreak } from '@/lib/athlete-streaks';
 import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { computeAthleteReliability } from '@/lib/reliability';
@@ -37,7 +36,7 @@ import {
   selectAthleteActionUserId,
   useAuthStore,
 } from '@/stores/useAuthStore';
-import { useUIStore } from '@/stores/useUIStore';
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Review, Schedule, Sport, Trainer } from '@/types';
 
 type StatsWindow = 12 | 'all';
@@ -101,40 +100,6 @@ function generateMonthRange(startKey: string, endKey: string): string[] {
   }
 
   return result;
-}
-
-function AccessDeniedCard() {
-  const openAuthModal = useUIStore((state) => state.openAuthModal);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
-
-  const message = isAuthenticated
-    ? 'Ты вошёл как представитель спортивных услуг. Статистика спортсмена недоступна.'
-    : 'Статистика спортсмена доступна только после входа.';
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <div className="flex flex-wrap gap-2">
-        <Badge tone="danger">Athlete only</Badge>
-        {accountType === 'provider' ? <Badge tone="outline">Provider session</Badge> : null}
-      </div>
-      <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-ink">
-        Доступ ограничен
-      </h1>
-      <p className="mt-4 text-base leading-relaxed text-muted">{message}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        {!isAuthenticated ? (
-          <Button onClick={() => openAuthModal()}>Войти или зарегистрироваться</Button>
-        ) : null}
-        <Link
-          href="/"
-          className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-        >
-          Вернуться на главную
-        </Link>
-      </div>
-    </Card>
-  );
 }
 
 export function AthleteStats({
@@ -388,7 +353,7 @@ export function AthleteStats({
   const hasAnyBookings = athleteBookings.length > 0;
 
   if (!isAuthenticated || accountType !== 'athlete' || !user) {
-    return <AccessDeniedCard />;
+    return <AccessDeniedCard requiredRole="athlete" />;
   }
 
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
