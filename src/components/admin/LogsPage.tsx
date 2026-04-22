@@ -7,8 +7,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
 import { Badge, Button, Card, Select, Skeleton } from '@/components/ui';
-import type { LogAction, LogEntry } from '@/types';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
+import type { Booking, EntityId, LogAction, LogEntry } from '@/types';
 
 // Маппинг LogAction → human-readable русские метки.
 // Phase 24 добавляет 14 новых значений (FSM booking, trainer↔club-link, карантин,
@@ -139,6 +142,39 @@ export function LogsPage() {
   const [actorFilter, setActorFilter] = useState('');
   const [autoPolling, setAutoPolling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Phase 25 Step 25.15: drawer-wire-up — клик по entity-booking в логе открывает
+  // BookingStatusHistoryDrawer с полной FSM-историей.
+  const [drawerBooking, setDrawerBooking] = useState<Booking | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const adminUserId = useAuthStore((state) => state.user?.id ?? null);
+  const addToast = useToastStore((state) => state.addToast);
+
+  const handleOpenBookingDrawer = useCallback(
+    async (bookingId: EntityId) => {
+      if (adminUserId === null) {
+        addToast({ message: 'Недостаточно прав для открытия истории', tone: 'error' });
+        return;
+      }
+      try {
+        const response = await fetch(`/api/bookings/${bookingId}?userId=${adminUserId}`);
+        const body = (await response.json()) as {
+          success: boolean;
+          data?: Booking;
+          error?: string;
+        };
+        if (!response.ok || !body.success || !body.data) {
+          addToast({ message: body.error ?? 'Не удалось загрузить запись', tone: 'error' });
+          return;
+        }
+        setDrawerBooking(body.data);
+        setDrawerOpen(true);
+      } catch {
+        addToast({ message: 'Не удалось загрузить запись', tone: 'error' });
+      }
+    },
+    [adminUserId, addToast],
+  );
 
   /** Загружает логи из API с текущими фильтрами */
   const fetchLogs = useCallback(async () => {
@@ -289,7 +325,7 @@ export function LogsPage() {
       ) : (
         <div className="space-y-2">
           {logs.map((log) => (
-            <LogCard key={log.id} log={log} />
+            <LogCard key={log.id} log={log} onOpenBookingDrawer={handleOpenBookingDrawer} />
           ))}
         </div>
       )}
@@ -324,12 +360,25 @@ export function LogsPage() {
           </div>
         </div>
       )}
+
+      {/* Phase 25 Step 25.15: drawer FSM-истории booking'а. */}
+      <BookingStatusHistoryDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        booking={drawerBooking}
+      />
     </div>
   );
 }
 
 /** Карточка одного лога */
-function LogCard({ log }: { log: LogEntry }) {
+function LogCard({
+  log,
+  onOpenBookingDrawer,
+}: {
+  log: LogEntry;
+  onOpenBookingDrawer: (id: EntityId) => void;
+}) {
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
   const actionTone = ACTION_TONES[log.action] ?? 'neutral';
   const roleLabel = ROLE_LABELS[log.actorRole] ?? log.actorRole;
@@ -349,6 +398,16 @@ function LogCard({ log }: { log: LogEntry }) {
           {entityLabel} #{log.entityId}
           {metaName && <span className="text-muted"> — {metaName}</span>}
         </p>
+        {log.entityType === 'booking' ? (
+          <button
+            type="button"
+            data-testid={`logs-open-booking-history-${log.entityId}`}
+            onClick={() => onOpenBookingDrawer(log.entityId)}
+            className="self-start rounded-pill border border-line bg-canvas px-3 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+          >
+            История FSM
+          </button>
+        ) : null}
       </div>
 
       <time className="shrink-0 text-xs text-muted" dateTime={log.createdAt}>

@@ -3,10 +3,11 @@
 // со status='cancelled_by_athlete' и заполненным cancelReason (on_time/late по
 // snapshot-policy). Hard-delete доступен только админу через DELETE /api/admin/bookings/[id]
 // (Step 24.4).
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { cancelBooking } from '@/lib/db';
+import { isAdminUser } from '@/lib/booking-guards';
+import { cancelBooking, getBookings } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
 
 const deleteBookingSchema = z
@@ -14,6 +15,50 @@ const deleteBookingSchema = z
     userId: z.number().int().positive(),
   })
   .strict();
+
+/**
+ * Phase 25 Step 25.15: GET /api/bookings/[id] — admin-only чтение полного booking'а
+ * (включая statusHistory) для drawer-wire-up в LogsPage. userId передаётся через query
+ * ?userId=, т.к. GET не имеет body. Проверяем admin-guard.
+ */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const bookingId = Number(id);
+
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректный id записи' },
+        { status: 400 },
+      );
+    }
+
+    const rawUserId = request.nextUrl.searchParams.get('userId');
+    const userId = rawUserId ? Number(rawUserId) : NaN;
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return NextResponse.json({ success: false, error: 'Некорректный userId' }, { status: 400 });
+    }
+
+    const isAdmin = await isAdminUser(userId);
+    if (!isAdmin) {
+      return NextResponse.json({ success: false, error: 'Недостаточно прав' }, { status: 403 });
+    }
+
+    const bookings = await getBookings();
+    const booking = bookings.find((b) => b.id === bookingId) ?? null;
+    if (!booking) {
+      return NextResponse.json({ success: false, error: 'Запись не найдена' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: booking });
+  } catch (error) {
+    console.error('Ошибка чтения записи:', error);
+    return NextResponse.json(
+      { success: false, error: 'Не удалось получить запись' },
+      { status: 500 },
+    );
+  }
+}
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
