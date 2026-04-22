@@ -914,6 +914,37 @@ export async function liftUserQuarantine(userId: EntityId): Promise<User> {
 }
 
 /**
+ * Phase 25 Step 25.7: запись/очистка дедуп-маркера quarantine уведомлений.
+ * `value: null` → удаляет поле (при quarantine_end). `value: ISODateTimeString`
+ * записывает `until` начавшегося карантина, чтобы второй hit с тем же окном
+ * не слал повторный quarantine_start. Атомарно через writeCollectionsWithRollback.
+ */
+export async function setUserNotifiedQuarantineUntil(
+  userId: EntityId,
+  value: ISODateTimeString | null,
+): Promise<User> {
+  const users = await getUsers();
+  const targetIndex = users.findIndex((user) => user.id === userId);
+
+  if (targetIndex === -1) {
+    throw new Error('Пользователь не найден');
+  }
+
+  const current = users[targetIndex];
+  // Для value=null оставляем поле как undefined — JSON.stringify пропустит его при
+  // записи, так что в users.json поле отсутствует (как до Step 25.7).
+  const updated: User =
+    value === null
+      ? { ...current, notifiedQuarantineUntil: undefined }
+      : { ...current, notifiedQuarantineUntil: value };
+  const nextUsers = [...users];
+  nextUsers[targetIndex] = updated;
+
+  await writeCollectionsWithRollback([{ key: 'users', next: nextUsers, previous: users }]);
+  return updated;
+}
+
+/**
  * Минимальный input для atomic-создания booking.
  * Сервер сам извлекает метаданные слота.
  */
@@ -1072,9 +1103,26 @@ async function dispatchTransitionNotifications(
     case 'completed':
       await notify(athleteId, 'booking_completed', { bookingId: booking.id });
       return;
-    case 'no_show':
+    case 'no_show': {
       await notify(athleteId, 'booking_no_show', { bookingId: booking.id });
+
+      // Step 25.7: после no_show пересчитываем карантин атлета и шлём quarantine_start
+      // при первом hit. Пересчёт читает свежий bookings-snapshot, чтобы свеже
+      // записанный no_show попал в relevant-выборку isAthleteInQuarantine.
+      const [athleteUser, bookingsAfter] = await Promise.all([
+        getUserById(athleteId),
+        getBookings(),
+      ]);
+      if (athleteUser) {
+        const { isAthleteInQuarantine } = await import('@/lib/reliability');
+        const { maybeNotifyQuarantineStart } = await import('@/lib/quarantine-notifier');
+        const quarantine = isAthleteInQuarantine(bookingsAfter, athleteId, new Date(), {
+          quarantineLiftedAt: athleteUser.quarantineLiftedAt ?? null,
+        });
+        await maybeNotifyQuarantineStart({ user: athleteUser, quarantine });
+      }
       return;
+    }
     case 'unmarked':
       // Служебный финал — атлету не шлём, попадёт в админ-аналитику.
       return;
@@ -1391,6 +1439,29 @@ export async function runLazyBookingTransitions(
       actor: 'system',
       now,
     });
+  }
+
+  // Step 25.7: lazy quarantine_end — если у атлета была активная quarantine-метка,
+  // а окно уже истекло (или admin сделал lift позже последнего no_show), шлём end
+  // и очищаем notifiedQuarantineUntil. Проход идемпотентен: helper no-op, пока user
+  // не был notified, либо пока карантин ещё активен.
+  const users = await getUsers();
+  const quarantinedUsers = users.filter((user) => user.notifiedQuarantineUntil);
+
+  if (quarantinedUsers.length > 0) {
+    const [bookingsAfter, { isAthleteInQuarantine }, { maybeNotifyQuarantineEnd }] =
+      await Promise.all([
+        getBookings(),
+        import('@/lib/reliability'),
+        import('@/lib/quarantine-notifier'),
+      ]);
+
+    for (const user of quarantinedUsers) {
+      const quarantine = isAthleteInQuarantine(bookingsAfter, user.id, now, {
+        quarantineLiftedAt: user.quarantineLiftedAt ?? null,
+      });
+      await maybeNotifyQuarantineEnd({ user, quarantine });
+    }
   }
 
   return {

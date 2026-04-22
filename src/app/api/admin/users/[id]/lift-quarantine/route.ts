@@ -6,8 +6,9 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { isAdminUser } from '@/lib/booking-guards';
-import { liftUserQuarantine } from '@/lib/db';
+import { liftUserQuarantine, setUserNotifiedQuarantineUntil } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
+import { notify } from '@/lib/notify';
 
 const postSchema = z
   .object({
@@ -49,6 +50,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const updated = await liftUserQuarantine(userId);
+
+    // Step 25.7: отдельное уведомление об admin-lift + очистка дедуп-маркера,
+    // чтобы следующее попадание в карантин заново триггерило quarantine_start.
+    await notify(userId, 'quarantine_lifted_by_admin', {});
+    await setUserNotifiedQuarantineUntil(userId, null);
 
     await logAction({
       action: 'quarantine_admin_lift',

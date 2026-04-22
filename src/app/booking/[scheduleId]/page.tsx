@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation';
 
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
-import { getScheduleSlotContext } from '@/lib/db';
+import { getBookings, getScheduleSlotContext, getUsers } from '@/lib/db';
+import { isAthleteInQuarantine, type QuarantineResult } from '@/lib/reliability';
 import { formatDate, formatPrice } from '@/lib/utils';
 import type { OfferingFormat } from '@/types';
 
@@ -36,10 +37,28 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound();
   }
 
-  const slotContext = await getScheduleSlotContext(normalizedScheduleId);
+  const [slotContext, bookings, users] = await Promise.all([
+    getScheduleSlotContext(normalizedScheduleId),
+    getBookings(),
+    getUsers(),
+  ]);
 
   if (!slotContext || !slotContext.offering) {
     notFound();
+  }
+
+  // Step 25.7: предварительный расчёт quarantine-статуса для каждого athlete-
+  // пользователя (MVP seed). Client выбирает нужный по своему athleteUserId
+  // из useAuthStore. Провайдеры/админы не учитываются — им booking-CTA в любом
+  // случае недоступен по role-guard внутри компонента.
+  const now = new Date();
+  const quarantineByUserId: Record<number, QuarantineResult> = {};
+  for (const user of users) {
+    if (user.role !== 'athlete') continue;
+
+    quarantineByUserId[user.id] = isAthleteInQuarantine(bookings, user.id, now, {
+      quarantineLiftedAt: user.quarantineLiftedAt ?? null,
+    });
   }
 
   const { affiliatedClub, club, offering, schedule: slot, trainer } = slotContext;
@@ -176,6 +195,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
             dateLabel={actionDateLabel}
             timeLabel={actionTimeLabel}
             availableSpots={availableSpots}
+            quarantineByUserId={quarantineByUserId}
           />
         </div>
       </div>

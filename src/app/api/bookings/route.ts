@@ -131,6 +131,12 @@ export async function POST(request: Request) {
       quarantineLiftedAt: user.quarantineLiftedAt ?? null,
     });
     if (quarantine.inQuarantine) {
+      // Step 25.7: первый hit попытки записи из карантина триггерит quarantine_start.
+      // Helper дедуплицирует через user.notifiedQuarantineUntil — если атлет уже был
+      // уведомлён об этом окне, повторное уведомление не создастся.
+      const { maybeNotifyQuarantineStart } = await import('@/lib/quarantine-notifier');
+      await maybeNotifyQuarantineStart({ user, quarantine });
+
       return NextResponse.json(
         {
           success: false,

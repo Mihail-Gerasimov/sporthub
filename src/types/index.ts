@@ -369,6 +369,13 @@ export interface User extends BaseEntity {
    * Заполняется через POST /api/admin/users/[id]/lift-quarantine (Step 24.15).
    */
   quarantineLiftedAt?: ISODateTimeString;
+  /**
+   * Phase 25 Step 25.7: дедуп quarantine_start уведомлений. Хранит `until` последнего
+   * уведомления о карантине. При попытке повторного notify с тем же `until` — skip.
+   * Сбрасывается в undefined при quarantine_end (когда карантин снят по lift или
+   * по истечении окна).
+   */
+  notifiedQuarantineUntil?: ISODateTimeString;
 }
 
 // --- Phase 24: Уведомления ---
