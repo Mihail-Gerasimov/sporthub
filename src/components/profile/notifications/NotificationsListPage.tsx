@@ -1,16 +1,26 @@
 /**
- * Phase 24 Step 24.7: NotificationsListPage — shared client-компонент
- * для /profile/athlete/notifications и /profile/provider/notifications.
- * Рендерит плоский список уведомлений, поддерживает отметку одного как
- * прочитанного (POST /api/notifications/[id]/read) и массовое обнуление
- * (POST /api/notifications/read-all). Локальный state обновляется сразу,
- * чтобы bell-иконка и индикаторы реагировали без router.refresh.
+ * Phase 24 Step 24.7 → Phase 26 Step 26.2: NotificationsListPage — shared
+ * client-компонент для /profile/athlete/notifications и /profile/provider/notifications.
+ *
+ * Phase 24: плоский список, mark-as-read по клику, mark-all-read.
+ * Phase 26 Step 26.2: фильтры групп (booking/links/quarantine через
+ * NOTIFICATION_TYPE_GROUP), тоггл «Только непрочитанные», группировка по датам
+ * (Сегодня / Вчера / Эта неделя / Раньше) через helper getDateBucket.
+ *
+ * Существующие testid'ы сохранены: `notification-item-{id}`,
+ * `notification-item-unread-{id}`. Новые: `notifications-filter-group-{key}`,
+ * `notifications-toggle-unread`, `notifications-bucket-{key}`.
  */
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
+import {
+  NOTIFICATION_GROUP_KEYS,
+  NOTIFICATION_TYPE_GROUP,
+  type NotificationGroupKey,
+} from '@/lib/notification-types';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@/types';
 
@@ -20,6 +30,25 @@ export interface NotificationsListPageProps {
   userId: number;
 }
 
+type GroupFilter = 'all' | NotificationGroupKey;
+type DateBucket = 'today' | 'yesterday' | 'thisWeek' | 'earlier';
+
+const GROUP_LABELS: Record<GroupFilter, string> = {
+  all: 'Все',
+  booking: 'Записи',
+  links: 'Связи',
+  quarantine: 'Дисциплина',
+};
+
+const BUCKET_ORDER: readonly DateBucket[] = ['today', 'yesterday', 'thisWeek', 'earlier'];
+const BUCKET_LABELS: Record<DateBucket, string> = {
+  today: 'Сегодня',
+  yesterday: 'Вчера',
+  thisWeek: 'Эта неделя',
+  earlier: 'Раньше',
+};
+
+/** Полный формат даты-времени для карточки уведомления. */
 function formatFullDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString('ru-RU', {
@@ -34,6 +63,28 @@ function formatFullDate(iso: string): string {
   }
 }
 
+/**
+ * Определяет дата-bucket для createdAt относительно now. Работает в UTC для
+ * детерминизма в тестах и на сервере (вне зависимости от TZ хоста). Понедельник
+ * считается началом недели — соответствует locale-соглашениям проекта.
+ */
+export function getDateBucket(iso: string, now: Date): DateBucket {
+  const ts = new Date(iso).getTime();
+  const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const yesterdayStart = todayStart - msPerDay;
+
+  // Понедельник = начало недели. getUTCDay(): 0=Вс..6=Сб → daysToMonday.
+  const nowDay = now.getUTCDay();
+  const daysToMonday = nowDay === 0 ? 6 : nowDay - 1;
+  const weekStart = todayStart - daysToMonday * msPerDay;
+
+  if (ts >= todayStart) return 'today';
+  if (ts >= yesterdayStart) return 'yesterday';
+  if (ts >= weekStart) return 'thisWeek';
+  return 'earlier';
+}
+
 export function NotificationsListPage({
   notifications: initial,
   userId,
@@ -41,9 +92,57 @@ export function NotificationsListPage({
   const [notifications, setNotifications] = useState<Notification[]>(initial);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
+  const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const addToast = useToastStore((state) => state.addToast);
 
   const hasUnread = notifications.some((notification) => notification.readAt === undefined);
+
+  // Счётчики групп считаются от оригинального списка, без учёта текущих фильтров.
+  const groupCounts = useMemo<Record<GroupFilter, number>>(() => {
+    const counts: Record<GroupFilter, number> = {
+      all: notifications.length,
+      booking: 0,
+      links: 0,
+      quarantine: 0,
+    };
+    for (const n of notifications) {
+      const g = NOTIFICATION_TYPE_GROUP[n.type];
+      if (g) counts[g] += 1;
+    }
+    return counts;
+  }, [notifications]);
+
+  // Фильтр: сначала по группе, затем по unread-тогглу.
+  const filtered = useMemo(() => {
+    return notifications.filter((n) => {
+      if (activeGroup !== 'all' && NOTIFICATION_TYPE_GROUP[n.type] !== activeGroup) {
+        return false;
+      }
+      if (showOnlyUnread && n.readAt !== undefined) {
+        return false;
+      }
+      return true;
+    });
+  }, [notifications, activeGroup, showOnlyUnread]);
+
+  // Группировка по дате. Сортируем в пределах bucket'а от новых к старым.
+  const buckets = useMemo(() => {
+    const now = new Date();
+    const map = new Map<DateBucket, Notification[]>();
+    for (const n of filtered) {
+      const bucket = getDateBucket(n.createdAt, now);
+      const arr = map.get(bucket) ?? [];
+      arr.push(n);
+      map.set(bucket, arr);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    }
+    return BUCKET_ORDER.map((key) => ({ key, items: map.get(key) ?? [] })).filter(
+      (entry) => entry.items.length > 0,
+    );
+  }, [filtered]);
 
   const markSingleRead = useCallback(
     async (id: number) => {
@@ -119,48 +218,102 @@ export function NotificationsListPage({
         ) : null}
       </header>
 
-      {notifications.length === 0 ? (
+      {/* Ряд фильтров: 4 tab'а групп + toggle «Только непрочитанные». */}
+      <div
+        className="flex flex-wrap items-center gap-2"
+        data-testid="notifications-filters"
+        role="tablist"
+      >
+        {(['all', ...NOTIFICATION_GROUP_KEYS] as const).map((group) => {
+          const isActive = activeGroup === group;
+          return (
+            <button
+              key={group}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              data-testid={`notifications-filter-group-${group}`}
+              onClick={() => setActiveGroup(group)}
+              className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                isActive
+                  ? 'border-accent bg-accent text-panel'
+                  : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
+              }`}
+            >
+              {GROUP_LABELS[group]}
+              <span className="ml-1.5 inline-block rounded-pill bg-canvas/40 px-1.5 text-[10px] font-semibold">
+                {groupCounts[group]}
+              </span>
+            </button>
+          );
+        })}
+        <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted">
+          <input
+            type="checkbox"
+            data-testid="notifications-toggle-unread"
+            checked={showOnlyUnread}
+            onChange={(event) => setShowOnlyUnread(event.target.checked)}
+            className="size-4 rounded border-line text-accent focus:ring-accent"
+          />
+          Только непрочитанные
+        </label>
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="rounded-card border border-dashed border-line bg-canvas p-8 text-center text-sm text-muted">
           Пока нет уведомлений
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {notifications.map((notification) => {
-            const copy = getNotificationCopy(notification.type, notification.payload);
-            const isUnread = notification.readAt === undefined;
-            return (
-              <li key={notification.id}>
-                <button
-                  type="button"
-                  data-testid={`notification-item-${notification.id}`}
-                  onClick={() => {
-                    if (isUnread) void markSingleRead(notification.id);
-                  }}
-                  className={`flex w-full flex-col items-start gap-1 rounded-card border border-line px-4 py-3 text-left transition-colors hover:border-accent ${
-                    isUnread ? 'bg-panel' : 'bg-canvas'
-                  }`}
-                >
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-ink">{copy.title}</span>
-                    {isUnread ? (
-                      <span
-                        data-testid={`notification-item-unread-${notification.id}`}
-                        className="inline-block size-2 shrink-0 rounded-full bg-accent"
-                        aria-label="Непрочитанное"
-                      />
-                    ) : null}
-                  </div>
-                  {copy.description ? (
-                    <p className="text-xs text-muted">{copy.description}</p>
-                  ) : null}
-                  <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
-                    {formatFullDate(notification.createdAt)}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex flex-col gap-5">
+          {buckets.map((bucket) => (
+            <section
+              key={bucket.key}
+              data-testid={`notifications-bucket-${bucket.key}`}
+              className="flex flex-col gap-2"
+            >
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                {BUCKET_LABELS[bucket.key]}
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {bucket.items.map((notification) => {
+                  const copy = getNotificationCopy(notification.type, notification.payload);
+                  const isUnread = notification.readAt === undefined;
+                  return (
+                    <li key={notification.id}>
+                      <button
+                        type="button"
+                        data-testid={`notification-item-${notification.id}`}
+                        onClick={() => {
+                          if (isUnread) void markSingleRead(notification.id);
+                        }}
+                        className={`flex w-full flex-col items-start gap-1 rounded-card border border-line px-4 py-3 text-left transition-colors hover:border-accent ${
+                          isUnread ? 'bg-panel' : 'bg-canvas'
+                        }`}
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-ink">{copy.title}</span>
+                          {isUnread ? (
+                            <span
+                              data-testid={`notification-item-unread-${notification.id}`}
+                              className="inline-block size-2 shrink-0 rounded-full bg-accent"
+                              aria-label="Непрочитанное"
+                            />
+                          ) : null}
+                        </div>
+                        {copy.description ? (
+                          <p className="text-xs text-muted">{copy.description}</p>
+                        ) : null}
+                        <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                          {formatFullDate(notification.createdAt)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </section>
   );
