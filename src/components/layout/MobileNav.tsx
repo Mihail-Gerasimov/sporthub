@@ -57,7 +57,7 @@ const mobileNavItems = [
     ),
   },
   {
-    href: '/profile/athlete',
+    href: '/profile/athlete/dashboard',
     label: 'Профиль',
     glyph: (
       <>

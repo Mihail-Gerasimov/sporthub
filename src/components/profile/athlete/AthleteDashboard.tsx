@@ -216,6 +216,18 @@ export function AthleteDashboard({
                 ? 'Выберите клуб или тренера — после первого завершённого занятия появятся метрики и рейтинг надёжности.'
                 : `Привет, ${user.name}. Здесь сводка вашей активности на платформе.`}
             </p>
+            {/* Мета-инфо пользователя (Phase 26 Step 26.5 — перенос из удалённого монолита). */}
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+              {user.id != null ? (
+                <span
+                  data-testid="athlete-dashboard-account-id"
+                  className="font-mono text-xs"
+                >{`ID: #${user.id}`}</span>
+              ) : null}
+              <span data-testid="athlete-dashboard-city">
+                {user.city ? `г. ${user.city}` : 'не указан'}
+              </span>
+            </div>
           </div>
         </div>
 

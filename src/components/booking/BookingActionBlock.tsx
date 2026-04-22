@@ -186,7 +186,7 @@ export function BookingActionBlock({
     if (hasExistingBooking) {
       return (
         <Link
-          href="/profile/athlete"
+          href="/profile/athlete/dashboard"
           className="inline-flex min-h-12 w-full items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Перейти в ЛК

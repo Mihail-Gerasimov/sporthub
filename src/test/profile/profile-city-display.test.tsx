@@ -1,11 +1,12 @@
-// Тесты отображения города в профиле (Step 19.8)
-// Покрывают: город в ЛК спортсмена и провайдера, fallback при отсутствии города
+// Тесты отображения города в профиле. Step 19.8 изначально проверял монолиты
+// AthleteProfilePage/ProviderProfilePage — в Phase 26 Step 26.5 монолиты удалены,
+// тест переписан на AthleteDashboard/ProviderDashboard, которые теперь
+// отображают город пользователя в шапке через testid'ы.
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '@/stores/useAuthStore';
 
-/* --- Мокаем next/navigation --- */
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -19,23 +20,39 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-/* --- Импорт компонентов --- */
-import { AthleteProfilePage } from '@/components/profile/AthleteProfilePage';
-import { ProviderProfilePage } from '@/components/profile/ProviderProfilePage';
+import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
+import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
+import type { Club } from '@/types';
 
-/* --- Фикстуры --- */
 const baseUser = {
   id: 1,
-  createdAt: '2026-01-01T00:00:00.000Z',
   name: 'Тестовый Пользователь',
   email: 'test@example.com',
   phone: '+7 (999) 123-45-67',
-  role: 'athlete' as const,
-  status: 'active' as const,
-  favoriteClubIds: [],
 };
 
-describe('Город в профиле (Step 19.8)', () => {
+// Dummy-клуб чтобы ProviderDashboard не падал в empty-state и рендерил шапку с
+// мета-инфо (ID + city). Для теста city содержимое клуба неважно.
+const providerClub: Club = {
+  id: 10,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  name: 'Test Club',
+  slug: 'test-club',
+  description: 'Test',
+  sportId: 1,
+  sportIds: [1],
+  rating: 0,
+  reviewCount: 0,
+  city: 'Москва',
+  address: '',
+  coordinates: { lat: 0, lng: 0 },
+  tagIds: [],
+  amenityIds: [],
+  priceFrom: 0,
+  managedByUserId: 1,
+};
+
+describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () => {
   beforeEach(() => {
     useAuthStore.setState({
       isAuthenticated: true,
@@ -46,26 +63,23 @@ describe('Город в профиле (Step 19.8)', () => {
     });
   });
 
-  describe('ЛК спортсмена', () => {
+  describe('Dashboard спортсмена', () => {
     it('отображает город из профиля с припиской «г.»', () => {
-      render(<AthleteProfilePage />);
+      render(<AthleteDashboard />);
 
-      expect(screen.getByText('Город')).toBeInTheDocument();
-      expect(screen.getByText('г. Самара')).toBeInTheDocument();
+      expect(screen.getByTestId('athlete-dashboard-city')).toHaveTextContent('г. Самара');
     });
 
     it('показывает «не указан» если город отсутствует', () => {
-      useAuthStore.setState({
-        user: { ...baseUser, city: undefined },
-      });
+      useAuthStore.setState({ user: { ...baseUser, city: undefined } });
 
-      render(<AthleteProfilePage />);
+      render(<AthleteDashboard />);
 
-      expect(screen.getByText('не указан')).toBeInTheDocument();
+      expect(screen.getByTestId('athlete-dashboard-city')).toHaveTextContent('не указан');
     });
   });
 
-  describe('ЛК провайдера', () => {
+  describe('Dashboard провайдера', () => {
     beforeEach(() => {
       useAuthStore.setState({
         isAuthenticated: true,
@@ -77,10 +91,9 @@ describe('Город в профиле (Step 19.8)', () => {
     });
 
     it('отображает город из профиля с припиской «г.»', () => {
-      render(<ProviderProfilePage />);
+      render(<ProviderDashboard clubs={[providerClub]} />);
 
-      expect(screen.getByText('Город')).toBeInTheDocument();
-      expect(screen.getByText('г. Москва')).toBeInTheDocument();
+      expect(screen.getByTestId('provider-dashboard-city')).toHaveTextContent('г. Москва');
     });
 
     it('показывает «не указан» если город отсутствует', () => {
@@ -89,9 +102,9 @@ describe('Город в профиле (Step 19.8)', () => {
         accountType: 'provider',
       });
 
-      render(<ProviderProfilePage />);
+      render(<ProviderDashboard clubs={[providerClub]} />);
 
-      expect(screen.getByText('не указан')).toBeInTheDocument();
+      expect(screen.getByTestId('provider-dashboard-city')).toHaveTextContent('не указан');
     });
   });
 });

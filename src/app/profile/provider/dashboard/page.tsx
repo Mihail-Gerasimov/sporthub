@@ -1,7 +1,7 @@
-// Server page Dashboard провайдера (Step 25.8): параллельный маршрут с корнем
-// /profile/provider. Корневой `ProviderProfilePage` остаётся до Step 25.17 —
-// переключение на dashboard финализируется там. Тянет bookings/clubs/trainers/
-// offerings/schedule/links/notifications для client-обёртки ProviderDashboard.
+// Server page Dashboard провайдера (Step 25.8). Основной маршрут ЛК после
+// Phase 26 Step 26.5 — корневой /profile/provider теперь редиректит сюда.
+// Тянет bookings/clubs/trainers/offerings/schedule/links/notifications для
+// client-обёртки ProviderDashboard.
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
 import {
   getBookings,

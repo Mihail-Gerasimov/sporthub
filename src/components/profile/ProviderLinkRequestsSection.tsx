@@ -2,6 +2,13 @@
 // в кабинете провайдера. Виден только club-owner'у с хотя бы одним клубом.
 // Pending-запросы отображаются с кнопками «Подтвердить» / «Отклонить».
 // Confirmed-связи — с кнопкой «Отвязать».
+//
+// ВНИМАНИЕ (Phase 26 Step 26.5): компонент стал orphan — больше не
+// импортируется из продакшн-кода после удаления ProviderProfilePage.tsx.
+// Функциональность (approve/reject/revoke pending-links + invite-flow)
+// полностью покрывается подмаршрутом /profile/provider/links (ProviderLinks.tsx,
+// Step 25.12 + Step 26.4). Файл + его тест provider-link-requests-section.test.tsx
+// оставлены как готовый reference UI; их удаление возможно в следующей фазе.
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

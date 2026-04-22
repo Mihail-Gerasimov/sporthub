@@ -1,3 +1,8 @@
+// ВНИМАНИЕ (Phase 26 Step 26.5): компонент стал orphan — больше не импортируется
+// из продакшн-кода после удаления монолита AthleteProfilePage.tsx. История
+// completed-bookings доступна пользователю через /profile/athlete/schedule с
+// FSM-фильтром 'completed'. Файл оставлен как готовый reference UI для
+// возможного будущего раздела /profile/athlete/history.
 import { Badge, Card } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 

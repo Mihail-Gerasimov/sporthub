@@ -1,7 +1,7 @@
 // Тесты клиентской обёртки Athlete Reviews (Step 25.6): wrapper фильтрует reviews по
 // авторизованному athleteUserId через useAuthStore, резолвит targetName через
 // getAthleteReviewItems и рендерит новый AthleteReviewsSection. Server page тривиальный.
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -86,5 +86,61 @@ describe('AthleteReviews (Step 25.6)', () => {
 
     expect(screen.getByTestId('athlete-reviews-section')).toBeInTheDocument();
     expect(screen.getByText(/ещё не оставлял отзывы/i)).toBeInTheDocument();
+  });
+
+  // Phase 26 Step 26.5: перенос pagination-кейса из удалённого
+  // athlete-profile-page.test.tsx. AthleteReviewsSection показывает первые 3
+  // отзыва сразу, остальные — по клику «Показать все отзывы».
+  it('раскрывает и сворачивает список отзывов через кнопку «Показать все отзывы»', () => {
+    // 4 отзыва — больше лимита 3, значит кнопка должна появиться.
+    const reviews: Review[] = [
+      {
+        id: 1,
+        createdAt: '2026-02-15T12:00:00.000Z',
+        userId: 1,
+        clubId: 1,
+        rating: 5,
+        text: 'Отзыв 1',
+      },
+      {
+        id: 2,
+        createdAt: '2026-02-14T12:00:00.000Z',
+        userId: 1,
+        clubId: 1,
+        rating: 4,
+        text: 'Отзыв 2',
+      },
+      {
+        id: 3,
+        createdAt: '2026-02-13T12:00:00.000Z',
+        userId: 1,
+        clubId: 1,
+        rating: 5,
+        text: 'Отзыв 3',
+      },
+      {
+        id: 4,
+        createdAt: '2026-02-12T12:00:00.000Z',
+        userId: 1,
+        clubId: 1,
+        rating: 4,
+        text: 'Отзыв 4',
+      },
+    ];
+
+    render(<AthleteReviews clubs={clubs} trainers={trainers} reviews={reviews} />);
+
+    // По умолчанию 4-й отзыв скрыт за pagination.
+    expect(screen.queryByText('Отзыв 4')).not.toBeInTheDocument();
+
+    // Клик «Показать все отзывы» → 4-й становится видим.
+    const expandButton = screen.getByRole('button', { name: /Показать все отзывы/i });
+    fireEvent.click(expandButton);
+    expect(screen.getByText('Отзыв 4')).toBeInTheDocument();
+
+    // Клик «Скрыть отзывы» → снова скрыт.
+    const collapseButton = screen.getByRole('button', { name: /Скрыть отзывы/i });
+    fireEvent.click(collapseButton);
+    expect(screen.queryByText('Отзыв 4')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
-// Серверная страница Dashboard атлета (Step 25.3): параллельный маршрут с корневым /profile/athlete.
-// Корень пока рендерит старый AthleteProfilePage (финальная миграция — Step 25.17).
+// Серверная страница Dashboard атлета (Step 25.3). Основной маршрут ЛК после
+// Phase 26 Step 26.5 — корневой /profile/athlete теперь редиректит сюда.
 import {
   getBookings,
   getClubs,

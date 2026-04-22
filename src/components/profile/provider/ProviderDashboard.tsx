@@ -253,7 +253,7 @@ export function ProviderDashboard({
         </p>
         <div className="mt-6">
           <Link
-            href="/profile/provider"
+            href="/profile/provider/publications"
             className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-colors hover:bg-accent/90"
           >
             Перейти к публикации
@@ -278,6 +278,18 @@ export function ProviderDashboard({
             <p className="mt-3 text-sm leading-relaxed text-muted">
               Что требует внимания прямо сейчас: заявки, ссылки тренер↔клуб, окна check-in.
             </p>
+            {/* Мета-инфо пользователя (Phase 26 Step 26.5 — перенос из удалённого монолита). */}
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+              {user.id != null ? (
+                <span
+                  data-testid="provider-dashboard-account-id"
+                  className="font-mono text-xs"
+                >{`ID: #${user.id}`}</span>
+              ) : null}
+              <span data-testid="provider-dashboard-city">
+                {user.city ? `г. ${user.city}` : 'не указан'}
+              </span>
+            </div>
           </div>
         </div>
       </Card>
