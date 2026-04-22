@@ -759,6 +759,39 @@ export async function getUnreadNotificationCount(userId: EntityId): Promise<numb
   ).length;
 }
 
+/**
+ * Phase 25 Step 25.14: запись per-тип preferences уведомлений. REQUIRED-типы
+ * игнорируются (их нельзя отключить). Если пользователь не найден — throw.
+ */
+export async function setUserNotificationPreferences(
+  userId: EntityId,
+  preferences: Partial<Record<NotificationType, boolean>>,
+): Promise<User> {
+  // Импортируем здесь, чтобы разорвать круг db.ts ↔ notification-types.ts
+  const { REQUIRED_NOTIFICATION_TYPES } = await import('@/lib/notification-types');
+
+  const users = await readCollection('users');
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) {
+    throw new Error('Пользователь не найден');
+  }
+
+  // Отбрасываем required-ключи — их нельзя отключить.
+  const sanitized: Partial<Record<NotificationType, boolean>> = {};
+  for (const [key, value] of Object.entries(preferences) as Array<[NotificationType, boolean]>) {
+    if (REQUIRED_NOTIFICATION_TYPES.includes(key)) continue;
+    sanitized[key] = value;
+  }
+
+  const updated: User = {
+    ...users[index],
+    notificationPreferences: sanitized,
+  };
+  users[index] = updated;
+  await writeCollection('users', users);
+  return updated;
+}
+
 // --- Phase 24: Двусторонняя привязка тренер↔клуб ---
 
 /** Опции фильтрации при чтении списка TrainerClubLink. */

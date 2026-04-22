@@ -4,7 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getNotifications, getUnreadNotificationCount } from '@/lib/db';
+import { getNotifications, getUnreadNotificationCount, getUserById } from '@/lib/db';
+import { isNotificationTypeEnabled } from '@/lib/notification-types';
 
 // Валидация строковых параметров query; парсинг в числа/boolean — в коде ниже,
 // чтобы избежать проблем preprocess+optional при null-значениях searchParams.get().
@@ -38,14 +39,33 @@ export async function GET(request: NextRequest) {
     const limitRaw = validation.data.limit ? Number(validation.data.limit) : undefined;
     const limit = limitRaw !== undefined && limitRaw > 100 ? 100 : limitRaw;
 
-    // Два параллельных запроса: страница items и агрегат unreadCount.
-    // getUnreadNotificationCount не зависит от фильтров страницы — всегда по userId.
-    const [items, allItems, unreadCount] = await Promise.all([
+    // Phase 25 Step 25.14: Загружаем user для применения notificationPreferences.
+    // Отключённые типы не должны попадать в items и unreadCount.
+    const [rawItems, rawAllItems, user] = await Promise.all([
       getNotifications({ userId, unreadOnly, offset, limit }),
-      // Для total нужно общее число без пагинации; используем отдельный вызов без limit.
       getNotifications({ userId, unreadOnly }),
-      getUnreadNotificationCount(userId),
+      getUserById(userId),
     ]);
+
+    const items = rawItems.filter((item) => isNotificationTypeEnabled(user, item.type));
+    const allItems = rawAllItems.filter((item) => isNotificationTypeEnabled(user, item.type));
+
+    // Для unreadCount: считаем только включённые типы среди непрочитанных.
+    const unreadItems = await getNotifications({ userId, unreadOnly: true });
+    const unreadCount = unreadItems.filter((item) =>
+      isNotificationTypeEnabled(user, item.type),
+    ).length;
+    // Для обратной совместимости со старым API — если все типы включены, результат
+    // равен старому getUnreadNotificationCount. Проверяем как fallback в дев-режиме.
+    if (!user || !user.notificationPreferences) {
+      const legacyCount = await getUnreadNotificationCount(userId);
+      if (legacyCount !== unreadCount) {
+        // В этом случае логируем расхождение — помогает при отладке миграции.
+        console.warn(
+          `Notification count mismatch for userId=${userId}: legacy=${legacyCount}, new=${unreadCount}`,
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

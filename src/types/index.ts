@@ -376,6 +376,13 @@ export interface User extends BaseEntity {
    * по истечении окна).
    */
   notifiedQuarantineUntil?: ISODateTimeString;
+  /**
+   * Phase 25 Step 25.14: per-тип preferences для уведомлений. Key — NotificationType,
+   * value — включён ли. Если запись отсутствует или тип не в map — тип считается
+   * включённым по умолчанию. REQUIRED_NOTIFICATION_TYPES нельзя отключить; такие
+   * ключи игнорируются при записи.
+   */
+  notificationPreferences?: Partial<Record<NotificationType, boolean>>;
 }
 
 // --- Phase 24: Уведомления ---
