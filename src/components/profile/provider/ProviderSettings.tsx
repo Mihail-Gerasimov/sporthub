@@ -5,6 +5,7 @@
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 
 export function ProviderSettings() {
   const user = useAuthStore((s) => s.user);
@@ -16,8 +17,11 @@ export function ProviderSettings() {
   }
 
   return (
-    <div data-testid="provider-settings">
+    <div className="flex flex-col gap-5" data-testid="provider-settings">
       <ProviderSettingsSection user={user} />
+      {typeof user.id === 'number' ? (
+        <UserNotificationPreferencesEditor userId={user.id} />
+      ) : null}
     </div>
   );
 }

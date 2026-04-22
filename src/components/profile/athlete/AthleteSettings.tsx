@@ -14,6 +14,7 @@ import {
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 import type { Club, Review, Trainer } from '@/types';
 
 type AthleteSettingsProps = {
@@ -39,10 +40,15 @@ export function AthleteSettings({ clubs = [], trainers = [], reviews = [] }: Ath
   }
 
   return (
-    <AthleteFeedbackSettingsSection
-      accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
-      reviewItems={reviewItems}
-      user={user}
-    />
+    <div className="flex flex-col gap-5">
+      <AthleteFeedbackSettingsSection
+        accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
+        reviewItems={reviewItems}
+        user={user}
+      />
+      {typeof user.id === 'number' ? (
+        <UserNotificationPreferencesEditor userId={user.id} />
+      ) : null}
+    </div>
   );
 }
