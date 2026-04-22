@@ -6,7 +6,53 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Booking, Club, Offering, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@/types';
+
+// --- Фикстуры пользователей (Phase 26 Step 26.6) ---
+// Копия исходных 3 users из production-seed. Нужна для изоляции тестов от
+// расширенного production users.json (после 26.6 там 7 записей — athlete+
+// provider-stage testing). analytics.route.test.ts с `totalUsers=3` продолжает
+// работать благодаря этим fixtures.
+export const fixtureUsers: User[] = [
+  {
+    id: 1,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    role: 'athlete',
+    status: 'active',
+    name: 'Алексей Смирнов',
+    email: 'alexey@sporthub.local',
+    phone: '+7 (927) 000-10-10',
+    password: 'sporthub123',
+    avatarUrl: '/images/users/alexey-smirnov.jpg',
+    favoriteClubIds: [],
+    city: 'Самара',
+  },
+  {
+    id: 2,
+    createdAt: '2026-03-17T09:00:00.000Z',
+    role: 'club_owner',
+    status: 'active',
+    name: 'Марина Крылова',
+    email: 'marina@studio.local',
+    phone: '+7 (927) 000-20-20',
+    password: 'sporthub123',
+    avatarUrl: '/images/users/marina-krylova.jpg',
+    favoriteClubIds: [],
+    city: 'Самара',
+  },
+  {
+    id: 3,
+    createdAt: '2026-04-07T09:00:00.000Z',
+    role: 'admin',
+    status: 'active',
+    name: 'Администратор SportHub',
+    email: 'admin@sporthub.local',
+    phone: '+7 (927) 000-30-30',
+    password: 'admin-sporthub-2026',
+    avatarUrl: '/images/users/admin.jpg',
+    favoriteClubIds: [],
+  },
+];
 
 // --- Фикстуры клубов ---
 export const fixtureClub: Club = {
@@ -418,6 +464,9 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     writeFile(path.join(dataDirectory, filename), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 
   await Promise.all([
+    // Phase 26 Step 26.6: users.json пишется из fixtures, изолируя тесты от
+    // расширенного production users.json (7 записей после этого шага).
+    write('users.json', fixtureUsers),
     write('clubs.json', [fixtureClub, fixtureClub2, fixtureClub3]),
     write('trainers.json', [fixtureTrainer, fixtureTrainer3, fixtureTrainer5]),
     write('offerings.json', [fixtureClubOffering, fixtureTrainerOffering]),

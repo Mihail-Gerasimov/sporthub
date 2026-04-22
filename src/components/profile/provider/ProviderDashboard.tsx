@@ -425,7 +425,7 @@ export function ProviderDashboard({
       {/* Quick actions. */}
       <div className="flex flex-wrap gap-3" data-testid="provider-dashboard-quick-actions">
         <Link
-          href="/profile/provider"
+          href="/profile/provider/publications"
           className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-colors hover:bg-accent/90"
         >
           Опубликовать новое
