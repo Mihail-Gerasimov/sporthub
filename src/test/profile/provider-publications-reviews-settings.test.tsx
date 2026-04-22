@@ -1,9 +1,19 @@
 // Smoke-тесты client-обёрток Step 25.14-A: ProviderPublications / ProviderReviews /
 // ProviderSettings. Проверяем access-gate и базовый рендер без падений.
 import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithToast as render } from '@/test/helpers/render-with-toast';
+
+// Phase 26 Step 26.4: ProviderPublications теперь использует useRouter для router.refresh
+// после delete/edit-success — тесту нужен моковый router, иначе invariant-падение.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+  }),
+}));
 
 import { ProviderPublications } from '@/components/profile/provider/ProviderPublications';
 import { ProviderReviews } from '@/components/profile/provider/ProviderReviews';

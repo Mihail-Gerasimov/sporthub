@@ -46,9 +46,7 @@ export function AthleteSettings({ clubs = [], trainers = [], reviews = [] }: Ath
         reviewItems={reviewItems}
         user={user}
       />
-      {typeof user.id === 'number' ? (
-        <UserNotificationPreferencesEditor userId={user.id} />
-      ) : null}
+      {typeof user.id === 'number' ? <UserNotificationPreferencesEditor userId={user.id} /> : null}
     </div>
   );
 }
