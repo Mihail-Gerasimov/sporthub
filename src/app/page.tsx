@@ -8,6 +8,7 @@ import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 import {
+  getBookings,
   getClubs,
   getOfferings,
   getSchedule,
@@ -17,6 +18,7 @@ import {
   getTrainerClubLinks,
   getTrainers,
 } from '@/lib/db';
+import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
 // Отключаем статическую оптимизацию, чтобы витрина обновлялась после изменений публикаций.
@@ -33,6 +35,7 @@ export default async function Home() {
     trainerSchedule,
     trainers,
     trainerClubLinks,
+    bookings,
   ] = await Promise.all([
     getClubs(),
     getSchedule(),
@@ -43,7 +46,17 @@ export default async function Home() {
     getSchedule({ ownerType: 'trainer' }),
     getTrainers(),
     getTrainerClubLinks({ status: 'confirmed' }),
+    getBookings(),
   ]);
+
+  // Phase 25 Step 25.13: публичные reliability-бейджи. Считаем map один раз —
+  // SSR-снапшот передаётся во все карточные поверхности.
+  const reliabilityByClubId = new Map(
+    clubs.map((club) => [club.id, computeClubReliability(bookings, club.id)]),
+  );
+  const reliabilityByTrainerId = new Map(
+    trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
+  );
   const todayDateKey = getDateKeyInTimeZone();
   const upcomingSessions = getUpcomingSessions({
     clubs,
@@ -242,12 +255,16 @@ export default async function Home() {
           sports={searchFilterSports}
           tags={tags}
           trainers={trainerDirectory}
+          reliabilityByClubId={reliabilityByClubId}
+          reliabilityByTrainerId={reliabilityByTrainerId}
         />
         <PopularNearby
           clubs={clubs}
           sports={searchFilterSports}
           tags={tags}
           trainers={trainerDirectory}
+          reliabilityByClubId={reliabilityByClubId}
+          reliabilityByTrainerId={reliabilityByTrainerId}
         />
         <UpcomingSessions
           dateLabel={upcomingSessionsLabel}

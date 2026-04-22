@@ -2,8 +2,9 @@
 
 import { ClubList } from '@/components/clubs';
 import { TrainerList, type TrainerDirectoryItem } from '@/components/trainers';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport, Tag } from '@/types';
+import type { Club, EntityId, Sport, Tag } from '@/types';
 
 type CatalogResultsSectionProps = {
   clubs: Club[];
@@ -11,6 +12,9 @@ type CatalogResultsSectionProps = {
   /** Справочник тегов для резолвинга tagIds → имена в карточках клубов */
   tags: Tag[];
   trainers: TrainerDirectoryItem[];
+  /** Phase 25 Step 25.13: reliability maps для публичных бейджей. */
+  reliabilityByClubId?: Map<EntityId, ReliabilityResult>;
+  reliabilityByTrainerId?: Map<EntityId, ReliabilityResult>;
 };
 
 export function CatalogResultsSection({
@@ -18,12 +22,14 @@ export function CatalogResultsSection({
   sports,
   tags,
   trainers,
+  reliabilityByClubId,
+  reliabilityByTrainerId,
 }: CatalogResultsSectionProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
 
   return discoveryMode === 'clubs' ? (
-    <ClubList clubs={clubs} sports={sports} tags={tags} />
+    <ClubList clubs={clubs} sports={sports} tags={tags} reliabilityByClubId={reliabilityByClubId} />
   ) : (
-    <TrainerList trainers={trainers} />
+    <TrainerList trainers={trainers} reliabilityByTrainerId={reliabilityByTrainerId} />
   );
 }

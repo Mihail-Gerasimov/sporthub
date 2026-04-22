@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { appendCity, createClubPublication, getClubs, getTags, getUserById } from '@/lib/db';
+import {
+  appendCity,
+  createClubPublication,
+  getBookings,
+  getClubs,
+  getTags,
+  getUserById,
+} from '@/lib/db';
 import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
 import { logAction } from '@/lib/logAction';
+import { computeClubReliability } from '@/lib/reliability';
 import { publishClubSchema } from '@/lib/schemas/publish';
 import { resolveNames } from '@/lib/utils';
 
@@ -30,6 +38,12 @@ const clubsQuerySchema = z.object({
 
     return Number(value);
   }, z.number().min(0).max(5).optional()),
+  // Phase 25 Step 25.13: публичная симметрия reliability.
+  sort: z.enum(['reliability']).optional(),
+  dir: z.enum(['asc', 'desc']).optional(),
+  excludeDanger: z
+    .preprocess((value) => value === 'true' || value === true, z.boolean())
+    .optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -38,6 +52,9 @@ export async function GET(request: NextRequest) {
       sportId: request.nextUrl.searchParams.get('sportId'),
       search: request.nextUrl.searchParams.get('search'),
       minRating: request.nextUrl.searchParams.get('minRating'),
+      sort: request.nextUrl.searchParams.get('sort') ?? undefined,
+      dir: request.nextUrl.searchParams.get('dir') ?? undefined,
+      excludeDanger: request.nextUrl.searchParams.get('excludeDanger') ?? undefined,
     });
 
     if (!validationResult.success) {
@@ -50,7 +67,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { minRating, search, sportId } = validationResult.data;
+    const { minRating, search, sportId, sort, dir, excludeDanger } = validationResult.data;
     let clubs = await getClubs();
 
     // Скрытые публикации не показываем в публичном каталоге
@@ -82,6 +99,30 @@ export async function GET(request: NextRequest) {
 
     if (minRating !== undefined) {
       clubs = clubs.filter((club) => club.rating >= minRating);
+    }
+
+    // Phase 25 Step 25.13: reliability-фильтр и сортировка. Загружаем bookings
+    // лениво, только когда нужно.
+    if (sort === 'reliability' || excludeDanger === true) {
+      const bookings = await getBookings();
+      const reliabilityByClubId = new Map(
+        clubs.map((club) => [club.id, computeClubReliability(bookings, club.id)]),
+      );
+
+      if (excludeDanger === true) {
+        clubs = clubs.filter((club) => reliabilityByClubId.get(club.id)?.badge !== 'danger');
+      }
+
+      if (sort === 'reliability') {
+        clubs = clubs.slice().sort((left, right) => {
+          const leftRate = reliabilityByClubId.get(left.id)?.completionRate ?? 0;
+          const rightRate = reliabilityByClubId.get(right.id)?.completionRate ?? 0;
+          if (rightRate !== leftRate) {
+            return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
+          }
+          return right.rating - left.rating;
+        });
+      }
     }
 
     return NextResponse.json({

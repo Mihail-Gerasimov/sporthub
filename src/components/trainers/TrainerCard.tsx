@@ -1,21 +1,29 @@
 import Link from 'next/link';
 
-import { Badge, Card, Rating } from '@/components/ui';
+import { Badge, Card, Rating, ReliabilityBadge } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { cn, formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
+import type { ReliabilityResult } from '@/lib/reliability';
 
 type TrainerCardProps = {
   highlighted?: boolean;
   trainer: TrainerDirectoryItem;
   variant?: 'default' | 'carousel';
+  /**
+   * Phase 25 Step 25.13: публичная симметрия репутации. Если передан —
+   * рендерим компактный `ReliabilityBadge` в блоке рейтинга. Если не передан —
+   * ничего не показываем (рассчитано SSR'ом выше по дереву — см. home page).
+   */
+  reliability?: ReliabilityResult;
 };
 
 export function TrainerCard({
   highlighted = false,
   trainer,
   variant = 'default',
+  reliability,
 }: TrainerCardProps) {
   const isCarousel = variant === 'carousel';
   const previewSports = trainer.sports.slice(0, isCarousel ? 2 : 3);
@@ -128,6 +136,7 @@ export function TrainerCard({
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Rating value={trainer.rating} />
               <span className="text-sm text-muted">{trainer.reviewCount} отзывов</span>
+              {reliability ? <ReliabilityBadge reliability={reliability} compact /> : null}
             </div>
           </div>
 

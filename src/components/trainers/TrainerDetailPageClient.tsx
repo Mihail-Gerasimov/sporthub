@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Badge, Button, Card, Rating } from '@/components/ui';
+import { Badge, Button, Card, Rating, ReliabilityBadge } from '@/components/ui';
 import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
@@ -76,6 +77,11 @@ type TrainerDetailPageClientProps = {
   specialties: Specialty[];
   sports: Sport[];
   trainer: Trainer;
+  /**
+   * Phase 25 Step 25.13: рейтинг надёжности тренера (computeTrainerReliability).
+   * Если передан — рендерится секция «Надёжность» с ReliabilityBadge showDetails.
+   */
+  reliability?: ReliabilityResult;
 };
 
 /* Enriched-тип для слота расписания */
@@ -182,6 +188,7 @@ export function TrainerDetailPageClient({
   specialties,
   sports,
   trainer,
+  reliability,
 }: TrainerDetailPageClientProps) {
   const accountType = useAuthStore((state) => state.accountType);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -476,6 +483,27 @@ export function TrainerDetailPageClient({
                 >
                   Перейти к клубу
                 </Link>
+              </div>
+            </Card>
+          </section>
+        ) : null}
+
+        {/* ═══ Phase 25 Step 25.13: Надёжность ═══ */}
+        {reliability ? (
+          <section data-testid="trainer-reliability-section">
+            <Card className="p-6 sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Reliability
+                  </p>
+                  <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Надёжность</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">
+                    Рейтинг считается по фактическим записям клиентов: completed vs no_show.
+                    Помогает выбрать партнёра осознанно.
+                  </p>
+                </div>
+                <ReliabilityBadge reliability={reliability} showDetails />
               </div>
             </Card>
           </section>

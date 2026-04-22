@@ -4,12 +4,14 @@ import { z } from 'zod';
 import {
   appendCity,
   createTrainerPublication,
+  getBookings,
   getTrainerClubLinks,
   getTrainers,
   getUserById,
 } from '@/lib/db';
 import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
 import { logAction } from '@/lib/logAction';
+import { computeTrainerReliability } from '@/lib/reliability';
 import { publishTrainerSchema } from '@/lib/schemas/publish';
 
 const trainersQuerySchema = z.object({
@@ -34,6 +36,14 @@ const trainersQuerySchema = z.object({
 
     return Number(value);
   }, z.number().int().positive().optional()),
+  // Phase 25 Step 25.13: публичная симметрия reliability. Когда sort=reliability —
+  // сортируем по completionRate из computeTrainerReliability. excludeDanger скрывает
+  // тренеров с badge='danger' (серые публикации).
+  sort: z.enum(['reliability']).optional(),
+  dir: z.enum(['asc', 'desc']).optional(),
+  excludeDanger: z
+    .preprocess((value) => value === 'true' || value === true, z.boolean())
+    .optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -42,6 +52,9 @@ export async function GET(request: NextRequest) {
       affiliatedClubId: request.nextUrl.searchParams.get('affiliatedClubId'),
       clubId: request.nextUrl.searchParams.get('clubId'),
       sportId: request.nextUrl.searchParams.get('sportId'),
+      sort: request.nextUrl.searchParams.get('sort') ?? undefined,
+      dir: request.nextUrl.searchParams.get('dir') ?? undefined,
+      excludeDanger: request.nextUrl.searchParams.get('excludeDanger') ?? undefined,
     });
 
     if (!validationResult.success) {
@@ -54,7 +67,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { affiliatedClubId, clubId, sportId } = validationResult.data;
+    const { affiliatedClubId, clubId, sportId, sort, dir, excludeDanger } = validationResult.data;
     const normalizedAffiliatedClubId = affiliatedClubId ?? clubId;
     let trainers = await getTrainers();
 
@@ -74,6 +87,36 @@ export async function GET(request: NextRequest) {
 
     if (sportId !== undefined) {
       trainers = trainers.filter((trainer) => trainer.sportIds.includes(sportId));
+    }
+
+    // Phase 25 Step 25.13: reliability-фильтр и сортировка. Загружаем bookings
+    // только когда хотя бы один из этих параметров задан — иначе избегаем лишнего
+    // чтения коллекции.
+    if (sort === 'reliability' || excludeDanger === true) {
+      const bookings = await getBookings();
+      const reliabilityByTrainerId = new Map(
+        trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
+      );
+
+      if (excludeDanger === true) {
+        trainers = trainers.filter(
+          (trainer) => reliabilityByTrainerId.get(trainer.id)?.badge !== 'danger',
+        );
+      }
+
+      if (sort === 'reliability') {
+        trainers = trainers.slice().sort((left, right) => {
+          const leftRate = reliabilityByTrainerId.get(left.id)?.completionRate ?? 0;
+          const rightRate = reliabilityByTrainerId.get(right.id)?.completionRate ?? 0;
+          if (rightRate !== leftRate) {
+            // desc: чем больше rate — тем выше; asc — наоборот.
+            return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
+          }
+          return right.rating - left.rating;
+        });
+
+        return NextResponse.json({ success: true, data: trainers });
+      }
     }
 
     return NextResponse.json({

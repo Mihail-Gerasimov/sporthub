@@ -64,4 +64,55 @@ describe('ClubCard', () => {
 
     expect(screen.getByText('#999')).toBeInTheDocument();
   });
+
+  // Phase 25 Step 25.13: публичная симметрия репутации.
+  it('рендерит warning-бейдж при reliability.badge=warning', () => {
+    render(
+      <ClubCard
+        club={club}
+        sports={sports}
+        tags={tags}
+        reliability={{
+          totalRelevant: 10,
+          completedCount: 8,
+          noShowCount: 2,
+          lateCancelCount: 0,
+          rejectedByProviderCount: 0,
+          completionRate: 0.8,
+          badge: 'warning',
+          isNewUser: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('reliability-badge-warning')).toBeInTheDocument();
+  });
+
+  it('не рендерит ReliabilityBadge если reliability не передан', () => {
+    render(<ClubCard club={club} sports={sports} tags={tags} />);
+    expect(screen.queryByTestId('reliability-badge-warning')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reliability-badge-danger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reliability-badge-new')).not.toBeInTheDocument();
+  });
+
+  it('рендерит «Новый» для isNewUser=true', () => {
+    render(
+      <ClubCard
+        club={club}
+        sports={sports}
+        tags={tags}
+        reliability={{
+          totalRelevant: 1,
+          completedCount: 1,
+          noShowCount: 0,
+          lateCancelCount: 0,
+          rejectedByProviderCount: 0,
+          completionRate: 1,
+          badge: null,
+          isNewUser: true,
+        }}
+      />,
+    );
+    expect(screen.getByTestId('reliability-badge-new')).toBeInTheDocument();
+  });
 });

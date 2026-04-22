@@ -5,8 +5,9 @@ import { useRef } from 'react';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { PopularTrainers } from '@/components/trainers';
 import { Badge, Button, Card } from '@/components/ui';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport, Tag } from '@/types';
+import type { Club, EntityId, Sport, Tag } from '@/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers';
 
@@ -18,6 +19,10 @@ type PopularNearbyProps = {
   /** Справочник тегов для резолвинга tagIds → имена в карточках */
   tags?: Tag[];
   trainers: TrainerDirectoryItem[];
+  /** Phase 25 Step 25.13: map id→reliability для клубов. */
+  reliabilityByClubId?: Map<EntityId, ReliabilityResult>;
+  /** Phase 25 Step 25.13: map id→reliability для тренеров. */
+  reliabilityByTrainerId?: Map<EntityId, ReliabilityResult>;
 };
 
 const POPULAR_NEARBY_SCROLL_STEP = 360;
@@ -36,13 +41,20 @@ function sortByPopularity(clubs: Club[]): Club[] {
   });
 }
 
-export function PopularNearby({ clubs, sports, tags = [], trainers }: PopularNearbyProps) {
+export function PopularNearby({
+  clubs,
+  sports,
+  tags = [],
+  trainers,
+  reliabilityByClubId,
+  reliabilityByTrainerId,
+}: PopularNearbyProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
   const popularClubs = sortByPopularity(clubs).slice(0, 6);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   if (discoveryMode === 'trainers') {
-    return <PopularTrainers trainers={trainers} />;
+    return <PopularTrainers trainers={trainers} reliabilityByTrainerId={reliabilityByTrainerId} />;
   }
 
   function scrollCarousel(direction: 'left' | 'right') {
@@ -118,7 +130,13 @@ export function PopularNearby({ clubs, sports, tags = [], trainers }: PopularNea
                     key={club.id}
                     className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
                   >
-                    <ClubCard club={club} sports={sports} tags={tags} variant="carousel" />
+                    <ClubCard
+                      club={club}
+                      sports={sports}
+                      tags={tags}
+                      variant="carousel"
+                      reliability={reliabilityByClubId?.get(club.id)}
+                    />
                   </div>
                 ))}
               </div>

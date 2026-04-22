@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { GET as GETTrainerDetail, PATCH } from '@/app/api/trainers/[id]/route';
 import { GET as GETTrainers, POST } from '@/app/api/trainers/route';
 import { getOfferings, getSchedule, getTrainers } from '@/lib/db';
+import type { Booking } from '@/types';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -542,5 +546,112 @@ describe('Trainers API', () => {
     expect(response.status).toBe(403);
     expect(body.success).toBe(false);
     expect(body.error).toMatch(/Недостаточно прав/i);
+  });
+
+  // Phase 25 Step 25.13: публичная симметрия reliability в каталоге тренеров.
+  describe('Step 25.13: sort=reliability & excludeDanger', () => {
+    function makeBookings(
+      list: Array<Partial<Booking> & Pick<Booking, 'id' | 'status'>>,
+    ): Booking[] {
+      return list.map(
+        (overrides) =>
+          ({
+            createdAt: '2026-04-15T09:00:00.000Z',
+            scheduleId: 1,
+            userId: 1,
+            sportId: 3,
+            date: '2026-04-15',
+            paymentStatus: 'paid',
+            totalPrice: 1000,
+            ownerType: 'trainer',
+            ownerId: overrides.trainerId ?? 1,
+            ...overrides,
+          }) as Booking,
+      );
+    }
+
+    async function writeBookings(list: Booking[]) {
+      await writeFile(
+        path.join(dataDirectory, 'bookings.json'),
+        `${JSON.stringify(list, null, 2)}\n`,
+        'utf8',
+      );
+    }
+
+    it('sort=reliability&dir=desc: тренеры с высоким completion впереди', async () => {
+      // Для провайдера completionRate = held/total, где held=completed+no_show.
+      // Чтобы получить danger — нужны cancelled_by_provider (провайдер сорвал слот).
+      // trainer 1: 10 completed → held=10/10=1.0 (высший).
+      // trainer 3: 5 completed + 5 cancelled_by_provider → held=5/10=0.5 → danger.
+      const bookings = makeBookings([
+        ...Array.from({ length: 10 }, (_, i) => ({
+          id: 100 + i,
+          status: 'completed' as const,
+          trainerId: 1,
+          ownerId: 1,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 200 + i,
+          status: 'completed' as const,
+          trainerId: 3,
+          ownerId: 3,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 300 + i,
+          status: 'cancelled_by_provider' as const,
+          trainerId: 3,
+          ownerId: 3,
+        })),
+      ]);
+      await writeBookings(bookings);
+
+      const response = await GETTrainers(
+        new NextRequest('http://localhost:3000/api/trainers?sort=reliability&dir=desc'),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      const ids = body.data.map((t: { id: number }) => t.id);
+      // trainer 1 (rate=1.0) выше trainer 3 (rate=0.5).
+      expect(ids.indexOf(1)).toBeLessThan(ids.indexOf(3));
+    });
+
+    it('excludeDanger=true отсекает тренеров с danger-бейджем', async () => {
+      // trainer 3 становится danger через cancelled_by_provider (провайдер сорвал).
+      const bookings = makeBookings([
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 200 + i,
+          status: 'completed' as const,
+          trainerId: 3,
+          ownerId: 3,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 300 + i,
+          status: 'cancelled_by_provider' as const,
+          trainerId: 3,
+          ownerId: 3,
+        })),
+      ]);
+      await writeBookings(bookings);
+
+      const response = await GETTrainers(
+        new NextRequest('http://localhost:3000/api/trainers?excludeDanger=true'),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      const ids = body.data.map((t: { id: number }) => t.id);
+      expect(ids).not.toContain(3);
+    });
+
+    it('без sort и excludeDanger — старое поведение (сортировка по rating)', async () => {
+      const response = await GETTrainers(new NextRequest('http://localhost:3000/api/trainers'));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      // Фикстурные тренеры отсортированы по rating desc.
+      expect(body.data[0].rating).toBeGreaterThanOrEqual(body.data[body.data.length - 1].rating);
+    });
   });
 });

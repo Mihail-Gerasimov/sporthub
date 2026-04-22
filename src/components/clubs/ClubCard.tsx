@@ -1,8 +1,9 @@
 import Link from 'next/link';
 
-import { Badge, Card, Rating } from '@/components/ui';
+import { Badge, Card, Rating, ReliabilityBadge } from '@/components/ui';
 import { buildDictMap, cn, formatCityDisplay, formatPrice } from '@/lib/utils';
 import type { Club, Sport, Tag } from '@/types';
+import type { ReliabilityResult } from '@/lib/reliability';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
@@ -13,6 +14,11 @@ type ClubCardProps = {
   tags?: Tag[];
   highlighted?: boolean;
   variant?: 'default' | 'carousel';
+  /**
+   * Phase 25 Step 25.13: публичная симметрия репутации. Если передан —
+   * рендерим компактный `ReliabilityBadge` рядом с Rating.
+   */
+  reliability?: ReliabilityResult;
 };
 
 function getCoverPalette(clubId: number): string {
@@ -32,6 +38,7 @@ export function ClubCard({
   sports,
   tags = [],
   variant = 'default',
+  reliability,
 }: ClubCardProps) {
   const isCarousel = variant === 'carousel';
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
@@ -121,6 +128,7 @@ export function ClubCard({
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Rating value={club.rating} />
               <span className="text-sm text-muted">{club.reviewCount} отзывов</span>
+              {reliability ? <ReliabilityBadge reliability={reliability} compact /> : null}
             </div>
           </div>
 

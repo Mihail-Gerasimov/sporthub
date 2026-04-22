@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Badge, Button, Card, Rating } from '@/components/ui';
+import { Badge, Button, Card, Rating, ReliabilityBadge } from '@/components/ui';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
@@ -24,6 +25,11 @@ type ClubDetailPageClientProps = {
   sports: Sport[];
   tags: Tag[];
   trainers: Trainer[];
+  /**
+   * Phase 25 Step 25.13: рейтинг надёжности клуба (computeClubReliability).
+   * Если передан — рендерится секция «Надёжность» с ReliabilityBadge showDetails.
+   */
+  reliability?: ReliabilityResult;
 };
 
 type ReviewFormState = {
@@ -159,6 +165,7 @@ export function ClubDetailPageClient({
   sports,
   tags,
   trainers,
+  reliability,
 }: ClubDetailPageClientProps) {
   const accountType = useAuthStore((state) => state.accountType);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -382,6 +389,27 @@ export function ClubDetailPageClient({
             )}
           </Card>
         </section>
+
+        {/* Phase 25 Step 25.13: Надёжность клуба */}
+        {reliability ? (
+          <section data-testid="club-reliability-section">
+            <Card className="p-6 sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+                    Reliability
+                  </p>
+                  <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Надёжность</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">
+                    Рейтинг считается по фактическим записям: completed vs no_show. Помогает атлетам
+                    выбрать клуб осознанно.
+                  </p>
+                </div>
+                <ReliabilityBadge reliability={reliability} showDetails />
+              </div>
+            </Card>
+          </section>
+        ) : null}
 
         <section data-testid="club-directions-section">
           <div className="flex flex-wrap items-center justify-between gap-3">

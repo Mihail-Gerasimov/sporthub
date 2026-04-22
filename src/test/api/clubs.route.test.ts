@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { GET as GETClubDetail, PATCH } from '@/app/api/clubs/[id]/route';
 import { GET, POST } from '@/app/api/clubs/route';
 import { getClubs, getOfferings, getSchedule } from '@/lib/db';
+import type { Booking } from '@/types';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -110,6 +114,107 @@ describe('GET /api/clubs', () => {
       id: 3,
       slug: 'balance-yoga-house',
       city: 'Самара',
+    });
+  });
+
+  // Phase 25 Step 25.13: публичная симметрия reliability.
+  describe('Step 25.13: sort=reliability & excludeDanger', () => {
+    function makeClubBookings(
+      list: Array<Partial<Booking> & Pick<Booking, 'id' | 'status' | 'clubId'>>,
+    ): Booking[] {
+      return list.map(
+        (overrides) =>
+          ({
+            createdAt: '2026-04-15T09:00:00.000Z',
+            scheduleId: 1,
+            userId: 1,
+            sportId: 3,
+            date: '2026-04-15',
+            paymentStatus: 'paid',
+            totalPrice: 1000,
+            ownerType: 'club' as const,
+            ownerId: overrides.clubId!,
+            ...overrides,
+          }) as Booking,
+      );
+    }
+
+    async function writeBookings(list: Booking[]) {
+      await writeFile(
+        path.join(dataDirectory, 'bookings.json'),
+        `${JSON.stringify(list, null, 2)}\n`,
+        'utf8',
+      );
+    }
+
+    it('sort=reliability&dir=desc: клуб с высоким completion впереди', async () => {
+      // Для провайдера held=completed+no_show. Чтобы получить danger — нужен
+      // cancelled_by_provider (клуб/провайдер сам отменил).
+      // Club 1: 10 completed → rate=1.0.
+      // Club 2: 5 completed + 5 cancelled_by_provider → rate=0.5 → danger.
+      const bookings = makeClubBookings([
+        ...Array.from({ length: 10 }, (_, i) => ({
+          id: 100 + i,
+          status: 'completed' as const,
+          clubId: 1,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 200 + i,
+          status: 'completed' as const,
+          clubId: 2,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 300 + i,
+          status: 'cancelled_by_provider' as const,
+          clubId: 2,
+        })),
+      ]);
+      await writeBookings(bookings);
+
+      const response = await GET(
+        new NextRequest('http://localhost:3000/api/clubs?sort=reliability&dir=desc'),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      const ids = body.data.map((c: { id: number }) => c.id);
+      expect(ids.indexOf(1)).toBeLessThan(ids.indexOf(2));
+    });
+
+    it('excludeDanger=true отсекает клубы с danger-бейджем', async () => {
+      // Club 2 становится danger через cancelled_by_provider.
+      const bookings = makeClubBookings([
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 200 + i,
+          status: 'completed' as const,
+          clubId: 2,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: 300 + i,
+          status: 'cancelled_by_provider' as const,
+          clubId: 2,
+        })),
+      ]);
+      await writeBookings(bookings);
+
+      const response = await GET(
+        new NextRequest('http://localhost:3000/api/clubs?excludeDanger=true'),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      const ids = body.data.map((c: { id: number }) => c.id);
+      expect(ids).not.toContain(2);
+    });
+
+    it('без sort и excludeDanger — возвращает все 3 фикстурных клуба в исходном порядке', async () => {
+      // API /clubs в дефолтной ветке не сортирует по rating (в отличие от trainers).
+      // Просто убеждаемся, что reliability-фильтрация не искажает дефолт.
+      const response = await GET(new NextRequest('http://localhost:3000/api/clubs'));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data).toHaveLength(3);
     });
   });
 });

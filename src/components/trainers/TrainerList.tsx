@@ -3,6 +3,7 @@
 import { Badge, Card } from '@/components/ui';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
 import type { EntityId } from '@/types';
 
@@ -12,12 +13,15 @@ type TrainerListProps = {
   embedded?: boolean;
   selectedTrainerId?: EntityId | null;
   trainers: TrainerDirectoryItem[];
+  /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
+  reliabilityByTrainerId?: Map<EntityId, ReliabilityResult>;
 };
 
 export function TrainerList({
   embedded = false,
   selectedTrainerId = null,
   trainers,
+  reliabilityByTrainerId,
 }: TrainerListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
@@ -38,6 +42,7 @@ export function TrainerList({
             key={trainer.id}
             highlighted={selectedTrainerId === trainer.id}
             trainer={trainer}
+            reliability={reliabilityByTrainerId?.get(trainer.id)}
           />
         ))}
       </div>

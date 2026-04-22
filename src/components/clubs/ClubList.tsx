@@ -5,6 +5,7 @@ import type { Club, EntityId, Tag } from '@/types';
 import { Badge, Card } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
+import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 type ClubListProps = {
@@ -14,6 +15,8 @@ type ClubListProps = {
   tags?: Tag[];
   selectedClubId?: EntityId | null;
   embedded?: boolean;
+  /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
+  reliabilityByClubId?: Map<EntityId, ReliabilityResult>;
 };
 
 export function ClubList({
@@ -22,6 +25,7 @@ export function ClubList({
   selectedClubId = null,
   sports,
   tags = [],
+  reliabilityByClubId,
 }: ClubListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
@@ -46,6 +50,7 @@ export function ClubList({
             highlighted={selectedClubId === club.id}
             sports={sports}
             tags={tags}
+            reliability={reliabilityByClubId?.get(club.id)}
           />
         ))}
       </div>

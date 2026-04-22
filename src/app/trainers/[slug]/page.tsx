@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
+  getBookings,
   getClubById,
   getOfferings,
   getReviews,
@@ -14,6 +15,7 @@ import {
   getTrainerClubLinks,
   getUsers,
 } from '@/lib/db';
+import { computeTrainerReliability } from '@/lib/reliability';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -43,14 +45,18 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   }
 
   /* Параллельная загрузка всех связанных данных */
-  const [offerings, specialties, sports, schedule, reviews, users] = await Promise.all([
+  const [offerings, specialties, sports, schedule, reviews, users, bookings] = await Promise.all([
     getOfferings(),
     getSpecialties(),
     getSports(),
     getSchedule({ ownerType: 'all' }),
     getReviews(),
     getUsers(),
+    getBookings(),
   ]);
+
+  // Phase 25 Step 25.13: публичная симметрия reliability.
+  const reliability = computeTrainerReliability(bookings, trainer.id);
 
   /* Услуги тренера */
   const trainerOfferings = offerings
@@ -103,6 +109,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
       specialties={specialties}
       sports={trainerSports}
       trainer={trainer}
+      reliability={reliability}
     />
   );
 }

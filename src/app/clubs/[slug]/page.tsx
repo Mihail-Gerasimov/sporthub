@@ -5,6 +5,7 @@ import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
   getAmenities,
+  getBookings,
   getClubBySlug,
   getOfferings,
   getReviews,
@@ -16,6 +17,7 @@ import {
   getTrainers,
   getUsers,
 } from '@/lib/db';
+import { computeClubReliability } from '@/lib/reliability';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -44,18 +46,32 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
-  const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews, users] =
-    await Promise.all([
-      getAmenities(),
-      getOfferings(),
-      getSpecialties(),
-      getSports(),
-      getTags(),
-      getTrainers(),
-      getSchedule(),
-      getReviews(),
-      getUsers(),
-    ]);
+  const [
+    amenities,
+    offerings,
+    specialties,
+    sports,
+    tags,
+    trainers,
+    schedule,
+    reviews,
+    users,
+    bookings,
+  ] = await Promise.all([
+    getAmenities(),
+    getOfferings(),
+    getSpecialties(),
+    getSports(),
+    getTags(),
+    getTrainers(),
+    getSchedule(),
+    getReviews(),
+    getUsers(),
+    getBookings(),
+  ]);
+
+  // Phase 25 Step 25.13: публичная симметрия reliability.
+  const reliability = computeClubReliability(bookings, club.id);
 
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   // Phase 24 Step 24.9c: публичный список тренеров клуба — ТОЛЬКО через confirmed links.
@@ -91,6 +107,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
       sports={clubSports}
       tags={tags}
       trainers={clubTrainers}
+      reliability={reliability}
     />
   );
 }
