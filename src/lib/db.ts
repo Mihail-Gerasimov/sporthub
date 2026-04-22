@@ -24,6 +24,7 @@ import type {
   Notification,
   NotificationType,
   Offering,
+  ProviderClientNote,
   Review,
   Schedule,
   Specialty,
@@ -46,6 +47,7 @@ type DataCollectionMap = {
   logs: LogEntry[];
   notifications: Notification[];
   offerings: Offering[];
+  providerClientNotes: ProviderClientNote[];
   reviews: Review[];
   schedule: Schedule[];
   specialties: Specialty[];
@@ -219,6 +221,7 @@ const DATA_FILES: { [Key in keyof DataCollectionMap]: string } = {
   logs: 'logs.json',
   notifications: 'notifications.json',
   offerings: 'offerings.json',
+  providerClientNotes: 'provider-client-notes.json',
   reviews: 'reviews.json',
   schedule: 'schedule.json',
   specialties: 'specialties.json',
@@ -872,6 +875,109 @@ export async function detachOfferingsFromLink(linkId: EntityId): Promise<number>
   }
 
   return updatedCount;
+}
+
+// --- Phase 25 Step 25.10: CRM-заметки провайдера ---
+
+/** Опции фильтрации заметок провайдера. */
+export type GetProviderClientNotesOptions = {
+  providerUserId: EntityId;
+  clientUserId?: EntityId;
+};
+
+/**
+ * Чтение заметок провайдера. Всегда требует providerUserId (чужие заметки
+ * не отдаём). Сортировка — по createdAt DESC (самые свежие сверху).
+ * Опциональный clientUserId сужает выборку до одного клиента.
+ */
+export async function getProviderClientNotes(
+  options: GetProviderClientNotesOptions,
+): Promise<ProviderClientNote[]> {
+  const all = await readCollection('providerClientNotes');
+
+  let filtered = all.filter((note) => note.providerUserId === options.providerUserId);
+
+  if (options.clientUserId !== undefined) {
+    filtered = filtered.filter((note) => note.clientUserId === options.clientUserId);
+  }
+
+  return filtered.slice().sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+/** Точечное чтение одной заметки по id — для ownership-guard'ов в PATCH/DELETE. */
+export async function getProviderClientNoteById(id: EntityId): Promise<ProviderClientNote | null> {
+  const notes = await readCollection('providerClientNotes');
+  return notes.find((note) => note.id === id) ?? null;
+}
+
+/**
+ * Создание новой заметки провайдера. id/createdAt/updatedAt проставляются сервером
+ * (updatedAt при создании === createdAt). Никакой guard-логики здесь нет — вызывающий
+ * API-эндпоинт обязан сам проверить `isClientOfProvider`.
+ */
+export async function createProviderClientNote(
+  data: Omit<ProviderClientNote, 'id' | 'createdAt' | 'updatedAt'>,
+): Promise<ProviderClientNote> {
+  const notes = await readCollection('providerClientNotes');
+  const now = createTimestamp();
+
+  const note: ProviderClientNote = {
+    id: getNextEntityId(notes),
+    createdAt: now,
+    updatedAt: now,
+    ...data,
+  };
+
+  notes.push(note);
+  await writeCollection('providerClientNotes', notes);
+
+  return note;
+}
+
+/**
+ * Обновление заметки (note + bookingId). Пересчитывает updatedAt. providerUserId,
+ * clientUserId, id, createdAt не меняются. Если bookingId явно передан — пишем
+ * новое значение (включая undefined для сброса привязки). Если поле отсутствует
+ * в patch — оставляем как было.
+ */
+export async function updateProviderClientNote(
+  id: EntityId,
+  patch: { note?: string; bookingId?: EntityId },
+): Promise<ProviderClientNote> {
+  const notes = await readCollection('providerClientNotes');
+  const index = notes.findIndex((note) => note.id === id);
+
+  if (index === -1) {
+    throw new Error('Заметка провайдера не найдена');
+  }
+
+  const current = notes[index];
+  const updated: ProviderClientNote = {
+    ...current,
+    note: patch.note ?? current.note,
+    bookingId: 'bookingId' in patch ? patch.bookingId : current.bookingId,
+    updatedAt: createTimestamp(),
+  };
+
+  notes[index] = updated;
+  await writeCollection('providerClientNotes', notes);
+
+  return updated;
+}
+
+/**
+ * Полное удаление заметки. Вызывается только из DELETE-эндпоинта после ownership-guard.
+ * Если заметка уже удалена — no-op (не бросаем).
+ */
+export async function deleteProviderClientNote(id: EntityId): Promise<void> {
+  const notes = await readCollection('providerClientNotes');
+  const next = notes.filter((note) => note.id !== id);
+
+  if (next.length === notes.length) {
+    return;
+  }
+
+  await writeCollection('providerClientNotes', next);
 }
 
 export async function getReviews(): Promise<Review[]> {

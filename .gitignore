@@ -59,6 +59,7 @@ src/data/clubs.json
 src/data/logs.json
 src/data/notifications.json
 src/data/offerings.json
+src/data/provider-client-notes.json
 src/data/reviews.json
 src/data/schedule.json
 src/data/specialties.json

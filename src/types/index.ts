@@ -446,3 +446,20 @@ export interface TrainerClubLink extends BaseEntity {
   revokedByUserId?: EntityId;
   revokedBy?: 'trainer' | 'club' | 'admin';
 }
+
+// --- Phase 25 Step 25.10: CRM-заметки провайдера ---
+
+/**
+ * Заметка провайдера про своего клиента. Привязка — к паре (providerUserId, clientUserId).
+ * Опциональный `bookingId` позволяет пометить заметку как относящуюся к конкретной записи.
+ * Ownership: только владелец-provider (или админ) может редактировать/удалять.
+ * Guard при создании: clientUserId должен быть клиентом провайдера — т.е. иметь хоть один
+ * booking, чей ownerId принадлежит managed-клубам или тренерам провайдера (`isClientOfProvider`).
+ */
+export interface ProviderClientNote extends BaseEntity {
+  providerUserId: EntityId;
+  clientUserId: EntityId;
+  note: string;
+  bookingId?: EntityId;
+  updatedAt: ISODateTimeString;
+}
