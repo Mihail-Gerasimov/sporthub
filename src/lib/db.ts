@@ -1257,7 +1257,9 @@ async function dispatchTransitionNotifications(
       });
       return;
     case 'cancelled_by_athlete':
-      // TODO Step 24.8: notify провайдеру через slot-context / link-данные.
+      // Провайдер узнаёт об отмене через bell-icon polling (видит изменение в своём
+      // списке bookings). Прямой notify провайдеру — post-MVP, когда понадобятся
+      // push/SMS/email-каналы.
       await notify(athleteId, 'booking_cancelled_by_athlete', {
         bookingId: booking.id,
         cancelReason: booking.cancelReason,
