@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Offering, Trainer, User } from '@/types';
+import type { Booking, Club, Offering, Review, Trainer, User } from '@/types';
 
 const NOW = new Date('2026-04-22T12:00:00.000Z');
 
@@ -193,6 +193,39 @@ describe('ProviderDashboard (Step 25.8)', () => {
     expect(within(breakdown).getByText('Бокс')).toBeInTheDocument();
     // Активная запись на offering 101 → счётчик «1 активных» виден хотя бы раз.
     expect(within(breakdown).getByText(/1 активных/i)).toBeInTheDocument();
+  });
+
+  it('Phase 26 Step 26.9: KPI «Рейтинг» — средний балл reviews на managed-club, ссылка на /reviews', () => {
+    authenticateProvider();
+
+    const club = makeClub({ id: 1 });
+    const reviews: Review[] = [
+      {
+        id: 101,
+        createdAt: '2026-04-20T09:00:00.000Z',
+        userId: 11,
+        clubId: club.id,
+        rating: 5,
+        text: 'топ',
+      },
+      {
+        id: 102,
+        createdAt: '2026-04-20T10:00:00.000Z',
+        userId: 12,
+        clubId: club.id,
+        rating: 4,
+        text: 'ок',
+      },
+    ];
+
+    render(<ProviderDashboard clubs={[club]} trainers={[]} reviews={reviews} />);
+
+    const card = screen.getByTestId('provider-dashboard-rating');
+    expect(card).toHaveTextContent('4.5');
+    expect(card).toHaveTextContent(/Рейтинг/i);
+
+    const link = screen.getByTestId('provider-dashboard-rating-link');
+    expect(link).toHaveAttribute('href', '/profile/provider/reviews');
   });
 
   it('link навигация: pending-bookings KPI-карточка оборачивается в Link на /profile/provider/bookings', () => {

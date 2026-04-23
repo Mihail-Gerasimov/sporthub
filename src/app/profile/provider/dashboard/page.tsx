@@ -8,6 +8,7 @@ import {
   getClubs,
   getNotifications,
   getOfferings,
+  getReviews,
   getSchedule,
   getTrainerClubLinks,
   getTrainers,
@@ -19,15 +20,17 @@ export const dynamic = 'force-dynamic';
 export default async function ProviderDashboardRoute() {
   await runLazyBookingTransitions();
 
-  const [bookings, clubs, trainers, offerings, schedule, links, notifications] = await Promise.all([
-    getBookings(),
-    getClubs(),
-    getTrainers(),
-    getOfferings(),
-    getSchedule({ ownerType: 'all' }),
-    getTrainerClubLinks(),
-    getNotifications(),
-  ]);
+  const [bookings, clubs, trainers, offerings, schedule, links, notifications, reviews] =
+    await Promise.all([
+      getBookings(),
+      getClubs(),
+      getTrainers(),
+      getOfferings(),
+      getSchedule({ ownerType: 'all' }),
+      getTrainerClubLinks(),
+      getNotifications(),
+      getReviews(),
+    ]);
 
   return (
     <ProviderDashboard
@@ -38,6 +41,7 @@ export default async function ProviderDashboardRoute() {
       schedule={schedule}
       links={links}
       notifications={notifications}
+      reviews={reviews}
     />
   );
 }

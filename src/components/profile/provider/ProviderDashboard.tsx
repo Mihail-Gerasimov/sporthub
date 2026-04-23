@@ -7,7 +7,11 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 
-import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
+import {
+  getProviderClubs,
+  getProviderReviews,
+  getProviderTrainers,
+} from '@/components/profile/provider-helpers';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
@@ -21,6 +25,7 @@ import type {
   EntityId,
   Notification,
   Offering,
+  Review,
   Schedule,
   Trainer,
   TrainerClubLink,
@@ -34,6 +39,8 @@ type ProviderDashboardProps = {
   schedule?: Schedule[];
   links?: TrainerClubLink[];
   notifications?: Notification[];
+  /** Phase 26 Step 26.9: отзывы для KPI «Рейтинг». */
+  reviews?: Review[];
 };
 
 const APPROACHING_CHECKIN_WINDOW_MS = 6 * 60 * 60 * 1000;
@@ -113,6 +120,7 @@ export function ProviderDashboard({
   schedule = [],
   links = [],
   notifications = [],
+  reviews = [],
 }: ProviderDashboardProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
@@ -178,6 +186,23 @@ export function ProviderDashboard({
     [links, trainerIdSet],
   );
   const totalPendingLinks = pendingLinksForClubs.length + pendingLinksForTrainers.length;
+
+  // Phase 26 Step 26.9: отзывы на managed-сущности и средний рейтинг для KPI.
+  const providerReviews = useMemo(
+    () =>
+      getProviderReviews(
+        reviews,
+        providerClubs.map((c) => c.id),
+        providerTrainers.map((t) => t.id),
+      ),
+    [reviews, providerClubs, providerTrainers],
+  );
+
+  const averageRating = useMemo(() => {
+    if (providerReviews.length === 0) return 0;
+    const sum = providerReviews.reduce((acc, r) => acc + r.rating, 0);
+    return Math.round((sum / providerReviews.length) * 10) / 10;
+  }, [providerReviews]);
 
   // Непрочитанные уведомления провайдера.
   const unreadCount = useMemo(
@@ -296,7 +321,7 @@ export function ProviderDashboard({
 
       {/* KPI + attention-блоки. */}
       <section
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
         data-testid="provider-dashboard-kpi"
       >
         <KpiCard
@@ -326,6 +351,13 @@ export function ProviderDashboard({
           value={unreadCount}
           caption="Новых уведомлений"
           href="/profile/provider/notifications"
+        />
+        <KpiCard
+          testid="provider-dashboard-rating"
+          label="Рейтинг"
+          value={averageRating}
+          caption="Средний балл отзывов"
+          href="/profile/provider/reviews"
         />
       </section>
 
