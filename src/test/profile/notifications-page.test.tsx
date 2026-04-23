@@ -78,9 +78,23 @@ describe('NotificationsListPage', () => {
       );
     });
 
+    // Post-fix: тело запроса должно содержать { userId } — иначе endpoint отвечает 500
+    // на JSON.parse пустого тела + strict Zod-схема с required userId.
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({ userId: 1 });
+
     await waitFor(() => {
       expect(screen.queryByTestId('notification-item-unread-1')).not.toBeInTheDocument();
     });
+  });
+
+  it('клик по уведомлению без userId (гость) не шлёт fetch', () => {
+    render(<NotificationsListPage notifications={seed} accountType="athlete" />);
+
+    fireEvent.click(screen.getByTestId('notification-item-1'));
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('«Отметить всё как прочитанное» шлёт POST read-all и сбрасывает индикаторы', async () => {

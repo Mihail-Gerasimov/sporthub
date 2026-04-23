@@ -170,9 +170,17 @@ export function NotificationsListPage({
   const markSingleRead = useCallback(
     async (id: number) => {
       if (pendingId !== null) return;
+      // Без userId fetch не имеет смысла — endpoint валидирует ownership через { userId }
+      // в теле и strict Zod-схему, пустой body сразу даст 500/400 и грустный toast.
+      // Это же защищает гостевой рендер (когда cookie не установлен).
+      if (userId === undefined) return;
       setPendingId(id);
       try {
-        const response = await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+        const response = await fetch(`/api/notifications/${id}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
         if (!response.ok) {
           addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
           return;
@@ -188,7 +196,7 @@ export function NotificationsListPage({
         setPendingId(null);
       }
     },
-    [pendingId, addToast],
+    [pendingId, addToast, userId],
   );
 
   const markAllRead = useCallback(async () => {
