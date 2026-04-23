@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createBookingAtomic,
   getBookings,
+  getNotifications,
   getSchedule,
   runLazyBookingTransitions,
   transitionBooking,
@@ -159,6 +160,25 @@ describe('runLazyBookingTransitions — Phase 24', () => {
 
     const bookings = await getBookings();
     expect(bookings.find((b) => b.id === booking.id)?.status).toBe('completed');
+  });
+
+  // Phase 26 hotfix: auto-expire уведомляет и атлета, и провайдера (а не только атлета).
+  it('авто-expire pending создаёт уведомления и атлету, и провайдеру', async () => {
+    const booking = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
+    const now = new Date('2026-03-20T07:45:00');
+
+    await runLazyBookingTransitions(now);
+
+    const athleteNotes = await getNotifications({ userId: 1 });
+    const providerNotes = await getNotifications({ userId: 2 });
+
+    expect(athleteNotes.some((n) => n.type === 'booking_auto_expired')).toBe(true);
+    expect(providerNotes.some((n) => n.type === 'booking_auto_expired_to_provider')).toBe(true);
+    const providerNote = providerNotes.find((n) => n.type === 'booking_auto_expired_to_provider');
+    expect(providerNote?.payload).toMatchObject({
+      bookingId: booking.id,
+      athleteUserId: 1,
+    });
   });
 
   it('обрабатывает смешанный набор: pending к авто-cancel + confirmed к unmark за один проход', async () => {

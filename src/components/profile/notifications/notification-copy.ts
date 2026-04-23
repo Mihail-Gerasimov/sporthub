@@ -50,6 +50,19 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
     title: 'Запись отменена автоматически',
     description: 'Провайдер не успел подтвердить слот вовремя.',
   }),
+  // --- booking FSM — уведомления провайдеру (Phase 26 hotfix) ---
+  booking_requested: () => ({
+    title: 'Новая запись на ваш слот',
+    description: 'Спортсмен записался на тренировку и ждёт подтверждения.',
+  }),
+  booking_cancelled_by_athlete_to_provider: () => ({
+    title: 'Клиент отменил запись',
+    description: 'Слот снова доступен для записи другими спортсменами.',
+  }),
+  booking_auto_expired_to_provider: () => ({
+    title: 'Запись авто-отменена',
+    description: 'Вы не успели подтвердить слот за час до начала — запись снята автоматически.',
+  }),
   // --- trainer↔club link ---
   link_requested: () => ({
     title: 'Новый запрос от тренера',

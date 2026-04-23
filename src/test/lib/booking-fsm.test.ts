@@ -9,6 +9,7 @@ import {
   __setWriteCollectionTestHookForTests,
   createBookingAtomic,
   getBookings,
+  getNotifications,
   getSchedule,
   transitionBooking,
 } from '@/lib/db';
@@ -252,6 +253,53 @@ describe('booking FSM — Phase 24', () => {
 
       expect(updated.cancelledBy).toBe('provider');
       expect(updated.statusHistory?.[1].reason).toBe('Тренер занят');
+    });
+  });
+
+  // Phase 26 hotfix: симметричные уведомления провайдеру на booking-события.
+  describe('dispatchTransitionNotifications (Phase 26 hotfix)', () => {
+    it('cancelled_by_athlete: создаёт уведомления и атлету, и провайдеру', async () => {
+      const booking = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
+
+      await transitionBooking({
+        bookingId: booking.id,
+        to: 'cancelled_by_athlete',
+        actor: 'athlete',
+        actorUserId: 1,
+        now: new Date('2026-03-19T07:15:00'),
+      });
+
+      const athleteNotes = await getNotifications({ userId: 1 });
+      const providerNotes = await getNotifications({ userId: 2 });
+
+      expect(athleteNotes.some((n) => n.type === 'booking_cancelled_by_athlete')).toBe(true);
+      expect(providerNotes.some((n) => n.type === 'booking_cancelled_by_athlete_to_provider')).toBe(
+        true,
+      );
+      const providerNote = providerNotes.find(
+        (n) => n.type === 'booking_cancelled_by_athlete_to_provider',
+      );
+      expect(providerNote?.payload).toMatchObject({
+        bookingId: booking.id,
+        athleteUserId: 1,
+      });
+    });
+
+    it('ручной cancelled_by_provider (actor=provider) не шлёт уведомление самому провайдеру', async () => {
+      const booking = await createBookingAtomic({ scheduleId: 1001, userId: 1 });
+      await transitionBooking({ bookingId: booking.id, to: 'confirmed', actor: 'provider' });
+
+      await transitionBooking({
+        bookingId: booking.id,
+        to: 'cancelled_by_provider',
+        actor: 'provider',
+        actorUserId: 2,
+      });
+
+      const providerNotes = await getNotifications({ userId: 2 });
+      // Только link-подобных / cancel-уведомлений провайдеру здесь не ожидаем —
+      // ручная отмена провайдером = он сам инициатор, UI даёт фидбек через toast.
+      expect(providerNotes.some((n) => n.type === 'booking_auto_expired_to_provider')).toBe(false);
     });
   });
 

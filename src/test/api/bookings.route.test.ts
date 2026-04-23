@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DELETE } from '@/app/api/bookings/[id]/route';
 import { GET, POST } from '@/app/api/bookings/route';
+import { getNotifications } from '@/lib/db';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -133,6 +134,31 @@ describe('Bookings API', () => {
       sportId: 3,
       date: '2026-03-18',
       totalPrice: 1100,
+    });
+  });
+
+  // Phase 26 hotfix (закрытие хвоста Phase 24): создание booking уведомляет провайдера
+  // через notify() — bell-icon и /profile/provider/notifications наконец-то срабатывают.
+  it('создаёт notification booking_requested для провайдера-владельца слота', async () => {
+    const response = await POST(
+      new Request('http://localhost:3000/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleId: 1001, userId: 1 }),
+      }),
+    );
+    const body = await response.json();
+    expect(response.status).toBe(201);
+
+    // seed: trainer fixtureTrainer (id=1) принадлежит userId=2 — он же провайдер.
+    const providerNotifications = await getNotifications({ userId: 2 });
+    const requested = providerNotifications.find((n) => n.type === 'booking_requested');
+
+    expect(requested).toBeDefined();
+    expect(requested?.payload).toMatchObject({
+      bookingId: body.data.id,
+      scheduleId: 1001,
+      athleteUserId: 1,
     });
   });
 

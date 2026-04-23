@@ -16,6 +16,10 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   booking_completed: 'booking',
   booking_no_show: 'booking',
   booking_auto_expired: 'booking',
+  // Phase 26 hotfix: каналы провайдера для booking-событий.
+  booking_requested: 'booking',
+  booking_cancelled_by_athlete_to_provider: 'booking',
+  booking_auto_expired_to_provider: 'booking',
   link_requested: 'links',
   link_approved: 'links',
   link_rejected: 'links',

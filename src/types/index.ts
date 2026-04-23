@@ -390,7 +390,7 @@ export interface User extends BaseEntity {
 // Типы in-app уведомлений. Расширяется при добавлении новых триггерных событий.
 // Payload каждой type-ветки типизируется consumer-ом (notify() и UI-маппингом).
 export type NotificationType =
-  // booking FSM
+  // booking FSM — уведомления атлету
   | 'booking_confirmed'
   | 'booking_rejected'
   | 'booking_cancelled_by_athlete'
@@ -398,6 +398,12 @@ export type NotificationType =
   | 'booking_completed'
   | 'booking_no_show'
   | 'booking_auto_expired'
+  // booking FSM — уведомления провайдеру (Phase 26 hotfix: закрытие хвоста Phase 24).
+  // Симметричные каналы, чтобы провайдер получал сигнал, когда атлет записался,
+  // отменил pending/confirmed или когда ленивый автопереход снял его pending-заявку.
+  | 'booking_requested'
+  | 'booking_cancelled_by_athlete_to_provider'
+  | 'booking_auto_expired_to_provider'
   // trainer↔club link
   | 'link_requested'
   | 'link_approved'

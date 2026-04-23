@@ -13,6 +13,7 @@ import {
   runLazyBookingTransitions,
 } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
+import { notify } from '@/lib/notify';
 import { isAthleteInQuarantine } from '@/lib/reliability';
 
 const bookingsQuerySchema = z.object({
@@ -176,6 +177,21 @@ export async function POST(request: Request) {
       entityId: booking.id,
       meta: { scheduleId: booking.scheduleId, sportId: booking.sportId, date: booking.date },
     }).catch(() => {});
+
+    // Phase 26 hotfix: уведомляем владельца слота (провайдера) о новой pending-заявке.
+    // Без этого bell в шапке и страница /profile/provider/notifications не триггерились.
+    // Ресолвим по ownerType: trainer-слот → managedByUserId тренера, club-слот → клуба.
+    const providerUserId =
+      booking.ownerType === 'trainer'
+        ? (slotContext?.trainer?.managedByUserId ?? null)
+        : (slotContext?.club?.managedByUserId ?? null);
+    if (providerUserId !== null && providerUserId !== undefined) {
+      await notify(providerUserId, 'booking_requested', {
+        bookingId: booking.id,
+        scheduleId: booking.scheduleId,
+        athleteUserId: booking.userId,
+      });
+    }
 
     return NextResponse.json(
       {

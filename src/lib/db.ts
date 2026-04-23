@@ -1235,10 +1235,30 @@ function computeCancelReason(
 }
 
 /**
+ * Резолвит providerUserId (managedByUserId владельца parent-сущности) по booking'у.
+ * Для trainer-слота возвращает managedByUserId тренера, для club-слота — клуба.
+ * Phase 26 hotfix: нужен dispatchTransitionNotifications'у, чтобы адресовать
+ * провайдеру симметричные booking-уведомления (отмена атлетом, авто-expire pending).
+ */
+async function resolveBookingProviderUserId(booking: Booking): Promise<EntityId | null> {
+  if (booking.ownerType === 'trainer') {
+    const trainers = await readCollection('trainers');
+    return trainers.find((trainer) => trainer.id === booking.ownerId)?.managedByUserId ?? null;
+  }
+  if (booking.ownerType === 'club') {
+    const clubs = await readCollection('clubs');
+    return clubs.find((club) => club.id === booking.ownerId)?.managedByUserId ?? null;
+  }
+  return null;
+}
+
+/**
  * Маппит FSM-переход в NotificationType и awaitит notify() для заинтересованной
  * стороны. Phase 24 Step 24.5: notify() awaitable — запись в notifications.json
- * гарантирована до возврата transitionBooking. Получателя провайдерских уведомлений
- * расширим в Step 24.8 (через slot-context и link-данные).
+ * гарантирована до возврата transitionBooking. Phase 26 hotfix (закрытие хвоста
+ * Phase 24): добавлены симметричные notify() провайдеру на cancelled_by_athlete
+ * и auto-expire pending, чтобы bell-icon и /profile/provider/notifications ловили
+ * эти события без ручного перехода в inbox.
  */
 async function dispatchTransitionNotifications(
   booking: Booking,
@@ -1256,20 +1276,40 @@ async function dispatchTransitionNotifications(
         reason: transition.reason,
       });
       return;
-    case 'cancelled_by_athlete':
-      // Провайдер узнаёт об отмене через bell-icon polling (видит изменение в своём
-      // списке bookings). Прямой notify провайдеру — post-MVP, когда понадобятся
-      // push/SMS/email-каналы.
+    case 'cancelled_by_athlete': {
       await notify(athleteId, 'booking_cancelled_by_athlete', {
         bookingId: booking.id,
         cancelReason: booking.cancelReason,
       });
+      // Phase 26 hotfix: параллельно уведомляем провайдера, чтобы он не подтверждал
+      // уже отменённую pending-заявку и чтобы событие попало в его bell + список.
+      const providerUserId = await resolveBookingProviderUserId(booking);
+      if (providerUserId !== null) {
+        await notify(providerUserId, 'booking_cancelled_by_athlete_to_provider', {
+          bookingId: booking.id,
+          athleteUserId: booking.userId,
+          cancelReason: booking.cancelReason,
+        });
+      }
       return;
+    }
     case 'cancelled_by_provider': {
       // actor='system' — ленивый auto-expire pending (см. runLazyBookingTransitions).
       const type: NotificationType =
         transition.actor === 'system' ? 'booking_auto_expired' : 'booking_cancelled_by_provider';
       await notify(athleteId, type, { bookingId: booking.id });
+      // Phase 26 hotfix: для system-auto-expire дублируем провайдеру — сигнал
+      // «прозевал клиента, запись снята». Ручная отмена провайдером не уведомляет
+      // его самого (он инициатор — получил UI-подтверждение сразу).
+      if (transition.actor === 'system') {
+        const providerUserId = await resolveBookingProviderUserId(booking);
+        if (providerUserId !== null) {
+          await notify(providerUserId, 'booking_auto_expired_to_provider', {
+            bookingId: booking.id,
+            athleteUserId: booking.userId,
+          });
+        }
+      }
       return;
     }
     case 'completed':
