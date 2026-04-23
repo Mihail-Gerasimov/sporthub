@@ -41,7 +41,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('рендерит плоский список уведомлений с заголовками и описаниями', () => {
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
 
     expect(screen.getByText('Бронирование подтверждено')).toBeInTheDocument();
     expect(screen.getByText('Бронирование отклонено')).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('для пустого списка показывает «Пока нет уведомлений»', () => {
-    render(<NotificationsListPage notifications={[]} userId={1} />);
+    render(<NotificationsListPage notifications={[]} userId={1} accountType="athlete" />);
 
     expect(screen.getByText(/пока нет уведомлений/i)).toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe('NotificationsListPage', () => {
       ),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 
@@ -91,7 +91,7 @@ describe('NotificationsListPage', () => {
       }),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 

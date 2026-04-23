@@ -36,8 +36,8 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('рендерит 3 группы (booking / links / quarantine)', () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+  it('рендерит 3 группы (booking / links / quarantine) для provider', () => {
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
 
     expect(screen.getByTestId('notification-preferences-editor')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
@@ -45,8 +45,16 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     expect(screen.getByTestId('notification-preferences-group-quarantine')).toBeInTheDocument();
   });
 
+  it('Phase 26 Step 26.8: для athlete группа `links` скрыта, booking+quarantine видны', () => {
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="athlete" />);
+
+    expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-preferences-group-quarantine')).toBeInTheDocument();
+    expect(screen.queryByTestId('notification-preferences-group-links')).not.toBeInTheDocument();
+  });
+
   it('REQUIRED-типы имеют disabled input (нельзя отключить)', () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
 
     // 3 REQUIRED_NOTIFICATION_TYPES: booking_confirmed, booking_cancelled_by_provider, quarantine_start
     expect(screen.getByTestId('notification-preferences-toggle-booking_confirmed')).toBeDisabled();
@@ -69,7 +77,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
     const checkbox = screen.getByTestId(
       'notification-preferences-toggle-booking_completed',
     ) as HTMLInputElement;
@@ -102,7 +110,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -125,7 +133,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -139,7 +147,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('клик по REQUIRED toggle не вызывает fetch (disabled-ветка)', async () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} />);
+    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
     // jsdom физически позволяет fireEvent.click на disabled input, но onChange
     // handler должен быть защищён от REQUIRED-типов через canDisableNotificationType.
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_confirmed'));

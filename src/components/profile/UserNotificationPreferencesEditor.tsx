@@ -34,9 +34,21 @@ interface Props {
   userId: number;
   /** Текущие preferences (опционально). Undefined → все типы включены по умолчанию. */
   notificationPreferences?: Partial<Record<NotificationType, boolean>>;
+  /**
+   * Phase 26 Step 26.8: тип аккаунта, определяет видимость групп.
+   * athlete не получает link_* уведомлений (все уходят провайдеру через
+   * managedByUserId), поэтому группу `links` у атлета не рендерим вовсе.
+   */
+  accountType: 'athlete' | 'provider';
 }
 
-export function UserNotificationPreferencesEditor({ userId, notificationPreferences }: Props) {
+export function UserNotificationPreferencesEditor({
+  userId,
+  notificationPreferences,
+  accountType,
+}: Props) {
+  const visibleGroups: readonly NotificationGroupKey[] =
+    accountType === 'athlete' ? (['booking', 'quarantine'] as const) : NOTIFICATION_GROUP_KEYS;
   // Локальный draft preferences — инициализируется фактическим состоянием user.
   // Для отсутствующих ключей isNotificationTypeEnabled вернёт true по дефолту.
   const [prefs, setPrefs] = useState<Partial<Record<NotificationType, boolean>>>(() => {
@@ -117,7 +129,7 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
         </p>
       </header>
 
-      {NOTIFICATION_GROUP_KEYS.map((group) => (
+      {visibleGroups.map((group) => (
         <section
           key={group}
           data-testid={`notification-preferences-group-${group}`}

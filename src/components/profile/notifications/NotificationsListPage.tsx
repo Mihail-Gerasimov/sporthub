@@ -13,7 +13,7 @@
  */
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import {
@@ -28,6 +28,12 @@ export interface NotificationsListPageProps {
   notifications: Notification[];
   /** Id пользователя — нужен для массового mark-read (read-all body). */
   userId: number;
+  /**
+   * Phase 26 Step 26.8: тип аккаунта, определяет видимость tab'ов фильтра.
+   * athlete не получает link_* уведомлений (уходят провайдеру), поэтому
+   * tab «Связи» у атлета скрываем — он всегда пустой.
+   */
+  accountType: 'athlete' | 'provider';
 }
 
 type GroupFilter = 'all' | NotificationGroupKey;
@@ -88,6 +94,7 @@ export function getDateBucket(iso: string, now: Date): DateBucket {
 export function NotificationsListPage({
   notifications: initial,
   userId,
+  accountType,
 }: NotificationsListPageProps) {
   const [notifications, setNotifications] = useState<Notification[]>(initial);
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -95,6 +102,18 @@ export function NotificationsListPage({
   const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const addToast = useToastStore((state) => state.addToast);
+
+  // Phase 26 Step 26.8: видимые группы зависят от типа аккаунта.
+  const visibleGroupKeys: readonly NotificationGroupKey[] =
+    accountType === 'athlete' ? (['booking', 'quarantine'] as const) : NOTIFICATION_GROUP_KEYS;
+
+  // Защита от stale activeGroup: если active-tab стал невидимым (смена accountType на лету),
+  // сбрасываем на 'all'. Для MVP accountType стабилен в пределах монтирования — скорее edge-case.
+  useEffect(() => {
+    if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
+      setActiveGroup('all');
+    }
+  }, [activeGroup, visibleGroupKeys]);
 
   const hasUnread = notifications.some((notification) => notification.readAt === undefined);
 
@@ -224,7 +243,7 @@ export function NotificationsListPage({
         data-testid="notifications-filters"
         role="tablist"
       >
-        {(['all', ...NOTIFICATION_GROUP_KEYS] as const).map((group) => {
+        {(['all', ...visibleGroupKeys] as const).map((group) => {
           const isActive = activeGroup === group;
           return (
             <button

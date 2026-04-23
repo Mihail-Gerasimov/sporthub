@@ -71,7 +71,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('рендерит 4 таба групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
     // 3 booking (id=1, 4, 5) + 1 link (id=2) + 1 quarantine (id=3) = 5 total
     expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent(/Все/);
@@ -87,7 +87,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('выбор booking-фильтра оставляет только booking-уведомления', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-booking'));
 
@@ -99,7 +99,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('выбор quarantine-фильтра оставляет только quarantine-уведомление', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-quarantine'));
 
@@ -109,7 +109,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('тоггл «Только непрочитанные» скрывает прочитанные', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
     // По умолчанию id=3 (прочитанное) виден
     expect(screen.getByTestId('notification-item-3')).toBeInTheDocument();
@@ -121,8 +121,17 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     expect(screen.getByTestId('notification-item-1')).toBeInTheDocument();
   });
 
+  it('Phase 26 Step 26.8: для athlete tab `links` скрыт, booking+quarantine+all видны', () => {
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="athlete" />);
+
+    expect(screen.getByTestId('notifications-filter-group-all')).toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-quarantine')).toBeInTheDocument();
+    expect(screen.queryByTestId('notifications-filter-group-links')).not.toBeInTheDocument();
+  });
+
   it('рендерит date-buckets (today / yesterday / thisWeek / earlier) и распределяет уведомления', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
     const today = screen.getByTestId('notifications-bucket-today');
     const yesterday = screen.getByTestId('notifications-bucket-yesterday');
