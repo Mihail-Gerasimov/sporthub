@@ -3,6 +3,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import {
+  clearAuthUserIdCookie,
+  readAuthUserIdCookie,
+  setAuthUserIdCookie,
+} from '@/lib/auth-cookie';
 import type { AuthAccountType, UserRole } from '@/types';
 
 export type AuthSessionUser = {
@@ -105,6 +110,20 @@ export function getPersonalCabinetConfig(accountType: AuthAccountType | null) {
   return accountType ? PERSONAL_CABINET_CONFIG[accountType] : null;
 }
 
+// Phase 26 post-fix: синхронизация auth-cookie с состоянием store.
+// Cookie нужна серверным компонентам (страницы notifications в ЛК), которые
+// не могут читать Zustand. Единая точка write/clear — здесь; call-sites не трогаем.
+//
+// Если в payload нет user.id (edge-case невалидного sign-up) — не пишем cookie,
+// чтобы не получить sh-auth-user-id=NaN.
+function syncAuthCookie(userId: number | undefined | null): void {
+  if (typeof userId === 'number' && Number.isFinite(userId)) {
+    setAuthUserIdCookie(userId);
+  } else {
+    clearAuthUserIdCookie();
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -112,14 +131,17 @@ export const useAuthStore = create<AuthState>()(
 
       login: (payload) => {
         set(createAuthenticatedState(payload));
+        syncAuthCookie(payload.user.id);
       },
 
       register: (payload) => {
         set(createAuthenticatedState(payload));
+        syncAuthCookie(payload.user.id);
       },
 
       logout: () => {
         set(AUTH_STORE_DEFAULT_STATE);
+        clearAuthUserIdCookie();
       },
 
       // --- Admin actions ---
@@ -133,6 +155,7 @@ export const useAuthStore = create<AuthState>()(
           isImpersonating: false,
           adminOriginalUser: null,
         });
+        syncAuthCookie(user.id);
       },
 
       startImpersonation: (targetUser, targetAccountType) => {
@@ -147,10 +170,12 @@ export const useAuthStore = create<AuthState>()(
           accountType: targetAccountType,
           isImpersonating: true,
         });
+        syncAuthCookie(targetUser.id);
       },
 
       stopImpersonation: () => {
         const state = get();
+        const originalId = state.adminOriginalUser?.id;
 
         set({
           user: state.adminOriginalUser,
@@ -158,6 +183,7 @@ export const useAuthStore = create<AuthState>()(
           isImpersonating: false,
           adminOriginalUser: null,
         });
+        syncAuthCookie(originalId);
       },
     }),
     {
@@ -171,6 +197,19 @@ export const useAuthStore = create<AuthState>()(
         isImpersonating: state.isImpersonating,
         adminOriginalUser: state.adminOriginalUser,
       }),
+      /**
+       * После гидратации LS проверяем, что cookie согласован с состоянием.
+       * Сценарий edge-case: user очистил LS вручную, а cookie осталась. Либо наоборот.
+       * LS — single source of truth: приводим cookie к нему.
+       */
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const expectedId = state.user?.id ?? null;
+        const cookieId = readAuthUserIdCookie();
+        if (expectedId !== cookieId) {
+          syncAuthCookie(expectedId);
+        }
+      },
     },
   ),
 );

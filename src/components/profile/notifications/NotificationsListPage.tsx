@@ -26,8 +26,12 @@ import type { Notification } from '@/types';
 
 export interface NotificationsListPageProps {
   notifications: Notification[];
-  /** Id пользователя — нужен для массового mark-read (read-all body). */
-  userId: number;
+  /**
+   * Id пользователя — нужен для массового mark-read (read-all body).
+   * Может быть undefined, если server page не смог определить юзера (гость или cookie
+   * не установлена). В этом случае список просто рендерим без mutation-flows.
+   */
+  userId?: number;
   /**
    * Phase 26 Step 26.8: тип аккаунта, определяет видимость tab'ов фильтра.
    * athlete не получает link_* уведомлений (уходят провайдеру), поэтому
@@ -189,6 +193,8 @@ export function NotificationsListPage({
 
   const markAllRead = useCallback(async () => {
     if (markingAll) return;
+    // Без userId не делаем запрос — это гостевой рендер или админ без impersonation.
+    if (userId === undefined) return;
     setMarkingAll(true);
     try {
       const response = await fetch('/api/notifications/read-all', {

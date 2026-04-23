@@ -63,18 +63,15 @@ export function useUnreadCountPolling({
   }, [userId, fetchCount]);
 
   // Триггер: mount и смена pathname → немедленный fetch.
-  // Запуск через микротаску (queueMicrotask), чтобы setState внутри fetchCount
-  // не попал в «синхронный setState в effect» (правило react-hooks).
+  // setState внутри fetchCount срабатывает после await fetch(...), то есть в
+  // следующем микро-шаге event loop'а — не caскадит рендер эффекта. Правило
+  // react-hooks/set-state-in-effect этого различить не умеет, поэтому точечный
+  // disable. Прежняя обёртка в queueMicrotask делала ровно то же, но добавляла
+  // лишний tick задержки, из-за чего badge ~100-500мс показывал 0 после логина.
   useEffect(() => {
     if (userId === null) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      void fetchCount(userId);
-    });
-    return () => {
-      cancelled = true;
-    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchCount(userId);
   }, [userId, pathname, fetchCount]);
 
   // Fallback: interval 60s пока userId активен
