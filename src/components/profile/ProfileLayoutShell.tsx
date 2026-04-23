@@ -8,6 +8,7 @@ import { getProviderClubs, getProviderTrainers } from '@/components/profile/prov
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Trainer } from '@/types';
 
+import { ProfileBreadcrumb } from './ProfileBreadcrumb';
 import { getAthleteNavItems, getProviderNavItems, type ProfileNavItem } from './profile-nav-items';
 import { ProfileMobileNav } from './ProfileMobileNav';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -88,7 +89,10 @@ export function ProfileLayoutShell({
           ariaLabel={ariaLabel}
           className="hidden md:sticky md:top-28 md:flex md:self-start"
         />
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          <ProfileBreadcrumb items={items} variant={variant} />
+          {children}
+        </div>
       </div>
     </div>
   );
