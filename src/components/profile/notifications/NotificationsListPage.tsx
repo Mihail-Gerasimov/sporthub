@@ -19,6 +19,7 @@ import { getNotificationCopy } from '@/components/profile/notifications/notifica
 import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
+  isNotificationTypeApplicable,
   type NotificationGroupKey,
 } from '@/lib/notification-types';
 import { useToastStore } from '@/stores/useToastStore';
@@ -119,26 +120,39 @@ export function NotificationsListPage({
     }
   }, [activeGroup, visibleGroupKeys]);
 
-  const hasUnread = notifications.some((notification) => notification.readAt === undefined);
+  // Phase 27 Step 27.3: hasUnread — только по применимым к accountType типам,
+  // иначе athlete увидит кнопку «Отметить всё» из-за неправильных записей в базе.
+  const hasUnread = notifications.some(
+    (notification) =>
+      notification.readAt === undefined &&
+      isNotificationTypeApplicable(notification.type, accountType),
+  );
 
   // Счётчики групп считаются от оригинального списка, без учёта текущих фильтров.
+  // Phase 27 Step 27.3: не считаем чужие типы — athlete не должен видеть в «Все»
+  // число, включающее link_* уведомления (даже если они ошибочно в базе).
   const groupCounts = useMemo<Record<GroupFilter, number>>(() => {
     const counts: Record<GroupFilter, number> = {
-      all: notifications.length,
+      all: 0,
       booking: 0,
       links: 0,
       quarantine: 0,
     };
     for (const n of notifications) {
+      if (!isNotificationTypeApplicable(n.type, accountType)) continue;
+      counts.all += 1;
       const g = NOTIFICATION_TYPE_GROUP[n.type];
       if (g) counts[g] += 1;
     }
     return counts;
-  }, [notifications]);
+  }, [notifications, accountType]);
 
-  // Фильтр: сначала по группе, затем по unread-тогглу.
+  // Фильтр: сначала по accountType (защита от чужих типов), затем по группе, затем unread-тогглу.
   const filtered = useMemo(() => {
     return notifications.filter((n) => {
+      if (!isNotificationTypeApplicable(n.type, accountType)) {
+        return false;
+      }
       if (activeGroup !== 'all' && NOTIFICATION_TYPE_GROUP[n.type] !== activeGroup) {
         return false;
       }
@@ -147,7 +161,7 @@ export function NotificationsListPage({
       }
       return true;
     });
-  }, [notifications, activeGroup, showOnlyUnread]);
+  }, [notifications, activeGroup, showOnlyUnread, accountType]);
 
   // Группировка по дате. Сортируем в пределах bucket'а от новых к старым.
   const buckets = useMemo(() => {

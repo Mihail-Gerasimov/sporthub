@@ -18,6 +18,41 @@ const patchSchema = z
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+/**
+ * GET /api/users/[id]/notification-preferences — чтение текущих preferences.
+ * Phase 26 hotfix: нужен UserNotificationPreferencesEditor'у, чтобы после refresh
+ * страницы отображать актуальное состояние галочек. Без этого компонент
+ * инициализировался дефолтами (всё включено) — снятая галочка возвращалась на место.
+ */
+export async function GET(_request: Request, context: RouteContext) {
+  try {
+    const { id: rawId } = await context.params;
+    const targetId = Number(rawId);
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return NextResponse.json({ success: false, error: 'Некорректный id' }, { status: 400 });
+    }
+
+    const target = await getUserById(targetId);
+    if (!target) {
+      return NextResponse.json(
+        { success: false, error: 'Пользователь не найден' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { notificationPreferences: target.notificationPreferences ?? {} },
+    });
+  } catch (error) {
+    console.error('Ошибка чтения notification-preferences:', error);
+    return NextResponse.json(
+      { success: false, error: 'Не удалось прочитать настройки уведомлений' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { id: rawId } = await context.params;

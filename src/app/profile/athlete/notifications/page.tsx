@@ -11,7 +11,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function AthleteNotificationsRoute() {
   const userId = await getAuthUserIdFromCookies();
-  const notifications = userId !== null ? await getNotifications({ userId }) : [];
+  // Phase 27 Step 27.2: applyPreferences=true — SSR-страница уважает отключённые
+  // пользователем типы (согласованность с dropdown колокольчика и badge-счётчиком).
+  const notifications =
+    userId !== null ? await getNotifications({ userId, applyPreferences: true }) : [];
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">

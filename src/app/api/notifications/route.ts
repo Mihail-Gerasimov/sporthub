@@ -1,11 +1,12 @@
 // Phase 24 Step 24.5: GET /api/notifications — список уведомлений пользователя
 // с фильтрами (userId обязателен, unreadOnly опционален) и пагинацией (offset/limit).
 // Возвращает items + total (всего у пользователя) + unreadCount (для bell-icon).
+// Phase 27 Step 27.2: фильтр notificationPreferences перенесён в db-функции через
+// applyPreferences: true — согласованность dropdown/страницы/badge.
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getNotifications, getUnreadNotificationCount, getUserById } from '@/lib/db';
-import { isNotificationTypeEnabled } from '@/lib/notification-types';
+import { getNotifications, getUnreadNotificationCount } from '@/lib/db';
 
 // Валидация строковых параметров query; парсинг в числа/boolean — в коде ниже,
 // чтобы избежать проблем preprocess+optional при null-значениях searchParams.get().
@@ -39,33 +40,13 @@ export async function GET(request: NextRequest) {
     const limitRaw = validation.data.limit ? Number(validation.data.limit) : undefined;
     const limit = limitRaw !== undefined && limitRaw > 100 ? 100 : limitRaw;
 
-    // Phase 25 Step 25.14: Загружаем user для применения notificationPreferences.
-    // Отключённые типы не должны попадать в items и unreadCount.
-    const [rawItems, rawAllItems, user] = await Promise.all([
-      getNotifications({ userId, unreadOnly, offset, limit }),
-      getNotifications({ userId, unreadOnly }),
-      getUserById(userId),
+    // Phase 27 Step 27.2: применение preferences — через applyPreferences в db-функциях.
+    // Это единая точка фильтра, согласующая items/total/unreadCount с остальными поверхностями.
+    const [items, allItems, unreadCount] = await Promise.all([
+      getNotifications({ userId, unreadOnly, offset, limit, applyPreferences: true }),
+      getNotifications({ userId, unreadOnly, applyPreferences: true }),
+      getUnreadNotificationCount(userId, true),
     ]);
-
-    const items = rawItems.filter((item) => isNotificationTypeEnabled(user, item.type));
-    const allItems = rawAllItems.filter((item) => isNotificationTypeEnabled(user, item.type));
-
-    // Для unreadCount: считаем только включённые типы среди непрочитанных.
-    const unreadItems = await getNotifications({ userId, unreadOnly: true });
-    const unreadCount = unreadItems.filter((item) =>
-      isNotificationTypeEnabled(user, item.type),
-    ).length;
-    // Для обратной совместимости со старым API — если все типы включены, результат
-    // равен старому getUnreadNotificationCount. Проверяем как fallback в дев-режиме.
-    if (!user || !user.notificationPreferences) {
-      const legacyCount = await getUnreadNotificationCount(userId);
-      if (legacyCount !== unreadCount) {
-        // В этом случае логируем расхождение — помогает при отладке миграции.
-        console.warn(
-          `Notification count mismatch for userId=${userId}: legacy=${legacyCount}, new=${unreadCount}`,
-        );
-      }
-    }
 
     return NextResponse.json({
       success: true,

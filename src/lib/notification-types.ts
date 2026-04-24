@@ -2,10 +2,49 @@
 // и редактора per-тип preferences в Settings. REQUIRED_NOTIFICATION_TYPES — критичные
 // типы, которые нельзя отключить (booking_confirmed, booking_cancelled_by_provider,
 // quarantine_start). При записи preferences через API такие ключи игнорируются.
-import type { NotificationType, User } from '@/types';
+import type { AuthAccountType, NotificationType, User } from '@/types';
 
 export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'quarantine'] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
+
+/**
+ * Phase 27 Step 27.3: кому адресован каждый NotificationType.
+ * - athlete: booking FSM для атлета + quarantine (атлет может попасть в карантин).
+ * - provider: link_* события (трейнер↔клуб) + provider-ось booking-уведомлений
+ *   (booking_requested / ..._to_provider / booking_auto_expired_to_provider).
+ * У каждого типа строго один адресат — пересечений нет.
+ */
+export const NOTIFICATION_TYPE_AUDIENCE: Record<NotificationType, AuthAccountType> = {
+  booking_confirmed: 'athlete',
+  booking_rejected: 'athlete',
+  booking_cancelled_by_athlete: 'athlete',
+  booking_cancelled_by_provider: 'athlete',
+  booking_completed: 'athlete',
+  booking_no_show: 'athlete',
+  booking_auto_expired: 'athlete',
+  booking_requested: 'provider',
+  booking_cancelled_by_athlete_to_provider: 'provider',
+  booking_auto_expired_to_provider: 'provider',
+  link_requested: 'provider',
+  link_approved: 'provider',
+  link_rejected: 'provider',
+  link_revoked: 'provider',
+  quarantine_start: 'athlete',
+  quarantine_end: 'athlete',
+  quarantine_lifted_by_admin: 'athlete',
+};
+
+/**
+ * Возвращает true, если тип уведомления адресован этому accountType.
+ * Используется в Settings-редакторе (скрыть чужие чекбоксы) и в NotificationsListPage
+ * (не считать чужие типы в счётчике tab'ов, если они случайно попали в базу).
+ */
+export function isNotificationTypeApplicable(
+  type: NotificationType,
+  accountType: AuthAccountType,
+): boolean {
+  return NOTIFICATION_TYPE_AUDIENCE[type] === accountType;
+}
 
 /** Маппинг NotificationType → группа (для фильтров и редактора). */
 export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroupKey> = {

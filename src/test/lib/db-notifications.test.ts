@@ -180,4 +180,45 @@ describe('db Notification CRUD — Phase 24', () => {
       expect(count).toBe(0);
     });
   });
+
+  // Phase 27 Step 27.2: applyPreferences перенесён из API в db — проверяем
+  // что фильтр работает одинаково в getNotifications и getUnreadNotificationCount.
+  describe('applyPreferences (Phase 27)', () => {
+    beforeEach(async () => {
+      // seedTestData кладёт user id=1 с базовыми полями; дописываем preferences
+      // через setUserNotificationPreferences (REQUIRED-типы сервер отбрасывает сам).
+      const { setUserNotificationPreferences } = await import('@/lib/db');
+      await setUserNotificationPreferences(1, { booking_rejected: false });
+    });
+
+    it('getNotifications с applyPreferences=true отфильтровывает отключённый тип', async () => {
+      await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      await createNotification({ userId: 1, type: 'booking_rejected', payload: {} });
+
+      const unfiltered = await getNotifications({ userId: 1 });
+      const filtered = await getNotifications({ userId: 1, applyPreferences: true });
+
+      expect(unfiltered).toHaveLength(2);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].type).toBe('booking_confirmed');
+    });
+
+    it('getUnreadNotificationCount с applyPreferences=true не считает отключённый тип', async () => {
+      await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      await createNotification({ userId: 1, type: 'booking_rejected', payload: {} });
+
+      const rawCount = await getUnreadNotificationCount(1);
+      const filteredCount = await getUnreadNotificationCount(1, true);
+
+      expect(rawCount).toBe(2);
+      expect(filteredCount).toBe(1);
+    });
+
+    it('applyPreferences=false/undefined — обратная совместимость, фильтр не применяется', async () => {
+      await createNotification({ userId: 1, type: 'booking_rejected', payload: {} });
+
+      expect(await getNotifications({ userId: 1 })).toHaveLength(1);
+      expect(await getNotifications({ userId: 1, applyPreferences: false })).toHaveLength(1);
+    });
+  });
 });

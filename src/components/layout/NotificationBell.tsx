@@ -9,6 +9,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
@@ -38,6 +39,7 @@ export function NotificationBell() {
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;
 
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,14 +89,42 @@ export function NotificationBell() {
     };
   }, [isOpen]);
 
-  if (!isAuthenticated || !accountType) {
-    return null;
-  }
-
   const allNotificationsHref =
     accountType === 'provider'
       ? '/profile/provider/notifications'
       : '/profile/athlete/notifications';
+
+  // Phase 27 Step 27.6: клик по карточке уведомления = mark-as-read + переход на
+  // полную страницу уведомлений. Хук объявлен ДО early-return, чтобы порядок
+  // хуков был стабилен для разных условий рендера (правило react-hooks/rules-of-hooks).
+  const handleItemClick = useCallback(
+    async (notification: Notification) => {
+      setIsOpen(false);
+      if (notification.readAt === undefined && userId !== null) {
+        try {
+          await fetch(`/api/notifications/${notification.id}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+          setItems((prev) =>
+            prev.map((n) =>
+              n.id === notification.id ? { ...n, readAt: new Date().toISOString() } : n,
+            ),
+          );
+          void refetch();
+        } catch {
+          // silent — если сеть упала, badge подхватится на следующем polling'е.
+        }
+      }
+      router.push(allNotificationsHref);
+    },
+    [userId, refetch, router, allNotificationsHref],
+  );
+
+  if (!isAuthenticated || !accountType) {
+    return null;
+  }
 
   return (
     <div ref={containerRef} className="relative">
@@ -159,25 +189,33 @@ export function NotificationBell() {
                   const copy = getNotificationCopy(notification.type, notification.payload);
                   const isUnread = notification.readAt === undefined;
                   return (
-                    <li
-                      key={notification.id}
-                      className={`px-4 py-3 text-sm ${isUnread ? 'bg-canvas' : ''}`}
-                    >
-                      <p className="flex items-center justify-between gap-2 font-semibold text-ink">
-                        <span>{copy.title}</span>
-                        {isUnread ? (
-                          <span
-                            aria-label="Непрочитанное"
-                            className="inline-block size-2 rounded-full bg-accent"
-                          />
+                    <li key={notification.id}>
+                      <button
+                        type="button"
+                        data-testid={`notification-bell-item-${notification.id}`}
+                        onClick={() => {
+                          void handleItemClick(notification);
+                        }}
+                        className={`block w-full px-4 py-3 text-left text-sm transition-colors hover:bg-canvas ${
+                          isUnread ? 'bg-canvas' : ''
+                        }`}
+                      >
+                        <p className="flex items-center justify-between gap-2 font-semibold text-ink">
+                          <span>{copy.title}</span>
+                          {isUnread ? (
+                            <span
+                              aria-label="Непрочитанное"
+                              className="inline-block size-2 rounded-full bg-accent"
+                            />
+                          ) : null}
+                        </p>
+                        {copy.description ? (
+                          <p className="mt-1 text-xs text-muted">{copy.description}</p>
                         ) : null}
-                      </p>
-                      {copy.description ? (
-                        <p className="mt-1 text-xs text-muted">{copy.description}</p>
-                      ) : null}
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted">
-                        {formatNotificationDate(notification.createdAt)}
-                      </p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted">
+                          {formatNotificationDate(notification.createdAt)}
+                        </p>
+                      </button>
                     </li>
                   );
                 })}

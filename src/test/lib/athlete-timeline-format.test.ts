@@ -101,4 +101,34 @@ describe('formatStatusHistoryForAthlete', () => {
       },
     ]);
   });
+
+  // Phase 27 Step 27.5: исключение для auto-expire pending — system-событие показываем,
+  // чтобы атлет увидел причину отмены своей записи.
+  it('system actor + reason=auto_cancel_pending_expired: событие показываем с понятным лейблом', () => {
+    const history: BookingStatusTransition[] = [
+      {
+        from: null,
+        to: 'pending',
+        actor: 'athlete',
+        at: '2026-04-22T09:00:00.000Z',
+      },
+      {
+        from: 'pending',
+        to: 'cancelled_by_provider',
+        actor: 'system',
+        at: '2026-04-22T10:00:00.000Z',
+        reason: 'auto_cancel_pending_expired',
+      },
+    ];
+
+    const result = formatStatusHistoryForAthlete(history);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].label).toBe('Вы записались');
+    expect(result[1]).toMatchObject({
+      at: '2026-04-22T10:00:00.000Z',
+    });
+    expect(result[1].label).toMatch(/автоматически/i);
+    expect(result[1].label).toMatch(/провайдер не подтвердил/i);
+  });
 });

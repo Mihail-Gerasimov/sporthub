@@ -649,6 +649,14 @@ export type GetNotificationsOptions = {
   unreadOnly?: boolean;
   offset?: number;
   limit?: number;
+  /**
+   * Phase 27 Step 27.2: если true и userId указан — дополнительно фильтруем по
+   * User.notificationPreferences через isNotificationTypeEnabled. Включаем только
+   * в «пользовательских» чтениях (API notifications и SSR-страницы профиля).
+   * НЕ включаем в ownership-guard (POST /read должен видеть все уведомления) и в
+   * агрегатах без userId (например dashboard-подсчёт).
+   */
+  applyPreferences?: boolean;
 };
 
 /**
@@ -664,6 +672,20 @@ export async function getNotifications(
 
   if (options.userId !== undefined) {
     filtered = filtered.filter((notification) => notification.userId === options.userId);
+  }
+
+  // Phase 27 Step 27.2: опциональный per-user preferences фильтр. Только если
+  // applyPreferences=true и userId задан — читаем user и применяем isNotificationTypeEnabled.
+  // Динамический import избегает возможных циклов и соответствует паттерну
+  // setUserNotificationPreferences ниже в этом же файле.
+  if (options.applyPreferences === true && options.userId !== undefined) {
+    const user = await getUserById(options.userId);
+    if (user) {
+      const { isNotificationTypeEnabled } = await import('@/lib/notification-types');
+      filtered = filtered.filter((notification) =>
+        isNotificationTypeEnabled(user, notification.type),
+      );
+    }
   }
 
   if (options.unreadOnly) {
@@ -752,11 +774,33 @@ export async function markAllNotificationsRead(userId: EntityId): Promise<number
 }
 
 /** Быстрый счётчик непрочитанных уведомлений пользователя — для bell-icon. */
-export async function getUnreadNotificationCount(userId: EntityId): Promise<number> {
+/**
+ * Подсчёт непрочитанных уведомлений пользователя.
+ * Phase 27 Step 27.2: опциональный applyPreferences — если true, отключённые
+ * в User.notificationPreferences типы в счёт не идут. Включаем в API
+ * /notifications/unread-count (badge на колокольчике), чтобы количество
+ * согласовалось с содержимым списка.
+ */
+export async function getUnreadNotificationCount(
+  userId: EntityId,
+  applyPreferences?: boolean,
+): Promise<number> {
   const notifications = await readCollection('notifications');
-  return notifications.filter(
+  let filtered = notifications.filter(
     (notification) => notification.userId === userId && notification.readAt === undefined,
-  ).length;
+  );
+
+  if (applyPreferences === true) {
+    const user = await getUserById(userId);
+    if (user) {
+      const { isNotificationTypeEnabled } = await import('@/lib/notification-types');
+      filtered = filtered.filter((notification) =>
+        isNotificationTypeEnabled(user, notification.type),
+      );
+    }
+  }
+
+  return filtered.length;
 }
 
 /**

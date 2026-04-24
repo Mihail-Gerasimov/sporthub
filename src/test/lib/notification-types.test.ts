@@ -2,11 +2,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  NOTIFICATION_TYPE_AUDIENCE,
   canDisableNotificationType,
+  isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   REQUIRED_NOTIFICATION_TYPES,
 } from '@/lib/notification-types';
-import type { User } from '@/types';
+import type { NotificationType, User } from '@/types';
 
 describe('notification-types (Step 25.14)', () => {
   it('canDisableNotificationType: required типы нельзя отключить', () => {
@@ -24,6 +26,50 @@ describe('notification-types (Step 25.14)', () => {
     } as Pick<User, 'notificationPreferences'>;
     expect(isNotificationTypeEnabled(user, 'booking_confirmed')).toBe(true);
     expect(isNotificationTypeEnabled(user, 'quarantine_start')).toBe(true);
+  });
+
+  // Phase 27 Step 27.3: адресация типов по accountType.
+  describe('isNotificationTypeApplicable (Phase 27)', () => {
+    it('все booking_*, quarantine_* → athlete; link_*, *_to_provider, booking_requested → provider', () => {
+      const athleteTypes: NotificationType[] = [
+        'booking_confirmed',
+        'booking_rejected',
+        'booking_cancelled_by_athlete',
+        'booking_cancelled_by_provider',
+        'booking_completed',
+        'booking_no_show',
+        'booking_auto_expired',
+        'quarantine_start',
+        'quarantine_end',
+        'quarantine_lifted_by_admin',
+      ];
+      const providerTypes: NotificationType[] = [
+        'booking_requested',
+        'booking_cancelled_by_athlete_to_provider',
+        'booking_auto_expired_to_provider',
+        'link_requested',
+        'link_approved',
+        'link_rejected',
+        'link_revoked',
+      ];
+
+      for (const type of athleteTypes) {
+        expect(isNotificationTypeApplicable(type, 'athlete')).toBe(true);
+        expect(isNotificationTypeApplicable(type, 'provider')).toBe(false);
+      }
+      for (const type of providerTypes) {
+        expect(isNotificationTypeApplicable(type, 'provider')).toBe(true);
+        expect(isNotificationTypeApplicable(type, 'athlete')).toBe(false);
+      }
+    });
+
+    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 17 типов без пересечений', () => {
+      const keys = Object.keys(NOTIFICATION_TYPE_AUDIENCE) as NotificationType[];
+      expect(keys).toHaveLength(17);
+      for (const key of keys) {
+        expect(['athlete', 'provider']).toContain(NOTIFICATION_TYPE_AUDIENCE[key]);
+      }
+    });
   });
 
   it('isNotificationTypeEnabled: default true для пользователя без prefs; false если явно отключено', () => {

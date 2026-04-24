@@ -37,7 +37,13 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('рендерит 3 группы (booking / links / quarantine) для provider', () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="provider"
+        notificationPreferences={{}}
+      />,
+    );
 
     expect(screen.getByTestId('notification-preferences-editor')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
@@ -46,17 +52,76 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('Phase 26 Step 26.8: для athlete группа `links` скрыта, booking+quarantine видны', () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="athlete" />);
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
 
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-quarantine')).toBeInTheDocument();
     expect(screen.queryByTestId('notification-preferences-group-links')).not.toBeInTheDocument();
   });
 
-  it('REQUIRED-типы имеют disabled input (нельзя отключить)', () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+  // Phase 27 Step 27.3: внутри группы «Записи» у athlete не должно быть
+  // provider-specific чекбоксов (booking_requested / ..._to_provider / booking_auto_expired_to_provider).
+  it('у athlete в группе Записи нет provider-specific чекбоксов', () => {
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
 
-    // 3 REQUIRED_NOTIFICATION_TYPES: booking_confirmed, booking_cancelled_by_provider, quarantine_start
+    expect(
+      screen.queryByTestId('notification-preferences-toggle-booking_requested'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(
+        'notification-preferences-toggle-booking_cancelled_by_athlete_to_provider',
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('notification-preferences-toggle-booking_auto_expired_to_provider'),
+    ).not.toBeInTheDocument();
+
+    // Athlete-специфичный тип должен остаться.
+    expect(
+      screen.getByTestId('notification-preferences-toggle-booking_confirmed'),
+    ).toBeInTheDocument();
+  });
+
+  it('у provider в группе Записи есть provider-specific чекбоксы, но нет athlete-only', () => {
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="provider"
+        notificationPreferences={{}}
+      />,
+    );
+
+    expect(
+      screen.getByTestId('notification-preferences-toggle-booking_requested'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('notification-preferences-toggle-booking_confirmed'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('REQUIRED-типы имеют disabled input (нельзя отключить)', () => {
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
+
+    // 3 REQUIRED_NOTIFICATION_TYPES: booking_confirmed, booking_cancelled_by_provider, quarantine_start.
+    // Phase 27 Step 27.3: все три адресованы athlete, рендерятся только в athlete-виде.
     expect(screen.getByTestId('notification-preferences-toggle-booking_confirmed')).toBeDisabled();
     expect(
       screen.getByTestId('notification-preferences-toggle-booking_cancelled_by_provider'),
@@ -77,7 +142,15 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+    // Phase 27 Step 27.3: booking_completed адресован athlete, рендерится только
+    // в athlete-виде. Проверяем именно этот путь для клика по non-required.
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
     const checkbox = screen.getByTestId(
       'notification-preferences-toggle-booking_completed',
     ) as HTMLInputElement;
@@ -110,7 +183,13 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -133,7 +212,13 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -147,9 +232,16 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('клик по REQUIRED toggle не вызывает fetch (disabled-ветка)', async () => {
-    render(<UserNotificationPreferencesEditor userId={user.id} accountType="provider" />);
+    render(
+      <UserNotificationPreferencesEditor
+        userId={user.id}
+        accountType="athlete"
+        notificationPreferences={{}}
+      />,
+    );
     // jsdom физически позволяет fireEvent.click на disabled input, но onChange
     // handler должен быть защищён от REQUIRED-типов через canDisableNotificationType.
+    // booking_confirmed — athlete-адресованный REQUIRED-тип.
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_confirmed'));
 
     await act(async () => {

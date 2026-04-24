@@ -392,6 +392,58 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     });
   });
 
+  // Phase 27 Step 27.4: карточки в табе «История» показывают конкретный FSM-label,
+  // а не общий «Финальный статус». Проверяем на 3 статусах с разным tone.
+  it('history: бейдж карточки отражает конкретный статус FSM', () => {
+    authenticateProvider();
+
+    const slot = makeSchedule({ id: 3001, date: '2026-04-20' });
+    const cancelledByProv = makeBooking({
+      id: 901,
+      status: 'cancelled_by_provider',
+      scheduleId: 3001,
+      date: '2026-04-20',
+    });
+    const completed = makeBooking({
+      id: 902,
+      status: 'completed',
+      scheduleId: 3001,
+      date: '2026-04-20',
+    });
+    const noShow = makeBooking({
+      id: 903,
+      status: 'no_show',
+      scheduleId: 3001,
+      date: '2026-04-20',
+    });
+
+    render(
+      <ProviderBookingsInbox
+        clubs={[club]}
+        trainers={trainers}
+        bookings={[cancelledByProv, completed, noShow]}
+        offerings={[offeringSwim]}
+        schedule={[slot]}
+        sports={sports}
+        users={[athleteUser, providerUser]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('provider-bookings-tab-history'));
+
+    expect(screen.getByTestId('provider-bookings-history-status-901')).toHaveTextContent(
+      /Вы отменили/i,
+    );
+    expect(screen.getByTestId('provider-bookings-history-status-902')).toHaveTextContent(
+      /Проведено/i,
+    );
+    expect(screen.getByTestId('provider-bookings-history-status-903')).toHaveTextContent(
+      /Не явился/i,
+    );
+    // Общего «Финальный статус» в табе больше нет.
+    expect(screen.queryByText('Финальный статус')).not.toBeInTheDocument();
+  });
+
   it('критичность <6h: карточка с endAt+48h - now ≈ 4h имеет data-approaching=true и красный border', () => {
     authenticateProvider();
 

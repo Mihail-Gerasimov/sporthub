@@ -7,6 +7,7 @@ import { startTransition, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Card } from '@/components/ui';
+import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import type { QuarantineResult } from '@/lib/reliability';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -94,8 +95,14 @@ export function BookingActionBlock({
           return;
         }
 
+        // Phase 27 Step 27.1: ищем только active-запись (pending/confirmed) на этом слоте.
+        // Финальные статусы (cancelled_*, rejected_by_provider, completed, no_show, unmarked)
+        // не блокируют повторную запись — атлет может записаться заново после отмены.
         const duplicateBooking =
-          result.data?.find((booking) => booking.scheduleId === scheduleId) ?? null;
+          result.data?.find(
+            (booking) =>
+              booking.scheduleId === scheduleId && ACTIVE_BOOKING_STATUSES.has(booking.status),
+          ) ?? null;
 
         if (!isCancelled) {
           setExistingBookingId(duplicateBooking?.id ?? null);

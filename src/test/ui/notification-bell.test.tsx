@@ -6,9 +6,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Phase 27 Step 27.6: мок router.push наружу через hoisted — проверяем навигацию
+// после клика по уведомлению в dropdown'е.
+const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: routerPushMock, replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
@@ -67,6 +71,7 @@ describe('NotificationBell', () => {
     localStorage.clear();
     vi.useFakeTimers();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+    routerPushMock.mockReset();
   });
 
   it('не рендерится в гостевом состоянии', () => {
@@ -192,5 +197,55 @@ describe('NotificationBell', () => {
       '/profile/provider/notifications',
     );
     expect(screen.getByText(/нет новых уведомлений/i)).toBeInTheDocument();
+  });
+
+  // Phase 27 Step 27.6: клик по уведомлению в dropdown помечает прочитанным через
+  // POST /api/notifications/[id]/read и переводит на полную страницу уведомлений.
+  it('клик по непрочитанному уведомлению в dropdown шлёт POST /read и делает router.push', async () => {
+    const fetchMock = mockFetchByRoute({
+      unreadCount: 1,
+      items: [
+        {
+          id: 42,
+          createdAt: '2026-04-22T12:00:00.000Z',
+          userId: MVP_ATHLETE_USER_ID,
+          type: 'booking_confirmed',
+          payload: { bookingId: 777 },
+        },
+      ],
+    });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountType: 'athlete',
+      user: {
+        id: MVP_ATHLETE_USER_ID,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: /уведомления/i }));
+    await flush();
+
+    fireEvent.click(screen.getByTestId('notification-bell-item-42'));
+    await flush();
+
+    // Должен быть выполнен POST с body { userId }.
+    const readCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/api/notifications/42/read'),
+    );
+    expect(readCall).toBeDefined();
+    expect(readCall?.[1]).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(String(readCall?.[1]?.body))).toEqual({ userId: MVP_ATHLETE_USER_ID });
+
+    // Навигация на полную страницу уведомлений.
+    expect(routerPushMock).toHaveBeenCalledWith('/profile/athlete/notifications');
+
+    // Dropdown закрылся.
+    expect(screen.queryByTestId('notification-bell-dropdown')).not.toBeInTheDocument();
   });
 });

@@ -14,6 +14,7 @@ import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
   canDisableNotificationType,
+  isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   type NotificationGroupKey,
 } from '@/lib/notification-types';
@@ -61,6 +62,38 @@ export function UserNotificationPreferencesEditor({
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addToast = useToastStore((state) => state.addToast);
+
+  // Phase 26 hotfix: при mount подтягиваем актуальные prefs через GET.
+  // AuthSessionUser в store не содержит notificationPreferences (session-only),
+  // поэтому при SSR-рендере мы не можем прокинуть prop; компонент сам читает свои
+  // настройки с сервера. Пропускаем fetch, если prop явно передан (тесты/будущий SSR).
+  useEffect(() => {
+    if (notificationPreferences !== undefined) return;
+    let cancelled = false;
+    const loadPrefs = async () => {
+      try {
+        const response = await fetch(`/api/users/${userId}/notification-preferences`);
+        if (!response.ok) return;
+        const body = (await response.json()) as {
+          success?: boolean;
+          data?: { notificationPreferences?: Partial<Record<NotificationType, boolean>> };
+        };
+        if (cancelled || !body.success) return;
+        const loaded = body.data?.notificationPreferences ?? {};
+        const next: Partial<Record<NotificationType, boolean>> = {};
+        for (const type of Object.keys(NOTIFICATION_TYPE_GROUP) as NotificationType[]) {
+          next[type] = isNotificationTypeEnabled({ notificationPreferences: loaded }, type);
+        }
+        setPrefs(next);
+      } catch {
+        // silent — остаётся дефолтный state (всё включено)
+      }
+    };
+    void loadPrefs();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, notificationPreferences]);
 
   // Группировка типов по NOTIFICATION_TYPE_GROUP — результат стабилен, считаем 1 раз.
   const typesByGroup = useMemo<Record<NotificationGroupKey, NotificationType[]>>(() => {
@@ -139,29 +172,31 @@ export function UserNotificationPreferencesEditor({
             {GROUP_TITLES[group]}
           </h3>
           <ul className="flex flex-col gap-2">
-            {typesByGroup[group].map((type) => {
-              const isRequired = !canDisableNotificationType(type);
-              const label = getNotificationCopy(type).title;
-              // `prefs[type]` может быть undefined только если тип не в NOTIFICATION_TYPE_GROUP
-              // — но мы инициализируем каждый ключ в useState. Fallback true на всякий случай.
-              const checked = prefs[type] ?? true;
-              return (
-                <li key={type}>
-                  <label className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="checkbox"
-                      data-testid={`notification-preferences-toggle-${type}`}
-                      checked={checked}
-                      disabled={isRequired}
-                      onChange={(event) => handleToggle(type, event.target.checked)}
-                      className="size-4 rounded border-line text-accent focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                    <span className="text-sm text-ink">{label}</span>
-                    {isRequired ? <Badge tone="outline">Нельзя отключить</Badge> : null}
-                  </label>
-                </li>
-              );
-            })}
+            {typesByGroup[group]
+              .filter((type) => isNotificationTypeApplicable(type, accountType))
+              .map((type) => {
+                const isRequired = !canDisableNotificationType(type);
+                const label = getNotificationCopy(type).title;
+                // `prefs[type]` может быть undefined только если тип не в NOTIFICATION_TYPE_GROUP
+                // — но мы инициализируем каждый ключ в useState. Fallback true на всякий случай.
+                const checked = prefs[type] ?? true;
+                return (
+                  <li key={type}>
+                    <label className="flex flex-wrap items-center gap-3">
+                      <input
+                        type="checkbox"
+                        data-testid={`notification-preferences-toggle-${type}`}
+                        checked={checked}
+                        disabled={isRequired}
+                        onChange={(event) => handleToggle(type, event.target.checked)}
+                        className="size-4 rounded border-line text-accent focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                      <span className="text-sm text-ink">{label}</span>
+                      {isRequired ? <Badge tone="outline">Нельзя отключить</Badge> : null}
+                    </label>
+                  </li>
+                );
+              })}
           </ul>
         </section>
       ))}

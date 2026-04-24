@@ -132,6 +132,49 @@ describe('BookingActionBlock', () => {
     });
   });
 
+  // Phase 27 Step 27.1: отменённый booking на том же слоте НЕ должен считаться
+  // дубликатом — атлет должен иметь возможность записаться повторно.
+  // Фильтр ACTIVE_BOOKING_STATUSES в `BookingActionBlock` защищает от того, что
+  // отменённая запись перекрывает primary action (ранее — Link «Перейти в ЛК»).
+  it('после cancelled_by_provider на том же слоте показывает «Подтвердить запись»', async () => {
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        success: true,
+        data: [
+          {
+            id: 78,
+            createdAt: '2026-03-18T12:00:00.000Z',
+            scheduleId: 1001,
+            userId: MVP_ATHLETE_USER_ID,
+            sportId: 3,
+            date: '2026-03-20',
+            status: 'cancelled_by_provider',
+            paymentStatus: 'unpaid',
+            totalPrice: 1400,
+          },
+        ],
+      }),
+    );
+
+    useAuthStore.getState().login({
+      accountType: 'athlete',
+      user: {
+        id: MVP_ATHLETE_USER_ID,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+      },
+    });
+
+    renderActionBlock();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Подтвердить запись' })).toBeEnabled();
+    });
+
+    // Линка «Перейти в ЛК» быть не должно: отменённая запись не блокирует новую попытку.
+    expect(screen.queryByRole('link', { name: 'Перейти в ЛК' })).not.toBeInTheDocument();
+  });
+
   it('для duplicate booking показывает CTA «Перейти в ЛК» вместо confirm-action', async () => {
     fetchMock.mockResolvedValueOnce(
       createJsonResponse({

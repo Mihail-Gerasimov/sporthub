@@ -17,7 +17,16 @@ import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/uti
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@/types';
+import type {
+  Booking,
+  BookingStatus,
+  Club,
+  Offering,
+  Schedule,
+  Sport,
+  Trainer,
+  User,
+} from '@/types';
 
 const ALL_VALUE = '__all__';
 const APPROACHING_CHECKIN_WINDOW_MS = 6 * 60 * 60 * 1000;
@@ -30,6 +39,33 @@ const TAB_LABELS: Record<InboxTab, string> = {
   confirmed: 'Подтверждённые ближайшие',
   'check-in': 'Требуют check-in',
   history: 'История',
+};
+
+// Phase 27 Step 27.4: динамический label + tone для карточек booking'ов в табе «История».
+// Ранее отображался единый захардкоженный «Финальный статус» без различия — теперь
+// карточка несёт конкретный статус FSM, симметрично athlete-таймлайну.
+// Статусы, которых не должно быть в истории (pending/confirmed), всё же закрыты
+// fallback'ом, чтобы не падать на edge-case данных из seed/миграции.
+const HISTORY_STATUS_LABELS: Record<BookingStatus, string> = {
+  pending: 'Ожидание',
+  confirmed: 'Подтверждена',
+  completed: 'Проведено',
+  no_show: 'Не явился',
+  unmarked: 'Не отмечено',
+  rejected_by_provider: 'Вы отклонили',
+  cancelled_by_athlete: 'Отменена спортсменом',
+  cancelled_by_provider: 'Вы отменили',
+};
+
+const HISTORY_STATUS_TONES: Record<BookingStatus, 'success' | 'warning' | 'danger' | 'outline'> = {
+  pending: 'outline',
+  confirmed: 'outline',
+  completed: 'success',
+  no_show: 'warning',
+  unmarked: 'outline',
+  rejected_by_provider: 'danger',
+  cancelled_by_athlete: 'outline',
+  cancelled_by_provider: 'danger',
 };
 
 type ProviderBookingsInboxProps = {
@@ -488,7 +524,14 @@ export function ProviderBookingsInbox({
                     </Button>
                   ) : null}
 
-                  {tab === 'history' ? <Badge tone="outline">Финальный статус</Badge> : null}
+                  {tab === 'history' ? (
+                    <Badge
+                      tone={HISTORY_STATUS_TONES[item.booking.status]}
+                      data-testid={`provider-bookings-history-status-${item.booking.id}`}
+                    >
+                      {HISTORY_STATUS_LABELS[item.booking.status]}
+                    </Badge>
+                  ) : null}
                 </div>
               </li>
             );

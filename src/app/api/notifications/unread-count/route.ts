@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const unreadCount = await getUnreadNotificationCount(Number(validation.data.userId));
+    // Phase 27 Step 27.2: applyPreferences=true — badge на колокольчике считается
+    // только по включённым типам, согласуется со списком в dropdown и на странице.
+    const unreadCount = await getUnreadNotificationCount(Number(validation.data.userId), true);
 
     return NextResponse.json({ success: true, data: { unreadCount } });
   } catch (error) {
