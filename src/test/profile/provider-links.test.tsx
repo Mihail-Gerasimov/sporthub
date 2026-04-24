@@ -319,6 +319,9 @@ describe('ProviderLinks (Step 25.12)', () => {
       trainerId: anotherForeignTrainer.id,
       clubId: myClub.id,
       userId: providerUser.id,
+      // Phase 27 Step 27.9: клиент явно передаёт initiatedBy='club' из invite-модалки,
+      // чтобы сервер смог направить уведомление trainer-manager'у (а не самому себе).
+      initiatedBy: 'club',
     });
   });
 
@@ -408,6 +411,9 @@ describe('ProviderLinks (Step 25.12)', () => {
       trainerId: myTrainer.id,
       clubId: foreignClub.id,
       userId: providerUser.id,
+      // Phase 27 Step 27.9: request-модалка всегда передаёт initiatedBy='trainer'
+      // (симметрично с invite-модалкой, которая шлёт 'club').
+      initiatedBy: 'trainer',
     });
   });
 

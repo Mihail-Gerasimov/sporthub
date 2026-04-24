@@ -1,13 +1,14 @@
-// Phase 24 Step 24.8: POST /api/trainer-club-links — тренер создаёт запрос на
-// связь с клубом (status='pending'). GET — чтение с фильтрами для inbox провайдера,
-// профиля тренера и публичных поверхностей.
-// Guard POST: userId должен быть manager'ом указанного trainerId.
-// Для каждого (trainerId, clubId) одновременно не может быть более одной активной
+// Phase 24 Step 24.8 + Phase 27 Step 27.9: POST /api/trainer-club-links — создаёт
+// pending-связь между тренером и клубом. Инициировать может любая сторона:
+// либо manager тренера (trainer-side request), либо manager клуба (club-side invite).
+// GET — чтение с фильтрами для inbox провайдера, профиля тренера и публичных поверхностей.
+// Guard POST: userId должен быть manager'ом одной из сторон. Для каждой пары
+// (trainerId, clubId) одновременно не может быть более одной активной
 // (pending|confirmed) связи — дубликат возвращает 409.
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { isManagerOfTrainer } from '@/lib/link-guards';
+import { isManagerOfClub, isManagerOfTrainer } from '@/lib/link-guards';
 import { logAction } from '@/lib/logAction';
 import { notify } from '@/lib/notify';
 import { createTrainerClubLink, getClubById, getTrainerById, getTrainerClubLinks } from '@/lib/db';
@@ -18,6 +19,10 @@ const createSchema = z
     trainerId: z.number().int().positive(),
     clubId: z.number().int().positive(),
     userId: z.number().int().positive(),
+    // Phase 27 Step 27.9: поле опциональное — обратная совместимость со старыми
+    // клиентами, которые ещё не передают initiatedBy. Если не пришло — вычисляется
+    // на сервере из ролей userId (см. fallback ниже).
+    initiatedBy: z.enum(['trainer', 'club']).optional(),
   })
   .strict();
 
@@ -39,7 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { trainerId, clubId, userId } = validation.data;
+    const { trainerId, clubId, userId, initiatedBy: initiatedByBody } = validation.data;
 
     const [trainer, club] = await Promise.all([getTrainerById(trainerId), getClubById(clubId)]);
 
@@ -50,14 +55,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Клуб не найден' }, { status: 404 });
     }
 
-    // Запрос инициирует тренер → userId должен быть manager'ом trainerId.
-    const isManager = await isManagerOfTrainer(trainerId, userId);
-    if (!isManager) {
+    // Phase 27 Step 27.9: guard пропускает manager'а любой из сторон. Раньше был
+    // только `isManagerOfTrainer` → club-side invite возвращал 403 (см. E2E-отчёт
+    // trainer-club-links 2026-04-25, S1 step-5).
+    const [isTrainerManager, isClubManager] = await Promise.all([
+      isManagerOfTrainer(trainerId, userId),
+      isManagerOfClub(clubId, userId),
+    ]);
+    if (!isTrainerManager && !isClubManager) {
       return NextResponse.json(
         { success: false, error: 'Недостаточно прав для отправки запроса' },
         { status: 403 },
       );
     }
+
+    // Направление инициирования. Если клиент передал — верим (UI знает, из какой
+    // модалки пришёл вызов). Если не передал — вычисляем по ролям:
+    // - только club-manager → 'club';
+    // - только trainer-manager или dual-role → 'trainer' (обратная совместимость
+    //   со старыми тестами и fixture-сценариями).
+    const initiatedBy =
+      initiatedByBody ?? (isClubManager && !isTrainerManager ? 'club' : 'trainer');
 
     // Проверка: нет ли уже активной связи (pending | confirmed) между этой парой.
     const existing = await getTrainerClubLinks({ trainerId, clubId });
@@ -75,25 +93,29 @@ export async function POST(request: Request) {
       trainerId,
       clubId,
       status: 'pending',
-      initiatedBy: 'trainer',
+      initiatedBy,
     });
 
-    // Уведомляем manager'а клуба о новом запросе (если он есть).
-    if (club.managedByUserId !== undefined) {
-      await notify(club.managedByUserId, 'link_requested', {
+    // Phase 27 Step 27.9: уведомление уходит противоположной стороне инициатора.
+    // Club-initiated → шлём manager'у тренера; trainer-initiated → manager'у клуба.
+    // Без этого club-owner получал бы link_requested о собственном приглашении.
+    const notifyUserId = initiatedBy === 'club' ? trainer.managedByUserId : club.managedByUserId;
+    if (notifyUserId !== undefined) {
+      await notify(notifyUserId, 'link_requested', {
         linkId: link.id,
         trainerId,
         clubId,
+        initiatedBy,
       });
     }
 
     logAction({
       action: 'link_request',
       actorId: userId,
-      actorRole: 'trainer',
+      actorRole: initiatedBy === 'club' ? 'club_owner' : 'trainer',
       entityType: 'trainer_club_link',
       entityId: link.id,
-      meta: { trainerId, clubId },
+      meta: { trainerId, clubId, initiatedBy },
     }).catch(() => {});
 
     return NextResponse.json({ success: true, data: link }, { status: 201 });

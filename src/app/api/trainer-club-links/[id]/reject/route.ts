@@ -1,13 +1,21 @@
-// Phase 24 Step 24.8: POST /api/trainer-club-links/[id]/reject — клуб отклоняет
-// pending-запрос тренера. Guard: userId — manager клуба. pending → rejected.
-// Проставляем rejectedAt/rejectedByUserId/rejectionReason. Уведомляем manager'а тренера.
+// Phase 24 Step 24.8 + Phase 27 Step 27.11: POST /api/trainer-club-links/[id]/reject —
+// отклонение pending-связи. Guard симметричный по `link.initiatedBy`:
+// - trainer-initiated → решение за manager'ом клуба (как и раньше);
+// - club-initiated → решение за manager'ом тренера.
+// Переход: pending → rejected. Уведомление уходит manager'у инициатора.
+// payload.initiatedBy используется для dynamic-copy в notification-copy.ts.
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { isManagerOfClub } from '@/lib/link-guards';
+import { isManagerOfClub, isManagerOfTrainer } from '@/lib/link-guards';
 import { logAction } from '@/lib/logAction';
 import { notify } from '@/lib/notify';
-import { getTrainerById, getTrainerClubLinkById, updateTrainerClubLink } from '@/lib/db';
+import {
+  getClubById,
+  getTrainerById,
+  getTrainerClubLinkById,
+  updateTrainerClubLink,
+} from '@/lib/db';
 
 const bodySchema = z
   .object({
@@ -41,7 +49,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: false, error: 'Связь не найдена' }, { status: 404 });
     }
 
-    const isManager = await isManagerOfClub(link.clubId, userId);
+    // Phase 27 Step 27.11: симметричный guard — отклоняет противоположная сторона
+    // инициатора. trainer-initiated → isManagerOfClub; club-initiated → isManagerOfTrainer.
+    const rejectorIsClub = link.initiatedBy === 'trainer';
+    const isManager = rejectorIsClub
+      ? await isManagerOfClub(link.clubId, userId)
+      : await isManagerOfTrainer(link.trainerId, userId);
     if (!isManager) {
       return NextResponse.json(
         { success: false, error: 'Недостаточно прав для отказа' },
@@ -63,23 +76,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       rejectionReason: reason,
     });
 
-    const trainer = await getTrainerById(link.trainerId);
-    if (trainer?.managedByUserId !== undefined) {
-      await notify(trainer.managedByUserId, 'link_rejected', {
+    // Phase 27 Step 27.11: уведомление инициатору. initiatedBy прокидывается в payload
+    // для dynamic-copy в notification-copy.ts.
+    const [trainer, club] = await Promise.all([
+      getTrainerById(link.trainerId),
+      getClubById(link.clubId),
+    ]);
+    const notifyUserId =
+      link.initiatedBy === 'trainer' ? trainer?.managedByUserId : club?.managedByUserId;
+    if (notifyUserId !== undefined) {
+      await notify(notifyUserId, 'link_rejected', {
         linkId,
         trainerId: link.trainerId,
         clubId: link.clubId,
         reason,
+        initiatedBy: link.initiatedBy,
       });
     }
 
     logAction({
       action: 'link_reject',
       actorId: userId,
-      actorRole: 'club_owner',
+      actorRole: rejectorIsClub ? 'club_owner' : 'trainer',
       entityType: 'trainer_club_link',
       entityId: linkId,
-      meta: { trainerId: link.trainerId, clubId: link.clubId, reason },
+      meta: {
+        trainerId: link.trainerId,
+        clubId: link.clubId,
+        reason,
+        initiatedBy: link.initiatedBy,
+      },
     }).catch(() => {});
 
     return NextResponse.json({ success: true, data: updated });

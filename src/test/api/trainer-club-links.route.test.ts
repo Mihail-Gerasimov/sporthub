@@ -17,7 +17,7 @@ import {
   getOfferings,
   getTrainerClubLinks,
 } from '@/lib/db';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   createIsolatedDataDirectory,
@@ -117,6 +117,109 @@ describe('Trainer↔Club Link API — Phase 24 Step 24.8', () => {
 
       expect(response.status).toBe(409);
       expect(body.success).toBe(false);
+    });
+
+    // Phase 27 Step 27.9: блок кейсов для club-side invite — главный баг-фикс.
+    // Все fixture-тренеры managedByUserId=2 (тот же, что club#1), поэтому для
+    // настоящего cross-owner сценария подменяем managedByUserId одного из тренеров
+    // на постороннего юзера через writeFile (seed изолирован per-test).
+    describe('Phase 27 Step 27.9 — club-side invite', () => {
+      async function makeCrossOwnerTrainer(trainerId: number, ownerUserId: number): Promise<void> {
+        const trainersPath = path.join(dataDirectory, 'trainers.json');
+        const trainers = JSON.parse(await readFile(trainersPath, 'utf8')) as Array<{
+          id: number;
+          managedByUserId?: number;
+        }>;
+        const target = trainers.find((t) => t.id === trainerId);
+        if (!target) {
+          throw new Error(`Тренер #${trainerId} отсутствует в seed`);
+        }
+        target.managedByUserId = ownerUserId;
+        await writeFile(trainersPath, `${JSON.stringify(trainers, null, 2)}\n`, 'utf8');
+      }
+
+      it('club-manager создаёт link для стороннего тренера → 201, initiatedBy=club, notify trainer-manager', async () => {
+        // Делаем trainer#3 «посторонним» — его managedByUserId=5 (не равно user=2 = manager club#1).
+        await makeCrossOwnerTrainer(3, 5);
+
+        const response = await createRoute(
+          createRouteRequest('/api/trainer-club-links', {
+            trainerId: 3,
+            clubId: 1,
+            userId: 2,
+            initiatedBy: 'club',
+          }),
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.success).toBe(true);
+        expect(body.data.initiatedBy).toBe('club');
+
+        // Уведомление ушло manager'у тренера (user=5), НЕ club-manager'у (user=2).
+        const trainerNotifications = await getNotifications({ userId: 5 });
+        const inviteNotification = trainerNotifications.find((n) => n.type === 'link_requested');
+        expect(inviteNotification).toBeDefined();
+        expect(inviteNotification?.payload).toMatchObject({ initiatedBy: 'club' });
+
+        // У club-manager'а (user=2) НЕТ link_requested про этот же link.
+        const clubNotifications = await getNotifications({ userId: 2 });
+        const ownInvite = clubNotifications.find(
+          (n) =>
+            n.type === 'link_requested' &&
+            (n.payload as { linkId?: number }).linkId === body.data.id,
+        );
+        expect(ownInvite).toBeUndefined();
+      });
+
+      it('403, если user не manager ни тренера, ни клуба', async () => {
+        await makeCrossOwnerTrainer(3, 5);
+
+        const response = await createRoute(
+          createRouteRequest('/api/trainer-club-links', {
+            trainerId: 3,
+            clubId: 1,
+            userId: 99,
+            initiatedBy: 'club',
+          }),
+        );
+
+        expect(response.status).toBe(403);
+      });
+
+      it('dual-role manager без initiatedBy в body — fallback на trainer (обратная совместимость)', async () => {
+        // userId=2 — manager и trainer #1, и club #1. initiatedBy не передан.
+        // Старая логика (всегда 'trainer') должна сохраниться для этого кейса.
+        const response = await createRoute(
+          createRouteRequest('/api/trainer-club-links', {
+            trainerId: 1,
+            clubId: 1,
+            userId: 2,
+          }),
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.data.initiatedBy).toBe('trainer');
+      });
+
+      it('только club-manager без initiatedBy → fallback на club', async () => {
+        // Тренер #3 теперь «посторонний» (managedByUserId=5). userId=2 — manager только клуба#1.
+        // Fallback выбирает 'club', т.к. единственная доступная роль — club-manager.
+        await makeCrossOwnerTrainer(3, 5);
+
+        const response = await createRoute(
+          createRouteRequest('/api/trainer-club-links', {
+            trainerId: 3,
+            clubId: 1,
+            userId: 2,
+          }),
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.data.initiatedBy).toBe('club');
+      });
     });
   });
 
@@ -233,6 +336,74 @@ describe('Trainer↔Club Link API — Phase 24 Step 24.8', () => {
 
       expect(response.status).toBe(409);
     });
+
+    // Phase 27 Step 27.11: для club-initiated pending approve выполняет
+    // противоположная сторона — manager тренера. Ранее всегда требовался manager клуба.
+    it('Phase 27 Step 27.11: trainer-owner подтверждает club-initiated pending → 200 confirmed + notify club-manager', async () => {
+      const trainersPath = path.join(dataDirectory, 'trainers.json');
+      const trainers = JSON.parse(await readFile(trainersPath, 'utf8')) as Array<{
+        id: number;
+        managedByUserId?: number;
+      }>;
+      const target = trainers.find((t) => t.id === 3);
+      if (!target) throw new Error('Тренер #3 отсутствует в seed');
+      target.managedByUserId = 5;
+      await writeFile(trainersPath, `${JSON.stringify(trainers, null, 2)}\n`, 'utf8');
+
+      // Club-owner (user=2) пригласил сторонний тренер #3 (теперь managedByUserId=5).
+      const link = await createTrainerClubLink({
+        trainerId: 3,
+        clubId: 1,
+        status: 'pending',
+        initiatedBy: 'club',
+      });
+
+      // Trainer-owner (user=5) подтверждает приглашение.
+      const response = await approveRoute(
+        createRouteRequest(`/api/trainer-club-links/${link.id}/approve`, { userId: 5 }),
+        { params: Promise.resolve({ id: String(link.id) }) },
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data.status).toBe('confirmed');
+      expect(body.data.approvedByUserId).toBe(5);
+
+      // Уведомление уходит инициатору (manager клуба = user=2).
+      const clubNotifs = await getNotifications({ userId: 2 });
+      const approvedNotif = clubNotifs.find(
+        (n) => n.type === 'link_approved' && (n.payload as { linkId?: number }).linkId === link.id,
+      );
+      expect(approvedNotif).toBeDefined();
+      expect(approvedNotif?.payload).toMatchObject({ initiatedBy: 'club' });
+    });
+
+    it('Phase 27 Step 27.11: club-owner пытается approve свой club-initiated pending → 403', async () => {
+      const trainersPath = path.join(dataDirectory, 'trainers.json');
+      const trainers = JSON.parse(await readFile(trainersPath, 'utf8')) as Array<{
+        id: number;
+        managedByUserId?: number;
+      }>;
+      const target = trainers.find((t) => t.id === 3);
+      if (!target) throw new Error('Тренер #3 отсутствует в seed');
+      target.managedByUserId = 5;
+      await writeFile(trainersPath, `${JSON.stringify(trainers, null, 2)}\n`, 'utf8');
+
+      const link = await createTrainerClubLink({
+        trainerId: 3,
+        clubId: 1,
+        status: 'pending',
+        initiatedBy: 'club',
+      });
+
+      // Сам club-owner (user=2) не может approve свой же club-initiated invite.
+      const response = await approveRoute(
+        createRouteRequest(`/api/trainer-club-links/${link.id}/approve`, { userId: 2 }),
+        { params: Promise.resolve({ id: String(link.id) }) },
+      );
+
+      expect(response.status).toBe(403);
+    });
   });
 
   describe('POST /api/trainer-club-links/[id]/reject', () => {
@@ -257,6 +428,47 @@ describe('Trainer↔Club Link API — Phase 24 Step 24.8', () => {
       expect(body.data.status).toBe('rejected');
       expect(body.data.rejectionReason).toBe('Нет свободных мест');
       expect(body.data.rejectedByUserId).toBe(2);
+    });
+
+    // Phase 27 Step 27.11: симметричный reject со стороны тренера для club-initiated pending.
+    it('Phase 27 Step 27.11: trainer-owner отклоняет club-initiated pending → 200 rejected + notify club-manager', async () => {
+      const trainersPath = path.join(dataDirectory, 'trainers.json');
+      const trainers = JSON.parse(await readFile(trainersPath, 'utf8')) as Array<{
+        id: number;
+        managedByUserId?: number;
+      }>;
+      const target = trainers.find((t) => t.id === 3);
+      if (!target) throw new Error('Тренер #3 отсутствует в seed');
+      target.managedByUserId = 5;
+      await writeFile(trainersPath, `${JSON.stringify(trainers, null, 2)}\n`, 'utf8');
+
+      const link = await createTrainerClubLink({
+        trainerId: 3,
+        clubId: 1,
+        status: 'pending',
+        initiatedBy: 'club',
+      });
+
+      const response = await rejectRoute(
+        createRouteRequest(`/api/trainer-club-links/${link.id}/reject`, {
+          userId: 5,
+          reason: 'Не заинтересован в сотрудничестве',
+        }),
+        { params: Promise.resolve({ id: String(link.id) }) },
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data.status).toBe('rejected');
+      expect(body.data.rejectedByUserId).toBe(5);
+
+      // Уведомление с initiatedBy='club' уходит club-manager'у (user=2).
+      const clubNotifs = await getNotifications({ userId: 2 });
+      const rejectedNotif = clubNotifs.find(
+        (n) => n.type === 'link_rejected' && (n.payload as { linkId?: number }).linkId === link.id,
+      );
+      expect(rejectedNotif).toBeDefined();
+      expect(rejectedNotif?.payload).toMatchObject({ initiatedBy: 'club' });
     });
   });
 

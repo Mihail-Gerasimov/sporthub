@@ -167,14 +167,23 @@ export function ProviderLinks({
     }
   }
 
-  async function submitNewLink(trainerId: number, clubId: number, onClose: () => void) {
+  // Phase 27 Step 27.9: `initiatedBy` явно передаётся с клиента в зависимости от
+  // открытой модалки. InviteTrainerModal (club-side) → 'club', RequestLinkModal
+  // (trainer-side) → 'trainer'. Сервер использует это для роутинга уведомления
+  // противоположной стороне + выбора нужного текста в getNotificationCopy.
+  async function submitNewLink(
+    trainerId: number,
+    clubId: number,
+    initiatedBy: 'trainer' | 'club',
+    onClose: () => void,
+  ) {
     if (providerUserId === null) return;
 
     try {
       const response = await fetch('/api/trainer-club-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trainerId, clubId, userId: providerUserId }),
+        body: JSON.stringify({ trainerId, clubId, userId: providerUserId, initiatedBy }),
       });
       const body = (await response.json()) as { success: boolean; error?: string };
 
@@ -335,7 +344,11 @@ export function ProviderLinks({
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {clubTab === 'pending' ? (
+                      {/* Phase 27 Step 27.11: в club-side секции pending-карточки различаются
+                          по инициатору. trainer-initiated (кто-то попросился к моему клубу) —
+                          решаю я, «Подтвердить/Отклонить». club-initiated (я пригласил тренера
+                          и жду его ответа) — могу только отозвать собственное приглашение. */}
+                      {clubTab === 'pending' && link.initiatedBy === 'trainer' ? (
                         <>
                           <Button
                             size="sm"
@@ -359,6 +372,19 @@ export function ProviderLinks({
                             Отклонить
                           </Button>
                         </>
+                      ) : null}
+                      {clubTab === 'pending' && link.initiatedBy === 'club' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid={`provider-links-cancel-invite-${link.id}`}
+                          loading={isBusy}
+                          onClick={() => {
+                            void callAction(link.id, 'revoke');
+                          }}
+                        >
+                          Отозвать приглашение
+                        </Button>
                       ) : null}
                       {clubTab === 'confirmed' ? (
                         <Button
@@ -448,10 +474,15 @@ export function ProviderLinks({
                       </p>
                       <p className="text-xs text-muted">
                         К клубу «{club?.name ?? `Клуб #${link.clubId}`}»
+                        {link.initiatedBy === 'club' ? ' · Приглашение от клуба' : ''}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {trainerTab === 'pending' ? (
+                      {/* Phase 27 Step 27.11: в trainer-side секции pending-карточки
+                          симметричны club-side. trainer-initiated (мой тренер попросился) —
+                          могу отозвать. club-initiated (меня пригласил клуб) — решаю
+                          «Подтвердить/Отклонить». */}
+                      {trainerTab === 'pending' && link.initiatedBy === 'trainer' ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -463,6 +494,31 @@ export function ProviderLinks({
                         >
                           Отозвать
                         </Button>
+                      ) : null}
+                      {trainerTab === 'pending' && link.initiatedBy === 'club' ? (
+                        <>
+                          <Button
+                            size="sm"
+                            data-testid={`provider-links-approve-${link.id}`}
+                            loading={isBusy}
+                            onClick={() => {
+                              void callAction(link.id, 'approve');
+                            }}
+                          >
+                            Подтвердить
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            data-testid={`provider-links-reject-${link.id}`}
+                            loading={isBusy}
+                            onClick={() => {
+                              void callAction(link.id, 'reject');
+                            }}
+                          >
+                            Отклонить
+                          </Button>
+                        </>
                       ) : null}
                       {trainerTab === 'confirmed' ? (
                         <Button
@@ -568,7 +624,9 @@ export function ProviderLinks({
               disabled={inviteTrainerId === null || inviteClubId === null}
               onClick={() => {
                 if (inviteTrainerId === null || inviteClubId === null) return;
-                void submitNewLink(inviteTrainerId, inviteClubId, () => setInviteModalOpen(false));
+                void submitNewLink(inviteTrainerId, inviteClubId, 'club', () =>
+                  setInviteModalOpen(false),
+                );
               }}
             >
               Отправить приглашение
@@ -648,7 +706,7 @@ export function ProviderLinks({
               disabled={requestTrainerId === null || requestClubId === null}
               onClick={() => {
                 if (requestTrainerId === null || requestClubId === null) return;
-                void submitNewLink(requestTrainerId, requestClubId, () =>
+                void submitNewLink(requestTrainerId, requestClubId, 'trainer', () =>
                   setRequestModalOpen(false),
                 );
               }}

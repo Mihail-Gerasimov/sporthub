@@ -67,18 +67,39 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
       'Вы не подтвердили запись за час до начала — слот освобождён. Старайтесь отвечать раньше.',
   }),
   // --- trainer↔club link ---
-  link_requested: () => ({
-    title: 'Новый запрос от тренера',
-    description: 'Тренер попросил привязаться к вашему клубу — подтвердите в кабинете.',
-  }),
-  link_approved: () => ({
-    title: 'Клуб подтвердил связь',
-    description: 'Тренер теперь отображается как работающий в клубе на публичных страницах.',
-  }),
-  link_rejected: () => ({
-    title: 'Клуб отклонил связь',
-    description: 'Можно попробовать отправить новый запрос позже.',
-  }),
+  // Phase 27 Step 27.9: copy зависит от инициатора. Club-initiated получает
+  // manager тренера — текст «Клуб приглашает». Trainer-initiated получает
+  // manager клуба — текст «Новый запрос от тренера».
+  link_requested: (payload) => {
+    const fromClub = payload.initiatedBy === 'club';
+    return {
+      title: fromClub ? 'Клуб приглашает к сотрудничеству' : 'Новый запрос от тренера',
+      description: fromClub
+        ? 'Клуб предложил вам привязаться. Откройте раздел «Связи», чтобы принять или отклонить.'
+        : 'Тренер попросил привязаться к вашему клубу — подтвердите в кабинете.',
+    };
+  },
+  // Phase 27 Step 27.11: dynamic copy — для club-initiated pending уведомление
+  // уходит manager'у клуба (его приглашение приняли/отклонили), тексту «Клуб
+  // подтвердил…» в этом случае не место. Смотрим payload.initiatedBy.
+  link_approved: (payload) => {
+    const trainerApproved = payload.initiatedBy === 'club';
+    return {
+      title: trainerApproved ? 'Тренер принял приглашение' : 'Клуб подтвердил связь',
+      description: trainerApproved
+        ? 'Тренер подтвердил сотрудничество — клуб отображается у него на странице.'
+        : 'Тренер теперь отображается как работающий в клубе на публичных страницах.',
+    };
+  },
+  link_rejected: (payload) => {
+    const trainerRejected = payload.initiatedBy === 'club';
+    return {
+      title: trainerRejected ? 'Тренер отклонил приглашение' : 'Клуб отклонил связь',
+      description: trainerRejected
+        ? 'Можно попробовать пригласить другого тренера позже.'
+        : 'Можно попробовать отправить новый запрос позже.',
+    };
+  },
   link_revoked: () => ({
     title: 'Связь с клубом разорвана',
     description: 'Публичные страницы больше не показывают клуб рядом с тренером.',
