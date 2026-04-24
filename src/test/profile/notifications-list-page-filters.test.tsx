@@ -11,7 +11,20 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
-import type { Notification } from '@/types';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import type { AuthAccountType, Notification } from '@/types';
+
+// Phase 27 Step 27.8: helper для настройки auth-сессии под нужную роль.
+// NotificationsListPage теперь делает guard, сравнивая sessionAccountType с prop
+// accountType. Без этого все тесты получают AccessDeniedCard.
+function authenticateAs(accountType: AuthAccountType) {
+  useAuthStore.setState({
+    ...AUTH_STORE_DEFAULT_STATE,
+    user: { id: 1, name: 'Test User', email: 'test@sporthub.local' },
+    accountType,
+    isAuthenticated: true,
+  });
+}
 
 // Фиксированное «сейчас» для детерминизма bucket'ов.
 // 2026-04-22 = среда → понедельник текущей недели = 2026-04-20.
@@ -86,10 +99,13 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
+    // По умолчанию — provider (4 из 6 тестов). Athlete-тесты переопределят ниже.
+    authenticateAs('provider');
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
   });
 
   it('рендерит 4 таба групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
@@ -123,6 +139,8 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   // Phase 27 Step 27.3: quarantine-уведомления приходят только athlete'ам,
   // поэтому quarantine-фильтр проверяем в athlete-виде с локальными fixtures.
   it('выбор quarantine-фильтра оставляет только quarantine-уведомление (athlete)', async () => {
+    authenticateAs('athlete');
+
     render(
       <NotificationsListPage notifications={athleteFixtures} userId={1} accountType="athlete" />,
     );
@@ -147,6 +165,8 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('Phase 26 Step 26.8: для athlete tab `links` скрыт, booking+quarantine+all видны', () => {
+    authenticateAs('athlete');
+
     render(<NotificationsListPage notifications={fixtures} userId={1} accountType="athlete" />);
 
     expect(screen.getByTestId('notifications-filter-group-all')).toBeInTheDocument();

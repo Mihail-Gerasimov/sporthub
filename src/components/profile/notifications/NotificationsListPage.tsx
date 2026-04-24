@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import {
   NOTIFICATION_GROUP_KEYS,
@@ -22,6 +23,7 @@ import {
   isNotificationTypeApplicable,
   type NotificationGroupKey,
 } from '@/lib/notification-types';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@/types';
 
@@ -107,6 +109,13 @@ export function NotificationsListPage({
   const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const addToast = useToastStore((state) => state.addToast);
+
+  // Phase 27 Step 27.8: auth-guard через useAuthStore. Prop `accountType` — требуемая
+  // роль для текущего подмаршрута (server-page фиксирует её при рендере). Если сессия
+  // не совпадает — показываем AccessDeniedCard, как на 14 остальных подмаршрутах ЛК.
+  const sessionUser = useAuthStore((state) => state.user);
+  const sessionAccountType = useAuthStore((state) => state.accountType);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   // Phase 26 Step 26.8: видимые группы зависят от типа аккаунта.
   const visibleGroupKeys: readonly NotificationGroupKey[] =
@@ -239,6 +248,13 @@ export function NotificationsListPage({
       setMarkingAll(false);
     }
   }, [markingAll, userId, addToast]);
+
+  // Phase 27 Step 27.8: гость или несоответствие роли — AccessDeniedCard.
+  // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти
+  // rules-of-hooks (нельзя менять количество хуков между рендерами).
+  if (!isAuthenticated || sessionAccountType !== accountType || !sessionUser) {
+    return <AccessDeniedCard requiredRole={accountType} />;
+  }
 
   return (
     <section className="flex flex-col gap-6">

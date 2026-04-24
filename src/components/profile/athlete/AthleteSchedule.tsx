@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { startTransition, useMemo, useState } from 'react';
 
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { Badge, Button, Card, Modal } from '@/components/ui';
 import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { cn, formatDate } from '@/lib/utils';
@@ -142,6 +143,11 @@ export function AthleteSchedule({
   clubs = [],
   trainers = [],
 }: AthleteScheduleProps) {
+  // Phase 27 Step 27.8: auth-guard через useAuthStore — паттерн как в AthleteDashboard:160.
+  // Без этого гость (без auth-cookie) видел пустой UI с фильтрами вместо AccessDeniedCard.
+  const user = useAuthStore((state) => state.user);
+  const accountType = useAuthStore((state) => state.accountType);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const athleteUserId = useAuthStore(selectAthleteActionUserId);
   const [filter, setFilter] = useState<ScheduleFilter>('all');
   const [openedBookingId, setOpenedBookingId] = useState<number | null>(null);
@@ -230,6 +236,11 @@ export function AthleteSchedule({
       clubName,
     };
   }, [opened, scheduleById, clubById]);
+
+  // Phase 27 Step 27.8: гость или чужая роль — AccessDeniedCard, как на 14 остальных подмаршрутах.
+  if (!isAuthenticated || accountType !== 'athlete' || !user) {
+    return <AccessDeniedCard requiredRole="athlete" />;
+  }
 
   return (
     <div className="flex flex-col gap-6">

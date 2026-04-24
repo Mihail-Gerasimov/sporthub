@@ -12,6 +12,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import type { Notification } from '@/types';
 
 const seed: Notification[] = [
@@ -38,6 +39,15 @@ describe('NotificationsListPage', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    // Phase 27 Step 27.8: компонент теперь делает auth-guard. Настраиваем
+    // athlete-сессию, чтобы guard пропустил рендер — все тесты в этом файле
+    // используют accountType="athlete".
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { id: 1, name: 'Test Athlete', email: 'test-athlete@sporthub.local' },
+      accountType: 'athlete',
+      isAuthenticated: true,
+    });
   });
 
   it('рендерит плоский список уведомлений с заголовками и описаниями', () => {
