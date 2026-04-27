@@ -11,14 +11,16 @@ import { Header } from '@/components/layout/Header';
 import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
-// Мокаем next/navigation
+// Мокаем next/navigation. Phase 27 Step 27.15: refresh вынесен в именованный
+// mock, чтобы можно было ассертить его вызов после stopImpersonation.
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: vi.fn(),
-    refresh: vi.fn(),
+    refresh: mockRefresh,
   }),
   usePathname: () => '/',
 }));
@@ -41,6 +43,7 @@ describe('Impersonation flow (Step 17.5)', () => {
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useUIStore.setState({ isAuthModalOpen: false });
     mockPush.mockClear();
+    mockRefresh.mockClear();
   });
 
   // --- ImpersonationBanner ---
@@ -121,6 +124,9 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(useAuthStore.getState().user).toEqual(adminUser);
       expect(useAuthStore.getState().isImpersonating).toBe(false);
       expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+      // Phase 27 Step 27.15: refresh вызван после push, иначе RSC-кэш отрисует
+      // /service-portal/dashboard под старым cookie (с подменённым userId).
+      expect(mockRefresh).toHaveBeenCalled();
     });
   });
 

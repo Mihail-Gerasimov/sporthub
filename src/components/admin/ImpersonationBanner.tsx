@@ -35,6 +35,10 @@ export function ImpersonationBanner() {
 
     stopImpersonation();
     router.push('/service-portal/dashboard');
+    // Phase 27 Step 27.15: invalidate RSC-кэш — без refresh админ может увидеть
+    // /service-portal/dashboard под старым cookie (с подменённым userId), пока
+    // Next.js Router не перетянет страницу с новым.
+    router.refresh();
   }
 
   return (

@@ -159,6 +159,10 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     const profilePath = targetAccountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
 
     router.push(profilePath);
+    // Phase 27 Step 27.15: invalidate RSC-кэш сегмента после смены userId в cookie,
+    // иначе server-страницы /profile/* могут отрендериться со старым userId или висеть
+    // на «Rendering…» из-за закешированного сегмента предыдущей сессии админа.
+    router.refresh();
   }
 
   /** Phase 24 Step 24.15: снятие карантина — POST к admin endpoint + локальный overlay. */

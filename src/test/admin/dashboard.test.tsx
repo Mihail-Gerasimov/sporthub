@@ -11,14 +11,16 @@ import { DashboardPage } from '@/components/admin/DashboardPage';
 import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Trainer, User } from '@/types';
 
-// Мокаем next/navigation
+// Мокаем next/navigation. Phase 27 Step 27.15: refresh вынесен в именованный
+// mock, чтобы можно было ассертить его вызов после impersonation start.
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: vi.fn(),
-    refresh: vi.fn(),
+    refresh: mockRefresh,
   }),
 }));
 
@@ -122,6 +124,7 @@ describe('DashboardPage (Step 17.4)', () => {
       isAdmin: true,
     });
     mockPush.mockClear();
+    mockRefresh.mockClear();
   });
 
   // --- Рендер списка пользователей ---
@@ -287,5 +290,18 @@ describe('DashboardPage (Step 17.4)', () => {
     const buttons = screen.getAllByRole('button', { name: /войти как/i });
 
     expect(buttons.length).toBe(2);
+  });
+
+  // Phase 27 Step 27.15: после клика «Войти как» помимо router.push вызывается
+  // router.refresh() — иначе RSC-кэш сегмента отрисует /profile/* со старым
+  // userId, пользователю придётся вручную обновлять страницу.
+  it('Step 27.15 — клик «Войти как» вызывает router.push И router.refresh', () => {
+    renderDashboard();
+
+    const buttons = screen.getAllByRole('button', { name: /войти как/i });
+    fireEvent.click(buttons[0]);
+
+    expect(mockPush).toHaveBeenCalled();
+    expect(mockRefresh).toHaveBeenCalled();
   });
 });
