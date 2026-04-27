@@ -7,6 +7,8 @@ import {
   getClubBySlug,
   getClubOfferings,
   getOfferings,
+  getPublishedClubs,
+  getPublishedTrainers,
   getSchedule,
   getScheduleById,
   getScheduleSlotContext,
@@ -220,5 +222,214 @@ describe('db abstraction', () => {
         name: 'Volna Aquatic Club',
       }),
     });
+  });
+
+  // Phase 27 Step 27.12: hidden-публикации не должны утекать на публичные SSR-витрины.
+  // Семантика — `!== 'hidden'`: published, draft и записи без поля status проходят
+  // (симметрично фильтру в /api/clubs и /api/trainers route.ts).
+  it('getPublishedClubs отфильтровывает status=hidden, оставляя published/draft/undefined', async () => {
+    await writeCollection('clubs.json', [
+      {
+        id: 301,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Published Club',
+        slug: 'published-club',
+        description: 'Опубликованный.',
+        shortDescription: 'Опубликованный.',
+        city: 'Самара',
+        address: 'ул. 1',
+        phone: '+7 (846) 000-00-01',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        sportIds: [1],
+        imageUrls: [],
+        amenityIds: [],
+        tagIds: [],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1000,
+        distanceKm: 0,
+        isFeatured: false,
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'published' as const,
+      },
+      {
+        id: 302,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Hidden Club',
+        slug: 'hidden-club',
+        description: 'Скрытый админом.',
+        shortDescription: 'Скрытый.',
+        city: 'Самара',
+        address: 'ул. 2',
+        phone: '+7 (846) 000-00-02',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        sportIds: [1],
+        imageUrls: [],
+        amenityIds: [],
+        tagIds: [],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1000,
+        distanceKm: 0,
+        isFeatured: false,
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'hidden' as const,
+      },
+      {
+        id: 303,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Draft Club',
+        slug: 'draft-club',
+        description: 'Черновик.',
+        shortDescription: 'Черновик.',
+        city: 'Самара',
+        address: 'ул. 3',
+        phone: '+7 (846) 000-00-03',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        sportIds: [1],
+        imageUrls: [],
+        amenityIds: [],
+        tagIds: [],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1000,
+        distanceKm: 0,
+        isFeatured: false,
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'draft' as const,
+      },
+      {
+        id: 304,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Legacy Club Without Status',
+        slug: 'legacy-no-status',
+        description: 'Запись без поля status (legacy/seed).',
+        shortDescription: 'Legacy.',
+        city: 'Самара',
+        address: 'ул. 4',
+        phone: '+7 (846) 000-00-04',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        sportIds: [1],
+        imageUrls: [],
+        amenityIds: [],
+        tagIds: [],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1000,
+        distanceKm: 0,
+        isFeatured: false,
+        managedByUserId: 2,
+        source: 'provider' as const,
+        // status намеренно опущен
+      },
+    ]);
+
+    const published = await getPublishedClubs();
+    const ids = published.map((club) => club.id);
+
+    expect(ids).toContain(301);
+    expect(ids).toContain(303);
+    expect(ids).toContain(304);
+    expect(ids).not.toContain(302);
+  });
+
+  it('getPublishedTrainers отфильтровывает status=hidden, оставляя published/draft/undefined', async () => {
+    await writeCollection('trainers.json', [
+      {
+        id: 401,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Published Trainer',
+        slug: 'published-trainer',
+        bio: 'Опубликованный тренер.',
+        avatarUrl: '',
+        experienceYears: 5,
+        specialtyIds: [1],
+        workFormatIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 2000,
+        sportIds: [2],
+        city: 'Самара',
+        address: 'Зал',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'published' as const,
+      },
+      {
+        id: 402,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Hidden Trainer',
+        slug: 'hidden-trainer',
+        bio: 'Скрытый админом.',
+        avatarUrl: '',
+        experienceYears: 5,
+        specialtyIds: [1],
+        workFormatIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 2000,
+        sportIds: [2],
+        city: 'Самара',
+        address: 'Зал',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'hidden' as const,
+      },
+      {
+        id: 403,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Draft Trainer',
+        slug: 'draft-trainer',
+        bio: 'Черновик.',
+        avatarUrl: '',
+        experienceYears: 5,
+        specialtyIds: [1],
+        workFormatIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 2000,
+        sportIds: [2],
+        city: 'Самара',
+        address: 'Зал',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        managedByUserId: 2,
+        source: 'provider' as const,
+        status: 'draft' as const,
+      },
+      {
+        id: 404,
+        createdAt: '2026-04-27T09:00:00.000Z',
+        name: 'Legacy Trainer Without Status',
+        slug: 'legacy-trainer-no-status',
+        bio: 'Запись без поля status (legacy/seed).',
+        avatarUrl: '',
+        experienceYears: 5,
+        specialtyIds: [1],
+        workFormatIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 2000,
+        sportIds: [2],
+        city: 'Самара',
+        address: 'Зал',
+        coordinates: { lat: 53.2, lng: 50.15 },
+        managedByUserId: 2,
+        source: 'provider' as const,
+        // status намеренно опущен
+      },
+    ]);
+
+    const published = await getPublishedTrainers();
+    const ids = published.map((trainer) => trainer.id);
+
+    expect(ids).toContain(401);
+    expect(ids).toContain(403);
+    expect(ids).toContain(404);
+    expect(ids).not.toContain(402);
   });
 });

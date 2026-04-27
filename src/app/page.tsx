@@ -9,14 +9,14 @@ import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 import {
   getBookings,
-  getClubs,
   getOfferings,
+  getPublishedClubs,
+  getPublishedTrainers,
   getSchedule,
   getSpecialties,
   getSports,
   getTags,
   getTrainerClubLinks,
-  getTrainers,
 } from '@/lib/db';
 import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
@@ -37,14 +37,17 @@ export default async function Home() {
     trainerClubLinks,
     bookings,
   ] = await Promise.all([
-    getClubs(),
+    // Phase 27 Step 27.12: публичные SSR-витрины читают только не-hidden коллекции,
+    // чтобы скрытые админом публикации не оставались в выдаче, на карте, в счётчиках
+    // и featured-блоке. Хелперы симметричны фильтру в /api/clubs и /api/trainers.
+    getPublishedClubs(),
     getSchedule(),
     getOfferings(),
     getSpecialties(),
     getSports(),
     getTags(),
     getSchedule({ ownerType: 'trainer' }),
-    getTrainers(),
+    getPublishedTrainers(),
     getTrainerClubLinks({ status: 'confirmed' }),
     getBookings(),
   ]);

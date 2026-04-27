@@ -471,6 +471,21 @@ export async function getTrainers(): Promise<Trainer[]> {
   return trainers.map(normalizeTrainer);
 }
 
+// Phase 27 Step 27.12: публичные SSR-поверхности (главная, карта, выдача, популярное)
+// используют этот хелпер, чтобы hidden-публикации не утекали мимо модерации.
+// Семантика фильтра — `!== 'hidden'` — симметрична `/api/clubs` и `/api/trainers` route.ts:
+// записи без поля status (legacy/seed) проходят, что согласуется с тестом
+// hidden-filter.test.ts «status: undefined в ответе».
+export async function getPublishedClubs(): Promise<Club[]> {
+  const clubs = await getClubs();
+  return clubs.filter((club) => club.status !== 'hidden');
+}
+
+export async function getPublishedTrainers(): Promise<Trainer[]> {
+  const trainers = await getTrainers();
+  return trainers.filter((trainer) => trainer.status !== 'hidden');
+}
+
 export async function getTrainerById(id: EntityId): Promise<Trainer | null> {
   const trainers = await getTrainers();
   return trainers.find((trainer) => trainer.id === id) ?? null;
