@@ -283,7 +283,34 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     expect(JSON.parse(call[1].body as string)).toEqual({ userId: providerUser.id });
   });
 
-  it('reject: клик «Отклонить» шлёт POST /api/bookings/[id]/reject', async () => {
+  it('reject: клик «Отклонить» открывает модалку причины (Step 27.13)', () => {
+    authenticateProvider();
+    const booking = makeBooking({ id: 501, status: 'pending' });
+
+    render(
+      <ProviderBookingsInbox
+        clubs={[club]}
+        trainers={trainers}
+        bookings={[booking]}
+        offerings={[offeringSwim]}
+        schedule={[makeSchedule({ id: 1001 })]}
+        sports={sports}
+        users={[athleteUser, providerUser]}
+      />,
+    );
+
+    // До клика — модалки нет, fetch не вызывался.
+    expect(screen.queryByTestId('provider-reject-reason-modal')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('provider-bookings-action-reject-501'));
+
+    // После клика — модалка появилась, fetch ещё не пошёл (ждём submit).
+    expect(screen.getByTestId('provider-reject-reason-modal')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('reject: submit с причиной шлёт POST /reject с body.reason (Step 27.13)', async () => {
     authenticateProvider();
     fetchMock.mockResolvedValueOnce(createJsonResponse({ success: true, data: { id: 501 } }));
 
@@ -303,9 +330,71 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
     fireEvent.click(screen.getByTestId('provider-bookings-action-reject-501'));
 
+    const textarea = screen.getByTestId('provider-reject-reason-textarea') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'Время не подходит' } });
+    fireEvent.click(screen.getByTestId('provider-reject-reason-submit'));
+
     await waitFor(() => {
       expect(fetchMock.mock.calls[0][0]).toBe('/api/bookings/501/reject');
     });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toEqual({ userId: providerUser.id, reason: 'Время не подходит' });
+  });
+
+  it('reject: submit без причины шлёт POST /reject без поля reason (Step 27.13)', async () => {
+    authenticateProvider();
+    fetchMock.mockResolvedValueOnce(createJsonResponse({ success: true, data: { id: 501 } }));
+
+    const booking = makeBooking({ id: 501, status: 'pending' });
+
+    render(
+      <ProviderBookingsInbox
+        clubs={[club]}
+        trainers={trainers}
+        bookings={[booking]}
+        offerings={[offeringSwim]}
+        schedule={[makeSchedule({ id: 1001 })]}
+        sports={sports}
+        users={[athleteUser, providerUser]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('provider-bookings-action-reject-501'));
+    // Submit сразу, без ввода причины — пустая trim'ится в null.
+    fireEvent.click(screen.getByTestId('provider-reject-reason-submit'));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/bookings/501/reject');
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toEqual({ userId: providerUser.id });
+    expect(body.reason).toBeUndefined();
+  });
+
+  it('reject: «Отмена» в модалке закрывает её без вызова fetch (Step 27.13)', () => {
+    authenticateProvider();
+    const booking = makeBooking({ id: 501, status: 'pending' });
+
+    render(
+      <ProviderBookingsInbox
+        clubs={[club]}
+        trainers={trainers}
+        bookings={[booking]}
+        offerings={[offeringSwim]}
+        schedule={[makeSchedule({ id: 1001 })]}
+        sports={sports}
+        users={[athleteUser, providerUser]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('provider-bookings-action-reject-501'));
+    expect(screen.getByTestId('provider-reject-reason-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('provider-reject-reason-cancel'));
+    expect(screen.queryByTestId('provider-reject-reason-modal')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('check-in completed: клик «Пришёл» шлёт POST с outcome=completed', async () => {

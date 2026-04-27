@@ -32,12 +32,15 @@ function buildLabel(transition: BookingStatusTransition): string {
       return 'Провайдер подтвердил';
     }
 
+    // Phase 27 Step 27.14: причина отмены/отказа провайдера — свободная строка
+    // из statusHistory.reason. Дописываем «. Причина: …» симметрично формату
+    // в notification-copy.ts (dropdown колокольчика и страница уведомлений).
     if (to === 'cancelled_by_provider') {
-      return 'Провайдер отменил';
+      return appendReasonIfPresent('Провайдер отменил', reason);
     }
 
     if (to === 'rejected_by_provider') {
-      return 'Провайдер отклонил';
+      return appendReasonIfPresent('Провайдер отклонил', reason);
     }
 
     if (to === 'completed') {
@@ -70,6 +73,20 @@ function buildLabel(transition: BookingStatusTransition): string {
   }
 
   return fallbackLabel(to, 'Админ');
+}
+
+/**
+ * Phase 27 Step 27.14: дописывает суффикс «. Причина: <reason>» к лейблу,
+ * если в transition есть непустой reason. Используется только для provider-
+ * переходов (rejected_by_provider / cancelled_by_provider) — для athlete и
+ * system reason держит служебные коды (late / auto_cancel_pending_expired),
+ * которые уже зашиты в самих лейблах и не должны утекать в UI.
+ */
+function appendReasonIfPresent(label: string, reason?: string): string {
+  if (typeof reason !== 'string') return label;
+  const trimmed = reason.trim();
+  if (trimmed.length === 0) return label;
+  return `${label}. Причина: ${trimmed}`;
 }
 
 /** Fallback для нестандартных комбинаций — даёт осмысленный текст без падения. */

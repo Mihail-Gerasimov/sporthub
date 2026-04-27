@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { startTransition, useMemo, useState } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
+import { RejectBookingReasonModal } from '@/components/profile/provider/RejectBookingReasonModal';
 import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
 import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { computeAthleteReliability } from '@/lib/reliability';
@@ -115,6 +116,9 @@ export function ProviderBookingsInbox({
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);
   const [sportFilter, setSportFilter] = useState<string>(ALL_VALUE);
   const [pendingActionId, setPendingActionId] = useState<number | null>(null);
+  // Phase 27 Step 27.13: модалка причины при reject. Один монтаж под список —
+  // EnrichedBooking хранит контекст (имя атлета, id) для submit'а.
+  const [rejectingItem, setRejectingItem] = useState<EnrichedBooking | null>(null);
 
   const providerClubs = useMemo(
     () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
@@ -452,15 +456,7 @@ export function ProviderBookingsInbox({
                       <Button
                         variant="outline"
                         loading={isPending}
-                        onClick={() =>
-                          transition({
-                            item,
-                            endpoint: `/api/bookings/${item.booking.id}/reject`,
-                            payload: {},
-                            successMessage: 'Запись отклонена.',
-                            errorFallback: 'Не удалось отклонить запись',
-                          })
-                        }
+                        onClick={() => setRejectingItem(item)}
                         data-testid={`provider-bookings-action-reject-${item.booking.id}`}
                       >
                         Отклонить
@@ -538,6 +534,27 @@ export function ProviderBookingsInbox({
           })}
         </ul>
       )}
+
+      {/* Phase 27 Step 27.13: модалка причины reject (опциональная). Reuse одним
+          монтажом — закрытие сбрасывает item, открытие — выставляет. */}
+      <RejectBookingReasonModal
+        open={rejectingItem !== null}
+        athleteName={rejectingItem?.athleteName ?? ''}
+        loading={pendingActionId !== null && pendingActionId === rejectingItem?.booking.id}
+        onClose={() => setRejectingItem(null)}
+        onConfirm={(reason) => {
+          const item = rejectingItem;
+          if (item === null) return;
+          setRejectingItem(null);
+          void transition({
+            item,
+            endpoint: `/api/bookings/${item.booking.id}/reject`,
+            payload: reason !== null ? { reason } : {},
+            successMessage: 'Запись отклонена.',
+            errorFallback: 'Не удалось отклонить запись',
+          });
+        }}
+      />
     </div>
   );
 }
