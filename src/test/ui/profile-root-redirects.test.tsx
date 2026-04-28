@@ -14,6 +14,8 @@ const { redirectMock } = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => ({
   redirect: redirectMock,
+  // Phase 28: MobileNav стал client-component с usePathname для подсветки активного пункта
+  usePathname: () => '/',
 }));
 
 import AthleteProfileRoute from '@/app/profile/athlete/page';

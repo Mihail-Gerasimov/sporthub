@@ -1,9 +1,17 @@
-import Link from 'next/link';
+// Phase 28: мобильный нижний док-навигатор. Виден только на 480 (sm-) — на md+
+// nav в Header'е уже доступна. 4 пункта (Главная / Поиск / Слоты / Профиль) с
+// SVG-иконками. В новой палитре — тёмная карточка с lime-акцентом для активного.
+'use client';
 
-const mobileNavItems = [
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import type { ReactNode } from 'react';
+
+const mobileNavItems: ReadonlyArray<{ href: string; label: string; matchPaths: string[]; glyph: ReactNode }> = [
   {
     href: '/',
     label: 'Главная',
+    matchPaths: ['/'],
     glyph: (
       <path
         d="M4.5 10.5 12 4l7.5 6.5v8a1 1 0 0 1-1 1H14v-5h-4v5H5.5a1 1 0 0 1-1-1v-8Z"
@@ -18,6 +26,7 @@ const mobileNavItems = [
   {
     href: '/#discover',
     label: 'Поиск',
+    matchPaths: ['/#discover'],
     glyph: (
       <>
         <circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
@@ -34,6 +43,7 @@ const mobileNavItems = [
   {
     href: '/#availability',
     label: 'Слоты',
+    matchPaths: ['/#availability'],
     glyph: (
       <>
         <rect
@@ -59,6 +69,7 @@ const mobileNavItems = [
   {
     href: '/profile/athlete/dashboard',
     label: 'Профиль',
+    matchPaths: ['/profile/athlete', '/profile/provider'],
     glyph: (
       <>
         <circle cx="12" cy="8.5" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
@@ -75,23 +86,32 @@ const mobileNavItems = [
 ];
 
 export function MobileNav() {
+  const pathname = usePathname();
+
   return (
     <nav
       aria-label="Мобильная навигация"
-      className="fixed inset-x-4 bottom-4 z-50 flex items-center justify-between rounded-card border border-line bg-panel/95 px-3 py-2 shadow-floating backdrop-blur md:hidden"
+      className="fixed inset-x-3 bottom-3 z-50 flex items-center justify-between rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
     >
-      {mobileNavItems.map((item) => (
-        <Link
-          key={item.label}
-          href={item.href}
-          className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-card px-2 py-2 text-center text-[11px] font-semibold text-ink transition-colors hover:bg-canvas hover:text-accent"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
-            {item.glyph}
-          </svg>
-          <span>{item.label}</span>
-        </Link>
-      ))}
+      {mobileNavItems.map((item) => {
+        // Активность определяем по pathname — точное совпадение для «/», префикс для разделов.
+        const isActive = item.matchPaths.some((path) =>
+          path === '/' ? pathname === '/' : pathname.startsWith(path),
+        );
+        const colorClass = isActive ? 'text-[var(--ui-lime)]' : 'text-[var(--ui-muted)]';
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-center font-body text-[10px] font-bold uppercase tracking-[0.10em] no-underline transition-colors hover:text-[var(--ui-lime)] ${colorClass}`}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6">
+              {item.glyph}
+            </svg>
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

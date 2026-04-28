@@ -9,6 +9,8 @@ vi.mock('next/navigation', () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
+  // Phase 28: MobileNav стал client-component с usePathname для подсветки активного пункта
+  usePathname: () => '/',
 }));
 
 describe('AppShell', () => {

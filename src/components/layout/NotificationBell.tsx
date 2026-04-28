@@ -128,6 +128,7 @@ export function NotificationBell() {
 
   return (
     <div ref={containerRef} className="relative">
+      {/* Bell — 44×44 outline pill, hover lime. Badge orange с числом непрочитанных. */}
       <button
         type="button"
         aria-label="Уведомления"
@@ -135,7 +136,7 @@ export function NotificationBell() {
           setIsOpen((prev) => !prev);
           void refetch();
         }}
-        className="relative flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-ink transition-colors hover:border-accent hover:text-accent"
+        className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] text-[var(--ui-ink)] transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -145,7 +146,7 @@ export function NotificationBell() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="size-5"
+          className="size-[18px]"
           aria-hidden="true"
         >
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -154,7 +155,7 @@ export function NotificationBell() {
         {unreadCount > 0 ? (
           <span
             data-testid="notification-bell-badge"
-            className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-panel"
+            className="absolute -right-[3px] -top-[3px] flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[var(--ui-bg)] bg-[var(--ui-orange)] px-[5px] font-body text-[10px] font-bold tabular-nums text-[var(--ui-bg)]"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
@@ -164,15 +165,17 @@ export function NotificationBell() {
       {isOpen ? (
         <div
           data-testid="notification-bell-dropdown"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-card border border-line bg-panel shadow-lg"
+          className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] shadow-[var(--ui-shadow-floating)]"
           role="dialog"
           aria-label="Последние уведомления"
         >
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <span className="text-sm font-semibold text-ink">Уведомления</span>
+          <div className="flex items-center justify-between border-b border-[var(--ui-line)] px-4 py-3">
+            <span className="font-body text-[13px] font-bold uppercase tracking-[0.06em] text-[var(--ui-ink)]">
+              Уведомления
+            </span>
             <Link
               href={allNotificationsHref}
-              className="text-xs font-semibold text-accent hover:underline"
+              className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-[var(--ui-lime)] hover:underline"
               onClick={() => setIsOpen(false)}
             >
               Все уведомления
@@ -180,11 +183,13 @@ export function NotificationBell() {
           </div>
           <div className="max-h-80 overflow-y-auto">
             {loading ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">Загружаем…</p>
+              <p className="px-4 py-6 text-center text-sm text-[var(--ui-muted)]">Загружаем…</p>
             ) : items.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">Нет новых уведомлений</p>
+              <p className="px-4 py-6 text-center text-sm text-[var(--ui-muted)]">
+                Нет новых уведомлений
+              </p>
             ) : (
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-[var(--ui-line)]">
                 {items.map((notification) => {
                   const copy = getNotificationCopy(notification.type, notification.payload);
                   const isUnread = notification.readAt === undefined;
@@ -196,23 +201,23 @@ export function NotificationBell() {
                         onClick={() => {
                           void handleItemClick(notification);
                         }}
-                        className={`block w-full px-4 py-3 text-left text-sm transition-colors hover:bg-canvas ${
-                          isUnread ? 'bg-canvas' : ''
+                        className={`block w-full cursor-pointer px-4 py-3 text-left text-sm transition-colors hover:bg-[var(--ui-bg)] ${
+                          isUnread ? 'bg-[var(--ui-bg-deep)]/40' : ''
                         }`}
                       >
-                        <p className="flex items-center justify-between gap-2 font-semibold text-ink">
+                        <p className="flex items-center justify-between gap-2 font-body font-semibold text-[var(--ui-ink)]">
                           <span>{copy.title}</span>
                           {isUnread ? (
                             <span
                               aria-label="Непрочитанное"
-                              className="inline-block size-2 rounded-full bg-accent"
+                              className="inline-block size-2 shrink-0 rounded-full bg-[var(--ui-lime)]"
                             />
                           ) : null}
                         </p>
                         {copy.description ? (
-                          <p className="mt-1 text-xs text-muted">{copy.description}</p>
+                          <p className="mt-1 text-xs text-[var(--ui-muted)]">{copy.description}</p>
                         ) : null}
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted">
+                        <p className="mt-1 font-body text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
                           {formatNotificationDate(notification.createdAt)}
                         </p>
                       </button>

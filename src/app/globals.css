@@ -129,6 +129,15 @@
   /* Тени */
   --shadow-card: var(--ui-shadow-card);
   --shadow-floating: var(--ui-shadow-floating);
+
+  /* ===== Брейкпоинты SportHub (Phase 28) =====
+   * Кастомные значения из дизайна Claude Design (sm = 480 для больших телефонов,
+   * xxl = 1440 потолок главного контейнера, 2k = 1920 FullHD).
+   * md/lg/xl остаются как дефолт Tailwind (768/1024/1280) — совпадают.
+   */
+  --breakpoint-sm: 480px;
+  --breakpoint-xxl: 1440px;
+  --breakpoint-2k: 1920px;
 }
 
 * {

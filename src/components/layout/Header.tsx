@@ -1,10 +1,17 @@
+// Phase 28: главный Header проекта SportHub в новой тёмной палитре дизайн-системы.
+// Структура и адаптив 1-в-1 с claude-design/project/SportHub Header - Standalone Source.html.
+//
+// Адаптив:
+// - sm (480-): logo-mark + cluster справа (bell + avatar + кнопка Выйти иконкой), nav и user-info скрыты.
+// - md (768): добавляется logo-tag (без eyebrow), nav-pill из 3 пунктов, кнопка Выйти иконкой.
+// - lg (1024+): добавляется logo-eyebrow «SPORTHUB» и user-info (имя + роль), кнопка Выйти текстом.
+// - xxl (1440+): контейнер достигает потолка max-w-[1440px], пустые поля по бокам выше 1440.
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
-import { Button } from '@/components/ui';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { getPersonalCabinetConfig } from '@/stores/useAuthStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -28,66 +35,88 @@ export function Header() {
   const router = useRouter();
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
   const cabinetConfig = getPersonalCabinetConfig(accountType);
-  // Универсальная ссылка в кабинет — работает и для athlete, и для provider
   const cabinetHref = cabinetConfig?.profilePath ?? null;
 
-  // Admin без impersonation → ссылка на «Панель управления» вместо кабинета
+  // Admin без impersonation → ссылка на «Панель управления» вместо личного кабинета.
   const isAdminDirect = isAdmin && !isImpersonating;
 
+  const handleLogout = () => {
+    if (isImpersonating) {
+      stopImpersonation();
+      router.push('/service-portal/dashboard');
+    } else {
+      logout();
+    }
+  };
+
   return (
-    <header className="border-b border-line/80 bg-panel/90 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-card bg-accent text-lg font-bold text-panel">
+    <header className="relative border-b border-[var(--ui-line)] bg-[var(--ui-bg)] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-40">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-4 md:gap-6 md:px-6 lg:px-10">
+        {/* Лого: марка + (на md+ tagline, на lg+ ещё eyebrow) */}
+        <Link href="/" className="flex shrink-0 items-center gap-3 text-inherit no-underline">
+          {/* Лого-марка 44×44 с инкрустированным гранжем через ::before */}
+          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-bg)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:repeating-linear-gradient(135deg,rgba(0,0,0,0.18)_0_2px,transparent_2px_8px)]">
             S
           </span>
-          <span className="flex flex-col">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          {/* Текст-лого: скрыт на 480, на md/lg+ виден */}
+          <span className="hidden min-w-0 flex-col leading-none sm:flex">
+            <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--ui-muted)] lg:inline">
               SportHub
             </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-ink">
+            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-[var(--ui-ink)] md:text-base">
               Найди свой ритм
             </span>
           </span>
         </Link>
 
+        {/* Pill-навигация: скрыта на 480, появляется на md+ */}
         <nav
           aria-label="Основная навигация"
-          className="hidden items-center gap-2 rounded-pill border border-line bg-canvas/80 px-3 py-2 md:flex"
+          className="hidden items-center gap-1 rounded-full border border-[var(--ui-line)] bg-white/[0.02] p-[5px] md:flex"
         >
           {navigationItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="rounded-pill px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-panel hover:text-accent"
+              className="rounded-full px-3 py-2 font-body text-[11px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-colors hover:bg-white/[0.04] hover:text-[var(--ui-lime)] md:px-4 md:text-[12px] md:tracking-[0.12em]"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        {/* Cluster справа: bell + user-info + avatar + Выйти/Войти */}
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Phase 24 Step 24.7: колокольчик уведомлений — виден только athlete/provider */}
+            <>
+              {/* NotificationBell — внутри своя стилизация */}
               <NotificationBell />
-              <div className="hidden min-w-0 text-right md:block">
-                <p className="truncate text-sm font-semibold leading-5 text-ink">{user.name}</p>
+
+              {/* User-info: имя + роль, виден только lg+ */}
+              <div className="hidden min-w-0 flex-col items-end text-right leading-tight lg:flex">
+                <p
+                  className="mb-1 max-w-[140px] truncate font-body text-[13px] font-medium text-[var(--ui-ink)]"
+                  title={user.name}
+                >
+                  {user.name}
+                </p>
                 {isAdminDirect ? (
-                  <p className="text-[11px] uppercase tracking-[0.12em] leading-4 text-muted">
+                  <p className="font-body text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--ui-lime)]">
                     Администратор
                   </p>
                 ) : accountType ? (
-                  <p className="text-[11px] uppercase tracking-[0.12em] leading-4 text-muted">
+                  <p className="font-body text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--ui-lime)]">
                     {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
                   </p>
                 ) : null}
               </div>
+
+              {/* Аватар — пилюля 44×44 с инициалом, ссылка в кабинет */}
               {isAdminDirect ? (
                 <Link
                   href="/service-portal/dashboard"
                   aria-label="Панель управления"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink transition-colors hover:border-accent hover:text-accent"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] font-display text-[16px] uppercase text-[var(--ui-ink)] no-underline transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
                 >
                   {accountInitial}
                 </Link>
@@ -95,7 +124,7 @@ export function Header() {
                 <Link
                   href={cabinetHref}
                   aria-label="Перейти в личный кабинет"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink transition-colors hover:border-accent hover:text-accent"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] font-display text-[16px] uppercase text-[var(--ui-ink)] no-underline transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
                 >
                   {accountInitial}
                 </Link>
@@ -103,35 +132,50 @@ export function Header() {
                 <div
                   role="img"
                   aria-label={`Аватар ${user.name}`}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line bg-canvas text-sm font-semibold uppercase text-ink"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] font-display text-[16px] uppercase text-[var(--ui-ink)]"
                 >
                   {accountInitial}
                 </div>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (isImpersonating) {
-                    stopImpersonation();
-                    router.push('/service-portal/dashboard');
-                  } else {
-                    logout();
-                  }
-                }}
+
+              {/* Кнопка «Выйти» — warning-вариант. На 480/768 — иконка-дверь, на lg+ — текст. */}
+              <button
+                type="button"
+                aria-label="Выйти"
+                onClick={handleLogout}
+                className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-orange)] bg-[var(--ui-bg)] font-body font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-orange)] hover:text-[var(--ui-bg)] lg:px-5 lg:py-3 lg:text-[13px]"
               >
-                Выйти
-              </Button>
-            </div>
+                {/* Icon-only вариант на sm/md (44×44, иконка-дверь) */}
+                <span className="flex size-11 items-center justify-center lg:hidden">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-[18px]"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
+                {/* Текст «Выйти» — только lg+ */}
+                <span className="hidden lg:inline">Выйти</span>
+              </button>
+            </>
           ) : (
-            <Button
-              size="sm"
-              onClick={() => {
-                openAuthModal();
-              }}
+            // Гость: одна кнопка «Войти» (primary outline lime)
+            <button
+              type="button"
+              onClick={openAuthModal}
+              className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-bg)] px-5 py-3 font-body text-[13px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-lime)] hover:text-[var(--ui-bg)]"
             >
               Войти
-            </Button>
+            </button>
           )}
         </div>
       </div>

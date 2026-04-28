@@ -36,12 +36,15 @@ describe('Минималистичный стиль layout-компоненто�
       expect(logoIcon!.className).not.toContain('shadow-floating');
     });
 
-    it('tracking подзаголовка "SportHub" не превышает 0.15em', () => {
+    // Phase 28: новый дизайн SportHub использует Oswald 700 letter-spacing 0.18em
+    // для eyebrow «SPORTHUB» (точное значение из UI Kit). Раньше (светлая палитра)
+    // действовало правило «минимализм tracking ≤ 0.15em». Поднимаем предел до 0.20em.
+    it('tracking подзаголовка "SportHub" не превышает 0.20em (UI Kit eyebrow)', () => {
       render(<Header />);
       const sportHubLabel = screen.getByText('SportHub');
       const trackingMatch = sportHubLabel.className.match(/tracking-\[([0-9.]+)em\]/);
       expect(trackingMatch).not.toBeNull();
-      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.15);
+      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.2);
     });
   });
 
