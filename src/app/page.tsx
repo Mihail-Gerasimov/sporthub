@@ -119,7 +119,7 @@ export default async function Home() {
   });
 
   return (
-    <main className="min-h-screen bg-[var(--ui-bg-deep)] px-3 py-6 sm:px-4 md:px-6 lg:px-10">
+    <main className="min-h-screen overflow-x-hidden bg-[var(--ui-bg-deep)] px-3 py-6 sm:px-4 md:px-6 lg:px-10">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 lg:gap-10">
         {/* ========== HERO BILLBOARD ========== */}
         <section
@@ -134,9 +134,12 @@ export default async function Home() {
             SH
           </span>
 
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start">
+          {/* Grid: явный grid-cols-1 на mobile (без него grid создаёт авто-колонку
+              под максимум contento и H1 в Bowlby растягивает её до ~988px → горизонтальный
+              скролл на 480). min-w-0 на детях разрешает им сжиматься ниже content-size. */}
+          <div className="relative z-10 grid grid-cols-1 gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start">
             {/* === Левая колонка: badges + H1 + lede + sport rail + CTA === */}
-            <div className="flex flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-6">
               {/* Strip-badges row. Текст одной нодой — чтобы getByText находил полную фразу
                   (см. home-page.test.tsx, publish-catalog-flow.test.tsx). */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -151,21 +154,24 @@ export default async function Home() {
                 </span>
               </div>
 
-              {/* H1 — Bowlby clamp, ключевое слово lime */}
-              <h1 className="m-0 max-w-[720px] font-display text-[clamp(40px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-[var(--ui-ink)] lg:text-[clamp(48px,5.4vw,84px)]">
+              {/* H1 — Bowlby clamp, ключевое слово lime.
+                  max-w ставим только с lg+ (на mobile H1 ширина = ширина контейнера). */}
+              <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-[var(--ui-ink)] lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
                 Найди <span className="text-[var(--ui-lime)]">спорт</span> в своём ритме
               </h1>
 
-              {/* Lede — leading-relaxed (≈1.625, близко к UI Kit 1.55) */}
-              <p className="m-0 max-w-[520px] font-body text-[15px] leading-relaxed text-[var(--ui-muted)] sm:text-[16px]">
+              {/* Lede — на mobile занимает всю ширину, max-w только с lg+ */}
+              <p className="m-0 w-full font-body text-[15px] leading-relaxed text-[var(--ui-muted)] sm:text-[16px] lg:max-w-[520px]">
                 SportHub собирает клубы, студии, персональных тренеров и спортивные слоты Самары в
                 одной витрине: сначала быстрый поиск и фильтры, потом выдача на карте, популярные
                 карточки и ближайшие окна для записи.
               </p>
 
-              {/* Sport rail — горизонтальный скролл чипов с инициалом */}
+              {/* Sport rail — горизонтальный скролл чипов с инициалом.
+                  min-w-0 + max-w-full обязательны: без них flex-row с shrink-0 chips
+                  расширяет parent под суммарную ширину контента (~1100px) и ломает grid. */}
               {searchFilterSports.length > 0 ? (
-                <div className="scrollbar-hidden -mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+                <div className="scrollbar-hidden -mx-1 flex min-w-0 max-w-full gap-2.5 overflow-x-auto px-1 pb-1">
                   {searchFilterSports.slice(0, 8).map((sport) => (
                     <span
                       key={sport.id}
@@ -180,8 +186,8 @@ export default async function Home() {
                 </div>
               ) : null}
 
-              {/* 2 CTA */}
-              <div className="flex flex-wrap gap-3">
+              {/* 2 CTA — на mobile full-width в столбик, на md+ в строку */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/#results"
                   className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-bg)] px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] no-underline transition-all hover:bg-[var(--ui-lime)] hover:text-[var(--ui-bg)] sm:text-[13px]"
@@ -198,7 +204,7 @@ export default async function Home() {
             </div>
 
             {/* === Правая колонка: FocusCard "Сегодня в фокусе" === */}
-            <aside className="relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-bg)] p-5 transition-colors hover:border-[var(--ui-lime)] after:pointer-events-none after:absolute after:-right-10 after:-top-10 after:size-[140px] after:rounded-full after:[background:radial-gradient(circle,var(--ui-lime-soft)_0%,transparent_70%)]">
+            <aside className="relative min-w-0 overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-bg)] p-5 transition-colors hover:border-[var(--ui-lime)] after:pointer-events-none after:absolute after:-right-10 after:-top-10 after:size-[140px] after:rounded-full after:[background:radial-gradient(circle,var(--ui-lime-soft)_0%,transparent_70%)]">
               <div className="relative z-10 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2.5">
                   <span className="font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-lime)]">

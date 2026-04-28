@@ -58,12 +58,13 @@ export function Header() {
           <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-bg)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:repeating-linear-gradient(135deg,rgba(0,0,0,0.18)_0_2px,transparent_2px_8px)]">
             S
           </span>
-          {/* Текст-лого: скрыт на 480, на md/lg+ виден */}
-          <span className="hidden min-w-0 flex-col leading-none sm:flex">
+          {/* Текст-лого: скрыт на sm (480-), tagline появляется на md (768+),
+              eyebrow «SPORTHUB» — только на lg (1024+) */}
+          <span className="hidden min-w-0 flex-col leading-none md:flex">
             <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--ui-muted)] lg:inline">
               SportHub
             </span>
-            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-[var(--ui-ink)] md:text-base">
+            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-[var(--ui-ink)] lg:text-base">
               Найди свой ритм
             </span>
           </span>
