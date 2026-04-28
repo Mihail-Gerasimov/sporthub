@@ -73,3 +73,14 @@ src/data/work-formats.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# E2E tests (локальная работа, не коммитим)
+.mcp.json
+tests/
+e2e/
+# Личные заметки (черновик, не коммитим)
+ЗАМЕТКИ.md
+
+# Артефакты Claude Design (handoff-bundle, ~3.4MB, локальный референс для редизайна)
+claude-design/
+драфт_дизайн/
