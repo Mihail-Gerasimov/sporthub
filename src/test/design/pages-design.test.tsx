@@ -31,15 +31,18 @@ describe('Минималистичный стиль страниц', () => {
   });
 
   describe('Home page hero', () => {
-    it('hero-секция не содержит radial-gradient декорации', async () => {
+    // Phase 28: новый дизайн UI Kit использует радиальные градиенты на hero billboard
+    // (lime + orange атмосфера) для энергии. Раньше (светлая палитра) действовало
+    // правило «никаких radial-gradient». Теперь — наоборот: ждём декоративный фон.
+    it('hero-секция содержит атмосферные radial-gradient декорации (UI Kit)', async () => {
       render(await Home());
-      // Hero-секция — первая section внутри main
       const main = screen.getByRole('main');
       const heroSection = main.querySelector('section');
       expect(heroSection).not.toBeNull();
-      // Ищем элемент с radial-gradient
-      const gradientOverlay = heroSection!.querySelector('[class*="radial-gradient"]');
-      expect(gradientOverlay).toBeNull();
+      // Hero-billboard имеет радиальные градиенты в before:[background:radial-gradient(...)]
+      // Ищем подстроку в className любого элемента секции (включая саму section).
+      const heroHTML = heroSection!.outerHTML;
+      expect(heroHTML).toContain('radial-gradient');
     });
 
     it('hero-описание использует leading-relaxed', async () => {

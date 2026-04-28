@@ -7,7 +7,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-const mobileNavItems: ReadonlyArray<{ href: string; label: string; matchPaths: string[]; glyph: ReactNode }> = [
+const mobileNavItems: ReadonlyArray<{
+  href: string;
+  label: string;
+  matchPaths: string[];
+  glyph: ReactNode;
+}> = [
   {
     href: '/',
     label: 'Главная',
