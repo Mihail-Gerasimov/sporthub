@@ -72,12 +72,14 @@ describe('Дизайн-токены (globals.css)', () => {
   });
 
   // --- Body ---
-  it('body не содержит более одного radial-gradient (минимализм)', () => {
-    // Считаем radial-gradient в CSS body-блоке
+  // Phase 28: тёмная палитра SportHub использует ровно 2 радиальных градиента
+  // (lime 5% top-left + orange 4% bottom-right) для атмосферы — это часть UI Kit.
+  // Раньше (светлая палитра) допускался максимум 1 radial-gradient.
+  it('body содержит не более 2 radial-gradient (атмосфера UI Kit)', () => {
     const bodyMatch = globalsCss.match(/body\s*\{[\s\S]*?\}/);
     expect(bodyMatch).not.toBeNull();
     const bodyBlock = bodyMatch![0];
     const radialCount = (bodyBlock.match(/radial-gradient/g) || []).length;
-    expect(radialCount).toBeLessThanOrEqual(1);
+    expect(radialCount).toBeLessThanOrEqual(2);
   });
 });

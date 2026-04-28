@@ -1,35 +1,110 @@
+/*
+ * Глобальные стили SportHub. Phase 28: переход на тёмную дизайн-систему
+ * (палитра, типографика, радиусы) из claude-design/project/SportHub UI Kit.html.
+ *
+ * Структура:
+ * 1. :root  — 14 базовых CSS-переменных тёмной палитры (--ui-bg, --ui-card, --ui-lime, ...)
+ *    + алиасы для обратной совместимости (--ui-canvas → bg, --ui-panel → card, ...).
+ *    Существующие компоненты (text-ink, bg-canvas, border-line, ...) автоматически
+ *    подхватывают новые значения, не требуя точечной правки в Phase 28.
+ * 2. @theme inline — маппинг переменных в Tailwind utility-классы (color-*, font-*, radius-*).
+ *    Старые имена сохранены, добавлены новые (color-bg, color-lime, color-orange, ...).
+ * 3. Базовые стили html/body — тёмный фон с двойным радиальным градиентом
+ *    (lime 5% top-left + orange 4% bottom-right, на базе --ui-bg-deep).
+ * 4. Типографические утилиты .t-* (Bowlby One и Oswald классы из UI Kit).
+ * 5. Существующие утилиты (.scrollbar-hidden, input[type=number] resets) сохранены.
+ */
+
 @import 'tailwindcss';
 
 :root {
-  --ui-font-display: 'Avenir Next', 'SF Pro Display', 'Segoe UI', sans-serif;
-  --ui-font-body: 'Avenir Next', 'SF Pro Text', 'Segoe UI', sans-serif;
-  --ui-font-mono: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
-  --ui-canvas: #f4ead7;
-  --ui-panel: #fff7eb;
-  --ui-panel-strong: #eadcc6;
-  --ui-ink: #15232a;
-  --ui-muted: #61717a;
-  --ui-line: #d7c2a5;
-  --ui-accent: #d85a32;
-  --ui-accent-strong: #ad3c1c;
-  --ui-accent-soft: #f4c9a8;
-  --ui-teal: #0c6f73;
-  --ui-success: #1e7b56;
-  --ui-warning: #cb8b24;
-  --ui-danger: #b34536;
-  --ui-radius-card: 16px;
-  --ui-radius-pill: 999px;
-  --ui-shadow-card: 0 2px 12px rgba(21, 35, 42, 0.07);
-  --ui-shadow-floating: 0 4px 20px rgba(21, 35, 42, 0.1);
+  /* ===== Шрифты (значения подставляются через next/font/google в src/app/layout.tsx) ===== */
+  --ui-font-display: 'Bowlby One', Impact, sans-serif;
+  --ui-font-body: 'Oswald', system-ui, sans-serif;
+  --ui-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  /* ===== Тёмная палитра (14 переменных, синхронизировано с UI Kit) ===== */
+  /* Поверхности */
+  --ui-bg: #0a0a0a; /* Основной фон страницы — угольный, не чистый чёрный */
+  --ui-bg-deep: #050505; /* Самый глубокий фон — body wrapper */
+  --ui-card: #1a1a1a; /* Фон карточек на тёмном фоне */
+  --ui-card-2: #141414; /* Альтернативный фон секций, фон input-полей */
+  --ui-line: #2a2a2a; /* Границы карточек, разделители */
+  --ui-line-2: #222; /* Усиленные внутренние разделители */
+
+  /* Текст */
+  --ui-ink: #ffffff; /* Основной текст на тёмном */
+  --ui-muted: #a0a0a0; /* Вторичный текст, мета, подписи */
+  --ui-disabled: #6b6b6b; /* Disabled-элементы, неактивные состояния */
+
+  /* Акценты — лайм (positive: запись, подтверждение, success, активный) */
+  --ui-lime: #84c003;
+  --ui-lime-hov: #91d401;
+  --ui-lime-soft: rgba(132, 192, 3, 0.12);
+
+  /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций) */
+  --ui-orange: #fb6119;
+  --ui-orange-hov: #ff7a3d;
+  --ui-orange-soft: rgba(251, 97, 25, 0.12);
+
+  /* Hard-danger (валидация формы, danger-бэйдж, hard-delete admin) */
+  --ui-red: #e74c3c;
+
+  /* ===== Алиасы для обратной совместимости со светлой палитрой =====
+   * Старые имена (--ui-canvas, --ui-panel, --ui-accent, ...) ссылаются на новые.
+   * Существующие классы Tailwind (bg-canvas, text-accent, border-line, ...)
+   * автоматически получают тёмные значения. Точечный ребранд компонентов под
+   * новые имена (bg-bg, bg-card, text-lime) — постепенно в Phase 29+.
+   */
+  --ui-canvas: var(--ui-bg); /* Фон страницы */
+  --ui-panel: var(--ui-card); /* Фон карточки (panel = card в новой семантике) */
+  --ui-panel-strong: var(--ui-card-2); /* Альтернативный фон */
+  --ui-accent: var(--ui-lime); /* Primary accent (лайм вместо оранжевого) */
+  --ui-accent-strong: var(--ui-lime-hov); /* Hover для primary */
+  --ui-accent-soft: var(--ui-lime-soft); /* Фон бэйджей primary */
+  --ui-teal: var(--ui-lime); /* Secondary positive */
+  --ui-success: var(--ui-lime);
+  --ui-warning: var(--ui-orange);
+  --ui-danger: var(--ui-red);
+
+  /* ===== Радиусы (точные значения из UI Kit) ===== */
+  --ui-radius-pill: 999px; /* Кнопки, бэйджи, чипы, аватары, bell, нав-меню */
+  --ui-radius-card: 18px; /* Карточки секций, specimen, swatch */
+  --ui-radius-card-lg: 14px; /* Search-field, мелкие карточки внутри состояний */
+  --ui-radius-modal: 24px; /* Модалки, hero-блоки */
+  --ui-radius-mark: 12px; /* Лого-марка */
+
+  /* ===== Тени =====
+   * Минимально на тёмной теме — только на модалках и dropdown.
+   * На дефолтных карточках теней нет, структуру держит обводка.
+   */
+  --ui-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4); /* Едва заметная подложка карточки */
+  --ui-shadow-floating: 0 24px 48px rgba(0, 0, 0, 0.6); /* Модалки, dropdown, popover */
 }
 
 @theme inline {
+  /* Новые токены из тёмной палитры */
+  --color-bg: var(--ui-bg);
+  --color-bg-deep: var(--ui-bg-deep);
+  --color-card: var(--ui-card);
+  --color-card-2: var(--ui-card-2);
+  --color-line: var(--ui-line);
+  --color-line-2: var(--ui-line-2);
+  --color-ink: var(--ui-ink);
+  --color-muted: var(--ui-muted);
+  --color-disabled: var(--ui-disabled);
+  --color-lime: var(--ui-lime);
+  --color-lime-hov: var(--ui-lime-hov);
+  --color-lime-soft: var(--ui-lime-soft);
+  --color-orange: var(--ui-orange);
+  --color-orange-hov: var(--ui-orange-hov);
+  --color-orange-soft: var(--ui-orange-soft);
+  --color-red: var(--ui-red);
+
+  /* Старые имена-алиасы (Tailwind видит их как color-canvas, color-panel и т.д.) */
   --color-canvas: var(--ui-canvas);
   --color-panel: var(--ui-panel);
   --color-panel-strong: var(--ui-panel-strong);
-  --color-ink: var(--ui-ink);
-  --color-muted: var(--ui-muted);
-  --color-line: var(--ui-line);
   --color-accent: var(--ui-accent);
   --color-accent-strong: var(--ui-accent-strong);
   --color-accent-soft: var(--ui-accent-soft);
@@ -37,12 +112,21 @@
   --color-success: var(--ui-success);
   --color-warning: var(--ui-warning);
   --color-danger: var(--ui-danger);
+
+  /* Шрифты */
   --font-sans: var(--ui-font-body);
   --font-display: var(--ui-font-display);
   --font-body: var(--ui-font-body);
   --font-mono: var(--ui-font-mono);
+
+  /* Радиусы */
   --radius-card: var(--ui-radius-card);
+  --radius-card-lg: var(--ui-radius-card-lg);
   --radius-pill: var(--ui-radius-pill);
+  --radius-modal: var(--ui-radius-modal);
+  --radius-mark: var(--ui-radius-mark);
+
+  /* Тени */
   --shadow-card: var(--ui-shadow-card);
   --shadow-floating: var(--ui-shadow-floating);
 }
@@ -52,25 +136,106 @@
 }
 
 html {
-  background: var(--ui-canvas);
+  background: var(--ui-bg-deep);
 }
 
+/* body — тёмный угольный фон с двойным радиальным градиентом для атмосферы.
+ * Лайм 5% top-left + оранжевый 4% bottom-right даёт лёгкую энергию без AI-slop.
+ */
 body {
   min-height: 100vh;
-  background: linear-gradient(180deg, var(--ui-panel) 0%, var(--ui-canvas) 100%);
+  background:
+    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(132, 192, 3, 0.05), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 90% 100%, rgba(251, 97, 25, 0.04), transparent 60%),
+    var(--ui-bg-deep);
   color: var(--ui-ink);
   font-family: var(--ui-font-body);
-  line-height: 1.6;
-  letter-spacing: -0.01em;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background: var(--ui-accent);
-  color: var(--ui-panel);
+  background: var(--ui-lime);
+  color: var(--ui-bg);
 }
 
+/* ===== Типографические утилиты (точная шкала из UI Kit) =====
+ * Используются как className="t-display" / "t-h1" / ... в JSX.
+ * Tailwind utility-классы (text-*, font-*, leading-*) тоже работают;
+ * .t-* — это именованные семантические пресеты для главных типографических ролей.
+ */
+.t-display {
+  font-family: var(--ui-font-display);
+  font-size: clamp(48px, 6vw, 88px);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.t-h1 {
+  font-family: var(--ui-font-display);
+  font-size: 48px;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.t-h2 {
+  font-family: var(--ui-font-display);
+  font-size: 36px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.t-h3 {
+  font-family: var(--ui-font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.t-h4 {
+  font-family: var(--ui-font-body);
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.t-body {
+  font-family: var(--ui-font-body);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.t-small {
+  font-family: var(--ui-font-body);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.t-eyebrow {
+  font-family: var(--ui-font-body);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ui-lime);
+}
+
+.t-mono {
+  font-family: var(--ui-font-mono);
+  font-size: 13px;
+}
+
+.t-num {
+  font-family: var(--ui-font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Существующие утилиты (сохранены из светлой палитры) ===== */
 .scrollbar-hidden {
   -ms-overflow-style: none;
   scrollbar-width: none;
