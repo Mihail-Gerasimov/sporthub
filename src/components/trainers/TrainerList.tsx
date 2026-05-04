@@ -1,6 +1,15 @@
 'use client';
 
-import { Badge, Card } from '@/components/ui';
+/*
+ * TrainerList — выдача тренеров под фильтр на главной странице.
+ * Step 28.10: оборачиваем карточки в <CardSlider> (Phase 28.6) с
+ * accent="orange". Передаём index={i} в каждую карточку — это даёт
+ * watermark номера ранга и tone-ротацию (orange/lime/blank) в hero
+ * TrainerCard.
+ *
+ * embedded prop удалён — нигде не использовался.
+ */
+import { CardSlider } from '@/components/ui';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
 import type { ReliabilityResult } from '@/lib/reliability';
@@ -10,7 +19,6 @@ import type { EntityId } from '@/types';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
 type TrainerListProps = {
-  embedded?: boolean;
   selectedTrainerId?: EntityId | null;
   trainers: TrainerDirectoryItem[];
   /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
@@ -18,7 +26,6 @@ type TrainerListProps = {
 };
 
 export function TrainerList({
-  embedded = false,
   selectedTrainerId = null,
   trainers,
   reliabilityByTrainerId,
@@ -34,47 +41,24 @@ export function TrainerList({
     trainers,
   });
 
-  const content =
-    filteredTrainers.length > 0 ? (
-      <div className="grid gap-4 lg:grid-cols-2">
-        {filteredTrainers.map((trainer) => (
-          <TrainerCard
-            key={trainer.id}
-            highlighted={selectedTrainerId === trainer.id}
-            trainer={trainer}
-            reliability={reliabilityByTrainerId?.get(trainer.id)}
-          />
-        ))}
-      </div>
-    ) : (
-      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-relaxed text-muted">
-        По текущему запросу тренеров не найдено. Попробуй очистить поиск или выбрать другое
-        направление.
-      </div>
-    );
-
-  if (embedded) {
-    return content;
-  }
-
   return (
-    <section id="trainer-list" className="space-y-4">
-      <Card className="space-y-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-              Trainer list
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink">Тренеры под текущие фильтры</h2>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="accent">{filteredTrainers.length} в выдаче</Badge>
-          </div>
-        </div>
-
-        {content}
-      </Card>
-    </section>
+    <CardSlider
+      eyebrow="Trainer list"
+      title="Тренеры под текущие фильтры"
+      accent="orange"
+      sliderId="trainer-list"
+      total={filteredTrainers.length}
+      emptyMessage="По текущему запросу тренеров не найдено. Попробуй очистить поиск или выбрать другое направление."
+    >
+      {filteredTrainers.map((trainer, i) => (
+        <TrainerCard
+          key={trainer.id}
+          highlighted={selectedTrainerId === trainer.id}
+          trainer={trainer}
+          index={i}
+          reliability={reliabilityByTrainerId?.get(trainer.id)}
+        />
+      ))}
+    </CardSlider>
   );
 }

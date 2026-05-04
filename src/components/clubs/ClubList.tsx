@@ -1,8 +1,19 @@
 'use client';
 
+/*
+ * ClubList — выдача клубов под фильтр на главной странице.
+ * Step 28.10: оборачиваем карточки в <CardSlider> (Phase 28.6) — на главной
+ * вместо grid-сетки появляется реальный слайдер со стрелками prev/next, dots
+ * и адаптивом 1↔2 видимых через matchMedia (1024px брейкпоинт).
+ *
+ * Передаём index={i} в каждую карточку — это даёт watermark номера ранга
+ * («01», «02», ...) и tone-ротацию (lime/orange/blank) в hero ClubCard.
+ *
+ * embedded prop удалён — нигде не использовался.
+ */
 import type { Club, EntityId, Tag } from '@/types';
 
-import { Badge, Card } from '@/components/ui';
+import { CardSlider } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
 import type { ReliabilityResult } from '@/lib/reliability';
@@ -14,14 +25,12 @@ type ClubListProps = {
   /** Справочник тегов для резолвинга tagIds → имена в карточках */
   tags?: Tag[];
   selectedClubId?: EntityId | null;
-  embedded?: boolean;
   /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
   reliabilityByClubId?: Map<EntityId, ReliabilityResult>;
 };
 
 export function ClubList({
   clubs,
-  embedded = false,
   selectedClubId = null,
   sports,
   tags = [],
@@ -40,55 +49,26 @@ export function ClubList({
     tags,
   });
 
-  const content =
-    filteredClubs.length > 0 ? (
-      <div className="grid gap-4 lg:grid-cols-2">
-        {filteredClubs.map((club) => (
-          <ClubCard
-            key={club.id}
-            club={club}
-            highlighted={selectedClubId === club.id}
-            sports={sports}
-            tags={tags}
-            reliability={reliabilityByClubId?.get(club.id)}
-          />
-        ))}
-      </div>
-    ) : (
-      <div className="rounded-card border border-dashed border-line bg-canvas p-6 text-sm leading-relaxed text-muted">
-        По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид
-        спорта.
-      </div>
-    );
-
-  if (embedded) {
-    return content;
-  }
-
   return (
-    <section id="club-list" className="space-y-4">
-      <Card className="space-y-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-              Club list
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink">Клубы под текущие фильтры</h2>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="accent">{filteredClubs.length} в выдаче</Badge>
-            {selectedSportId ? (
-              <Badge tone="outline">
-                {sports.find((sport) => sport.id === selectedSportId)?.name ??
-                  `sportId ${selectedSportId}`}
-              </Badge>
-            ) : null}
-          </div>
-        </div>
-
-        {content}
-      </Card>
-    </section>
+    <CardSlider
+      eyebrow="Club list"
+      title="Клубы под текущие фильтры"
+      accent="lime"
+      sliderId="club-list"
+      total={filteredClubs.length}
+      emptyMessage="По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид спорта."
+    >
+      {filteredClubs.map((club, i) => (
+        <ClubCard
+          key={club.id}
+          club={club}
+          highlighted={selectedClubId === club.id}
+          sports={sports}
+          tags={tags}
+          index={i}
+          reliability={reliabilityByClubId?.get(club.id)}
+        />
+      ))}
+    </CardSlider>
   );
 }
