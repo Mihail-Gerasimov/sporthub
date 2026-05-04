@@ -33,7 +33,6 @@ const club: Club = {
   reviewCount: 64,
   priceFrom: 900,
   distanceKm: 1.8,
-  isFeatured: false,
 };
 
 describe('filterClubs — поиск ��о имени тега (Step 23.10)', () => {

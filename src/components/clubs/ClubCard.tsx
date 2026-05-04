@@ -70,11 +70,6 @@ export function ClubCard({
               <Badge className="bg-panel/14 text-panel" tone="outline">
                 {formatCityDisplay(club.city)}
               </Badge>
-              {club.isFeatured ? (
-                <Badge className="border-panel/20 bg-panel/12 text-panel" tone="outline">
-                  Featured
-                </Badge>
-              ) : null}
               {highlighted ? (
                 <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
                   Выбрано на карте

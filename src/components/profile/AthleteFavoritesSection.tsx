@@ -50,7 +50,6 @@ export function AthleteFavoritesSection({
                   <div key={club.id} className="rounded-card border border-line bg-canvas p-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge tone="outline">{formatCityDisplay(club.city)}</Badge>
-                      {club.isFeatured ? <Badge tone="success">Featured</Badge> : null}
                     </div>
                     <p className="mt-4 text-lg font-semibold text-ink">{club.name}</p>
                     <p className="mt-2 line-clamp-3 break-all text-sm leading-relaxed text-muted">

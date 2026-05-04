@@ -38,7 +38,6 @@ const clubs: Club[] = [
     reviewCount: 64,
     priceFrom: 900,
     distanceKm: 1.8,
-    isFeatured: true,
   },
   {
     id: 2,
@@ -61,7 +60,6 @@ const clubs: Club[] = [
     reviewCount: 51,
     priceFrom: 1100,
     distanceKm: 5.4,
-    isFeatured: true,
   },
   {
     id: 3,
@@ -84,7 +82,6 @@ const clubs: Club[] = [
     reviewCount: 72,
     priceFrom: 850,
     distanceKm: 2.3,
-    isFeatured: true,
   },
   {
     id: 4,
@@ -107,7 +104,6 @@ const clubs: Club[] = [
     reviewCount: 48,
     priceFrom: 1200,
     distanceKm: 6.1,
-    isFeatured: false,
   },
   {
     id: 5,
@@ -130,7 +126,6 @@ const clubs: Club[] = [
     reviewCount: 37,
     priceFrom: 950,
     distanceKm: 4.2,
-    isFeatured: false,
   },
   {
     id: 6,
@@ -153,7 +148,6 @@ const clubs: Club[] = [
     reviewCount: 44,
     priceFrom: 700,
     distanceKm: 7.3,
-    isFeatured: false,
   },
 ];
 

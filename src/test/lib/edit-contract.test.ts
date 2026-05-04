@@ -230,7 +230,6 @@ describe('future/stub-поля не участвуют в edit-flow (Step 15.1)'
     expect('website' in shape).toBe(false);
     expect('socialLinks' in shape).toBe(false);
     expect('fullDescription' in shape).toBe(false);
-    expect('isFeatured' in shape).toBe(false);
   });
 
   it('Zod-схема тренера не включает future-поля (certificates, achievements и т.д.)', () => {

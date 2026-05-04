@@ -25,7 +25,6 @@ const clubs: Club[] = [
     reviewCount: 64,
     priceFrom: 900,
     distanceKm: 1.8,
-    isFeatured: true,
   },
 ];
 

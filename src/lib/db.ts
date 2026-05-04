@@ -157,7 +157,6 @@ export interface UpdateClubPublicationInput {
     | 'rating'
     | 'reviewCount'
     | 'distanceKm'
-    | 'isFeatured'
     | 'managedByUserId'
     | 'source'
     | 'status'

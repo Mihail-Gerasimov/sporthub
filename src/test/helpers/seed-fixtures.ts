@@ -76,7 +76,6 @@ export const fixtureClub: Club = {
   reviewCount: 3,
   priceFrom: 900,
   distanceKm: 1.8,
-  isFeatured: true,
   managedByUserId: 2,
   source: 'seed',
   status: 'published',
@@ -101,7 +100,6 @@ export const fixtureClub2: Club = {
   reviewCount: 2,
   priceFrom: 800,
   distanceKm: 3.0,
-  isFeatured: false,
   managedByUserId: 2,
   source: 'seed',
   status: 'published',
@@ -128,7 +126,6 @@ export const fixtureClub3: Club = {
   reviewCount: 5,
   priceFrom: 850,
   distanceKm: 2.3,
-  isFeatured: true,
   source: 'seed',
   status: 'published',
 };

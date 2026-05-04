@@ -192,7 +192,6 @@ export interface Club extends BaseEntity {
   reviewCount: number;
   priceFrom: number;
   distanceKm: number;
-  isFeatured: boolean;
   // Привязка к провайдеру (userId), управляющему этим клубом
   managedByUserId?: EntityId;
   // Источник создания: provider (из ЛК) или seed (старые данные)

@@ -24,7 +24,6 @@ const stubClub: Club = {
   sportIds: [1],
   rating: 4.5,
   reviewCount: 10,
-  isFeatured: false,
   priceFrom: 500,
   tagIds: [1],
   distanceKm: 2.0,

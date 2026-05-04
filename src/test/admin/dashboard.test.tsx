@@ -71,7 +71,6 @@ const fixtureClubs: Club[] = [
     reviewCount: 0,
     priceFrom: 0,
     distanceKm: 0,
-    isFeatured: false,
     managedByUserId: 2,
     source: 'provider',
     status: 'published',

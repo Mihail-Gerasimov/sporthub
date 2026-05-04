@@ -207,7 +207,6 @@ describe('Domain model contracts', () => {
       reviewCount: 0,
       priceFrom: 1500,
       distanceKm: 0,
-      isFeatured: false,
       source: 'provider',
       status: 'published',
       managedByUserId: 2,
@@ -218,7 +217,6 @@ describe('Domain model contracts', () => {
     expect(newClub.managedByUserId).toBe(2);
     expect(newClub.rating).toBe(0);
     expect(newClub.reviewCount).toBe(0);
-    expect(newClub.isFeatured).toBe(false);
     expect(newClub.distanceKm).toBe(0);
     expect(newClub.coordinates).toEqual({ lat: 0, lng: 0 });
   });

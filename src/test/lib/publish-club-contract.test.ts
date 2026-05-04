@@ -91,7 +91,7 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(club.managedByUserId).toBe(2);
   });
 
-  it('ставит safe defaults: coordinates, imageUrls, rating, reviewCount, distanceKm, isFeatured', () => {
+  it('ставит safe defaults: coordinates, imageUrls, rating, reviewCount, distanceKm', () => {
     const { club } = mapClubFormToEntities(validForm, PROVIDER_USER_ID);
 
     expect(club.coordinates).toEqual({ lat: 0, lng: 0 });
@@ -99,7 +99,6 @@ describe('publish-club contract (Step 14.3)', () => {
     expect(club.rating).toBe(0);
     expect(club.reviewCount).toBe(0);
     expect(club.distanceKm).toBe(0);
-    expect(club.isFeatured).toBe(false);
   });
 
   it('генерирует id и createdAt', () => {

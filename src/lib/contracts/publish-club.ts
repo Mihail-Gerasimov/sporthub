@@ -100,7 +100,6 @@ export function mapClubFormToEntities(
     reviewCount: 0,
     priceFrom: Number(form.priceFrom),
     distanceKm: 0,
-    isFeatured: false,
     managedByUserId,
     source: 'provider',
     status: 'published',

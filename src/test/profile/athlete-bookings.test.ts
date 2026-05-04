@@ -109,7 +109,6 @@ const clubs: Club[] = [
     reviewCount: 10,
     priceFrom: 900,
     distanceKm: 1.8,
-    isFeatured: true,
   },
   {
     id: 2,
@@ -130,7 +129,6 @@ const clubs: Club[] = [
     reviewCount: 9,
     priceFrom: 1200,
     distanceKm: 5.4,
-    isFeatured: true,
   },
 ];
 

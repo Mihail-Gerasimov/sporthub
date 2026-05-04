@@ -104,7 +104,6 @@ const historyClubs: Club[] = [
     reviewCount: 51,
     priceFrom: 1100,
     distanceKm: 5.4,
-    isFeatured: true,
   },
   {
     id: 3,
@@ -127,7 +126,6 @@ const historyClubs: Club[] = [
     reviewCount: 72,
     priceFrom: 850,
     distanceKm: 2.3,
-    isFeatured: true,
   },
 ];
 

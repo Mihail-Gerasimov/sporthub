@@ -39,7 +39,6 @@ function makeClub(overrides: Partial<Club> = {}): Club {
     reviewCount: 10,
     priceFrom: 500,
     distanceKm: 1,
-    isFeatured: false,
     ...overrides,
   };
 }

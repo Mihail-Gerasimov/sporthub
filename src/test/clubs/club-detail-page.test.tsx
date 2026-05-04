@@ -68,7 +68,6 @@ describe('Club detail page', () => {
       tags: ['Интенсив'],
       rating: 0,
       reviewCount: 0,
-      isFeatured: false,
       source: 'provider' as const,
       status: 'published' as const,
     };
@@ -126,7 +125,6 @@ describe('Club detail page', () => {
       tags: [],
       rating: 0,
       reviewCount: 0,
-      isFeatured: false,
       source: 'provider' as const,
       status: 'published' as const,
     };

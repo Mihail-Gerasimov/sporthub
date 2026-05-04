@@ -66,7 +66,6 @@ const myClub: Club = {
   amenityIds: [],
   priceFrom: 1000,
   distanceKm: 0,
-  isFeatured: false,
   managedByUserId: providerUser.id,
 };
 

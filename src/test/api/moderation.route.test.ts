@@ -44,7 +44,6 @@ const clubInput = {
     reviewCount: 0,
     priceFrom: 1000,
     distanceKm: 0,
-    isFeatured: false,
     managedByUserId: 2,
     source: 'provider' as const,
     status: 'published' as const,
