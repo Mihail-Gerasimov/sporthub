@@ -73,7 +73,7 @@ describe('Минималистичный стиль карточек', () => {
   describe('TrainerCard', () => {
     it('не содержит декоративных кругов (упрощённый дизайн)', () => {
       render(<TrainerCard trainer={stubTrainer} />);
-      const card = screen.getByTestId('trainer-card-surface');
+      const card = screen.getByTestId('trainer-card');
       // Декоративные круги были absolute + rounded-full + border-panel
       const decorativeCircles = card.querySelectorAll(
         '.rounded-full.border.border-panel\\/25, .rounded-full.border.border-panel\\/20',
@@ -83,7 +83,7 @@ describe('Минималистичный стиль карточек', () => {
 
     it('аватар-контейнер не содержит shadow-floating', () => {
       render(<TrainerCard trainer={stubTrainer} />);
-      const card = screen.getByTestId('trainer-card-surface');
+      const card = screen.getByTestId('trainer-card');
       // Аватар-контейнер — элемент с rounded-[2rem]
       const avatarContainer = card.querySelector('[class*="rounded-\\[2rem\\]"]');
       if (avatarContainer) {

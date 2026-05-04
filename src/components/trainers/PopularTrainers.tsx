@@ -105,14 +105,14 @@ export function PopularTrainers({ trainers, reliabilityByTrainerId }: PopularTra
               className="scrollbar-hidden overflow-x-auto py-3"
             >
               <div className="flex min-w-max items-stretch gap-4">
-                {popularTrainers.map((trainer) => (
+                {popularTrainers.map((trainer, i) => (
                   <div
                     key={trainer.id}
                     className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
                   >
                     <TrainerCard
                       trainer={trainer}
-                      variant="carousel"
+                      index={i}
                       reliability={reliabilityByTrainerId?.get(trainer.id)}
                     />
                   </div>

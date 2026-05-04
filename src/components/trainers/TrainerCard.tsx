@@ -1,197 +1,338 @@
+'use client';
+
+/*
+ * TrainerCard — карточка тренера под новый дизайн Phase 28.9.
+ * Структура 1-в-1 с claude-design/cards-trainers/sporthub/project/
+ * SportHub Cards - Trainers.html (.trainer-card + child grid):
+ *   - Hero (min-h 200/184/178) с диагональным orange/lime/blank-лучом,
+ *     watermark номера ранга, city-pill (top-left) + trainer-avatar 84×84
+ *     (rounded-[16px], dark card-2 фон, инициалы Bowlby + photo-tag «Фото»),
+ *     role («Персональный тренер», accent eyebrow), имя как <Link> Bowlby
+ *     clamp 2, sport-tag (текстовый chip справа).
+ *   - Body-grid с фикс. headline 48px (clamp 2 lines).
+ *   - body-meta: orange/lime price-pill + distance/окна.
+ *   - exp-row: experience tag + опц. group-chip (orange-soft / lime-soft).
+ *   - body-rating: SVG-звёзды + Bowlby num + reviews + опц. бейдж «Новый».
+ *   - ReliabilityBadge: отдельной строкой ниже rating-row, только для
+ *     warning/danger (при isNewUser скрыт чтобы не дублировать «Новый»).
+ *   - meta-box «Площадка / Ближайшее окно» (2 cols на 768+, 1 на 480).
+ *   - Tags ChipMarquee — solid orange (или lime для tone-lime).
+ *   - Quote-row с border-top: bio + CTA «К записи →» (отдельный <Link>).
+ *
+ * Важно: вокруг <article> НЕТ обёртки <Link> — тренер имеет два независимых
+ * Link (имя на /trainers/[slug] и CTA на /booking/[nextSlotId] либо
+ * /trainers/[slug] если слотов нет). Это исключает невалидный nested <a>.
+ *
+ * Маппинг полей из TrainerDirectoryItem без расширения типов: headline =
+ * primaryOfferingTitle ?? bio ?? ''; quote = bio (если headline=bio — пусто
+ * чтобы не дублировать); slot = formatDate(nextSlotDate) + nextSlotStartTime
+ * (или fallback); venue.sub = venueAddress (если venueName != null).
+ */
 import Link from 'next/link';
 
-import { Badge, Card, Rating, ReliabilityBadge } from '@/components/ui';
-import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { cn, formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
-
-import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
+import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
+import { getTrainerInitials } from '@/components/trainers/trainer-utils';
+import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 import type { ReliabilityResult } from '@/lib/reliability';
 
+import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
+
+type TrainerTone = 'orange' | 'lime' | 'blank';
+const TONE_CYCLE: TrainerTone[] = ['orange', 'lime', 'blank'];
+
 type TrainerCardProps = {
-  highlighted?: boolean;
   trainer: TrainerDirectoryItem;
-  variant?: 'default' | 'carousel';
-  /**
-   * Phase 25 Step 25.13: публичная симметрия репутации. Если передан —
-   * рендерим компактный `ReliabilityBadge` в блоке рейтинга. Если не передан —
-   * ничего не показываем (рассчитано SSR'ом выше по дереву — см. home page).
-   */
+  /** Индекс карточки в слайдере (0-based) — для watermark и tone-ротации. */
+  index?: number;
+  /** Подсветка карточки при выборе на карте — accent-бордер. */
+  highlighted?: boolean;
+  /** Phase 25 Step 25.13: компактный бейдж надёжности отдельной строкой. */
   reliability?: ReliabilityResult;
 };
 
 export function TrainerCard({
-  highlighted = false,
   trainer,
-  variant = 'default',
+  index,
+  highlighted = false,
   reliability,
 }: TrainerCardProps) {
-  const isCarousel = variant === 'carousel';
-  const previewSports = trainer.sports.slice(0, isCarousel ? 2 : 3);
-  const previewSpecialties = trainer.specialtyNames.slice(0, isCarousel ? 2 : 3);
-  const nextSlotLabel =
-    trainer.nextSlotDate && trainer.nextSlotStartTime
-      ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
-      : 'Свободные окна скоро появятся';
+  // wm — двузначный номер ранга («01», «02», …) для watermark hero.
+  const wm = index !== undefined ? String(index + 1).padStart(2, '0') : '';
+  const tone: TrainerTone = TONE_CYCLE[(index ?? 0) % 3]!;
 
-  /* Метка расстояния или количества слотов */
+  // «Новый» — у тренера ещё нет ни рейтинга, ни отзывов.
+  const isNew = trainer.reviewCount === 0 && trainer.rating === 0;
+
+  // Группа — для exp-row chip. Null если у тренера нет primaryOffering.
+  const isGroup =
+    trainer.primaryOfferingFormat === 'group' || trainer.primaryOfferingFormat === 'mini_group';
+
+  // Headline — название первой услуги, fallback на bio. Если в карточке
+  // headline уже = bio, в quote-row не дублируем (оставляем пустым).
+  const headline = trainer.primaryOfferingTitle ?? trainer.bio ?? '';
+  const quote = headline === trainer.bio ? '' : (trainer.bio ?? '');
+
+  // Distance — либо км (если venueClub имеет distanceKm), либо «N окно/окна/окон»
+  // с правильным русским склонением.
   const distanceLabel =
     trainer.distanceKm === null
-      ? `${trainer.availableSlotsCount} окон`
+      ? `${trainer.availableSlotsCount} ${pluralizeOkno(trainer.availableSlotsCount)}`
       : `${trainer.distanceKm.toFixed(1)} км`;
 
+  // Slot — дата + время ближайшего свободного окна, либо fallback-сообщение.
+  const slotLabel =
+    trainer.nextSlotDate && trainer.nextSlotStartTime
+      ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
+      : 'Слоты скоро появятся';
+
+  // CTA href: на slot если есть, иначе на профиль тренера.
+  const ctaHref = trainer.nextSlotId
+    ? `/booking/${trainer.nextSlotId}`
+    : `/trainers/${trainer.slug}`;
+
+  // Tags — все specialty-имена для marquee.
+  const tagItems = trainer.specialtyNames.map((label) => ({ label }));
+
+  // Sport-tag (badge справа от имени) — название первого спорта, если есть.
+  const sportTagLabel = trainer.sports[0]?.name ?? null;
+
+  // Hover-цвет бордера зависит от tone.
+  const hoverBorderClass =
+    tone === 'lime' ? 'hover:border-[var(--ui-lime)]' : 'hover:border-[var(--ui-orange)]';
+
+  // Цвет accent для price-pill, role-eyebrow, CTA hover, photo-tag, group-chip.
+  const accentColorClass = tone === 'lime' ? 'text-[var(--ui-lime)]' : 'text-[var(--ui-orange)]';
+  const accentBgClass = tone === 'lime' ? 'bg-[var(--ui-lime)]' : 'bg-[var(--ui-orange)]';
+  const groupChipClass =
+    tone === 'lime'
+      ? 'border border-[rgba(132,192,3,0.3)] bg-[var(--ui-lime-soft)] text-[var(--ui-lime)]'
+      : 'border border-[rgba(251,97,25,0.3)] bg-[var(--ui-orange-soft)] text-[var(--ui-orange)]';
+  const ctaHoverClass =
+    tone === 'lime'
+      ? 'text-[var(--ui-lime)] hover:text-[var(--ui-lime-hov)]'
+      : 'text-[var(--ui-orange)] hover:text-[var(--ui-orange-hov)]';
+
   return (
-    <article className="h-full w-full">
-      <Card
-        data-card-variant={variant}
-        data-testid="trainer-card-surface"
-        className={cn(
-          'flex h-full flex-col overflow-hidden p-0 transition-transform duration-200',
-          isCarousel ? 'hover:-translate-y-0.5' : 'hover:-translate-y-1',
-          highlighted && 'ring-2 ring-accent/35',
-        )}
+    <article
+      data-testid="trainer-card"
+      data-tone={tone}
+      data-highlighted={highlighted ? 'true' : 'false'}
+      className={`relative grid h-full grid-rows-[auto_auto_auto_48px_auto_auto_auto_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors ${
+        highlighted ? 'border-[var(--ui-orange)]' : 'border-[var(--ui-line)]'
+      } ${hoverBorderClass}`}
+    >
+      {/* Hero — луч + watermark + city-pill + avatar + role + name + sport-tag */}
+      <div
+        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-bg)] p-5"
+        style={{ minHeight: 200 }}
       >
-        {/* Cover-секция: gradient + фото placeholder */}
-        <div
-          className={`relative min-h-52 overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-5 text-panel`}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <Badge className="bg-panel/16 text-panel" tone="outline">
-                {formatCityDisplay(trainer.city)}
-              </Badge>
-              {highlighted ? (
-                <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
-                  Выбрано на карте
-                </Badge>
-              ) : null}
-            </div>
+        <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
 
-            {/* Фото-заглушка (компактная) */}
-            <div className="relative flex size-32 shrink-0 items-center justify-center rounded-[1.5rem] border border-panel/24 bg-panel/18 backdrop-blur-sm">
-              <div className="absolute top-4 size-14 rounded-full bg-panel/88" />
-              <div className="absolute bottom-4 h-18 w-18 rounded-t-[999px] bg-panel/82" />
-              <span className="absolute bottom-3 rounded-pill bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.10em] text-accent-strong">
-                Фото
-              </span>
-              <span className="absolute left-3 top-3 text-xs font-semibold uppercase tracking-[0.10em] text-panel/70">
-                {getTrainerInitials(trainer.name)}
-              </span>
-            </div>
+        {wm ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-[14px] bottom-[6px] select-none font-display text-[92px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]"
+          >
+            {wm}
+          </span>
+        ) : null}
+
+        {/* Top row: city-pill + trainer-avatar 84×84 */}
+        <div className="relative z-[1] flex items-start justify-between gap-3.5">
+          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-white/[0.04] px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+            {formatCityDisplay(trainer.city)}
+          </span>
+
+          <div className="flex size-[84px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-[16px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] p-2">
+            <span className="font-display text-[22px] uppercase leading-none tracking-[0.02em] text-[var(--ui-ink)]">
+              {getTrainerInitials(trainer.name)}
+            </span>
+            <span
+              className={`rounded-full px-1.5 py-0.5 font-body text-[8px] font-bold uppercase tracking-[0.18em] ${accentBgClass} text-[var(--ui-bg)]`}
+            >
+              Фото
+            </span>
           </div>
+        </div>
 
-          <div className="mt-8 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
-                Персональный тренер
-              </p>
+        {/* Bottom row: role + name (Link) + sport-tag */}
+        <div className="relative z-[1] flex items-end justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p
+              className={`mb-2.5 font-body text-[10px] font-bold uppercase leading-tight tracking-[0.18em] ${accentColorClass}`}
+            >
+              Персональный тренер
+            </p>
+            <h3 className="line-clamp-2 font-display text-[22px] uppercase leading-[1.05] tracking-[-0.005em] text-[var(--ui-ink)]">
               <Link
                 href={`/trainers/${trainer.slug}`}
-                className="mt-3 block max-w-xs font-display text-2xl font-semibold leading-tight transition-opacity duration-200 hover:opacity-80"
+                className={`transition-colors hover:${accentColorClass}`}
               >
                 {trainer.name}
               </Link>
-            </div>
-
-            <div className="flex gap-2 text-2xl" aria-hidden="true">
-              {previewSports.map((sport) => (
-                <span key={sport.id}>{sport.icon}</span>
-              ))}
-            </div>
+            </h3>
           </div>
+
+          {sportTagLabel ? (
+            <span className="inline-flex flex-shrink-0 items-center rounded-lg border border-[var(--ui-line)] bg-white/[0.06] px-2.5 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+              {sportTagLabel}
+            </span>
+          ) : null}
         </div>
+      </div>
 
-        {/* Контент-секция */}
-        <div className="flex flex-1 flex-col gap-5 p-5">
-          {/* Цена и расстояние — компактная строка */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold text-ink">от {formatPrice(trainer.priceFrom)}</span>
-            <span className="text-muted">·</span>
-            <span className="text-muted">{distanceLabel}</span>
-          </div>
+      {/* body-meta: orange/lime price-pill + distance */}
+      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-5 sm:px-4">
+        <span
+          className={`inline-flex items-center gap-1 rounded-[10px] px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)] ${accentBgClass}`}
+        >
+          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-[0.78]">
+            от
+          </span>
+          {formatPrice(trainer.priceFrom)}
+        </span>
+        <span className="inline-flex items-center gap-1.5 font-body text-xs font-medium text-[var(--ui-muted)] before:h-1 before:w-1 before:rounded-full before:bg-[var(--ui-muted)]">
+          {distanceLabel}
+        </span>
+      </div>
 
-          {/* Опыт и формат */}
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
-            {trainer.primaryOfferingFormat ? (
-              <Badge tone="teal">
-                {trainer.primaryOfferingFormat === 'personal'
-                  ? 'Персонально'
-                  : trainer.primaryOfferingFormat === 'mini_group'
-                    ? 'Мини-группа'
-                    : 'Группа'}
-              </Badge>
-            ) : null}
-          </div>
+      {/* exp-row: experience tag + опц. group-chip */}
+      <div className="flex flex-wrap items-center gap-2.5 px-[22px] pt-3.5 sm:px-4">
+        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[var(--ui-line)] bg-transparent px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+          {trainer.experienceYears} лет опыта
+        </span>
+        {isGroup ? (
+          <span
+            className={`inline-flex items-center whitespace-nowrap rounded-full px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] ${groupChipClass}`}
+          >
+            Группа
+          </span>
+        ) : null}
+      </div>
 
-          {/* Описание и рейтинг */}
-          <div>
-            <p
-              className={cn(
-                'line-clamp-3 break-words text-sm font-medium leading-relaxed text-muted',
-                isCarousel && 'min-h-[3.5rem]',
-              )}
-            >
-              {trainer.primaryOfferingTitle ?? trainer.bio}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <Rating value={trainer.rating} />
-              <span className="text-sm text-muted">{trainer.reviewCount} отзывов</span>
-              {reliability ? <ReliabilityBadge reliability={reliability} compact /> : null}
-            </div>
-          </div>
+      {/* trainer-headline: 48px фикс., clamp 2 lines */}
+      <p className="line-clamp-2 px-[22px] pt-4 font-body text-[14px] font-semibold leading-[1.45] text-[var(--ui-ink)] sm:px-4">
+        {headline}
+      </p>
 
-          {/* Площадка и ближайшее окно */}
-          <div className="grid gap-3 rounded-card border border-line bg-panel-strong p-4 sm:grid-cols-2">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-                Площадка
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink">{trainer.venueLabel}</p>
-              {trainer.venueName ? (
-                <p className="mt-1 text-xs text-muted">{trainer.venueAddress}</p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-                Ближайшее окно
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink">{nextSlotLabel}</p>
-            </div>
-          </div>
+      {/* body-rating: звёзды + num + reviews + опц. «Новый» */}
+      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-4 sm:px-4">
+        <Stars rating={trainer.rating} />
+        <span className="font-display text-[13px] tabular-nums leading-none text-[var(--ui-ink)]">
+          {trainer.rating.toFixed(1)}
+        </span>
+        <span className="font-body text-xs font-medium text-[var(--ui-muted)]">
+          {trainer.reviewCount} отзывов
+        </span>
+        {isNew ? (
+          <span
+            data-testid="trainer-card-new-badge"
+            className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]"
+          >
+            Новый
+          </span>
+        ) : null}
+      </div>
 
-          {/* Сильные стороны */}
-          <div className={cn('flex flex-wrap gap-2', isCarousel && 'min-h-[5.5rem] content-start')}>
-            {previewSpecialties.map((name) => (
-              <Badge key={name} tone="outline">
-                {name}
-              </Badge>
-            ))}
-            {previewSports.map((sport) => (
-              <Badge key={sport.id} tone="teal">
-                {sport.name}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Футер: bio + ссылка на запись */}
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-4">
-            <p className="line-clamp-2 max-w-xs text-sm leading-relaxed text-muted">
-              {trainer.bio}
-            </p>
-
-            {trainer.nextSlotId ? (
-              <Link
-                href={`/booking/${trainer.nextSlotId}`}
-                className="text-sm font-semibold text-accent-strong transition-transform duration-200 hover:translate-x-1"
-              >
-                Перейти к записи
-              </Link>
-            ) : (
-              <span className="text-sm font-semibold text-muted">Слоты скоро появятся</span>
-            )}
-          </div>
+      {/* ReliabilityBadge — отдельной строкой ниже rating-row (Phase 28).
+          Только для warning/danger (при isNewUser скрыт чтобы не дублировать
+          rating-row «Новый»). */}
+      {reliability && !reliability.isNewUser && reliability.badge !== null ? (
+        <div className="px-[22px] pt-3 sm:px-4">
+          <ReliabilityBadge reliability={reliability} compact />
         </div>
-      </Card>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+
+      {/* meta-box: 2 cols «Площадка / Ближайшее окно», на 480 — 1 col */}
+      <div className="mx-[22px] mt-[18px] grid grid-cols-[1fr_auto] gap-x-7 gap-y-3.5 rounded-[14px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] px-[18px] py-4 sm:mx-4 sm:grid-cols-1 sm:gap-y-3">
+        <div>
+          <p className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+            Площадка
+          </p>
+          <p className="line-clamp-1 font-body text-[13px] font-semibold leading-[1.3] text-[var(--ui-ink)]">
+            {trainer.venueLabel || 'Без привязки'}
+          </p>
+          {trainer.venueName && trainer.venueAddress ? (
+            <p className="mt-0.5 line-clamp-1 font-body text-[11px] font-normal leading-tight text-[var(--ui-muted)]">
+              {trainer.venueAddress}
+            </p>
+          ) : null}
+        </div>
+        <div className="text-right sm:text-left">
+          <p className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+            Ближайшее окно
+          </p>
+          <p className="font-display text-[14px] leading-[1.3] tracking-[0.01em] text-[var(--ui-ink)]">
+            {slotLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* Tags ChipMarquee — solid (orange/lime по tone) */}
+      <ChipMarquee items={tagItems} variant="solid" accent={tone === 'lime' ? 'lime' : 'orange'} />
+
+      {/* quote-row: top-border + quote + CTA «К записи» (Link) */}
+      <div className="mx-[22px] mt-5 grid grid-cols-[1fr_auto] items-center gap-5 border-t border-[var(--ui-line)] pb-[22px] pt-[18px] sm:mx-4 sm:grid-cols-1 sm:gap-3">
+        {quote ? (
+          <p className="line-clamp-2 font-body text-[12px] leading-[1.5] text-[var(--ui-muted)]">
+            {quote}
+          </p>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        <Link
+          href={ctaHref}
+          className={`inline-flex flex-shrink-0 items-center gap-1.5 font-body text-[12px] font-bold uppercase tracking-[0.06em] no-underline transition-colors ${ctaHoverClass}`}
+        >
+          К записи
+          <span aria-hidden="true" className="text-[14px]">
+            →
+          </span>
+        </Link>
+      </div>
     </article>
+  );
+}
+
+/**
+ * Русское склонение слова «окно» по числу: 1 окно, 2-4 окна, иначе окон.
+ * Используется в distance-fallback когда у тренера нет distanceKm.
+ */
+function pluralizeOkno(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'окно';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'окна';
+  return 'окон';
+}
+
+/**
+ * Mini-помощник: ряд из 5 SVG-звёзд (в синхрон с ClubCard.Stars).
+ * Заполненные — золотые (#f5c518), пустые — цвета бордера.
+ */
+function Stars({ rating }: { rating: number }) {
+  const filled = Math.round(rating);
+  return (
+    <span
+      role="img"
+      aria-label={`Рейтинг: ${rating.toFixed(1)} из 5`}
+      className="inline-flex gap-[3px]"
+    >
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg
+          key={i}
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="currentColor"
+          aria-hidden="true"
+          className={i < filled ? 'text-[#f5c518]' : 'text-[var(--ui-line)]'}
+        >
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+        </svg>
+      ))}
+    </span>
   );
 }

@@ -84,7 +84,8 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
-    expect(screen.getAllByTestId('trainer-card-surface')).toHaveLength(2);
+    // Phase 28.9: testid TrainerCard переименован 'trainer-card-surface' → 'trainer-card'
+    expect(screen.getAllByTestId('trainer-card')).toHaveLength(2);
     expect(screen.getAllByText('Персональная тренировка по плаванию').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Start Swim Lab').length).toBeGreaterThan(0);
     expect(
@@ -97,9 +98,10 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
         .getAllByRole('link', { name: /Ilya Volkov/i })
         .some((link) => link.getAttribute('href') === `/trainers/${trainerResult.trainer.slug}`),
     ).toBe(true);
+    // Phase 28.9: CTA на TrainerCard переименован «Перейти к записи» → «К записи»
     expect(
       screen
-        .getAllByRole('link', { name: 'Перейти к записи' })
+        .getAllByRole('link', { name: /К записи/i })
         .some((link) => link.getAttribute('href') === `/booking/${trainerResult.schedules[0].id}`),
     ).toBe(true);
   });
