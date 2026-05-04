@@ -232,13 +232,10 @@ describe('PopularNearby', () => {
     expect(screen.getByTestId('popular-nearby-scroll').className).toContain('overflow-x-auto');
     expect(screen.getByTestId('popular-nearby-scroll').className).toContain('py-3');
 
-    const carouselCards = screen.getAllByTestId('club-card-surface');
-
+    // Phase 28.8: ClubCard перевёрстана — testid поменялся на 'club-card',
+    // variant больше нет, hover-эффект отдан на уровень <article>.
+    const carouselCards = screen.getAllByTestId('club-card');
     expect(carouselCards).toHaveLength(6);
-    carouselCards.forEach((card) => {
-      expect(card).toHaveAttribute('data-card-variant', 'carousel');
-      expect(card.className).toContain('group-hover:-translate-y-0.5');
-    });
 
     const clubLinks = screen.getAllByRole('link');
     const clubNames = clubLinks.map((link) => link.getAttribute('href'));

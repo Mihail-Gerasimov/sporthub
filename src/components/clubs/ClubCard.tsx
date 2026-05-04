@@ -1,151 +1,222 @@
+'use client';
+
+/*
+ * ClubCard — карточка клуба под новый дизайн Phase 28.8.
+ * Структура 1-в-1 с claude-design/cards-trainers/sporthub/project/
+ * SportHub Cards - Clubs.html (.club-card + child grid):
+ *   - Hero (min-h 176/164/152 на 1024+/768/480) с диагональным
+ *     lime/orange/blank-лучом (классы .hero-bg-{tone} из globals.css),
+ *     watermark номера ранга, city-pill, preview-pill, address (accent eyebrow)
+ *     и Bowlby-именем (Link на /clubs/{slug}).
+ *   - Body-grid с фикс. высотой row для desc (72px / 84px на 480) — карточки
+ *     в одном слайдере выровнены по высоте независимо от длины контента.
+ *   - body-meta: lime price-pill + distance.
+ *   - body-rating: SVG-звёзды + Bowlby num + N отзывов + опц. бейдж «Новый».
+ *   - ReliabilityBadge (Phase 25 Step 25.13) — отдельной строкой ниже rating-row,
+ *     не в одном ряду со звёздами (чтобы строка не переполнялась).
+ *   - Tags ChipMarquee — solid lime-soft, последний, isLast=true.
+ *
+ * Важно: вокруг <article> НЕТ обёртки <Link> — в нашем стеке это даёт
+ * nested <a> при наличии inner CTA (TrainerCard). Поэтому Link только
+ * на name (Bowlby-заголовок). Hover-эффект бордера — на самой <article>
+ * через :hover в Tailwind.
+ *
+ * isFeatured удалён в Step 28.7 — поле больше не существует.
+ */
 import Link from 'next/link';
 
-import { Badge, Card, Rating, ReliabilityBadge } from '@/components/ui';
-import { buildDictMap, cn, formatCityDisplay, formatPrice } from '@/lib/utils';
-import type { Club, Sport, Tag } from '@/types';
+import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
+import { buildDictMap, formatCityDisplay, formatPrice } from '@/lib/utils';
 import type { ReliabilityResult } from '@/lib/reliability';
+import type { Club, Sport, Tag } from '@/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
+
+type ClubTone = 'lime' | 'orange' | 'blank';
+const TONE_CYCLE: ClubTone[] = ['lime', 'orange', 'blank'];
 
 type ClubCardProps = {
   club: Club;
   sports: ClubCardSport[];
-  /** Справочник тегов для резолвинга tagIds → имена */
+  /** Справочник тегов для резолвинга tagIds → имена в marquee */
   tags?: Tag[];
+  /** Индекс карточки в слайдере (0-based) — для watermark и tone-ротации. */
+  index?: number;
+  /** Подсветка карточки при выборе на карте — accent-бордер вместо line. */
   highlighted?: boolean;
-  variant?: 'default' | 'carousel';
-  /**
-   * Phase 25 Step 25.13: публичная симметрия репутации. Если передан —
-   * рендерим компактный `ReliabilityBadge` рядом с Rating.
-   */
+  /** Phase 25 Step 25.13: компактный бейдж надёжности отдельной строкой. */
   reliability?: ReliabilityResult;
 };
 
-function getCoverPalette(clubId: number): string {
-  const palettes = [
-    'from-accent/92 via-accent-strong/86 to-[#4f291f]',
-    'from-teal/92 via-[#0f5961] to-[#17343f]',
-    'from-[#c86b43] via-[#7c3623] to-[#1d252b]',
-    'from-[#275860] via-[#18323d] to-[#0e171c]',
-  ];
-
-  return palettes[clubId % palettes.length];
-}
-
 export function ClubCard({
   club,
-  highlighted = false,
-  sports,
+  sports: _sports,
   tags = [],
-  variant = 'default',
+  index,
+  highlighted = false,
   reliability,
 }: ClubCardProps) {
-  const isCarousel = variant === 'carousel';
-  const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
-  const previewSports = clubSports.slice(0, isCarousel ? 2 : 3);
-  const previewTagIds = club.tagIds.slice(0, isCarousel ? 2 : 3);
-  // Резолвинг tagIds → имена через справочник
+  // wm — двузначный номер ранга («01», «02», …) для watermark hero. Если
+  // index не передан (карточка вне слайдера) — watermark не показываем.
+  const wm = index !== undefined ? String(index + 1).padStart(2, '0') : '';
+  const tone: ClubTone = TONE_CYCLE[(index ?? 0) % 3]!;
+
+  // «Новый» — клуб ещё не оценивали (нет ни рейтинга, ни отзывов).
+  const isNew = club.reviewCount === 0 && club.rating === 0;
+
+  // Резолвинг tagIds → имена через справочник; неизвестные id отбрасываются.
   const tagMap = buildDictMap(tags);
-  const previewTags = previewTagIds.map((id) => ({
-    id,
-    name: tagMap.get(id)?.name ?? `#${id}`,
-  }));
+  const tagItems = club.tagIds
+    .map((id) => tagMap.get(id)?.name)
+    .filter((label): label is string => Boolean(label))
+    .map((label) => ({ label }));
+
+  // Hover-цвет бордера зависит от tone (lime/orange) — для blank остаётся lime.
+  const hoverBorderClass =
+    tone === 'orange' ? 'hover:border-[var(--ui-orange)]' : 'hover:border-[var(--ui-lime)]';
+
+  // Цвет address-eyebrow — accent по tone (для blank — приглушённый lime).
+  const addressColorClass = tone === 'orange' ? 'text-[var(--ui-orange)]' : 'text-[var(--ui-lime)]';
+
+  // Цвет hover на имени-Link
+  const nameHoverClass =
+    tone === 'orange' ? 'hover:text-[var(--ui-orange)]' : 'hover:text-[var(--ui-lime)]';
 
   return (
-    <Link href={`/clubs/${club.slug}`} className="group block h-full w-full">
-      <Card
-        data-card-variant={variant}
-        data-testid="club-card-surface"
-        className={cn(
-          'flex h-full flex-col overflow-hidden p-0 transition-transform duration-200',
-          isCarousel ? 'group-hover:-translate-y-0.5' : 'group-hover:-translate-y-1',
-          highlighted && 'ring-2 ring-accent/35',
-        )}
+    <article
+      data-testid="club-card"
+      data-tone={tone}
+      data-highlighted={highlighted ? 'true' : 'false'}
+      className={`relative grid h-full grid-rows-[auto_auto_72px_auto_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors sm:grid-rows-[auto_auto_84px_auto_auto_auto] md:grid-rows-[auto_auto_72px_auto_auto_auto] ${
+        highlighted ? 'border-[var(--ui-lime)]' : 'border-[var(--ui-line)]'
+      } ${hoverBorderClass}`}
+    >
+      {/* Hero — диагональный луч + watermark + city-pill + name */}
+      <div
+        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-bg)] p-5"
+        style={{ minHeight: 176 }}
       >
-        <div
-          className={`relative min-h-52 bg-gradient-to-br ${getCoverPalette(club.id)} p-5 text-panel`}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <Badge className="bg-panel/14 text-panel" tone="outline">
-                {formatCityDisplay(club.city)}
-              </Badge>
-              {highlighted ? (
-                <Badge className="border-panel/20 bg-panel text-accent-strong" tone="outline">
-                  Выбрано на карте
-                </Badge>
-              ) : null}
-            </div>
+        {/* Двухслойный фон через готовый класс из globals.css (Step 28.6) */}
+        <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
 
-            <span
-              data-testid="club-card-media-pill"
-              className="min-w-[8.75rem] shrink-0 whitespace-nowrap rounded-pill bg-panel/14 px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-[0.10em] text-panel"
-            >
-              фото preview
-            </span>
-          </div>
-
-          <div className="mt-10 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
-                {club.address}
-              </p>
-              <p className="mt-3 max-w-xs font-display text-2xl font-semibold leading-tight">
-                {club.name}
-              </p>
-            </div>
-
-            <div className="flex gap-2 text-2xl" aria-hidden="true">
-              {previewSports.map((sport) => (
-                <span key={sport.id}>{sport.icon}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-1 flex-col gap-5 p-5">
-          {/* Цена и расстояние — компактная строка */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold text-ink">от {formatPrice(club.priceFrom)}</span>
-            <span className="text-muted">·</span>
-            <span className="text-muted">{club.distanceKm.toFixed(1)} км</span>
-          </div>
-
-          <div>
-            <p
-              className={cn(
-                'line-clamp-3 text-sm font-medium text-muted',
-                isCarousel && 'min-h-[3.5rem] leading-relaxed',
-              )}
-            >
-              {club.shortDescription}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <Rating value={club.rating} />
-              <span className="text-sm text-muted">{club.reviewCount} отзывов</span>
-              {reliability ? <ReliabilityBadge reliability={reliability} compact /> : null}
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              'mt-auto flex flex-wrap gap-2',
-              isCarousel && 'min-h-[5.5rem] content-start',
-            )}
+        {/* Watermark номера ранга */}
+        {wm ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-[14px] bottom-[6px] select-none font-display text-[92px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]"
           >
-            {previewTags.map((tag) => (
-              <Badge key={tag.id} tone="outline">
-                {tag.name}
-              </Badge>
-            ))}
-            {previewSports.map((sport) => (
-              <Badge key={sport.id} tone="teal">
-                {sport.name}
-              </Badge>
-            ))}
+            {wm}
+          </span>
+        ) : null}
+
+        {/* Top row: city-pill + preview-pill */}
+        <div className="relative z-[1] flex items-start justify-between gap-3">
+          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-white/[0.04] px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+            {formatCityDisplay(club.city)}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-transparent px-2.5 py-[5px] font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
+            Фото preview
+          </span>
+        </div>
+
+        {/* Bottom: address (accent eyebrow) + name (Link, Bowlby clamp 2) */}
+        <div className="relative z-[1] flex items-end justify-between gap-5">
+          <div className="min-w-0 flex-1">
+            <p
+              className={`mb-2.5 font-body text-[11px] font-bold uppercase leading-tight tracking-[0.18em] ${addressColorClass}`}
+            >
+              {club.address}
+            </p>
+            <h3 className="line-clamp-2 font-display text-[22px] uppercase leading-[1.05] tracking-[-0.005em] text-[var(--ui-ink)]">
+              <Link href={`/clubs/${club.slug}`} className={`transition-colors ${nameHoverClass}`}>
+                {club.name}
+              </Link>
+            </h3>
           </div>
         </div>
-      </Card>
-    </Link>
+      </div>
+
+      {/* body-meta: lime price-pill + distance */}
+      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-5 sm:px-4">
+        <span className="inline-flex items-center gap-1 rounded-[10px] bg-[var(--ui-lime)] px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)]">
+          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-75">
+            от
+          </span>
+          {formatPrice(club.priceFrom)}
+        </span>
+        <span className="inline-flex items-center gap-1.5 font-body text-xs font-medium text-[var(--ui-muted)] before:h-1 before:w-1 before:rounded-full before:bg-[var(--ui-muted)]">
+          {club.distanceKm.toFixed(1)} км
+        </span>
+      </div>
+
+      {/* body-desc — clamp 3 lines (4 на 480), фикс. высота row */}
+      <p className="line-clamp-3 px-[22px] pt-3.5 font-body text-[13px] leading-[1.6] text-[var(--ui-muted)] sm:line-clamp-4 sm:px-4">
+        {club.shortDescription}
+      </p>
+
+      {/* body-rating: звёзды + num + reviews + опц. «Новый» */}
+      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-4 sm:px-4">
+        <Stars rating={club.rating} />
+        <span className="font-display text-[13px] tabular-nums leading-none text-[var(--ui-ink)]">
+          {club.rating.toFixed(1)}
+        </span>
+        <span className="font-body text-xs font-medium text-[var(--ui-muted)]">
+          {club.reviewCount} отзывов
+        </span>
+        {isNew ? (
+          <span
+            data-testid="club-card-new-badge"
+            className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]"
+          >
+            Новый
+          </span>
+        ) : null}
+      </div>
+
+      {/* ReliabilityBadge — отдельной строкой ниже rating-row (Phase 28).
+          При isNewUser=true бейдж не рендерим — это визуально дублировало
+          бы наш собственный «Новый» в rating-row выше. ReliabilityBadge
+          остаётся только для warning/danger (несут уникальную инфу
+          completionRate). */}
+      {reliability && !reliability.isNewUser && reliability.badge !== null ? (
+        <div className="px-[22px] pt-3 sm:px-4">
+          <ReliabilityBadge reliability={reliability} compact />
+        </div>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+
+      {/* Tags ChipMarquee — solid lime-soft, последний (margin-bottom учтён) */}
+      <ChipMarquee items={tagItems} variant="solid" accent="lime" isLast />
+    </article>
+  );
+}
+
+/**
+ * Mini-помощник: ряд из 5 SVG-звёзд. Заполненные — золотые (#f5c518),
+ * пустые — цвета бордера. 1-в-1 с дизайном из SportHub Cards - Clubs.html.
+ */
+function Stars({ rating }: { rating: number }) {
+  const filled = Math.round(rating);
+  return (
+    <span
+      role="img"
+      aria-label={`Рейтинг: ${rating.toFixed(1)} из 5`}
+      className="inline-flex gap-[3px]"
+    >
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg
+          key={i}
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="currentColor"
+          aria-hidden="true"
+          className={i < filled ? 'text-[#f5c518]' : 'text-[var(--ui-line)]'}
+        >
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+        </svg>
+      ))}
+    </span>
   );
 }

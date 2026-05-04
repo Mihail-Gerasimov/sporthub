@@ -63,7 +63,8 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
-    expect(screen.getAllByTestId('club-card-surface')).toHaveLength(2);
+    // Phase 28.8: testid карточки клуба переименован 'club-card-surface' → 'club-card'
+    expect(screen.getAllByTestId('club-card')).toHaveLength(2);
     expect(screen.getAllByText('Стартовая группа по плаванию').length).toBeGreaterThan(0);
     expect(
       screen.getByRole('button', {

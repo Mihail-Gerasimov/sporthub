@@ -125,7 +125,7 @@ export function PopularNearby({
               className="scrollbar-hidden overflow-x-auto py-3"
             >
               <div className="flex min-w-max items-stretch gap-4">
-                {popularClubs.map((club) => (
+                {popularClubs.map((club, i) => (
                   <div
                     key={club.id}
                     className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
@@ -134,7 +134,7 @@ export function PopularNearby({
                       club={club}
                       sports={sports}
                       tags={tags}
-                      variant="carousel"
+                      index={i}
                       reliability={reliabilityByClubId?.get(club.id)}
                     />
                   </div>

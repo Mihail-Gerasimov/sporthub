@@ -93,12 +93,14 @@ describe('Минималистичный стиль карточек', () => {
   });
 
   describe('ClubCard', () => {
-    it('tracking адреса не превышает 0.15em', () => {
+    // Phase 28.8: address eyebrow в новом дизайне имеет letter-spacing 0.18em
+    // (UI Kit eyebrow), порог поднят с 0.15 → 0.20em.
+    it('tracking адреса не превышает 0.20em', () => {
       render(<ClubCard club={stubClub} sports={[stubSport]} />);
       const address = screen.getByText('ул. Тестовая, 1');
       const trackingMatch = address.className.match(/tracking-\[([0-9.]+)em\]/);
       expect(trackingMatch).not.toBeNull();
-      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.15);
+      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.2);
     });
   });
 });
