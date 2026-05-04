@@ -1,7 +1,10 @@
 export { Badge } from '@/components/ui/Badge';
 export { Button } from '@/components/ui/Button';
 export { Card } from '@/components/ui/Card';
+export { CardSlider } from '@/components/ui/CardSlider';
 export { Chip } from '@/components/ui/Chip';
+export { ChipMarquee } from '@/components/ui/ChipMarquee';
+export type { ChipMarqueeItem } from '@/components/ui/ChipMarquee';
 export { Input } from '@/components/ui/Input';
 export { Modal } from '@/components/ui/Modal';
 export { Select } from '@/components/ui/Select';

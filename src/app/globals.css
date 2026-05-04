@@ -244,6 +244,64 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== Phase 28.6 — фон hero карточек клубов и тренеров (3 тона) =====
+ * Двухслойный фон (диагональный луч + штриховка 135°) для .club-hero/.trainer-hero.
+ * Tailwind не умеет многослойный bg в одной утилите — поэтому 3 готовых класса
+ * в globals.css. Применяются на <span aria-hidden> внутри hero-блока с
+ * absolute inset-0 (см. ClubCard/TrainerCard в Step 28.8/28.9).
+ */
+.hero-bg-lime {
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 55%,
+      rgba(132, 192, 3, 0.18) 60%,
+      rgba(132, 192, 3, 0.05) 70%,
+      transparent 78%
+    ),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+}
+
+.hero-bg-orange {
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 55%,
+      rgba(251, 97, 25, 0.18) 60%,
+      rgba(251, 97, 25, 0.05) 70%,
+      transparent 78%
+    ),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+}
+
+.hero-bg-blank {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.025) 0 1px,
+    transparent 1px 14px
+  );
+}
+
+/* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
+ * Когда все чипы влезают в контейнер карточки — marquee переходит в статику:
+ * убираем edge-маску, убираем cursor:grab. Класс ставит JS-эффект внутри
+ * src/components/ui/ChipMarquee.tsx после измерения scrollWidth/containerW.
+ */
+.chip-marquee.no-loop {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.chip-marquee.no-loop .chip-track {
+  cursor: default;
+}
+
+.chip-track.is-dragging {
+  cursor: grabbing;
+}
+
 /* ===== Существующие утилиты (сохранены из светлой палитры) ===== */
 .scrollbar-hidden {
   -ms-overflow-style: none;
