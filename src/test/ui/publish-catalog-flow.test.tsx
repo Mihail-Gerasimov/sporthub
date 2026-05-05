@@ -68,7 +68,7 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
     expect(screen.getAllByText('Стартовая группа по плаванию').length).toBeGreaterThan(0);
     expect(
       screen.getByRole('button', {
-        name: 'Открыть запись на занятие Стартовая группа по плаванию',
+        name: 'К записи: Стартовая группа по плаванию',
       }),
     ).toBeInTheDocument();
     expect(

@@ -2,7 +2,7 @@
  * Тесты TrainerAvailability — секция «Свободные окна тренеров» на главной
  * (Phase 28.12). Проверяем: CardSlider с правильными props (eyebrow/title/
  * accent/visibleByBp), tools-блок (pill «Ближайшие» + chip даты), маппинг
- * слотов в TrainerSlotCard, auth-guard onSelect (athlete → router.push,
+ * слотов в общий SlotCard (Phase 28.13), auth-guard onSelect (athlete → router.push,
  * иначе → toast).
  */
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -67,7 +67,7 @@ describe('TrainerAvailability', () => {
     expect(screen.getByText('7 июня')).toBeInTheDocument();
   });
 
-  it('маппит слоты в TrainerSlotCard (имя тренера видно в карточке)', () => {
+  it('маппит слоты в SlotCard (имя тренера видно в карточке)', () => {
     render(
       <TrainerAvailability
         dateLabel="4 мая"

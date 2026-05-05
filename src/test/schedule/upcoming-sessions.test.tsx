@@ -88,16 +88,20 @@ describe('UpcomingSessions', () => {
 
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByText('17 марта')).toBeInTheDocument();
-    expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
+    /* Phase 28.13: clubName рендерится дважды — как sport под title и как
+     * venueLabel в footer. Проверяем что хотя бы одно вхождение есть. */
+    expect(screen.getAllByText('Volna Aquatic Club').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Свободно 6 мест')).toHaveLength(2);
-    expect(screen.getByText('07:30 - 08:30')).toBeInTheDocument();
+    expect(screen.getByText(/07:30\s*[–-]\s*08:30/)).toBeInTheDocument();
 
-    /* Теперь кнопки, а не ссылки — auth-гейт проверяет авторизацию */
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(2);
-    expect(
-      screen.getByRole('button', { name: 'Открыть запись на занятие Утреннее плавание' }),
-    ).toBeInTheDocument();
+    /* Phase 28.13: ClubAvailability — auth-guard на CTA «К записи: <title>».
+     * Кнопки теперь только CTA внутри SlotCard + 2 стрелки prev/next + ≤dots,
+     * поэтому считаем CTA по точному имени. */
+    const sessionCtas = sessions.map((s) =>
+      screen.getByRole('button', { name: `К записи: ${s.title}` }),
+    );
+    expect(sessionCtas).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'К записи: Утреннее плавание' })).toBeInTheDocument();
   });
 
   it('в trainer-mode показывает свободные окна тренеров', () => {
@@ -138,7 +142,7 @@ describe('UpcomingSessions', () => {
     );
 
     const button = screen.getByRole('button', {
-      name: 'Открыть запись на занятие Утреннее плавание',
+      name: 'К записи: Утреннее плавание',
     });
     fireEvent.click(button);
 

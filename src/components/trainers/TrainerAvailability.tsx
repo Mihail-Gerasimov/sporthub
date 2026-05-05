@@ -2,15 +2,18 @@
 
 /*
  * TrainerAvailability — секция «Свободные окна тренеров» в нижней части
- * главной (Phase 28.12).
+ * главной (Phase 28.12 + 28.13).
  *
  * Дизайн handoff'а: claude-design/slots-availability/sporthub/project/
  * SportHub Slots - Availability.html (блок listing + slot-card slider).
  *
+ * Phase 28.13: карточка слота переехала в общий ui/SlotCard. Здесь только
+ * маппинг `TrainerAvailabilityItem` → нейтральный контракт SlotCard через
+ * локальный helper `mapTrainerToSlot`.
+ *
  * Контракт `{ dateLabel, slots }` сохранён — UpcomingSessions.tsx
- * (orchestrator) не трогаем. Бизнес-логика (auth-guard на запись через
- * useAuthStore + toast для гостей, push на /booking/{id} для athlete)
- * перенесена 1-в-1 из старой реализации.
+ * (orchestrator) не трогаем. Auth-guard на CTA («К записи: <имя>»):
+ * push на /booking/{id} для athlete, иначе toast — живёт здесь.
  *
  * UI: CardSlider 1↔2↔3 видимых через visibleByBp + кастомный tools-блок
  * (pill «Ближайшие» + outline-chip с живым dateLabel + стрелки prev/next
@@ -20,8 +23,7 @@
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { CardSlider } from '@/components/ui';
-import { TrainerSlotCard } from '@/components/trainers/TrainerSlotCard';
+import { CardSlider, SlotCard } from '@/components/ui';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 
@@ -31,6 +33,23 @@ type TrainerAvailabilityProps = {
   dateLabel: string;
   slots: TrainerAvailabilityItem[];
 };
+
+/* Маппинг тренерского слота на нейтральный контракт SlotCard. */
+function mapTrainerToSlot(slot: TrainerAvailabilityItem) {
+  return {
+    eyebrow: 'Персональная услуга',
+    name: slot.trainerName,
+    sport: slot.title,
+    availableSpots: slot.availableSpots,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    price: slot.price,
+    venueLabel: slot.venueLabel,
+    room: slot.room,
+    slotId: slot.id,
+    ctaAriaName: `К записи: ${slot.trainerName}`,
+  };
+}
 
 export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -78,7 +97,7 @@ export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityPro
       emptyMessage="У тренеров пока нет свободных окон. Проверь позже или переключись в клубный режим."
     >
       {slots.map((slot, i) => (
-        <TrainerSlotCard key={slot.id} item={slot} index={i} onSelect={handleSlotSelect} />
+        <SlotCard key={slot.id} {...mapTrainerToSlot(slot)} index={i} onSelect={handleSlotSelect} />
       ))}
     </CardSlider>
   );
