@@ -169,6 +169,113 @@ export function CardSlider({
     [maxIdx],
   );
 
+  // Phase 28.14: drag/swipe (mouse + touch) на rail. Паттерн как в ChipMarquee
+  // (28.6) — setPointerCapture + порог переключения 25% ширины слайда +
+  // edge-resistance × 0.35 на крайних слайдах + click-suppress если
+  // |dragOffsetPx| > 6 (чтобы drag по карточке не сработал как навигация
+  // <Link> внутри). На rail-обёртке — `cursor:grab; touch-action: pan-y`
+  // (вертикальный скролл страницы пальцем сохраняется).
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startIdx: number;
+    slideW: number;
+    dx: number;
+    moved: boolean;
+  } | null>(null);
+  const wasDragRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      // Игнорируем drag, если pointer-target — стрелка/dot/link/button/CTA
+      // внутри карточки (включая <a> на имени и <button> «К записи»).
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('a, button, [role="button"], [data-card-slider-dot]')) {
+        return;
+      }
+      const rail = railRef.current;
+      if (!rail) return;
+      const slide = rail.querySelector('[data-card-slider-slide]') as HTMLElement | null;
+      const slideW = slide?.offsetWidth ?? 0;
+      if (slideW === 0 || maxIdx === 0) return;
+
+      dragStateRef.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startIdx: safeIdx,
+        slideW,
+        dx: 0,
+        moved: false,
+      };
+      try {
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      setIsDragging(true);
+    },
+    [maxIdx, safeIdx],
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const state = dragStateRef.current;
+      if (!state || state.pointerId !== e.pointerId) return;
+      let dx = e.clientX - state.startX;
+      // Edge-resistance на крайних слайдах.
+      if ((state.startIdx === 0 && dx > 0) || (state.startIdx === maxIdx && dx < 0)) {
+        dx *= 0.35;
+      }
+      state.dx = dx;
+      if (Math.abs(dx) > 6) state.moved = true;
+      const rail = railRef.current;
+      if (rail) {
+        rail.style.transform = `translateX(${-state.startIdx * state.slideW + dx}px)`;
+      }
+    },
+    [maxIdx],
+  );
+
+  const onPointerEnd = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const state = dragStateRef.current;
+      if (!state || state.pointerId !== e.pointerId) return;
+      const threshold = state.slideW * 0.25;
+      let nextIdx = state.startIdx;
+      if (state.dx <= -threshold) nextIdx = Math.min(maxIdx, state.startIdx + 1);
+      else if (state.dx >= threshold) nextIdx = Math.max(0, state.startIdx - 1);
+
+      wasDragRef.current = state.moved;
+      try {
+        (e.currentTarget as Element).releasePointerCapture(state.pointerId);
+      } catch {
+        /* ignore */
+      }
+      dragStateRef.current = null;
+      setIsDragging(false);
+      // setIdx триггерит useEffect, который применяет финальный transform с
+      // restored transition. Если nextIdx === safeIdx, snap-back делаем
+      // вручную (useEffect не сработает на том же значении).
+      if (nextIdx === safeIdx) {
+        const rail = railRef.current;
+        if (rail) rail.style.transform = `translateX(${-safeIdx * state.slideW}px)`;
+      } else {
+        setIdx(nextIdx);
+      }
+    },
+    [maxIdx, safeIdx],
+  );
+
+  const onClickCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (wasDragRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      wasDragRef.current = false;
+    }
+  }, []);
+
   // Empty state — нет карточек, показываем только заголовок и сообщение.
   if (total === 0) {
     return (
@@ -328,11 +435,18 @@ export function CardSlider({
       {renderHeader()}
 
       <div className="relative">
-        <div className="overflow-hidden rounded-[22px]">
+        <div
+          className={`overflow-hidden rounded-[22px] ${maxIdx > 0 ? 'cursor-grab touch-pan-y select-none' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          onClickCapture={onClickCapture}
+        >
           <div
             ref={railRef}
             data-card-slider-rail
-            className="flex transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)] will-change-transform"
+            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)]'}`}
           >
             {Children.map(children, (child) => (
               <div
