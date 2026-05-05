@@ -1,10 +1,11 @@
 /*
  * Тесты CardSlider — переиспользуемый клиентский слайдер карточек
  * со стрелками вперёд/назад, точками-индикаторами и адаптивом
- * через matchMedia (1 видимая на ≤768, 2 на 1024+).
+ * через matchMedia (1 видимая на ≤768, 2 на 1024+; в 28.12 расширено
+ * до тернарного через visibleByBp).
  *
  * Проверяем: pill-счётчик, dots, edge-disable стрелок, переключение idx,
- * empty state при total=0.
+ * empty state при total=0, tools-слот, visibleByBp 1↔2↔3.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +19,23 @@ function mockMatchMedia(matches: boolean) {
     configurable: true,
     value: vi.fn().mockImplementation((query: string) => ({
       matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+/* Phase 28.12: lookup по query-строкам для тестов visibleByBp.
+ * Любой не указанный query → matches=false. */
+function mockMatchMediaByQuery(states: Record<string, boolean>) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: states[query] ?? false,
       media: query,
       onchange: null,
       addEventListener: vi.fn(),
@@ -135,5 +153,109 @@ describe('CardSlider', () => {
     fireEvent.click(dots[3] as Element);
     expect(dots[3]?.getAttribute('data-active')).toBe('true');
     expect(dots[0]?.getAttribute('data-active')).toBe('false');
+  });
+
+  // ============================================================
+  // Phase 28.12: tools-слот + visibleByBp
+  // ============================================================
+
+  it('без tools — рендерится дефолтный pill-счётчик «N в выдаче»', () => {
+    render(
+      <CardSlider eyebrow="X" title="Y" accent="lime" sliderId="t8" total={6}>
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    expect(screen.getByText(/в выдаче/i)).toBeInTheDocument();
+  });
+
+  it('tools передан — pill-счётчик НЕ рендерится, вместо него содержимое tools', () => {
+    render(
+      <CardSlider
+        eyebrow="X"
+        title="Y"
+        accent="lime"
+        sliderId="t9"
+        total={6}
+        tools={<span data-testid="custom-tools">CUSTOM</span>}
+      >
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    expect(screen.queryByText(/в выдаче/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('custom-tools')).toBeInTheDocument();
+  });
+
+  it('visibleByBp не передан → старое 1↔2 (default mobile, visible=1, 6 dots для total=6)', () => {
+    mockMatchMedia(false);
+    render(
+      <CardSlider eyebrow="X" title="Y" accent="lime" sliderId="t10" total={6}>
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    const dots = document.querySelectorAll('[data-card-slider-dot]');
+    expect(dots.length).toBe(6); // visible=1 → maxIdx=5 → 6 dots
+  });
+
+  it('visibleByBp={sm:1,md:2,xl:3} + xl mediaQuery true → visible=3 (4 dots для total=6)', () => {
+    mockMatchMediaByQuery({
+      '(min-width: 768px)': true,
+      '(min-width: 1280px)': true,
+    });
+    render(
+      <CardSlider
+        eyebrow="X"
+        title="Y"
+        accent="lime"
+        sliderId="t11"
+        total={6}
+        visibleByBp={{ sm: 1, md: 2, xl: 3 }}
+      >
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    const dots = document.querySelectorAll('[data-card-slider-dot]');
+    expect(dots.length).toBe(4); // visible=3 → maxIdx=3 → 4 dots
+  });
+
+  it('visibleByBp={sm:1,md:2,xl:3} + только md mediaQuery true → visible=2 (5 dots для total=6)', () => {
+    mockMatchMediaByQuery({
+      '(min-width: 768px)': true,
+      '(min-width: 1280px)': false,
+    });
+    render(
+      <CardSlider
+        eyebrow="X"
+        title="Y"
+        accent="lime"
+        sliderId="t12"
+        total={6}
+        visibleByBp={{ sm: 1, md: 2, xl: 3 }}
+      >
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    const dots = document.querySelectorAll('[data-card-slider-dot]');
+    expect(dots.length).toBe(5); // visible=2 → maxIdx=4 → 5 dots
+  });
+
+  it('visibleByBp={sm:1,md:2,xl:3} + оба false → visible=1 (6 dots для total=6)', () => {
+    mockMatchMediaByQuery({
+      '(min-width: 768px)': false,
+      '(min-width: 1280px)': false,
+    });
+    render(
+      <CardSlider
+        eyebrow="X"
+        title="Y"
+        accent="lime"
+        sliderId="t13"
+        total={6}
+        visibleByBp={{ sm: 1, md: 2, xl: 3 }}
+      >
+        {makeChildren(6)}
+      </CardSlider>,
+    );
+    const dots = document.querySelectorAll('[data-card-slider-dot]');
+    expect(dots.length).toBe(6); // visible=1 → maxIdx=5 → 6 dots
   });
 });

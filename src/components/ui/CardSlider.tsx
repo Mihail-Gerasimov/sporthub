@@ -4,37 +4,66 @@
  * CardSlider — переиспользуемый клиентский слайдер карточек со step-based
  * translateX-rail, стрелками prev/next и точками-индикаторами.
  *
- * Используется в ClubList/TrainerList для отображения результатов поиска
- * (Phase 28). Дизайн взят из claude-design/cards-trainers/sporthub/project/
- * SportHub Cards - Clubs.html — блок .slider + setupSlider.
+ * Phase 28.6: применяется в ClubList/TrainerList для выдачи под фильтр.
+ * Phase 28.12: расширен — добавлены опц. props `tools` (кастомный блок
+ * вместо pill-счётчика) и `visibleByBp` (тернарный адаптив 1↔2↔3
+ * через два mediaQuery'я). Адаптивный listing-head: на lg+ — одна
+ * flex-row с tools справа; на <lg — три ряда (eyebrow+стрелки / title /
+ * tools-без-стрелок). Используется в TrainerAvailability (slot-блок).
  *
- * Адаптив: 2 видимых карточки на 1024+, 1 видимая на ≤768. Шаг слайдера —
- * всегда 1 карточка. На краях соответствующая стрелка disabled.
+ * Дизайн взят из claude-design/cards-trainers/sporthub/project/
+ * SportHub Cards - Clubs.html (28.6) и slots-availability/sporthub/
+ * project/SportHub Slots - Availability.html (28.12).
  *
- * При total=0 рендерится empty-state (заголовок + emptyMessage), сам rail
- * не создаётся.
+ * При total=0 рендерится empty-state, сам rail не создаётся.
  */
 import { Children, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+
+type VisibleByBp = {
+  /** ≤ md (по дефолту mobile) */
+  sm?: number;
+  /** ≥ 768px */
+  md?: number;
+  /** ≥ 1280px */
+  xl?: number;
+};
 
 type CardSliderProps = {
   children: ReactNode;
   /** Длина списка для max-idx и pill-счётчика */
   total: number;
-  /** Маленькое UPPERCASE-eyebrow над заголовком (например "Club list") */
+  /** Маленькое UPPERCASE-eyebrow над заголовком */
   eyebrow: string;
   /** Главный заголовок секции (Bowlby) */
   title: string;
-  /** Цвет акцента: lime — для клубов, orange — для тренеров */
+  /** Цвет акцента: lime — для клубов/слотов, orange — для тренеров */
   accent: 'lime' | 'orange';
   /** Уникальный идентификатор слайдера в DOM */
   sliderId: string;
-  /** Сколько карточек видно одновременно — на lg и в дефолте (≤768) */
+  /**
+   * Старое API: сколько карточек видно одновременно — на lg и в дефолте.
+   * Используется ClubList/TrainerList (28.6/28.10). Если задан и
+   * `visibleByBp` НЕ задан — работает старое поведение 1↔2 на 1024px.
+   */
   visiblePerBreakpoint?: { lg: number; default: number };
-  /** Подпись pill-счётчика (по умолчанию "в выдаче") */
+  /**
+   * Новое API (Phase 28.12): тернарный адаптив через два mediaQuery'я
+   * `(min-width: 768px)` и `(min-width: 1280px)`. Если задан —
+   * `visiblePerBreakpoint` игнорируется. Любой ключ опционален,
+   * fallback на ближайший меньший (sm → md → xl).
+   */
+  visibleByBp?: VisibleByBp;
+  /** Подпись pill-счётчика по умолчанию (если `tools` не передан) */
   countLabel?: string;
   /** Сообщение пустого состояния (рендерится при total=0) */
   emptyMessage?: string;
+  /**
+   * Phase 28.12: кастомный блок справа от title (вместо дефолтного
+   * pill-счётчика «N в выдаче»). Стрелки prev/next CardSlider добавляет
+   * сам — рядом с `tools` на lg+, отдельным рядом сверху на <lg.
+   */
+  tools?: ReactNode;
 };
 
 export function CardSlider({
@@ -45,36 +74,82 @@ export function CardSlider({
   accent,
   sliderId,
   visiblePerBreakpoint = { lg: 2, default: 1 },
+  visibleByBp,
   countLabel = 'в выдаче',
   emptyMessage = 'Ничего не нашли. Попробуйте сменить фильтры.',
+  tools,
 }: CardSliderProps) {
+  // Выбираем «начальный» visible как fallback если медиа не сматчится.
+  const fallbackVisible = visibleByBp?.sm ?? visiblePerBreakpoint.default;
+
   // Текущий индекс левого края rail-контейнера (шаг = 1 карточка).
   const [idx, setIdx] = useState(0);
-  // Адаптивное число видимых карточек: 2 на 1024+, 1 на меньших.
-  const [visible, setVisible] = useState(visiblePerBreakpoint.default);
+  const [visible, setVisible] = useState(fallbackVisible);
+  // Phase 28.12: для условного рендера listing-head в одну строку (lg+)
+  // или в три ряда (<lg). Используем тот же 1024px брейкпоинт что и
+  // старое API.
+  const [isLgUp, setIsLgUp] = useState(false);
   const railRef = useRef<HTMLDivElement | null>(null);
 
-  // Слушаем matchMedia для переключения visible на бэйкпоинте 1024px.
-  // При смене visible сразу нормализуем idx: если он стал больше нового
-  // maxIdx — сжимаем, чтобы не было «пустого» сдвига rail. Делаем здесь
-  // (не отдельным эффектом), чтобы не нарушать правило set-state-in-effect.
+  // Слушаем matchMedia. Если задан `visibleByBp` — два запроса
+  // (md и xl) для тернарного 1↔2↔3. Иначе старое поведение (1↔2).
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    function update() {
-      const next = mq.matches ? visiblePerBreakpoint.lg : visiblePerBreakpoint.default;
+    const onChangeHandlers: Array<{ mq: MediaQueryList; handler: () => void }> = [];
+
+    function applyVisible(next: number) {
       setVisible(next);
       const nextMax = Math.max(0, total - next);
       setIdx((prev) => Math.min(prev, nextMax));
     }
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, [visiblePerBreakpoint.lg, visiblePerBreakpoint.default, total]);
 
-  // maxIdx считаем синхронно с idx — на случай если total уменьшился
-  // (например, после фильтрации в ClubList) idx нормализуется через
-  // Math.min ниже, а сам idx-state остаётся как есть до следующего
-  // взаимодействия пользователя.
+    if (visibleByBp) {
+      const mqMd = window.matchMedia('(min-width: 768px)');
+      const mqXl = window.matchMedia('(min-width: 1280px)');
+      const mqLg = window.matchMedia('(min-width: 1024px)');
+
+      const update = () => {
+        const sm = visibleByBp.sm ?? 1;
+        const md = visibleByBp.md ?? sm;
+        const xl = visibleByBp.xl ?? md;
+        const next = mqXl.matches ? xl : mqMd.matches ? md : sm;
+        applyVisible(next);
+        setIsLgUp(mqLg.matches);
+      };
+
+      update();
+      mqMd.addEventListener('change', update);
+      mqXl.addEventListener('change', update);
+      mqLg.addEventListener('change', update);
+      onChangeHandlers.push(
+        { mq: mqMd, handler: update },
+        { mq: mqXl, handler: update },
+        { mq: mqLg, handler: update },
+      );
+    } else {
+      const mq = window.matchMedia('(min-width: 1024px)');
+      const update = () => {
+        const next = mq.matches ? visiblePerBreakpoint.lg : visiblePerBreakpoint.default;
+        applyVisible(next);
+        setIsLgUp(mq.matches);
+      };
+      update();
+      mq.addEventListener('change', update);
+      onChangeHandlers.push({ mq, handler: update });
+    }
+
+    return () => {
+      onChangeHandlers.forEach(({ mq, handler }) => mq.removeEventListener('change', handler));
+    };
+  }, [
+    total,
+    visiblePerBreakpoint.lg,
+    visiblePerBreakpoint.default,
+    visibleByBp,
+    visibleByBp?.sm,
+    visibleByBp?.md,
+    visibleByBp?.xl,
+  ]);
+
   const maxIdx = Math.max(0, total - visible);
   const safeIdx = Math.min(idx, maxIdx);
 
@@ -126,8 +201,111 @@ export function CardSlider({
   const accentVar = accent === 'lime' ? 'var(--ui-lime)' : 'var(--ui-orange)';
   const accentSoftVar = accent === 'lime' ? 'var(--ui-lime-soft)' : 'var(--ui-orange-soft)';
 
-  return (
-    <section id={sliderId} className="space-y-6">
+  // Дефолтный pill-счётчик «N в выдаче» — рендерится только если `tools`
+  // не передан. Иначе вместо него — пользовательский tools-блок.
+  const defaultTools = (
+    <span
+      className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em]"
+      style={{ background: accentSoftVar, color: accentVar }}
+    >
+      <span className="font-display text-[14px] tabular-nums leading-none">{total}</span>
+      {countLabel}
+    </span>
+  );
+
+  const navButtons = (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        disabled={safeIdx <= 0}
+        aria-label="Назад"
+        className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        disabled={safeIdx >= maxIdx}
+        aria-label="Вперёд"
+        className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+    </div>
+  );
+
+  // Адаптивный 3-рядный header применяется ТОЛЬКО когда передан
+  // кастомный `tools` (Phase 28.12 — слот-блок «Свободные окна тренеров»):
+  // на lg+ одна flex-row с tools справа; на <lg — три ряда (eyebrow+стрелки
+  // / title / tools-без-стрелок). Без `tools` — старое поведение
+  // ClubList/TrainerList (`flex-col` на 480-, `sm:flex-row` на ≥480 в
+  // одну строку с pill-счётчиком + стрелками справа).
+  const renderHeader = () => {
+    if (tools) {
+      if (isLgUp) {
+        return (
+          <header className="mb-2 flex items-center justify-between gap-5">
+            <div className="flex min-w-0 flex-col gap-2">
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+                {eyebrow}
+              </span>
+              <h2 className="font-display text-[26px] uppercase leading-none tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[30px]">
+                {title}
+              </h2>
+            </div>
+            <div className="ml-auto flex flex-shrink-0 items-center gap-3">
+              {tools}
+              {navButtons}
+            </div>
+          </header>
+        );
+      }
+
+      return (
+        <header className="mb-2 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+              {eyebrow}
+            </span>
+            {navButtons}
+          </div>
+          <h2 className="font-display text-[24px] uppercase leading-tight tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[26px]">
+            {title}
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">{tools}</div>
+        </header>
+      );
+    }
+
+    // Старое поведение (28.6/28.10) — ClubList/TrainerList: на 480-
+    // header в 2 ряда (title-block над tools), на ≥480 — одна строка.
+    return (
       <header className="mb-2 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-col gap-2">
           <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
@@ -138,59 +316,16 @@ export function CardSlider({
           </h2>
         </div>
         <div className="flex flex-shrink-0 items-center gap-3">
-          <span
-            className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em]"
-            style={{ background: accentSoftVar, color: accentVar }}
-          >
-            <span className="font-display text-[14px] tabular-nums leading-none">{total}</span>
-            {countLabel}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              disabled={safeIdx <= 0}
-              aria-label="Назад"
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => go(1)}
-              disabled={safeIdx >= maxIdx}
-              aria-label="Вперёд"
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
-          </div>
+          {defaultTools}
+          {navButtons}
         </div>
       </header>
+    );
+  };
+
+  return (
+    <section id={sliderId} className="space-y-6">
+      {renderHeader()}
 
       <div className="relative">
         <div className="overflow-hidden rounded-[22px]">

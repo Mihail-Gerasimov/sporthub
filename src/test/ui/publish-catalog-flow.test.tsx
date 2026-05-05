@@ -88,9 +88,11 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
     expect(screen.getAllByTestId('trainer-card')).toHaveLength(2);
     expect(screen.getAllByText('Персональная тренировка по плаванию').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Start Swim Lab').length).toBeGreaterThan(0);
+    // Phase 28.12: TrainerAvailability переписан на CardSlider + TrainerSlotCard.
+    // Кликабелен только CTA «К записи: <имя тренера>», а не вся карточка.
     expect(
       screen.getByRole('button', {
-        name: 'Открыть запись к тренеру Ilya Volkov',
+        name: 'К записи: Ilya Volkov',
       }),
     ).toBeInTheDocument();
     expect(

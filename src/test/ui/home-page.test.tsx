@@ -112,9 +112,10 @@ describe('Home page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
 
     expect(screen.getByTestId('popular-trainers-empty')).toBeInTheDocument();
+    // Phase 28.12: новая копия empty-state TrainerAvailability — короче.
     expect(
       screen.getByText(
-        'У тренеров пока нет новых свободных окон. Проверь позже или переключись обратно в клубный режим, чтобы посмотреть ближайшие групповые слоты.',
+        'У тренеров пока нет свободных окон. Проверь позже или переключись в клубный режим.',
       ),
     ).toBeInTheDocument();
   });

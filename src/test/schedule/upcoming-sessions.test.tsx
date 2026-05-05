@@ -120,10 +120,9 @@ describe('UpcomingSessions', () => {
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
     expect(screen.getByText('Персональная тренировка: Плавание')).toBeInTheDocument();
 
-    /* Тоже кнопка с auth-гейтом */
-    expect(
-      screen.getByRole('button', { name: 'Открыть запись к тренеру Марина Соколова' }),
-    ).toBeInTheDocument();
+    /* Phase 28.12: TrainerAvailability через CardSlider + TrainerSlotCard.
+     * Кликабелен только CTA «К записи: <имя>», auth-гейт — на нём. */
+    expect(screen.getByRole('button', { name: 'К записи: Марина Соколова' })).toBeInTheDocument();
   });
 
   it('показывает notice при клике без авторизации', async () => {

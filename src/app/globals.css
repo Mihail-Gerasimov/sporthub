@@ -302,6 +302,90 @@ body {
   cursor: grabbing;
 }
 
+/* ===== Phase 28.12 — стили карточки слота (TrainerSlotCard) =====
+ * Hero рендерит диагональный lime/orange-луч + штриховку 135° через
+ * псевдоэлемент `::before`, чтобы не плодить лишние spans и не клипать
+ * контент. Tone-модификаторы `.tone-orange` / `.tone-blank` на корне
+ * карточки переопределяют фон луча.
+ *
+ * `.slot-hero` ставит grid из 3 рядов под фикс. высоту блока: head
+ * (eyebrow + capacity) → name (clamp 2 строки, ~44px) → sport (clamp 1).
+ * Watermark номера — `.hero-wm` (Bowlby 88px opacity 0.04, absolute,
+ * pointer-events:none). Все цвета — через `var(--ui-*)`.
+ */
+.slot-hero {
+  grid-template-rows: auto 44px 22px;
+}
+
+.slot-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 55%,
+      rgba(132, 192, 3, 0.16) 60%,
+      rgba(132, 192, 3, 0.04) 70%,
+      transparent 78%
+    ),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+}
+
+.slot-card.tone-orange .slot-hero::before {
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 55%,
+      rgba(251, 97, 25, 0.18) 60%,
+      rgba(251, 97, 25, 0.05) 70%,
+      transparent 78%
+    ),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+}
+
+.slot-card.tone-blank .slot-hero::before {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.025) 0 1px,
+    transparent 1px 14px
+  );
+}
+
+/* tone-orange также окрашивает eyebrow «Персональная услуга» в orange */
+.slot-card.tone-orange .slot-eyebrow.lime {
+  color: var(--ui-orange);
+}
+
+.slot-card .slot-eyebrow.lime {
+  color: var(--ui-lime);
+}
+
+/* capacity-pill ВСЕГДА лайм (правило handoff'а — без orange/red вариантов
+ * даже при availableSpots=1). Семантика: positive = «есть куда записаться». */
+.capacity-pill.lime {
+  background: var(--ui-lime-soft);
+  color: var(--ui-lime);
+  border: 1px solid rgba(132, 192, 3, 0.28);
+}
+
+/* slot-box-val: цена и время — Bowlby + tabular-nums + nowrap, никогда
+ * не уходит в 2 строки. Fluid font-size через clamp + container queries:
+ * при сжатии колонки шрифт уменьшается, но не переносится. */
+.slot-box {
+  container-type: inline-size;
+}
+
+.slot-box-val {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: clamp(13px, 6cqw, 17px);
+}
+
 /* ===== Существующие утилиты (сохранены из светлой палитры) ===== */
 .scrollbar-hidden {
   -ms-overflow-style: none;
