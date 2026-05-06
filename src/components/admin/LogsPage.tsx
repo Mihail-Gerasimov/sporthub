@@ -1,22 +1,32 @@
 /**
- * Клиентский компонент страницы логов активности платформы.
+ * Клиентский компонент страницы логов активности платформы (Phase 28.18 rebrand).
  * Хронологическая лента событий с фильтрами, пагинацией и автообновлением.
- * Phase 20 — Step 20.4.
+ *
+ * Phase 28.18:
+ * — sec-head: eyebrow `Admin · Activity Logs` + Bowlby `Логи активности` +
+ *   actions-блок справа (`↻ Обновить` ghost-button + auto-status pill с точкой);
+ * — auto-status pulse: серая точка когда off, лайм + box-shadow pulse 1.6s когда on
+ *   (см. .admin-pulse-dot в globals.css, уважает prefers-reduced-motion);
+ * — фильтры в обёртке `bg-card-2 border-line rounded-[16px] p-[18px_22px]`,
+ *   grid 3-col на 1024+, 2-col + last-field на 768, 1-col на 480;
+ * — log-card: grid `1fr auto`, info-блок (badge-action lime-soft / gold / red /
+ *   line-outline + actor-string + target-string + opt. `История FSM` btn-mini)
+ *   + timestamp справа. На 480 — 1-col, time переезжает наверх с order:-1;
+ * — pagination: PAGE_SIZE=15 (унификация с Users), pager отображается ВСЕГДА
+ *   numbered кнопками (max ~5 видимых) + prev/next chevrons.
  */
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
-import { Badge, Button, Card, Select, Skeleton } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, EntityId, LogAction, LogEntry } from '@/types';
 
 // Маппинг LogAction → human-readable русские метки.
-// Phase 24 добавляет 14 новых значений (FSM booking, trainer↔club-link, карантин,
-// reliability, admin hard-delete); финальные формулировки уточняются в Step 24.15
-// вместе с расширением фильтров страницы логов.
 const ACTION_LABELS: Record<LogAction, string> = {
   publish_create: 'Публикация создана',
   publish_update: 'Публикация обновлена',
@@ -49,19 +59,43 @@ const ACTION_LABELS: Record<LogAction, string> = {
   admin_hard_delete_booking: 'Запись удалена администратором',
 };
 
-// Тон badge для типа действия
-const ACTION_TONES: Record<string, 'teal' | 'accent' | 'neutral' | 'outline'> = {
-  publish_create: 'teal',
+// Тон badge для типа действия — Phase 28.18 семантические уровни:
+// good (lime-soft) | warn (gold-soft) | danger (red-soft) | neutral (line-outline)
+type ActionTone = 'good' | 'warn' | 'danger' | 'neutral';
+
+const ACTION_TONES: Record<string, ActionTone> = {
+  publish_create: 'good',
   publish_update: 'neutral',
-  publish_delete: 'accent',
-  booking_create: 'teal',
-  booking_cancel: 'accent',
-  admin_login: 'outline',
-  admin_impersonate_start: 'outline',
-  admin_impersonate_stop: 'outline',
-  moderation_hide: 'accent',
-  moderation_unhide: 'teal',
+  publish_delete: 'danger',
+  booking_create: 'good',
+  booking_confirm: 'good',
+  booking_reject: 'danger',
+  booking_cancel: 'warn',
+  booking_check_in_completed: 'good',
+  booking_check_in_no_show: 'warn',
+  booking_auto_expire: 'warn',
+  link_request: 'neutral',
+  link_approve: 'good',
+  link_reject: 'danger',
+  link_revoke: 'danger',
+  quarantine_start: 'warn',
+  quarantine_end: 'good',
+  quarantine_admin_lift: 'warn',
+  reliability_recompute: 'neutral',
+  admin_hard_delete_booking: 'danger',
+  admin_login: 'neutral',
+  admin_impersonate_start: 'warn',
+  admin_impersonate_stop: 'neutral',
+  moderation_hide: 'warn',
+  moderation_unhide: 'good',
   moderation_auto_restore: 'neutral',
+};
+
+const ACTION_TONE_CLASSES: Record<ActionTone, string> = {
+  good: 'border-[rgba(132,192,3,0.40)] bg-lime-soft text-lime',
+  warn: 'border-[rgba(245,197,24,0.35)] bg-[rgba(245,197,24,0.08)] text-gold',
+  danger: 'border-[rgba(231,76,60,0.40)] bg-[rgba(231,76,60,0.08)] text-red',
+  neutral: 'border-line bg-card-2 text-ink',
 };
 
 // Тон badge для роли актора
@@ -95,8 +129,12 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   ...Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
-const PAGE_SIZE = 20;
+// Phase 28.18: PAGE_SIZE снижен с 20 до 15 для унификации со страницами
+// Users (client-side) и Moderation (server-side). Pager всегда видим.
+const PAGE_SIZE = 15;
 const POLL_INTERVAL_MS = 30_000;
+// Максимум видимых нумерованных кнопок в pager'е, чтобы не разбухал на 100+ страницах
+const MAX_VISIBLE_PAGE_BUTTONS = 5;
 
 /** Вычисляет ISO-строку from/to для пресета периода */
 function getPeriodRange(period: PeriodFilter): { from?: string; to?: string } {
@@ -131,6 +169,50 @@ function formatLogDate(isoString: string): string {
 
   return `${date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}, ${time}`;
 }
+
+// SVG-иконки
+const ICON_REFRESH = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M21 12a9 9 0 11-3-6.7L21 8" />
+    <path d="M21 3v5h-5" />
+  </svg>
+);
+
+const ICON_CHEV_LEFT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+);
+
+const ICON_CHEV_RIGHT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
 
 export function LogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -212,7 +294,7 @@ export function LogsPage() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Автопoллинг
+  // Автополлинг
   useEffect(() => {
     if (autoPolling) {
       pollingRef.current = setInterval(fetchLogs, POLL_INTERVAL_MS);
@@ -243,123 +325,167 @@ export function LogsPage() {
   };
 
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Видимый ряд номеров страниц вокруг текущей (max 5 кнопок)
+  const visiblePageNumbers = useMemo(() => {
+    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
+    let start = Math.max(1, currentPage - half);
+    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
+    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
+    const pages: number[] = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  }, [currentPage, totalPages]);
 
   return (
-    <div className="space-y-6">
-      {/* Заголовок и управление */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-display text-2xl font-semibold text-ink">Логи активности</h1>
+    <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
+      {/* Sec-head: eyebrow + Bowlby title + actions-блок справа */}
+      <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+            Admin · Activity Logs
+          </p>
+          <h1 className="m-0 font-display text-[24px] uppercase leading-none tracking-tight text-ink sm:text-[26px] lg:text-[28px] xl:text-[32px]">
+            Логи активности
+          </h1>
+        </div>
 
-        <div className="flex items-center gap-3">
-          <Button size="sm" variant="outline" onClick={fetchLogs}>
+        {/* Actions: btn-ghost «Обновить» + auto-status pill */}
+        <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
+          <button
+            type="button"
+            onClick={fetchLogs}
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+          >
+            {ICON_REFRESH}
             Обновить
-          </Button>
+          </button>
 
           <button
             type="button"
             onClick={() => setAutoPolling((prev) => !prev)}
-            className="flex items-center gap-2 text-sm text-muted transition-colors hover:text-ink"
+            className="inline-flex items-center gap-2 text-xs font-medium text-muted transition-colors hover:text-ink"
+            aria-pressed={autoPolling}
           >
             <span
-              className={`inline-block h-2 w-2 rounded-full ${autoPolling ? 'bg-success animate-pulse' : 'bg-line'}`}
+              aria-hidden="true"
+              className={cn(
+                'inline-block h-2 w-2 rounded-full',
+                autoPolling
+                  ? 'admin-pulse-dot bg-lime shadow-[0_0_0_4px_rgba(132,192,3,0.18)]'
+                  : 'bg-disabled',
+              )}
             />
             {autoPolling ? 'Автообновление вкл' : 'Автообновление выкл'}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Фильтры */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Select
-            label="Тип действия"
-            value={actionFilter}
-            onChange={(e) => handleActionChange(e.target.value)}
-          >
-            {ACTION_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-          <Select
-            label="Период"
-            value={periodFilter}
-            onChange={(e) => handlePeriodChange(e.target.value)}
-          >
-            {PERIOD_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-          <div>
-            <label htmlFor="actor-filter" className="mb-1 block text-sm font-medium text-muted">
-              ID актора
-            </label>
-            <input
-              id="actor-filter"
-              type="text"
-              inputMode="numeric"
-              placeholder="Например, 2"
-              value={actorFilter}
-              onChange={handleActorChange}
-              className="w-full rounded-card border border-line bg-panel px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:border-accent focus:outline-none"
+      {/* Фильтры в карточке */}
+      <div className="rounded-[16px] border border-line bg-card-2 p-[18px] sm:p-[18px_22px]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <FilterField label="Тип действия">
+            <FilterSelect
+              value={actionFilter}
+              active={actionFilter !== 'all'}
+              onChange={handleActionChange}
+              options={ACTION_OPTIONS}
             />
-          </div>
+          </FilterField>
+
+          <FilterField label="Период">
+            <FilterSelect
+              value={periodFilter}
+              active={periodFilter !== 'all'}
+              onChange={handlePeriodChange}
+              options={PERIOD_OPTIONS}
+            />
+          </FilterField>
+
+          <FilterField label="ID актора" className="md:col-span-2 lg:col-span-1">
+            <span
+              className={cn(
+                'block rounded-[12px] border bg-bg transition-colors focus-within:border-lime',
+                actorFilter ? 'border-lime' : 'border-line',
+              )}
+            >
+              <input
+                id="actor-filter"
+                type="text"
+                inputMode="numeric"
+                placeholder="Например, 2"
+                value={actorFilter}
+                onChange={handleActorChange}
+                className="w-full bg-transparent px-3.5 py-3 text-[13px] font-medium text-ink outline-none placeholder:text-disabled"
+              />
+            </span>
+          </FilterField>
         </div>
-      </Card>
+      </div>
 
       {/* Лента событий */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2.5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
+            <Skeleton key={i} className="h-20 w-full rounded-[16px]" />
           ))}
         </div>
       ) : logs.length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-muted">Нет событий по выбранным фильтрам</p>
-        </Card>
+        <div className="rounded-[16px] border border-line bg-card p-10 text-center text-muted">
+          Нет событий по выбранным фильтрам
+        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2.5">
           {logs.map((log) => (
             <LogCard key={log.id} log={log} onOpenBookingDrawer={handleOpenBookingDrawer} />
           ))}
         </div>
       )}
 
-      {/* Пагинация */}
-      {total > PAGE_SIZE && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted">
-            {offset + 1}–{Math.min(offset + logs.length, total)} из {total}
-          </p>
+      {/* Пагинация (всегда видна, даже при 1 странице) */}
+      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs font-medium text-muted">
+          {total === 0 ? (
+            'Показано 0 из 0'
+          ) : (
+            <>
+              Показано{' '}
+              <strong className="font-bold text-ink">
+                {offset + 1}–{Math.min(offset + logs.length, total)}
+              </strong>{' '}
+              из <strong className="font-bold text-ink">{total}</strong>
+            </>
+          )}
+        </span>
 
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <PageButton
+            disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+            ariaLabel="Предыдущая страница"
+          >
+            {ICON_CHEV_LEFT}
+          </PageButton>
+          {visiblePageNumbers.map((page) => (
+            <PageButton
+              key={page}
+              active={page === currentPage}
+              onClick={() => setOffset((page - 1) * PAGE_SIZE)}
+              ariaLabel={`Страница ${page}`}
             >
-              Назад
-            </Button>
-            <span className="flex items-center px-2 text-sm text-muted">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={offset + PAGE_SIZE >= total}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
-            >
-              Далее
-            </Button>
-          </div>
+              {page}
+            </PageButton>
+          ))}
+          <PageButton
+            disabled={offset + PAGE_SIZE >= total}
+            onClick={() => setOffset(offset + PAGE_SIZE)}
+            ariaLabel="Следующая страница"
+          >
+            {ICON_CHEV_RIGHT}
+          </PageButton>
         </div>
-      )}
+      </div>
 
       {/* Phase 25 Step 25.15: drawer FSM-истории booking'а. */}
       <BookingStatusHistoryDrawer
@@ -368,6 +494,100 @@ export function LogsPage() {
         booking={drawerBooking}
       />
     </div>
+  );
+}
+
+// --- Вспомогательные компоненты ---
+
+/** Обёртка для поля фильтра: label + content */
+function FilterField({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cn('flex min-w-0 flex-col gap-2', className)}>
+      <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/** Кастомный select-wrap для админских фильтров (без трогания глобального Select) */
+function FilterSelect({
+  value,
+  active,
+  onChange,
+  options,
+}: {
+  value: string;
+  active: boolean;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <span
+      className={cn(
+        'relative block rounded-[12px] border bg-bg transition-colors focus-within:border-lime',
+        active ? 'border-lime' : 'border-line',
+      )}
+    >
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full cursor-pointer appearance-none bg-transparent py-3 pl-3.5 pr-9 text-[13px] font-medium text-ink outline-none"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute right-3.5 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
+          active ? 'border-lime' : 'border-muted',
+        )}
+      />
+    </span>
+  );
+}
+
+/** Кнопка пагинатора (numbered + chevron) */
+function PageButton({
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+  ariaLabel,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        active
+          ? 'border-lime bg-lime text-bg'
+          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -386,33 +606,45 @@ function LogCard({
   const metaName = log.meta?.name as string | undefined;
 
   return (
-    <Card className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={actionTone}>{actionLabel}</Badge>
-          <span className="text-xs text-muted">
-            {roleLabel} #{log.actorId}
+    <article className="grid grid-cols-1 items-start gap-2 rounded-[16px] border border-line bg-card p-[18px] sm:grid-cols-[1fr_auto] sm:gap-x-4 sm:p-[18px_22px]">
+      <div className="order-2 flex min-w-0 flex-col gap-2 sm:order-1">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span
+            className={cn(
+              'inline-flex items-center whitespace-nowrap rounded-full border px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em]',
+              ACTION_TONE_CLASSES[actionTone],
+            )}
+          >
+            {actionLabel}
+          </span>
+          <span className="text-[13px] font-medium text-muted">
+            {roleLabel} <strong className="font-bold text-ink">#{log.actorId}</strong>
           </span>
         </div>
-        <p className="text-sm text-ink">
+        <p className="m-0 break-words text-sm font-semibold leading-[1.3] text-ink">
           {entityLabel} #{log.entityId}
-          {metaName && <span className="text-muted"> — {metaName}</span>}
+          {metaName && <span className="font-medium text-muted"> — {metaName}</span>}
         </p>
         {log.entityType === 'booking' ? (
-          <button
-            type="button"
-            data-testid={`logs-open-booking-history-${log.entityId}`}
-            onClick={() => onOpenBookingDrawer(log.entityId)}
-            className="self-start rounded-pill border border-line bg-canvas px-3 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-          >
-            История FSM
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid={`logs-open-booking-history-${log.entityId}`}
+              onClick={() => onOpenBookingDrawer(log.entityId)}
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+            >
+              История FSM
+            </button>
+          </div>
         ) : null}
       </div>
 
-      <time className="shrink-0 text-xs text-muted" dateTime={log.createdAt}>
+      <time
+        className="order-1 whitespace-nowrap text-xs font-semibold text-muted sm:order-2 sm:pt-1 sm:font-medium"
+        dateTime={log.createdAt}
+      >
         {formatLogDate(log.createdAt)}
       </time>
-    </Card>
+    </article>
   );
 }

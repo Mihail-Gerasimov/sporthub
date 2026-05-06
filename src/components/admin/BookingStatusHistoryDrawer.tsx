@@ -1,6 +1,10 @@
 // Phase 24 Step 24.15: drawer-таймлайн statusHistory конкретного booking'а.
 // Admin-инструмент — быстрая диагностика всех FSM-переходов (actor/время/reason).
 // Построен на существующем `Modal` (отдельного Drawer UI пока нет).
+//
+// Phase 28.18: визуальный rebrand под dark-look — внутренние карточки
+// статусов получают `bg-card-2` (выделение на фоне Modal `bg-card`),
+// `rounded-[12px]` и `font-mono` через token `t-mono` для timestamp'ов.
 'use client';
 
 import { Modal } from '@/components/ui/Modal';
@@ -57,14 +61,16 @@ export function BookingStatusHistoryDrawer({
           История пуста — booking не имеет зафиксированных переходов.
         </p>
       ) : (
-        <ol className="flex flex-col gap-3" data-testid="booking-status-history-timeline">
+        <ol className="flex flex-col gap-2.5" data-testid="booking-status-history-timeline">
           {history.map((transition, index) => (
             <li
               key={`${transition.at}-${index}`}
-              className="rounded-card border border-line bg-canvas p-3"
+              className="rounded-[12px] border border-line bg-card-2 p-3.5"
             >
-              <p className="text-xs font-mono text-muted">{formatTimestamp(transition.at)}</p>
-              <p className="mt-1 text-sm text-ink">
+              <p className="font-mono text-[12px] tabular-nums text-muted">
+                {formatTimestamp(transition.at)}
+              </p>
+              <p className="mt-1.5 text-sm text-ink">
                 <span className="font-semibold">
                   {transition.from ? STATUS_LABELS[transition.from] : '∅'} →{' '}
                   {STATUS_LABELS[transition.to]}
