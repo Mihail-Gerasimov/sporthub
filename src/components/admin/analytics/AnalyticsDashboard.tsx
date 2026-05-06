@@ -1,6 +1,17 @@
 /**
- * Клиентский дашборд аналитики.
+ * Клиентский дашборд аналитики (Phase 28.17).
+ *
+ * Рендерит:
+ * 1. sec-head — eyebrow «Admin · Overview» + Bowlby «Аналитика» + sub-описание +
+ *    статичный live-pill справа (lime-точка через CSS-псевдоэлемент, без анимации
+ *    и без таймера — просто индикатор «данные актуальны»).
+ * 2. AnalyticsFilters — segmented period + 2 кастомных select (Город / Спорт).
+ * 3. KpiCards — 6 KPI-карточек (без спарклайнов / trend / ring).
+ * 4. 4 чарта/таблица в 2 строки — НЕ перевёрстаны, оставлены как есть (вне scope 28.17).
+ *
  * Управляет фильтрами, загрузкой данных и передачей в дочерние компоненты.
+ * Контейнер max-w-[1440px] задаётся вышестоящим (admin)/layout.tsx — сам дашборд
+ * растягивается во всю ширину родителя.
  */
 'use client';
 
@@ -92,30 +103,44 @@ export function AnalyticsDashboard({ sports }: AnalyticsDashboardProps) {
   const kpi = data?.kpi ?? EMPTY_KPI;
 
   return (
-    <div className="w-full max-w-7xl">
-      {/* Заголовок */}
-      <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Аналитика</h1>
-        <p className="mt-1 text-sm text-muted">Ключевые метрики и динамика платформы</p>
-      </div>
+    <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
+      {/* Sec-head: eyebrow + Bowlby title + sub + live-pill справа */}
+      <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+            Admin · Overview
+          </p>
+          <h1 className="m-0 font-display text-[24px] uppercase leading-none tracking-tight text-ink sm:text-[26px] lg:text-[28px] xl:text-[32px]">
+            Аналитика
+          </h1>
+          <p className="m-0 mt-1 text-[13px] font-normal leading-[1.5] text-muted">
+            Сводные метрики платформы за выбранный период.
+          </p>
+        </div>
+        {/* Live-pill: статика, lime-dot через inline-flex span (не CSS ::before чтобы
+         * упростить тестируемость и сохранить семантику span внутри span). */}
+        <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
+          <span
+            aria-hidden="true"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-lime shadow-[0_0_0_3px_rgba(132,192,3,0.18)]"
+          />
+          live · обновлено сейчас
+        </span>
+      </header>
 
       {/* Фильтры */}
-      <div className="mb-6">
-        <AnalyticsFilters
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          sports={sports}
-          isLoading={isLoading}
-        />
-      </div>
+      <AnalyticsFilters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        sports={sports}
+        isLoading={isLoading}
+      />
 
       {/* KPI-карточки */}
-      <div className="mb-8">
-        <KpiCards kpi={kpi} isLoading={isLoading} />
-      </div>
+      <KpiCards kpi={kpi} isLoading={isLoading} />
 
-      {/* Графики — первая строка */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Графики — первая строка (НЕ перевёрстано в 28.17, оставлено как есть) */}
+      <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BookingsChart data={data?.bookingsByDate ?? []} isLoading={isLoading} />
         <SportPopularityChart data={data?.sportPopularity ?? []} isLoading={isLoading} />
       </div>
