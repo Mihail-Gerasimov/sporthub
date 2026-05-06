@@ -1,15 +1,25 @@
 /**
- * Client component dashboard admin-панели.
- * Список пользователей платформы с расширенным поиском:
- * текстовое поле (ID/имя/email) + динамические фильтры (роль, статус).
- * Статистика переиспользует существующие хелперы.
+ * Client-component админ-Dashboard (Phase 28.20 rebrand).
+ * Список пользователей платформы (без admin) с поиском, фильтрами и
+ * быстрыми actions (impersonate, recompute reliability, lift quarantine).
+ *
+ * Phase 28.20:
+ * — sec-head: eyebrow `Admin · Users` + Bowlby + sub `N пользователей · M показано`
+ *   + sec-pill «обновлено сейчас» справа (статика);
+ * — toolbar: search-input + lime-solid кнопка `Фильтры ⌃` (toggle ротация);
+ * — filters-panel collapsible: grid 2-col Роль / Статус;
+ * — user-card: grid `1fr 440px` на 1280+, 1-col на ≤1024;
+ * — action правило: при карантине атлет получает «Снять карантин» вместо
+ *   «Пересчитать рейтинг» (не плодим 3-ю кнопку, action-zone остаётся 2 кнопки);
+ * — pagination client-side: 15 per page, pager всегда видим;
+ * — admin фильтруются (как раньше), tag-бейджи «Новый/Ожидает» не вводим
+ *   (ReliabilityBadge «Новый» этого достаточно).
  */
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Badge, Button, Card, Input, Select } from '@/components/ui';
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
@@ -19,6 +29,7 @@ import {
   type QuarantineResult,
   type ReliabilityResult,
 } from '@/lib/reliability';
+import { cn } from '@/lib/utils';
 import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Trainer, User, UserRole } from '@/types';
@@ -33,6 +44,9 @@ type DashboardPageProps = {
 type RoleFilter = 'all' | 'athlete' | 'provider';
 type StatusFilter = 'all' | 'active' | 'banned' | 'suspended';
 
+const PAGE_SIZE = 15;
+const MAX_VISIBLE_PAGE_BUTTONS = 5;
+
 const ROLE_LABELS: Record<UserRole, string> = {
   athlete: 'Спортсмен',
   club_owner: 'Провайдер',
@@ -40,12 +54,78 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Администратор',
 };
 
-const ROLE_TONES: Record<UserRole, 'teal' | 'accent' | 'outline'> = {
-  athlete: 'teal',
-  club_owner: 'accent',
-  trainer: 'accent',
-  admin: 'outline',
+// Bейдж роли: атлет/провайдер — lime-fill, админ — orange-fill
+type RoleTone = 'lime-fill' | 'orange-fill';
+const ROLE_TONES: Record<UserRole, RoleTone> = {
+  athlete: 'lime-fill',
+  club_owner: 'lime-fill',
+  trainer: 'lime-fill',
+  admin: 'orange-fill',
 };
+
+const STATUS_LABELS: Record<NonNullable<User['status']>, string> = {
+  active: 'Active',
+  banned: 'Banned',
+  suspended: 'Suspended',
+};
+
+// SVG иконки
+const ICON_SEARCH = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="1.8"
+    className="h-4 w-4"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <path d="M21 21l-4.3-4.3" />
+  </svg>
+);
+
+const ICON_CHEV_DOWN = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+const ICON_CHEV_LEFT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+);
+
+const ICON_CHEV_RIGHT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
 
 /** Проверяет, соответствует ли роль пользователя фильтру */
 function matchesRoleFilter(role: UserRole, filter: RoleFilter): boolean {
@@ -67,14 +147,11 @@ function getUserStats(
       athleteUserId: user.id,
       bookings,
     });
-
     return { label: 'Активных записей', value: activeBookings.length };
   }
-
   // provider (club_owner или trainer)
   const providerClubs = getProviderClubs(clubs, user.id);
   const providerTrainers = getProviderTrainers(trainers, user.id);
-
   return { label: 'Публикаций', value: providerClubs.length + providerTrainers.length };
 }
 
@@ -87,22 +164,35 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   const [showFilters, setShowFilters] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  // Phase 24 Step 24.15: локальный оверлей снятых карантинов. Server persist’ит
-  // через quarantineLiftedAt, но перерендер страницы происходит через router.refresh —
-  // оверлей нужен только для того, чтобы не дёргать кнопку повторно до refresh.
+  const [currentPage, setCurrentPage] = useState(1);
+  // Phase 24 Step 24.15: локальный оверлей снятых карантинов.
   const [liftedUserIds, setLiftedUserIds] = useState<Set<number>>(new Set());
 
-  // Исключаем admin из списка
+  // Wrapper-обработчики, которые при смене фильтра возвращают пагинатор на 1-ю страницу.
+  // Делаем явно через handler'ы (а не useEffect/useMemo с setState) — это чище и
+  // не получает предупреждений react-hooks о cascading renders.
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+  const handleRoleChange = (value: RoleFilter) => {
+    setRoleFilter(value);
+    setCurrentPage(1);
+  };
+  const handleStatusChange = (value: StatusFilter) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  // Исключаем admin из списка (как раньше — N3)
   const nonAdminUsers = useMemo(() => users.filter((u) => u.role !== 'admin'), [users]);
 
   // Фильтрация
   const filteredUsers = useMemo(() => {
     let result = nonAdminUsers;
 
-    // Текстовый поиск (по ID, имени, email)
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
-
       result = result.filter(
         (user) =>
           String(user.id).includes(query) ||
@@ -110,24 +200,36 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
           user.email.toLowerCase().includes(query),
       );
     }
-
-    // Фильтр по роли
     if (roleFilter !== 'all') {
       result = result.filter((user) => matchesRoleFilter(user.role, roleFilter));
     }
-
-    // Фильтр по статусу
     if (statusFilter !== 'all') {
       result = result.filter((user) => (user.status ?? 'active') === statusFilter);
     }
-
     return result;
   }, [nonAdminUsers, searchQuery, roleFilter, statusFilter]);
+
+  // Pagination client-side
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedUsers = useMemo(
+    () => filteredUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredUsers, safePage],
+  );
+
+  const visiblePageNumbers = useMemo(() => {
+    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
+    let start = Math.max(1, safePage - half);
+    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
+    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
+    const pages: number[] = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  }, [safePage, totalPages]);
 
   /** Обработчик impersonation */
   function handleImpersonate(user: User) {
     const targetAccountType = userRoleToAccountType(user.role);
-
     if (!targetAccountType) return;
 
     const targetSessionUser: AuthSessionUser = {
@@ -140,8 +242,6 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
     startImpersonation(targetSessionUser, targetAccountType);
 
-    // Логируем начало impersonation (fire-and-forget)
-    // actorId = текущий admin (ДО impersonation), entityId = target user
     const adminUser = useAuthStore.getState().adminOriginalUser ?? useAuthStore.getState().user;
     fetch('/api/logs', {
       method: 'POST',
@@ -157,15 +257,11 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     }).catch(() => {});
 
     const profilePath = targetAccountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
-
     router.push(profilePath);
-    // Phase 27 Step 27.15: invalidate RSC-кэш сегмента после смены userId в cookie,
-    // иначе server-страницы /profile/* могут отрендериться со старым userId или висеть
-    // на «Rendering…» из-за закешированного сегмента предыдущей сессии админа.
     router.refresh();
   }
 
-  /** Phase 24 Step 24.15: снятие карантина — POST к admin endpoint + локальный overlay. */
+  /** Phase 24 Step 24.15: снятие карантина */
   async function handleLiftQuarantine(userId: number) {
     const adminUserId = useAuthStore.getState().user?.id ?? 0;
     try {
@@ -187,7 +283,7 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     }
   }
 
-  /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) — даёт точку приложения для кэш-слоя. */
+  /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) */
   async function handleRecomputeReliability(userId: number) {
     const adminUserId = useAuthStore.getState().user?.id ?? 0;
     try {
@@ -208,76 +304,113 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   }
 
   return (
-    <div className="w-full max-w-5xl">
-      {/* Заголовок */}
-      <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
-          Пользователи платформы
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {nonAdminUsers.length} пользователей · {filteredUsers.length} показано
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
+      {/* Sec-head */}
+      <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+            Admin · Users
+          </p>
+          <h1 className="m-0 font-display text-[24px] uppercase leading-none tracking-tight text-ink sm:text-[26px] lg:text-[28px] xl:text-[32px]">
+            Пользователи платформы
+          </h1>
+          <p className="m-0 mt-1 text-[13px] font-normal leading-[1.5] text-muted">
+            <span className="font-bold tabular-nums text-ink">{nonAdminUsers.length}</span>{' '}
+            пользователей ·{' '}
+            <span className="font-bold tabular-nums text-ink">{filteredUsers.length}</span> показано
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
+          обновлено сейчас
+        </span>
+      </header>
 
-      {/* Поиск и фильтры */}
-      <div className="mb-6 flex flex-col gap-3">
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <Input
-              placeholder="Поиск по ID, имени или email…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Button
-            variant="secondary"
-            onClick={() => setShowFilters((prev) => !prev)}
-            aria-expanded={showFilters}
+      {/* Toolbar: search + lime-solid Фильтры toggle */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_auto]">
+        <div
+          className={cn(
+            'relative rounded-[14px] border border-line bg-card-2 transition-colors focus-within:border-lime',
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-4 top-1/2 inline-flex -translate-y-1/2 items-center text-muted"
           >
-            Фильтры {showFilters ? '▲' : '▼'}
-          </Button>
+            {ICON_SEARCH}
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Поиск по ID, имени или email…"
+            className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm font-medium text-ink outline-none placeholder:text-disabled"
+          />
         </div>
 
-        {/* Динамическая панель фильтров */}
-        {showFilters ? (
-          <div className="flex flex-wrap gap-4 rounded-card border border-line bg-panel p-4">
-            <Select
-              label="Роль"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-            >
-              <option value="all">Все роли</option>
-              <option value="athlete">Спортсмены</option>
-              <option value="provider">Провайдеры</option>
-            </Select>
-
-            <Select
-              label="Статус"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            >
-              <option value="all">Все статусы</option>
-              <option value="active">Активные</option>
-              <option value="banned">Заблокированные</option>
-              <option value="suspended">Приостановленные</option>
-            </Select>
-          </div>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setShowFilters((prev) => !prev)}
+          aria-expanded={showFilters}
+          className="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-[14px] border-0 bg-lime px-5 py-3.5 text-[11px] font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov sm:px-6"
+        >
+          Фильтры
+          <span
+            aria-hidden="true"
+            className={cn(
+              'inline-flex items-center transition-transform',
+              showFilters ? 'rotate-180' : 'rotate-0',
+            )}
+          >
+            {ICON_CHEV_DOWN}
+          </span>
+        </button>
       </div>
+
+      {/* Filters panel collapsible */}
+      {showFilters ? (
+        <div className="rounded-[14px] border border-line bg-card-2 p-[18px] sm:p-[18px_22px]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FilterField label="Роль">
+              <FilterSelect
+                value={roleFilter}
+                active={roleFilter !== 'all'}
+                onChange={(v) => handleRoleChange(v as RoleFilter)}
+                options={[
+                  { value: 'all', label: 'Все роли' },
+                  { value: 'athlete', label: 'Спортсмены' },
+                  { value: 'provider', label: 'Провайдеры' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="Статус">
+              <FilterSelect
+                value={statusFilter}
+                active={statusFilter !== 'all'}
+                onChange={(v) => handleStatusChange(v as StatusFilter)}
+                options={[
+                  { value: 'all', label: 'Все статусы' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'banned', label: 'Banned' },
+                  { value: 'suspended', label: 'Suspended' },
+                ]}
+              />
+            </FilterField>
+          </div>
+        </div>
+      ) : null}
 
       {/* Список пользователей */}
-      {filteredUsers.length === 0 ? (
-        <div className="rounded-card border border-line bg-panel p-8 text-center">
-          <p className="text-muted">Ничего не найдено</p>
+      {pagedUsers.length === 0 ? (
+        <div className="rounded-[16px] border border-line bg-card p-10 text-center text-muted">
+          Ничего не найдено
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {filteredUsers.map((user) => {
+        <div className="flex flex-col gap-2.5">
+          {pagedUsers.map((user) => {
             const stats = getUserStats(user, bookings, clubs, trainers);
-            // Phase 24 Step 24.15: reliability и карантин считаются на лету только для атлетов.
             const reliability =
               user.role === 'athlete' ? computeAthleteReliability(bookings, user.id) : null;
-            const quarantine =
+            const quarantine: QuarantineResult | { inQuarantine: false } =
               user.role === 'athlete' && !liftedUserIds.has(user.id)
                 ? isAthleteInQuarantine(bookings, user.id, new Date(), {
                     quarantineLiftedAt: user.quarantineLiftedAt ?? null,
@@ -299,6 +432,51 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
           })}
         </div>
       )}
+
+      {/* Pagination всегда видна */}
+      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs font-medium text-muted">
+          {filteredUsers.length === 0 ? (
+            'Показано 0 из 0'
+          ) : (
+            <>
+              Показано{' '}
+              <strong className="font-bold text-ink">
+                {(safePage - 1) * PAGE_SIZE + 1}–
+                {Math.min(safePage * PAGE_SIZE, filteredUsers.length)}
+              </strong>{' '}
+              из <strong className="font-bold text-ink">{filteredUsers.length}</strong>
+            </>
+          )}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <PageButton
+            disabled={safePage === 1}
+            onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+            ariaLabel="Предыдущая страница"
+          >
+            {ICON_CHEV_LEFT}
+          </PageButton>
+          {visiblePageNumbers.map((page) => (
+            <PageButton
+              key={page}
+              active={page === safePage}
+              onClick={() => setCurrentPage(page)}
+              ariaLabel={`Страница ${page}`}
+            >
+              {page}
+            </PageButton>
+          ))}
+          <PageButton
+            disabled={safePage >= totalPages}
+            onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+            ariaLabel="Следующая страница"
+          >
+            {ICON_CHEV_RIGHT}
+          </PageButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -308,19 +486,12 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 type UserCardProps = {
   user: User;
   stats: { label: string; value: number };
-  /** Phase 24 Step 24.15: reliability (null для не-атлета). */
   reliability: ReliabilityResult | null;
-  /** Phase 24 Step 24.15: статус карантина (inQuarantine=false для не-атлета). */
   quarantine: QuarantineResult | { inQuarantine: false };
   onImpersonate: () => void;
   onLiftQuarantine: () => void;
   onRecomputeReliability: () => void;
 };
-
-function formatQuarantineUntil(until: string): string {
-  const date = new Date(until);
-  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
 
 function UserCard({
   user,
@@ -333,49 +504,198 @@ function UserCard({
 }: UserCardProps) {
   const isAthlete = user.role === 'athlete';
   const inQuarantine = quarantine.inQuarantine;
+  const userStatus = user.status ?? 'active';
 
   return (
-    <article>
-      <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-mono text-muted">#{user.id}</span>
-            <h2 className="font-display text-lg font-semibold text-ink">{user.name}</h2>
-            <Badge tone={ROLE_TONES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
-            <Badge tone={user.status === 'active' ? 'success' : 'danger'}>
-              {user.status ?? 'active'}
-            </Badge>
-            {reliability ? (
-              <ReliabilityBadge reliability={reliability} compact showDetails />
-            ) : null}
-            {inQuarantine && quarantine.until ? (
-              <Badge tone="danger">Карантин до {formatQuarantineUntil(quarantine.until)}</Badge>
-            ) : null}
-          </div>
-
-          <p className="text-sm text-muted">{user.email}</p>
-
-          <p className="text-xs text-muted">
-            {stats.label}: <span className="font-semibold text-ink">{stats.value}</span>
-          </p>
+    <article className="grid grid-cols-1 items-center gap-x-4 gap-y-3.5 rounded-[16px] border border-line bg-card p-[18px] transition-colors hover:border-line sm:p-[18px_22px] xl:grid-cols-[1fr_440px]">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="font-mono text-[13px] font-semibold tabular-nums text-muted">
+            #{user.id}
+          </span>
+          <h2 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
+            {user.name}
+          </h2>
+          <Badge tone={ROLE_TONES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
+          <StatusBadge status={userStatus} />
+          {reliability ? <ReliabilityBadge reliability={reliability} compact showDetails /> : null}
+          {inQuarantine && quarantine.until ? (
+            <Badge tone="red">Карантин до {formatQuarantineUntil(quarantine.until)}</Badge>
+          ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2">
-          {isAthlete && inQuarantine ? (
-            <Button variant="outline" size="sm" onClick={onLiftQuarantine}>
-              Снять карантин
-            </Button>
-          ) : null}
-          {isAthlete ? (
-            <Button variant="outline" size="sm" onClick={onRecomputeReliability}>
-              Пересчитать рейтинг
-            </Button>
-          ) : null}
-          <Button variant="secondary" size="sm" onClick={onImpersonate}>
-            Войти как пользователь
-          </Button>
-        </div>
-      </Card>
+        <p className="m-0 break-all text-[13px] font-medium text-muted">{user.email}</p>
+
+        <p className="m-0 text-xs font-medium text-muted">
+          {stats.label}: <strong className="font-bold tabular-nums text-ink">{stats.value}</strong>
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {isAthlete && inQuarantine ? (
+          // Атлет в карантине: «Снять карантин» заменяет «Пересчитать рейтинг»
+          <ButtonGhost onClick={onLiftQuarantine}>Снять карантин</ButtonGhost>
+        ) : isAthlete ? (
+          // Атлет без карантина: «Пересчитать рейтинг»
+          <ButtonGhost onClick={onRecomputeReliability}>Пересчитать рейтинг</ButtonGhost>
+        ) : null}
+
+        <ButtonPrimary onClick={onImpersonate}>Войти как пользователь</ButtonPrimary>
+      </div>
     </article>
+  );
+}
+
+function formatQuarantineUntil(until: string): string {
+  const date = new Date(until);
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// --- Внутренние UI-элементы ---
+
+function ButtonPrimary({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-bg transition-all hover:-translate-y-px hover:bg-lime-hov sm:flex-none sm:px-5"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ButtonGhost({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border border-line bg-transparent px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime sm:flex-none sm:px-5"
+    >
+      {children}
+    </button>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-2">
+      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function FilterSelect({
+  value,
+  active,
+  onChange,
+  options,
+}: {
+  value: string;
+  active: boolean;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <span
+      className={cn(
+        'relative block rounded-[10px] border bg-bg transition-colors focus-within:border-lime',
+        active ? 'border-lime' : 'border-line',
+      )}
+    >
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full cursor-pointer appearance-none bg-transparent py-2.5 pl-3.5 pr-9 text-[13px] font-semibold text-ink outline-none"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute right-3.5 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
+          active ? 'border-lime' : 'border-muted',
+        )}
+      />
+    </span>
+  );
+}
+
+function PageButton({
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+  ariaLabel,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        active
+          ? 'border-lime bg-lime text-bg'
+          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+type BadgeTone = 'lime-fill' | 'orange-fill' | 'red';
+function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
+  const classes: Record<BadgeTone, string> = {
+    'lime-fill': 'border-transparent bg-lime text-bg',
+    'orange-fill': 'border-transparent bg-orange text-bg',
+    red: 'border-[rgba(231,76,60,0.30)] bg-[rgba(231,76,60,0.10)] text-red',
+  };
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em]',
+        classes[tone],
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: NonNullable<User['status']> }) {
+  const label = STATUS_LABELS[status];
+  if (status === 'banned') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(231,76,60,0.30)] bg-[rgba(231,76,60,0.10)] px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-red">
+        {label}
+      </span>
+    );
+  }
+  if (status === 'suspended') {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(245,197,24,0.28)] bg-[rgba(245,197,24,0.10)] px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
+      {label}
+    </span>
   );
 }
