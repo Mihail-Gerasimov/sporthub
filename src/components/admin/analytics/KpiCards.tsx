@@ -200,7 +200,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
               >
                 <span className="block h-3 w-3">{card.icon}</span>
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+              <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted sm:text-[10px] sm:tracking-[0.22em]">
                 {card.label}
               </span>
             </div>
