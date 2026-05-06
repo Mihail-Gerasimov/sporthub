@@ -50,6 +50,12 @@
   /* Hard-danger (валидация формы, danger-бэйдж, hard-delete admin) */
   --ui-red: #e74c3c;
 
+  /* Soft-warning (status-pending бейджи, warn-action в логах админки).
+   * Phase 28.16: добавлен под admin-rebrand — нужен для status='pending'
+   * в Moderation/Users и для action-badge.is-warn в LogsPage. Не путать с
+   * --ui-orange (cancel/reject). gold = «на проверке», не «отклонено». */
+  --ui-gold: #f5c518;
+
   /* ===== Алиасы для обратной совместимости со светлой палитрой =====
    * Старые имена (--ui-canvas, --ui-panel, --ui-accent, ...) ссылаются на новые.
    * Существующие классы Tailwind (bg-canvas, text-accent, border-line, ...)
@@ -100,6 +106,7 @@
   --color-orange-hov: var(--ui-orange-hov);
   --color-orange-soft: var(--ui-orange-soft);
   --color-red: var(--ui-red);
+  --color-gold: var(--ui-gold);
 
   /* Старые имена-алиасы (Tailwind видит их как color-canvas, color-panel и т.д.) */
   --color-canvas: var(--ui-canvas);

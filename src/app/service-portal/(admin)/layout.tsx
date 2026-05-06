@@ -1,7 +1,12 @@
 /**
  * Guarded layout для внутренних admin-страниц (route group).
  * Проверяет isAuthenticated && isAdmin через AdminGuard.
- * Содержит навигацию по разделам и ссылку «Открыть сайт».
+ *
+ * Phase 28.16:
+ * — контейнер расширен с max-w-5xl до max-w-[1440px] (под новый дизайн);
+ * — H2 «Сервисная панель» удалён (роль перешла к sec-head на каждой странице);
+ * — ссылка «Открыть сайт →» в стиле btn-ghost (rounded-full + line-border + lime hover);
+ * — AdminNavigation в одну строку справа от ссылки на десктопе, ниже на мобилке.
  */
 import Link from 'next/link';
 
@@ -15,20 +20,16 @@ export default function AdminLayout({
 }>) {
   return (
     <AdminGuard>
-      <div className="w-full max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-muted">
-            Сервисная панель
-          </h2>
+      <div className="w-full max-w-[1440px] px-4 py-7 sm:px-8">
+        {/* Топ-полоса: навигация по разделам слева, «Открыть сайт» справа */}
+        <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <AdminNavigation />
           <Link
             href="/"
-            className="text-sm font-semibold text-teal transition-colors hover:text-accent"
+            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime lg:self-auto"
           >
             Открыть сайт →
           </Link>
-        </div>
-        <div className="mb-6">
-          <AdminNavigation />
         </div>
         {children}
       </div>
