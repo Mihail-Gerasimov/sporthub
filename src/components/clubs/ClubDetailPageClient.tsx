@@ -336,155 +336,154 @@ export function ClubDetailPageClient({
   return (
     <main className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-        {/* ═══ Hero — placeholder фото слева + meta-col справа на lg+ ═══ */}
-        <section className="rounded-[22px] border border-line bg-card p-5 sm:p-6 md:p-7">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
-            {/* Photo-placeholder клуба (фотогалерея в MVP не подключена) */}
-            <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
-              <div className="hero-bg-blank flex aspect-[16/10] items-center justify-center">
-                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
-                  Фото клуба
+        {/* ═══ Hero — gallery (placeholder) + meta-col. Hero — просто grid
+         * без card-обёртки: card-стиль живёт на gallery-блоке (handoff). ═══ */}
+        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
+          {/* Photo-placeholder клуба (фотогалерея в MVP не подключена) */}
+          <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
+            <div className="hero-bg-blank flex aspect-[16/10] items-center justify-center">
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+                Фото клуба
+              </span>
+            </div>
+          </div>
+
+          {/* Meta column */}
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* meta-tags */}
+            <div className="flex flex-wrap gap-2">
+              <Chip variant="solid">{formatCityDisplay(club.city)}</Chip>
+              <Chip>{pluralizeReviews(club.reviewCount)}</Chip>
+              <Chip>{club.distanceKm.toFixed(1)} км</Chip>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+                Club profile
+              </p>
+              <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
+                {club.name}
+              </h1>
+
+              {/* address с пином */}
+              <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3 shrink-0"
+                  aria-hidden="true"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                {club.address}
+              </span>
+
+              {/* rating */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Rating value={club.rating} hideValue />
+                <span className="font-display text-sm tabular-nums text-ink">
+                  {club.rating.toFixed(1)}
                 </span>
               </div>
             </div>
 
-            {/* Meta column */}
-            <div className="flex min-w-0 flex-col gap-4">
-              {/* meta-tags */}
-              <div className="flex flex-wrap gap-2">
-                <Chip variant="solid">{formatCityDisplay(club.city)}</Chip>
-                <Chip>{pluralizeReviews(club.reviewCount)}</Chip>
-                <Chip>{club.distanceKm.toFixed(1)} км</Chip>
-              </div>
+            {/* description (line-clamp-5) */}
+            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
+              {club.description}
+            </p>
 
-              <div className="flex flex-col gap-3">
-                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
-                  Club profile
+            {/* stat-rail: Контакты | Цена от */}
+            <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
+              <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Контакты
                 </p>
-                <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
-                  {club.name}
-                </h1>
-
-                {/* address с пином */}
-                <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="size-3 shrink-0"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  {club.address}
-                </span>
-
-                {/* rating */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <Rating value={club.rating} />
-                  <span className="font-display text-sm tabular-nums text-ink">
-                    {club.rating.toFixed(1)}
-                  </span>
+                <div className="mt-2 space-y-1 text-sm">
+                  {club.phone ? (
+                    <p className="font-body font-semibold text-ink">{formatPhone(club.phone)}</p>
+                  ) : null}
+                  {club.email ? <p className="font-body text-muted">{club.email}</p> : null}
+                  {club.website ? (
+                    <a
+                      href={club.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      Сайт
+                    </a>
+                  ) : null}
+                  {club.vk ? (
+                    <a
+                      href={club.vk}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      VK
+                    </a>
+                  ) : null}
+                  {club.telegram ? (
+                    <a
+                      href={club.telegram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      Telegram
+                    </a>
+                  ) : null}
+                  {club.facebook ? (
+                    <a
+                      href={club.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      Facebook
+                    </a>
+                  ) : null}
                 </div>
               </div>
-
-              {/* description (line-clamp-5) */}
-              <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
-                {club.description}
-              </p>
-
-              {/* stat-rail: Контакты | Цена от */}
-              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
-                    Контакты
-                  </p>
-                  <div className="mt-2 space-y-1 text-sm">
-                    {club.phone ? (
-                      <p className="font-body font-semibold text-ink">{formatPhone(club.phone)}</p>
-                    ) : null}
-                    {club.email ? <p className="font-body text-muted">{club.email}</p> : null}
-                    {club.website ? (
-                      <a
-                        href={club.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        Сайт
-                      </a>
-                    ) : null}
-                    {club.vk ? (
-                      <a
-                        href={club.vk}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        VK
-                      </a>
-                    ) : null}
-                    {club.telegram ? (
-                      <a
-                        href={club.telegram}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        Telegram
-                      </a>
-                    ) : null}
-                    {club.facebook ? (
-                      <a
-                        href={club.facebook}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        Facebook
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="px-[18px] py-4">
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
-                    Цена от
-                  </p>
-                  <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
-                    {formatPrice(club.priceFrom)}
-                  </p>
-                  <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
-                    за абонемент
-                  </p>
-                </div>
+              <div className="px-[18px] py-4">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Цена от
+                </p>
+                <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
+                  {formatPrice(club.priceFrom)}
+                </p>
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                  за абонемент
+                </p>
               </div>
+            </div>
 
-              {/* amenity-row через ChipMarquee */}
-              {amenityItems.length > 0 ? (
-                <ChipMarquee items={amenityItems} variant="outline" accent="lime" />
-              ) : null}
+            {/* amenity-row через ChipMarquee */}
+            {amenityItems.length > 0 ? (
+              <ChipMarquee items={amenityItems} variant="outline" accent="lime" />
+            ) : null}
 
-              {/* CTA-row */}
-              <div className="flex flex-wrap items-center gap-2.5">
+            {/* CTA-row */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <a
+                href="#club-schedule"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+              >
+                Записаться на занятие <span aria-hidden="true">→</span>
+              </a>
+              {phoneRaw ? (
                 <a
-                  href="#club-schedule"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                  href={`tel:${phoneRaw}`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
                 >
-                  Записаться на занятие <span aria-hidden="true">→</span>
+                  Связаться с клубом
                 </a>
-                {phoneRaw ? (
-                  <a
-                    href={`tel:${phoneRaw}`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
-                  >
-                    Связаться с клубом
-                  </a>
-                ) : null}
-              </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -657,11 +656,11 @@ export function ClubDetailPageClient({
                 {reviewItems.map((review) => (
                   <div
                     key={review.id}
-                    className="grid grid-cols-[44px_1fr_auto] gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:items-start"
+                    className="grid grid-cols-[36px_1fr] items-start gap-3 rounded-[14px] border border-line bg-card-2 px-3.5 py-3 md:grid-cols-[44px_1fr_auto] md:gap-3.5 md:px-4 md:py-3.5"
                   >
                     <div
                       aria-hidden="true"
-                      className="size-11 rounded-[12px] border border-line bg-card-2"
+                      className="size-9 rounded-[10px] border border-line bg-card-2 md:size-11 md:rounded-[12px]"
                       style={{
                         backgroundImage:
                           'repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 8px)',
@@ -678,8 +677,8 @@ export function ClubDetailPageClient({
                         {review.text}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Rating value={review.rating} />
+                    <div className="col-span-2 flex items-center gap-2 md:col-auto">
+                      <Rating value={review.rating} hideValue />
                       <span className="font-display text-sm tabular-nums text-ink">
                         {review.rating.toFixed(1)}
                       </span>

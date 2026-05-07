@@ -10,6 +10,9 @@ export type RatingProps = Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> & {
   interactive?: boolean;
   onChange?: (value: number) => void;
   disabled?: boolean;
+  /* Скрыть встроенную цифру рейтинга — нужно когда снаружи рендерится свой
+   * span с шрифтом Bowlby (detail-страницы клуба и тренера). */
+  hideValue?: boolean;
 };
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -29,6 +32,7 @@ function StarIcon({ filled }: { filled: boolean }) {
 export function Rating({
   className,
   disabled = false,
+  hideValue = false,
   interactive = false,
   max = 5,
   onChange,
@@ -41,7 +45,7 @@ export function Rating({
   if (interactive) {
     return (
       <div
-        className={cn('flex items-center gap-1 text-warning', className)}
+        className={cn('flex items-center gap-1 text-gold', className)}
         role="group"
         aria-label={`Оценка: ${normalizedValue} из ${max}`}
         {...props}
@@ -56,7 +60,7 @@ export function Rating({
               type="button"
               className={cn(
                 'rounded-pill p-1.5 transition-transform hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-warning/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-                isActive ? 'text-warning' : 'text-line',
+                isActive ? 'text-gold' : 'text-line',
               )}
               aria-label={`Оценить на ${starValue} из ${max}`}
               aria-pressed={isActive}
@@ -75,19 +79,21 @@ export function Rating({
 
   return (
     <div
-      className={cn('inline-flex items-center gap-2 text-warning', className)}
+      className={cn('inline-flex items-center gap-2 text-gold', className)}
       role="img"
       aria-label={`Рейтинг: ${normalizedValue} из ${max}`}
       {...props}
     >
       <div className="flex items-center gap-1">
         {Array.from({ length: max }, (_, index) => (
-          <span key={index} className={index + 1 <= roundedValue ? 'text-warning' : 'text-line'}>
+          <span key={index} className={index + 1 <= roundedValue ? 'text-gold' : 'text-line'}>
             <StarIcon filled={index + 1 <= roundedValue} />
           </span>
         ))}
       </div>
-      <span className="text-sm font-semibold text-ink">{normalizedValue.toFixed(1)}</span>
+      {hideValue ? null : (
+        <span className="text-sm font-semibold text-ink">{normalizedValue.toFixed(1)}</span>
+      )}
     </div>
   );
 }

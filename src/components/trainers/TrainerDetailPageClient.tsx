@@ -372,169 +372,164 @@ export function TrainerDetailPageClient({
   return (
     <main className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-        {/* ═══ Hero — placeholder с avatar-disc слева + meta-col справа на lg+ ═══ */}
-        <section className="rounded-[22px] border border-line bg-card p-5 sm:p-6 md:p-7">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
-            {/* Photo-placeholder тренера: avatar-disc 132×132 (96 на 480) с инициалами. */}
-            <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
-              <div className="hero-bg-blank flex aspect-[16/10] flex-col items-center justify-center gap-3.5">
-                <span
-                  aria-hidden="true"
-                  className="flex size-24 items-center justify-center rounded-full border border-line bg-card font-display text-[32px] tabular-nums text-ink md:size-[132px] md:text-[44px]"
-                >
-                  {trainerInitials}
+        {/* ═══ Hero — gallery (placeholder с avatar-disc) + meta-col. Hero —
+         * просто grid без card-обёртки: card-стиль на gallery-блоке. ═══ */}
+        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
+          {/* Photo-placeholder тренера: avatar-disc 132×132 (96 на 480) с инициалами. */}
+          <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
+            <div className="hero-bg-blank flex aspect-[16/10] flex-col items-center justify-center gap-3.5">
+              <span
+                aria-hidden="true"
+                className="flex size-24 items-center justify-center rounded-full border border-line bg-card font-display text-[32px] tabular-nums text-ink md:size-[132px] md:text-[44px]"
+              >
+                {trainerInitials}
+              </span>
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+                Фото тренера
+              </span>
+            </div>
+          </div>
+
+          {/* Meta column */}
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* meta-tags */}
+            <div className="flex flex-wrap gap-2">
+              {trainer.city ? <Chip variant="solid">{formatCityDisplay(trainer.city)}</Chip> : null}
+              <Chip>{trainer.experienceYears} лет опыта</Chip>
+              <Chip>{pluralizeReviews(trainer.reviewCount)}</Chip>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+                Trainer profile
+              </p>
+              <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
+                {trainer.name}
+              </h1>
+
+              {/* rating + addr */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Rating value={trainer.rating} hideValue />
+                <span className="font-display text-sm tabular-nums text-ink">
+                  {trainer.rating.toFixed(1)}
                 </span>
-                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
-                  Фото тренера
-                </span>
+                {trainer.address ? (
+                  <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-3 shrink-0"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {trainer.address}
+                  </span>
+                ) : null}
               </div>
             </div>
 
-            {/* Meta column */}
-            <div className="flex min-w-0 flex-col gap-4">
-              {/* meta-tags */}
-              <div className="flex flex-wrap gap-2">
-                {trainer.city ? (
-                  <Chip variant="solid">{formatCityDisplay(trainer.city)}</Chip>
-                ) : null}
-                <Chip>{trainer.experienceYears} лет опыта</Chip>
-                <Chip>{pluralizeReviews(trainer.reviewCount)}</Chip>
-              </div>
+            {/* description (line-clamp-5) */}
+            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
+              {trainer.bio}
+            </p>
 
-              <div className="flex flex-col gap-3">
-                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
-                  Trainer profile
+            {/* stat-rail 2-col: Цена от | Услуг */}
+            <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
+              <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Цена от
                 </p>
-                <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
-                  {trainer.name}
-                </h1>
+                <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
+                  {formatPrice(trainer.priceFrom)}
+                </p>
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                  за тренировку
+                </p>
+              </div>
+              <div className="px-[18px] py-4">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Услуг
+                </p>
+                <p className="mt-2 font-display text-[18px] leading-none text-ink tabular-nums md:text-[22px]">
+                  {offerings.length}
+                </p>
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                  в активном прайсе
+                </p>
+              </div>
+            </div>
 
-                {/* rating + addr */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <Rating value={trainer.rating} />
-                  <span className="font-display text-sm tabular-nums text-ink">
-                    {trainer.rating.toFixed(1)}
-                  </span>
-                  {trainer.address ? (
-                    <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="size-3 shrink-0"
-                        aria-hidden="true"
-                      >
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      {trainer.address}
-                    </span>
+            {/* stat-rail 1-col: Контакты (если есть) */}
+            {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
+              <div className="rounded-[16px] border border-line bg-card-2 px-[18px] py-4">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Контакты
+                </p>
+                <div className="mt-2 space-y-1 text-sm">
+                  {trainer.phone ? (
+                    <p className="font-body font-semibold text-ink">{formatPhone(trainer.phone)}</p>
+                  ) : null}
+                  {trainer.vk ? (
+                    <a
+                      href={trainer.vk}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      VK
+                    </a>
+                  ) : null}
+                  {trainer.telegram ? (
+                    <a
+                      href={trainer.telegram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      Telegram
+                    </a>
+                  ) : null}
+                  {trainer.facebook ? (
+                    <a
+                      href={trainer.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block font-body text-muted hover:text-lime"
+                    >
+                      Facebook
+                    </a>
                   ) : null}
                 </div>
               </div>
+            ) : null}
 
-              {/* description (line-clamp-5) */}
-              <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
-                {trainer.bio}
-              </p>
+            {/* amenity-row через ChipMarquee — специализации */}
+            {specializationItems.length > 0 ? (
+              <ChipMarquee items={specializationItems} variant="outline" accent="lime" />
+            ) : null}
 
-              {/* stat-rail 2-col: Цена от | Услуг */}
-              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
-                    Цена от
-                  </p>
-                  <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
-                    {formatPrice(trainer.priceFrom)}
-                  </p>
-                  <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
-                    за тренировку
-                  </p>
-                </div>
-                <div className="px-[18px] py-4">
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
-                    Услуг
-                  </p>
-                  <p className="mt-2 font-display text-[18px] leading-none text-ink tabular-nums md:text-[22px]">
-                    {offerings.length}
-                  </p>
-                  <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
-                    в активном прайсе
-                  </p>
-                </div>
-              </div>
-
-              {/* stat-rail 1-col: Контакты (если есть) */}
-              {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
-                <div className="rounded-[16px] border border-line bg-card-2 px-[18px] py-4">
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
-                    Контакты
-                  </p>
-                  <div className="mt-2 space-y-1 text-sm">
-                    {trainer.phone ? (
-                      <p className="font-body font-semibold text-ink">
-                        {formatPhone(trainer.phone)}
-                      </p>
-                    ) : null}
-                    {trainer.vk ? (
-                      <a
-                        href={trainer.vk}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        VK
-                      </a>
-                    ) : null}
-                    {trainer.telegram ? (
-                      <a
-                        href={trainer.telegram}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        Telegram
-                      </a>
-                    ) : null}
-                    {trainer.facebook ? (
-                      <a
-                        href={trainer.facebook}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-body text-muted hover:text-lime"
-                      >
-                        Facebook
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* amenity-row через ChipMarquee — специализации */}
-              {specializationItems.length > 0 ? (
-                <ChipMarquee items={specializationItems} variant="outline" accent="lime" />
-              ) : null}
-
-              {/* CTA-row */}
-              <div className="flex flex-wrap items-center gap-2.5">
+            {/* CTA-row */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <a
+                href="#trainer-schedule"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+              >
+                Записаться к тренеру <span aria-hidden="true">→</span>
+              </a>
+              {phoneRaw ? (
                 <a
-                  href="#trainer-schedule"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                  href={`tel:${phoneRaw}`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
                 >
-                  Записаться к тренеру <span aria-hidden="true">→</span>
+                  Связаться
                 </a>
-                {phoneRaw ? (
-                  <a
-                    href={`tel:${phoneRaw}`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
-                  >
-                    Связаться
-                  </a>
-                ) : null}
-              </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -651,7 +646,7 @@ export function TrainerDetailPageClient({
                 </h3>
                 <p className="font-body text-xs font-medium text-muted">{affiliatedClub.address}</p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2.5">
-                  <Rating value={affiliatedClub.rating} />
+                  <Rating value={affiliatedClub.rating} hideValue />
                   <span className="font-display text-sm tabular-nums text-ink">
                     {affiliatedClub.rating.toFixed(1)}
                   </span>
@@ -762,11 +757,11 @@ export function TrainerDetailPageClient({
                 {reviewItems.map((review) => (
                   <div
                     key={review.id}
-                    className="grid grid-cols-[44px_1fr_auto] gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:items-start"
+                    className="grid grid-cols-[36px_1fr] items-start gap-3 rounded-[14px] border border-line bg-card-2 px-3.5 py-3 md:grid-cols-[44px_1fr_auto] md:gap-3.5 md:px-4 md:py-3.5"
                   >
                     <div
                       aria-hidden="true"
-                      className="size-11 rounded-[12px] border border-line bg-card-2"
+                      className="size-9 rounded-[10px] border border-line bg-card-2 md:size-11 md:rounded-[12px]"
                       style={{
                         backgroundImage:
                           'repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 8px)',
@@ -783,8 +778,8 @@ export function TrainerDetailPageClient({
                         {review.text}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Rating value={review.rating} />
+                    <div className="col-span-2 flex items-center gap-2 md:col-auto">
+                      <Rating value={review.rating} hideValue />
                       <span className="font-display text-sm tabular-nums text-ink">
                         {review.rating.toFixed(1)}
                       </span>
