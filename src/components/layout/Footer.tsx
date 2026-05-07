@@ -9,7 +9,7 @@ const footerLinks = [
 export function Footer() {
   return (
     <footer className="border-t border-line bg-panel/90" aria-label="Подвал сайта">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
+      <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">SportHub</p>
           <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">

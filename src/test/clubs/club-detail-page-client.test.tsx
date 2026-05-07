@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithToast as render } from '@/test/helpers/render-with-toast';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
@@ -76,6 +76,9 @@ const trainers: Trainer[] = [
   },
 ];
 
+/* Phase 28.22: расписание показывает только текущую ISO-неделю, поэтому
+ * тесты фиксируют системное время на 2026-03-18 (среда) — слот ниже
+ * попадает в активную неделю Пн 2026-03-16 .. Вс 2026-03-22. */
 const schedule: Schedule[] = [
   {
     id: 21,
@@ -126,7 +129,10 @@ const specialties: Specialty[] = [
 describe('ClubDetailPageClient', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.useRealTimers();
+    vi.useFakeTimers();
+    /* Phase 28.22: anchor расписания на 2026-03-18 (среда), чтобы слоты
+     * фикстур попадали в текущую ISO-неделю (Пн 2026-03-16 .. Вс 2026-03-22). */
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
     vi.restoreAllMocks();
 
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
@@ -135,7 +141,11 @@ describe('ClubDetailPageClient', () => {
     });
   });
 
-  it('рендерит заглушки вместо реальных изображений и публичный контент клуба', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('рендерит ключевые секции и публичный контент клуба под Phase 28', () => {
     render(
       <ClubDetailPageClient
         amenities={amenities}
@@ -150,23 +160,16 @@ describe('ClubDetailPageClient', () => {
       />,
     );
 
-    expect(screen.getAllByText('Фото клуба').length).toBeGreaterThan(0);
-    expect(screen.getByText('Фото тренера')).toBeInTheDocument();
-    expect(screen.getByText('Фото автора')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Volna Aquatic Club' })).toBeInTheDocument();
+    expect(screen.getByText('Club profile')).toBeInTheDocument();
     expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
-    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Марина Соколова' })).toBeInTheDocument();
     expect(screen.getByTestId('club-directions-section')).toBeInTheDocument();
     expect(screen.getByTestId('club-trainers-section')).toBeInTheDocument();
-    expect(screen.getByTestId('club-media-gallery')).toBeInTheDocument();
-    expect(screen.getByTestId('club-media-gallery-secondary').className).toContain(
-      'sm:grid-cols-2',
-    );
-    expect(screen.getByTestId('club-trainer-card-1')).toHaveClass('flex-col');
+    expect(screen.getByTestId('club-trainer-card-1')).toBeInTheDocument();
   });
 
   it('для гостя показывает временные auth-подсказки вместо athlete-only действий', async () => {
-    vi.useFakeTimers();
-
     render(
       <ClubDetailPageClient
         amenities={amenities}
@@ -235,6 +238,10 @@ describe('ClubDetailPageClient', () => {
   });
 
   it('для athlete даёт перейти к записи и отправить отзыв через fake API', async () => {
+    /* Используем real timers для async waitFor + setTimeout логики fetchMock. */
+    vi.useRealTimers();
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
+
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({

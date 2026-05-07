@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ClubDetailPage from '@/app/clubs/[slug]/page';
 import {
@@ -20,12 +20,17 @@ describe('Club detail page', () => {
   let dataDirectory: string;
 
   beforeEach(async () => {
+    /* Phase 28.22: anchor расписания на 2026-03-18 — слоты фикстур
+     * (date='2026-03-18' / '2026-03-20') попадают в текущую ISO-неделю. */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
     await removeIsolatedDataDirectory(dataDirectory);
   });
@@ -42,7 +47,6 @@ describe('Club detail page', () => {
     expect(screen.getByRole('heading', { name: 'Тренеры клуба' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Расписание на неделю' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Отзывы клуба' })).toBeInTheDocument();
-    expect(screen.getAllByText('Фото клуба').length).toBeGreaterThan(0);
   });
 
   it('отдаёт notFound для несуществующего клуба', async () => {
@@ -162,8 +166,6 @@ describe('Club detail page', () => {
     render(await ClubDetailPage({ params: Promise.resolve({ slug: 'start-swim-club' }) }));
 
     expect(screen.getByRole('heading', { name: 'Start Swim Club' })).toBeInTheDocument();
-    expect(screen.getByTestId('club-media-empty')).toBeInTheDocument();
-    expect(screen.queryByTestId('club-media-gallery-secondary')).not.toBeInTheDocument();
     expect(screen.getByTestId('club-trainers-empty')).toBeInTheDocument();
     expect(screen.getByTestId('club-reviews-empty')).toBeInTheDocument();
     expect(screen.getByText('Стартовая группа')).toBeInTheDocument();
