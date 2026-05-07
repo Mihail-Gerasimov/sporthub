@@ -161,7 +161,10 @@ export function SlotCard({
           type="button"
           onClick={() => onSelect(slotId)}
           aria-label={ctaAriaName}
-          className="slot-cta inline-flex flex-shrink-0 items-center gap-1.5 border-0 bg-transparent p-0 font-body text-[12px] font-bold tracking-[0.10em] whitespace-nowrap text-[var(--ui-lime)] uppercase transition-[color,gap] duration-150 hover:gap-2.5 hover:text-[var(--ui-lime-hov)]"
+          // Phase 30.9: переведено на primary CTA по frontend-design SKILL —
+          // lime-fill + rounded-pill + cursor-pointer + hover:bg-lime-hov.
+          // Микро-анимация стрелочки (hover:gap-2.5) сохранена.
+          className="slot-cta inline-flex flex-shrink-0 items-center gap-1.5 rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold tracking-[0.14em] whitespace-nowrap text-bg uppercase cursor-pointer transition-[gap,background-color] duration-150 hover:gap-2.5 hover:bg-lime-hov"
         >
           К записи
           <span aria-hidden="true">→</span>

@@ -150,4 +150,27 @@ describe('SlotCard', () => {
     const venueEl = container.querySelector('.slot-venue-name');
     expect(venueEl?.textContent).toBe('Самарский бассейн');
   });
+
+  // --- Phase 30.9 ---
+
+  it('Phase 30.9: CTA — primary fill (lime + rounded-pill + cursor-pointer)', () => {
+    const { container } = render(<SlotCard {...makeProps()} />);
+    const cta = container.querySelector('.slot-cta');
+    expect(cta).not.toBeNull();
+    const cls = cta?.className ?? '';
+    // Primary CTA по frontend-design SKILL: lime fill, pill-shape, кликабельный курсор.
+    expect(cls).toMatch(/bg-lime/);
+    expect(cls).toMatch(/rounded-pill/);
+    expect(cls).toMatch(/cursor-pointer/);
+    expect(cls).toMatch(/hover:bg-lime-hov/);
+    // Старый ghost-стиль не должен оставаться.
+    expect(cls).not.toMatch(/bg-transparent/);
+    expect(cls).not.toMatch(/border-0/);
+  });
+
+  it('Phase 30.9: hover-микро-анимация стрелочки сохранена (hover:gap-2.5)', () => {
+    const { container } = render(<SlotCard {...makeProps()} />);
+    const cta = container.querySelector('.slot-cta');
+    expect(cta?.className).toMatch(/hover:gap-2\.5/);
+  });
 });
