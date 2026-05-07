@@ -89,6 +89,8 @@ export function ServicePortalLoginForm() {
 
       setIsSubmitting(false);
       router.push('/service-portal/dashboard');
+      // Phase 30.1: инвалидируем RSC-кэш сегмента, иначе страница висит на старом гостевом рендере до ручного F5.
+      router.refresh();
     }, AUTH_SUBMIT_DELAY_MS);
   }
 

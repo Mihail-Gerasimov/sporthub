@@ -13,12 +13,13 @@ import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/sto
 // Мокаем next/navigation
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const mockRefresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
-    refresh: vi.fn(),
+    refresh: mockRefresh,
   }),
 }));
 
@@ -28,6 +29,7 @@ describe('Service Portal Login (Step 17.3)', () => {
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     mockPush.mockClear();
     mockReplace.mockClear();
+    mockRefresh.mockClear();
   });
 
   // --- Рендер формы ---
@@ -65,6 +67,11 @@ describe('Service Portal Login (Step 17.3)', () => {
       expect(state.user?.id).toBe(MVP_ADMIN_USER_ID);
       expect(state.accountType).toBeNull();
       expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+      // Phase 30.1: refresh вызывается после push для инвалидации RSC-кэша.
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+      expect(mockPush.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRefresh.mock.invocationCallOrder[0],
+      );
 
       vi.useRealTimers();
     });
