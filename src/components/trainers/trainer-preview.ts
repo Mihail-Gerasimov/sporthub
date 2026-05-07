@@ -1,4 +1,5 @@
 import { APP_LIMITS, DEFAULT_CITY } from '@/lib/constants';
+import { isSlotUpcoming } from '@/lib/slot-time';
 import { resolveNames } from '@/lib/utils';
 import type {
   Club,
@@ -162,8 +163,11 @@ export function buildTrainerDirectory({
       // Phase 28.24: nextSlot и availableSlotsCount — только сегодняшние свободные
       // слоты тренера (симметрично клубному getUpcomingSessions). Старые/будущие
       // слоты не всплывают в карточке как «ближайшее окно».
+      // Phase 30.7: дополнительно отсекаем сегодняшние слоты, у которых endTime уже прошёл.
+      const now = new Date();
       const availableSlots = [...(trainerScheduleByTrainerId.get(trainer.id) ?? [])]
         .filter((slot) => slot.date === targetDate)
+        .filter((slot) => isSlotUpcoming(slot, now))
         .filter((slot) => slot.bookedCount < slot.capacity)
         .sort((left, right) => getSlotSortKey(left).localeCompare(getSlotSortKey(right)));
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
@@ -271,11 +275,14 @@ export function getTrainerAvailability({
   targetDate,
 }: GetTrainerAvailabilityInput): TrainerAvailabilityItem[] {
   const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
+  const now = new Date();
 
   return schedule
     .filter((slot) => slot.ownerType === 'trainer')
     .filter((slot) => slot.trainerId !== undefined)
     .filter((slot) => slot.date === targetDate)
+    // Phase 30.7: отсекаем сегодняшние прошедшие слоты в блоке «Свободные окна тренеров».
+    .filter((slot) => isSlotUpcoming(slot, now))
     .filter((slot) => slot.bookedCount < slot.capacity)
     .flatMap((slot) => {
       const trainer = trainerById.get(slot.trainerId ?? -1);

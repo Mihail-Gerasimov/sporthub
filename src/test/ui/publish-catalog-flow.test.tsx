@@ -32,6 +32,12 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
   let dataDirectory: string;
 
   beforeEach(async () => {
+    /* Phase 30.7: фиксируем системное время на 04:01 Samara (00:01 UTC) — слоты
+       helper'а publishCatalogPair (07:30 и 09:00) останутся upcoming. Без фикса
+       тест становился flaky после 10:00 Samara — isSlotUpcoming их отсекал. */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T00:01:00.000Z'));
+
     dataDirectory = await createIsolatedDataDirectory();
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -44,6 +50,7 @@ describe('publish-flow catalog integration (Step 14.11)', () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
     localStorage.removeItem(AUTH_STORAGE_KEY);
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);

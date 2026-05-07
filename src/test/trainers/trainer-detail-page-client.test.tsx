@@ -90,10 +90,11 @@ const schedule: Schedule[] = [
     clubId: 1,
     trainerId: 1,
     sportId: 3,
+    /* Phase 30.7: 10:00 UTC = 14:00 Samara — ставим slot после 14:00, чтобы isSlotUpcoming его пропустил. */
     title: 'Утреннее плавание',
     date: '2026-03-18',
-    startTime: '07:30',
-    endTime: '08:30',
+    startTime: '17:30',
+    endTime: '18:30',
     durationMinutes: 60,
     level: 'all_levels',
     capacity: 14,
@@ -190,7 +191,7 @@ describe('TrainerDetailPageClient', () => {
     expect(screen.getByText('Утреннее плавание')).toBeInTheDocument();
     /* Phase 28.23: slot.sub теперь "07:30 - 08:30, Бассейн A" в одном узле,
      * поэтому используем regex match вместо exact text. */
-    expect(screen.getByText(/07:30 - 08:30/)).toBeInTheDocument();
+    expect(screen.getByText(/17:30 - 18:30/)).toBeInTheDocument();
     expect(screen.getByText('Бассейн A')).toBeInTheDocument();
   });
 

@@ -93,6 +93,9 @@ describe('Club detail page', () => {
       clubId: cyrillicClub.id,
       trainerId: undefined,
       title: 'Стартовая группа',
+      /* Phase 30.7: 14:00 Samara — slot после этого времени, иначе isSlotUpcoming его отсечёт. */
+      startTime: '17:30',
+      endTime: '18:30',
       price: 1200,
       room: 'Зал A',
     };
@@ -150,6 +153,9 @@ describe('Club detail page', () => {
       clubId: minimalClub.id,
       trainerId: undefined,
       title: 'Стартовая группа',
+      /* Phase 30.7: slot после 14:00 Samara чтобы isSlotUpcoming его пропустил. */
+      startTime: '17:30',
+      endTime: '18:30',
       price: 1200,
       room: 'Зал A',
     };

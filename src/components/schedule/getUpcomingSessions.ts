@@ -1,4 +1,5 @@
 import { APP_LIMITS } from '@/lib/constants';
+import { isSlotUpcoming } from '@/lib/slot-time';
 import { getScheduleClubId } from '@/lib/utils';
 import type { Club, EntityId, Schedule } from '@/types';
 
@@ -29,8 +30,11 @@ export function getUpcomingSessions({
   limit = APP_LIMITS.upcomingSessions,
 }: GetUpcomingSessionsInput): UpcomingSessionItem[] {
   const clubById = new Map(clubs.map((club) => [club.id, club]));
+  const now = new Date();
   const upcomingSessions = schedule
     .filter((slot) => slot.date === targetDate)
+    // Phase 30.7: отсекаем сегодняшние слоты, у которых endTime уже прошёл (TZ-safe).
+    .filter((slot) => isSlotUpcoming(slot, now))
     .filter((slot) => slot.bookedCount < slot.capacity)
     .flatMap((slot) => {
       const clubId = getScheduleClubId(slot);

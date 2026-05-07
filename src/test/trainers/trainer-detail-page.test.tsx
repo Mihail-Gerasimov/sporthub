@@ -100,6 +100,9 @@ describe('Trainer detail page', () => {
       /* Phase 28.23: дата = текущий день анчора (2026-03-18), чтобы slot
        * попадал на активный таб DetailScheduleWeek и chip room рендерился. */
       date: '2026-03-18',
+      /* Phase 30.7: системное время теста = 14:00 Samara → slot должен быть после, иначе isSlotUpcoming его отсечёт. */
+      startTime: '17:30',
+      endTime: '18:30',
       room: 'Индивидуальный зал',
     };
 

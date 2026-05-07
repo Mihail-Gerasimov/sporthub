@@ -86,11 +86,13 @@ const schedule: Schedule[] = [
     clubId: 1,
     trainerId: 1,
     sportId: 3,
+    /* Phase 30.7: фиксированное системное время в тесте — 10:00 UTC = 14:00 Samara.
+       Чтобы слот оставался upcoming, ставим startTime/endTime после 14:00 Samara. */
     title: 'Утреннее плавание',
     description: 'Спокойная работа на технику.',
     date: '2026-03-18',
-    startTime: '07:30',
-    endTime: '08:30',
+    startTime: '17:30',
+    endTime: '18:30',
     durationMinutes: 60,
     level: 'all_levels',
     capacity: 14,

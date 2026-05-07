@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { getUpcomingSessions } from '@/components/schedule/getUpcomingSessions';
 import type { Club, Schedule } from '@/types';
+
+/* Phase 30.7: фиксируем системное время на ~01:00 Samara (21:00 UTC предыдущего дня),
+   чтобы все слоты с date='2026-03-17' и любыми endTime были в будущем относительно
+   проверки isSlotUpcoming (TZ-safe). */
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-03-16T21:00:00.000Z'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const clubs: Club[] = [
   {
@@ -234,5 +246,29 @@ describe('getUpcomingSessions', () => {
       'Balance Yoga House',
       'Volna Aquatic Club',
     ]);
+  });
+
+  it('Phase 30.7: сегодняшние слоты с прошедшим endTime не попадают в выдачу', () => {
+    /* Перетаскиваем системное время на 14:00 Samara (10:00 UTC) — слот id=35
+       с endTime='08:30' уже прошёл и должен быть отсечён, остальные с endTime
+       после 14:00 Samara (33→09:00 ❌, 36→19:30 ✓, 37→21:20 ✓ и т.д.) пропадут
+       или останутся согласно времени. Конкретно проверяем ТОЛЬКО что слот с
+       endTime '08:30' исчезает, а слот '19:30' остаётся. */
+    vi.setSystemTime(new Date('2026-03-17T10:00:00.000Z')); // 14:00 Samara
+
+    const sessions = getUpcomingSessions({
+      clubs,
+      schedule,
+      targetDate: '2026-03-17',
+    });
+
+    const ids = sessions.map((s) => s.id);
+    /* id=35 (07:30-08:30) — уже прошёл → не виден */
+    expect(ids).not.toContain(35);
+    /* id=36 (18:30-19:30) — ещё впереди → виден */
+    expect(ids).toContain(36);
+
+    /* Возвращаем системное время после теста — другие it'ы используют старое */
+    vi.setSystemTime(new Date('2026-03-16T21:00:00.000Z'));
   });
 });

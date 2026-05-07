@@ -32,6 +32,7 @@ import {
 } from '@/components/detail-shared/DetailScheduleWeek';
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
 import type { ReliabilityResult } from '@/lib/reliability';
+import { isSlotUpcoming } from '@/lib/slot-time';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
@@ -235,8 +236,11 @@ export function ClubDetailPageClient({
     const { mondayIso, sundayIso } = getCurrentWeekRange();
     const trainerNames = new Map(trainers.map((t) => [t.id, t.name]));
     const sportNames = new Map(sports.map((s) => [s.id, s.name]));
+    const now = new Date();
     return schedule
       .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
+      // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe сравнение).
+      .filter((s) => isSlotUpcoming(s, now))
       .map((slot) => {
         const trainerName = trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер SportHub';
         return {
