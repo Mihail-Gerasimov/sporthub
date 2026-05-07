@@ -15,6 +15,7 @@ import Link from 'next/link';
 
 import { buildTrainerDirectory, getTrainerAvailability } from '@/components/trainers';
 import { PopularNearby } from '@/components/clubs';
+import { HeroSportMarquee } from '@/components/home/HeroSportMarquee';
 import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
@@ -169,23 +170,11 @@ export default async function Home() {
                 карточки и ближайшие окна для записи.
               </p>
 
-              {/* Sport rail — горизонтальный скролл чипов с инициалом.
-                  min-w-0 + max-w-full обязательны: без них flex-row с shrink-0 chips
-                  расширяет parent под суммарную ширину контента (~1100px) и ломает grid. */}
+              {/* Phase 30.10: декоративная бегущая лента спорт-чипов в hero.
+                  Реальный sport-фильтр живёт ниже в SportFilters — здесь
+                  только визуальная подложка, поэтому без onClick/cursor:pointer. */}
               {searchFilterSports.length > 0 ? (
-                <div className="scrollbar-hidden -mx-1 flex min-w-0 max-w-full gap-2.5 overflow-x-auto px-1 pb-1">
-                  {searchFilterSports.slice(0, 8).map((sport) => (
-                    <span
-                      key={sport.id}
-                      className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-[var(--ui-line)] bg-white/[0.03] px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--ui-ink)] transition-all hover:-translate-y-px hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
-                    >
-                      <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-[var(--ui-lime-soft)] font-body text-[11px] font-bold text-[var(--ui-lime)]">
-                        {sport.name.trim().charAt(0).toUpperCase()}
-                      </span>
-                      {sport.name}
-                    </span>
-                  ))}
-                </div>
+                <HeroSportMarquee sports={searchFilterSports.slice(0, 16)} />
               ) : null}
 
               {/* 2 CTA — на mobile full-width в столбик, на md+ в строку */}

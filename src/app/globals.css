@@ -309,6 +309,57 @@ body {
   cursor: grabbing;
 }
 
+/* ===== Phase 30.10 — hero sport-rail marquee на главной =====
+ * Декоративная бесконечная лента видов спорта в hero. Контент дублируется
+ * два раза подряд (см. HeroSportMarquee.tsx), CSS-анимация двигает track на
+ * -50% (полная ширина одной копии) → бесшовное зацикливание.
+ *
+ * Не использует общий .chip-marquee: тот сложный (rAF, drag, pause, IO),
+ * здесь же только декорация без управления. Pause-on-hover отключён намеренно
+ * — пользователь хочет «сама без остановки». prefers-reduced-motion отключает
+ * анимацию для accessibility.
+ */
+@keyframes hero-marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.hero-sport-marquee-viewport {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 24px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 24px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
+}
+
+.hero-sport-marquee {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: max-content;
+  animation: hero-marquee-x 40s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-sport-marquee {
+    animation: none;
+  }
+}
+
 /* ===== Phase 28.12 — стили карточки слота (TrainerSlotCard) =====
  * Hero рендерит диагональный lime/orange-луч + штриховку 135° через
  * псевдоэлемент `::before`, чтобы не плодить лишние spans и не клипать
