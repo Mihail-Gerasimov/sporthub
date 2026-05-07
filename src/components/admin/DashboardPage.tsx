@@ -20,6 +20,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
@@ -159,6 +160,11 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   const router = useRouter();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
   const addToast = useToastStore((s) => s.addToast);
+  // Phase 29 Step 29.7: id текущего админа — для AdminUpdatePasswordModal через UserCard.
+  // adminOriginalUser имеет приоритет (если включена impersonation), иначе обычный user.
+  const currentAdminUserId = useAuthStore(
+    (state) => state.adminOriginalUser?.id ?? state.user?.id ?? 0,
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -427,6 +433,7 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
                 onImpersonate={() => handleImpersonate(user)}
                 onLiftQuarantine={() => handleLiftQuarantine(user.id)}
                 onRecomputeReliability={() => handleRecomputeReliability(user.id)}
+                adminUserId={currentAdminUserId}
               />
             );
           })}
@@ -491,6 +498,9 @@ type UserCardProps = {
   onImpersonate: () => void;
   onLiftQuarantine: () => void;
   onRecomputeReliability: () => void;
+  // Phase 29 Step 29.7: id текущего админа — нужен модалке для PATCH-body.
+  // 0 = нет admin-сессии (карточки тогда вообще не видны guard'ом DashboardPage).
+  adminUserId: number;
 };
 
 function UserCard({
@@ -501,13 +511,21 @@ function UserCard({
   onImpersonate,
   onLiftQuarantine,
   onRecomputeReliability,
+  adminUserId,
 }: UserCardProps) {
   const isAthlete = user.role === 'athlete';
   const inQuarantine = quarantine.inQuarantine;
   const userStatus = user.status ?? 'active';
 
+  // Phase 29 Step 29.7: блок «Учётные данные» с password-toggle и модалкой
+  // смены. password-state локальный — каждый UserCard хранит свой toggle.
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const passwordValue = (user.password ?? '').trim();
+  const hasPassword = passwordValue.length > 0;
+
   return (
-    <article className="grid grid-cols-1 items-center gap-x-4 gap-y-3.5 rounded-[16px] border border-line bg-card p-[18px] transition-colors hover:border-line sm:p-[18px_22px] xl:grid-cols-[1fr_440px]">
+    <article className="grid grid-cols-1 items-start gap-x-4 gap-y-3.5 rounded-[16px] border border-line bg-card p-[18px] transition-colors hover:border-line sm:p-[18px_22px] xl:grid-cols-[1fr_440px]">
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="font-mono text-[13px] font-semibold tabular-nums text-muted">
@@ -529,6 +547,54 @@ function UserCard({
         <p className="m-0 text-xs font-medium text-muted">
           {stats.label}: <strong className="font-bold tabular-nums text-ink">{stats.value}</strong>
         </p>
+
+        {/* Phase 29 Step 29.7: блок «Учётные данные» — login (=email)
+            и password с masked-toggle. Виден только super-admin'у (DashboardPage
+            живёт под admin-guard в layout). Phone опускаем — он уже в основной
+            строке profile, отдельно дублировать не нужно. */}
+        <div
+          data-testid={`user-credentials-${user.id}`}
+          className="mt-2 flex flex-col gap-1.5 rounded-[12px] border border-line bg-bg p-3 sm:flex-row sm:items-center sm:gap-4"
+        >
+          <div className="flex flex-col gap-0.5 sm:min-w-[160px]">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+              Логин
+            </span>
+            <span className="break-all font-mono text-[12px] text-ink">{user.email}</span>
+          </div>
+          <div className="flex flex-1 flex-col gap-0.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+              Пароль
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                data-testid={`user-credentials-password-${user.id}`}
+                className="break-all font-mono text-[12px] text-ink"
+              >
+                {!hasPassword ? '(не задан)' : showPassword ? passwordValue : '••••••••'}
+              </span>
+              {hasPassword ? (
+                <button
+                  type="button"
+                  data-testid={`user-credentials-toggle-${user.id}`}
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="rounded-pill border border-line bg-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-muted hover:border-lime hover:text-lime"
+                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                >
+                  {showPassword ? 'Скрыть' : 'Показать'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                data-testid={`user-credentials-change-${user.id}`}
+                onClick={() => setPasswordModalOpen(true)}
+                className="rounded-pill border border-line bg-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-ink hover:border-lime hover:text-lime"
+              >
+                Изменить пароль
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -542,6 +608,14 @@ function UserCard({
 
         <ButtonPrimary onClick={onImpersonate}>Войти как пользователь</ButtonPrimary>
       </div>
+
+      <AdminUpdatePasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        userId={user.id}
+        userName={user.name}
+        adminUserId={adminUserId}
+      />
     </article>
   );
 }

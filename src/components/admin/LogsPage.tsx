@@ -57,6 +57,8 @@ const ACTION_LABELS: Record<LogAction, string> = {
   reliability_recompute: 'Рейтинг пересчитан',
   // Phase 24 — админский hard-delete
   admin_hard_delete_booking: 'Запись удалена администратором',
+  // Phase 29 Step 29.7 — админский сброс пароля
+  admin_password_change: 'Пароль изменён администратором',
 };
 
 // Тон badge для типа действия — Phase 28.18 семантические уровни:

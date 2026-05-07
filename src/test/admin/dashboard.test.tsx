@@ -199,12 +199,12 @@ describe('DashboardPage (Step 17.4)', () => {
     renderDashboard();
 
     // Фильтры скрыты по умолчанию
-    expect(screen.queryByLabelText(/роль/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^роль$/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
 
     // Фильтры видны
-    expect(screen.getByLabelText(/роль/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^роль$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/статус/i)).toBeInTheDocument();
   });
 
@@ -212,7 +212,7 @@ describe('DashboardPage (Step 17.4)', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/роль/i), { target: { value: 'athlete' } });
+    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'athlete' } });
 
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
     expect(screen.queryByText('Марина Крылова')).not.toBeInTheDocument();
@@ -222,7 +222,7 @@ describe('DashboardPage (Step 17.4)', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/роль/i), { target: { value: 'provider' } });
+    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'provider' } });
 
     expect(screen.queryByText('Алексей Смирнов')).not.toBeInTheDocument();
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
@@ -242,7 +242,7 @@ describe('DashboardPage (Step 17.4)', () => {
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/роль/i), { target: { value: 'athlete' } });
+    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'athlete' } });
 
     // Только athlete
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();

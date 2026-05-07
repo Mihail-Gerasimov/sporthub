@@ -62,7 +62,9 @@ export type LogAction =
   | 'quarantine_admin_lift'
   | 'reliability_recompute'
   // Phase 24 — админский hard-delete booking'а
-  | 'admin_hard_delete_booking';
+  | 'admin_hard_delete_booking'
+  // Phase 29 Step 29.7 — админский сброс пароля юзеру
+  | 'admin_password_change';
 
 // Тип сущности, затронутой действием
 export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user' | 'trainer_club_link';
