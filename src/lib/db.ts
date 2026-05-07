@@ -875,6 +875,39 @@ export async function setUserNotificationPreferences(
   return updated;
 }
 
+/**
+ * Phase 29 Step 29.5: точечный апдейт собственных полей пользователя.
+ * MVP-скоп: только phone и password — email не меняем (это identifier для
+ * login, требует session-invalidation), name не меняем (используется в
+ * публичных surface как owner). Атомарная запись, валидация формата —
+ * на уровне API-слоя через Zod.
+ *
+ * password остаётся plain до Phase 30+ (bcrypt). Trim применяется на API,
+ * сюда уже приходит готовое значение.
+ */
+export async function updateUser(
+  userId: EntityId,
+  patch: Partial<Pick<User, 'phone' | 'password'>>,
+): Promise<User> {
+  if (Object.keys(patch).length === 0) {
+    throw new Error('Пустой patch — нечего обновлять');
+  }
+
+  const users = await readCollection('users');
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) {
+    throw new Error('Пользователь не найден');
+  }
+
+  const updated: User = {
+    ...users[index],
+    ...patch,
+  };
+  users[index] = updated;
+  await writeCollection('users', users);
+  return updated;
+}
+
 // --- Phase 24: Двусторонняя привязка тренер↔клуб ---
 
 /** Опции фильтрации при чтении списка TrainerClubLink. */
