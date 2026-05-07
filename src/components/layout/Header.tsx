@@ -44,8 +44,15 @@ export function Header() {
     if (isImpersonating) {
       stopImpersonation();
       router.push('/service-portal/dashboard');
+      // Phase 30.6: симметрично stopImpersonation в ImpersonationBanner —
+      // RSC-кэш сегмента инвалидируется, иначе страница висит на старом userId.
+      router.refresh();
     } else {
       logout();
+      // Phase 30.6: replace, не push — logout не должен оставлять ЛК в history-back.
+      // refresh после replace инвалидирует RSC-кэш текущего ЛК-сегмента (иначе AccessDeniedCard в кривом узком layout).
+      router.replace('/');
+      router.refresh();
     }
   };
 

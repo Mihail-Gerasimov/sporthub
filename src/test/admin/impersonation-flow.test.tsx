@@ -13,13 +13,16 @@ import { useUIStore } from '@/stores/useUIStore';
 
 // Мокаем next/navigation. Phase 27 Step 27.15: refresh вынесен в именованный
 // mock, чтобы можно было ассертить его вызов после stopImpersonation.
+// Phase 30.6: replace вынесен в именованный mock — обычный logout теперь
+// делает router.replace('/') + router.refresh().
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
+const mockReplace = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
     refresh: mockRefresh,
   }),
   usePathname: () => '/',
@@ -44,6 +47,7 @@ describe('Impersonation flow (Step 17.5)', () => {
     useUIStore.setState({ isAuthModalOpen: false });
     mockPush.mockClear();
     mockRefresh.mockClear();
+    mockReplace.mockClear();
   });
 
   // --- ImpersonationBanner ---
@@ -175,7 +179,7 @@ describe('Impersonation flow (Step 17.5)', () => {
   // --- Header «Выйти» при impersonation ---
 
   describe('Header logout при impersonation', () => {
-    it('«Выйти» при impersonation вызывает stopImpersonation и redirect в панель', () => {
+    it('«Выйти» при impersonation вызывает stopImpersonation, push в панель и refresh', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
@@ -198,9 +202,12 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(state.isImpersonating).toBe(false);
       expect(state.isAuthenticated).toBe(true);
       expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+      // Phase 30.6: refresh добавлен в impersonation-ветку Header.handleLogout —
+      // симметрично ImpersonationBanner.handleStop, инвалидирует RSC-кэш.
+      expect(mockRefresh).toHaveBeenCalled();
     });
 
-    it('«Выйти» без impersonation делает обычный logout', () => {
+    it('«Выйти» без impersonation делает logout, replace на / и refresh', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
@@ -216,6 +223,11 @@ describe('Impersonation flow (Step 17.5)', () => {
 
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
+      // Phase 30.6: обычный logout редиректит на главную и инвалидирует RSC-кэш —
+      // иначе пользователь застревает на /profile/*/dashboard с AccessDeniedCard
+      // в кривом узком layout. replace, не push — history-back не должен возвращать на ЛК.
+      expect(mockReplace).toHaveBeenCalledWith('/');
+      expect(mockRefresh).toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
