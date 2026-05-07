@@ -5,6 +5,12 @@
  * (fetch GET /api/notifications?userId&limit=5). Видим только
  * аутентифицированным пользователям с accountType (athlete/provider).
  * Счётчик обновляется через useUnreadCountPolling (pathname + interval 60s).
+ *
+ * Phase 29 Step 29.2: счётчик читаем из `useNotificationsStore` —
+ * единый источник правды для Bell и страницы уведомлений. Polling-хук
+ * пишет в этот же стор, поэтому badge мгновенно убавляется при пометке
+ * прочитанным на странице (без ожидания следующего polling-цикла).
+ * markRead в dropdown тоже идёт через стор с optimistic-rollback.
  */
 'use client';
 
@@ -14,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import type { Notification } from '@/types';
 import { useUnreadCountPolling } from '@/hooks/useUnreadCountPolling';
 
@@ -45,7 +52,14 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const { unreadCount, refetch } = useUnreadCountPolling({
+  // Phase 29 Step 29.2: счётчик читаем из стора — реактивный rerender при
+  // markRead/markAllRead/removeMany на странице уведомлений. Polling-хук
+  // тоже пишет в этот стор, так что fallback-источник тот же.
+  const unreadCount = useNotificationsStore((state) => state.unreadCount);
+  const markReadInStore = useNotificationsStore((state) => state.markRead);
+  const rollbackMarkRead = useNotificationsStore((state) => state.rollbackMarkRead);
+
+  const { refetch } = useUnreadCountPolling({
     userId: isAuthenticated ? userId : null,
   });
 
@@ -97,29 +111,50 @@ export function NotificationBell() {
   // Phase 27 Step 27.6: клик по карточке уведомления = mark-as-read + переход на
   // полную страницу уведомлений. Хук объявлен ДО early-return, чтобы порядок
   // хуков был стабилен для разных условий рендера (правило react-hooks/rules-of-hooks).
+  //
+  // Phase 29 Step 29.2: optimistic-pattern через стор:
+  //   1) `markReadInStore(id)` — мгновенно декрементит badge (если уведомление
+  //      уже в сторе, например из NotificationsListPage; иначе no-op);
+  //   2) локально для items dropdown'а — простановка readAt (легаси-логика);
+  //   3) POST /api/notifications/[id]/read;
+  //   4) на fail — `rollbackMarkRead(id)` + revert items dropdown'а.
+  // Стор инкапсулирует unreadCount-арифметику — bell-badge корректно убавляется
+  // даже когда сам Notification не лежит в сторе (badge уже учтён polling'ом).
   const handleItemClick = useCallback(
     async (notification: Notification) => {
       setIsOpen(false);
       if (notification.readAt === undefined && userId !== null) {
+        // Optimistic: badge уменьшается мгновенно, dropdown получает readAt.
+        markReadInStore(notification.id);
+        const now = new Date().toISOString();
+        setItems((prev) => prev.map((n) => (n.id === notification.id ? { ...n, readAt: now } : n)));
         try {
-          await fetch(`/api/notifications/${notification.id}/read`, {
+          const response = await fetch(`/api/notifications/${notification.id}/read`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
           });
-          setItems((prev) =>
-            prev.map((n) =>
-              n.id === notification.id ? { ...n, readAt: new Date().toISOString() } : n,
-            ),
-          );
-          void refetch();
+          if (!response.ok) {
+            // Rollback при non-ok ответе — badge возвращается, dropdown тоже.
+            rollbackMarkRead(notification.id);
+            setItems((prev) =>
+              prev.map((n) => (n.id === notification.id ? { ...n, readAt: undefined } : n)),
+            );
+          } else {
+            // Подстраховка: запрашиваем актуальный счётчик с сервера.
+            void refetch();
+          }
         } catch {
-          // silent — если сеть упала, badge подхватится на следующем polling'е.
+          // Network error — rollback + полагаемся на следующий polling.
+          rollbackMarkRead(notification.id);
+          setItems((prev) =>
+            prev.map((n) => (n.id === notification.id ? { ...n, readAt: undefined } : n)),
+          );
         }
       }
       router.push(allNotificationsHref);
     },
-    [userId, refetch, router, allNotificationsHref],
+    [userId, refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
   );
 
   if (!isAuthenticated || !accountType) {

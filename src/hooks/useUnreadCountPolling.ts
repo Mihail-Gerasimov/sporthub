@@ -5,11 +5,19 @@
  * - смене pathname (интенсивная навигация пользователя),
  * - fallback interval 60s (если pathname долго не меняется).
  * При userId=null запросы не делаются (guest/admin без impersonation).
+ *
+ * Phase 29 Step 29.2: помимо локального state хук также пишет полученное
+ * значение в `useNotificationsStore` (через `setUnreadCount`) — это
+ * единый источник правды для bell-badge и страницы уведомлений. Локальный
+ * state хука сохранён для обратной совместимости (старые потребители читают
+ * `result.unreadCount` напрямую). Новый код подписывается на стор.
  */
 'use client';
 
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -51,6 +59,9 @@ export function useUnreadCountPolling({
 
       if (body.success && body.data && !controller.signal.aborted) {
         setUnreadCount(body.data.unreadCount);
+        // Phase 29 Step 29.2: пишем в общий стор — bell-badge и страница
+        // уведомлений теперь подписаны именно на него.
+        useNotificationsStore.getState().setUnreadCount(body.data.unreadCount);
       }
     } catch {
       // Ошибки сети и аборты игнорируем — счётчик остаётся прежним

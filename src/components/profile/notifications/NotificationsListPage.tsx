@@ -7,6 +7,11 @@
  * NOTIFICATION_TYPE_GROUP), тоггл «Только непрочитанные», группировка по датам
  * (Сегодня / Вчера / Эта неделя / Раньше) через helper getDateBucket.
  *
+ * Phase 29 Step 29.2: список и unreadCount читаются из `useNotificationsStore`,
+ * mark-read и mark-all-read идут через стор с optimistic-rollback. Это
+ * синхронизирует страницу и bell-badge: декремент counter'а в шапке
+ * происходит мгновенно при клике на карточку (без ожидания polling'а).
+ *
  * Существующие testid'ы сохранены: `notification-item-{id}`,
  * `notification-item-unread-{id}`. Новые: `notifications-filter-group-{key}`,
  * `notifications-toggle-unread`, `notifications-bucket-{key}`.
@@ -24,6 +29,7 @@ import {
   type NotificationGroupKey,
 } from '@/lib/notification-types';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@/types';
 
@@ -103,12 +109,33 @@ export function NotificationsListPage({
   userId,
   accountType,
 }: NotificationsListPageProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(initial);
+  // Phase 29 Step 29.2: список читаем из стора. Server-prop `initial` — seed:
+  // при mount синхронизируем стор и впоследствии страница работает с ним
+  // как с источником правды. Bell-badge тоже подписан на этот стор → markRead
+  // на странице мгновенно убавляет цифру в колокольчике.
+  const notifications = useNotificationsStore((state) => state.notifications);
+  const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
+  const setUserIdInStore = useNotificationsStore((state) => state.setUserId);
+  const markReadInStore = useNotificationsStore((state) => state.markRead);
+  const rollbackMarkReadInStore = useNotificationsStore((state) => state.rollbackMarkRead);
+  const markAllReadInStore = useNotificationsStore((state) => state.markAllRead);
+  const rollbackMarkAllReadInStore = useNotificationsStore((state) => state.rollbackMarkAllRead);
+
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
   const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const addToast = useToastStore((state) => state.addToast);
+
+  // Phase 29 Step 29.2: при смене userId — сбрасываем стор и заполняем
+  // его server-prop'ом. Если userId не изменился (refresh страницы) —
+  // тоже перезаписываем notifications, чтобы взять самые свежие данные.
+  useEffect(() => {
+    if (userId !== undefined) {
+      setUserIdInStore(userId);
+    }
+    setNotificationsInStore(initial);
+  }, [userId, initial, setUserIdInStore, setNotificationsInStore]);
 
   // Phase 27 Step 27.8: auth-guard через useAuthStore. Prop `accountType` — требуемая
   // роль для текущего подмаршрута (server-page фиксирует её при рендере). Если сессия
@@ -198,6 +225,9 @@ export function NotificationsListPage({
       // Это же защищает гостевой рендер (когда cookie не установлен).
       if (userId === undefined) return;
       setPendingId(id);
+      // Phase 29 Step 29.2: optimistic — стор сразу декрементит unreadCount,
+      // bell-badge меняется до ответа сервера. На fail откатываем.
+      markReadInStore(id);
       try {
         const response = await fetch(`/api/notifications/${id}/read`, {
           method: 'POST',
@@ -205,21 +235,17 @@ export function NotificationsListPage({
           body: JSON.stringify({ userId }),
         });
         if (!response.ok) {
+          rollbackMarkReadInStore(id);
           addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
-          return;
         }
-        setNotifications((current) =>
-          current.map((notification) =>
-            notification.id === id && notification.readAt === undefined
-              ? { ...notification, readAt: new Date().toISOString() }
-              : notification,
-          ),
-        );
+      } catch {
+        rollbackMarkReadInStore(id);
+        addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
       } finally {
         setPendingId(null);
       }
     },
-    [pendingId, addToast, userId],
+    [pendingId, addToast, userId, markReadInStore, rollbackMarkReadInStore],
   );
 
   const markAllRead = useCallback(async () => {
@@ -227,6 +253,9 @@ export function NotificationsListPage({
     // Без userId не делаем запрос — это гостевой рендер или админ без impersonation.
     if (userId === undefined) return;
     setMarkingAll(true);
+    // Phase 29 Step 29.2: optimistic — все непрочитанные помечаются в сторе,
+    // bell-badge становится 0. На fail возвращаем readAt и unreadCount.
+    const optimisticallyMarkedIds = markAllReadInStore();
     try {
       const response = await fetch('/api/notifications/read-all', {
         method: 'POST',
@@ -234,20 +263,18 @@ export function NotificationsListPage({
         body: JSON.stringify({ userId }),
       });
       if (!response.ok) {
+        rollbackMarkAllReadInStore(optimisticallyMarkedIds);
         addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
         return;
       }
-      const now = new Date().toISOString();
-      setNotifications((current) =>
-        current.map((notification) =>
-          notification.readAt === undefined ? { ...notification, readAt: now } : notification,
-        ),
-      );
       addToast({ message: 'Все уведомления отмечены прочитанными', tone: 'success' });
+    } catch {
+      rollbackMarkAllReadInStore(optimisticallyMarkedIds);
+      addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
     } finally {
       setMarkingAll(false);
     }
-  }, [markingAll, userId, addToast]);
+  }, [markingAll, userId, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
 
   // Phase 27 Step 27.8: гость или несоответствие роли — AccessDeniedCard.
   // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти
