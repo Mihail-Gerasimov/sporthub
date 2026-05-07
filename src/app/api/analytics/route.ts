@@ -129,6 +129,32 @@ export async function GET(request: Request) {
       filteredReviews = reviews.filter((r) => extractDate(r.createdAt) >= fromDate);
     }
 
+    /* --- Phase 30.4: фильтрация bookings/schedule/reviews по городу --- */
+    // У этих сущностей нет прямого поля city — резолвим через clubId/trainerId,
+    // которые УЖЕ отфильтрованы по city выше. Set даёт O(1) lookup.
+    if (city) {
+      const ownedClubIds = new Set(clubs.map((c) => c.id));
+      const ownedTrainerIds = new Set(trainers.map((t) => t.id));
+
+      bookings = bookings.filter(
+        (b: Booking) =>
+          (b.clubId !== undefined && ownedClubIds.has(b.clubId)) ||
+          (b.trainerId !== undefined && ownedTrainerIds.has(b.trainerId)),
+      );
+
+      schedule = schedule.filter(
+        (s: Schedule) =>
+          (s.clubId !== undefined && ownedClubIds.has(s.clubId)) ||
+          (s.trainerId !== undefined && ownedTrainerIds.has(s.trainerId)),
+      );
+
+      filteredReviews = filteredReviews.filter(
+        (r) =>
+          (r.clubId !== undefined && ownedClubIds.has(r.clubId)) ||
+          (r.trainerId !== undefined && ownedTrainerIds.has(r.trainerId)),
+      );
+    }
+
     /* --- KPI --- */
     const totalAthletes = users.filter((u) => u.role === 'athlete').length;
     const totalProviders = users.filter(
@@ -185,12 +211,14 @@ export async function GET(request: Request) {
         entityBookingCounts.set(key, (entityBookingCounts.get(key) ?? 0) + 1);
       }
     }
+    // Phase 30.4: резолвим через `clubs`/`trainers` (уже отфильтрованы по city/sport),
+    // не через `allClubs`/`allTrainers` — иначе при city-фильтре в топ попадут чужие города.
     const topEntities = Array.from(entityBookingCounts.entries())
       .map(([key, bookingCount]) => {
         const [type, idStr] = key.split(':');
         const id = Number(idStr);
         if (type === 'club') {
-          const club = allClubs.find((c) => c.id === id);
+          const club = clubs.find((c) => c.id === id);
           return {
             id,
             name: club?.name ?? `Club #${id}`,
@@ -199,7 +227,7 @@ export async function GET(request: Request) {
             rating: club?.rating ?? 0,
           };
         }
-        const trainer = allTrainers.find((t) => t.id === id);
+        const trainer = trainers.find((t) => t.id === id);
         return {
           id,
           name: trainer?.name ?? `Trainer #${id}`,

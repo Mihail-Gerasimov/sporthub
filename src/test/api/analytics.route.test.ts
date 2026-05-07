@@ -145,6 +145,45 @@ describe('GET /api/analytics', () => {
     expect(kpi.totalTrainers).toBe(0);
   });
 
+  /* Phase 30.4: cross-city кейс. Переносим один клуб + один тренер в Москву,
+     остальные seed-данные остаются в Самаре. Bookings/schedule/reviews,
+     привязанные к Самара-сущностям, не должны попадать в выборку Москвы. */
+  it('Phase 30.4: фильтрация по city отрезает bookings/schedule/reviews по резолву clubId/trainerId', async () => {
+    const { readFile, writeFile } = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    /* Переносим club id=2 (Iron Gym) в Москву — bookings/schedule/reviews привязаны к club id=1 */
+    const clubsRaw = await readFile(path.join(dataDirectory, 'clubs.json'), 'utf8');
+    const clubs = JSON.parse(clubsRaw);
+    const club2 = clubs.find((c: { id: number }) => c.id === 2);
+    if (club2) club2.city = 'Москва';
+    await writeFile(path.join(dataDirectory, 'clubs.json'), JSON.stringify(clubs), 'utf8');
+
+    const res = await GET(makeRequest({ city: 'Москва' }));
+    const { kpi, topEntities } = (await res.json()).data;
+
+    /* В Москве 1 клуб (Iron Gym), 0 тренеров */
+    expect(kpi.totalClubs).toBe(1);
+    expect(kpi.totalTrainers).toBe(0);
+    /* Все seed-bookings привязаны к club id=1 (Самара) → 0 в Москве */
+    expect(kpi.totalBookings).toBe(0);
+    /* Все seed-reviews — к club id=1 (Самара) → 0 в Москве */
+    expect(kpi.totalReviews).toBe(0);
+    /* topEntities не должен показывать чужой город (фикс allClubs.find → clubs.find) */
+    expect(topEntities).toEqual([]);
+  });
+
+  it('Phase 30.4: city + sportId — пересечение фильтров, без data в Самаре по чужому спорту', async () => {
+    /* Самара + sportId=99 (несуществующий) → KPI всё в 0 */
+    const res = await GET(makeRequest({ city: 'Самара', sportId: '99' }));
+    const { kpi, topEntities } = (await res.json()).data;
+
+    expect(kpi.totalClubs).toBe(0);
+    expect(kpi.totalTrainers).toBe(0);
+    expect(kpi.totalBookings).toBe(0);
+    expect(topEntities).toEqual([]);
+  });
+
   it('фильтрация по sportId возвращает только связанные сущности', async () => {
     /* sportId=4 — только Iron Gym (club2) и Алексей Петров (trainer3) */
     const res = await GET(makeRequest({ sportId: '4' }));
