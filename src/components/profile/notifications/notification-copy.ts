@@ -117,6 +117,31 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
     title: 'Карантин снят администратором',
     description: 'Ограничения записи временно сняты службой поддержки.',
   }),
+  // --- Phase 29 Step 29.4: review-уведомления ---
+  // Provider получает уведомление при поступлении нового отзыва на его клуб/тренера.
+  // Имя автора, рейтинг и название entity подставляются из payload, если есть.
+  review_received_by_provider: (payload) => {
+    const authorName = typeof payload.authorName === 'string' ? payload.authorName : 'Спортсмен';
+    const entityName = typeof payload.entityName === 'string' ? payload.entityName : '';
+    const rating = typeof payload.rating === 'number' ? payload.rating : null;
+    const ratingPart = rating !== null ? ` (${rating}★)` : '';
+    return {
+      title: 'Получен новый отзыв',
+      description: entityName
+        ? `${authorName} оставил отзыв${ratingPart} для «${entityName}».`
+        : `${authorName} оставил новый отзыв${ratingPart}.`,
+    };
+  },
+  // Athlete получает confirmation, что его отзыв опубликован.
+  review_published_for_athlete: (payload) => {
+    const entityName = typeof payload.entityName === 'string' ? payload.entityName : '';
+    return {
+      title: 'Ваш отзыв опубликован',
+      description: entityName
+        ? `Отзыв на «${entityName}» добавлен в общий список.`
+        : 'Отзыв добавлен в общий список.',
+    };
+  },
 };
 
 export function getNotificationCopy(

@@ -4,7 +4,12 @@
 // quarantine_start). При записи preferences через API такие ключи игнорируются.
 import type { AuthAccountType, NotificationType, User } from '@/types';
 
-export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'quarantine'] as const;
+// Phase 29 Step 29.4: добавлена группа 'reviews' для уведомлений по отзывам
+// (получено провайдером + опубликовано автором). UI-фильтр группы появится
+// автоматически благодаря NOTIFICATION_GROUP_KEYS-derived рендеру в
+// NotificationsListPage. Audience группы — обе роли (athlete для подтверждения,
+// provider для входящих отзывов), поэтому тaб виден и тем, и тем.
+export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'quarantine', 'reviews'] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
 
 /**
@@ -32,6 +37,9 @@ export const NOTIFICATION_TYPE_AUDIENCE: Record<NotificationType, AuthAccountTyp
   quarantine_start: 'athlete',
   quarantine_end: 'athlete',
   quarantine_lifted_by_admin: 'athlete',
+  // Phase 29 Step 29.4: review-уведомления — два одноcторонних канала.
+  review_received_by_provider: 'provider',
+  review_published_for_athlete: 'athlete',
 };
 
 /**
@@ -66,6 +74,9 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   quarantine_start: 'quarantine',
   quarantine_end: 'quarantine',
   quarantine_lifted_by_admin: 'quarantine',
+  // Phase 29 Step 29.4: review-уведомления — отдельная группа 'reviews'.
+  review_received_by_provider: 'reviews',
+  review_published_for_athlete: 'reviews',
 };
 
 /**

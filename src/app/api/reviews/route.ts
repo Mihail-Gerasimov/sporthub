@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { createReview, getClubById, getReviews, getTrainerById, getUserById } from '@/lib/db';
+import { notify } from '@/lib/notify';
 
 function hasExactlyOneReviewTarget(input: { clubId?: number; trainerId?: number }): boolean {
   return (input.clubId === undefined) !== (input.trainerId === undefined);
@@ -170,6 +171,39 @@ export async function POST(request: Request) {
       trainerId,
       rating,
       text,
+    });
+
+    // Phase 29 Step 29.4: уведомления обоим участникам.
+    // 1) Получателю (manager клуба/тренера) — `review_received_by_provider`,
+    //    skip если self-review (manager === reviewer) — теоретически возможно
+    //    через DevTools, защищаемся явно.
+    // 2) Автору — `review_published_for_athlete` всегда. Это confirmation что
+    //    отзыв принят и виден публично.
+    // notify() сам respect'ит notificationPreferences через isNotificationTypeEnabled
+    // в db.ts, так что отдельный guard здесь не нужен. Fire-and-forget.
+    const entity = club ?? trainer;
+    const entityType: 'club' | 'trainer' = clubId !== undefined ? 'club' : 'trainer';
+    const entityId = clubId ?? (trainerId as number);
+    const ownerUserId = entity?.managedByUserId;
+    const entityName = entity?.name ?? '';
+
+    if (ownerUserId !== undefined && ownerUserId !== userId) {
+      await notify(ownerUserId, 'review_received_by_provider', {
+        reviewId: review.id,
+        entityType,
+        entityId,
+        fromUserId: userId,
+        authorName: user.name,
+        rating,
+        entityName,
+      });
+    }
+
+    await notify(userId, 'review_published_for_athlete', {
+      reviewId: review.id,
+      entityType,
+      entityId,
+      entityName,
     });
 
     return NextResponse.json(

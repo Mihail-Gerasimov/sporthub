@@ -63,9 +63,10 @@ describe('notification-types (Step 25.14)', () => {
       }
     });
 
-    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 17 типов без пересечений', () => {
+    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 19 типов без пересечений', () => {
+      // Phase 29 Step 29.4: добавлено 2 review-типа → итого 19.
       const keys = Object.keys(NOTIFICATION_TYPE_AUDIENCE) as NotificationType[];
-      expect(keys).toHaveLength(17);
+      expect(keys).toHaveLength(19);
       for (const key of keys) {
         expect(['athlete', 'provider']).toContain(NOTIFICATION_TYPE_AUDIENCE[key]);
       }

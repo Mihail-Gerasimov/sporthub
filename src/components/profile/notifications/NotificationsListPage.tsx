@@ -66,6 +66,9 @@ const GROUP_LABELS: Record<GroupFilter, string> = {
   booking: 'Записи',
   links: 'Связи',
   quarantine: 'Дисциплина',
+  // Phase 29 Step 29.4: tab «Отзывы» — для review-уведомлений
+  // (получено провайдером + опубликовано автором).
+  reviews: 'Отзывы',
 };
 
 const BUCKET_ORDER: readonly DateBucket[] = ['today', 'yesterday', 'thisWeek', 'earlier'];
@@ -175,8 +178,12 @@ export function NotificationsListPage({
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   // Phase 26 Step 26.8: видимые группы зависят от типа аккаунта.
+  // Phase 29 Step 29.4: 'reviews' добавлено для обеих ролей — атлет получает
+  // confirmation своего отзыва, провайдер — входящие отзывы клиентов.
   const visibleGroupKeys: readonly NotificationGroupKey[] =
-    accountType === 'athlete' ? (['booking', 'quarantine'] as const) : NOTIFICATION_GROUP_KEYS;
+    accountType === 'athlete'
+      ? (['booking', 'quarantine', 'reviews'] as const)
+      : NOTIFICATION_GROUP_KEYS;
 
   // Защита от stale activeGroup: если active-tab стал невидимым (смена accountType на лету),
   // сбрасываем на 'all'. Для MVP accountType стабилен в пределах монтирования — скорее edge-case.
@@ -203,6 +210,7 @@ export function NotificationsListPage({
       booking: 0,
       links: 0,
       quarantine: 0,
+      reviews: 0,
     };
     for (const n of notifications) {
       if (!isNotificationTypeApplicable(n.type, accountType)) continue;

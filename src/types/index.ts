@@ -411,7 +411,10 @@ export type NotificationType =
   // карантин атлета
   | 'quarantine_start'
   | 'quarantine_end'
-  | 'quarantine_lifted_by_admin';
+  | 'quarantine_lifted_by_admin'
+  // Phase 29 Step 29.4: уведомления при создании отзыва — обоим участникам.
+  | 'review_received_by_provider' // владельцу клуба/тренера: «получен новый отзыв»
+  | 'review_published_for_athlete'; // автору отзыва: «ваш отзыв опубликован»
 
 /**
  * In-app уведомление пользователю. Создаётся хелпером notify() из Step 24.5

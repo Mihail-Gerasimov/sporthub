@@ -25,6 +25,8 @@ const GROUP_TITLES: Record<NotificationGroupKey, string> = {
   booking: 'Записи',
   links: 'Связи',
   quarantine: 'Дисциплина',
+  // Phase 29 Step 29.4: уведомления при отзывах.
+  reviews: 'Отзывы',
 };
 
 /** Задержка между кликом по чекбоксу и реальным PATCH — чтобы не спамить сеть при быстрых изменениях. */
@@ -48,8 +50,12 @@ export function UserNotificationPreferencesEditor({
   notificationPreferences,
   accountType,
 }: Props) {
+  // Phase 29 Step 29.4: 'reviews' видим обеим ролям (athlete получает
+  // confirmation своего отзыва, provider — входящие отзывы клиентов).
   const visibleGroups: readonly NotificationGroupKey[] =
-    accountType === 'athlete' ? (['booking', 'quarantine'] as const) : NOTIFICATION_GROUP_KEYS;
+    accountType === 'athlete'
+      ? (['booking', 'quarantine', 'reviews'] as const)
+      : NOTIFICATION_GROUP_KEYS;
   // Локальный draft preferences — инициализируется фактическим состоянием user.
   // Для отсутствующих ключей isNotificationTypeEnabled вернёт true по дефолту.
   const [prefs, setPrefs] = useState<Partial<Record<NotificationType, boolean>>>(() => {
@@ -101,6 +107,8 @@ export function UserNotificationPreferencesEditor({
       booking: [],
       links: [],
       quarantine: [],
+      // Phase 29 Step 29.4: новая группа отзывов.
+      reviews: [],
     };
     for (const [type, group] of Object.entries(NOTIFICATION_TYPE_GROUP) as Array<
       [NotificationType, NotificationGroupKey]
