@@ -67,11 +67,8 @@ describe('Service Portal Login (Step 17.3)', () => {
       expect(state.user?.id).toBe(MVP_ADMIN_USER_ID);
       expect(state.accountType).toBeNull();
       expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
-      // Phase 30.1: refresh вызывается после push для инвалидации RSC-кэша.
-      expect(mockRefresh).toHaveBeenCalledTimes(1);
-      expect(mockPush.mock.invocationCallOrder[0]).toBeLessThan(
-        mockRefresh.mock.invocationCallOrder[0],
-      );
+      // Phase 30.1 (final): refresh НЕ вызывается — он отменял push в dev-mode.
+      expect(mockRefresh).not.toHaveBeenCalled();
 
       vi.useRealTimers();
     });

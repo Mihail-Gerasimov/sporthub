@@ -88,9 +88,13 @@ export function ServicePortalLoginForm() {
       }).catch(() => {});
 
       setIsSubmitting(false);
+      // Phase 30.1 (final): обычный router.push() без router.refresh().
+      // refresh() в dev-mode отменял начатый push (race с RSC-кэшем),
+      // window.location.href терял Zustand state до AdminGuard hydration.
+      // Воспринимаемое «бесконечный рендеринг» — это dev-only cold-compile
+      // /service-portal/dashboard (~1-3s), который снимается через loading.tsx
+      // (Step 30.3). На prod-билде navigation мгновенный.
       router.push('/service-portal/dashboard');
-      // Phase 30.1: инвалидируем RSC-кэш сегмента, иначе страница висит на старом гостевом рендере до ручного F5.
-      router.refresh();
     }, AUTH_SUBMIT_DELAY_MS);
   }
 
