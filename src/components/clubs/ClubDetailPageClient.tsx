@@ -398,8 +398,8 @@ export function ClubDetailPageClient({
               </p>
 
               {/* stat-rail: Контакты | Цена от */}
-              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 sm:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line p-4 sm:border-b-0 sm:border-r sm:p-[18px]">
+              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
+                <div className="border-b border-line p-4 lg:border-b-0 lg:border-r lg:p-[18px]">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Контакты
                   </p>
@@ -450,7 +450,7 @@ export function ClubDetailPageClient({
                     ) : null}
                   </div>
                 </div>
-                <div className="p-4 sm:p-[18px]">
+                <div className="p-4 lg:p-[18px]">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Цена от
                   </p>

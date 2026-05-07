@@ -14,7 +14,7 @@
  *      «Перейти к клубу» в стиле btn-primary). Скрывается без affiliatedClub.
  *   5. Services — список услуг с chips (format/price/duration/venue).
  *   6. Schedule — DetailScheduleWeek (week-tabs anchor today),
- *      sub `${time}, ${room}` (на trainer-странице room вместо имени тренера).
+ *      sub = `${startTime} - ${endTime}` (room в отдельном chip — без дублирования).
  *   7. Reviews + Form — reviews-list + форма (zod + POST /api/reviews +
  *      auth-gating) — БЕЗ ИЗМЕНЕНИЙ.
  *
@@ -260,7 +260,9 @@ export function TrainerDetailPageClient({
             priceLabel: formatPrice(slot.price),
             availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
             room: slot.room ?? null,
-            sub: `${slot.startTime} - ${slot.endTime}, ${slot.room ?? 'Зал уточняется'}`,
+            // Phase 28.23 audit-fix: на trainer-странице room уже отдельным chip-ом,
+            // в sub дублирующий зал не нужен — оставляем только время.
+            sub: `${slot.startTime} - ${slot.endTime}`,
           }) satisfies DetailScheduleSlot,
       );
   }, [schedule, sports]);
@@ -440,8 +442,8 @@ export function TrainerDetailPageClient({
               </p>
 
               {/* stat-rail 2-col: Цена от | Услуг */}
-              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 sm:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line p-4 sm:border-b-0 sm:border-r sm:p-[18px]">
+              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
+                <div className="border-b border-line p-4 lg:border-b-0 lg:border-r lg:p-[18px]">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Цена от
                   </p>
@@ -452,7 +454,7 @@ export function TrainerDetailPageClient({
                     за тренировку
                   </p>
                 </div>
-                <div className="p-4 sm:p-[18px]">
+                <div className="p-4 lg:p-[18px]">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Услуг
                   </p>
@@ -467,7 +469,7 @@ export function TrainerDetailPageClient({
 
               {/* stat-rail 1-col: Контакты (если есть) */}
               {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
-                <div className="rounded-[16px] border border-line bg-card-2 p-4 sm:p-[18px]">
+                <div className="rounded-[16px] border border-line bg-card-2 p-4 lg:p-[18px]">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Контакты
                   </p>
@@ -636,7 +638,7 @@ export function TrainerDetailPageClient({
             className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
           >
             <SecHead eyebrow="Works at" title="Работает в" />
-            <div className="grid grid-cols-[64px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:grid-cols-[64px_1fr_auto]">
+            <div className="grid grid-cols-[64px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 md:grid-cols-[64px_1fr_auto]">
               {/* works-thumb (placeholder) */}
               <div className="flex size-16 items-center justify-center rounded-[12px] border border-line bg-card text-center font-body text-[9px] font-bold uppercase leading-tight tracking-[0.18em] text-disabled">
                 Фото
@@ -658,7 +660,7 @@ export function TrainerDetailPageClient({
               </div>
               <Link
                 href={`/clubs/${affiliatedClub.slug}`}
-                className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov sm:col-span-1"
+                className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov md:col-span-1"
               >
                 Перейти к клубу
               </Link>
