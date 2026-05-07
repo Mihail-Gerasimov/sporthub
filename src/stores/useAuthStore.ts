@@ -38,6 +38,12 @@ type AuthState = {
   login: (payload: AuthSessionPayload) => void;
   register: (payload: AuthSessionPayload) => void;
   logout: () => void;
+  /**
+   * Phase 29 Step 29.6: точечное обновление полей текущего user в сторе после
+   * успешного PATCH /api/users/[id]. Шортхэнд вместо полного login() —
+   * не трогаем accountType/isAuthenticated/cookie. Если user=null — no-op.
+   */
+  updateUser: (patch: Partial<AuthSessionUser>) => void;
 
   // --- Новые поля Phase 17: параллельный admin-трек ---
   isAdmin: boolean;
@@ -142,6 +148,12 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set(AUTH_STORE_DEFAULT_STATE);
         clearAuthUserIdCookie();
+      },
+
+      updateUser: (patch) => {
+        const current = get().user;
+        if (!current) return;
+        set({ user: { ...current, ...patch } });
       },
 
       // --- Admin actions ---

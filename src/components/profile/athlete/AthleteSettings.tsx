@@ -6,15 +6,16 @@
 
 import { useMemo } from 'react';
 
+import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { AccountCredentialsSection } from '@/components/profile/AccountCredentialsSection';
 import { AthleteFeedbackSettingsSection } from '@/components/profile/AthleteFeedbackSettingsSection';
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
+import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
   useAuthStore,
 } from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 import type { Club, Review, Trainer } from '@/types';
 
 type AthleteSettingsProps = {
@@ -41,6 +42,7 @@ export function AthleteSettings({ clubs = [], trainers = [], reviews = [] }: Ath
 
   return (
     <div className="flex flex-col gap-5">
+      <AccountCredentialsSection user={user} />
       <AthleteFeedbackSettingsSection
         accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
         reviewItems={reviewItems}

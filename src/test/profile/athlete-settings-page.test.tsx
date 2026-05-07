@@ -60,7 +60,9 @@ describe('AthleteSettings (Step 25.6)', () => {
     render(<AthleteSettings clubs={clubs} trainers={trainers} reviews={reviews} />);
 
     expect(screen.getByTestId('athlete-feedback-settings-section')).toBeInTheDocument();
-    expect(screen.getByText('alexey@sporthub.local')).toBeInTheDocument();
+    // Phase 29 Step 29.6: email теперь дублируется в AccountCredentialsSection (read-only)
+    // и в AthleteFeedbackSettingsSection — допустимо, проверяем что хотя бы один элемент есть.
+    expect(screen.getAllByText('alexey@sporthub.local').length).toBeGreaterThan(0);
   });
 
   it('для provider-сессии показывает access-denied', () => {

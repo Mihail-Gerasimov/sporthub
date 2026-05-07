@@ -2,10 +2,11 @@
 // о пользователе берутся из useAuthStore (Настройки не требуют SSR-данных).
 'use client';
 
-import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { AccountCredentialsSection } from '@/components/profile/AccountCredentialsSection';
+import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
 import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export function ProviderSettings() {
   const user = useAuthStore((s) => s.user);
@@ -18,6 +19,7 @@ export function ProviderSettings() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="provider-settings">
+      <AccountCredentialsSection user={user} />
       <ProviderSettingsSection user={user} />
       {typeof user.id === 'number' ? (
         <UserNotificationPreferencesEditor userId={user.id} accountType="provider" />
