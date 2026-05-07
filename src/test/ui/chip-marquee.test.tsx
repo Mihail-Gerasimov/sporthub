@@ -130,4 +130,44 @@ describe('ChipMarquee', () => {
     expect(chip?.className).not.toMatch(/var\(--ui-lime-soft\)/);
     expect(chip?.className).toMatch(/transparent|bg-transparent/);
   });
+
+  // --- Phase 30.8 ---
+
+  it('Phase 30.8: на каждом чипе явно cursor: default (override grab от родителя)', () => {
+    MOCK_CONTAINER_W = 500;
+    MOCK_CONTENT_W = 200;
+    const items = [{ label: 'A' }, { label: 'B' }];
+    const { container } = render(<ChipMarquee items={items} variant="outline" accent="lime" />);
+    const chips = container.querySelectorAll<HTMLElement>('[data-chip-original="true"]');
+    expect(chips.length).toBe(2);
+    chips.forEach((chip) => {
+      expect(chip.style.cursor).toBe('default');
+    });
+  });
+
+  it('Phase 30.8: подписывается на IntersectionObserver и отписывается при unmount', () => {
+    MOCK_CONTAINER_W = 200;
+    MOCK_CONTENT_W = 800; // включаем loop-режим, чтобы effect зашёл в IO-блок
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    const originalIO = globalThis.IntersectionObserver;
+    globalThis.IntersectionObserver = class {
+      constructor() {}
+      observe = observe;
+      unobserve = vi.fn();
+      disconnect = disconnect;
+      takeRecords = () => [];
+      root = null;
+      rootMargin = '';
+      thresholds: ReadonlyArray<number> = [];
+    } as unknown as typeof IntersectionObserver;
+
+    const items = ['A', 'B', 'C'].map((label) => ({ label }));
+    const { unmount } = render(<ChipMarquee items={items} variant="solid" accent="lime" />);
+    expect(observe).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(disconnect).toHaveBeenCalled();
+
+    globalThis.IntersectionObserver = originalIO;
+  });
 });

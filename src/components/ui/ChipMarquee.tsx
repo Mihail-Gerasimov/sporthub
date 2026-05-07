@@ -92,9 +92,15 @@ export function ChipMarquee({
     }
 
     // Состояние анимации.
+    // Phase 30.8: разделили один paused на два независимых флага.
+    // pausedByHover управляется mouseenter/leave, pausedByVisibility — IntersectionObserver.
+    // Активная пауза — pausedByHover || pausedByVisibility. Иначе при scroll-in
+    // обратно во viewport IO выставит paused=false, даже если мышь всё ещё над marquee
+    // (browser не шлёт mouseleave при scroll).
     let offset = 0;
     let lastT = 0;
-    let paused = false;
+    let pausedByHover = false;
+    let pausedByVisibility = false;
     let dragging = false;
     let dragStartX = 0;
     let dragStartOffset = 0;
@@ -112,7 +118,7 @@ export function ChipMarquee({
       if (!lastT) lastT = t;
       const dt = (t - lastT) / 1000;
       lastT = t;
-      if (!paused && !dragging) {
+      if (!pausedByHover && !pausedByVisibility && !dragging) {
         offset -= speedPxPerSec * dt;
         normalize();
         applyTransform();
@@ -122,14 +128,26 @@ export function ChipMarquee({
     rafId = requestAnimationFrame(tick);
 
     function handleEnter() {
-      paused = true;
+      pausedByHover = true;
     }
     function handleLeave() {
-      paused = false;
+      pausedByHover = false;
       lastT = 0;
     }
     marquee.addEventListener('mouseenter', handleEnter);
     marquee.addEventListener('mouseleave', handleLeave);
+
+    // Phase 30.8: IntersectionObserver — пауза rAF когда marquee вне viewport.
+    // Сбрасываем lastT при возврате во viewport, чтобы следующий dt был ≈0
+    // (без накопленной delta) и анимация не делала «прыжок».
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        pausedByVisibility = !entry.isIntersecting;
+        if (entry.isIntersecting) lastT = 0;
+      },
+      { threshold: 0 },
+    );
+    observer.observe(marquee);
 
     function handleDown(e: PointerEvent) {
       dragging = true;
@@ -179,6 +197,7 @@ export function ChipMarquee({
 
     return () => {
       cancelAnimationFrame(rafId);
+      observer.disconnect();
       marquee.removeEventListener('mouseenter', handleEnter);
       marquee.removeEventListener('mouseleave', handleLeave);
       track.removeEventListener('pointerdown', handleDown);
@@ -237,7 +256,10 @@ export function ChipMarquee({
           <span
             key={i}
             data-chip-original="true"
-            className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${tagClass}`}
+            // Phase 30.8: cursor: default явно — иначе наследуется grab от .chip-track
+            // и чипы выглядят как drag-handle, хотя они контентные (не интерактивны).
+            style={{ cursor: 'default' }}
+            className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] ${tagClass}`}
           >
             {item.label}
           </span>

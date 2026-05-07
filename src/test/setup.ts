@@ -25,6 +25,26 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Phase 30.8: jsdom не имплементирует IntersectionObserver. ChipMarquee
+// использует его для pause/resume rAF при уходе/возврате во viewport.
+// Без mock'а тесты падают с ReferenceError. Дефолтная заглушка делает
+// observer no-op'ом — компонент сразу считает себя видимым.
+if (typeof globalThis.IntersectionObserver === 'undefined') {
+  class MockIntersectionObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+    root: Element | Document | null = null;
+    rootMargin = '';
+    thresholds: ReadonlyArray<number> = [];
+  }
+  globalThis.IntersectionObserver =
+    MockIntersectionObserver as unknown as typeof IntersectionObserver;
+}
+
 /**
  * Тест-хелпер: задаёт ответы matchMedia для конкретных query-строк.
  * Любые НЕ перечисленные query → matches=false (как и default).
