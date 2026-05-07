@@ -90,10 +90,12 @@ export default async function Home() {
     sports: searchFilterSports,
     trainers,
     trainerClubLinks,
+    targetDate: todayDateKey,
   });
   const trainerAvailability = getTrainerAvailability({
     schedule: trainerSchedule,
     trainers: trainerDirectory,
+    targetDate: todayDateKey,
   });
 
   // Лидеры каталога: top-1 по рейтингу, при равенстве — по числу отзывов.

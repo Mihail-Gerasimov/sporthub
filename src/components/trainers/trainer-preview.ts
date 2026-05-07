@@ -88,12 +88,18 @@ type BuildTrainerDirectoryInput = {
   trainers: Trainer[];
   /** Phase 24 Step 24.8: confirmed-связи тренер↔клуб для резолвинга venueClub. */
   trainerClubLinks?: TrainerClubLink[];
+  /** Phase 28.24: ключ «сегодня» (`YYYY-MM-DD`) — фильтр nextSlot/availableSlotsCount
+   * только по сегодняшним слотам, симметрично клубному `getUpcomingSessions`. */
+  targetDate: string;
 };
 
 type GetTrainerAvailabilityInput = {
   limit?: number;
   schedule: Schedule[];
   trainers: TrainerDirectoryItem[];
+  /** Phase 28.24: ключ «сегодня» (`YYYY-MM-DD`) — slot-блок «Свободные окна тренеров»
+   * показывает только сегодняшние слоты, как клубный «Ближайшие занятия». */
+  targetDate: string;
 };
 
 function getSlotSortKey(slot: Pick<Schedule, 'date' | 'startTime'>): string {
@@ -108,6 +114,7 @@ export function buildTrainerDirectory({
   sports,
   trainers,
   trainerClubLinks = [],
+  targetDate,
 }: BuildTrainerDirectoryInput): TrainerDirectoryItem[] {
   const clubsById = new Map(clubs.map((club) => [club.id, club]));
   // Phase 24 Step 24.8: confirmed links по trainerId → clubId (authoritative).
@@ -152,7 +159,11 @@ export function buildTrainerDirectory({
           return left.title.localeCompare(right.title, 'ru');
         },
       );
+      // Phase 28.24: nextSlot и availableSlotsCount — только сегодняшние свободные
+      // слоты тренера (симметрично клубному getUpcomingSessions). Старые/будущие
+      // слоты не всплывают в карточке как «ближайшее окно».
       const availableSlots = [...(trainerScheduleByTrainerId.get(trainer.id) ?? [])]
+        .filter((slot) => slot.date === targetDate)
         .filter((slot) => slot.bookedCount < slot.capacity)
         .sort((left, right) => getSlotSortKey(left).localeCompare(getSlotSortKey(right)));
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
@@ -257,12 +268,14 @@ export function getTrainerAvailability({
   limit = APP_LIMITS.upcomingSessions,
   schedule,
   trainers,
+  targetDate,
 }: GetTrainerAvailabilityInput): TrainerAvailabilityItem[] {
   const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
 
   return schedule
     .filter((slot) => slot.ownerType === 'trainer')
     .filter((slot) => slot.trainerId !== undefined)
+    .filter((slot) => slot.date === targetDate)
     .filter((slot) => slot.bookedCount < slot.capacity)
     .flatMap((slot) => {
       const trainer = trainerById.get(slot.trainerId ?? -1);
