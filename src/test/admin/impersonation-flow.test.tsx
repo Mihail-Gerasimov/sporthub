@@ -127,6 +127,11 @@ describe('Impersonation flow (Step 17.5)', () => {
       // Phase 27 Step 27.15: refresh вызван после push, иначе RSC-кэш отрисует
       // /service-portal/dashboard под старым cookie (с подменённым userId).
       expect(mockRefresh).toHaveBeenCalled();
+      // Phase 30.5: порядок push → refresh критичен (refresh инвалидирует RSC,
+      // push должен успеть стартовать навигацию первым).
+      expect(mockPush.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRefresh.mock.invocationCallOrder[0],
+      );
     });
   });
 
