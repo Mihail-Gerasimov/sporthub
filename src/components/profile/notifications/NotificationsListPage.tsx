@@ -12,9 +12,17 @@
  * синхронизирует страницу и bell-badge: декремент counter'а в шапке
  * происходит мгновенно при клике на карточку (без ожидания polling'а).
  *
+ * Phase 29 Step 29.3: per-item delete (X-иконка на каждой карточке) и режим
+ * множественного выбора («Выбрать → удалить выбранное»). Удаление физическое
+ * (DELETE /api/notifications с silent-filter ownership). Подтверждение —
+ * через наш Modal-компонент в стиле Phase 28.
+ *
  * Существующие testid'ы сохранены: `notification-item-{id}`,
  * `notification-item-unread-{id}`. Новые: `notifications-filter-group-{key}`,
- * `notifications-toggle-unread`, `notifications-bucket-{key}`.
+ * `notifications-toggle-unread`, `notifications-bucket-{key}`,
+ * `notifications-toggle-selection`, `notification-delete-{id}`,
+ * `notification-checkbox-{id}`, `notifications-bulk-delete`,
+ * `notifications-delete-confirm`.
  */
 'use client';
 
@@ -22,6 +30,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
+import { Modal } from '@/components/ui/Modal';
 import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
@@ -120,11 +129,25 @@ export function NotificationsListPage({
   const rollbackMarkReadInStore = useNotificationsStore((state) => state.rollbackMarkRead);
   const markAllReadInStore = useNotificationsStore((state) => state.markAllRead);
   const rollbackMarkAllReadInStore = useNotificationsStore((state) => state.rollbackMarkAllRead);
+  // Phase 29 Step 29.3: removeMany — удаляет из списка локально и декрементит
+  // unreadCount только на число удалённых непрочитанных. rollback используется
+  // на server fail для возврата записей и счётчика.
+  const removeManyInStore = useNotificationsStore((state) => state.removeMany);
+  const rollbackRemoveManyInStore = useNotificationsStore((state) => state.rollbackRemoveMany);
 
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
   const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
+
+  // Phase 29 Step 29.3: режим выбора нескольких уведомлений и подтверждение
+  // удаления через Modal. confirmIds — id'шники, ожидающие подтверждения
+  // (per-item: один id; bulk: все selectedIds на момент клика).
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [confirmIds, setConfirmIds] = useState<number[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const addToast = useToastStore((state) => state.addToast);
 
   // Phase 29 Step 29.2: при смене userId — сбрасываем стор и заполняем
@@ -136,6 +159,13 @@ export function NotificationsListPage({
     }
     setNotificationsInStore(initial);
   }, [userId, initial, setUserIdInStore, setNotificationsInStore]);
+
+  // Phase 29 Step 29.3: при смене userId сбрасываем выделение, чтобы
+  // пользователь не наследовал чужие выборы при impersonation/login.
+  useEffect(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, [userId]);
 
   // Phase 27 Step 27.8: auth-guard через useAuthStore. Prop `accountType` — требуемая
   // роль для текущего подмаршрута (server-page фиксирует её при рендере). Если сессия
@@ -248,6 +278,74 @@ export function NotificationsListPage({
     [pendingId, addToast, userId, markReadInStore, rollbackMarkReadInStore],
   );
 
+  // Phase 29 Step 29.3: переключение режима выбора. На входе/выходе —
+  // полная очистка selectedIds, чтобы выделения не утекали между сеансами.
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode((current) => !current);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleItemSelection = useCallback((id: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Phase 29 Step 29.3: открыть модалку подтверждения. Per-item путь передаёт
+  // [id], bulk-путь — массив selectedIds. После успеха модалка закрывается
+  // через handleConfirmDelete; на cancel — через onClose Modal'ы.
+  const requestDelete = useCallback((ids: number[]) => {
+    if (ids.length === 0) return;
+    setConfirmIds(ids);
+  }, []);
+
+  const cancelDelete = useCallback(() => {
+    setConfirmIds(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (confirmIds === null || confirmIds.length === 0) return;
+    if (userId === undefined) {
+      setConfirmIds(null);
+      return;
+    }
+    setDeleting(true);
+    // Optimistic: убираем из стора, считаем удалённые непрочитанные.
+    const removed = removeManyInStore(confirmIds);
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ids: confirmIds }),
+      });
+      if (!response.ok) {
+        rollbackRemoveManyInStore(removed);
+        addToast({ message: 'Не удалось удалить уведомления', tone: 'error' });
+      } else {
+        const message =
+          confirmIds.length === 1
+            ? 'Уведомление удалено'
+            : `Удалено уведомлений: ${confirmIds.length}`;
+        addToast({ message, tone: 'success' });
+        // После успешного удаления — выходим из selection-mode и очищаем выбор.
+        setSelectionMode(false);
+        setSelectedIds(new Set());
+      }
+    } catch {
+      rollbackRemoveManyInStore(removed);
+      addToast({ message: 'Не удалось удалить уведомления', tone: 'error' });
+    } finally {
+      setDeleting(false);
+      setConfirmIds(null);
+    }
+  }, [confirmIds, userId, removeManyInStore, rollbackRemoveManyInStore, addToast]);
+
   const markAllRead = useCallback(async () => {
     if (markingAll) return;
     // Без userId не делаем запрос — это гостевой рендер или админ без impersonation.
@@ -294,18 +392,52 @@ export function NotificationsListPage({
             События по вашим бронированиям, связям с клубами и рейтингу.
           </p>
         </div>
-        {hasUnread ? (
-          <button
-            type="button"
-            disabled={markingAll}
-            onClick={() => {
-              void markAllRead();
-            }}
-            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
-          >
-            Отметить всё как прочитанное
-          </button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {hasUnread && !selectionMode ? (
+            <button
+              type="button"
+              disabled={markingAll}
+              onClick={() => {
+                void markAllRead();
+              }}
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              Отметить всё как прочитанное
+            </button>
+          ) : null}
+          {/* Phase 29 Step 29.3: переключатель режима выбора. В режиме selection
+              showing «Удалить (N)» + «Отмена», вне режима — «Выбрать». */}
+          {selectionMode ? (
+            <>
+              <button
+                type="button"
+                data-testid="notifications-bulk-delete"
+                disabled={selectedIds.size === 0 || deleting}
+                onClick={() => requestDelete(Array.from(selectedIds))}
+                className="rounded-pill border border-orange bg-orange/10 px-4 py-2 text-sm font-semibold text-orange transition-colors hover:bg-orange hover:text-bg disabled:opacity-50"
+              >
+                Удалить выбранное ({selectedIds.size})
+              </button>
+              <button
+                type="button"
+                onClick={toggleSelectionMode}
+                className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime"
+              >
+                Отмена
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              data-testid="notifications-toggle-selection"
+              onClick={toggleSelectionMode}
+              disabled={notifications.length === 0}
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            >
+              Выбрать
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Ряд фильтров: 4 tab'а групп + toggle «Только непрочитанные». */}
@@ -368,35 +500,84 @@ export function NotificationsListPage({
                 {bucket.items.map((notification) => {
                   const copy = getNotificationCopy(notification.type, notification.payload);
                   const isUnread = notification.readAt === undefined;
+                  const isSelected = selectedIds.has(notification.id);
                   return (
                     <li key={notification.id}>
-                      <button
-                        type="button"
-                        data-testid={`notification-item-${notification.id}`}
-                        onClick={() => {
-                          if (isUnread) void markSingleRead(notification.id);
-                        }}
-                        className={`flex w-full flex-col items-start gap-1 rounded-card border border-line px-4 py-3 text-left transition-colors hover:border-accent ${
-                          isUnread ? 'bg-panel' : 'bg-canvas'
-                        }`}
+                      <div
+                        className={`group relative flex w-full items-stretch gap-3 rounded-card border px-4 py-3 transition-colors ${
+                          isSelected ? 'border-lime' : 'border-line hover:border-accent'
+                        } ${isUnread ? 'bg-panel' : 'bg-canvas'}`}
                       >
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-ink">{copy.title}</span>
-                          {isUnread ? (
-                            <span
-                              data-testid={`notification-item-unread-${notification.id}`}
-                              className="inline-block size-2 shrink-0 rounded-full bg-accent"
-                              aria-label="Непрочитанное"
+                        {selectionMode ? (
+                          <label className="flex shrink-0 cursor-pointer items-center">
+                            <input
+                              type="checkbox"
+                              data-testid={`notification-checkbox-${notification.id}`}
+                              checked={isSelected}
+                              onChange={() => toggleItemSelection(notification.id)}
+                              className="size-4 cursor-pointer rounded border-line accent-lime"
                             />
-                          ) : null}
-                        </div>
-                        {copy.description ? (
-                          <p className="text-xs text-muted">{copy.description}</p>
+                          </label>
                         ) : null}
-                        <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
-                          {formatFullDate(notification.createdAt)}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          data-testid={`notification-item-${notification.id}`}
+                          onClick={() => {
+                            // Phase 29 Step 29.3: в режиме выбора клик по карточке
+                            // тоггалит чекбокс (как в почтовиках), иначе — markRead.
+                            if (selectionMode) {
+                              toggleItemSelection(notification.id);
+                              return;
+                            }
+                            if (isUnread) void markSingleRead(notification.id);
+                          }}
+                          className="flex flex-1 flex-col items-start gap-1 text-left"
+                        >
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <span className="text-sm font-semibold text-ink">{copy.title}</span>
+                            {isUnread ? (
+                              <span
+                                data-testid={`notification-item-unread-${notification.id}`}
+                                className="inline-block size-2 shrink-0 rounded-full bg-accent"
+                                aria-label="Непрочитанное"
+                              />
+                            ) : null}
+                          </div>
+                          {copy.description ? (
+                            <p className="text-xs text-muted">{copy.description}</p>
+                          ) : null}
+                          <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                            {formatFullDate(notification.createdAt)}
+                          </span>
+                        </button>
+                        {/* Phase 29 Step 29.3: per-item delete (X-иконка) — только
+                            вне selection-mode, чтобы не дублировать UI. */}
+                        {!selectionMode ? (
+                          <button
+                            type="button"
+                            data-testid={`notification-delete-${notification.id}`}
+                            aria-label="Удалить уведомление"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              requestDelete([notification.id]);
+                            }}
+                            className="inline-flex size-8 shrink-0 items-center justify-center self-start rounded-full text-muted transition-colors hover:bg-orange/10 hover:text-orange"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="size-4"
+                              aria-hidden="true"
+                            >
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}
@@ -405,6 +586,47 @@ export function NotificationsListPage({
           ))}
         </div>
       )}
+
+      {/* Phase 29 Step 29.3: модалка подтверждения удаления. Открывается с
+          confirmIds — массив id (1 для per-item, N для bulk). */}
+      <Modal
+        open={confirmIds !== null && confirmIds.length > 0}
+        onClose={cancelDelete}
+        title={
+          confirmIds && confirmIds.length === 1 ? 'Удалить уведомление?' : 'Удалить уведомления?'
+        }
+        description={
+          confirmIds && confirmIds.length === 1
+            ? 'Уведомление будет удалено безвозвратно.'
+            : `Будет удалено уведомлений: ${confirmIds?.length ?? 0}. Действие нельзя отменить.`
+        }
+        className="max-w-md"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={cancelDelete}
+              disabled={deleting}
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              data-testid="notifications-delete-confirm"
+              onClick={() => {
+                void handleConfirmDelete();
+              }}
+              disabled={deleting}
+              className="rounded-pill border-0 bg-orange px-4 py-2 text-sm font-semibold text-bg transition-colors hover:bg-orange/90 disabled:opacity-50"
+            >
+              {deleting ? 'Удаляем…' : 'Удалить'}
+            </button>
+          </div>
+        }
+      >
+        <></>
+      </Modal>
     </section>
   );
 }

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createNotification,
+  deleteNotifications,
   getNotifications,
   getUnreadNotificationCount,
   markAllNotificationsRead,
@@ -219,6 +220,51 @@ describe('db Notification CRUD — Phase 24', () => {
 
       expect(await getNotifications({ userId: 1 })).toHaveLength(1);
       expect(await getNotifications({ userId: 1, applyPreferences: false })).toHaveLength(1);
+    });
+  });
+
+  describe('deleteNotifications (Phase 29)', () => {
+    it('удаляет указанные id и возвращает реальное число удалённых', async () => {
+      const a = await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      const b = await createNotification({ userId: 1, type: 'booking_rejected', payload: {} });
+      await createNotification({ userId: 1, type: 'booking_completed', payload: {} });
+
+      const result = await deleteNotifications([a.id, b.id]);
+
+      expect(result.deleted).toBe(2);
+      const remaining = await getNotifications({ userId: 1 });
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].type).toBe('booking_completed');
+    });
+
+    it('пустой массив — no-op без записи', async () => {
+      await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+
+      const result = await deleteNotifications([]);
+
+      expect(result.deleted).toBe(0);
+      expect(await getNotifications({ userId: 1 })).toHaveLength(1);
+    });
+
+    it('несуществующий id — игнорируется (idempotent)', async () => {
+      const a = await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+
+      const result = await deleteNotifications([a.id, 99_999]);
+
+      expect(result.deleted).toBe(1);
+      expect(await getNotifications({ userId: 1 })).toHaveLength(0);
+    });
+
+    it('не трогает уведомления, чьи id не указаны', async () => {
+      const a = await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      const b = await createNotification({ userId: 2, type: 'booking_confirmed', payload: {} });
+
+      const result = await deleteNotifications([a.id]);
+
+      expect(result.deleted).toBe(1);
+      const allUser2 = await getNotifications({ userId: 2 });
+      expect(allUser2).toHaveLength(1);
+      expect(allUser2[0].id).toBe(b.id);
     });
   });
 });

@@ -787,6 +787,31 @@ export async function markAllNotificationsRead(userId: EntityId): Promise<number
   return updatedCount;
 }
 
+/**
+ * Phase 29 Step 29.3: массовое физическое удаление уведомлений по списку id.
+ * Hard-delete — записи исчезают из notifications.json. Используется UI-режимом
+ * «Выбрать → Удалить» в NotificationsListPage и per-item delete (массив из
+ * одного id). Owner-guard выполняется на уровне API-route, db-функция доверяет
+ * вызывающему. Возвращает фактическое число удалённых (полезно для UI-toast'а
+ * и rollback'а: если массив пуст — DB не модифицируется).
+ */
+export async function deleteNotifications(ids: EntityId[]): Promise<{ deleted: number }> {
+  if (ids.length === 0) {
+    return { deleted: 0 };
+  }
+
+  const notifications = await readCollection('notifications');
+  const idSet = new Set(ids);
+  const remaining = notifications.filter((notification) => !idSet.has(notification.id));
+  const deleted = notifications.length - remaining.length;
+
+  if (deleted > 0) {
+    await writeCollection('notifications', remaining);
+  }
+
+  return { deleted };
+}
+
 /** Быстрый счётчик непрочитанных уведомлений пользователя — для bell-icon. */
 /**
  * Подсчёт непрочитанных уведомлений пользователя.

@@ -3,10 +3,13 @@
 // Возвращает items + total (всего у пользователя) + unreadCount (для bell-icon).
 // Phase 27 Step 27.2: фильтр notificationPreferences перенесён в db-функции через
 // applyPreferences: true — согласованность dropdown/страницы/badge.
+// Phase 29 Step 29.3: DELETE /api/notifications — массовое hard-удаление по
+// списку id. Owner-guard через silent filter (удаляются только свои). Один
+// endpoint обслуживает оба сценария UI: per-item (массив из 1 id) и bulk.
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getNotifications, getUnreadNotificationCount } from '@/lib/db';
+import { deleteNotifications, getNotifications, getUnreadNotificationCount } from '@/lib/db';
 
 // Валидация строковых параметров query; парсинг в числа/boolean — в коде ниже,
 // чтобы избежать проблем preprocess+optional при null-значениях searchParams.get().
@@ -61,6 +64,52 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { success: false, error: 'Не удалось получить уведомления' },
+      { status: 500 },
+    );
+  }
+}
+
+// Phase 29 Step 29.3: DELETE /api/notifications — массовое физическое удаление.
+// Body: { userId, ids[] }. Сервер silent-filter'ом оставляет только id,
+// принадлежащие userId — чужие тихо игнорируются (не возвращаем 403, чтобы
+// не открывать enumeration). Возвращает { deleted } — реальное число удалённых.
+const deleteBodySchema = z.object({
+  userId: z.number().int().positive(),
+  ids: z.array(z.number().int().positive()).min(1),
+});
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const rawBody = (await request.json()) as unknown;
+    const validation = deleteBodySchema.safeParse(rawBody);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: 'Некорректное тело запроса' },
+        { status: 400 },
+      );
+    }
+
+    const { userId, ids } = validation.data;
+
+    // Ownership-guard: фильтруем переданные id, оставляем только принадлежащие
+    // userId. Чужие/несуществующие id silent-skip — пользователь увидит только
+    // фактическое число удалённых записей в `deleted` ответа.
+    const ownNotifications = await getNotifications({ userId });
+    const ownIdSet = new Set(ownNotifications.map((notification) => notification.id));
+    const filteredIds = ids.filter((id) => ownIdSet.has(id));
+
+    const result = await deleteNotifications(filteredIds);
+
+    return NextResponse.json({
+      success: true,
+      data: { deleted: result.deleted },
+    });
+  } catch (error) {
+    console.error('Ошибка удаления уведомлений:', error);
+
+    return NextResponse.json(
+      { success: false, error: 'Не удалось удалить уведомления' },
       { status: 500 },
     );
   }

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { POST as readOneRoute } from '@/app/api/notifications/[id]/read/route';
 import { POST as readAllRoute } from '@/app/api/notifications/read-all/route';
-import { GET as listRoute } from '@/app/api/notifications/route';
+import { DELETE as deleteRoute, GET as listRoute } from '@/app/api/notifications/route';
 import { GET as unreadCountRoute } from '@/app/api/notifications/unread-count/route';
 import { createNotification } from '@/lib/db';
 import {
@@ -195,6 +195,72 @@ describe('Notifications API — Phase 24', () => {
       const body = await response.json();
 
       expect(body.data.unreadCount).toBe(0);
+    });
+  });
+
+  describe('DELETE /api/notifications (Phase 29)', () => {
+    it('удаляет переданные id, принадлежащие пользователю', async () => {
+      const a = await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      const b = await createNotification({ userId: 1, type: 'booking_rejected', payload: {} });
+      await createNotification({ userId: 1, type: 'booking_completed', payload: {} });
+
+      const response = await deleteRoute(
+        new NextRequest('http://localhost:3000/api/notifications', {
+          method: 'DELETE',
+          body: JSON.stringify({ userId: 1, ids: [a.id, b.id] }),
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.data.deleted).toBe(2);
+    });
+
+    it('silent-filter: чужие id тихо игнорируются (не возвращает 403)', async () => {
+      const own = await createNotification({ userId: 1, type: 'booking_confirmed', payload: {} });
+      const stranger = await createNotification({
+        userId: 2,
+        type: 'booking_confirmed',
+        payload: {},
+      });
+
+      const response = await deleteRoute(
+        new NextRequest('http://localhost:3000/api/notifications', {
+          method: 'DELETE',
+          body: JSON.stringify({ userId: 1, ids: [own.id, stranger.id] }),
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data.deleted).toBe(1);
+    });
+
+    it('400 при пустом массиве ids (минимум 1)', async () => {
+      const response = await deleteRoute(
+        new NextRequest('http://localhost:3000/api/notifications', {
+          method: 'DELETE',
+          body: JSON.stringify({ userId: 1, ids: [] }),
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
+    it('400 при отсутствии userId', async () => {
+      const response = await deleteRoute(
+        new NextRequest('http://localhost:3000/api/notifications', {
+          method: 'DELETE',
+          body: JSON.stringify({ ids: [1] }),
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+      expect(response.status).toBe(400);
     });
   });
 });
