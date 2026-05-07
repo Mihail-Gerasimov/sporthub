@@ -112,7 +112,7 @@ function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pil
         <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
           {eyebrow}
         </p>
-        <h2 className="font-display text-2xl text-ink sm:text-[26px]">{title}</h2>
+        <h2 className="font-display text-[22px] text-ink md:text-[26px]">{title}</h2>
       </div>
       {pill ? (
         <span className="inline-flex shrink-0 items-center rounded-pill border border-line px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
@@ -361,12 +361,12 @@ export function ClubDetailPageClient({
                 <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
                   Club profile
                 </p>
-                <h1 className="font-display text-3xl leading-none text-ink sm:text-[34px] md:text-[38px]">
+                <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
                   {club.name}
                 </h1>
 
                 {/* address с пином */}
-                <span className="inline-flex items-center gap-1.5 font-body text-sm font-medium text-muted">
+                <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -399,7 +399,7 @@ export function ClubDetailPageClient({
 
               {/* stat-rail: Контакты | Цена от */}
               <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line p-4 lg:border-b-0 lg:border-r lg:p-[18px]">
+                <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Контакты
                   </p>
@@ -450,11 +450,11 @@ export function ClubDetailPageClient({
                     ) : null}
                   </div>
                 </div>
-                <div className="p-4 lg:p-[18px]">
+                <div className="px-[18px] py-4">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Цена от
                   </p>
-                  <p className="mt-2 font-display text-[22px] leading-none text-ink">
+                  <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
                     {formatPrice(club.priceFrom)}
                   </p>
                   <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
@@ -500,7 +500,7 @@ export function ClubDetailPageClient({
                 <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
                   Reliability
                 </p>
-                <h2 className="font-display text-2xl text-ink sm:text-[26px]">Надёжность</h2>
+                <h2 className="font-display text-[22px] text-ink md:text-[26px]">Надёжность</h2>
                 <p className="mt-2 max-w-prose font-body text-sm leading-relaxed text-muted">
                   Рейтинг считается по фактическим записям: completed vs no_show. Помогает атлетам
                   выбрать клуб осознанно.
@@ -644,7 +644,7 @@ export function ClubDetailPageClient({
         </section>
 
         {/* ═══ Reviews + Form ═══ */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_1fr]">
           {/* Reviews list */}
           <div className="rounded-[18px] border border-line bg-card p-5 sm:p-6">
             <SecHead
@@ -674,7 +674,7 @@ export function ClubDetailPageClient({
                       <p className="mt-0.5 font-body text-[11px] font-medium text-muted">
                         {formatDate(review.createdAt, { day: 'numeric', month: 'long' })}
                       </p>
-                      <p className="mt-2 break-words font-body text-sm leading-relaxed text-ink">
+                      <p className="mt-2 break-words font-body text-[13px] leading-relaxed text-ink">
                         {review.text}
                       </p>
                     </div>
@@ -700,7 +700,7 @@ export function ClubDetailPageClient({
             <SecHead eyebrow="Share feedback" title="Оставить отзыв" />
 
             <div className="rounded-[18px] border border-line bg-card-2 p-[18px]">
-              <p className="mb-3 font-body text-sm leading-relaxed text-muted">
+              <p className="mb-3 font-body text-[13px] leading-relaxed text-muted">
                 Отзыв может оставить только авторизованный спортсмен после реального взаимодействия
                 с площадкой.
               </p>
@@ -733,7 +733,7 @@ export function ClubDetailPageClient({
                     id="club-review-text"
                     value={reviewForm.text}
                     rows={5}
-                    className="min-h-28 w-full resize-y rounded-[12px] border border-line bg-bg px-3.5 py-3 font-body text-sm leading-relaxed text-ink outline-none transition-colors focus:border-lime"
+                    className="min-h-28 w-full resize-y rounded-[12px] border border-line bg-bg px-3.5 py-3 font-body text-[13px] leading-relaxed text-ink outline-none transition-colors focus:border-lime"
                     placeholder="Что понравилось в клубе, формате тренировок или атмосфере?"
                     onChange={(event) => {
                       setReviewForm((currentValue) => ({

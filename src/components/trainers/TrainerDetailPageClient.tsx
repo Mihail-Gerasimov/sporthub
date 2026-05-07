@@ -143,7 +143,7 @@ function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pil
         <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
           {eyebrow}
         </p>
-        <h2 className="font-display text-2xl text-ink sm:text-[26px]">{title}</h2>
+        <h2 className="font-display text-[22px] text-ink md:text-[26px]">{title}</h2>
       </div>
       {pill ? (
         <span className="inline-flex shrink-0 items-center rounded-pill border border-line px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
@@ -405,7 +405,7 @@ export function TrainerDetailPageClient({
                 <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
                   Trainer profile
                 </p>
-                <h1 className="font-display text-3xl leading-none text-ink sm:text-[34px] md:text-[38px]">
+                <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
                   {trainer.name}
                 </h1>
 
@@ -416,7 +416,7 @@ export function TrainerDetailPageClient({
                     {trainer.rating.toFixed(1)}
                   </span>
                   {trainer.address ? (
-                    <span className="inline-flex items-center gap-1.5 font-body text-sm font-medium text-muted">
+                    <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -443,22 +443,22 @@ export function TrainerDetailPageClient({
 
               {/* stat-rail 2-col: Цена от | Услуг */}
               <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-                <div className="border-b border-line p-4 lg:border-b-0 lg:border-r lg:p-[18px]">
+                <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Цена от
                   </p>
-                  <p className="mt-2 font-display text-[22px] leading-none text-ink">
+                  <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
                     {formatPrice(trainer.priceFrom)}
                   </p>
                   <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
                     за тренировку
                   </p>
                 </div>
-                <div className="p-4 lg:p-[18px]">
+                <div className="px-[18px] py-4">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Услуг
                   </p>
-                  <p className="mt-2 font-display text-[22px] leading-none text-ink tabular-nums">
+                  <p className="mt-2 font-display text-[18px] leading-none text-ink tabular-nums md:text-[22px]">
                     {offerings.length}
                   </p>
                   <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
@@ -469,7 +469,7 @@ export function TrainerDetailPageClient({
 
               {/* stat-rail 1-col: Контакты (если есть) */}
               {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
-                <div className="rounded-[16px] border border-line bg-card-2 p-4 lg:p-[18px]">
+                <div className="rounded-[16px] border border-line bg-card-2 px-[18px] py-4">
                   <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
                     Контакты
                   </p>
@@ -550,7 +550,7 @@ export function TrainerDetailPageClient({
                 <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
                   Reliability
                 </p>
-                <h2 className="font-display text-2xl text-ink sm:text-[26px]">Надёжность</h2>
+                <h2 className="font-display text-[22px] text-ink md:text-[26px]">Надёжность</h2>
                 <p className="mt-2 max-w-prose font-body text-sm leading-relaxed text-muted">
                   Рейтинг считается по фактическим записям клиентов: completed vs no_show. Помогает
                   выбрать партнёра осознанно.
@@ -638,9 +638,9 @@ export function TrainerDetailPageClient({
             className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
           >
             <SecHead eyebrow="Works at" title="Работает в" />
-            <div className="grid grid-cols-[64px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 md:grid-cols-[64px_1fr_auto]">
+            <div className="grid grid-cols-[56px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 md:grid-cols-[64px_1fr_auto]">
               {/* works-thumb (placeholder) */}
-              <div className="flex size-16 items-center justify-center rounded-[12px] border border-line bg-card text-center font-body text-[9px] font-bold uppercase leading-tight tracking-[0.18em] text-disabled">
+              <div className="flex size-14 items-center justify-center rounded-[12px] border border-line bg-card text-center font-body text-[9px] font-bold uppercase leading-tight tracking-[0.18em] text-disabled md:size-16">
                 Фото
                 <br />
                 клуба
@@ -749,7 +749,7 @@ export function TrainerDetailPageClient({
         </section>
 
         {/* ═══ Reviews + Form ═══ */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_1fr]">
           {/* Reviews list */}
           <div className="rounded-[18px] border border-line bg-card p-5 sm:p-6">
             <SecHead
@@ -779,7 +779,7 @@ export function TrainerDetailPageClient({
                       <p className="mt-0.5 font-body text-[11px] font-medium text-muted">
                         {formatDate(review.createdAt, { day: 'numeric', month: 'long' })}
                       </p>
-                      <p className="mt-2 break-words font-body text-sm leading-relaxed text-ink">
+                      <p className="mt-2 break-words font-body text-[13px] leading-relaxed text-ink">
                         {review.text}
                       </p>
                     </div>
@@ -805,7 +805,7 @@ export function TrainerDetailPageClient({
             <SecHead eyebrow="Share feedback" title="Оставить отзыв" />
 
             <div className="rounded-[18px] border border-line bg-card-2 p-[18px]">
-              <p className="mb-3 font-body text-sm leading-relaxed text-muted">
+              <p className="mb-3 font-body text-[13px] leading-relaxed text-muted">
                 Отзыв может оставить только авторизованный спортсмен.
               </p>
               <form className="flex flex-col gap-3.5" onSubmit={handleReviewSubmit}>
@@ -837,7 +837,7 @@ export function TrainerDetailPageClient({
                     id="trainer-review-text"
                     value={reviewForm.text}
                     rows={5}
-                    className="min-h-28 w-full resize-y rounded-[12px] border border-line bg-bg px-3.5 py-3 font-body text-sm leading-relaxed text-ink outline-none transition-colors focus:border-lime"
+                    className="min-h-28 w-full resize-y rounded-[12px] border border-line bg-bg px-3.5 py-3 font-body text-[13px] leading-relaxed text-ink outline-none transition-colors focus:border-lime"
                     placeholder="Что понравилось в тренировках, подходе или атмосфере?"
                     onChange={(event) => {
                       setReviewForm((currentValue) => ({
