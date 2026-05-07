@@ -13,7 +13,9 @@ import type { City, Club, EntityId } from '@/types';
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
 import { useYandexMap } from '@/components/map/YandexMapProvider';
 import { useMapMarkers, type MapMarkerData } from '@/components/map/useMapMarkers';
+import { MapThemeToggle } from '@/components/map/MapThemeToggle';
 import { useFilterStore } from '@/stores/useFilterStore';
+import { useMapThemeStore } from '@/stores/useMapThemeStore';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
@@ -101,6 +103,9 @@ function createPopupElement(marker: MapMarkerData): HTMLElement {
 export function MainMap({ clubs, trainers, sports }: MainMapProps) {
   const { isLoaded, error } = useYandexMap();
   const selectedCity = useFilterStore((state) => state.selectedCity);
+  // Phase 29 Step 29.1: тема карты для CSS-фильтра. SSR-safe — initial 'light',
+  // после mount Zustand persist-middleware подставит сохранённое значение.
+  const mapTheme = useMapThemeStore((state) => state.theme);
   const markers = useMapMarkers({ clubs, trainers, sports });
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
@@ -277,11 +282,19 @@ export function MainMap({ clubs, trainers, sports }: MainMapProps) {
 
   return (
     <div className="relative">
+      {/*
+        Phase 29 Step 29.1: data-map-theme на контейнере карты управляет
+        CSS-фильтром (см. globals.css). Toggle и empty-state — absolute siblings
+        ВНЕ этого контейнера, чтобы фильтр их не инвертировал.
+      */}
       <div
         ref={containerRef}
         data-testid="yandex-map-container"
+        data-map-theme={mapTheme}
         className="h-[20rem] overflow-hidden rounded-card border border-line sm:h-[24rem] lg:h-[28rem]"
       />
+      {/* Toggle темы карты — поверх карты, в правом верхнем углу */}
+      <MapThemeToggle className="absolute right-2 top-2 z-10 md:right-3 md:top-3" />
       {/* Empty state — нет маркеров для текущих фильтров */}
       {markers.length === 0 && (
         <div

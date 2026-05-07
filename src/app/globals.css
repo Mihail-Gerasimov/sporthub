@@ -439,3 +439,29 @@ input[type='number']::-webkit-outer-spin-button {
 input[type='number'] {
   -moz-appearance: textfield;
 }
+
+/* ===== Phase 29 Step 29.1: тёмная тема карты Yandex Maps ===== */
+/*
+  Yandex Maps v3 публично не предоставляет dark-theme API в JS-библиотеке,
+  поэтому переключение реализовано через CSS-фильтр на контейнере карты.
+  `grayscale(1) invert(1)` обесцвечивает оригинальные тайлы и инвертирует
+  яркость — получается «инверсный» dark-режим. Значения подобраны через
+  DevTools и зафиксированы пользователем.
+  Маркеры (`.map-marker-pin`) и popup'ы (`.map-marker-popup`) рендерятся
+  внутри того же контейнера, поэтому без counter-фильтра тоже инвертируются.
+  Применяем к ним `invert(1) hue-rotate(180deg)` — двойная инверсия частично
+  возвращает оригинальные тона. Полностью оригинальные цвета восстановить
+  невозможно (grayscale нельзя «отменить» CSS-фильтром), но визуально
+  маркеры остаются читаемыми и выделяются на тёмной подложке.
+*/
+[data-map-theme='dark'] {
+  filter: grayscale(1) invert(1);
+}
+
+[data-map-theme='dark'] .map-marker-pin {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+[data-map-theme='dark'] .map-marker-popup {
+  filter: invert(1) hue-rotate(180deg);
+}
