@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TrainerDetailPage from '@/app/trainers/[slug]/page';
 import {
@@ -20,12 +20,17 @@ describe('Trainer detail page', () => {
   let dataDirectory: string;
 
   beforeEach(async () => {
+    /* Phase 28.23: anchor расписания на 2026-03-18 — слоты фикстур
+     * (date='2026-03-18') попадают в текущую ISO-неделю. */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
     dataDirectory = await createIsolatedDataDirectory();
     await seedTestData(dataDirectory);
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
     await removeIsolatedDataDirectory(dataDirectory);
   });
@@ -92,6 +97,9 @@ describe('Trainer detail page', () => {
       trainerId: minimalTrainer.id,
       affiliatedClubId: undefined,
       title: 'Персональная тренировка: Плавание',
+      /* Phase 28.23: дата = текущий день анчора (2026-03-18), чтобы slot
+       * попадал на активный таб DetailScheduleWeek и chip room рендерился. */
+      date: '2026-03-18',
       room: 'Индивидуальный зал',
     };
 

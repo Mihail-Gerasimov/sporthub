@@ -1,44 +1,66 @@
 'use client';
 
-/* Клиентский компонент детальной страницы тренера /trainers/[slug] */
+/* TrainerDetailPageClient — детальная страница тренера `/trainers/[slug]`.
+ * Phase 28.23: полная перевёрстка визуала под dark-палитру SportHub.
+ *
+ * Структура страницы (по порядку секций):
+ *   1. Hero (2-col на lg+, 1-col иначе): placeholder с avatar-disc 132×132
+ *      (инициалы Bowlby) + «Фото тренера» слева; meta-col справа
+ *      (chips → eyebrow → name → rating + addr → описание → stat-rail
+ *      Цена/Услуг → stat-rail Контакты → ChipMarquee специализаций → CTA).
+ *   2. Reliability — секция с ReliabilityBadge showDetails (как было).
+ *   3. Specializations — sport+specialty grid 2-col с orange-icon.
+ *   4. Works at — works-card (placeholder thumb 64×64 + body + Link
+ *      «Перейти к клубу» в стиле btn-primary). Скрывается без affiliatedClub.
+ *   5. Services — список услуг с chips (format/price/duration/venue).
+ *   6. Schedule — DetailScheduleWeek (week-tabs anchor today),
+ *      sub `${time}, ${room}` (на trainer-странице room вместо имени тренера).
+ *   7. Reviews + Form — reviews-list + форма (zod + POST /api/reviews +
+ *      auth-gating) — БЕЗ ИЗМЕНЕНИЙ.
+ *
+ * Логика отзыва, /booking/[id] href, ReliabilityBadge, getTrainerInitials —
+ * без изменений. Расписание показывает только текущую ISO-неделю
+ * (anchor today), переключение по day-tabs внутри DetailScheduleWeek.
+ */
 
 import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Badge, Button, Card, Rating, ReliabilityBadge } from '@/components/ui';
-import { getCoverPalette, getTrainerInitials } from '@/components/trainers/trainer-utils';
+import { Button, Rating, ReliabilityBadge } from '@/components/ui';
+import { ChipMarquee } from '@/components/ui/ChipMarquee';
+import { getTrainerInitials } from '@/components/trainers/trainer-utils';
+import {
+  DetailScheduleWeek,
+  type DetailScheduleSlot,
+} from '@/components/detail-shared/DetailScheduleWeek';
+import { getCurrentWeekRange } from '@/components/detail-shared/utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import type { ReliabilityResult } from '@/lib/reliability';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
 
-/* Отзыв с именем автора */
 type ReviewWithAuthor = Review & {
   authorName: string;
 };
 
-/* Состояние формы отзыва */
 type ReviewFormState = {
   rating: number;
   text: string;
 };
 
-/* Ошибки валидации формы отзыва */
 type ReviewFormErrors = {
   rating?: string;
   text?: string;
   submit?: string;
 };
 
-/* Zod-схема валидации формы отзыва */
 const reviewFormSchema = z.object({
   rating: z.number().int().min(1, 'Выбери оценку.'),
   text: z.string().trim().min(1, 'Напиши пару слов о впечатлении.'),
 });
 
-/* Обогащение отзывов именами авторов */
 function mapReviewsWithAuthors(
   reviews: Review[],
   reviewAuthors: Record<number, string>,
@@ -49,7 +71,6 @@ function mapReviewsWithAuthors(
   }));
 }
 
-/* Валидация формы отзыва */
 function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
   const validationResult = reviewFormSchema.safeParse(form);
 
@@ -77,69 +98,103 @@ type TrainerDetailPageClientProps = {
   specialties: Specialty[];
   sports: Sport[];
   trainer: Trainer;
-  /**
-   * Phase 25 Step 25.13: рейтинг надёжности тренера (computeTrainerReliability).
-   * Если передан — рендерится секция «Надёжность» с ReliabilityBadge showDetails.
-   */
+  /** Phase 25 Step 25.13: рейтинг надёжности тренера. Если передан — рендерится секция «Надёжность». */
   reliability?: ReliabilityResult;
 };
 
-/* Enriched-тип для слота расписания */
-type EnrichedScheduleItem = Schedule & {
-  sportName: string;
-  availableSpots: number;
-};
-
-/* Группа слотов по дню */
-type ScheduleGroup = {
-  date: string;
-  label: string;
-  items: EnrichedScheduleItem[];
-};
-
-/* Форматирование метки дня: «Понедельник, 18 марта» */
-function formatDayLabel(date: string) {
-  const label = formatDate(date, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-
-  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : date;
+/* Хелпер: солид-чип (lime-fill) или outline-чип (transparent + ink). */
+function Chip({
+  variant = 'outline',
+  children,
+}: {
+  variant?: 'solid' | 'outline';
+  children: ReactNode;
+}) {
+  const cls =
+    variant === 'solid'
+      ? 'border-[rgba(132,192,3,0.28)] bg-lime-soft text-lime'
+      : 'border-line bg-transparent text-ink';
+  return (
+    <span
+      className={`inline-flex items-center rounded-pill border px-3 py-1.5 font-body text-[11px] font-semibold uppercase tracking-[0.12em] ${cls}`}
+    >
+      {children}
+    </span>
+  );
 }
 
-/* Группировка расписания по дате */
-function buildScheduleGroups(schedule: Schedule[], sports: Sport[]): ScheduleGroup[] {
-  const sportNames = new Map(sports.map((sport) => [sport.id, sport.name]));
-  const groupedSchedule = new Map<string, EnrichedScheduleItem[]>();
-
-  [...schedule]
-    .sort((left, right) => {
-      const leftTimestamp = `${left.date}T${left.startTime}`;
-      const rightTimestamp = `${right.date}T${right.startTime}`;
-
-      return leftTimestamp.localeCompare(rightTimestamp);
-    })
-    .forEach((slot) => {
-      const currentGroup = groupedSchedule.get(slot.date) ?? [];
-
-      currentGroup.push({
-        ...slot,
-        sportName: sportNames.get(slot.sportId) ?? 'Занятие',
-        availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
-      });
-
-      groupedSchedule.set(slot.date, currentGroup);
-    });
-
-  return Array.from(groupedSchedule.entries()).map(([date, items]) => ({
-    date,
-    label: formatDayLabel(date),
-    items,
-  }));
+/* Empty-state для секций. */
+function SectionEmptyState({ children, testId }: { children: ReactNode; testId?: string }) {
+  return (
+    <div
+      data-testid={testId}
+      className="rounded-[14px] border border-dashed border-line bg-card-2 px-5 py-5 text-sm leading-relaxed text-muted"
+    >
+      {children}
+    </div>
+  );
 }
 
-/* Метка формата услуги */
+/* Sec-head: eyebrow + Bowlby title слева + sec-pill счётчик справа. */
+function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pill?: string }) {
+  return (
+    <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+          {eyebrow}
+        </p>
+        <h2 className="font-display text-2xl text-ink sm:text-[26px]">{title}</h2>
+      </div>
+      {pill ? (
+        <span className="inline-flex shrink-0 items-center rounded-pill border border-line px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
+          {pill}
+        </span>
+      ) : null}
+    </header>
+  );
+}
+
+/* Склонение «N отзывов»: 1 отзыв / 2-4 отзыва / 5+ отзывов. */
+function pluralizeReviews(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${count} отзывов`;
+  if (last === 1) return `${count} отзыв`;
+  if (last >= 2 && last <= 4) return `${count} отзыва`;
+  return `${count} отзывов`;
+}
+
+/* Склонение «N услуг»: 1 услуга / 2-4 услуги / 5+ услуг. */
+function pluralizeServices(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${count} услуг`;
+  if (last === 1) return `${count} услуга`;
+  if (last >= 2 && last <= 4) return `${count} услуги`;
+  return `${count} услуг`;
+}
+
+/* Склонение «N направлений». */
+function pluralizeDirections(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${count} направлений`;
+  if (last === 1) return `${count} направление`;
+  if (last >= 2 && last <= 4) return `${count} направления`;
+  return `${count} направлений`;
+}
+
+/* Склонение «N слотов». */
+function pluralizeSlots(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${count} слотов`;
+  if (last === 1) return `${count} слот`;
+  if (last >= 2 && last <= 4) return `${count} слота`;
+  return `${count} слотов`;
+}
+
+/* Метка формата услуги. */
 function getFormatLabel(format: Offering['format']): string {
   switch (format) {
     case 'personal': {
@@ -155,28 +210,6 @@ function getFormatLabel(format: Offering['format']): string {
       return format;
     }
   }
-}
-
-/* Заглушка для медиа-контента (фото) */
-function MediaStub({ label, className }: { label: string; className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center rounded-card border border-dashed border-line bg-canvas px-4 py-6 text-center text-xs font-semibold uppercase tracking-[0.10em] text-muted ${className ?? ''}`}
-    >
-      {label}
-    </div>
-  );
-}
-
-function SectionEmptyState({ children, testId }: { children: ReactNode; testId?: string }) {
-  return (
-    <div
-      data-testid={testId}
-      className="rounded-card border border-dashed border-line bg-canvas px-5 py-5 text-sm leading-relaxed text-muted"
-    >
-      {children}
-    </div>
-  );
 }
 
 export function TrainerDetailPageClient({
@@ -195,22 +228,79 @@ export function TrainerDetailPageClient({
   const sessionUser = useAuthStore((state) => state.user);
   const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
   const addToast = useToastStore((state) => state.addToast);
+
   const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
     mapReviewsWithAuthors(reviews, reviewAuthors),
   );
   const [reviewForm, setReviewForm] = useState<ReviewFormState>({ rating: 0, text: '' });
   const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const scheduleGroups = useMemo(() => buildScheduleGroups(schedule, sports), [schedule, sports]);
+
   /* Словарь specialtyId → name для отображения */
   const specialtyNameById = useMemo(
     () => Object.fromEntries(specialties.map((s) => [s.id, s.name])),
     [specialties],
   );
+
+  /* Phase 28.23: фильтр слотов по текущей ISO-неделе + enrichment для
+   * DetailScheduleWeek. На trainer-странице sub = `${time}, ${room}`
+   * (тренер всегда тот же, поэтому имя в sub не нужно — указываем зал). */
+  const weekSlots: DetailScheduleSlot[] = useMemo(() => {
+    const { mondayIso, sundayIso } = getCurrentWeekRange();
+    const sportNames = new Map(sports.map((s) => [s.id, s.name]));
+    return schedule
+      .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
+      .map(
+        (slot) =>
+          ({
+            id: slot.id,
+            date: slot.date,
+            title: slot.title,
+            sportName: sportNames.get(slot.sportId) ?? 'Занятие',
+            priceLabel: formatPrice(slot.price),
+            availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
+            room: slot.room ?? null,
+            sub: `${slot.startTime} - ${slot.endTime}, ${slot.room ?? 'Зал уточняется'}`,
+          }) satisfies DetailScheduleSlot,
+      );
+  }, [schedule, sports]);
+
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
+
+  /* Сборка специализаций для AmenityRow в hero — sports + specialty имена. */
+  const specializationItems = useMemo(() => {
+    return [
+      ...sports.map((s) => ({ label: s.name })),
+      ...trainer.specialtyIds.map((id) => ({
+        label: specialtyNameById[id] ?? `#${id}`,
+      })),
+    ];
+  }, [sports, trainer.specialtyIds, specialtyNameById]);
+
+  /* Список направлений для секции «Специализации». */
+  const directions = useMemo(() => {
+    return [
+      ...sports.map((s) => ({
+        key: `sport-${s.id}`,
+        name: s.name,
+        sub: s.description,
+        kind: 'sport' as const,
+      })),
+      ...trainer.specialtyIds.map((id) => ({
+        key: `spec-${id}`,
+        name: specialtyNameById[id] ?? `#${id}`,
+        sub: '',
+        kind: 'specialty' as const,
+      })),
+    ];
+  }, [sports, trainer.specialtyIds, specialtyNameById]);
 
   function showActionNotice(message: string, tone: 'info' | 'success' | 'error' = 'info') {
     addToast({ message, tone });
+  }
+
+  function handleGuestSlotAction() {
+    showActionNotice('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен');
   }
 
   async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -274,491 +364,517 @@ export function TrainerDetailPageClient({
     }
   }
 
+  const phoneRaw = trainer.phone ? trainer.phone.replace(/\s+/g, '') : '';
+  const trainerInitials = getTrainerInitials(trainer.name);
+
   return (
-    <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        {/* ═══ Hero + Info ═══ */}
-        <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          {/* Инфо тренера — на мобильном сверху, на xl справа */}
-          <Card className="flex h-full min-w-0 flex-col gap-5 overflow-hidden p-6 xl:order-last sm:p-7">
-            <div className="flex flex-wrap gap-2">
-              {trainer.city ? <Badge tone="accent">{formatCityDisplay(trainer.city)}</Badge> : null}
-              <Badge tone="outline">{trainer.experienceYears} лет опыта</Badge>
-              <Badge tone="outline">{trainer.reviewCount} отзывов</Badge>
+    <main className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
+        {/* ═══ Hero — placeholder с avatar-disc слева + meta-col справа на lg+ ═══ */}
+        <section className="rounded-[22px] border border-line bg-card p-5 sm:p-6 md:p-7">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
+            {/* Photo-placeholder тренера: avatar-disc 132×132 (96 на 480) с инициалами. */}
+            <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
+              <div className="hero-bg-blank flex aspect-[16/10] flex-col items-center justify-center gap-3.5">
+                <span
+                  aria-hidden="true"
+                  className="flex size-24 items-center justify-center rounded-full border border-line bg-card font-display text-[32px] tabular-nums text-ink md:size-[132px] md:text-[44px]"
+                >
+                  {trainerInitials}
+                </span>
+                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+                  Фото тренера
+                </span>
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Trainer profile
+            {/* Meta column */}
+            <div className="flex min-w-0 flex-col gap-4">
+              {/* meta-tags */}
+              <div className="flex flex-wrap gap-2">
+                {trainer.city ? (
+                  <Chip variant="solid">{formatCityDisplay(trainer.city)}</Chip>
+                ) : null}
+                <Chip>{trainer.experienceYears} лет опыта</Chip>
+                <Chip>{pluralizeReviews(trainer.reviewCount)}</Chip>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Trainer profile
+                </p>
+                <h1 className="font-display text-3xl leading-none text-ink sm:text-[34px] md:text-[38px]">
+                  {trainer.name}
+                </h1>
+
+                {/* rating + addr */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Rating value={trainer.rating} />
+                  <span className="font-display text-sm tabular-nums text-ink">
+                    {trainer.rating.toFixed(1)}
+                  </span>
+                  {trainer.address ? (
+                    <span className="inline-flex items-center gap-1.5 font-body text-sm font-medium text-muted">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-3 shrink-0"
+                        aria-hidden="true"
+                      >
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                      {trainer.address}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* description (line-clamp-5) */}
+              <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
+                {trainer.bio}
               </p>
-              <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-                {trainer.name}
-              </h1>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <Rating value={trainer.rating} />
-                {trainer.address ? (
-                  <span className="text-sm text-muted">{trainer.address}</span>
+
+              {/* stat-rail 2-col: Цена от | Услуг */}
+              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 sm:grid-cols-[1.1fr_1fr]">
+                <div className="border-b border-line p-4 sm:border-b-0 sm:border-r sm:p-[18px]">
+                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                    Цена от
+                  </p>
+                  <p className="mt-2 font-display text-[22px] leading-none text-ink">
+                    {formatPrice(trainer.priceFrom)}
+                  </p>
+                  <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                    за тренировку
+                  </p>
+                </div>
+                <div className="p-4 sm:p-[18px]">
+                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                    Услуг
+                  </p>
+                  <p className="mt-2 font-display text-[22px] leading-none text-ink tabular-nums">
+                    {offerings.length}
+                  </p>
+                  <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                    в активном прайсе
+                  </p>
+                </div>
+              </div>
+
+              {/* stat-rail 1-col: Контакты (если есть) */}
+              {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
+                <div className="rounded-[16px] border border-line bg-card-2 p-4 sm:p-[18px]">
+                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                    Контакты
+                  </p>
+                  <div className="mt-2 space-y-1 text-sm">
+                    {trainer.phone ? (
+                      <p className="font-body font-semibold text-ink">
+                        {formatPhone(trainer.phone)}
+                      </p>
+                    ) : null}
+                    {trainer.vk ? (
+                      <a
+                        href={trainer.vk}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block font-body text-muted hover:text-lime"
+                      >
+                        VK
+                      </a>
+                    ) : null}
+                    {trainer.telegram ? (
+                      <a
+                        href={trainer.telegram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block font-body text-muted hover:text-lime"
+                      >
+                        Telegram
+                      </a>
+                    ) : null}
+                    {trainer.facebook ? (
+                      <a
+                        href={trainer.facebook}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block font-body text-muted hover:text-lime"
+                      >
+                        Facebook
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* amenity-row через ChipMarquee — специализации */}
+              {specializationItems.length > 0 ? (
+                <ChipMarquee items={specializationItems} variant="outline" accent="lime" />
+              ) : null}
+
+              {/* CTA-row */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <a
+                  href="#trainer-schedule"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                >
+                  Записаться к тренеру <span aria-hidden="true">→</span>
+                </a>
+                {phoneRaw ? (
+                  <a
+                    href={`tel:${phoneRaw}`}
+                    className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+                  >
+                    Связаться
+                  </a>
                 ) : null}
               </div>
             </div>
-
-            <p className="break-words text-base leading-relaxed text-muted">{trainer.bio}</p>
-
-            <div className="grid gap-4 rounded-card border border-line bg-canvas p-4 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Цена от
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-ink">
-                  {formatPrice(trainer.priceFrom)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Услуг
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-ink">{offerings.length}</p>
-              </div>
-            </div>
-
-            {/* Блок контактов тренера (Step 23.10) */}
-            {(trainer.phone || trainer.vk || trainer.telegram || trainer.facebook) && (
-              <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Контакты
-                </p>
-                <div className="mt-3 space-y-2 text-sm leading-relaxed text-ink">
-                  {trainer.phone ? <p>{formatPhone(trainer.phone)}</p> : null}
-                  {trainer.vk ? (
-                    <a
-                      href={trainer.vk}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-accent-strong hover:underline"
-                    >
-                      VK
-                    </a>
-                  ) : null}
-                  {trainer.telegram ? (
-                    <a
-                      href={trainer.telegram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-accent-strong hover:underline"
-                    >
-                      Telegram
-                    </a>
-                  ) : null}
-                  {trainer.facebook ? (
-                    <a
-                      href={trainer.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-accent-strong hover:underline"
-                    >
-                      Facebook
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Hero — gradient cover с инициалами */}
-          <Card className="overflow-hidden p-0 xl:order-first">
-            <div
-              className={`relative flex min-h-72 flex-col justify-between overflow-hidden bg-gradient-to-br ${getCoverPalette(trainer.id)} p-6 text-panel sm:min-h-80 xl:min-h-[26rem] sm:p-8`}
-            >
-              {/* Фото-заглушка */}
-              <div className="flex justify-end">
-                <div className="relative flex size-36 shrink-0 items-center justify-center rounded-[1.5rem] border border-panel/24 bg-panel/18 backdrop-blur-sm sm:size-40">
-                  <div className="absolute top-5 size-16 rounded-full bg-panel/88" />
-                  <div className="absolute bottom-5 h-20 w-20 rounded-t-[999px] bg-panel/82" />
-                  <span className="absolute bottom-3 rounded-pill bg-panel px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.10em] text-accent-strong">
-                    Фото
-                  </span>
-                  <span className="absolute left-3 top-3 text-sm font-semibold uppercase tracking-[0.10em] text-panel/70">
-                    {getTrainerInitials(trainer.name)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-auto">
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-panel/72">
-                  Персональный тренер
-                </p>
-                <p className="mt-3 max-w-md font-display text-3xl font-semibold leading-tight sm:text-4xl">
-                  {trainer.name}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2 text-2xl" aria-hidden="true">
-                  {sports.map((sport) => (
-                    <span key={sport.id}>{sport.icon}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
+          </div>
         </section>
 
-        {/* ═══ Специализации и виды спорта ═══ */}
-        <section data-testid="trainer-specializations-section">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Expertise
-              </p>
-              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Специализации</h2>
+        {/* ═══ Reliability ═══ */}
+        {reliability ? (
+          <section
+            data-testid="trainer-reliability-section"
+            className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+                  Reliability
+                </p>
+                <h2 className="font-display text-2xl text-ink sm:text-[26px]">Надёжность</h2>
+                <p className="mt-2 max-w-prose font-body text-sm leading-relaxed text-muted">
+                  Рейтинг считается по фактическим записям клиентов: completed vs no_show. Помогает
+                  выбрать партнёра осознанно.
+                </p>
+              </div>
+              <ReliabilityBadge reliability={reliability} showDetails />
             </div>
-            <Badge tone="outline">{trainer.specialtyIds.length + sports.length} направлений</Badge>
-          </div>
+          </section>
+        ) : null}
 
-          {sports.length > 0 || trainer.specialtyIds.length > 0 ? (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {sports.map((sport) => (
+        {/* ═══ Specializations ═══ */}
+        <section
+          data-testid="trainer-specializations-section"
+          className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
+        >
+          <SecHead
+            eyebrow="Expertise"
+            title="Специализации"
+            pill={directions.length > 0 ? pluralizeDirections(directions.length) : undefined}
+          />
+          {directions.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+              {directions.map((d) => (
                 <div
-                  key={sport.id}
-                  className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
+                  key={d.key}
+                  className="grid grid-cols-[40px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 transition-colors hover:border-lime"
                 >
-                  <span className="mt-1 text-2xl" aria-hidden="true">
-                    {sport.icon}
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-10 items-center justify-center rounded-[12px] border border-line bg-card ${
+                      d.kind === 'sport' ? 'text-lime' : 'text-orange'
+                    }`}
+                  >
+                    {d.kind === 'sport' ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-5"
+                      >
+                        <path d="M6 6v12M3 9v6M18 6v12M21 9v6M6 12h12" />
+                      </svg>
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-5"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <circle cx="12" cy="12" r="5" />
+                        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                      </svg>
+                    )}
                   </span>
-                  <div>
-                    <p className="text-lg font-semibold text-ink">{sport.name}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{sport.description}</p>
-                  </div>
-                </div>
-              ))}
-              {trainer.specialtyIds.map((id) => (
-                <div
-                  key={id}
-                  className="flex h-full items-start gap-4 rounded-card border border-line bg-canvas px-5 py-5"
-                >
-                  <span className="mt-1 text-2xl" aria-hidden="true">
-                    🎯
-                  </span>
-                  <div>
-                    <p className="text-lg font-semibold text-ink">
-                      {specialtyNameById[id] ?? `#${id}`}
-                    </p>
+                  <div className="min-w-0">
+                    <p className="font-display text-[15px] leading-none text-ink">{d.name}</p>
+                    {d.sub ? (
+                      <p className="mt-1 font-body text-xs font-normal leading-snug text-muted">
+                        {d.sub}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="mt-6">
-              <SectionEmptyState testId="trainer-specializations-empty">
-                Направления и специализации пока не заполнены. Профиль остаётся доступным даже до
-                расширения описания.
-              </SectionEmptyState>
-            </div>
+            <SectionEmptyState testId="trainer-specializations-empty">
+              Направления и специализации пока не заполнены. Профиль остаётся доступным даже до
+              расширения описания.
+            </SectionEmptyState>
           )}
         </section>
 
-        {/* ═══ Связанный клуб ═══ */}
+        {/* ═══ Works at — Связанный клуб ═══ */}
         {affiliatedClub ? (
-          <section data-testid="trainer-affiliated-club-section">
-            <Card className="p-6 sm:p-7">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Works at
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Работает в</h2>
+          <section
+            data-testid="trainer-affiliated-club-section"
+            className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
+          >
+            <SecHead eyebrow="Works at" title="Работает в" />
+            <div className="grid grid-cols-[64px_1fr] items-center gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:grid-cols-[64px_1fr_auto]">
+              {/* works-thumb (placeholder) */}
+              <div className="flex size-16 items-center justify-center rounded-[12px] border border-line bg-card text-center font-body text-[9px] font-bold uppercase leading-tight tracking-[0.18em] text-disabled">
+                Фото
+                <br />
+                клуба
               </div>
-
-              <div className="mt-6 flex flex-col gap-4 rounded-card border border-line bg-canvas p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <MediaStub label="Фото клуба" className="min-h-20 min-w-20" />
-                  <div>
-                    <p className="text-lg font-semibold text-ink">{affiliatedClub.name}</p>
-                    <p className="mt-1 text-sm text-muted">{affiliatedClub.address}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <Rating value={affiliatedClub.rating} />
-                      <Badge tone="outline">{affiliatedClub.reviewCount} отзывов</Badge>
-                    </div>
-                  </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <h3 className="font-display text-base leading-tight text-ink">
+                  {affiliatedClub.name}
+                </h3>
+                <p className="font-body text-xs font-medium text-muted">{affiliatedClub.address}</p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2.5">
+                  <Rating value={affiliatedClub.rating} />
+                  <span className="font-display text-sm tabular-nums text-ink">
+                    {affiliatedClub.rating.toFixed(1)}
+                  </span>
+                  <Chip>{pluralizeReviews(affiliatedClub.reviewCount)}</Chip>
                 </div>
-                <Link
-                  href={`/clubs/${affiliatedClub.slug}`}
-                  className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-6 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
+              </div>
+              <Link
+                href={`/clubs/${affiliatedClub.slug}`}
+                className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov sm:col-span-1"
+              >
+                Перейти к клубу
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
+        {/* ═══ Services — Услуги тренера ═══ */}
+        <section
+          data-testid="trainer-offerings-section"
+          className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
+        >
+          <SecHead
+            eyebrow="Services"
+            title="Услуги тренера"
+            pill={offerings.length > 0 ? pluralizeServices(offerings.length) : undefined}
+          />
+          {offerings.length > 0 ? (
+            <div className="flex flex-col gap-2.5">
+              {offerings.map((offering) => (
+                <div
+                  key={offering.id}
+                  className="flex flex-col gap-2.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 transition-colors hover:border-lime"
                 >
-                  Перейти к клубу
-                </Link>
-              </div>
-            </Card>
-          </section>
-        ) : null}
-
-        {/* ═══ Phase 25 Step 25.13: Надёжность ═══ */}
-        {reliability ? (
-          <section data-testid="trainer-reliability-section">
-            <Card className="p-6 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                    Reliability
+                  <h4 className="font-display text-[15px] leading-tight text-ink">
+                    {offering.title}
+                  </h4>
+                  <p className="line-clamp-3 break-words font-body text-xs leading-relaxed text-muted">
+                    {offering.description}
                   </p>
-                  <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Надёжность</h2>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    Рейтинг считается по фактическим записям клиентов: completed vs no_show.
-                    Помогает выбрать партнёра осознанно.
-                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-pill border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime">
+                      {getFormatLabel(offering.format)}
+                    </span>
+                    <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
+                      {formatPrice(offering.price)}
+                    </span>
+                    <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
+                      {offering.durationMinutes} мин
+                    </span>
+                    {/* Phase 24 Step 24.11: venue-бейдж per offering — «в клубе X» или «Частно». */}
+                    {offering.trainerClubLinkId !== undefined && affiliatedClub ? (
+                      <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
+                        В клубе «{affiliatedClub.name}»
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
+                        Частно
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <ReliabilityBadge reliability={reliability} showDetails />
-              </div>
-            </Card>
-          </section>
-        ) : null}
-
-        {/* ═══ Услуги тренера ═══ */}
-        <section data-testid="trainer-offerings-section">
-          <Card className="p-6 sm:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Services
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
-                  Услуги тренера
-                </h2>
-              </div>
-              <Badge tone="outline">{offerings.length} услуг</Badge>
+              ))}
             </div>
-            {offerings.length > 0 ? (
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {offerings.map((offering) => (
-                  <div
-                    key={offering.id}
-                    className="flex h-full flex-col rounded-card border border-line bg-canvas p-5"
-                  >
-                    <p className="text-lg font-semibold text-ink">{offering.title}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      {offering.description}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge tone="teal">{getFormatLabel(offering.format)}</Badge>
-                      <Badge tone="outline">{formatPrice(offering.price)}</Badge>
-                      <Badge tone="outline">{offering.durationMinutes} мин</Badge>
-                      {/* Phase 24 Step 24.11: venue-бейдж per offering — «в клубе X» или «Частно». */}
-                      {offering.trainerClubLinkId !== undefined && affiliatedClub ? (
-                        <Badge tone="outline">В клубе «{affiliatedClub.name}»</Badge>
-                      ) : (
-                        <Badge tone="outline">Частно</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-6">
-                <SectionEmptyState testId="trainer-offerings-empty">
-                  У тренера пока нет опубликованных услуг. Они появятся здесь сразу после добавления
-                  из кабинета провайдера.
-                </SectionEmptyState>
-              </div>
-            )}
-          </Card>
+          ) : (
+            <SectionEmptyState testId="trainer-offerings-empty">
+              У тренера пока нет опубликованных услуг. Они появятся здесь сразу после добавления из
+              кабинета провайдера.
+            </SectionEmptyState>
+          )}
         </section>
 
-        {/* ═══ Расписание ═══ */}
-        <section data-testid="trainer-schedule-section">
-          <Card className="p-6 sm:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Schedule
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Расписание</h2>
-              </div>
-              <Badge tone="outline">{schedule.length} слотов</Badge>
-            </div>
-            {scheduleGroups.length > 0 ? (
-              <div className="mt-6 grid gap-4 xl:grid-cols-2">
-                {scheduleGroups.map((group) => (
-                  <div key={group.date} className="rounded-card border border-line bg-canvas p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-ink">{group.label}</h3>
-                      <Badge tone="outline">{group.items.length} занятия</Badge>
-                    </div>
-
-                    <div className="mt-4 space-y-4">
-                      {group.items.map((slot) => (
-                        <div key={slot.id} className="rounded-card border border-line bg-panel p-4">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold uppercase tracking-[0.10em] text-muted">
-                                {slot.sportName}
-                              </p>
-                              <p className="mt-2 text-xl font-semibold text-ink">{slot.title}</p>
-                              <p className="mt-2 text-sm leading-relaxed text-muted">
-                                {slot.startTime} - {slot.endTime}
-                              </p>
-                            </div>
-
-                            {isAthlete ? (
-                              <Link
-                                href={`/booking/${slot.id}`}
-                                aria-label={`Записаться на ${slot.title}`}
-                                className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-transform duration-200 hover:-translate-y-0.5"
-                              >
-                                Записаться
-                              </Link>
-                            ) : (
-                              <Button
-                                aria-label={`Записаться на ${slot.title}`}
-                                onClick={() => {
-                                  showActionNotice(
-                                    'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
-                                  );
-                                }}
-                              >
-                                Записаться
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <Badge tone="outline">{formatPrice(slot.price)}</Badge>
-                            <Badge tone="outline">Свободно {slot.availableSpots} мест</Badge>
-                            <Badge tone="teal">{slot.room ?? 'Зал уточняется'}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-6">
-                <SectionEmptyState testId="trainer-schedule-empty">
-                  У тренера пока нет открытых слотов. Когда провайдер добавит расписание, запись
-                  станет доступна прямо из этой страницы.
-                </SectionEmptyState>
-              </div>
-            )}
-          </Card>
+        {/* ═══ Schedule — Расписание ═══ */}
+        <section
+          id="trainer-schedule"
+          data-testid="trainer-schedule-section"
+          className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
+        >
+          <SecHead
+            eyebrow="Schedule"
+            title="Расписание"
+            pill={weekSlots.length > 0 ? pluralizeSlots(weekSlots.length) : undefined}
+          />
+          {weekSlots.length > 0 ? (
+            <DetailScheduleWeek
+              slots={weekSlots}
+              isAthlete={isAthlete}
+              onGuestSlotAction={handleGuestSlotAction}
+            />
+          ) : (
+            <SectionEmptyState testId="trainer-schedule-empty">
+              У тренера пока нет открытых слотов на текущей неделе. Когда провайдер добавит
+              расписание, запись станет доступна прямо из этой страницы.
+            </SectionEmptyState>
+          )}
         </section>
 
-        {/* ═══ Отзывы + Форма ═══ */}
-        <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <Card className="p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Community feedback
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Отзывы</h2>
-              </div>
-              <Badge tone="outline">{reviewItems.length} отзывов</Badge>
-            </div>
+        {/* ═══ Reviews + Form ═══ */}
+        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
+          {/* Reviews list */}
+          <div className="rounded-[18px] border border-line bg-card p-5 sm:p-6">
+            <SecHead
+              eyebrow="Community feedback"
+              title="Отзывы"
+              pill={reviewItems.length > 0 ? pluralizeReviews(reviewItems.length) : undefined}
+            />
             {reviewItems.length > 0 ? (
-              <div className="mt-6 space-y-4">
+              <div className="flex flex-col gap-2.5">
                 {reviewItems.map((review) => (
-                  <div key={review.id} className="rounded-card border border-line bg-canvas p-4">
-                    <div className="flex gap-4">
-                      <MediaStub label="Фото автора" className="min-h-16 min-w-16 px-3 py-3" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-ink">{review.authorName}</p>
-                            <p className="text-sm text-muted">
-                              {formatDate(review.createdAt, {
-                                day: 'numeric',
-                                month: 'long',
-                              })}
-                            </p>
-                          </div>
-                          <Rating value={review.rating} />
-                        </div>
-                        <p className="mt-3 text-sm leading-relaxed text-muted">{review.text}</p>
-                      </div>
+                  <div
+                    key={review.id}
+                    className="grid grid-cols-[44px_1fr_auto] gap-3.5 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:items-start"
+                  >
+                    <div
+                      aria-hidden="true"
+                      className="size-11 rounded-[12px] border border-line bg-card-2"
+                      style={{
+                        backgroundImage:
+                          'repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 8px)',
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-display text-sm leading-tight text-ink">
+                        {review.authorName}
+                      </p>
+                      <p className="mt-0.5 font-body text-[11px] font-medium text-muted">
+                        {formatDate(review.createdAt, { day: 'numeric', month: 'long' })}
+                      </p>
+                      <p className="mt-2 break-words font-body text-sm leading-relaxed text-ink">
+                        {review.text}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Rating value={review.rating} />
+                      <span className="font-display text-sm tabular-nums text-ink">
+                        {review.rating.toFixed(1)}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mt-6">
-                <SectionEmptyState testId="trainer-reviews-empty">
-                  У тренера пока нет отзывов. Первая обратная связь появится после первых
-                  проведённых тренировок.
-                </SectionEmptyState>
-              </div>
+              <SectionEmptyState testId="trainer-reviews-empty">
+                У тренера пока нет отзывов. Первая обратная связь появится после первых проведённых
+                тренировок.
+              </SectionEmptyState>
             )}
-          </Card>
+          </div>
 
-          <Card className="p-6 sm:p-7">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Share feedback
-              </p>
-              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Оставить отзыв</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted">
+          {/* Form — zod + POST + auth-gating без изменений */}
+          <div className="rounded-[18px] border border-line bg-card p-5 sm:p-6">
+            <SecHead eyebrow="Share feedback" title="Оставить отзыв" />
+
+            <div className="rounded-[18px] border border-line bg-card-2 p-[18px]">
+              <p className="mb-3 font-body text-sm leading-relaxed text-muted">
                 Отзыв может оставить только авторизованный спортсмен.
               </p>
-            </div>
-
-            <form className="mt-6 space-y-5" onSubmit={handleReviewSubmit}>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-ink">Оценка</p>
-                <Rating
-                  interactive
-                  value={reviewForm.rating}
-                  onChange={(value) => {
-                    setReviewForm((currentValue) => ({ ...currentValue, rating: value }));
-                    setReviewErrors((currentValue) => ({ ...currentValue, rating: undefined }));
-                  }}
-                />
-                {reviewErrors.rating ? (
-                  <p className="text-sm font-medium text-danger">{reviewErrors.rating}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="trainer-review-text" className="text-sm font-semibold text-ink">
-                  Отзыв
-                </label>
-                <textarea
-                  id="trainer-review-text"
-                  value={reviewForm.text}
-                  rows={5}
-                  className="min-h-36 w-full rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15"
-                  placeholder="Что понравилось в тренировках, подходе или атмосфере?"
-                  onChange={(event) => {
-                    setReviewForm((currentValue) => ({
-                      ...currentValue,
-                      text: event.target.value,
-                    }));
-                    setReviewErrors((currentValue) => ({
-                      ...currentValue,
-                      text: undefined,
-                      submit: undefined,
-                    }));
-                  }}
-                />
-                {reviewErrors.text ? (
-                  <p className="text-sm font-medium text-danger">{reviewErrors.text}</p>
-                ) : null}
-              </div>
-
-              {reviewErrors.submit ? (
-                <p className="text-sm font-medium text-danger">{reviewErrors.submit}</p>
-              ) : null}
-
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-muted">
-                  {isAthlete
-                    ? `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}.`
-                    : 'Для отправки отзыва нужен вход или регистрация как спортсмен.'}
+              <form className="flex flex-col gap-3.5" onSubmit={handleReviewSubmit}>
+                <div className="flex flex-col gap-2">
+                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                    Оценка
+                  </p>
+                  <Rating
+                    interactive
+                    value={reviewForm.rating}
+                    onChange={(value) => {
+                      setReviewForm((currentValue) => ({ ...currentValue, rating: value }));
+                      setReviewErrors((currentValue) => ({ ...currentValue, rating: undefined }));
+                    }}
+                  />
+                  {reviewErrors.rating ? (
+                    <p className="font-body text-sm font-medium text-red">{reviewErrors.rating}</p>
+                  ) : null}
                 </div>
-                <Button type="submit" loading={isSubmittingReview}>
-                  Отправить отзыв
-                </Button>
-              </div>
-            </form>
-          </Card>
+
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="trainer-review-text"
+                    className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted"
+                  >
+                    Отзыв
+                  </label>
+                  <textarea
+                    id="trainer-review-text"
+                    value={reviewForm.text}
+                    rows={5}
+                    className="min-h-28 w-full resize-y rounded-[12px] border border-line bg-bg px-3.5 py-3 font-body text-sm leading-relaxed text-ink outline-none transition-colors focus:border-lime"
+                    placeholder="Что понравилось в тренировках, подходе или атмосфере?"
+                    onChange={(event) => {
+                      setReviewForm((currentValue) => ({
+                        ...currentValue,
+                        text: event.target.value,
+                      }));
+                      setReviewErrors((currentValue) => ({
+                        ...currentValue,
+                        text: undefined,
+                        submit: undefined,
+                      }));
+                    }}
+                  />
+                  {reviewErrors.text ? (
+                    <p className="font-body text-sm font-medium text-red">{reviewErrors.text}</p>
+                  ) : null}
+                </div>
+
+                {reviewErrors.submit ? (
+                  <p className="font-body text-sm font-medium text-red">{reviewErrors.submit}</p>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="font-body text-xs leading-relaxed text-muted">
+                    {isAthlete
+                      ? `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}.`
+                      : 'Для отправки нужен вход или регистрация как спортсмен.'}
+                  </p>
+                  <Button type="submit" aria-label="Отправить отзыв" loading={isSubmittingReview}>
+                    Отправить отзыв
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
         </section>
       </div>
 
       {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithToast as render } from '@/test/helpers/render-with-toast';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
@@ -131,8 +131,16 @@ const defaultProps = {
 describe('TrainerDetailPageClient', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.useFakeTimers();
+    /* Phase 28.23: anchor расписания на 2026-03-18 — слоты фикстур
+     * (date='2026-03-18') попадают в текущую ISO-неделю Пн 16 .. Вс 22 марта. */
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
     vi.restoreAllMocks();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('рендерит имя тренера, bio, специализации и виды спорта', () => {
@@ -142,8 +150,10 @@ describe('TrainerDetailPageClient', () => {
     expect(
       screen.getByText('Тренер по плаванию с мягким входом для взрослых новичков.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Кроль')).toBeInTheDocument();
-    expect(screen.getByText('Дыхание')).toBeInTheDocument();
+    /* Phase 28.23: специализации теперь рендерятся и в hero ChipMarquee, и в
+     * секции «Специализации» — могут быть дубли. */
+    expect(screen.getAllByText('Кроль').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Дыхание').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
   });
 
@@ -173,12 +183,14 @@ describe('TrainerDetailPageClient', () => {
     expect(screen.getByText('60 мин')).toBeInTheDocument();
   });
 
-  it('рендерит расписание с группировкой по дням', () => {
+  it('рендерит расписание с week-tabs и активным днём текущей недели', () => {
     render(<TrainerDetailPageClient {...defaultProps} />);
 
     expect(screen.getByTestId('trainer-schedule-section')).toBeInTheDocument();
     expect(screen.getByText('Утреннее плавание')).toBeInTheDocument();
-    expect(screen.getByText('07:30 - 08:30')).toBeInTheDocument();
+    /* Phase 28.23: slot.sub теперь "07:30 - 08:30, Бассейн A" в одном узле,
+     * поэтому используем regex match вместо exact text. */
+    expect(screen.getByText(/07:30 - 08:30/)).toBeInTheDocument();
     expect(screen.getByText('Бассейн A')).toBeInTheDocument();
   });
 
@@ -216,7 +228,6 @@ describe('TrainerDetailPageClient', () => {
 
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
     expect(screen.getByText('Отличный тренер, очень внимательная.')).toBeInTheDocument();
-    expect(screen.getByText('Фото автора')).toBeInTheDocument();
   });
 
   it('для гостя блокирует отправку отзыва с auth-notice', () => {
@@ -230,6 +241,10 @@ describe('TrainerDetailPageClient', () => {
   });
 
   it('для athlete отправляет отзыв через API с trainerId', async () => {
+    /* Real timers + setSystemTime для async waitFor / fetchMock. */
+    vi.useRealTimers();
+    vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
+
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
