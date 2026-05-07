@@ -42,12 +42,11 @@ export function AthleteSettings({ clubs = [], trainers = [], reviews = [] }: Ath
 
   return (
     <div className="flex flex-col gap-5">
-      <AccountCredentialsSection user={user} />
-      <AthleteFeedbackSettingsSection
-        accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
-        reviewItems={reviewItems}
+      <AccountCredentialsSection
         user={user}
+        accountTitle={cabinetConfig?.title ?? 'Кабинет спортсмена'}
       />
+      <AthleteFeedbackSettingsSection reviewItems={reviewItems} />
       {typeof user.id === 'number' ? (
         <UserNotificationPreferencesEditor userId={user.id} accountType="athlete" />
       ) : null}

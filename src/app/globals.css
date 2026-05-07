@@ -440,28 +440,15 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* ===== Phase 29 Step 29.1: тёмная тема карты Yandex Maps ===== */
+/* ===== Phase 29 fix: тёмная тема карты Yandex Maps ===== */
 /*
-  Yandex Maps v3 публично не предоставляет dark-theme API в JS-библиотеке,
-  поэтому переключение реализовано через CSS-фильтр на контейнере карты.
-  `grayscale(1) invert(1)` обесцвечивает оригинальные тайлы и инвертирует
-  яркость — получается «инверсный» dark-режим. Значения подобраны через
-  DevTools и зафиксированы пользователем.
-  Маркеры (`.map-marker-pin`) и popup'ы (`.map-marker-popup`) рендерятся
-  внутри того же контейнера, поэтому без counter-фильтра тоже инвертируются.
-  Применяем к ним `invert(1) hue-rotate(180deg)` — двойная инверсия частично
-  возвращает оригинальные тона. Полностью оригинальные цвета восстановить
-  невозможно (grayscale нельзя «отменить» CSS-фильтром), но визуально
-  маркеры остаются читаемыми и выделяются на тёмной подложке.
+  Yandex Maps v3 публично не предоставляет dark-theme API. Применяем
+  CSS-фильтр **только к canvas-элементу** карты (тайлы YMaps рисуются
+  на canvas), а маркеры и popup'ы — это DOM-элементы (см. createMarkerElement
+  в MainMap.tsx) и они НЕ canvas. Селектор `[data-map-theme='dark'] canvas`
+  затемнит только тайлы, маркеры останутся в исходных цветах (#d85a32).
+  Это убирает потребность в counter-invert и делает решение «без геморроя».
 */
-[data-map-theme='dark'] {
+[data-map-theme='dark'] canvas {
   filter: grayscale(1) invert(1);
-}
-
-[data-map-theme='dark'] .map-marker-pin {
-  filter: invert(1) hue-rotate(180deg);
-}
-
-[data-map-theme='dark'] .map-marker-popup {
-  filter: invert(1) hue-rotate(180deg);
 }

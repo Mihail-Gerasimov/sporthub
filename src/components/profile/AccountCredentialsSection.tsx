@@ -1,16 +1,22 @@
 /**
- * Phase 29 Step 29.6: универсальный блок «Учётные данные» для ЛК атлета и
- * провайдера. Email и name read-only (заморожены в этой фазе), phone и
- * password — редактируемые.
+ * Phase 29 fix: единый блок «Учётные данные» для ЛК атлета и провайдера.
  *
- * Поведение под impersonation: если admin вошёл от лица другого пользователя
- * (`isImpersonating === true` в useAuthStore), формы не рендерятся —
- * только notice-плашка. Это MVP-ограничение: чтобы случайно не сменить
- * чужой пароль, для смены под impersonation есть отдельный admin-инструмент
- * (Step 29.7).
+ * Объединяет read-only данные профиля (тип кабинета, email, имя, телефон-display)
+ * и формы редактирования (телефон inline, пароль через collapsible-панель).
+ * Заменяет старые блоки «Базовые настройки» из AthleteFeedbackSettingsSection /
+ * ProviderSettingsSection, которые дублировали те же поля и содержали плашку
+ * «Редактирование появится позже» — теперь редактирование есть.
  *
- * Стилизация — `.claude/skills/frontend-design/SKILL.md`: rounded-card
- * inputs, lime submit, orange notice для warning. Mobile-first.
+ * Стилизация — `.claude/skills/frontend-design/SKILL.md`:
+ * - rounded-[18px] карточка с border-line на bg-card-2;
+ * - eyebrow Account · Профиль (Oswald 700 11px) + Bowlby «Учётные данные»;
+ * - mobile-first, минимальные отступы (gap-3 / p-4 sm:p-5);
+ * - email/тип кабинета — `font-mono` для технических значений;
+ * - кнопки rounded-full, без теней.
+ *
+ * Импер сонация: при `isImpersonating === true` блок заменяется на
+ * orange-плашку «Изменения недоступны» — для смены пароля под impersonated
+ * сессией есть отдельный admin-инструмент в DashboardPage.
  */
 'use client';
 
@@ -23,28 +29,30 @@ import { useToastStore } from '@/stores/useToastStore';
 const PHONE_REGEX = /^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/;
 
 interface AccountCredentialsSectionProps {
-  /** Данные текущего user (email/name/phone). password не нужен. */
   user: AuthSessionUser & { id?: number };
+  /** Подпись для строки «Тип кабинета» (например, «Кабинет спортсмена»). */
+  accountTitle: string;
 }
 
-type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
+type SubmitState = 'idle' | 'submitting';
 
-export function AccountCredentialsSection({ user }: AccountCredentialsSectionProps) {
+export function AccountCredentialsSection({ user, accountTitle }: AccountCredentialsSectionProps) {
   const isImpersonating = useAuthStore((state) => state.isImpersonating);
   const updateAuthUser = useAuthStore((state) => state.updateUser);
   const addToast = useToastStore((state) => state.addToast);
 
-  const phoneFieldId = useId();
+  const phoneId = useId();
   const currentPwdId = useId();
   const newPwdId = useId();
   const confirmPwdId = useId();
 
-  // Phone form state.
+  // Phone form
   const [phone, setPhone] = useState(user.phone ?? '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneState, setPhoneState] = useState<SubmitState>('idle');
 
-  // Password form state.
+  // Password form (collapsible)
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -58,12 +66,12 @@ export function AccountCredentialsSection({ user }: AccountCredentialsSectionPro
     return (
       <section
         data-testid="account-credentials-impersonation-notice"
-        className="rounded-card border border-orange/40 bg-orange/10 p-5 text-sm leading-relaxed text-orange"
+        className="rounded-[18px] border border-orange/40 bg-orange/10 p-4 text-sm leading-relaxed text-orange sm:p-5"
       >
-        <p className="font-display text-base font-semibold uppercase tracking-wide">
+        <p className="font-display text-[14px] font-semibold uppercase tracking-wide">
           Изменения недоступны
         </p>
-        <p className="mt-2 text-ink/90">
+        <p className="mt-1.5 text-ink/90">
           Вы вошли как администратор. Изменение настроек этого пользователя возможно только из
           админ-панели.
         </p>
@@ -73,6 +81,21 @@ export function AccountCredentialsSection({ user }: AccountCredentialsSectionPro
 
   const userId = user.id;
   const submitsDisabled = userId === undefined;
+
+  function resetPasswordFields() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+    setCurrentPasswordError(null);
+    setShowCurrent(false);
+    setShowNew(false);
+  }
+
+  function closePasswordPanel() {
+    setPasswordOpen(false);
+    resetPasswordFields();
+  }
 
   async function handlePhoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,15 +116,14 @@ export function AccountCredentialsSection({ user }: AccountCredentialsSectionPro
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         addToast({ message: body?.error ?? 'Не удалось обновить телефон', tone: 'error' });
-        setPhoneState('error');
         return;
       }
       updateAuthUser({ phone: trimmed });
       addToast({ message: 'Телефон обновлён', tone: 'success' });
-      setPhoneState('success');
     } catch {
       addToast({ message: 'Не удалось обновить телефон', tone: 'error' });
-      setPhoneState('error');
+    } finally {
+      setPhoneState('idle');
     }
   }
 
@@ -129,78 +151,63 @@ export function AccountCredentialsSection({ user }: AccountCredentialsSectionPro
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          password: newPassword,
-          currentPassword,
-        }),
+        body: JSON.stringify({ userId, password: newPassword, currentPassword }),
       });
       if (response.status === 401) {
         setCurrentPasswordError('Неверный текущий пароль');
         addToast({ message: 'Неверный текущий пароль', tone: 'error' });
-        setPasswordState('error');
         return;
       }
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         addToast({ message: body?.error ?? 'Не удалось обновить пароль', tone: 'error' });
-        setPasswordState('error');
         return;
       }
-      // Reset password fields после успеха — phone оставляем как есть.
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
       addToast({ message: 'Пароль обновлён', tone: 'success' });
-      setPasswordState('success');
+      // Свернули панель — поля сбросились через closePasswordPanel.
+      closePasswordPanel();
     } catch {
       addToast({ message: 'Не удалось обновить пароль', tone: 'error' });
-      setPasswordState('error');
+    } finally {
+      setPasswordState('idle');
     }
   }
 
   return (
     <section
       data-testid="account-credentials-section"
-      className="rounded-card border border-line bg-panel p-5 sm:p-6"
+      className="rounded-[18px] border border-line bg-card p-4 sm:p-5"
     >
-      <header className="flex flex-col gap-1 border-b border-line pb-4">
+      <header className="flex flex-col gap-1">
         <p className="font-body text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
-          Account credentials
+          Account · профиль
         </p>
-        <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
+        <h2 className="font-display text-[20px] uppercase leading-none tracking-tight text-ink sm:text-[22px]">
           Учётные данные
         </h2>
-        <p className="text-sm leading-relaxed text-muted">
-          Email и имя в этой фазе не редактируются. Поменять можно телефон и пароль — оба обновятся
-          сразу для текущей сессии.
-        </p>
       </header>
 
-      <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Email
-          </dt>
-          <dd className="mt-1 text-sm text-ink">{user.email}</dd>
-        </div>
-        <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Имя</dt>
-          <dd className="mt-1 text-sm text-ink">{user.name}</dd>
-        </div>
+      {/* Read-only сводка профиля + inline-редактируемый телефон. */}
+      <dl className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <Field label="Тип кабинета" value={accountTitle} />
+        <Field label="Email для входа" value={user.email} mono />
+        <Field label="Имя" value={user.name} />
       </dl>
 
-      {/* Phone form */}
-      <form className="mt-6 flex flex-col gap-2" onSubmit={handlePhoneSubmit}>
+      {/* Phone: inline-редактирование (input + Save). */}
+      <form
+        className="mt-3 flex flex-col gap-2 rounded-[12px] border border-line bg-card-2 p-3"
+        onSubmit={handlePhoneSubmit}
+      >
         <label
-          htmlFor={phoneFieldId}
-          className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+          htmlFor={phoneId}
+          className="font-body text-[10px] font-bold uppercase tracking-[0.16em] text-muted"
         >
           Телефон
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
-            id={phoneFieldId}
+            id={phoneId}
             data-testid="account-phone-input"
             type="tel"
             autoComplete="tel"
@@ -208,137 +215,201 @@ export function AccountCredentialsSection({ user }: AccountCredentialsSectionPro
             onChange={(event) => {
               setPhone(event.target.value);
               setPhoneError(null);
-              setPhoneState('idle');
             }}
             placeholder="+7 (900) 123-45-67"
-            className="flex-1 rounded-card border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-lime focus:outline-none"
+            className="flex-1 rounded-pill border border-line bg-bg px-3.5 py-2 font-mono text-[13px] text-ink placeholder:text-muted focus:border-lime focus:outline-none"
           />
           <Button
             type="submit"
+            size="sm"
             disabled={submitsDisabled || phoneState === 'submitting'}
             className="sm:w-auto"
           >
-            {phoneState === 'submitting' ? 'Сохраняем…' : 'Сохранить телефон'}
+            {phoneState === 'submitting' ? 'Сохраняем…' : 'Сохранить'}
           </Button>
         </div>
         {phoneError ? (
-          <p data-testid="account-phone-error" className="text-xs text-red">
+          <p data-testid="account-phone-error" className="font-body text-xs text-red">
             {phoneError}
           </p>
         ) : null}
       </form>
 
-      {/* Password form */}
-      <form
-        className="mt-6 flex flex-col gap-3 border-t border-line pt-5"
-        onSubmit={handlePasswordSubmit}
-      >
-        <h3 className="font-display text-base font-semibold text-ink">Сменить пароль</h3>
+      {/* Password: collapsible. По умолчанию виден только trigger. */}
+      <div className="mt-3 rounded-[12px] border border-line bg-card-2 p-3">
+        {!passwordOpen ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-body text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                Пароль
+              </p>
+              <p className="mt-0.5 font-body text-xs text-muted">
+                Раскройте форму, чтобы задать новый пароль.
+              </p>
+            </div>
+            <button
+              type="button"
+              data-testid="account-password-trigger"
+              onClick={() => setPasswordOpen(true)}
+              disabled={submitsDisabled}
+              className="rounded-pill border border-line bg-card px-3.5 py-1.5 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            >
+              Сменить пароль
+            </button>
+          </div>
+        ) : (
+          <form className="flex flex-col gap-2.5" onSubmit={handlePasswordSubmit}>
+            <header className="flex items-center justify-between">
+              <p className="font-body text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                Новый пароль
+              </p>
+              <button
+                type="button"
+                onClick={closePasswordPanel}
+                disabled={passwordState === 'submitting'}
+                className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-orange hover:text-orange disabled:opacity-50"
+              >
+                Отмена
+              </button>
+            </header>
 
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor={currentPwdId}
-            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-          >
-            Текущий пароль
-          </label>
-          <div className="flex items-center gap-2">
-            <input
+            <PasswordField
               id={currentPwdId}
-              data-testid="account-current-password"
-              type={showCurrent ? 'text' : 'password'}
+              testId="account-current-password"
               autoComplete="current-password"
+              label="Текущий"
               value={currentPassword}
-              onChange={(event) => {
-                setCurrentPassword(event.target.value);
+              onChange={(value) => {
+                setCurrentPassword(value);
                 setCurrentPasswordError(null);
               }}
-              className="flex-1 rounded-card border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-lime focus:outline-none"
+              show={showCurrent}
+              onToggleShow={() => setShowCurrent((s) => !s)}
+              error={currentPasswordError}
             />
-            <button
-              type="button"
-              onClick={() => setShowCurrent((s) => !s)}
-              className="rounded-pill border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-muted hover:border-lime hover:text-lime"
-              aria-label={showCurrent ? 'Скрыть пароль' : 'Показать пароль'}
-            >
-              {showCurrent ? 'Скрыть' : 'Показать'}
-            </button>
-          </div>
-          {currentPasswordError ? (
-            <p data-testid="account-current-password-error" className="text-xs text-red">
-              {currentPasswordError}
-            </p>
-          ) : null}
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor={newPwdId}
-            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-          >
-            Новый пароль
-          </label>
-          <div className="flex items-center gap-2">
-            <input
+            <PasswordField
               id={newPwdId}
-              data-testid="account-new-password"
-              type={showNew ? 'text' : 'password'}
+              testId="account-new-password"
               autoComplete="new-password"
+              label="Новый"
               value={newPassword}
-              onChange={(event) => {
-                setNewPassword(event.target.value);
+              onChange={(value) => {
+                setNewPassword(value);
                 setPasswordError(null);
               }}
-              className="flex-1 rounded-card border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-lime focus:outline-none"
+              show={showNew}
+              onToggleShow={() => setShowNew((s) => !s)}
             />
-            <button
-              type="button"
-              onClick={() => setShowNew((s) => !s)}
-              className="rounded-pill border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-muted hover:border-lime hover:text-lime"
-              aria-label={showNew ? 'Скрыть пароль' : 'Показать пароль'}
-            >
-              {showNew ? 'Скрыть' : 'Показать'}
-            </button>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor={confirmPwdId}
-            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-          >
-            Повторите новый пароль
-          </label>
-          <input
-            id={confirmPwdId}
-            data-testid="account-confirm-password"
-            type={showNew ? 'text' : 'password'}
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => {
-              setConfirmPassword(event.target.value);
-              setPasswordError(null);
-            }}
-            className="rounded-card border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-lime focus:outline-none"
-          />
-        </div>
+            <PasswordField
+              id={confirmPwdId}
+              testId="account-confirm-password"
+              autoComplete="new-password"
+              label="Повторите"
+              value={confirmPassword}
+              onChange={(value) => {
+                setConfirmPassword(value);
+                setPasswordError(null);
+              }}
+              show={showNew}
+              onToggleShow={() => setShowNew((s) => !s)}
+              hideToggle
+            />
 
-        {passwordError ? (
-          <p data-testid="account-password-error" className="text-xs text-red">
-            {passwordError}
-          </p>
-        ) : null}
+            {passwordError ? (
+              <p data-testid="account-password-error" className="font-body text-xs text-red">
+                {passwordError}
+              </p>
+            ) : null}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button
-            type="submit"
-            disabled={submitsDisabled || passwordState === 'submitting'}
-            className="sm:w-auto"
-          >
-            {passwordState === 'submitting' ? 'Сохраняем…' : 'Сменить пароль'}
-          </Button>
-        </div>
-      </form>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitsDisabled || passwordState === 'submitting'}
+                data-testid="account-password-submit"
+              >
+                {passwordState === 'submitting' ? 'Сохраняем…' : 'Сменить пароль'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </section>
+  );
+}
+
+/* Read-only поле в grid профиля. */
+function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <dt className="font-body text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+        {label}
+      </dt>
+      <dd className={`mt-1 break-all text-[13px] text-ink ${mono ? 'font-mono' : ''}`}>{value}</dd>
+    </div>
+  );
+}
+
+/* Внутренний компонент: input + visibility toggle + label + опц. ошибка. */
+function PasswordField({
+  id,
+  testId,
+  autoComplete,
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  error,
+  hideToggle = false,
+}: {
+  id: string;
+  testId: string;
+  autoComplete: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  error?: string | null;
+  hideToggle?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label
+        htmlFor={id}
+        className="font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted"
+      >
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id={id}
+          data-testid={testId}
+          type={show ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="flex-1 rounded-pill border border-line bg-bg px-3.5 py-2 font-mono text-[13px] text-ink focus:border-lime focus:outline-none"
+        />
+        {!hideToggle ? (
+          <button
+            type="button"
+            onClick={onToggleShow}
+            className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-lime hover:text-lime"
+            aria-label={show ? 'Скрыть пароль' : 'Показать пароль'}
+          >
+            {show ? 'Скрыть' : 'Показать'}
+          </button>
+        ) : null}
+      </div>
+      {error ? (
+        <p data-testid={`${testId}-error`} className="font-body text-xs text-red">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
