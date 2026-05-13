@@ -23,26 +23,30 @@
   --ui-font-body: 'Oswald', system-ui, sans-serif;
   --ui-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
 
-  /* ===== Тёмная палитра (14 переменных, синхронизировано с UI Kit) ===== */
+  /* ===== Светлая палитра (Phase 31): white surfaces + navy text + mint primary =====
+   * Имена токенов из Phase 28 (`--ui-lime/orange/red/gold`) сохранены — это семантика,
+   * не цвет. `--ui-lime` = primary positive (теперь mint), `--ui-orange/red/gold` —
+   * warning/danger/pending (тёплая зона не тронута в Phase 31).
+   */
   /* Поверхности */
-  --ui-bg: #0a0a0a; /* Основной фон страницы — угольный, не чистый чёрный */
-  --ui-bg-deep: #050505; /* Самый глубокий фон — body wrapper */
-  --ui-card: #1a1a1a; /* Фон карточек на тёмном фоне */
-  --ui-card-2: #141414; /* Альтернативный фон секций, фон input-полей */
-  --ui-line: #2a2a2a; /* Границы карточек, разделители */
-  --ui-line-2: #222; /* Усиленные внутренние разделители */
+  --ui-bg: #ffffff; /* Основной фон страницы — белый */
+  --ui-bg-deep: #ffffff; /* Самый глубокий фон — body wrapper (тоже белый) */
+  --ui-card: #ffffff; /* Фон карточек выдачи */
+  --ui-card-2: #D2D8D6; /* Альтернативный фон секций, input-полей, photo-placeholder */
+  --ui-line: #D2D8D6; /* Границы карточек, разделители */
+  --ui-line-2: #BCBCBC; /* Усиленные внутренние разделители */
 
   /* Текст */
-  --ui-ink: #ffffff; /* Основной текст на тёмном */
-  --ui-muted: #a0a0a0; /* Вторичный текст, мета, подписи */
-  --ui-disabled: #6b6b6b; /* Disabled-элементы, неактивные состояния */
+  --ui-ink: #07124F; /* Основной текст — navy */
+  --ui-muted: #BCBCBC; /* Вторичный текст, мета, подписи */
+  --ui-disabled: #BCBCBC; /* Disabled-элементы, неактивные состояния */
 
-  /* Акценты — лайм (positive: запись, подтверждение, success, активный) */
-  --ui-lime: #84c003;
-  --ui-lime-hov: #91d401;
-  --ui-lime-soft: rgba(132, 192, 3, 0.12);
+  /* Акценты — mint (positive: запись, подтверждение, success, активный; Phase 31 — был lime) */
+  --ui-lime: #50BC93;
+  --ui-lime-hov: #83D3B5;
+  --ui-lime-soft: #BFDFD2;
 
-  /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций) */
+  /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций; НЕ тронут в Phase 31) */
   --ui-orange: #fb6119;
   --ui-orange-hov: #ff7a3d;
   --ui-orange-soft: rgba(251, 97, 25, 0.12);
