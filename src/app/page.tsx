@@ -253,7 +253,7 @@ export default async function Home() {
           <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-lime)]">
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]"
+              className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"
             >
               01
             </span>
@@ -317,7 +317,7 @@ export default async function Home() {
           <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-orange)]">
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]"
+              className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"
             >
               02
             </span>

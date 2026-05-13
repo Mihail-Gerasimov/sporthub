@@ -30,7 +30,7 @@ export function BookingAuthGate() {
 
         <button
           type="button"
-          className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-colors hover:bg-accent-strong"
+          className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-ink transition-colors hover:bg-accent-strong"
           onClick={openAuthModal}
         >
           Войти / Зарегистрироваться

@@ -99,7 +99,7 @@ export function SlotCard({
     >
       {/* HERO: eyebrow + capacity, имя, sport-метка, watermark + диагональный луч */}
       <div className="slot-hero relative grid min-h-[156px] gap-3 overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-bg)] p-[18px] sm:min-h-[168px] sm:p-[22px]">
-        <span className="hero-wm pointer-events-none absolute right-[14px] bottom-1 select-none font-display text-[88px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]">
+        <span className="hero-wm pointer-events-none absolute right-[14px] bottom-1 select-none font-display text-[88px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]">
           {watermark}
         </span>
 

@@ -279,7 +279,7 @@ export function ProviderDashboard({
         <div className="mt-6">
           <Link
             href="/profile/provider/publications"
-            className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-colors hover:bg-accent/90"
+            className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-ink transition-colors hover:bg-accent/90"
           >
             Перейти к публикации
           </Link>
@@ -458,7 +458,7 @@ export function ProviderDashboard({
       <div className="flex flex-wrap gap-3" data-testid="provider-dashboard-quick-actions">
         <Link
           href="/profile/provider/publications"
-          className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-panel transition-colors hover:bg-accent/90"
+          className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-ink transition-colors hover:bg-accent/90"
         >
           Опубликовать новое
         </Link>

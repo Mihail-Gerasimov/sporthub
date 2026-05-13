@@ -338,7 +338,7 @@ export function ProviderBookingsInbox({
             className={cn(
               'rounded-pill px-4 py-2 text-sm font-semibold transition-colors',
               tab === key
-                ? 'bg-accent text-panel'
+                ? 'bg-accent text-ink'
                 : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent',
             )}
           >

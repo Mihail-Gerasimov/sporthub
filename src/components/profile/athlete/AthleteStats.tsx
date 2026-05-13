@@ -401,7 +401,7 @@ export function AthleteStats({
                   onClick={() => setWindowSetting(12)}
                   className={
                     windowSetting === 12
-                      ? 'rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-panel'
+                      ? 'rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-ink'
                       : 'rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink hover:border-accent hover:text-accent'
                   }
                 >
@@ -413,7 +413,7 @@ export function AthleteStats({
                   onClick={() => setWindowSetting('all')}
                   className={
                     windowSetting === 'all'
-                      ? 'rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-panel'
+                      ? 'rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-ink'
                       : 'rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink hover:border-accent hover:text-accent'
                   }
                 >

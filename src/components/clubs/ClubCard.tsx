@@ -103,7 +103,7 @@ export function ClubCard({
         {wm ? (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute right-[14px] bottom-[6px] select-none font-display text-[92px] leading-[0.85] tracking-[-0.02em] text-white/[0.04]"
+            className="pointer-events-none absolute right-[14px] bottom-[6px] select-none font-display text-[92px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"
           >
             {wm}
           </span>

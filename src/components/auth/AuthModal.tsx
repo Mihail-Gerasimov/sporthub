@@ -411,7 +411,7 @@ export function AuthModal() {
             aria-selected={activeTab === 'login'}
             className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === 'login'
-                ? 'bg-ink text-panel shadow-card'
+                ? 'bg-ink text-ink shadow-card'
                 : 'text-ink hover:bg-panel hover:text-accent'
             }`}
             onClick={() => {
@@ -428,7 +428,7 @@ export function AuthModal() {
             aria-selected={activeTab === 'register'}
             className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === 'register'
-                ? 'bg-ink text-panel shadow-card'
+                ? 'bg-ink text-ink shadow-card'
                 : 'text-ink hover:bg-panel hover:text-accent'
             }`}
             onClick={() => {

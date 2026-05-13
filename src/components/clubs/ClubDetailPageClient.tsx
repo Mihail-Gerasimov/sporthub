@@ -576,7 +576,7 @@ export function ClubDetailPageClient({
                   <div className="hero-bg-orange relative aspect-[16/9] border-b border-line-2">
                     <span
                       aria-hidden="true"
-                      className="absolute bottom-0 right-2.5 select-none font-display text-[80px] leading-[0.8] tabular-nums text-white/[0.05]"
+                      className="absolute bottom-0 right-2.5 select-none font-display text-[80px] leading-[0.8] tabular-nums text-ink/[0.05]"
                     >
                       {String(index + 1).padStart(2, '0')}
                     </span>

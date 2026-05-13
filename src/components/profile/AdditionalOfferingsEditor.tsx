@@ -109,7 +109,7 @@ export function AdditionalOfferingsEditor({
                 }
                 className={`rounded-pill border px-4 py-1.5 text-sm font-semibold transition-colors ${
                   item.attachmentMode === 'private'
-                    ? 'border-accent bg-accent text-panel'
+                    ? 'border-accent bg-accent text-ink'
                     : 'border-line text-ink hover:border-accent'
                 }`}
               >
@@ -121,7 +121,7 @@ export function AdditionalOfferingsEditor({
                 onClick={() => updateItem(index, { attachmentMode: 'club' })}
                 className={`rounded-pill border px-4 py-1.5 text-sm font-semibold transition-colors ${
                   item.attachmentMode === 'club'
-                    ? 'border-accent bg-accent text-panel'
+                    ? 'border-accent bg-accent text-ink'
                     : 'border-line text-ink hover:border-accent'
                 }`}
                 disabled={clubLinksForTrainer.length === 0}

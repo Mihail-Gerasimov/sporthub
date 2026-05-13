@@ -310,7 +310,7 @@ export function ProviderLinks({
                 className={cn(
                   'rounded-pill px-4 py-2 text-sm font-semibold transition-colors',
                   clubTab === key
-                    ? 'bg-accent text-panel'
+                    ? 'bg-accent text-ink'
                     : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent',
                 )}
               >
@@ -444,7 +444,7 @@ export function ProviderLinks({
                 className={cn(
                   'rounded-pill px-4 py-2 text-sm font-semibold transition-colors',
                   trainerTab === key
-                    ? 'bg-accent text-panel'
+                    ? 'bg-accent text-ink'
                     : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent',
                 )}
               >

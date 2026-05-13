@@ -466,7 +466,7 @@ export function NotificationsListPage({
               onClick={() => setActiveGroup(group)}
               className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 isActive
-                  ? 'border-accent bg-accent text-panel'
+                  ? 'border-accent bg-accent text-ink'
                   : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
               }`}
             >
