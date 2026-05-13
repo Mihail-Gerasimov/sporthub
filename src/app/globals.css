@@ -159,13 +159,13 @@ html {
   background: var(--ui-bg-deep);
 }
 
-/* body — тёмный угольный фон с двойным радиальным градиентом для атмосферы.
- * Лайм 5% top-left + оранжевый 4% bottom-right даёт лёгкую энергию без AI-slop.
+/* body — светлый фон с двойным радиальным градиентом для атмосферы (Phase 31).
+ * Mint 5% top-left + orange 4% bottom-right даёт лёгкую энергию без AI-slop.
  */
 body {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(132, 192, 3, 0.05), transparent 60%),
+    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(80, 188, 147, 0.05), transparent 60%),
     radial-gradient(ellipse 800px 500px at 90% 100%, rgba(251, 97, 25, 0.04), transparent 60%),
     var(--ui-bg-deep);
   color: var(--ui-ink);
@@ -267,11 +267,11 @@ body {
       118deg,
       transparent 0%,
       transparent 55%,
-      rgba(132, 192, 3, 0.18) 60%,
-      rgba(132, 192, 3, 0.05) 70%,
+      rgba(80, 188, 147, 0.18) 60%,
+      rgba(80, 188, 147, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .hero-bg-orange {
@@ -284,13 +284,13 @@ body {
       rgba(251, 97, 25, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .hero-bg-blank {
   background: repeating-linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.025) 0 1px,
+    rgba(7, 18, 79, 0.025) 0 1px,
     transparent 1px 14px
   );
 }
@@ -389,11 +389,11 @@ body {
       118deg,
       transparent 0%,
       transparent 55%,
-      rgba(132, 192, 3, 0.16) 60%,
-      rgba(132, 192, 3, 0.04) 70%,
+      rgba(80, 188, 147, 0.16) 60%,
+      rgba(80, 188, 147, 0.04) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .slot-card.tone-orange .slot-hero::before {
@@ -406,13 +406,13 @@ body {
       rgba(251, 97, 25, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .slot-card.tone-blank .slot-hero::before {
   background: repeating-linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.025) 0 1px,
+    rgba(7, 18, 79, 0.025) 0 1px,
     transparent 1px 14px
   );
 }
@@ -431,7 +431,7 @@ body {
 .capacity-pill.lime {
   background: var(--ui-lime-soft);
   color: var(--ui-lime);
-  border: 1px solid rgba(132, 192, 3, 0.28);
+  border: 1px solid rgba(80, 188, 147, 0.28);
 }
 
 /* slot-box-val: цена и время — Bowlby + tabular-nums + nowrap, никогда
@@ -457,10 +457,10 @@ body {
 @keyframes admin-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(132, 192, 3, 0.35);
+    box-shadow: 0 0 0 0 rgba(80, 188, 147, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(132, 192, 3, 0.05);
+    box-shadow: 0 0 0 6px rgba(80, 188, 147, 0.05);
   }
 }
 
