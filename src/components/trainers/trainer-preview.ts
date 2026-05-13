@@ -277,46 +277,48 @@ export function getTrainerAvailability({
   const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
   const now = new Date();
 
-  return schedule
-    .filter((slot) => slot.ownerType === 'trainer')
-    .filter((slot) => slot.trainerId !== undefined)
-    .filter((slot) => slot.date === targetDate)
-    // Phase 30.7: отсекаем сегодняшние прошедшие слоты в блоке «Свободные окна тренеров».
-    .filter((slot) => isSlotUpcoming(slot, now))
-    .filter((slot) => slot.bookedCount < slot.capacity)
-    .flatMap((slot) => {
-      const trainer = trainerById.get(slot.trainerId ?? -1);
+  return (
+    schedule
+      .filter((slot) => slot.ownerType === 'trainer')
+      .filter((slot) => slot.trainerId !== undefined)
+      .filter((slot) => slot.date === targetDate)
+      // Phase 30.7: отсекаем сегодняшние прошедшие слоты в блоке «Свободные окна тренеров».
+      .filter((slot) => isSlotUpcoming(slot, now))
+      .filter((slot) => slot.bookedCount < slot.capacity)
+      .flatMap((slot) => {
+        const trainer = trainerById.get(slot.trainerId ?? -1);
 
-      if (!trainer) {
-        return [];
-      }
+        if (!trainer) {
+          return [];
+        }
 
-      return [
-        {
-          id: slot.id,
-          trainerId: trainer.id,
-          trainerName: trainer.name,
-          title: slot.title,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          price: slot.price,
-          room: slot.room,
-          availableSpots: slot.capacity - slot.bookedCount,
-          format: trainer.primaryOfferingFormat,
-          venueLabel: trainer.venueLabel,
-        } satisfies TrainerAvailabilityItem,
-      ];
-    })
-    .sort((left, right) => {
-      const leftTimestamp = `${left.date}T${left.startTime}`;
-      const rightTimestamp = `${right.date}T${right.startTime}`;
+        return [
+          {
+            id: slot.id,
+            trainerId: trainer.id,
+            trainerName: trainer.name,
+            title: slot.title,
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            price: slot.price,
+            room: slot.room,
+            availableSpots: slot.capacity - slot.bookedCount,
+            format: trainer.primaryOfferingFormat,
+            venueLabel: trainer.venueLabel,
+          } satisfies TrainerAvailabilityItem,
+        ];
+      })
+      .sort((left, right) => {
+        const leftTimestamp = `${left.date}T${left.startTime}`;
+        const rightTimestamp = `${right.date}T${right.startTime}`;
 
-      if (leftTimestamp !== rightTimestamp) {
-        return leftTimestamp.localeCompare(rightTimestamp);
-      }
+        if (leftTimestamp !== rightTimestamp) {
+          return leftTimestamp.localeCompare(rightTimestamp);
+        }
 
-      return left.trainerName.localeCompare(right.trainerName, 'ru');
-    })
-    .slice(0, limit);
+        return left.trainerName.localeCompare(right.trainerName, 'ru');
+      })
+      .slice(0, limit)
+  );
 }

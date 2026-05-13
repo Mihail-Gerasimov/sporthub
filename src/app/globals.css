@@ -32,19 +32,19 @@
   --ui-bg: #ffffff; /* Основной фон страницы — белый */
   --ui-bg-deep: #ffffff; /* Самый глубокий фон — body wrapper (тоже белый) */
   --ui-card: #ffffff; /* Фон карточек выдачи */
-  --ui-card-2: #D2D8D6; /* Альтернативный фон секций, input-полей, photo-placeholder */
-  --ui-line: #D2D8D6; /* Границы карточек, разделители */
-  --ui-line-2: #BCBCBC; /* Усиленные внутренние разделители */
+  --ui-card-2: #d2d8d6; /* Альтернативный фон секций, input-полей, photo-placeholder */
+  --ui-line: #d2d8d6; /* Границы карточек, разделители */
+  --ui-line-2: #bcbcbc; /* Усиленные внутренние разделители */
 
   /* Текст */
-  --ui-ink: #07124F; /* Основной текст — navy */
-  --ui-muted: #BCBCBC; /* Вторичный текст, мета, подписи */
-  --ui-disabled: #BCBCBC; /* Disabled-элементы, неактивные состояния */
+  --ui-ink: #07124f; /* Основной текст — navy */
+  --ui-muted: #bcbcbc; /* Вторичный текст, мета, подписи */
+  --ui-disabled: #bcbcbc; /* Disabled-элементы, неактивные состояния */
 
   /* Акценты — mint (positive: запись, подтверждение, success, активный; Phase 31 — был lime) */
-  --ui-lime: #50BC93;
-  --ui-lime-hov: #83D3B5;
-  --ui-lime-soft: #BFDFD2;
+  --ui-lime: #50bc93;
+  --ui-lime-hov: #83d3b5;
+  --ui-lime-soft: #bfdfd2;
 
   /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций; НЕ тронут в Phase 31) */
   --ui-orange: #fb6119;
@@ -288,11 +288,7 @@ body {
 }
 
 .hero-bg-blank {
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(7, 18, 79, 0.025) 0 1px,
-    transparent 1px 14px
-  );
+  background: repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.025) 0 1px, transparent 1px 14px);
 }
 
 /* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
@@ -410,11 +406,7 @@ body {
 }
 
 .slot-card.tone-blank .slot-hero::before {
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(7, 18, 79, 0.025) 0 1px,
-    transparent 1px 14px
-  );
+  background: repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.025) 0 1px, transparent 1px 14px);
 }
 
 /* tone-orange также окрашивает eyebrow «Персональная услуга» в orange */

@@ -250,25 +250,27 @@ export function TrainerDetailPageClient({
     const { mondayIso, sundayIso } = getCurrentWeekRange();
     const sportNames = new Map(sports.map((s) => [s.id, s.name]));
     const now = new Date();
-    return schedule
-      .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
-      // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe).
-      .filter((s) => isSlotUpcoming(s, now))
-      .map(
-        (slot) =>
-          ({
-            id: slot.id,
-            date: slot.date,
-            title: slot.title,
-            sportName: sportNames.get(slot.sportId) ?? 'Занятие',
-            priceLabel: formatPrice(slot.price),
-            availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
-            room: slot.room ?? null,
-            // Phase 28.23 audit-fix: на trainer-странице room уже отдельным chip-ом,
-            // в sub дублирующий зал не нужен — оставляем только время.
-            sub: `${slot.startTime} - ${slot.endTime}`,
-          }) satisfies DetailScheduleSlot,
-      );
+    return (
+      schedule
+        .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
+        // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe).
+        .filter((s) => isSlotUpcoming(s, now))
+        .map(
+          (slot) =>
+            ({
+              id: slot.id,
+              date: slot.date,
+              title: slot.title,
+              sportName: sportNames.get(slot.sportId) ?? 'Занятие',
+              priceLabel: formatPrice(slot.price),
+              availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
+              room: slot.room ?? null,
+              // Phase 28.23 audit-fix: на trainer-странице room уже отдельным chip-ом,
+              // в sub дублирующий зал не нужен — оставляем только время.
+              sub: `${slot.startTime} - ${slot.endTime}`,
+            }) satisfies DetailScheduleSlot,
+        )
+    );
   }, [schedule, sports]);
 
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;

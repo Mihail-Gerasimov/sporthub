@@ -237,23 +237,25 @@ export function ClubDetailPageClient({
     const trainerNames = new Map(trainers.map((t) => [t.id, t.name]));
     const sportNames = new Map(sports.map((s) => [s.id, s.name]));
     const now = new Date();
-    return schedule
-      .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
-      // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe сравнение).
-      .filter((s) => isSlotUpcoming(s, now))
-      .map((slot) => {
-        const trainerName = trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер SportHub';
-        return {
-          id: slot.id,
-          date: slot.date,
-          title: slot.title,
-          sportName: sportNames.get(slot.sportId) ?? 'Занятие',
-          priceLabel: formatPrice(slot.price),
-          availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
-          room: slot.room ?? null,
-          sub: `${slot.startTime} - ${slot.endTime}, ${trainerName}`,
-        } satisfies DetailScheduleSlot;
-      });
+    return (
+      schedule
+        .filter((s) => s.date >= mondayIso && s.date <= sundayIso)
+        // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe сравнение).
+        .filter((s) => isSlotUpcoming(s, now))
+        .map((slot) => {
+          const trainerName = trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер SportHub';
+          return {
+            id: slot.id,
+            date: slot.date,
+            title: slot.title,
+            sportName: sportNames.get(slot.sportId) ?? 'Занятие',
+            priceLabel: formatPrice(slot.price),
+            availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
+            room: slot.room ?? null,
+            sub: `${slot.startTime} - ${slot.endTime}, ${trainerName}`,
+          } satisfies DetailScheduleSlot;
+        })
+    );
   }, [schedule, sports, trainers]);
 
   const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;

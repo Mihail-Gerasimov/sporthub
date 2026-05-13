@@ -48,9 +48,7 @@ export function ProfileSidebar({ items, ariaLabel, className, onItemClick }: Pro
             onClick={onItemClick}
             className={cn(
               'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              active
-                ? 'bg-accent text-ink'
-                : 'text-ink-muted hover:bg-panel-strong hover:text-ink',
+              active ? 'bg-accent text-ink' : 'text-ink-muted hover:bg-panel-strong hover:text-ink',
             )}
           >
             {item.label}

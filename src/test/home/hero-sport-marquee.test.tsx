@@ -57,9 +57,7 @@ describe('HeroSportMarquee (Phase 30.10)', () => {
   it('инициал в lime-square — первая буква названия в верхнем регистре', () => {
     render(<HeroSportMarquee sports={[{ id: 1, name: 'плавание' }]} />);
     /* «П» в верхнем регистре, две копии */
-    const initials = screen
-      .getAllByText('П')
-      .filter((el) => el.tagName.toLowerCase() === 'span');
+    const initials = screen.getAllByText('П').filter((el) => el.tagName.toLowerCase() === 'span');
     expect(initials.length).toBe(2);
   });
 });

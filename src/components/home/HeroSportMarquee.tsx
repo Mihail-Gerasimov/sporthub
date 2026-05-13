@@ -21,7 +21,13 @@ type HeroSportMarqueeProps = {
   sports: Pick<Sport, 'id' | 'name'>[];
 };
 
-function SportChip({ sport, ariaHidden }: { sport: Pick<Sport, 'id' | 'name'>; ariaHidden?: boolean }) {
+function SportChip({
+  sport,
+  ariaHidden,
+}: {
+  sport: Pick<Sport, 'id' | 'name'>;
+  ariaHidden?: boolean;
+}) {
   return (
     <span
       aria-hidden={ariaHidden ? 'true' : undefined}
