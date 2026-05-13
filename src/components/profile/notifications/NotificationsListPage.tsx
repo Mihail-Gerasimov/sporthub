@@ -422,7 +422,7 @@ export function NotificationsListPage({
                 data-testid="notifications-bulk-delete"
                 disabled={selectedIds.size === 0 || deleting}
                 onClick={() => requestDelete(Array.from(selectedIds))}
-                className="rounded-pill border border-orange bg-orange/10 px-4 py-2 text-sm font-semibold text-orange transition-colors hover:bg-orange hover:text-bg disabled:opacity-50"
+                className="rounded-pill border border-orange bg-orange/10 px-4 py-2 text-sm font-semibold text-orange transition-colors hover:bg-orange hover:text-ink disabled:opacity-50"
               >
                 Удалить выбранное ({selectedIds.size})
               </button>
@@ -626,7 +626,7 @@ export function NotificationsListPage({
                 void handleConfirmDelete();
               }}
               disabled={deleting}
-              className="rounded-pill border-0 bg-orange px-4 py-2 text-sm font-semibold text-bg transition-colors hover:bg-orange/90 disabled:opacity-50"
+              className="rounded-pill border-0 bg-orange px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-orange/90 disabled:opacity-50"
             >
               {deleting ? 'Удаляем…' : 'Удалить'}
             </button>

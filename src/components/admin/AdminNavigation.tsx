@@ -9,7 +9,7 @@
  * — Каждая ссылка: rounded-full + px-4 py-2 + Oswald 700 11px UPPERCASE
  *   letter-spacing 0.16em + whitespace-nowrap.
  * — Активная (по `pathname.startsWith(item.href + '/')` или строгому равенству):
- *   bg-lime + text-bg. Неактивная: text-muted, hover:text-ink.
+ *   bg-lime + text-ink. Неактивная: text-muted, hover:text-ink.
  *
  * Активность через startsWith защищает от будущих вложенных маршрутов
  * (`/service-portal/dashboard/123`) — подсветка сохраняется на детальных страницах.
@@ -56,7 +56,7 @@ export function AdminNavigation() {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors',
-                  active ? 'bg-lime text-bg' : 'text-muted hover:text-ink',
+                  active ? 'bg-lime text-ink' : 'text-muted hover:text-ink',
                 )}
               >
                 {item.label}

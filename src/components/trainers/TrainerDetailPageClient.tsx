@@ -522,7 +522,7 @@ export function TrainerDetailPageClient({
             <div className="flex flex-wrap items-center gap-2.5">
               <a
                 href="#trainer-schedule"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
               >
                 Записаться к тренеру <span aria-hidden="true">→</span>
               </a>
@@ -659,7 +659,7 @@ export function TrainerDetailPageClient({
               </div>
               <Link
                 href={`/clubs/${affiliatedClub.slug}`}
-                className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov md:col-span-1"
+                className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov md:col-span-1"
               >
                 Перейти к клубу
               </Link>

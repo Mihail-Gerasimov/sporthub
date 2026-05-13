@@ -584,7 +584,7 @@ function PageButton({
       className={cn(
         'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         active
-          ? 'border-lime bg-lime text-bg'
+          ? 'border-lime bg-lime text-ink'
           : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
       )}
     >

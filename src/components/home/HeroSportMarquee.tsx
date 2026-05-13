@@ -26,9 +26,9 @@ function SportChip({ sport, ariaHidden }: { sport: Pick<Sport, 'id' | 'name'>; a
     <span
       aria-hidden={ariaHidden ? 'true' : undefined}
       style={{ cursor: 'default' }}
-      className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--ui-line)] bg-white/[0.03] px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--ui-ink)]"
+      className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#BFDFD2]/30 bg-white/[0.08] px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--ui-bg)]"
     >
-      <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-[var(--ui-lime-soft)] font-body text-[11px] font-bold text-[var(--ui-lime)]">
+      <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-[var(--ui-lime-soft)] font-body text-[11px] font-bold text-[var(--ui-ink)]">
         {sport.name.trim().charAt(0).toUpperCase()}
       </span>
       {sport.name}

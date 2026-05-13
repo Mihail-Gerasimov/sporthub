@@ -164,7 +164,7 @@ export function SlotCard({
           // Phase 30.9: переведено на primary CTA по frontend-design SKILL —
           // lime-fill + rounded-pill + cursor-pointer + hover:bg-lime-hov.
           // Микро-анимация стрелочки (hover:gap-2.5) сохранена.
-          className="slot-cta inline-flex flex-shrink-0 items-center gap-1.5 rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold tracking-[0.14em] whitespace-nowrap text-bg uppercase cursor-pointer transition-[gap,background-color] duration-150 hover:gap-2.5 hover:bg-lime-hov"
+          className="slot-cta inline-flex flex-shrink-0 items-center gap-1.5 rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold tracking-[0.14em] whitespace-nowrap text-ink uppercase cursor-pointer transition-[gap,background-color] duration-150 hover:gap-2.5 hover:bg-lime-hov"
         >
           К записи
           <span aria-hidden="true">→</span>

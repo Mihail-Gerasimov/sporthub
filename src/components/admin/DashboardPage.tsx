@@ -357,7 +357,7 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
           type="button"
           onClick={() => setShowFilters((prev) => !prev)}
           aria-expanded={showFilters}
-          className="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-[14px] border-0 bg-lime px-5 py-3.5 text-[11px] font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov sm:px-6"
+          className="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-[14px] border-0 bg-lime px-5 py-3.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov sm:px-6"
         >
           Фильтры
           <span
@@ -632,7 +632,7 @@ function ButtonPrimary({ onClick, children }: { onClick: () => void; children: R
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-bg transition-all hover:-translate-y-px hover:bg-lime-hov sm:flex-none sm:px-5"
+      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-all hover:-translate-y-px hover:bg-lime-hov sm:flex-none sm:px-5"
     >
       {children}
     </button>
@@ -723,7 +723,7 @@ function PageButton({
       className={cn(
         'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         active
-          ? 'border-lime bg-lime text-bg'
+          ? 'border-lime bg-lime text-ink'
           : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
       )}
     >
@@ -735,8 +735,8 @@ function PageButton({
 type BadgeTone = 'lime-fill' | 'orange-fill' | 'red';
 function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
   const classes: Record<BadgeTone, string> = {
-    'lime-fill': 'border-transparent bg-lime text-bg',
-    'orange-fill': 'border-transparent bg-orange text-bg',
+    'lime-fill': 'border-transparent bg-lime text-ink',
+    'orange-fill': 'border-transparent bg-orange text-ink',
     red: 'border-[rgba(231,76,60,0.30)] bg-[rgba(231,76,60,0.10)] text-red',
   };
   return (

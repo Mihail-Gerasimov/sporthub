@@ -476,7 +476,7 @@ export function ClubDetailPageClient({
             <div className="flex flex-wrap items-center gap-2.5">
               <a
                 href="#club-schedule"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
               >
                 Записаться на занятие <span aria-hidden="true">→</span>
               </a>

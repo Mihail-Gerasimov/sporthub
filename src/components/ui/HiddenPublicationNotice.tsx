@@ -25,7 +25,7 @@ export function HiddenPublicationNotice({ backHref, backLabel }: HiddenPublicati
         </p>
         <Link
           href={backHref}
-          className="inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-6 font-body text-xs font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+          className="inline-flex min-h-11 items-center justify-center rounded-pill bg-lime px-6 font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
         >
           {backLabel}
         </Link>

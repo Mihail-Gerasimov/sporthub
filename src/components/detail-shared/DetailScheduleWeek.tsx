@@ -6,7 +6,7 @@
  * сюда. Внутри:
  *
  * - 7 day-tabs Пн-Вс с counter; активный — сегодняшний день недели.
- *   Активный таб lime-fill (bg-lime + text-bg), остальные — text-muted
+ *   Активный таб lime-fill (bg-lime + text-ink), остальные — text-muted
  *   с hover в text-ink. Counter — pill с числом (на активном табе
  *   приглушённый black/20 фон, на неактивных — bg-card).
  * - При клике на день показываем slot-grid этого дня (1 col на base/md,
@@ -117,7 +117,7 @@ export function DetailScheduleWeek({
               aria-label={`${label}: ${count} слотов`}
               onClick={() => setActiveIndex(i)}
               className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.14em] transition-colors ${
-                isActive ? 'bg-lime text-bg' : 'text-muted hover:text-ink'
+                isActive ? 'bg-lime text-ink' : 'text-muted hover:text-ink'
               }`}
             >
               <span>{label}</span>
@@ -164,7 +164,7 @@ export function DetailScheduleWeek({
                   <Link
                     href={`/booking/${slot.id}`}
                     aria-label={`Записаться на ${slot.title}`}
-                    className="inline-flex items-center justify-center rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                    className="inline-flex items-center justify-center rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
                   >
                     Записаться
                   </Link>
@@ -173,7 +173,7 @@ export function DetailScheduleWeek({
                     type="button"
                     aria-label={`Записаться на ${slot.title}`}
                     onClick={onGuestSlotAction}
-                    className="inline-flex items-center justify-center rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov"
+                    className="inline-flex items-center justify-center rounded-pill bg-lime px-3.5 py-2 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
                   >
                     Записаться
                   </button>

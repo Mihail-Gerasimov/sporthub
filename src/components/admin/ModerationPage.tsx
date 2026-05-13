@@ -470,7 +470,7 @@ function ItemCard({
             type="button"
             onClick={onUnhide}
             disabled={actionLoading}
-            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-bg transition-colors hover:bg-lime-hov disabled:opacity-50 sm:w-auto"
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov disabled:opacity-50 sm:w-auto"
           >
             Показать
           </button>
@@ -493,7 +493,7 @@ type BadgeTone = 'lime-fill' | 'lime-soft' | 'muted' | 'gold';
 
 function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
   const classes: Record<BadgeTone, string> = {
-    'lime-fill': 'border-transparent bg-lime text-bg',
+    'lime-fill': 'border-transparent bg-lime text-ink',
     'lime-soft': 'border-[rgba(132,192,3,0.28)] bg-lime-soft text-lime',
     muted: 'border-line bg-[rgba(160,160,160,0.10)] text-muted',
     gold: 'border-[rgba(245,197,24,0.28)] bg-[rgba(245,197,24,0.10)] text-gold',
@@ -533,7 +533,7 @@ function PageButton({
       className={cn(
         'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         active
-          ? 'border-lime bg-lime text-bg'
+          ? 'border-lime bg-lime text-ink'
           : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
       )}
     >

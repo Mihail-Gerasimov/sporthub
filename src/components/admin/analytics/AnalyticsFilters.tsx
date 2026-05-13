@@ -92,7 +92,7 @@ export function AnalyticsFilters({
                 onClick={() => onFiltersChange({ ...filters, period: opt.value })}
                 className={cn(
                   'inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors disabled:opacity-40',
-                  active ? 'bg-lime text-bg' : 'text-muted hover:text-ink',
+                  active ? 'bg-lime text-ink' : 'text-muted hover:text-ink',
                 )}
                 data-testid={`analytics-period-${opt.value}`}
               >

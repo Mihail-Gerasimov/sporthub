@@ -46,7 +46,6 @@ CODEX.md
 PHASES_OVERVIEW.md
 project-phases/
 feature-docs/
-IMPLEMENTATION_PLAN.md
 PROJECT_STATE.md
 STACK_OVERVIEW.md
 README.md
@@ -77,10 +76,9 @@ next-env.d.ts
 # E2E tests (локальная работа, не коммитим)
 .mcp.json
 tests/
-e2e/
+
 # Личные заметки (черновик, не коммитим)
 ЗАМЕТКИ.md
 
 # Артефакты Claude Design (handoff-bundle, ~3.4MB, локальный референс для редизайна)
 claude-design/
-драфт_дизайн/
