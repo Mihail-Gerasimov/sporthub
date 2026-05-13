@@ -127,7 +127,7 @@ export default async function Home() {
         {/* ========== HERO BILLBOARD ========== */}
         <section
           aria-label="Главный экран"
-          className="relative overflow-hidden rounded-[24px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:radial-gradient(ellipse_600px_400px_at_100%_100%,rgba(132,192,3,0.10),transparent_60%),radial-gradient(ellipse_400px_300px_at_0%_0%,rgba(251,97,25,0.06),transparent_60%),repeating-linear-gradient(135deg,rgba(132,192,3,0.020)_0_1px,transparent_1px_16px)]"
+          className="relative overflow-hidden rounded-[24px] border border-[#BFDFD2]/20 bg-[#07124F] text-[var(--ui-bg)] p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:radial-gradient(ellipse_600px_400px_at_100%_100%,rgba(80,188,147,0.16),transparent_60%),radial-gradient(ellipse_400px_300px_at_0%_0%,rgba(131,211,181,0.10),transparent_60%),repeating-linear-gradient(135deg,rgba(255,255,255,0.025)_0_1px,transparent_1px_16px)]"
         >
           {/* Watermark "SH" — фоновая марка лайма в правом нижнем углу */}
           <span
@@ -149,7 +149,7 @@ export default async function Home() {
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ui-lime-soft)] px-3.5 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ui-lime)] sm:text-[11px]">
                   Samara active city
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--ui-line)] bg-transparent px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-[var(--ui-ink)] sm:text-[11px]">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#BFDFD2]/40 bg-transparent px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-[var(--ui-bg)] sm:text-[11px]">
                   {clubs.length} клубов в каталоге
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ui-orange-soft)] px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-[var(--ui-orange)] sm:text-[11px]">
@@ -159,12 +159,12 @@ export default async function Home() {
 
               {/* H1 — Bowlby clamp, ключевое слово lime.
                   max-w ставим только с lg+ (на mobile H1 ширина = ширина контейнера). */}
-              <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-[var(--ui-ink)] lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
+              <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-[var(--ui-bg)] lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
                 Найди <span className="text-[var(--ui-lime)]">спорт</span> в своём ритме
               </h1>
 
               {/* Lede — на mobile занимает всю ширину, max-w только с lg+ */}
-              <p className="m-0 w-full font-body text-[15px] leading-relaxed text-[var(--ui-muted)] sm:text-[16px] lg:max-w-[520px]">
+              <p className="m-0 w-full font-body text-[15px] leading-relaxed text-[#BFDFD2] sm:text-[16px] lg:max-w-[520px]">
                 SportHub собирает клубы, студии, персональных тренеров и спортивные слоты Самары в
                 одной витрине: сначала быстрый поиск и фильтры, потом выдача на карте, популярные
                 карточки и ближайшие окна для записи.
@@ -181,13 +181,13 @@ export default async function Home() {
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/#results"
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-bg)] px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] no-underline transition-all hover:bg-[var(--ui-lime)] hover:text-[var(--ui-bg)] sm:text-[13px]"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-lime)] px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] no-underline transition-all hover:bg-[var(--ui-lime-hov)] hover:border-[var(--ui-lime-hov)] sm:text-[13px]"
                 >
                   Открыть выдачу
                 </Link>
                 <Link
                   href="/#availability"
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-line)] bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] no-underline transition-all hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)] sm:text-[13px]"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[#BFDFD2]/40 bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-bg)] no-underline transition-all hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)] sm:text-[13px]"
                 >
                   Смотреть слоты и окна
                 </Link>
