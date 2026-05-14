@@ -57,7 +57,7 @@ export function Header() {
   };
 
   return (
-    <header className="relative border-b border-[#BFDFD2]/20 bg-[#07124F] text-[var(--ui-bg)] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-60">
+    <header className="relative border-b border-[#BFDFD2]/20 bg-[#0A1029] text-[var(--ui-bg)] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-60">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-4 md:gap-6 md:px-6 lg:px-10">
         {/* Лого: марка + (на md+ tagline, на lg+ ещё eyebrow) */}
         <Link href="/" className="flex shrink-0 items-center gap-3 text-inherit no-underline">

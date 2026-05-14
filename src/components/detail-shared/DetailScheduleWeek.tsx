@@ -123,7 +123,7 @@ export function DetailScheduleWeek({
               <span>{label}</span>
               <span
                 className={`rounded-pill px-2 py-0.5 text-[10px] tabular-nums ${
-                  isActive ? 'bg-ink/20 text-bg' : 'bg-card text-muted'
+                  isActive ? 'bg-ink text-bg' : 'bg-card text-muted'
                 }`}
               >
                 {count}

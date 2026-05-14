@@ -3,10 +3,10 @@
 /* Палитра градиентов для cover-секции тренера (Phase 31: mint-navy в новой палитре) */
 export function getCoverPalette(trainerId: number): string {
   const palettes = [
-    'from-[#07124F] via-[#50BC93] to-[#BFDFD2]',
-    'from-[#07124F] via-[#83D3B5] to-[#D2D8D6]',
-    'from-[#50BC93] via-[#83D3B5] to-[#BFDFD2]',
-    'from-[#BFDFD2] via-[#50BC93] to-[#07124F]',
+    'from-[#0A1029] via-[#83D3B5] to-[#BFDFD2]',
+    'from-[#0A1029] via-[#50BC93] to-[#D2D8D6]',
+    'from-[#83D3B5] via-[#50BC93] to-[#BFDFD2]',
+    'from-[#BFDFD2] via-[#83D3B5] to-[#0A1029]',
   ];
 
   return palettes[trainerId % palettes.length];

@@ -37,13 +37,16 @@
   --ui-line-2: #bcbcbc; /* Усиленные внутренние разделители */
 
   /* Текст */
-  --ui-ink: #07124f; /* Основной текст — navy */
-  --ui-muted: #bcbcbc; /* Вторичный текст, мета, подписи */
-  --ui-disabled: #bcbcbc; /* Disabled-элементы, неактивные состояния */
+  --ui-ink: #0a1029; /* Основной текст — deep navy (после Step 31.9 аудита референса) */
+  --ui-muted: #7a8186; /* Вторичный текст, мета, подписи (Step 31.9 — поднят с #BCBCBC до graphite для контраста ≥4.5 на белом) */
+  --ui-disabled: #bcbcbc; /* Disabled-элементы, неактивные состояния (остался grey — иначе disabled будет выглядеть как обычный текст) */
 
-  /* Акценты — mint (positive: запись, подтверждение, success, активный; Phase 31 — был lime) */
-  --ui-lime: #50bc93;
-  --ui-lime-hov: #83d3b5;
+  /* Акценты — mint (positive: запись, подтверждение, success, активный).
+   * Step 31.11: swap default/hover. Светлый #83D3B5 теперь основной (default),
+   * насыщенный #50BC93 ушёл в hover/press emphasis (кнопка темнеет при наведении).
+   */
+  --ui-lime: #83d3b5;
+  --ui-lime-hov: #50bc93;
   --ui-lime-soft: #bfdfd2;
 
   /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций; НЕ тронут в Phase 31) */
@@ -165,7 +168,7 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(80, 188, 147, 0.05), transparent 60%),
+    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(131, 211, 181, 0.05), transparent 60%),
     radial-gradient(ellipse 800px 500px at 90% 100%, rgba(251, 97, 25, 0.04), transparent 60%),
     var(--ui-bg-deep);
   color: var(--ui-ink);
@@ -267,11 +270,11 @@ body {
       118deg,
       transparent 0%,
       transparent 55%,
-      rgba(80, 188, 147, 0.18) 60%,
-      rgba(80, 188, 147, 0.05) 70%,
+      rgba(131, 211, 181, 0.18) 60%,
+      rgba(131, 211, 181, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(10, 16, 41, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .hero-bg-orange {
@@ -284,11 +287,15 @@ body {
       rgba(251, 97, 25, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(10, 16, 41, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .hero-bg-blank {
-  background: repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.025) 0 1px, transparent 1px 14px);
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(10, 16, 41, 0.025) 0 1px,
+    transparent 1px 14px
+  );
 }
 
 /* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
@@ -385,11 +392,11 @@ body {
       118deg,
       transparent 0%,
       transparent 55%,
-      rgba(80, 188, 147, 0.16) 60%,
-      rgba(80, 188, 147, 0.04) 70%,
+      rgba(131, 211, 181, 0.16) 60%,
+      rgba(131, 211, 181, 0.04) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(10, 16, 41, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .slot-card.tone-orange .slot-hero::before {
@@ -402,11 +409,15 @@ body {
       rgba(251, 97, 25, 0.05) 70%,
       transparent 78%
     ),
-    repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.02) 0 1px, transparent 1px 14px);
+    repeating-linear-gradient(135deg, rgba(10, 16, 41, 0.02) 0 1px, transparent 1px 14px);
 }
 
 .slot-card.tone-blank .slot-hero::before {
-  background: repeating-linear-gradient(135deg, rgba(7, 18, 79, 0.025) 0 1px, transparent 1px 14px);
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(10, 16, 41, 0.025) 0 1px,
+    transparent 1px 14px
+  );
 }
 
 /* tone-orange также окрашивает eyebrow «Персональная услуга» в orange */
@@ -414,16 +425,19 @@ body {
   color: var(--ui-orange);
 }
 
+/* slot-eyebrow на mist hero — после swap светлый mint теряется,
+ * используем graphite muted для читаемости (Step 31.12). */
 .slot-card .slot-eyebrow.lime {
-  color: var(--ui-lime);
+  color: var(--ui-muted);
 }
 
 /* capacity-pill ВСЕГДА лайм (правило handoff'а — без orange/red вариантов
- * даже при availableSpots=1). Семантика: positive = «есть куда записаться». */
+ * даже при availableSpots=1). Семантика: positive = «есть куда записаться».
+ * Step 31.12: текст переведён на graphite muted для контраста на mint-soft фоне. */
 .capacity-pill.lime {
   background: var(--ui-lime-soft);
-  color: var(--ui-lime);
-  border: 1px solid rgba(80, 188, 147, 0.28);
+  color: var(--ui-muted);
+  border: 1px solid rgba(131, 211, 181, 0.28);
 }
 
 /* slot-box-val: цена и время — Bowlby + tabular-nums + nowrap, никогда
@@ -449,10 +463,10 @@ body {
 @keyframes admin-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(80, 188, 147, 0.35);
+    box-shadow: 0 0 0 0 rgba(131, 211, 181, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(80, 188, 147, 0.05);
+    box-shadow: 0 0 0 6px rgba(131, 211, 181, 0.05);
   }
 }
 

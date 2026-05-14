@@ -448,24 +448,24 @@ export function TrainerDetailPageClient({
             {/* stat-rail 2-col: Цена от | Услуг */}
             <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
               <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
                   Цена от
                 </p>
                 <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
                   {formatPrice(trainer.priceFrom)}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
                   за тренировку
                 </p>
               </div>
               <div className="px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
                   Услуг
                 </p>
                 <p className="mt-2 font-display text-[18px] leading-none text-ink tabular-nums md:text-[22px]">
                   {offerings.length}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
                   в активном прайсе
                 </p>
               </div>
@@ -474,7 +474,7 @@ export function TrainerDetailPageClient({
             {/* stat-rail 1-col: Контакты (если есть) */}
             {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
               <div className="rounded-[16px] border border-line bg-card-2 px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
                   Контакты
                 </p>
                 <div className="mt-2 space-y-1 text-sm">
@@ -486,7 +486,7 @@ export function TrainerDetailPageClient({
                       href={trainer.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       VK
                     </a>
@@ -496,7 +496,7 @@ export function TrainerDetailPageClient({
                       href={trainer.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       Telegram
                     </a>
@@ -506,7 +506,7 @@ export function TrainerDetailPageClient({
                       href={trainer.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       Facebook
                     </a>

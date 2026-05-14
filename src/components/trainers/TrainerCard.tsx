@@ -105,7 +105,7 @@ export function TrainerCard({
   const accentBgClass = tone === 'lime' ? 'bg-[var(--ui-lime)]' : 'bg-[var(--ui-orange)]';
   const groupChipClass =
     tone === 'lime'
-      ? 'border border-[rgba(132,192,3,0.3)] bg-[var(--ui-lime-soft)] text-[var(--ui-lime)]'
+      ? 'border border-[rgba(131,211,181,0.3)] bg-[var(--ui-lime-soft)] text-[var(--ui-lime-hov)]'
       : 'border border-[rgba(251,97,25,0.3)] bg-[var(--ui-orange-soft)] text-[var(--ui-orange)]';
   const ctaHoverClass =
     tone === 'lime'
@@ -123,7 +123,7 @@ export function TrainerCard({
     >
       {/* Hero — луч + watermark + city-pill + avatar + role + name + sport-tag */}
       <div
-        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-bg)] p-5"
+        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5"
         style={{ minHeight: 200 }}
       >
         <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
@@ -143,7 +143,7 @@ export function TrainerCard({
             {formatCityDisplay(trainer.city)}
           </span>
 
-          <div className="flex size-[84px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-[16px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] p-2">
+          <div className="flex size-[84px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-[16px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-2">
             <span className="font-display text-[22px] uppercase leading-none tracking-[0.02em] text-[var(--ui-ink)]">
               {getTrainerInitials(trainer.name)}
             </span>

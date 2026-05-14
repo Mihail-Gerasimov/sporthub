@@ -127,7 +127,7 @@ export default async function Home() {
         {/* ========== HERO BILLBOARD ========== */}
         <section
           aria-label="Главный экран"
-          className="relative overflow-hidden rounded-[24px] border border-[#BFDFD2]/20 bg-[#07124F] text-[var(--ui-bg)] p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:radial-gradient(ellipse_600px_400px_at_100%_100%,rgba(80,188,147,0.16),transparent_60%),radial-gradient(ellipse_400px_300px_at_0%_0%,rgba(131,211,181,0.10),transparent_60%),repeating-linear-gradient(135deg,rgba(255,255,255,0.025)_0_1px,transparent_1px_16px)]"
+          className="relative overflow-hidden rounded-[24px] border border-[#BFDFD2]/20 bg-[#0A1029] text-[var(--ui-bg)] p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:radial-gradient(ellipse_600px_400px_at_100%_100%,rgba(80,188,147,0.16),transparent_60%),radial-gradient(ellipse_400px_300px_at_0%_0%,rgba(131,211,181,0.10),transparent_60%),repeating-linear-gradient(135deg,rgba(255,255,255,0.025)_0_1px,transparent_1px_16px)]"
         >
           {/* Watermark "SH" — фоновая марка лайма в правом нижнем углу */}
           <span
@@ -250,7 +250,7 @@ export default async function Home() {
           className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5"
         >
           {/* Лидер-клуб */}
-          <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-lime)]">
+          <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-lime)]">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"
@@ -265,7 +265,7 @@ export default async function Home() {
               {featuredClub ? (
                 <>
                   <div className="mt-3.5 flex items-start gap-3.5">
-                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(132,192,3,0.3)] bg-[var(--ui-lime-soft)] font-display text-[22px] uppercase text-[var(--ui-lime)]">
+                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(131,211,181,0.3)] bg-[var(--ui-lime-soft)] font-display text-[22px] uppercase text-[var(--ui-lime-hov)]">
                       {featuredClub.name.trim().charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -314,7 +314,7 @@ export default async function Home() {
           </article>
 
           {/* Лидер-тренер (orange акцент) */}
-          <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-orange)]">
+          <article className="group relative overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--ui-orange)]">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute right-5 top-5 select-none font-display text-[56px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"

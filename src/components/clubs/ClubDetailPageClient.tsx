@@ -82,7 +82,7 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-[rgba(132,192,3,0.28)] bg-lime-soft text-lime'
+      ? 'border-[rgba(131,211,181,0.28)] bg-lime-soft text-muted'
       : 'border-line bg-transparent text-ink';
   return (
     <span
@@ -406,20 +406,20 @@ export function ClubDetailPageClient({
             {/* stat-rail: Контакты | Цена от */}
             <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
               <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
                   Контакты
                 </p>
                 <div className="mt-2 space-y-1 text-sm">
                   {club.phone ? (
                     <p className="font-body font-semibold text-ink">{formatPhone(club.phone)}</p>
                   ) : null}
-                  {club.email ? <p className="font-body text-muted">{club.email}</p> : null}
+                  {club.email ? <p className="font-body text-ink/70">{club.email}</p> : null}
                   {club.website ? (
                     <a
                       href={club.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       Сайт
                     </a>
@@ -429,7 +429,7 @@ export function ClubDetailPageClient({
                       href={club.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       VK
                     </a>
@@ -439,7 +439,7 @@ export function ClubDetailPageClient({
                       href={club.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       Telegram
                     </a>
@@ -449,7 +449,7 @@ export function ClubDetailPageClient({
                       href={club.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-muted hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime"
                     >
                       Facebook
                     </a>
@@ -457,13 +457,13 @@ export function ClubDetailPageClient({
                 </div>
               </div>
               <div className="px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-muted">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
                   Цена от
                 </p>
                 <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
                   {formatPrice(club.priceFrom)}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-muted">
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
                   за абонемент
                 </p>
               </div>
@@ -599,7 +599,7 @@ export function ClubDetailPageClient({
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
                       {pluralizeReviews(trainer.reviewCount)}
                     </span>
-                    <span className="inline-flex items-center rounded-pill border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime">
+                    <span className="inline-flex items-center rounded-pill border border-[rgba(131,211,181,0.28)] bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-muted">
                       {formatPrice(trainer.priceFrom)}
                     </span>
                   </div>

@@ -75,8 +75,10 @@ export function ClubCard({
   const hoverBorderClass =
     tone === 'orange' ? 'hover:border-[var(--ui-orange)]' : 'hover:border-[var(--ui-lime)]';
 
-  // Цвет address-eyebrow — accent по tone (для blank — приглушённый lime).
-  const addressColorClass = tone === 'orange' ? 'text-[var(--ui-orange)]' : 'text-[var(--ui-lime)]';
+  // Цвет address-eyebrow — accent по tone. На mist hero (Step 31.10) светлый mint
+  // теряется, поэтому для lime/blank используем graphite muted (Step 31.12).
+  const addressColorClass =
+    tone === 'orange' ? 'text-[var(--ui-orange)]' : 'text-[var(--ui-muted)]';
 
   // Цвет hover на имени-Link
   const nameHoverClass =
@@ -93,7 +95,7 @@ export function ClubCard({
     >
       {/* Hero — диагональный луч + watermark + city-pill + name */}
       <div
-        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-bg)] p-5"
+        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5"
         style={{ minHeight: 176 }}
       >
         {/* Двухслойный фон через готовый класс из globals.css (Step 28.6) */}

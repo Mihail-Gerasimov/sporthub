@@ -31,7 +31,7 @@ describe('Recharts smoke', () => {
       <LineChart width={400} height={300} data={data}>
         <XAxis dataKey="date" />
         <YAxis />
-        <Line type="monotone" dataKey="count" stroke="#50BC93" />
+        <Line type="monotone" dataKey="count" stroke="#83D3B5" />
       </LineChart>,
     );
 
@@ -52,7 +52,7 @@ describe('Recharts smoke', () => {
       <BarChart width={400} height={300} data={data}>
         <XAxis dataKey="name" />
         <YAxis />
-        <Bar dataKey="count" fill="#07124F" />
+        <Bar dataKey="count" fill="#0A1029" />
       </BarChart>,
     );
 
