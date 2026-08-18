@@ -14,6 +14,9 @@ import { CATALOG_CONTROLLERS } from './catalog/catalog.controller';
 import { CLUB_CONTROLLERS } from './catalog/clubs.controller';
 import { LinkService } from './links/link.service';
 import { LINK_CONTROLLERS } from './links/links.controller';
+import { NOTE_CONTROLLERS } from './notes/notes.controller';
+import { NOTIFICATION_CONTROLLERS } from './notifications/notifications.controller';
+import { USER_ACCOUNT_CONTROLLERS } from './users/users-account.controller';
 import { REVIEW_CONTROLLERS } from './reviews/reviews.controller';
 import { SCHEDULE_CONTROLLERS } from './schedule/schedule.controller';
 import { DICTIONARY_CONTROLLERS } from './dictionaries/dictionaries.controller';
@@ -38,6 +41,9 @@ import { StorageModule } from './storage/storage.module';
     ...SCHEDULE_CONTROLLERS,
     ...REVIEW_CONTROLLERS,
     ...LINK_CONTROLLERS,
+    ...NOTIFICATION_CONTROLLERS,
+    ...USER_ACCOUNT_CONTROLLERS,
+    ...NOTE_CONTROLLERS,
   ],
   providers: [
     // Формат ответа и разбор ошибок — общие для всех контроллеров.
