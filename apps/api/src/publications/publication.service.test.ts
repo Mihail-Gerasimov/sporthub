@@ -7,6 +7,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { Club, Offering, Trainer } from '@sporthub/types';
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -19,6 +20,7 @@ import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
 import type { ClubsRepository, ScheduleRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
 import { StorageModule } from '../storage/storage.module';
+import type { PublicationSlotInput } from './publication.service';
 import { PublicationService } from './publication.service';
 
 describe('PublicationService', () => {
@@ -48,7 +50,7 @@ describe('PublicationService', () => {
     priceFrom: 1000,
     distanceKm: 0,
     managedByUserId: 2,
-  } as never;
+  } as unknown as Omit<Club, 'id' | 'createdAt'>;
 
   const offeringInput = {
     ownerType: 'club',
@@ -61,9 +63,9 @@ describe('PublicationService', () => {
     capacity: 10,
     address: 'ул. Ленина, 1',
     coordinates: { lat: 53.2, lng: 50.1 },
-  } as never;
+  } as unknown as Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
 
-  const slot = (overrides: Record<string, unknown> = {}) =>
+  const slot = (overrides: Record<string, unknown> = {}): PublicationSlotInput =>
     ({
       sportId: 1,
       title: 'Утро',
@@ -76,7 +78,7 @@ describe('PublicationService', () => {
       bookedCount: 0,
       price: 1000,
       ...overrides,
-    }) as never;
+    }) as unknown as PublicationSlotInput;
 
   beforeEach(async () => {
     dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-pub-'));
@@ -137,7 +139,7 @@ describe('PublicationService', () => {
 
   it('повторяющиеся id слотов отклоняются', async () => {
     const { club, schedules } = await createClub();
-    const duplicate = { ...slot(), id: schedules[0].id } as never;
+    const duplicate = { ...slot(), id: schedules[0].id };
 
     await expect(
       service.updateClub({
@@ -164,7 +166,7 @@ describe('PublicationService', () => {
       club: {},
       offering: {},
       slots: [
-        { ...slot({ title: 'Первый изменённый' }), id: kept.id } as never,
+        { ...slot({ title: 'Первый изменённый' }), id: kept.id },
         slot({ title: 'Третий' }),
       ],
     });
@@ -192,7 +194,7 @@ describe('PublicationService', () => {
       userId: 2,
       club: {},
       offering: {},
-      slots: [{ ...slot({ date: '2026-05-01' }), id: schedules[0].id } as never],
+      slots: [{ ...slot({ date: '2026-05-01' }), id: schedules[0].id }],
     });
 
     expect((await bookings.findAll())[0].date).toBe('2026-05-01');
@@ -228,7 +230,7 @@ describe('PublicationService', () => {
         userId: 2,
         club: {},
         offering: {},
-        slots: [{ ...slot(), id: 9999 } as never],
+        slots: [{ ...slot(), id: 9999 }],
       }),
     ).rejects.toThrow('Слот клуба с id 9999 не найден');
   });
@@ -264,8 +266,8 @@ describe('PublicationService', () => {
     const club = await clubs.insert(clubInput);
 
     const result = await service.createTrainer({
-      trainer: { name: 'Пётр', slug: 'petr', bio: 'Био', experienceYears: 5 } as never,
-      offering: { ...offeringInput, ownerType: 'trainer' } as never,
+      trainer: { name: 'Пётр', slug: 'petr', bio: 'Био', experienceYears: 5 } as unknown as Omit<Trainer, 'id' | 'createdAt'>,
+      offering: { ...offeringInput, ownerType: 'trainer' as const },
       slots: [slot()],
       clubId: club.id,
       userId: 2,
