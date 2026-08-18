@@ -5,27 +5,27 @@
 // Репозиторий обязан отвечать за одну коллекцию, иначе в фазе базы такой метод
 // не превратится в обычный запрос.
 
-import { Inject, Injectable } from "@nestjs/common";
-import type { Club, Offering, Schedule, Trainer } from "@sporthub/types";
+import { Inject, Injectable } from '@nestjs/common';
+import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
-} from "../repositories/catalog.repository";
+} from '../repositories/catalog.repository';
 import {
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
-} from "../repositories/catalog.repository";
+} from '../repositories/catalog.repository';
 import type {
   ClubsRepository,
   ScheduleRepository,
   TrainersRepository,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 import {
   CLUBS_REPOSITORY,
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 
 export type SlotContext = {
   affiliatedClub: Club | null;
@@ -55,38 +55,31 @@ export class SlotContextService {
     }
 
     const offering =
-      slot.offeringId !== undefined
-        ? await this.offerings.findById(slot.offeringId)
-        : null;
+      slot.offeringId !== undefined ? await this.offerings.findById(slot.offeringId) : null;
 
     const club =
       slot.clubId !== undefined
         ? await this.clubs.findById(slot.clubId)
-        : offering?.ownerType === "club"
+        : offering?.ownerType === 'club'
           ? await this.clubs.findById(offering.ownerId)
           : null;
 
     const trainer =
       slot.trainerId !== undefined
         ? await this.trainers.findById(slot.trainerId)
-        : offering?.ownerType === "trainer"
+        : offering?.ownerType === 'trainer'
           ? await this.trainers.findById(offering.ownerId)
           : null;
 
     // Клуб, где тренер ведёт занятие, выводится через подтверждённую связь.
     let affiliatedClub: Club | null = null;
 
-    if (offering?.ownerType === "club") {
+    if (offering?.ownerType === 'club') {
       affiliatedClub = club;
-    } else if (
-      offering?.ownerType === "trainer" &&
-      offering.trainerClubLinkId !== undefined
-    ) {
+    } else if (offering?.ownerType === 'trainer' && offering.trainerClubLinkId !== undefined) {
       const link = await this.links.findById(offering.trainerClubLinkId);
       affiliatedClub =
-        link && link.status === "confirmed"
-          ? await this.clubs.findById(link.clubId)
-          : null;
+        link && link.status === 'confirmed' ? await this.clubs.findById(link.clubId) : null;
     }
 
     return { affiliatedClub, club, offering, schedule: slot, trainer };
@@ -100,9 +93,7 @@ export class SlotContextService {
   }
 
   /** Кто отвечает за тренера. */
-  async findTrainerManager(
-    trainerId: number | undefined,
-  ): Promise<number | null> {
+  async findTrainerManager(trainerId: number | undefined): Promise<number | null> {
     if (trainerId === undefined) return null;
 
     return (await this.trainers.findById(trainerId))?.managedByUserId ?? null;

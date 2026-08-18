@@ -5,7 +5,7 @@
 // и их тесты не трогаются вовсе. Проверяется это подменой реализации в тестах:
 // набор проверок обязан пройти на обеих.
 
-import { Global, Module } from "@nestjs/common";
+import { Global, Module } from '@nestjs/common';
 
 import {
   AMENITIES_REPOSITORY,
@@ -16,11 +16,8 @@ import {
   SPORTS_REPOSITORY,
   TAGS_REPOSITORY,
   WORK_FORMATS_REPOSITORY,
-} from "../dictionaries/dictionaries.repository";
-import {
-  BOOKINGS_REPOSITORY,
-  JsonBookingsRepository,
-} from "../repositories/bookings.repository";
+} from '../dictionaries/dictionaries.repository';
+import { BOOKINGS_REPOSITORY, JsonBookingsRepository } from '../repositories/bookings.repository';
 import {
   JsonNotificationsRepository,
   JsonOfferingsRepository,
@@ -28,7 +25,7 @@ import {
   NOTIFICATIONS_REPOSITORY,
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
-} from "../repositories/catalog.repository";
+} from '../repositories/catalog.repository';
 import {
   JsonLogsRepository,
   JsonProviderClientNotesRepository,
@@ -38,7 +35,7 @@ import {
   PROVIDER_CLIENT_NOTES_REPOSITORY,
   REVIEWS_REPOSITORY,
   USERS_REPOSITORY,
-} from "../repositories/crud.repository";
+} from '../repositories/crud.repository';
 import {
   CLUBS_REPOSITORY,
   JsonClubsRepository,
@@ -46,14 +43,13 @@ import {
   JsonTrainersRepository,
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
-} from "../repositories/entities.repository";
-import { JsonStorage } from "./json-storage";
-import { resolveDataDirectory } from "./resolve-data-directory";
+} from '../repositories/entities.repository';
+import { JsonStorage } from './json-storage';
+import { resolveDataDirectory } from './resolve-data-directory';
 
 /** Простые справочники отличаются только именем коллекции. */
-const simpleDictionary = (collection: Parameters<JsonStorage["read"]>[0]) => ({
-  useFactory: (storage: JsonStorage) =>
-    new JsonSimpleDictionaryRepository(storage, collection),
+const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
+  useFactory: (storage: JsonStorage) => new JsonSimpleDictionaryRepository(storage, collection),
   inject: [JsonStorage],
 });
 
@@ -64,11 +60,11 @@ const simpleDictionary = (collection: Parameters<JsonStorage["read"]>[0]) => ({
       provide: JsonStorage,
       useFactory: () => new JsonStorage(resolveDataDirectory()),
     },
-    { provide: SPORTS_REPOSITORY, ...simpleDictionary("sports") },
-    { provide: TAGS_REPOSITORY, ...simpleDictionary("tags") },
-    { provide: AMENITIES_REPOSITORY, ...simpleDictionary("amenities") },
-    { provide: WORK_FORMATS_REPOSITORY, ...simpleDictionary("workFormats") },
-    { provide: SPECIALTIES_REPOSITORY, ...simpleDictionary("specialties") },
+    { provide: SPORTS_REPOSITORY, ...simpleDictionary('sports') },
+    { provide: TAGS_REPOSITORY, ...simpleDictionary('tags') },
+    { provide: AMENITIES_REPOSITORY, ...simpleDictionary('amenities') },
+    { provide: WORK_FORMATS_REPOSITORY, ...simpleDictionary('workFormats') },
+    { provide: SPECIALTIES_REPOSITORY, ...simpleDictionary('specialties') },
     {
       provide: CITIES_REPOSITORY,
       useFactory: (storage: JsonStorage) => new JsonCitiesRepository(storage),
@@ -91,26 +87,22 @@ const simpleDictionary = (collection: Parameters<JsonStorage["read"]>[0]) => ({
     },
     {
       provide: PROVIDER_CLIENT_NOTES_REPOSITORY,
-      useFactory: (storage: JsonStorage) =>
-        new JsonProviderClientNotesRepository(storage),
+      useFactory: (storage: JsonStorage) => new JsonProviderClientNotesRepository(storage),
       inject: [JsonStorage],
     },
     {
       provide: TRAINER_CLUB_LINKS_REPOSITORY,
-      useFactory: (storage: JsonStorage) =>
-        new JsonTrainerClubLinksRepository(storage),
+      useFactory: (storage: JsonStorage) => new JsonTrainerClubLinksRepository(storage),
       inject: [JsonStorage],
     },
     {
       provide: OFFERINGS_REPOSITORY,
-      useFactory: (storage: JsonStorage) =>
-        new JsonOfferingsRepository(storage),
+      useFactory: (storage: JsonStorage) => new JsonOfferingsRepository(storage),
       inject: [JsonStorage],
     },
     {
       provide: NOTIFICATIONS_REPOSITORY,
-      useFactory: (storage: JsonStorage) =>
-        new JsonNotificationsRepository(storage),
+      useFactory: (storage: JsonStorage) => new JsonNotificationsRepository(storage),
       inject: [JsonStorage],
     },
     {

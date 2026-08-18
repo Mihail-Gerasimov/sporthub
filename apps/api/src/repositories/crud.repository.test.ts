@@ -4,35 +4,30 @@
 // контрактный набор прогоняется по каждому домену, а специфика проверяется
 // отдельно.
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import type { User } from "@sporthub/types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { User } from '@sporthub/types';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from "../storage/json-storage";
+import { JsonStorage } from '../storage/json-storage';
 import {
   JsonLogsRepository,
   JsonProviderClientNotesRepository,
   JsonReviewsRepository,
   JsonUsersRepository,
-} from "./crud.repository";
+} from './crud.repository';
 
-describe("Простые CRUD-репозитории", () => {
+describe('Простые CRUD-репозитории', () => {
   let dataDirectory: string;
   let storage: JsonStorage;
 
   beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), "sporthub-crud-"));
+    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-crud-'));
     storage = new JsonStorage(dataDirectory);
-    for (const file of [
-      "logs.json",
-      "reviews.json",
-      "users.json",
-      "provider-client-notes.json",
-    ]) {
-      await writeFile(path.join(dataDirectory, file), "[]\n", "utf8");
+    for (const file of ['logs.json', 'reviews.json', 'users.json', 'provider-client-notes.json']) {
+      await writeFile(path.join(dataDirectory, file), '[]\n', 'utf8');
     }
   });
 
@@ -40,15 +35,15 @@ describe("Простые CRUD-репозитории", () => {
     await rm(dataDirectory, { force: true, recursive: true });
   });
 
-  describe("LogsRepository", () => {
-    it("запись получает id и метку времени, читается обратно", async () => {
+  describe('LogsRepository', () => {
+    it('запись получает id и метку времени, читается обратно', async () => {
       const logs = new JsonLogsRepository(storage);
 
       const entry = await logs.insert({
-        action: "admin_login",
+        action: 'admin_login',
         actorId: 3,
-        actorRole: "admin",
-        entityType: "user",
+        actorRole: 'admin',
+        entityType: 'user',
         entityId: 3,
       });
 
@@ -57,13 +52,13 @@ describe("Простые CRUD-репозитории", () => {
       expect(await logs.findAll()).toHaveLength(1);
     });
 
-    it("id инкрементируется при нескольких записях", async () => {
+    it('id инкрементируется при нескольких записях', async () => {
       const logs = new JsonLogsRepository(storage);
       const base = {
-        action: "admin_login",
+        action: 'admin_login',
         actorId: 3,
-        actorRole: "admin",
-        entityType: "user",
+        actorRole: 'admin',
+        entityType: 'user',
         entityId: 3,
       } as const;
 
@@ -74,34 +69,34 @@ describe("Простые CRUD-репозитории", () => {
     });
   });
 
-  describe("ReviewsRepository", () => {
-    it("создаёт отзыв и отдаёт его в общем списке", async () => {
+  describe('ReviewsRepository', () => {
+    it('создаёт отзыв и отдаёт его в общем списке', async () => {
       const reviews = new JsonReviewsRepository(storage);
 
       const review = await reviews.insert({
         userId: 1,
         clubId: 1,
         rating: 5,
-        text: "Отлично",
+        text: 'Отлично',
       });
 
       expect(review.id).toBe(1);
       expect(await reviews.findAll()).toHaveLength(1);
     });
 
-    it("фильтрует по клубу и по тренеру раздельно", async () => {
+    it('фильтрует по клубу и по тренеру раздельно', async () => {
       const reviews = new JsonReviewsRepository(storage);
       await reviews.insert({
         userId: 1,
         clubId: 1,
         rating: 5,
-        text: "Клубный",
+        text: 'Клубный',
       });
       await reviews.insert({
         userId: 1,
         trainerId: 2,
         rating: 4,
-        text: "Тренерский",
+        text: 'Тренерский',
       });
 
       expect(await reviews.findMany({ clubId: 1 })).toHaveLength(1);
@@ -109,19 +104,19 @@ describe("Простые CRUD-репозитории", () => {
       expect(await reviews.findMany({})).toHaveLength(2);
     });
 
-    it("удаление по владельцу забирает только его отзывы", async () => {
+    it('удаление по владельцу забирает только его отзывы', async () => {
       const reviews = new JsonReviewsRepository(storage);
       await reviews.insert({
         userId: 1,
         clubId: 1,
         rating: 5,
-        text: "Клубный",
+        text: 'Клубный',
       });
       await reviews.insert({
         userId: 1,
         trainerId: 2,
         rating: 4,
-        text: "Тренерский",
+        text: 'Тренерский',
       });
 
       const removed = await reviews.removeMany({ clubId: 1 });
@@ -131,125 +126,123 @@ describe("Простые CRUD-репозитории", () => {
     });
   });
 
-  describe("UsersRepository", () => {
-    const newUser: Omit<User, "id" | "createdAt"> = {
-      role: "athlete",
-      name: "Иван",
-      email: "ivan@test.local",
-      phone: "+7 (900) 000-00-00",
-      password: "secret1",
+  describe('UsersRepository', () => {
+    const newUser: Omit<User, 'id' | 'createdAt'> = {
+      role: 'athlete',
+      name: 'Иван',
+      email: 'ivan@test.local',
+      phone: '+7 (900) 000-00-00',
+      password: 'secret1',
       favoriteClubIds: [] as number[],
     };
 
-    it("создаёт пользователя и находит его по id и по email", async () => {
+    it('создаёт пользователя и находит его по id и по email', async () => {
       const users = new JsonUsersRepository(storage);
 
       const created = await users.insert({ ...newUser });
 
       expect(created.id).toBe(1);
       expect(await users.findById(1)).toMatchObject({
-        email: "ivan@test.local",
+        email: 'ivan@test.local',
       });
-      expect(await users.findByEmail("ivan@test.local")).toMatchObject({
+      expect(await users.findByEmail('ivan@test.local')).toMatchObject({
         id: 1,
       });
     });
 
-    it("поиск по несуществующим ключам отдаёт null, а не бросает", async () => {
+    it('поиск по несуществующим ключам отдаёт null, а не бросает', async () => {
       const users = new JsonUsersRepository(storage);
 
       expect(await users.findById(999)).toBeNull();
-      expect(await users.findByEmail("нет@такого.local")).toBeNull();
+      expect(await users.findByEmail('нет@такого.local')).toBeNull();
     });
 
-    it("обновление меняет только переданные поля", async () => {
+    it('обновление меняет только переданные поля', async () => {
       const users = new JsonUsersRepository(storage);
       await users.insert({ ...newUser });
 
-      const updated = await users.update(1, { phone: "+7 (999) 111-11-11" });
+      const updated = await users.update(1, { phone: '+7 (999) 111-11-11' });
 
-      expect(updated.phone).toBe("+7 (999) 111-11-11");
-      expect(updated.email).toBe("ivan@test.local");
-      expect(updated.name).toBe("Иван");
+      expect(updated.phone).toBe('+7 (999) 111-11-11');
+      expect(updated.email).toBe('ivan@test.local');
+      expect(updated.name).toBe('Иван');
     });
 
-    it("обновление несуществующего пользователя бросает с текстом из db.ts", async () => {
+    it('обновление несуществующего пользователя бросает с текстом из db.ts', async () => {
       const users = new JsonUsersRepository(storage);
 
       // Текст обязан совпадать дословно: на него завязаны роуты и тесты.
-      await expect(
-        users.update(999, { phone: "+7 (999) 111-11-11" }),
-      ).rejects.toThrow("Пользователь не найден");
+      await expect(users.update(999, { phone: '+7 (999) 111-11-11' })).rejects.toThrow(
+        'Пользователь не найден',
+      );
     });
   });
 
-  describe("ProviderClientNotesRepository", () => {
-    it("создаёт заметку и фильтрует по провайдеру и клиенту", async () => {
+  describe('ProviderClientNotesRepository', () => {
+    it('создаёт заметку и фильтрует по провайдеру и клиенту', async () => {
       const notes = new JsonProviderClientNotesRepository(storage);
       await notes.insert({
         providerUserId: 2,
         clientUserId: 1,
-        note: "Первая",
+        note: 'Первая',
       });
       await notes.insert({
         providerUserId: 2,
         clientUserId: 5,
-        note: "Вторая",
+        note: 'Вторая',
       });
 
       expect(await notes.findMany({ providerUserId: 2 })).toHaveLength(2);
-      expect(
-        await notes.findMany({ providerUserId: 2, clientUserId: 1 }),
-      ).toHaveLength(1);
+      expect(await notes.findMany({ providerUserId: 2, clientUserId: 1 })).toHaveLength(1);
     });
 
-    it("сортировка по убыванию времени создания", async () => {
+    it('сортировка по убыванию времени создания', async () => {
       const notes = new JsonProviderClientNotesRepository(storage);
       await notes.insert({
         providerUserId: 2,
         clientUserId: 1,
-        note: "Первая",
+        note: 'Первая',
       });
       await notes.insert({
         providerUserId: 2,
         clientUserId: 1,
-        note: "Вторая",
+        note: 'Вторая',
       });
 
       const found = await notes.findMany({ providerUserId: 2 });
 
       // Свежая заметка идёт первой — так же, как в db.ts.
-      expect(found[0].note).toBe("Вторая");
+      expect(found[0].note).toBe('Вторая');
     });
 
-    it("обновление двигает updatedAt и меняет текст", async () => {
+    it('обновление двигает updatedAt и меняет текст', async () => {
       const notes = new JsonProviderClientNotesRepository(storage);
       const created = await notes.insert({
         providerUserId: 2,
         clientUserId: 1,
-        note: "Было",
+        note: 'Было',
       });
 
-      const updated = await notes.update(created.id, { note: "Стало" });
+      const updated = await notes.update(created.id, { note: 'Стало' });
 
-      expect(updated.note).toBe("Стало");
+      expect(updated.note).toBe('Стало');
       expect(updated.createdAt).toBe(created.createdAt);
     });
 
-    it("обновление несуществующей заметки бросает с текстом из db.ts", async () => {
+    it('обновление несуществующей заметки бросает с текстом из db.ts', async () => {
       const notes = new JsonProviderClientNotesRepository(storage);
 
-      await expect(notes.update(999, { note: "x" })).rejects.toThrow(
-        "Заметка провайдера не найдена",
+      await expect(notes.update(999, { note: 'x' })).rejects.toThrow(
+        'Заметка провайдера не найдена',
       );
     });
 
-    it("удаление убирает заметку", async () => {
+    it('удаление убирает заметку', async () => {
       const notes = new JsonProviderClientNotesRepository(storage);
       const created = await notes.insert({
         providerUserId: 2,
         clientUserId: 1,
-        note: "Первая",
+        note: 'Первая',
       });
 
       await notes.remove(created.id);

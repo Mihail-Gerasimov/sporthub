@@ -3,8 +3,8 @@
 // поэтому в фазе базы этот файл заменяется на Prisma-реализацию, а слой выше
 // не меняется вовсе.
 
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import type {
   Amenity,
@@ -24,7 +24,7 @@ import type {
   TrainerClubLink,
   User,
   WorkFormat,
-} from "@sporthub/types";
+} from '@sporthub/types';
 
 /** Карта коллекций: ключ в коде → тип записи. */
 export type DataCollectionMap = {
@@ -51,32 +51,29 @@ export type CollectionKey = keyof DataCollectionMap;
 
 /** Имена файлов на диске. Менять нельзя — это боевые данные. */
 const DATA_FILES: { [Key in CollectionKey]: string } = {
-  amenities: "amenities.json",
-  bookings: "bookings.json",
-  cities: "cities.json",
-  clubs: "clubs.json",
-  logs: "logs.json",
-  notifications: "notifications.json",
-  offerings: "offerings.json",
-  providerClientNotes: "provider-client-notes.json",
-  reviews: "reviews.json",
-  schedule: "schedule.json",
-  specialties: "specialties.json",
-  sports: "sports.json",
-  tags: "tags.json",
-  trainers: "trainers.json",
-  trainerClubLinks: "trainer-club-links.json",
-  users: "users.json",
-  workFormats: "work-formats.json",
+  amenities: 'amenities.json',
+  bookings: 'bookings.json',
+  cities: 'cities.json',
+  clubs: 'clubs.json',
+  logs: 'logs.json',
+  notifications: 'notifications.json',
+  offerings: 'offerings.json',
+  providerClientNotes: 'provider-client-notes.json',
+  reviews: 'reviews.json',
+  schedule: 'schedule.json',
+  specialties: 'specialties.json',
+  sports: 'sports.json',
+  tags: 'tags.json',
+  trainers: 'trainers.json',
+  trainerClubLinks: 'trainer-club-links.json',
+  users: 'users.json',
+  workFormats: 'work-formats.json',
 };
 
 /** Доступ к данным внутри транзакции: то же чтение и запись, но отложенные. */
 export interface StorageTransaction {
   read<Key extends CollectionKey>(key: Key): Promise<DataCollectionMap[Key]>;
-  write<Key extends CollectionKey>(
-    key: Key,
-    data: DataCollectionMap[Key],
-  ): Promise<void>;
+  write<Key extends CollectionKey>(key: Key, data: DataCollectionMap[Key]): Promise<void>;
 }
 
 /** Минимальная форма записи, достаточная для выдачи следующего идентификатора. */
@@ -87,27 +84,18 @@ export class JsonStorage {
 
   constructor(private readonly dataDirectory: string) {}
 
-  async read<Key extends CollectionKey>(
-    key: Key,
-  ): Promise<DataCollectionMap[Key]> {
-    const raw = await readFile(this.filePath(key), "utf8");
+  async read<Key extends CollectionKey>(key: Key): Promise<DataCollectionMap[Key]> {
+    const raw = await readFile(this.filePath(key), 'utf8');
 
     return JSON.parse(raw) as DataCollectionMap[Key];
   }
 
-  async write<Key extends CollectionKey>(
-    key: Key,
-    data: DataCollectionMap[Key],
-  ): Promise<void> {
+  async write<Key extends CollectionKey>(key: Key, data: DataCollectionMap[Key]): Promise<void> {
     this.writeFailureHook?.(key);
 
     // Формат обязан совпадать с прежним побайтово: отступ 2 и завершающий
     // перевод строки. Иначе первая же запись перепишет весь боевой файл.
-    await writeFile(
-      this.filePath(key),
-      `${JSON.stringify(data, null, 2)}\n`,
-      "utf8",
-    );
+    await writeFile(this.filePath(key), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
   }
 
   /**
@@ -133,9 +121,7 @@ export class JsonStorage {
    * базы метод становится обёрткой над `prisma.$transaction`, а сигнатура
    * вызывающего кода не меняется.
    */
-  async runInTransaction<T>(
-    work: (tx: StorageTransaction) => Promise<T>,
-  ): Promise<T> {
+  async runInTransaction<T>(work: (tx: StorageTransaction) => Promise<T>): Promise<T> {
     const buffer = new Map<CollectionKey, unknown>();
 
     const tx: StorageTransaction = {
@@ -160,9 +146,7 @@ export class JsonStorage {
   }
 
   /** Хук для тестов: имитирует сбой записи на диск. */
-  setWriteFailureHookForTests(
-    hook: ((key: CollectionKey) => void) | null,
-  ): void {
+  setWriteFailureHookForTests(hook: ((key: CollectionKey) => void) | null): void {
     this.writeFailureHook = hook;
   }
 
@@ -194,10 +178,7 @@ export class JsonStorage {
           await this.write(key, previous.get(key) as never);
         }
       } catch (rollbackError) {
-        console.error(
-          "Откат транзакции не удался, данные могут быть несогласованы",
-          rollbackError,
-        );
+        console.error('Откат транзакции не удался, данные могут быть несогласованы', rollbackError);
       } finally {
         this.writeFailureHook = hook;
       }

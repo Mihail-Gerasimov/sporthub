@@ -9,7 +9,7 @@
 // её собирает — вместо 273 ручных сборок ответа, как было раньше.
 
 /** Успех без полезной нагрузки: `{ success: true }`. */
-export const EMPTY_RESULT = Symbol("EMPTY_RESULT");
+export const EMPTY_RESULT = Symbol('EMPTY_RESULT');
 export type EmptyResult = typeof EMPTY_RESULT;
 
 /**

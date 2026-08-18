@@ -7,52 +7,52 @@
 // в памяти. Совпадение результатов и есть доказательство, что интерфейс
 // не протёк деталями хранилища.
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import type { City } from "@sporthub/types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { City } from '@sporthub/types';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from "../storage/json-storage";
+import { JsonStorage } from '../storage/json-storage';
 import {
   InMemoryCitiesRepository,
   JsonCitiesRepository,
   JsonSimpleDictionaryRepository,
   type CitiesRepository,
-} from "./dictionaries.repository";
+} from './dictionaries.repository';
 
 const SEED_CITIES: City[] = [
   {
     id: 1,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    name: "Самара",
+    createdAt: '2026-01-01T00:00:00.000Z',
+    name: 'Самара',
     coordinates: { lat: 53.2, lng: 50.1 },
   },
   {
     id: 4,
-    createdAt: "2026-01-02T00:00:00.000Z",
-    name: "Москва",
+    createdAt: '2026-01-02T00:00:00.000Z',
+    name: 'Москва',
     coordinates: { lat: 55.7, lng: 37.6 },
   },
 ];
 
-describe("Репозитории справочников", () => {
+describe('Репозитории справочников', () => {
   let dataDirectory: string;
   let storage: JsonStorage;
 
   beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), "sporthub-dict-"));
+    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-dict-'));
     storage = new JsonStorage(dataDirectory);
     await writeFile(
-      path.join(dataDirectory, "cities.json"),
+      path.join(dataDirectory, 'cities.json'),
       `${JSON.stringify(SEED_CITIES, null, 2)}\n`,
-      "utf8",
+      'utf8',
     );
     await writeFile(
-      path.join(dataDirectory, "sports.json"),
-      `${JSON.stringify([{ id: 1, createdAt: "2026-01-01T00:00:00.000Z", name: "Плавание" }], null, 2)}\n`,
-      "utf8",
+      path.join(dataDirectory, 'sports.json'),
+      `${JSON.stringify([{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Плавание' }], null, 2)}\n`,
+      'utf8',
     );
   });
 
@@ -60,33 +60,31 @@ describe("Репозитории справочников", () => {
     await rm(dataDirectory, { force: true, recursive: true });
   });
 
-  describe("простые справочники (только чтение)", () => {
-    it("отдают всю коллекцию как есть", async () => {
-      const sports = new JsonSimpleDictionaryRepository(storage, "sports");
+  describe('простые справочники (только чтение)', () => {
+    it('отдают всю коллекцию как есть', async () => {
+      const sports = new JsonSimpleDictionaryRepository(storage, 'sports');
 
       const all = await sports.findAll();
 
       expect(all).toHaveLength(1);
-      expect(all[0]).toMatchObject({ id: 1, name: "Плавание" });
+      expect(all[0]).toMatchObject({ id: 1, name: 'Плавание' });
     });
   });
 
   // Контрактный набор: один и тот же список проверок для любой реализации.
   // Если он проходит на JSON и падает на заглушке (или наоборот) — интерфейс лжёт.
-  const citiesContract = (
-    createRepository: () => Promise<CitiesRepository>,
-  ) => {
-    it("findAll отдаёт все города", async () => {
+  const citiesContract = (createRepository: () => Promise<CitiesRepository>) => {
+    it('findAll отдаёт все города', async () => {
       const repository = await createRepository();
 
       expect(await repository.findAll()).toHaveLength(2);
     });
 
-    it("findOrCreateByName возвращает существующий город без создания дубликата", async () => {
+    it('findOrCreateByName возвращает существующий город без создания дубликата', async () => {
       const repository = await createRepository();
 
       const city = await repository.findOrCreateByName({
-        name: "Самара",
+        name: 'Самара',
         coordinates: { lat: 0, lng: 0 },
       });
 
@@ -94,11 +92,11 @@ describe("Репозитории справочников", () => {
       expect(await repository.findAll()).toHaveLength(2);
     });
 
-    it("дедупликация не зависит от регистра и пробелов по краям", async () => {
+    it('дедупликация не зависит от регистра и пробелов по краям', async () => {
       const repository = await createRepository();
 
       const city = await repository.findOrCreateByName({
-        name: "  сАмАрА  ",
+        name: '  сАмАрА  ',
         coordinates: { lat: 0, lng: 0 },
       });
 
@@ -106,30 +104,30 @@ describe("Репозитории справочников", () => {
       expect(await repository.findAll()).toHaveLength(2);
     });
 
-    it("новый город создаётся со следующим id и меткой времени", async () => {
+    it('новый город создаётся со следующим id и меткой времени', async () => {
       const repository = await createRepository();
 
       const city = await repository.findOrCreateByName({
-        name: "Казань",
+        name: 'Казань',
         coordinates: { lat: 55.8, lng: 49.1 },
       });
 
       // В сиде максимальный id равен 4, значит следующий — 5, а не 3.
       expect(city.id).toBe(5);
-      expect(city.name).toBe("Казань");
+      expect(city.name).toBe('Казань');
       expect(() => new Date(city.createdAt).toISOString()).not.toThrow();
       expect(await repository.findAll()).toHaveLength(3);
     });
 
-    it("созданный город виден при повторном чтении", async () => {
+    it('созданный город виден при повторном чтении', async () => {
       const repository = await createRepository();
       await repository.findOrCreateByName({
-        name: "Казань",
+        name: 'Казань',
         coordinates: { lat: 0, lng: 0 },
       });
 
       const again = await repository.findOrCreateByName({
-        name: "Казань",
+        name: 'Казань',
         coordinates: { lat: 0, lng: 0 },
       });
 
@@ -138,14 +136,12 @@ describe("Репозитории справочников", () => {
     });
   };
 
-  describe("CitiesRepository — JSON-реализация", () => {
+  describe('CitiesRepository — JSON-реализация', () => {
     citiesContract(async () => new JsonCitiesRepository(storage));
   });
 
-  describe("CitiesRepository — заглушка в памяти", () => {
+  describe('CitiesRepository — заглушка в памяти', () => {
     // Та же проверка на реализации, которая про файлы не знает вовсе.
-    citiesContract(
-      async () => new InMemoryCitiesRepository(structuredClone(SEED_CITIES)),
-    );
+    citiesContract(async () => new InMemoryCitiesRepository(structuredClone(SEED_CITIES)));
   });
 });

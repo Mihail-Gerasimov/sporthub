@@ -5,46 +5,37 @@
 // обязан отвечать за одну коллекцию, иначе в фазе базы такой метод не станет
 // обычным запросом.
 
-import { Inject, Injectable } from "@nestjs/common";
-import type { Booking, Club, Trainer, User } from "@sporthub/types";
+import { Inject, Injectable } from '@nestjs/common';
+import type { Booking, Club, Trainer, User } from '@sporthub/types';
 
-import { NotFoundError } from "../common/domain-error";
+import { NotFoundError } from '../common/domain-error';
 import type {
   CitiesRepository,
   SimpleDictionaryRepository,
-} from "../dictionaries/dictionaries.repository";
-import {
-  CITIES_REPOSITORY,
-  TAGS_REPOSITORY,
-} from "../dictionaries/dictionaries.repository";
-import type { BookingsRepository } from "../repositories/bookings.repository";
-import { BOOKINGS_REPOSITORY } from "../repositories/bookings.repository";
+} from '../dictionaries/dictionaries.repository';
+import { CITIES_REPOSITORY, TAGS_REPOSITORY } from '../dictionaries/dictionaries.repository';
+import type { BookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
-} from "../repositories/catalog.repository";
+} from '../repositories/catalog.repository';
 import {
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
-} from "../repositories/catalog.repository";
-import type {
-  ReviewsRepository,
-  UsersRepository,
-} from "../repositories/crud.repository";
-import {
-  REVIEWS_REPOSITORY,
-  USERS_REPOSITORY,
-} from "../repositories/crud.repository";
+} from '../repositories/catalog.repository';
+import type { ReviewsRepository, UsersRepository } from '../repositories/crud.repository';
+import { REVIEWS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repository';
 import type {
   ClubsRepository,
   ScheduleRepository,
   TrainersRepository,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 import {
   CLUBS_REPOSITORY,
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 
 @Injectable()
 export class CatalogQueryService {
@@ -84,7 +75,7 @@ export class CatalogQueryService {
     const user = await this.users.findById(userId);
 
     if (!user) {
-      throw new NotFoundError("Пользователь не найден");
+      throw new NotFoundError('Пользователь не найден');
     }
 
     return user;
@@ -108,9 +99,7 @@ export class CatalogQueryService {
     let clubs = await this.clubs.findAll({ excludeHidden: true });
 
     if (filter.sportId !== undefined) {
-      clubs = clubs.filter((club) =>
-        club.sportIds.includes(filter.sportId as number),
-      );
+      clubs = clubs.filter((club) => club.sportIds.includes(filter.sportId as number));
     }
 
     if (filter.search !== undefined) {
@@ -125,9 +114,9 @@ export class CatalogQueryService {
           club.shortDescription,
           club.description,
           club.address,
-          ...club.tagIds.map((id) => tagNameById.get(id) ?? ""),
+          ...club.tagIds.map((id) => tagNameById.get(id) ?? ''),
         ]
-          .join(" ")
+          .join(' ')
           .toLowerCase();
 
         return haystack.includes(needle);
@@ -135,34 +124,27 @@ export class CatalogQueryService {
     }
 
     if (filter.minRating !== undefined) {
-      clubs = clubs.filter(
-        (club) => club.rating >= (filter.minRating as number),
-      );
+      clubs = clubs.filter((club) => club.rating >= (filter.minRating as number));
     }
 
     return clubs;
   }
 
-  async findPublishedTrainers(filter: {
-    clubId?: number;
-    sportId?: number;
-  }): Promise<Trainer[]> {
+  async findPublishedTrainers(filter: { clubId?: number; sportId?: number }): Promise<Trainer[]> {
     let trainers = await this.trainers.findAll({ excludeHidden: true });
 
     if (filter.clubId !== undefined) {
       // Тренеры клуба — только через подтверждённую связь.
       const confirmed = await this.links.findMany({
         clubId: filter.clubId,
-        status: "confirmed",
+        status: 'confirmed',
       });
       const ids = new Set(confirmed.map((link) => link.trainerId));
       trainers = trainers.filter((trainer) => ids.has(trainer.id));
     }
 
     if (filter.sportId !== undefined) {
-      trainers = trainers.filter((trainer) =>
-        trainer.sportIds.includes(filter.sportId as number),
-      );
+      trainers = trainers.filter((trainer) => trainer.sportIds.includes(filter.sportId as number));
     }
 
     return trainers;
@@ -174,14 +156,13 @@ export class CatalogQueryService {
 
     if (!club) return null;
 
-    const [primaryOffering, allTrainers, slots, allReviews, confirmed] =
-      await Promise.all([
-        this.offerings.findFirst({ ownerType: "club", ownerId: clubId }),
-        this.trainers.findAll(),
-        this.schedule.findMany({ ownerType: "club" }),
-        this.reviews.findMany({ clubId }),
-        this.links.findMany({ clubId, status: "confirmed" }),
-      ]);
+    const [primaryOffering, allTrainers, slots, allReviews, confirmed] = await Promise.all([
+      this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
+      this.trainers.findAll(),
+      this.schedule.findMany({ ownerType: 'club' }),
+      this.reviews.findMany({ clubId }),
+      this.links.findMany({ clubId, status: 'confirmed' }),
+    ]);
 
     const trainerIds = new Set(confirmed.map((link) => link.trainerId));
 
@@ -195,13 +176,9 @@ export class CatalogQueryService {
       schedule: slots
         .filter((slot) => slot.clubId === clubId)
         .sort((left, right) =>
-          `${left.date}T${left.startTime}`.localeCompare(
-            `${right.date}T${right.startTime}`,
-          ),
+          `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
         ),
-      reviews: allReviews.sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt),
-      ),
+      reviews: allReviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     };
   }
 
@@ -212,10 +189,10 @@ export class CatalogQueryService {
     if (!trainer) return null;
 
     const [offerings, slots, allReviews, confirmed] = await Promise.all([
-      this.offerings.findMany({ ownerType: "trainer", ownerId: trainerId }),
-      this.schedule.findMany({ ownerType: "trainer" }),
+      this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
+      this.schedule.findMany({ ownerType: 'trainer' }),
       this.reviews.findMany({ trainerId }),
-      this.links.findMany({ trainerId, status: "confirmed" }),
+      this.links.findMany({ trainerId, status: 'confirmed' }),
     ]);
 
     const venueClubId = confirmed[0]?.clubId;
@@ -225,9 +202,7 @@ export class CatalogQueryService {
     const trainerSchedule = slots
       .filter((slot) => slot.trainerId === trainerId)
       .sort((left, right) =>
-        `${left.date}T${left.startTime}`.localeCompare(
-          `${right.date}T${right.startTime}`,
-        ),
+        `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
       );
 
     return {
@@ -238,18 +213,14 @@ export class CatalogQueryService {
       primaryOffering: offerings[0] ?? null,
       additionalOfferings: offerings.slice(1).map((offering) => ({
         offering,
-        schedules: trainerSchedule.filter(
-          (slot) => slot.offeringId === offering.id,
-        ),
+        schedules: trainerSchedule.filter((slot) => slot.offeringId === offering.id),
       })),
       offerings: [...offerings].sort((left, right) => left.price - right.price),
       primarySport: null,
       sport: null,
       sports: [],
       schedule: trainerSchedule,
-      reviews: allReviews.sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt),
-      ),
+      reviews: allReviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     };
   }
 }

@@ -5,25 +5,18 @@
 // Смысл разделения — в фазе базы JSON-реализация заменяется на Prisma-версию
 // правкой одной строки провайдера в модуле, а сервисы и их тесты не трогаются.
 
-import type {
-  Amenity,
-  City,
-  Specialty,
-  Sport,
-  Tag,
-  WorkFormat,
-} from "@sporthub/types";
+import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub/types';
 
-import type { CollectionKey, JsonStorage } from "../storage/json-storage";
+import type { CollectionKey, JsonStorage } from '../storage/json-storage';
 
 // --- Токены внедрения ---------------------------------------------------------
 
-export const SPORTS_REPOSITORY = Symbol("SPORTS_REPOSITORY");
-export const TAGS_REPOSITORY = Symbol("TAGS_REPOSITORY");
-export const AMENITIES_REPOSITORY = Symbol("AMENITIES_REPOSITORY");
-export const WORK_FORMATS_REPOSITORY = Symbol("WORK_FORMATS_REPOSITORY");
-export const SPECIALTIES_REPOSITORY = Symbol("SPECIALTIES_REPOSITORY");
-export const CITIES_REPOSITORY = Symbol("CITIES_REPOSITORY");
+export const SPORTS_REPOSITORY = Symbol('SPORTS_REPOSITORY');
+export const TAGS_REPOSITORY = Symbol('TAGS_REPOSITORY');
+export const AMENITIES_REPOSITORY = Symbol('AMENITIES_REPOSITORY');
+export const WORK_FORMATS_REPOSITORY = Symbol('WORK_FORMATS_REPOSITORY');
+export const SPECIALTIES_REPOSITORY = Symbol('SPECIALTIES_REPOSITORY');
+export const CITIES_REPOSITORY = Symbol('CITIES_REPOSITORY');
 
 // --- Интерфейсы ---------------------------------------------------------------
 
@@ -49,19 +42,17 @@ export interface CitiesRepository {
    * по краям: «  сАмАрА  » и «Самара» — один и тот же город.
    * В фазе базы ложится на `prisma.city.upsert` один в один.
    */
-  findOrCreateByName(data: Omit<City, "id" | "createdAt">): Promise<City>;
+  findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City>;
 }
 
 /** Нормализация названия города для сравнения. */
 export function normalizeCityName(name: string): string {
-  return name.trim().toLocaleLowerCase("ru-RU");
+  return name.trim().toLocaleLowerCase('ru-RU');
 }
 
 // --- JSON-реализации ----------------------------------------------------------
 
-export class JsonSimpleDictionaryRepository<
-  TItem,
-> implements SimpleDictionaryRepository<TItem> {
+export class JsonSimpleDictionaryRepository<TItem> implements SimpleDictionaryRepository<TItem> {
   constructor(
     private readonly storage: JsonStorage,
     private readonly collection: CollectionKey,
@@ -76,17 +67,13 @@ export class JsonCitiesRepository implements CitiesRepository {
   constructor(private readonly storage: JsonStorage) {}
 
   async findAll(): Promise<City[]> {
-    return this.storage.read("cities");
+    return this.storage.read('cities');
   }
 
-  async findOrCreateByName(
-    data: Omit<City, "id" | "createdAt">,
-  ): Promise<City> {
-    const cities = await this.storage.read("cities");
+  async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
+    const cities = await this.storage.read('cities');
     const normalized = normalizeCityName(data.name);
-    const existing = cities.find(
-      (city) => normalizeCityName(city.name) === normalized,
-    );
+    const existing = cities.find((city) => normalizeCityName(city.name) === normalized);
 
     if (existing) {
       return existing;
@@ -98,7 +85,7 @@ export class JsonCitiesRepository implements CitiesRepository {
       createdAt: new Date().toISOString(),
     };
 
-    await this.storage.write("cities", [...cities, city]);
+    await this.storage.write('cities', [...cities, city]);
 
     return city;
   }
@@ -118,22 +105,16 @@ export class InMemoryCitiesRepository implements CitiesRepository {
     return [...this.cities];
   }
 
-  async findOrCreateByName(
-    data: Omit<City, "id" | "createdAt">,
-  ): Promise<City> {
+  async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
     const normalized = normalizeCityName(data.name);
-    const existing = this.cities.find(
-      (city) => normalizeCityName(city.name) === normalized,
-    );
+    const existing = this.cities.find((city) => normalizeCityName(city.name) === normalized);
 
     if (existing) {
       return existing;
     }
 
     const nextId =
-      this.cities.length === 0
-        ? 1
-        : Math.max(...this.cities.map((city) => city.id)) + 1;
+      this.cities.length === 0 ? 1 : Math.max(...this.cities.map((city) => city.id)) + 1;
     const city: City = {
       ...data,
       id: nextId,

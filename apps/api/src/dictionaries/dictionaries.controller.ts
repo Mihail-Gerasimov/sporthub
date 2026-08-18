@@ -6,20 +6,10 @@
 //
 // Формат ответа собирает интерцептор — контроллер возвращает данные.
 
-import { Controller, Get, Inject } from "@nestjs/common";
-import type {
-  Amenity,
-  City,
-  Specialty,
-  Sport,
-  Tag,
-  WorkFormat,
-} from "@sporthub/types";
+import { Controller, Get, Inject } from '@nestjs/common';
+import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub/types';
 
-import type {
-  CitiesRepository,
-  SimpleDictionaryRepository,
-} from "./dictionaries.repository";
+import type { CitiesRepository, SimpleDictionaryRepository } from './dictionaries.repository';
 import {
   AMENITIES_REPOSITORY,
   CITIES_REPOSITORY,
@@ -27,9 +17,9 @@ import {
   SPORTS_REPOSITORY,
   TAGS_REPOSITORY,
   WORK_FORMATS_REPOSITORY,
-} from "./dictionaries.repository";
+} from './dictionaries.repository';
 
-@Controller("sports")
+@Controller('sports')
 export class SportsController {
   constructor(
     @Inject(SPORTS_REPOSITORY)
@@ -42,11 +32,9 @@ export class SportsController {
   }
 }
 
-@Controller("cities")
+@Controller('cities')
 export class CitiesController {
-  constructor(
-    @Inject(CITIES_REPOSITORY) private readonly cities: CitiesRepository,
-  ) {}
+  constructor(@Inject(CITIES_REPOSITORY) private readonly cities: CitiesRepository) {}
 
   @Get()
   findAll(): Promise<City[]> {
@@ -54,7 +42,7 @@ export class CitiesController {
   }
 }
 
-@Controller("tags")
+@Controller('tags')
 export class TagsController {
   constructor(
     @Inject(TAGS_REPOSITORY)
@@ -67,7 +55,7 @@ export class TagsController {
   }
 }
 
-@Controller("amenities")
+@Controller('amenities')
 export class AmenitiesController {
   constructor(
     @Inject(AMENITIES_REPOSITORY)
@@ -80,7 +68,7 @@ export class AmenitiesController {
   }
 }
 
-@Controller("work-formats")
+@Controller('work-formats')
 export class WorkFormatsController {
   constructor(
     @Inject(WORK_FORMATS_REPOSITORY)
@@ -93,7 +81,7 @@ export class WorkFormatsController {
   }
 }
 
-@Controller("specialties")
+@Controller('specialties')
 export class SpecialtiesController {
   constructor(
     @Inject(SPECIALTIES_REPOSITORY)

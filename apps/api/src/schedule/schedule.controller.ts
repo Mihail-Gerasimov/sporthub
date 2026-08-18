@@ -6,12 +6,12 @@
 // поэтому читали слой данных напрямую — им нужны и заполненные слоты.
 // Поведение маршрута сохранено дословно, добор для страниц сделан отдельно.
 
-import { Controller, Get, Inject, Query } from "@nestjs/common";
-import type { CatalogOwnerType, Schedule } from "@sporthub/types";
+import { Controller, Get, Inject, Query } from '@nestjs/common';
+import type { CatalogOwnerType, Schedule } from '@sporthub/types';
 
-import { ValidationError } from "../common/domain-error";
-import type { ScheduleRepository } from "../repositories/entities.repository";
-import { SCHEDULE_REPOSITORY } from "../repositories/entities.repository";
+import { ValidationError } from '../common/domain-error';
+import type { ScheduleRepository } from '../repositories/entities.repository';
+import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
 
 /** Слот с числом оставшихся мест — форма ответа маршрута. */
 export type ScheduleSlotWithAvailability = Schedule & {
@@ -22,11 +22,11 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Пустая строка значит «параметр не задан» — так вела себя прежняя схема. */
 function optionalText(raw: string | undefined): string | undefined {
-  if (typeof raw !== "string") return undefined;
+  if (typeof raw !== 'string') return undefined;
 
   const trimmed = raw.trim();
 
-  return trimmed === "" ? undefined : trimmed;
+  return trimmed === '' ? undefined : trimmed;
 }
 
 function optionalId(raw: string | undefined): number | undefined {
@@ -37,39 +37,34 @@ function optionalId(raw: string | undefined): number | undefined {
   const parsed = Number(text);
 
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new ValidationError("Некорректные параметры запроса");
+    throw new ValidationError('Некорректные параметры запроса');
   }
 
   return parsed;
 }
 
-@Controller("schedule")
+@Controller('schedule')
 export class ScheduleController {
-  constructor(
-    @Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository,
-  ) {}
+  constructor(@Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository) {}
 
   @Get()
   async findMany(
-    @Query("ownerType") rawOwnerType?: string,
-    @Query("clubId") rawClubId?: string,
-    @Query("trainerId") rawTrainerId?: string,
-    @Query("sportId") rawSportId?: string,
-    @Query("date") rawDate?: string,
+    @Query('ownerType') rawOwnerType?: string,
+    @Query('clubId') rawClubId?: string,
+    @Query('trainerId') rawTrainerId?: string,
+    @Query('sportId') rawSportId?: string,
+    @Query('date') rawDate?: string,
   ): Promise<ScheduleSlotWithAvailability[]> {
     const ownerType = optionalText(rawOwnerType);
 
-    if (
-      ownerType !== undefined &&
-      !["club", "trainer", "all"].includes(ownerType)
-    ) {
-      throw new ValidationError("Некорректные параметры запроса");
+    if (ownerType !== undefined && !['club', 'trainer', 'all'].includes(ownerType)) {
+      throw new ValidationError('Некорректные параметры запроса');
     }
 
     const date = optionalText(rawDate);
 
     if (date !== undefined && !DATE_PATTERN.test(date)) {
-      throw new ValidationError("Некорректные параметры запроса");
+      throw new ValidationError('Некорректные параметры запроса');
     }
 
     const clubId = optionalId(rawClubId);
@@ -77,7 +72,7 @@ export class ScheduleController {
     const sportId = optionalId(rawSportId);
 
     let slots = await this.schedule.findMany({
-      ownerType: ownerType as CatalogOwnerType | "all" | undefined,
+      ownerType: ownerType as CatalogOwnerType | 'all' | undefined,
     });
 
     slots = slots.filter((slot) => slot.bookedCount < slot.capacity);
@@ -104,9 +99,7 @@ export class ScheduleController {
         availableSpots: slot.capacity - slot.bookedCount,
       }))
       .sort((left, right) =>
-        `${left.date}T${left.startTime}`.localeCompare(
-          `${right.date}T${right.startTime}`,
-        ),
+        `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
       );
   }
 }

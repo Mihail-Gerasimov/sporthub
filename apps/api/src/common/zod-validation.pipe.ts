@@ -4,11 +4,11 @@
 // было бы работой без выгоды. Pipe лишь применяет схему и превращает отказ
 // в доменную ошибку с тем же текстом, что отдавал прежний роут.
 
-import type { ArgumentMetadata, PipeTransform } from "@nestjs/common";
-import { Injectable } from "@nestjs/common";
-import type { ZodType } from "zod";
+import type { ArgumentMetadata, PipeTransform } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { ZodType } from 'zod';
 
-import { ValidationError } from "./domain-error";
+import { ValidationError } from './domain-error';
 
 export type ZodPipeOptions = {
   /** Текст, который уйдёт наружу при отказе. */
@@ -41,10 +41,7 @@ export class ZodValidationPipe<TOutput> implements PipeTransform {
       : this.options.message;
 
     const details = this.options.withDetails
-      ? (result.error.flatten().fieldErrors as Record<
-          string,
-          string[] | undefined
-        >)
+      ? (result.error.flatten().fieldErrors as Record<string, string[] | undefined>)
       : undefined;
 
     throw new ValidationError(message, details);

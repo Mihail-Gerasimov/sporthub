@@ -5,34 +5,34 @@
 // Пустые файлы создаются для всех коллекций сразу — иначе первый же запрос,
 // который читает соседнюю коллекцию, падает на отсутствующем файле.
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import type { INestApplication } from "@nestjs/common";
-import { Test } from "@nestjs/testing";
+import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 
-import { AppModule } from "../app.module";
+import { AppModule } from '../app.module';
 
 /** Все коллекции проекта. Отсутствие файла — ошибка чтения, поэтому создаются все. */
 export const COLLECTIONS = [
-  "clubs",
-  "trainers",
-  "offerings",
-  "schedule",
-  "bookings",
-  "reviews",
-  "users",
-  "notifications",
-  "logs",
-  "trainer-club-links",
-  "provider-client-notes",
-  "sports",
-  "cities",
-  "tags",
-  "amenities",
-  "specialties",
-  "work-formats",
+  'clubs',
+  'trainers',
+  'offerings',
+  'schedule',
+  'bookings',
+  'reviews',
+  'users',
+  'notifications',
+  'logs',
+  'trainer-club-links',
+  'provider-client-notes',
+  'sports',
+  'cities',
+  'tags',
+  'amenities',
+  'specialties',
+  'work-formats',
 ] as const;
 
 export type TestHarness = {
@@ -47,16 +47,14 @@ export type TestHarness = {
 
 /** Поднять приложение на пустой директории данных. */
 export async function createTestHarness(prefix: string): Promise<TestHarness> {
-  const dataDirectory = await mkdtemp(
-    path.join(tmpdir(), `sporthub-${prefix}-`),
-  );
+  const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
   process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
 
   const write = async (name: string, data: unknown): Promise<void> => {
     await writeFile(
       path.join(dataDirectory, `${name}.json`),
       `${JSON.stringify(data, null, 2)}\n`,
-      "utf8",
+      'utf8',
     );
   };
 
@@ -71,11 +69,8 @@ export async function createTestHarness(prefix: string): Promise<TestHarness> {
   await app.init();
 
   const read = async <T>(name: string): Promise<T> => {
-    const { readFile } = await import("node:fs/promises");
-    const raw = await readFile(
-      path.join(dataDirectory, `${name}.json`),
-      "utf8",
-    );
+    const { readFile } = await import('node:fs/promises');
+    const raw = await readFile(path.join(dataDirectory, `${name}.json`), 'utf8');
 
     return JSON.parse(raw) as T;
   };

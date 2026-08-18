@@ -4,11 +4,11 @@
 // не ронял основную операцию. Поведение сохранено, но теперь сбой хотя бы
 // попадает в лог, а не исчезает бесследно.
 
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import type { Notification, NotificationType } from "@sporthub/types";
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { Notification, NotificationType } from '@sporthub/types';
 
-import type { NotificationsRepository } from "../repositories/catalog.repository";
-import { NOTIFICATIONS_REPOSITORY } from "../repositories/catalog.repository";
+import type { NotificationsRepository } from '../repositories/catalog.repository';
+import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
 
 @Injectable()
 export class NotificationService {
@@ -31,10 +31,7 @@ export class NotificationService {
     try {
       return await this.notifications.insert({ userId, type, payload });
     } catch (error) {
-      this.logger.error(
-        `Не удалось создать уведомление ${type} для пользователя ${userId}`,
-        error,
-      );
+      this.logger.error(`Не удалось создать уведомление ${type} для пользователя ${userId}`, error);
 
       return null;
     }

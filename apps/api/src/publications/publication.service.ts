@@ -5,14 +5,10 @@
 // их снимками. Здесь то же самое выражено через репозитории внутри транзакции,
 // поэтому в фазе базы вызывающий код не меняется вовсе.
 
-import { Inject, Injectable } from "@nestjs/common";
-import type { Club, Offering, Schedule, Trainer } from "@sporthub/types";
+import { Inject, Injectable } from '@nestjs/common';
+import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
-import {
-  ForbiddenError,
-  NotFoundError,
-  ValidationError,
-} from "../common/domain-error";
+import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
 import {
   clubFromForm,
   clubOfferingFromForm,
@@ -21,38 +17,38 @@ import {
   trainerOfferingFromForm,
   type ClubForm,
   type TrainerForm,
-} from "./publication-form";
+} from './publication-form';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
-} from "../repositories/catalog.repository";
+} from '../repositories/catalog.repository';
 import {
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
-} from "../repositories/catalog.repository";
-import type { ReviewsRepository } from "../repositories/crud.repository";
-import { REVIEWS_REPOSITORY } from "../repositories/crud.repository";
-import type { BookingsRepository } from "../repositories/bookings.repository";
-import { BOOKINGS_REPOSITORY } from "../repositories/bookings.repository";
+} from '../repositories/catalog.repository';
+import type { ReviewsRepository } from '../repositories/crud.repository';
+import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
+import type { BookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
   ClubsRepository,
   ScheduleRepository,
   TrainersRepository,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 import {
   CLUBS_REPOSITORY,
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
-} from "../repositories/entities.repository";
+} from '../repositories/entities.repository';
 
 /** Слот в запросе на публикацию: без id — новый, с id — правка существующего. */
-export type PublicationSlotInput = Omit<Schedule, "id" | "createdAt"> & {
+export type PublicationSlotInput = Omit<Schedule, 'id' | 'createdAt'> & {
   id?: number;
 };
 
 export type CreateClubInput = {
-  club: Omit<Club, "id" | "createdAt">;
-  offering: Omit<Offering, "id" | "createdAt" | "ownerId">;
+  club: Omit<Club, 'id' | 'createdAt'>;
+  offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
   slots: PublicationSlotInput[];
 };
 
@@ -90,21 +86,19 @@ export class PublicationService {
     const club = await this.clubs.insert(input.club);
     const offering = await this.offerings.insert({
       ...input.offering,
-      ownerType: "club",
+      ownerType: 'club',
       ownerId: club.id,
-    } as Omit<Offering, "id" | "createdAt">);
+    } as Omit<Offering, 'id' | 'createdAt'>);
     const schedules = await this.schedule.insertMany(
-      input.slots.map((slot) =>
-        this.buildSlot(slot, { offeringId: offering.id, clubId: club.id }),
-      ),
+      input.slots.map((slot) => this.buildSlot(slot, { offeringId: offering.id, clubId: club.id })),
     );
 
     return { club, offering, schedules };
   }
 
   async createTrainer(input: {
-    trainer: Omit<Trainer, "id" | "createdAt">;
-    offering: Omit<Offering, "id" | "createdAt" | "ownerId">;
+    trainer: Omit<Trainer, 'id' | 'createdAt'>;
+    offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
     slots: PublicationSlotInput[];
     clubId?: number | null;
     userId: number;
@@ -118,8 +112,8 @@ export class PublicationService {
       const link = await this.links.insert({
         trainerId: trainer.id,
         clubId: input.clubId,
-        status: "confirmed",
-        initiatedBy: "trainer",
+        status: 'confirmed',
+        initiatedBy: 'trainer',
         approvedAt: new Date().toISOString(),
         approvedByUserId: input.userId,
       });
@@ -128,10 +122,10 @@ export class PublicationService {
 
     const offering = await this.offerings.insert({
       ...input.offering,
-      ownerType: "trainer",
+      ownerType: 'trainer',
       ownerId: trainer.id,
       ...(trainerClubLinkId !== undefined ? { trainerClubLinkId } : {}),
-    } as Omit<Offering, "id" | "createdAt">);
+    } as Omit<Offering, 'id' | 'createdAt'>);
 
     const schedules = await this.schedule.insertMany(
       input.slots.map((slot) =>
@@ -154,32 +148,25 @@ export class PublicationService {
       throw new NotFoundError(`Клуб с id ${input.clubId} не найден`);
     }
 
-    this.ensureManagedBy(
-      current.managedByUserId,
-      input.userId,
-      "клуба",
-      input.clubId,
-    );
+    this.ensureManagedBy(current.managedByUserId, input.userId, 'клуба', input.clubId);
 
     const offering = await this.offerings.findFirst({
-      ownerType: "club",
+      ownerType: 'club',
       ownerId: input.clubId,
     });
 
     if (!offering) {
-      throw new NotFoundError(
-        `Основная услуга клуба с id ${input.clubId} не найдена`,
-      );
+      throw new NotFoundError(`Основная услуга клуба с id ${input.clubId} не найдена`);
     }
 
-    this.assertNoDuplicateSlotIds(input.slots, "клуба");
+    this.assertNoDuplicateSlotIds(input.slots, 'клуба');
 
     // Правка снимает скрытие: модератор прячет публикацию, автор её исправляет.
     const club = await this.clubs.update(input.clubId, {
       ...input.club,
-      ...(current.status === "hidden"
+      ...(current.status === 'hidden'
         ? {
-            status: "published",
+            status: 'published',
             hideReason: undefined,
             hiddenByUserId: undefined,
             hiddenAt: undefined,
@@ -187,10 +174,7 @@ export class PublicationService {
         : {}),
     });
 
-    const updatedOffering = await this.offerings.update(
-      offering.id,
-      input.offering,
-    );
+    const updatedOffering = await this.offerings.update(offering.id, input.offering);
     const schedules = await this.syncSlots(input.slots, offering.id, {
       clubId: input.clubId,
     });
@@ -211,31 +195,24 @@ export class PublicationService {
       throw new NotFoundError(`Тренер с id ${input.trainerId} не найден`);
     }
 
-    this.ensureManagedBy(
-      current.managedByUserId,
-      input.userId,
-      "тренера",
-      input.trainerId,
-    );
+    this.ensureManagedBy(current.managedByUserId, input.userId, 'тренера', input.trainerId);
 
     const offering = await this.offerings.findFirst({
-      ownerType: "trainer",
+      ownerType: 'trainer',
       ownerId: input.trainerId,
     });
 
     if (!offering) {
-      throw new NotFoundError(
-        `Основная услуга тренера с id ${input.trainerId} не найдена`,
-      );
+      throw new NotFoundError(`Основная услуга тренера с id ${input.trainerId} не найдена`);
     }
 
-    this.assertNoDuplicateSlotIds(input.slots, "тренера");
+    this.assertNoDuplicateSlotIds(input.slots, 'тренера');
 
     const trainer = await this.trainers.update(input.trainerId, {
       ...input.trainer,
-      ...(current.status === "hidden"
+      ...(current.status === 'hidden'
         ? {
-            status: "published",
+            status: 'published',
             hideReason: undefined,
             hiddenByUserId: undefined,
             hiddenAt: undefined,
@@ -243,10 +220,7 @@ export class PublicationService {
         : {}),
     });
 
-    const updatedOffering = await this.offerings.update(
-      offering.id,
-      input.offering,
-    );
+    const updatedOffering = await this.offerings.update(offering.id, input.offering);
     const schedules = await this.syncSlots(input.slots, offering.id, {
       trainerId: input.trainerId,
     });
@@ -263,7 +237,7 @@ export class PublicationService {
       throw new NotFoundError(`Клуб с id ${clubId} не найден`);
     }
 
-    await this.cascadeDelete({ ownerType: "club", ownerId: clubId });
+    await this.cascadeDelete({ ownerType: 'club', ownerId: clubId });
     await this.clubs.remove(clubId);
   }
 
@@ -274,7 +248,7 @@ export class PublicationService {
       throw new NotFoundError(`Тренер с id ${trainerId} не найден`);
     }
 
-    await this.cascadeDelete({ ownerType: "trainer", ownerId: trainerId });
+    await this.cascadeDelete({ ownerType: 'trainer', ownerId: trainerId });
     await this.trainers.remove(trainerId);
   }
 
@@ -288,41 +262,32 @@ export class PublicationService {
     entityId: number,
   ): void {
     if (managedByUserId !== expectedUserId) {
-      throw new ForbiddenError(
-        `Недостаточно прав для редактирования ${label} с id ${entityId}`,
-      );
+      throw new ForbiddenError(`Недостаточно прав для редактирования ${label} с id ${entityId}`);
     }
   }
 
-  private assertNoDuplicateSlotIds(
-    slots: PublicationSlotInput[],
-    label: string,
-  ): void {
-    const ids = slots
-      .map((slot) => slot.id)
-      .filter((id): id is number => id !== undefined);
+  private assertNoDuplicateSlotIds(slots: PublicationSlotInput[], label: string): void {
+    const ids = slots.map((slot) => slot.id).filter((id): id is number => id !== undefined);
 
     if (new Set(ids).size !== ids.length) {
-      throw new ValidationError(
-        `В payload редактирования ${label} есть повторяющиеся id слотов`,
-      );
+      throw new ValidationError(`В payload редактирования ${label} есть повторяющиеся id слотов`);
     }
   }
 
   private buildSlot(
     slot: PublicationSlotInput,
     owner: { offeringId: number; clubId?: number; trainerId?: number },
-  ): Omit<Schedule, "id" | "createdAt"> {
+  ): Omit<Schedule, 'id' | 'createdAt'> {
     const { id: _ignored, ...rest } = slot;
 
     return {
       ...rest,
       offeringId: owner.offeringId,
-      ownerType: owner.clubId !== undefined ? "club" : "trainer",
+      ownerType: owner.clubId !== undefined ? 'club' : 'trainer',
       ownerId: owner.clubId ?? owner.trainerId,
       ...(owner.clubId !== undefined ? { clubId: owner.clubId } : {}),
       ...(owner.trainerId !== undefined ? { trainerId: owner.trainerId } : {}),
-    } as Omit<Schedule, "id" | "createdAt">;
+    } as Omit<Schedule, 'id' | 'createdAt'>;
   }
 
   /**
@@ -345,7 +310,7 @@ export class PublicationService {
         const current = existingById.get(input.id);
 
         if (!current) {
-          const label = owner.clubId !== undefined ? "клуба" : "тренера";
+          const label = owner.clubId !== undefined ? 'клуба' : 'тренера';
           throw new NotFoundError(`Слот ${label} с id ${input.id} не найден`);
         }
 
@@ -367,9 +332,7 @@ export class PublicationService {
     );
     result.push(...created);
 
-    const removed = existing
-      .filter((slot) => !keptIds.has(slot.id))
-      .map((slot) => slot.id);
+    const removed = existing.filter((slot) => !keptIds.has(slot.id)).map((slot) => slot.id);
     await this.schedule.removeMany(removed);
 
     return result;
@@ -377,7 +340,7 @@ export class PublicationService {
 
   /** Каскад: услуги, их слоты, записи и отзывы владельца. */
   private async cascadeDelete(owner: {
-    ownerType: "club" | "trainer";
+    ownerType: 'club' | 'trainer';
     ownerId: number;
   }): Promise<void> {
     const offerings = await this.offerings.findMany(owner);
@@ -391,9 +354,7 @@ export class PublicationService {
     await this.offerings.removeMany(offeringIds);
 
     const ownerFilter =
-      owner.ownerType === "club"
-        ? { clubId: owner.ownerId }
-        : { trainerId: owner.ownerId };
+      owner.ownerType === 'club' ? { clubId: owner.ownerId } : { trainerId: owner.ownerId };
     await this.bookings.removeMany(ownerFilter);
     await this.reviews.removeMany(ownerFilter);
   }
@@ -401,10 +362,7 @@ export class PublicationService {
   // --- Публикация из формы провайдера -----------------------------------------
 
   /** Создание клуба из формы модалки. */
-  createClubFromForm(
-    form: ClubForm,
-    userId: number,
-  ): Promise<ClubPublicationResult> {
+  createClubFromForm(form: ClubForm, userId: number): Promise<ClubPublicationResult> {
     return this.createClub({
       club: clubFromForm(form, userId),
       offering: clubOfferingFromForm(form),
@@ -418,11 +376,7 @@ export class PublicationService {
     clubId: number,
     userId: number,
   ): Promise<ClubPublicationResult> {
-    const {
-      rating: _r,
-      reviewCount: _rc,
-      ...club
-    } = clubFromForm(form, userId);
+    const { rating: _r, reviewCount: _rc, ...club } = clubFromForm(form, userId);
 
     return this.updateClub({
       clubId,
@@ -451,11 +405,7 @@ export class PublicationService {
     trainerId: number,
     userId: number,
   ): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
-    const {
-      rating: _r,
-      reviewCount: _rc,
-      ...trainer
-    } = trainerFromForm(form, userId);
+    const { rating: _r, reviewCount: _rc, ...trainer } = trainerFromForm(form, userId);
 
     return this.updateTrainer({
       trainerId,

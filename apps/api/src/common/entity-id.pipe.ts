@@ -3,10 +3,10 @@
 // разными текстами ошибки. Текст остаётся параметром — он свой у каждого
 // домена и уходит наружу дословно.
 
-import type { PipeTransform } from "@nestjs/common";
-import { Injectable } from "@nestjs/common";
+import type { PipeTransform } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { ValidationError } from "./domain-error";
+import { ValidationError } from './domain-error';
 
 @Injectable()
 export class EntityIdPipe implements PipeTransform<string, number> {
