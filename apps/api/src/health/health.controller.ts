@@ -12,7 +12,9 @@ export class HealthController {
   constructor(public readonly healthService: HealthService) {}
 
   @Get()
-  check(): { success: true; data: HealthStatus } {
-    return { success: true, data: this.healthService.getStatus() };
+  check(): HealthStatus {
+    // Обёртку `{ success, data }` добавляет общий интерцептор — контроллеры
+    // возвращают только полезную нагрузку.
+    return this.healthService.getStatus();
   }
 }
