@@ -185,4 +185,67 @@ describe('Маршруты модерации', () => {
     expect(response.body.data).toHaveLength(1);
     expect(response.body.total).toBe(3);
   });
+
+  it('неизвестное действие отклоняется своим текстом', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .send({ action: 'burn', entityType: 'club', entityId: 1, moderatorId: 3, reason: 'нет' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректное действие. Ожидается hide или unhide');
+  });
+
+  it('неизвестный тип сущности отклоняется своим текстом', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .send({ action: 'hide', entityType: 'stadium', entityId: 1, moderatorId: 3, reason: 'нет' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный тип сущности');
+  });
+
+  it('нечисловой идентификатор сущности отклоняется своим текстом', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .send({
+        action: 'hide',
+        entityType: 'club',
+        entityId: 'один',
+        moderatorId: 3,
+        reason: 'нет',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный entityId');
+  });
+
+  it('нечисловой идентификатор модератора отклоняется своим текстом', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .send({
+        action: 'hide',
+        entityType: 'club',
+        entityId: 1,
+        moderatorId: 'админ',
+        reason: 'нет',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный moderatorId');
+  });
+
+  it('скрытие несуществующего тренера — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .send({
+        action: 'hide',
+        entityType: 'trainer',
+        entityId: 999,
+        moderatorId: 3,
+        reason: 'нет',
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Тренер не найден');
+  });
 });

@@ -208,4 +208,38 @@ describe('Маршрут отзывов', () => {
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Тренер не найден');
   });
+
+  it('нечисловой фильтр отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer()).get('/api/reviews?clubId=клуб');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные параметры запроса');
+  });
+
+  it('оценка вне диапазона отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/reviews')
+      .send({ userId: 1, clubId: 1, rating: 9, text: 'Слишком много' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные данные отзыва');
+  });
+
+  it('отзыв от несуществующего пользователя — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/reviews')
+      .send({ userId: 99, clubId: 1, rating: 5, text: 'Кто это' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Пользователь не найден');
+  });
+
+  it('отзыв на несуществующий клуб — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/reviews')
+      .send({ userId: 1, clubId: 999, rating: 5, text: 'Нет клуба' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Клуб не найден');
+  });
 });

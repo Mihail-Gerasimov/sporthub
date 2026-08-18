@@ -112,4 +112,19 @@ describe('GET /schedule', () => {
       error: 'Некорректные параметры запроса',
     });
   });
+
+  it('нечисловой клуб в фильтре отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule?clubId=первый');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ success: false, error: 'Некорректные параметры запроса' });
+  });
+
+  it('признак includeFull возвращает и заполненные слоты', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/schedule?includeFull=true',
+    );
+
+    expect(response.body.data.some((item: { id: number }) => item.id === 4)).toBe(true);
+  });
 });

@@ -262,4 +262,66 @@ describe('Административные маршруты', () => {
 
     expect(response.status).toBe(404);
   });
+
+  it('принудительный разрыв связи не-администратором запрещён', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/trainer-club-links/1/force-revoke')
+      .send({ adminUserId: 1 });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Действие доступно только администратору');
+  });
+
+  it('снятие карантина не-администратором запрещено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/lift-quarantine')
+      .send({ adminUserId: 1 });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('смена пароля не-администратором запрещена', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .send({ adminUserId: 1, newPassword: 'взлом-пароля' });
+
+    expect(response.status).toBe(403);
+
+    const users = await harness.read<{ password: string }[]>('users');
+    expect(users[0].password).toBe('demo123');
+  });
+
+  it('пересчёт надёжности не-администратором запрещён', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/recompute-reliability')
+      .send({ adminUserId: 1 });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('снятие карантина несуществующему пользователю — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/99/lift-quarantine')
+      .send({ adminUserId: 3 });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Пользователь не найден');
+  });
+
+  it('смена пароля несуществующему пользователю — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/99/password')
+      .send({ adminUserId: 3, newPassword: 'новый-пароль' });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('удаление записи без данных запроса отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .delete('/api/admin/bookings/1')
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные данные запроса');
+  });
 });

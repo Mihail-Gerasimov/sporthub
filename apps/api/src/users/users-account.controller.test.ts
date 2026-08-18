@@ -157,4 +157,22 @@ describe('Маршруты учётных данных', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('настройки несуществующего пользователя — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/users/99/notification-preferences',
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Пользователь не найден');
+  });
+
+  it('нечисловой идентификатор в настройках отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/users/abc/notification-preferences',
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный id');
+  });
 });

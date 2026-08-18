@@ -153,4 +153,31 @@ describe('Маршруты уведомлений', () => {
 
     expect(response.status).toBe(400);
   });
+
+  it('нечисловой идентификатор уведомления отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/abc/read')
+      .send({ userId: 1 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный id уведомления');
+  });
+
+  it('счётчик без пользователя не отдаётся', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/notifications/unread-count',
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные параметры запроса');
+  });
+
+  it('пометка всех прочитанными без пользователя отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all')
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные данные запроса');
+  });
 });

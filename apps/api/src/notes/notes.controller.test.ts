@@ -139,4 +139,35 @@ describe('Маршруты CRM-заметок', () => {
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Заметка не найдена');
   });
+
+  it('правка несуществующей заметки — не найдено', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .patch('/api/provider-client-notes/999')
+      .send({ userId: 2, note: 'Нет такой' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Заметка не найдена');
+  });
+
+  it('чужую заметку удалить нельзя', async () => {
+    const created = await request(harness.app.getHttpServer())
+      .post('/api/provider-client-notes')
+      .send({ providerUserId: 2, clientUserId: 1, note: 'Моя' });
+
+    const response = await request(harness.app.getHttpServer())
+      .delete(`/api/provider-client-notes/${created.body.data.id}`)
+      .send({ userId: 9 });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Недостаточно прав для удаления заметки');
+  });
+
+  it('нечисловой идентификатор заметки отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .patch('/api/provider-client-notes/abc')
+      .send({ userId: 2, note: 'Текст' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный id');
+  });
 });

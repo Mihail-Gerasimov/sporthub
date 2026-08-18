@@ -387,36 +387,4 @@ export class BookingsController {
   }
 }
 
-/** Административное удаление записи — отдельный маршрут под своей проверкой прав. */
-@Controller('admin/bookings')
-export class AdminBookingsController {
-  constructor(
-    private readonly bookings: BookingService,
-    private readonly access: AccessService,
-    private readonly logs: LogService,
-  ) {}
-
-  @Delete(':id')
-  async hardDelete(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<EmptyResult> {
-    const bookingId = parseBookingId(rawId);
-    const { adminUserId } = parseBody(adminSchema, rawBody, 'Некорректные данные запроса');
-
-    if (!(await this.access.isAdmin(adminUserId))) {
-      throw new ForbiddenError('Действие доступно только администратору');
-    }
-
-    await this.bookings.hardDelete(bookingId);
-
-    await this.logs.record({
-      action: 'admin_hard_delete_booking',
-      actorId: adminUserId,
-      actorRole: 'admin',
-      entityType: 'booking',
-      entityId: bookingId,
-    });
-
-    return EMPTY_RESULT;
-  }
-}
-
-export const BOOKING_CONTROLLERS = [BookingsController, AdminBookingsController];
+export const BOOKING_CONTROLLERS = [BookingsController];

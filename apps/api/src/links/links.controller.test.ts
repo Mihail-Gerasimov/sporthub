@@ -263,4 +263,34 @@ describe('Маршруты связей тренер↔клуб', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
   });
+
+  it('нечисловой идентификатор связи отклоняется', async () => {
+    const response = await post('/trainer-club-links/abc/approve', { userId: 2 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректный id связи');
+  });
+
+  it('подтверждение без указания пользователя отклоняется', async () => {
+    const response = await post('/trainer-club-links/1/approve', {});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные данные запроса');
+  });
+
+  it('неизвестное состояние в фильтре отклоняется', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/trainer-club-links?status=broken',
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные параметры запроса');
+  });
+
+  it('заявка на несуществующий клуб — не найдено', async () => {
+    const response = await post('/trainer-club-links', { trainerId: 3, clubId: 99, userId: 5 });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('Клуб не найден');
+  });
 });
