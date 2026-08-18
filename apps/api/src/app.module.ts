@@ -7,6 +7,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AccessService } from './access/access.service';
 import { BookingService } from './bookings/booking.service';
+import { CATALOG_CONTROLLERS } from './catalog/catalog.controller';
 import { DICTIONARY_CONTROLLERS } from './dictionaries/dictionaries.controller';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
 import { DomainErrorFilter } from './common/domain-error.filter';
@@ -20,7 +21,7 @@ import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [StorageModule],
-  controllers: [HealthController, ...DICTIONARY_CONTROLLERS],
+  controllers: [HealthController, ...DICTIONARY_CONTROLLERS, ...CATALOG_CONTROLLERS],
   providers: [
     // Формат ответа и разбор ошибок — общие для всех контроллеров.
     { provide: APP_INTERCEPTOR, useClass: ApiResponseInterceptor },
