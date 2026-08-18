@@ -1,0 +1,29 @@
+{
+  // tsconfig бэкенда. Намеренно НЕ наследует tsconfig.base.json и не связан
+  // с apps/web: у NestJS и Next несовместимые модели резолва модулей.
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    // Без этих двух Nest не соберёт DI: контейнер читает типы конструктора
+    // из метадаты, которую эмитит компилятор.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    // Обязательно false: при true (дефолт для target >= ES2022) поля класса
+    // объявляются через defineProperty и перестают быть видны декораторам.
+    "useDefineForClassFields": false,
+    // Nest инициализирует DI-поля сам, до конструктора TypeScript о них не знает.
+    "strictPropertyInitialization": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
