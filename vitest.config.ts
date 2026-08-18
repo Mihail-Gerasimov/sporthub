@@ -10,6 +10,15 @@ export default defineConfig({
     },
   },
   test: {
+    // Потолок воркеров. Без него vitest на 12 ядрах поднимает 11 форков
+    // (по формуле cpus-1), а после разделения на два пакета прогонов станет
+    // два — до 22 процессов Node одновременно.
+    // ВАЖНО: в Vitest 4 `test.poolOptions` УДАЛЁН, опции подняты на верхний
+    // уровень. Синтаксис v3 (`poolOptions.forks.maxForks`) не роняет запуск,
+    // а молча игнорируется с deprecation-предупреждением — то есть потолка
+    // фактически нет. Проверять надо отсутствием предупреждения в выводе.
+    pool: 'forks',
+    maxWorkers: 3,
     environment: 'jsdom',
     include: ['src/test/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
