@@ -3,15 +3,11 @@
 import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
-import { getBookings, getClubs, getTrainers, runLazyBookingTransitions } from '@/lib/server-api';
+import { getBookings, getClubs, getTrainers } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderProfileLayout({ children }: { children: ReactNode }) {
-  // Ленивые FSM-переходы нужны, чтобы hasProviderBookings учитывал актуальные статусы
-  // (auto-cancel, auto-unmark) без двойной загрузки внутри подстраницы.
-  await runLazyBookingTransitions();
-
   const [bookings, clubs, trainers] = await Promise.all([getBookings(), getClubs(), getTrainers()]);
 
   return (

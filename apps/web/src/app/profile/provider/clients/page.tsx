@@ -10,16 +10,11 @@ import {
   getSchedule,
   getTrainers,
   getUsers,
-  runLazyBookingTransitions,
 } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderClientsRoute() {
-  // Запустим lazy FSM-переходы до чтения — иначе завершённые слоты могут висеть в
-  // confirmed и завышать active-счётчики на карточках.
-  await runLazyBookingTransitions();
-
   const [bookings, clubs, trainers, offerings, schedule, users, notes] = await Promise.all([
     getBookings(),
     getClubs(),

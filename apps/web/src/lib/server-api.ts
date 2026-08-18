@@ -160,15 +160,6 @@ export const getBookings = (): Promise<Booking[]> =>
 export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ userId })}`, []);
 
-/**
- * Автопереходы отдельным действием больше не вызываются: они выполняются внутри
- * чтения записей. Функция сохранена, чтобы страницы не переписывались, и просто
- * ничего не делает.
- */
-export async function runLazyBookingTransitions(): Promise<void> {
-  // Намеренно пусто: переходы прогоняет бэкенд при чтении записей.
-}
-
 // --- Прочие коллекции -----------------------------------------------------------
 
 export const getReviews = (): Promise<Review[]> => apiGet<Review[]>('/reviews', []);

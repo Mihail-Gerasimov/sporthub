@@ -12,14 +12,11 @@ import {
   getSchedule,
   getTrainerClubLinks,
   getTrainers,
-  runLazyBookingTransitions,
 } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderDashboardRoute() {
-  await runLazyBookingTransitions();
-
   const [bookings, clubs, trainers, offerings, schedule, links, notifications, reviews] =
     await Promise.all([
       getBookings(),

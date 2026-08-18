@@ -205,10 +205,6 @@ export async function getBookingsByUser(userId: EntityId): Promise<Booking[]> {
   return bookings.filter((booking) => booking.userId === userId);
 }
 
-export async function runLazyBookingTransitions(): Promise<void> {
-  // Ничего не делает — так же, как рабочая реализация.
-}
-
 export const getReviews = (): Promise<Review[]> => read<Review>('reviews.json');
 export const getUsers = (): Promise<User[]> => read<User>('users.json');
 

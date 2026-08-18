@@ -10,7 +10,6 @@ import {
   getSchedule,
   getSports,
   getTrainers,
-  runLazyBookingTransitions,
 } from '@/lib/server-api';
 import { ProviderStats } from '@/components/profile/provider/ProviderStats';
 
@@ -18,8 +17,6 @@ export const dynamic = 'force-dynamic';
 
 /** Кэшированный loader: одна выборка всех данных на SSR-рендер. */
 const loadProviderStatsData = cache(async () => {
-  await runLazyBookingTransitions();
-
   const [bookings, clubs, trainers, offerings, schedule, sports] = await Promise.all([
     getBookings(),
     getClubs(),
