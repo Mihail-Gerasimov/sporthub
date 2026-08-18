@@ -8,7 +8,7 @@
 // было до переноса. Если рассылка упадёт, переход всё равно останется. Менять
 // это в фазе нельзя: поведение должно совпасть с прежним.
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from "@nestjs/common";
 import {
   computeCancelReason,
   getBookedCountDelta,
@@ -17,7 +17,7 @@ import {
   ACTIVE_BOOKING_STATUSES,
   DISCIPLINE_CONFIG,
   type DisciplineConfig,
-} from '@sporthub/domain';
+} from "@sporthub/domain";
 import type {
   Booking,
   BookingActor,
@@ -25,16 +25,20 @@ import type {
   BookingStatusTransition,
   CancellationPolicy,
   Schedule,
-} from '@sporthub/types';
+} from "@sporthub/types";
 
-import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
-import { LogService } from '../logs/log.service';
-import { NotificationService } from '../notifications/notification.service';
-import type { BookingsRepository } from '../repositories/bookings.repository';
-import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
-import type { ScheduleRepository } from '../repositories/entities.repository';
-import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
-import { SlotContextService } from '../schedule/slot-context.service';
+import {
+  ConflictError,
+  NotFoundError,
+  ForbiddenError,
+} from "../common/domain-error";
+import { LogService } from "../logs/log.service";
+import { NotificationService } from "../notifications/notification.service";
+import type { BookingsRepository } from "../repositories/bookings.repository";
+import { BOOKINGS_REPOSITORY } from "../repositories/bookings.repository";
+import type { ScheduleRepository } from "../repositories/entities.repository";
+import { SCHEDULE_REPOSITORY } from "../repositories/entities.repository";
+import { SlotContextService } from "../schedule/slot-context.service";
 
 export type TransitionInput = {
   bookingId: number;
@@ -79,7 +83,7 @@ export class BookingService {
     const booking = await this.bookings.findById(input.bookingId);
 
     if (!booking) {
-      throw new NotFoundError('Запись не найдена');
+      throw new NotFoundError("Запись не найдена");
     }
 
     try {
@@ -87,7 +91,9 @@ export class BookingService {
     } catch (error) {
       // Правила бросают обычную ошибку — превращаем её в конфликт состояния,
       // сохраняя текст дословно: на него завязаны роуты и тесты.
-      throw new ConflictError(error instanceof Error ? error.message : 'Недопустимый переход');
+      throw new ConflictError(
+        error instanceof Error ? error.message : "Недопустимый переход",
+      );
     }
 
     const transition: BookingStatusTransition = {
@@ -104,13 +110,16 @@ export class BookingService {
       statusHistory: [...(booking.statusHistory ?? []), transition],
     };
 
-    if (input.to === 'cancelled_by_athlete') {
+    if (input.to === "cancelled_by_athlete") {
       const slot = await this.schedule.findById(booking.scheduleId);
       patch.cancelledBy = input.actor;
       patch.cancelReason = computeCancelReason(booking, slot, now);
-    } else if (input.to === 'cancelled_by_provider' || input.to === 'rejected_by_provider') {
+    } else if (
+      input.to === "cancelled_by_provider" ||
+      input.to === "rejected_by_provider"
+    ) {
       patch.cancelledBy = input.actor;
-    } else if (input.to === 'completed') {
+    } else if (input.to === "completed") {
       patch.completedAt = now.toISOString();
     }
 
@@ -131,11 +140,14 @@ export class BookingService {
   }
 
   /** Создание записи. Проверки идут в том же порядке: слот → дубль → места. */
-  async create(input: { scheduleId: number; userId: number }): Promise<Booking> {
+  async create(input: {
+    scheduleId: number;
+    userId: number;
+  }): Promise<Booking> {
     const context = await this.slotContext.getContext(input.scheduleId);
 
     if (!context) {
-      throw new NotFoundError('Слот расписания не найден');
+      throw new NotFoundError("Слот расписания не найден");
     }
 
     const { affiliatedClub, club, offering, schedule: slot, trainer } = context;
@@ -144,20 +156,23 @@ export class BookingService {
       userId: input.userId,
       scheduleId: input.scheduleId,
     });
-    const duplicate = existing.find((booking) => ACTIVE_BOOKING_STATUSES.has(booking.status));
+    const duplicate = existing.find((booking) =>
+      ACTIVE_BOOKING_STATUSES.has(booking.status),
+    );
 
     if (duplicate) {
-      throw new ConflictError('Пользователь уже записан на это занятие');
+      throw new ConflictError("Пользователь уже записан на это занятие");
     }
 
     if (slot.bookedCount >= slot.capacity) {
-      throw new ConflictError('Свободных мест нет');
+      throw new ConflictError("Свободных мест нет");
     }
 
     const timestamp = new Date().toISOString();
     // Политика отмены фиксируется на момент записи: изменение условий позже
     // не должно менять правила для уже записавшегося.
-    const snapshot: CancellationPolicy = offering?.cancellationPolicy ?? 'free_until_24h';
+    const snapshot: CancellationPolicy =
+      offering?.cancellationPolicy ?? "free_until_24h";
 
     const created = await this.bookings.insert({
       scheduleId: input.scheduleId,
@@ -169,15 +184,15 @@ export class BookingService {
       trainerId: trainer?.id ?? slot.trainerId,
       sportId: offering?.sportId ?? slot.sportId,
       date: slot.date,
-      status: 'pending',
-      paymentStatus: 'unpaid',
+      status: "pending",
+      paymentStatus: "unpaid",
       totalPrice: offering?.price ?? slot.price,
       cancellationPolicySnapshot: snapshot,
       statusHistory: [
         {
           from: null,
-          to: 'pending',
-          actor: 'athlete',
+          to: "pending",
+          actor: "athlete",
           actorUserId: input.userId,
           at: timestamp,
         },
@@ -190,21 +205,24 @@ export class BookingService {
   }
 
   /** Отмена атлетом. Проверка владения — до правил перехода, ради точного текста. */
-  async cancelByAthlete(input: { bookingId: number; userId: number }): Promise<void> {
+  async cancelByAthlete(input: {
+    bookingId: number;
+    userId: number;
+  }): Promise<void> {
     const booking = await this.bookings.findById(input.bookingId);
 
     if (!booking) {
-      throw new NotFoundError('Запись не найдена');
+      throw new NotFoundError("Запись не найдена");
     }
 
     if (booking.userId !== input.userId) {
-      throw new ForbiddenError('Недостаточно прав для отмены записи');
+      throw new ForbiddenError("Недостаточно прав для отмены записи");
     }
 
     await this.transition({
       bookingId: input.bookingId,
-      to: 'cancelled_by_athlete',
-      actor: 'athlete',
+      to: "cancelled_by_athlete",
+      actor: "athlete",
       actorUserId: input.userId,
     });
   }
@@ -217,7 +235,7 @@ export class BookingService {
     const booking = await this.bookings.findById(bookingId);
 
     if (!booking) {
-      throw new NotFoundError('Запись не найдена');
+      throw new NotFoundError("Запись не найдена");
     }
 
     await this.bookings.remove(bookingId);
@@ -241,10 +259,11 @@ export class BookingService {
   ): Promise<LazyTransitionsResult> {
     const [bookings, slots] = await Promise.all([
       this.bookings.findAll(),
-      this.schedule.findMany({ ownerType: 'all' }),
+      this.schedule.findMany({ ownerType: "all" }),
     ]);
     const slotById = new Map(slots.map((slot) => [slot.id, slot]));
-    const autoCancelMs = config.pending.autoCancelHoursBeforeStart * 60 * 60 * 1000;
+    const autoCancelMs =
+      config.pending.autoCancelHoursBeforeStart * 60 * 60 * 1000;
     const unmarkMs = config.checkIn.windowHoursAfterEnd * 60 * 60 * 1000;
 
     const toCancel: Booking[] = [];
@@ -255,11 +274,11 @@ export class BookingService {
 
       if (!slot) continue;
 
-      if (booking.status === 'pending') {
+      if (booking.status === "pending") {
         if (now.getTime() >= getSlotStartAt(slot).getTime() - autoCancelMs) {
           toCancel.push(booking);
         }
-      } else if (booking.status === 'confirmed') {
+      } else if (booking.status === "confirmed") {
         if (now.getTime() > getSlotEndAt(slot).getTime() + unmarkMs) {
           toUnmark.push(booking);
         }
@@ -271,26 +290,36 @@ export class BookingService {
     for (const booking of toCancel) {
       await this.transition({
         bookingId: booking.id,
-        to: 'cancelled_by_provider',
-        actor: 'system',
-        reason: 'auto_cancel_pending_expired',
+        to: "cancelled_by_provider",
+        actor: "system",
+        reason: "auto_cancel_pending_expired",
         now,
       });
     }
 
     for (const booking of toUnmark) {
-      await this.transition({ bookingId: booking.id, to: 'unmarked', actor: 'system', now });
+      await this.transition({
+        bookingId: booking.id,
+        to: "unmarked",
+        actor: "system",
+        now,
+      });
     }
 
-    return { autoCancelledPending: toCancel.length, autoUnmarked: toUnmark.length };
+    return {
+      autoCancelledPending: toCancel.length,
+      autoUnmarked: toUnmark.length,
+    };
   }
 
   /** Кто из пользователей отвечает за сущность, к которой относится запись. */
-  private async resolveProviderUserId(booking: Booking): Promise<number | null> {
+  private async resolveProviderUserId(
+    booking: Booking,
+  ): Promise<number | null> {
     const owner =
-      booking.ownerType === 'trainer'
+      booking.ownerType === "trainer"
         ? await this.slotContext.findTrainerManager(booking.ownerId)
-        : booking.ownerType === 'club'
+        : booking.ownerType === "club"
           ? await this.slotContext.findClubManager(booking.ownerId)
           : null;
 
@@ -310,28 +339,34 @@ export class BookingService {
     const athleteId = booking.userId;
 
     switch (transition.to) {
-      case 'confirmed':
-        await this.notifications.notify(athleteId, 'booking_confirmed', { bookingId: booking.id });
+      case "confirmed":
+        await this.notifications.notify(athleteId, "booking_confirmed", {
+          bookingId: booking.id,
+        });
         break;
 
-      case 'rejected_by_provider':
-        await this.notifications.notify(athleteId, 'booking_rejected', {
+      case "rejected_by_provider":
+        await this.notifications.notify(athleteId, "booking_rejected", {
           bookingId: booking.id,
           reason: transition.reason,
         });
         break;
 
-      case 'cancelled_by_athlete': {
-        await this.notifications.notify(athleteId, 'booking_cancelled_by_athlete', {
-          bookingId: booking.id,
-          cancelReason: booking.cancelReason,
-        });
+      case "cancelled_by_athlete": {
+        await this.notifications.notify(
+          athleteId,
+          "booking_cancelled_by_athlete",
+          {
+            bookingId: booking.id,
+            cancelReason: booking.cancelReason,
+          },
+        );
 
         const providerUserId = await this.resolveProviderUserId(booking);
         if (providerUserId !== null) {
           await this.notifications.notify(
             providerUserId,
-            'booking_cancelled_by_athlete_to_provider',
+            "booking_cancelled_by_athlete_to_provider",
             {
               bookingId: booking.id,
               athleteUserId: booking.userId,
@@ -342,11 +377,11 @@ export class BookingService {
         break;
       }
 
-      case 'cancelled_by_provider': {
-        const bySystem = transition.actor === 'system';
+      case "cancelled_by_provider": {
+        const bySystem = transition.actor === "system";
         await this.notifications.notify(
           athleteId,
-          bySystem ? 'booking_auto_expired' : 'booking_cancelled_by_provider',
+          bySystem ? "booking_auto_expired" : "booking_cancelled_by_provider",
           { bookingId: booking.id },
         );
 
@@ -354,21 +389,29 @@ export class BookingService {
         if (bySystem) {
           const providerUserId = await this.resolveProviderUserId(booking);
           if (providerUserId !== null) {
-            await this.notifications.notify(providerUserId, 'booking_auto_expired_to_provider', {
-              bookingId: booking.id,
-              athleteUserId: booking.userId,
-            });
+            await this.notifications.notify(
+              providerUserId,
+              "booking_auto_expired_to_provider",
+              {
+                bookingId: booking.id,
+                athleteUserId: booking.userId,
+              },
+            );
           }
         }
         break;
       }
 
-      case 'completed':
-        await this.notifications.notify(athleteId, 'booking_completed', { bookingId: booking.id });
+      case "completed":
+        await this.notifications.notify(athleteId, "booking_completed", {
+          bookingId: booking.id,
+        });
         break;
 
-      case 'no_show':
-        await this.notifications.notify(athleteId, 'booking_no_show', { bookingId: booking.id });
+      case "no_show":
+        await this.notifications.notify(athleteId, "booking_no_show", {
+          bookingId: booking.id,
+        });
         break;
 
       // `unmarked` — служебный финал, атлету не сообщается.

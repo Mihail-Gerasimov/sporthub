@@ -8,13 +8,19 @@
 // её не проверяет. Это дыра, перенесённая сознательно: фаза обязана сохранить
 // контракты, а настоящая авторизация делается отдельной фазой.
 
-import { Inject, Injectable } from '@nestjs/common';
-import type { Booking, Club, Trainer } from '@sporthub/types';
+import { Inject, Injectable } from "@nestjs/common";
+import type { Booking, Club, Trainer } from "@sporthub/types";
 
-import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
-import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
-import type { UsersRepository } from '../repositories/crud.repository';
-import { USERS_REPOSITORY } from '../repositories/crud.repository';
+import type {
+  ClubsRepository,
+  TrainersRepository,
+} from "../repositories/entities.repository";
+import {
+  CLUBS_REPOSITORY,
+  TRAINERS_REPOSITORY,
+} from "../repositories/entities.repository";
+import type { UsersRepository } from "../repositories/crud.repository";
+import { USERS_REPOSITORY } from "../repositories/crud.repository";
 
 @Injectable()
 export class AccessService {
@@ -28,7 +34,7 @@ export class AccessService {
   async isAdmin(userId: number): Promise<boolean> {
     const user = await this.users.findById(userId);
 
-    return user?.role === 'admin';
+    return user?.role === "admin";
   }
 
   /**
@@ -36,16 +42,25 @@ export class AccessService {
    * Учитывает и явные поля записи, и вывод владельца из `ownerType`/`ownerId`
    * для старого формата данных.
    */
-  async isProviderOfBooking(booking: Booking, userId: number): Promise<boolean> {
-    const clubId = booking.clubId ?? (booking.ownerType === 'club' ? booking.ownerId : undefined);
+  async isProviderOfBooking(
+    booking: Booking,
+    userId: number,
+  ): Promise<boolean> {
+    const clubId =
+      booking.clubId ??
+      (booking.ownerType === "club" ? booking.ownerId : undefined);
     const trainerId =
-      booking.trainerId ?? (booking.ownerType === 'trainer' ? booking.ownerId : undefined);
+      booking.trainerId ??
+      (booking.ownerType === "trainer" ? booking.ownerId : undefined);
 
     if (clubId !== undefined && (await this.isManagerOfClub(clubId, userId))) {
       return true;
     }
 
-    if (trainerId !== undefined && (await this.isManagerOfTrainer(trainerId, userId))) {
+    if (
+      trainerId !== undefined &&
+      (await this.isManagerOfTrainer(trainerId, userId))
+    ) {
       return true;
     }
 
@@ -58,7 +73,10 @@ export class AccessService {
     return club?.managedByUserId === userId;
   }
 
-  async isManagerOfTrainer(trainerId: number, userId: number): Promise<boolean> {
+  async isManagerOfTrainer(
+    trainerId: number,
+    userId: number,
+  ): Promise<boolean> {
     const trainer = await this.trainers.findById(trainerId);
 
     return trainer?.managedByUserId === userId;
@@ -77,7 +95,9 @@ export class AccessService {
     trainers: Trainer[],
   ): boolean {
     const providerClubIds = new Set(
-      clubs.filter((club) => club.managedByUserId === providerUserId).map((club) => club.id),
+      clubs
+        .filter((club) => club.managedByUserId === providerUserId)
+        .map((club) => club.id),
     );
     const providerTrainerIds = new Set(
       trainers
@@ -92,12 +112,16 @@ export class AccessService {
     return bookings.some((booking) => {
       if (booking.userId !== clientUserId) return false;
 
-      const clubId = booking.clubId ?? (booking.ownerType === 'club' ? booking.ownerId : undefined);
+      const clubId =
+        booking.clubId ??
+        (booking.ownerType === "club" ? booking.ownerId : undefined);
       if (clubId !== undefined && providerClubIds.has(clubId)) return true;
 
       const trainerId =
-        booking.trainerId ?? (booking.ownerType === 'trainer' ? booking.ownerId : undefined);
-      if (trainerId !== undefined && providerTrainerIds.has(trainerId)) return true;
+        booking.trainerId ??
+        (booking.ownerType === "trainer" ? booking.ownerId : undefined);
+      if (trainerId !== undefined && providerTrainerIds.has(trainerId))
+        return true;
 
       return false;
     });

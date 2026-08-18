@@ -78,6 +78,6 @@ export class QuarantineError extends DomainError {
     readonly until: string | undefined,
     readonly reason: string | undefined,
   ) {
-    super('quarantine');
+    super("quarantine");
   }
 }

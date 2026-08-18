@@ -3,11 +3,11 @@
 // с расползающейся логикой. Теперь код берётся из класса ошибки, а текст
 // уходит наружу дословно.
 
-import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
-import { Catch, HttpException, Logger } from '@nestjs/common';
-import type { Response } from 'express';
+import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
+import { Catch, HttpException, Logger } from "@nestjs/common";
+import type { Response } from "express";
 
-import { DomainError, QuarantineError, ValidationError } from './domain-error';
+import { DomainError, QuarantineError, ValidationError } from "./domain-error";
 
 @Catch()
 export class DomainErrorFilter implements ExceptionFilter {
@@ -39,7 +39,9 @@ export class DomainErrorFilter implements ExceptionFilter {
     }
 
     if (exception instanceof DomainError) {
-      response.status(exception.status).json({ success: false, error: exception.message });
+      response
+        .status(exception.status)
+        .json({ success: false, error: exception.message });
 
       return;
     }
@@ -55,7 +57,12 @@ export class DomainErrorFilter implements ExceptionFilter {
     }
 
     // Всё остальное — наша вина. Наружу общий текст, в лог — детали.
-    this.logger.error('Необработанная ошибка', exception instanceof Error ? exception.stack : exception);
-    response.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+    this.logger.error(
+      "Необработанная ошибка",
+      exception instanceof Error ? exception.stack : exception,
+    );
+    response
+      .status(500)
+      .json({ success: false, error: "Внутренняя ошибка сервера" });
   }
 }

@@ -4,15 +4,15 @@
 // внедрять в него пять репозиториев значило бы размазать зависимости.
 // Этот класс собирает их в одном месте и отдаёт ровно то, что нужно маршрутам.
 
-import { Inject, Injectable } from '@nestjs/common';
-import type { Booking, Schedule, User } from '@sporthub/types';
+import { Inject, Injectable } from "@nestjs/common";
+import type { Booking, Schedule, User } from "@sporthub/types";
 
-import type { BookingsRepository } from '../repositories/bookings.repository';
-import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
-import type { UsersRepository } from '../repositories/crud.repository';
-import { USERS_REPOSITORY } from '../repositories/crud.repository';
-import type { ScheduleRepository } from '../repositories/entities.repository';
-import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
+import type { BookingsRepository } from "../repositories/bookings.repository";
+import { BOOKINGS_REPOSITORY } from "../repositories/bookings.repository";
+import type { UsersRepository } from "../repositories/crud.repository";
+import { USERS_REPOSITORY } from "../repositories/crud.repository";
+import type { ScheduleRepository } from "../repositories/entities.repository";
+import { SCHEDULE_REPOSITORY } from "../repositories/entities.repository";
 
 @Injectable()
 export class BookingsGateway {

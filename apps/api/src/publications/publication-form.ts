@@ -5,18 +5,18 @@
 // Всё остальное — вычисление адреса-ссылки, короткого описания, длительности —
 // перенесено дословно: от этого зависит вид уже опубликованных карточек.
 
-import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
+import type { Club, Offering, Schedule, Trainer } from "@sporthub/types";
 
-import type { PublicationSlotInput } from './publication.service';
+import type { PublicationSlotInput } from "./publication.service";
 
 /** Адрес-ссылка из названия: нижний регистр, пробелы в дефис, лишнее выбрасывается. */
 export function generateSlug(name: string): string {
   return name
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zа-яё0-9-]/g, '')
-    .replace(/-+/g, '-');
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zа-яё0-9-]/g, "")
+    .replace(/-+/g, "-");
 }
 
 /** Короткое описание — до 120 символов, по возможности по границе предложения. */
@@ -25,24 +25,24 @@ export function makeShortDescription(description: string): string {
 
   const cut = description.slice(0, 120);
   const lastSentenceEnd = Math.max(
-    cut.lastIndexOf('.'),
-    cut.lastIndexOf('!'),
-    cut.lastIndexOf('?'),
+    cut.lastIndexOf("."),
+    cut.lastIndexOf("!"),
+    cut.lastIndexOf("?"),
   );
 
   if (lastSentenceEnd > 40) {
     return description.slice(0, lastSentenceEnd + 1);
   }
 
-  const lastSpace = cut.lastIndexOf(' ');
+  const lastSpace = cut.lastIndexOf(" ");
 
   return `${description.slice(0, lastSpace > 0 ? lastSpace : 120)}…`;
 }
 
 /** Длительность занятия в минутах по времени начала и конца. */
 export function calcDuration(startTime: string, endTime: string): number {
-  const [startHours, startMinutes] = startTime.split(':').map(Number);
-  const [endHours, endMinutes] = endTime.split(':').map(Number);
+  const [startHours, startMinutes] = startTime.split(":").map(Number);
+  const [endHours, endMinutes] = endTime.split(":").map(Number);
 
   return endHours * 60 + endMinutes - (startHours * 60 + startMinutes);
 }
@@ -100,11 +100,14 @@ export type TrainerForm = {
   clubId?: number | null;
   coordinates?: { lat: number; lng: number };
   cityCoordinates?: { lat: number; lng: number };
-  scheduleSlots: ClubForm['scheduleSlots'];
+  scheduleSlots: ClubForm["scheduleSlots"];
 };
 
 /** Клуб из формы — без идентификатора и метки времени, их проставит хранилище. */
-export function clubFromForm(form: ClubForm, managedByUserId: number): Omit<Club, 'id' | 'createdAt'> {
+export function clubFromForm(
+  form: ClubForm,
+  managedByUserId: number,
+): Omit<Club, "id" | "createdAt"> {
   return {
     name: form.name,
     slug: generateSlug(form.name),
@@ -127,39 +130,41 @@ export function clubFromForm(form: ClubForm, managedByUserId: number): Omit<Club
     priceFrom: Number(form.priceFrom),
     distanceKm: 0,
     managedByUserId,
-    source: 'provider',
-    status: 'published',
-  } as Omit<Club, 'id' | 'createdAt'>;
+    source: "provider",
+    status: "published",
+  } as Omit<Club, "id" | "createdAt">;
 }
 
 /** Клубная услуга из формы. Владелец проставляется сервисом после создания клуба. */
-export function clubOfferingFromForm(form: ClubForm): Omit<Offering, 'id' | 'createdAt' | 'ownerId'> {
+export function clubOfferingFromForm(
+  form: ClubForm,
+): Omit<Offering, "id" | "createdAt" | "ownerId"> {
   return {
-    ownerType: 'club',
+    ownerType: "club",
     sportId: form.sportIds[0] ?? 0,
     title: `Занятия — ${form.name}`,
     description: form.description,
-    format: 'group',
+    format: "group",
     price: Number(form.priceFrom),
     durationMinutes: 60,
     capacity: 20,
     address: form.address,
     coordinates: form.coordinates ?? { lat: 0, lng: 0 },
-  } as Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
+  } as Omit<Offering, "id" | "createdAt" | "ownerId">;
 }
 
 /** Тренер из формы. Имя собирается из двух полей — так было и раньше. */
 export function trainerFromForm(
   form: TrainerForm,
   managedByUserId: number,
-): Omit<Trainer, 'id' | 'createdAt'> {
+): Omit<Trainer, "id" | "createdAt"> {
   const name = `${form.firstName} ${form.lastName}`.trim();
 
   return {
     name,
     slug: generateSlug(name),
     bio: form.bio,
-    avatarUrl: '',
+    avatarUrl: "",
     experienceYears: Number(form.experience),
     specialtyIds: form.specialtyIds,
     workFormatIds: form.workFormatIds,
@@ -175,16 +180,16 @@ export function trainerFromForm(
     ...(form.telegram ? { telegram: form.telegram } : {}),
     ...(form.facebook ? { facebook: form.facebook } : {}),
     managedByUserId,
-    source: 'provider',
-    status: 'published',
-  } as Omit<Trainer, 'id' | 'createdAt'>;
+    source: "provider",
+    status: "published",
+  } as Omit<Trainer, "id" | "createdAt">;
 }
 
 export function trainerOfferingFromForm(
   form: TrainerForm,
-): Omit<Offering, 'id' | 'createdAt' | 'ownerId'> {
+): Omit<Offering, "id" | "createdAt" | "ownerId"> {
   return {
-    ownerType: 'trainer',
+    ownerType: "trainer",
     sportId: form.sportIds[0] ?? 0,
     title: form.offeringName,
     description: form.offeringDescription,
@@ -194,11 +199,13 @@ export function trainerOfferingFromForm(
     capacity: 1,
     address: form.offeringLocation,
     coordinates: form.coordinates ?? { lat: 0, lng: 0 },
-  } as Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
+  } as Omit<Offering, "id" | "createdAt" | "ownerId">;
 }
 
 /** Слоты расписания из формы. Владелец и услуга проставляются сервисом. */
-export function slotsFromForm(form: { scheduleSlots: ClubForm['scheduleSlots'] }): PublicationSlotInput[] {
+export function slotsFromForm(form: {
+  scheduleSlots: ClubForm["scheduleSlots"];
+}): PublicationSlotInput[] {
   return form.scheduleSlots.map((slot) => ({
     ...(slot.id !== undefined ? { id: slot.id } : {}),
     sportId: slot.sportId,
@@ -207,7 +214,7 @@ export function slotsFromForm(form: { scheduleSlots: ClubForm['scheduleSlots'] }
     startTime: slot.startTime,
     endTime: slot.endTime,
     durationMinutes: calcDuration(slot.startTime, slot.endTime),
-    level: 'all_levels',
+    level: "all_levels",
     capacity: Number(slot.capacity),
     bookedCount: 0,
     price: Number(slot.price),

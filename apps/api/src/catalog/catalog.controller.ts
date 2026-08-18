@@ -6,17 +6,17 @@
 // ⚠️ Пользователи отдаются без пароля всегда. Пароли лежат открытым текстом,
 // и этот маршрут создаётся с нуля — утечка здесь стоила бы дороже всей фазы.
 
-import { Controller, Get, Inject, Query } from '@nestjs/common';
-import type { CatalogOwnerType, Offering, User } from '@sporthub/types';
+import { Controller, Get, Inject, Query } from "@nestjs/common";
+import type { CatalogOwnerType, Offering, User } from "@sporthub/types";
 
-import { ValidationError } from '../common/domain-error';
-import type { OfferingsRepository } from '../repositories/catalog.repository';
-import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
-import type { UsersRepository } from '../repositories/crud.repository';
-import { USERS_REPOSITORY } from '../repositories/crud.repository';
+import { ValidationError } from "../common/domain-error";
+import type { OfferingsRepository } from "../repositories/catalog.repository";
+import { OFFERINGS_REPOSITORY } from "../repositories/catalog.repository";
+import type { UsersRepository } from "../repositories/crud.repository";
+import { USERS_REPOSITORY } from "../repositories/crud.repository";
 
 /** Пользователь без пароля. Ровно то, что уходит наружу. */
-export type SafeUser = Omit<User, 'password'>;
+export type SafeUser = Omit<User, "password">;
 
 function stripPassword(user: User): SafeUser {
   const { password: _removed, ...safe } = user;
@@ -24,27 +24,30 @@ function stripPassword(user: User): SafeUser {
   return safe;
 }
 
-@Controller('offerings')
+@Controller("offerings")
 export class OfferingsController {
-  constructor(@Inject(OFFERINGS_REPOSITORY) private readonly offerings: OfferingsRepository) {}
+  constructor(
+    @Inject(OFFERINGS_REPOSITORY)
+    private readonly offerings: OfferingsRepository,
+  ) {}
 
   @Get()
   async findMany(
-    @Query('ownerType') ownerType?: string,
-    @Query('ownerId') ownerId?: string,
+    @Query("ownerType") ownerType?: string,
+    @Query("ownerId") ownerId?: string,
   ): Promise<Offering[]> {
     if (ownerType === undefined && ownerId === undefined) {
       return this.offerings.findAll();
     }
 
-    if (ownerType !== 'club' && ownerType !== 'trainer') {
-      throw new ValidationError('Некорректные параметры запроса');
+    if (ownerType !== "club" && ownerType !== "trainer") {
+      throw new ValidationError("Некорректные параметры запроса");
     }
 
     const parsedOwnerId = Number(ownerId);
 
     if (!Number.isInteger(parsedOwnerId) || parsedOwnerId <= 0) {
-      throw new ValidationError('Некорректные параметры запроса');
+      throw new ValidationError("Некорректные параметры запроса");
     }
 
     return this.offerings.findMany({
@@ -54,9 +57,11 @@ export class OfferingsController {
   }
 }
 
-@Controller('users')
+@Controller("users")
 export class UsersController {
-  constructor(@Inject(USERS_REPOSITORY) private readonly users: UsersRepository) {}
+  constructor(
+    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+  ) {}
 
   @Get()
   async findAll(): Promise<SafeUser[]> {

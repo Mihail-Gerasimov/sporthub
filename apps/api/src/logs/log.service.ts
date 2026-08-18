@@ -4,11 +4,11 @@
 // ронять основную операцию. Различие с прежней реализацией одно — сбой пишется
 // в лог приложения, а не проглатывается пустым обработчиком.
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { LogAction, LogEntityType, UserRole } from '@sporthub/types';
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import type { LogAction, LogEntityType, UserRole } from "@sporthub/types";
 
-import type { LogsRepository } from '../repositories/crud.repository';
-import { LOGS_REPOSITORY } from '../repositories/crud.repository';
+import type { LogsRepository } from "../repositories/crud.repository";
+import { LOGS_REPOSITORY } from "../repositories/crud.repository";
 
 export type LogActionInput = {
   action: LogAction;

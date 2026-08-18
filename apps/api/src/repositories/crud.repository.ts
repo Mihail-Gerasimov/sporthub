@@ -6,28 +6,35 @@
 // Тексты ошибок перенесены из db.ts ДОСЛОВНО: на них завязаны роуты, которые
 // маппят сообщение в HTTP-код, и тесты, сравнивающие строку посимвольно.
 
-import type { LogEntry, ProviderClientNote, Review, User } from '@sporthub/types';
+import type {
+  LogEntry,
+  ProviderClientNote,
+  Review,
+  User,
+} from "@sporthub/types";
 
-import type { CollectionKey, JsonStorage } from '../storage/json-storage';
+import type { CollectionKey, JsonStorage } from "../storage/json-storage";
 
 // --- Токены внедрения ---------------------------------------------------------
 
-export const LOGS_REPOSITORY = Symbol('LOGS_REPOSITORY');
-export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
-export const USERS_REPOSITORY = Symbol('USERS_REPOSITORY');
-export const PROVIDER_CLIENT_NOTES_REPOSITORY = Symbol('PROVIDER_CLIENT_NOTES_REPOSITORY');
+export const LOGS_REPOSITORY = Symbol("LOGS_REPOSITORY");
+export const REVIEWS_REPOSITORY = Symbol("REVIEWS_REPOSITORY");
+export const USERS_REPOSITORY = Symbol("USERS_REPOSITORY");
+export const PROVIDER_CLIENT_NOTES_REPOSITORY = Symbol(
+  "PROVIDER_CLIENT_NOTES_REPOSITORY",
+);
 
 // --- Интерфейсы ---------------------------------------------------------------
 
 export interface LogsRepository {
   findAll(): Promise<LogEntry[]>;
-  insert(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry>;
+  insert(entry: Omit<LogEntry, "id" | "createdAt">): Promise<LogEntry>;
 }
 
 export interface ReviewsRepository {
   findAll(): Promise<Review[]>;
   findMany(filter: { clubId?: number; trainerId?: number }): Promise<Review[]>;
-  insert(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review>;
+  insert(review: Omit<Review, "id" | "createdAt">): Promise<Review>;
   removeMany(filter: { clubId?: number; trainerId?: number }): Promise<number>;
 }
 
@@ -35,7 +42,7 @@ export interface UsersRepository {
   findAll(): Promise<User[]>;
   findById(id: number): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
+  insert(user: Omit<User, "id" | "createdAt">): Promise<User>;
   update(id: number, patch: Partial<User>): Promise<User>;
 }
 
@@ -47,7 +54,7 @@ export interface ProviderClientNotesRepository {
     clientUserId?: number;
   }): Promise<ProviderClientNote[]>;
   insert(
-    note: Omit<ProviderClientNote, 'id' | 'createdAt' | 'updatedAt'>,
+    note: Omit<ProviderClientNote, "id" | "createdAt" | "updatedAt">,
   ): Promise<ProviderClientNote>;
   update(
     id: number,
@@ -62,7 +69,9 @@ export interface ProviderClientNotesRepository {
  * Общая механика коллекции: чтение, выдача следующего id, метка времени.
  * Заведён не «на будущее» — у него четыре потребителя прямо сейчас.
  */
-abstract class JsonCollectionRepository<TItem extends { id: number; createdAt: string }> {
+abstract class JsonCollectionRepository<
+  TItem extends { id: number; createdAt: string },
+> {
   protected constructor(
     protected readonly storage: JsonStorage,
     protected readonly collection: CollectionKey,
@@ -102,14 +111,14 @@ export class JsonLogsRepository
   implements LogsRepository
 {
   constructor(storage: JsonStorage) {
-    super(storage, 'logs');
+    super(storage, "logs");
   }
 
   findAll(): Promise<LogEntry[]> {
     return this.readAll();
   }
 
-  insert(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry> {
+  insert(entry: Omit<LogEntry, "id" | "createdAt">): Promise<LogEntry> {
     return this.append(entry);
   }
 }
@@ -119,33 +128,49 @@ export class JsonReviewsRepository
   implements ReviewsRepository
 {
   constructor(storage: JsonStorage) {
-    super(storage, 'reviews');
+    super(storage, "reviews");
   }
 
   findAll(): Promise<Review[]> {
     return this.readAll();
   }
 
-  async findMany(filter: { clubId?: number; trainerId?: number }): Promise<Review[]> {
+  async findMany(filter: {
+    clubId?: number;
+    trainerId?: number;
+  }): Promise<Review[]> {
     const reviews = await this.readAll();
 
     return reviews.filter((review) => {
-      if (filter.clubId !== undefined && review.clubId !== filter.clubId) return false;
-      if (filter.trainerId !== undefined && review.trainerId !== filter.trainerId) return false;
+      if (filter.clubId !== undefined && review.clubId !== filter.clubId)
+        return false;
+      if (
+        filter.trainerId !== undefined &&
+        review.trainerId !== filter.trainerId
+      )
+        return false;
 
       return true;
     });
   }
 
-  insert(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
+  insert(review: Omit<Review, "id" | "createdAt">): Promise<Review> {
     return this.append(review);
   }
 
-  async removeMany(filter: { clubId?: number; trainerId?: number }): Promise<number> {
+  async removeMany(filter: {
+    clubId?: number;
+    trainerId?: number;
+  }): Promise<number> {
     const reviews = await this.readAll();
     const kept = reviews.filter((review) => {
-      if (filter.clubId !== undefined && review.clubId === filter.clubId) return false;
-      if (filter.trainerId !== undefined && review.trainerId === filter.trainerId) return false;
+      if (filter.clubId !== undefined && review.clubId === filter.clubId)
+        return false;
+      if (
+        filter.trainerId !== undefined &&
+        review.trainerId === filter.trainerId
+      )
+        return false;
 
       return true;
     });
@@ -161,7 +186,7 @@ export class JsonUsersRepository
   implements UsersRepository
 {
   constructor(storage: JsonStorage) {
-    super(storage, 'users');
+    super(storage, "users");
   }
 
   findAll(): Promise<User[]> {
@@ -181,7 +206,7 @@ export class JsonUsersRepository
     return users.find((user) => user.email === email) ?? null;
   }
 
-  insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+  insert(user: Omit<User, "id" | "createdAt">): Promise<User> {
     return this.append(user);
   }
 
@@ -190,7 +215,7 @@ export class JsonUsersRepository
     const index = users.findIndex((user) => user.id === id);
 
     if (index === -1) {
-      throw new Error('Пользователь не найден');
+      throw new Error("Пользователь не найден");
     }
 
     const updated: User = { ...users[index], ...patch };
@@ -207,7 +232,7 @@ export class JsonProviderClientNotesRepository
   implements ProviderClientNotesRepository
 {
   constructor(storage: JsonStorage) {
-    super(storage, 'providerClientNotes');
+    super(storage, "providerClientNotes");
   }
 
   findAll(): Promise<ProviderClientNote[]> {
@@ -229,7 +254,10 @@ export class JsonProviderClientNotesRepository
     return notes
       .filter((note) => {
         if (note.providerUserId !== filter.providerUserId) return false;
-        if (filter.clientUserId !== undefined && note.clientUserId !== filter.clientUserId) {
+        if (
+          filter.clientUserId !== undefined &&
+          note.clientUserId !== filter.clientUserId
+        ) {
           return false;
         }
 
@@ -244,7 +272,7 @@ export class JsonProviderClientNotesRepository
   }
 
   insert(
-    note: Omit<ProviderClientNote, 'id' | 'createdAt' | 'updatedAt'>,
+    note: Omit<ProviderClientNote, "id" | "createdAt" | "updatedAt">,
   ): Promise<ProviderClientNote> {
     // updatedAt при создании совпадает с createdAt — так же, как в db.ts.
     const now = new Date().toISOString();
@@ -260,7 +288,7 @@ export class JsonProviderClientNotesRepository
     const index = notes.findIndex((note) => note.id === id);
 
     if (index === -1) {
-      throw new Error('Заметка провайдера не найдена');
+      throw new Error("Заметка провайдера не найдена");
     }
 
     const updated: ProviderClientNote = {

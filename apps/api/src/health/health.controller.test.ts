@@ -10,21 +10,23 @@
 // 2 из 3 кейсов. Плагин unplugin-swc при этом НЕ нужен — Vitest 4 транспилирует
 // через oxc, а тот читает флаг из tsconfig и эмитит метадату сам.
 
-import type { INestApplication } from '@nestjs/common';
-import { Test, type TestingModule } from '@nestjs/testing';
-import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import request from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { AppModule } from '../app.module';
-import { HealthController } from './health.controller';
-import { HealthService } from './health.service';
+import { AppModule } from "../app.module";
+import { HealthController } from "./health.controller";
+import { HealthService } from "./health.service";
 
-describe('Каркас apps/api', () => {
+describe("Каркас apps/api", () => {
   let app: INestApplication;
   let moduleRef: TestingModule;
 
   beforeAll(async () => {
-    moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });
@@ -33,18 +35,18 @@ describe('Каркас apps/api', () => {
     await app.close();
   });
 
-  it('GET /health отвечает 200 в контракте проекта { success, data }', async () => {
-    const response = await request(app.getHttpServer()).get('/health');
+  it("GET /health отвечает 200 в контракте проекта { success, data }", async () => {
+    const response = await request(app.getHttpServer()).get("/health");
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
       success: true,
-      data: { status: 'ok' },
+      data: { status: "ok" },
     });
-    expect(typeof response.body.data.uptime).toBe('number');
+    expect(typeof response.body.data.uptime).toBe("number");
   });
 
-  it('внедрение зависимостей работает: контроллер получил реальный сервис', () => {
+  it("внедрение зависимостей работает: контроллер получил реальный сервис", () => {
     const controller = moduleRef.get(HealthController);
     const service = moduleRef.get(HealthService);
 
@@ -55,11 +57,11 @@ describe('Каркас apps/api', () => {
     expect(controller.healthService).toBe(service);
   });
 
-  it('сервис отдаёт статус ok и неотрицательный uptime', () => {
+  it("сервис отдаёт статус ok и неотрицательный uptime", () => {
     const service = moduleRef.get(HealthService);
     const status = service.getStatus();
 
-    expect(status.status).toBe('ok');
+    expect(status.status).toBe("ok");
     expect(status.uptime).toBeGreaterThanOrEqual(0);
     expect(() => new Date(status.timestamp).toISOString()).not.toThrow();
   });
