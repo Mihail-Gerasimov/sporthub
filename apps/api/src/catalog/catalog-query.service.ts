@@ -104,8 +104,9 @@ export class CatalogQueryService {
     sportId?: number;
     search?: string;
     minRating?: number;
+    includeHidden?: boolean;
   }): Promise<Club[]> {
-    let clubs = await this.clubs.findAll({ excludeHidden: true });
+    let clubs = await this.clubs.findAll({ excludeHidden: !filter.includeHidden });
 
     if (filter.sportId !== undefined) {
       clubs = clubs.filter((club) => club.sportIds.includes(filter.sportId as number));
@@ -139,8 +140,12 @@ export class CatalogQueryService {
     return clubs;
   }
 
-  async findPublishedTrainers(filter: { clubId?: number; sportId?: number }): Promise<Trainer[]> {
-    let trainers = await this.trainers.findAll({ excludeHidden: true });
+  async findPublishedTrainers(filter: {
+    clubId?: number;
+    sportId?: number;
+    includeHidden?: boolean;
+  }): Promise<Trainer[]> {
+    let trainers = await this.trainers.findAll({ excludeHidden: !filter.includeHidden });
 
     if (filter.clubId !== undefined) {
       // Тренеры клуба — только через подтверждённую связь.

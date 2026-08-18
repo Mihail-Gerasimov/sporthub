@@ -87,8 +87,9 @@ describe('Маршруты связей тренер↔клуб', () => {
     await harness.close();
   });
 
+  // Локальный помощник добавляет общий префикс адресов — тот же, что у сервера.
   const post = (path: string, body: object) =>
-    request(harness.app.getHttpServer()).post(path).send(body);
+    request(harness.app.getHttpServer()).post(`/api${path}`).send(body);
 
   it('создаёт заявку и уведомляет противоположную сторону', async () => {
     const response = await post('/trainer-club-links', { trainerId: 3, clubId: 1, userId: 5 });
@@ -256,7 +257,7 @@ describe('Маршруты связей тренер↔клуб', () => {
   it('GET фильтрует по тренеру и статусу', async () => {
     await post('/trainer-club-links', { trainerId: 3, clubId: 1, userId: 5 });
     const response = await request(harness.app.getHttpServer()).get(
-      '/trainer-club-links?trainerId=3&status=pending',
+      '/api/trainer-club-links?trainerId=3&status=pending',
     );
 
     expect(response.status).toBe(200);

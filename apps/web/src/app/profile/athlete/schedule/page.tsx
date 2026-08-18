@@ -6,7 +6,7 @@ import {
   getSports,
   getTrainers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { AthleteSchedule } from '@/components/profile/athlete/AthleteSchedule';
 
 export const dynamic = 'force-dynamic';

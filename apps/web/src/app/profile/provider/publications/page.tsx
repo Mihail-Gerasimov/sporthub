@@ -11,7 +11,7 @@ import {
   getTags,
   getTrainers,
   getWorkFormats,
-} from '@/lib/db';
+} from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

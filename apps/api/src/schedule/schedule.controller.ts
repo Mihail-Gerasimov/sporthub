@@ -55,6 +55,7 @@ export class ScheduleController {
     @Query('trainerId') rawTrainerId?: string,
     @Query('sportId') rawSportId?: string,
     @Query('date') rawDate?: string,
+    @Query('includeFull') includeFull?: string,
   ): Promise<ScheduleSlotWithAvailability[]> {
     const ownerType = optionalText(rawOwnerType);
 
@@ -76,7 +77,11 @@ export class ScheduleController {
       ownerType: ownerType as CatalogOwnerType | 'all' | undefined,
     });
 
-    slots = slots.filter((slot) => slot.bookedCount < slot.capacity);
+    // Новый необязательный признак: страницы личных кабинетов показывают и
+    // заполненные слоты. Умолчание прежнее — только со свободными местами.
+    if (includeFull !== 'true') {
+      slots = slots.filter((slot) => slot.bookedCount < slot.capacity);
+    }
 
     if (clubId !== undefined) {
       slots = slots.filter((slot) => slot.clubId === clubId);

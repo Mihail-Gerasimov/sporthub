@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
-import { getBookings, getClubs, getTrainers, runLazyBookingTransitions } from '@/lib/db';
+import { getBookings, getClubs, getTrainers, runLazyBookingTransitions } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

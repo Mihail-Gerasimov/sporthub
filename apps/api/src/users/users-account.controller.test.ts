@@ -44,7 +44,7 @@ describe('Маршруты учётных данных', () => {
 
   it('меняет телефон и не возвращает пароль', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1, phone: '+7 (900) 111-22-33' });
 
     expect(response.status).toBe(200);
@@ -57,7 +57,7 @@ describe('Маршруты учётных данных', () => {
 
   it('меняет пароль при верном текущем', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1, password: 'newpass1', currentPassword: 'demo123' });
 
     expect(response.status).toBe(200);
@@ -68,7 +68,7 @@ describe('Маршруты учётных данных', () => {
 
   it('неверный текущий пароль — 401 и данные не меняются', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1, password: 'newpass1', currentPassword: 'wrong' });
 
     expect(response.status).toBe(401);
@@ -80,7 +80,7 @@ describe('Маршруты учётных данных', () => {
 
   it('смена пароля без текущего — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1, password: 'newpass1' });
 
     expect(response.status).toBe(400);
@@ -88,7 +88,7 @@ describe('Маршруты учётных данных', () => {
 
   it('пустая правка — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1 });
 
     expect(response.status).toBe(400);
@@ -96,7 +96,7 @@ describe('Маршруты учётных данных', () => {
 
   it('некорректный телефон — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1')
+      .patch('/api/users/1')
       .send({ userId: 1, phone: '89001112233' });
 
     expect(response.status).toBe(400);
@@ -104,7 +104,7 @@ describe('Маршруты учётных данных', () => {
 
   it('правка чужой учётной записи — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/2')
+      .patch('/api/users/2')
       .send({ userId: 1, phone: '+7 (900) 111-22-33' });
 
     expect(response.status).toBe(403);
@@ -112,7 +112,7 @@ describe('Маршруты учётных данных', () => {
 
   it('несуществующий пользователь — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/99')
+      .patch('/api/users/99')
       .send({ userId: 99, phone: '+7 (900) 111-22-33' });
 
     expect(response.status).toBe(404);
@@ -120,14 +120,14 @@ describe('Маршруты учётных данных', () => {
 
   it('настройки уведомлений читаются и пишутся', async () => {
     const patch = await request(harness.app.getHttpServer())
-      .patch('/users/1/notification-preferences')
+      .patch('/api/users/1/notification-preferences')
       .send({ userId: 1, preferences: { booking_rejected: false } });
 
     expect(patch.status).toBe(200);
     expect(patch.body.data.notificationPreferences.booking_rejected).toBe(false);
 
     const read = await request(harness.app.getHttpServer()).get(
-      '/users/1/notification-preferences',
+      '/api/users/1/notification-preferences',
     );
 
     expect(read.body.data.notificationPreferences.booking_rejected).toBe(false);
@@ -135,7 +135,7 @@ describe('Маршруты учётных данных', () => {
 
   it('обязательные типы молча отбрасываются', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/1/notification-preferences')
+      .patch('/api/users/1/notification-preferences')
       .send({
         userId: 1,
         preferences: {
@@ -152,7 +152,7 @@ describe('Маршруты учётных данных', () => {
 
   it('чужие настройки править нельзя — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .patch('/users/2/notification-preferences')
+      .patch('/api/users/2/notification-preferences')
       .send({ userId: 1, preferences: { booking_rejected: false } });
 
     expect(response.status).toBe(403);

@@ -60,7 +60,7 @@ describe('Маршруты уведомлений', () => {
   });
 
   it('GET отдаёт items, total и unreadCount внутри data', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/notifications?userId=1');
+    const response = await request(harness.app.getHttpServer()).get('/api/notifications?userId=1');
 
     expect(response.status).toBe(200);
     expect(response.body.data.total).toBe(3);
@@ -70,7 +70,7 @@ describe('Маршруты уведомлений', () => {
 
   it('unreadOnly=true оставляет только непрочитанные', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/notifications?userId=1&unreadOnly=true',
+      '/api/notifications?userId=1&unreadOnly=true',
     );
 
     expect(response.body.data.items.map((item: { id: number }) => item.id)).toEqual([2, 1]);
@@ -78,7 +78,7 @@ describe('Маршруты уведомлений', () => {
 
   it('пагинация режет выдачу, но не total', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/notifications?userId=1&offset=1&limit=1',
+      '/api/notifications?userId=1&offset=1&limit=1',
     );
 
     expect(response.body.data.items).toHaveLength(1);
@@ -86,13 +86,13 @@ describe('Маршруты уведомлений', () => {
   });
 
   it('без userId — 400', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/notifications');
+    const response = await request(harness.app.getHttpServer()).get('/api/notifications');
 
     expect(response.status).toBe(400);
   });
 
   it('отключённый в настройках тип не показывается и не считается', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/notifications?userId=2');
+    const response = await request(harness.app.getHttpServer()).get('/api/notifications?userId=2');
 
     expect(response.body.data.items.map((item: { id: number }) => item.id)).toEqual([5]);
     expect(response.body.data.unreadCount).toBe(1);
@@ -100,7 +100,7 @@ describe('Маршруты уведомлений', () => {
 
   it('счётчик непрочитанных отдаётся отдельным маршрутом', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/notifications/unread-count?userId=1',
+      '/api/notifications/unread-count?userId=1',
     );
 
     expect(response.status).toBe(200);
@@ -109,7 +109,7 @@ describe('Маршруты уведомлений', () => {
 
   it('пометка прочитанным проставляет время', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/notifications/1/read')
+      .post('/api/notifications/1/read')
       .send({ userId: 1 });
 
     expect(response.status).toBe(200);
@@ -118,7 +118,7 @@ describe('Маршруты уведомлений', () => {
 
   it('чужое уведомление отвечает «не найдено», а не отказом в правах', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/notifications/4/read')
+      .post('/api/notifications/4/read')
       .send({ userId: 1 });
 
     expect(response.status).toBe(404);
@@ -127,7 +127,7 @@ describe('Маршруты уведомлений', () => {
 
   it('read-all возвращает число обновлённых', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/notifications/read-all')
+      .post('/api/notifications/read-all')
       .send({ userId: 1 });
 
     expect(response.status).toBe(200);
@@ -136,7 +136,7 @@ describe('Маршруты уведомлений', () => {
 
   it('удаление отбрасывает чужие идентификаторы молча', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/notifications')
+      .delete('/api/notifications')
       .send({ userId: 1, ids: [1, 4] });
 
     expect(response.status).toBe(200);
@@ -148,7 +148,7 @@ describe('Маршруты уведомлений', () => {
 
   it('пустой список идентификаторов — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/notifications')
+      .delete('/api/notifications')
       .send({ userId: 1, ids: [] });
 
     expect(response.status).toBe(400);

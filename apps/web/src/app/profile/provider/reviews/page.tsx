@@ -1,6 +1,6 @@
 // Phase 25 Step 25.14: server page раздела «Отзывы» провайдера.
 import { ProviderReviews } from '@/components/profile/provider/ProviderReviews';
-import { getClubs, getReviews, getTrainers } from '@/lib/db';
+import { getClubs, getReviews, getTrainers } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

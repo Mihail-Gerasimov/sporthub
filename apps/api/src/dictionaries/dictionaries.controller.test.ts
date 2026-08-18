@@ -12,6 +12,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../app.module';
+import { configureApp } from '../configure-app';
 
 describe('Контроллеры справочников', () => {
   let app: INestApplication;
@@ -62,7 +63,7 @@ describe('Контроллеры справочников', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = moduleRef.createNestApplication();
+    app = configureApp(moduleRef.createNestApplication());
     await app.init();
   });
 
@@ -83,7 +84,7 @@ describe('Контроллеры справочников', () => {
 
   for (const [route, expectedName] of routes) {
     it(`GET ${route} отдаёт справочник в общей форме ответа`, async () => {
-      const response = await request(app.getHttpServer()).get(route);
+      const response = await request(app.getHttpServer()).get(`/api${route}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -93,7 +94,7 @@ describe('Контроллеры справочников', () => {
   }
 
   it('несуществующий маршрут не притворяется успешным', async () => {
-    const response = await request(app.getHttpServer()).get('/no-such-dictionary');
+    const response = await request(app.getHttpServer()).get('/api/no-such-dictionary');
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);

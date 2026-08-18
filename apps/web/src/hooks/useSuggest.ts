@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import type { SuggestItem, SuggestItemType } from '@/app/api/suggest/route';
+import type { SuggestItem, SuggestItemType } from '@sporthub/types';
 
 // Минимальная длина текста для запроса
 const MIN_TEXT_LENGTH = 2;

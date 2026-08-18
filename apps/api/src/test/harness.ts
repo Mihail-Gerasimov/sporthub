@@ -13,6 +13,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { AppModule } from '../app.module';
+import { configureApp } from '../configure-app';
 
 /** Все коллекции проекта. Отсутствие файла — ошибка чтения, поэтому создаются все. */
 export const COLLECTIONS = [
@@ -65,7 +66,8 @@ export async function createTestHarness(prefix: string): Promise<TestHarness> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
-  const app = moduleRef.createNestApplication();
+  // Та же настройка, что и у рабочего сервера, включая общий префикс адресов.
+  const app = configureApp(moduleRef.createNestApplication());
   await app.init();
 
   const read = async <T>(name: string): Promise<T> => {

@@ -93,7 +93,7 @@ describe('Маршрут отзывов', () => {
   });
 
   it('GET отдаёт отзывы клуба', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/reviews?clubId=1');
+    const response = await request(harness.app.getHttpServer()).get('/api/reviews?clubId=1');
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
@@ -101,20 +101,20 @@ describe('Маршрут отзывов', () => {
   });
 
   it('GET отдаёт отзывы тренера', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/reviews?trainerId=1');
+    const response = await request(harness.app.getHttpServer()).get('/api/reviews?trainerId=1');
 
     expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([2]);
   });
 
   it('GET без фильтров отдаёт всё, свежие сверху', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/reviews');
+    const response = await request(harness.app.getHttpServer()).get('/api/reviews');
 
     expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([2, 1]);
   });
 
   it('GET с обоими адресатами — 400 «Нужно указать либо clubId, либо trainerId»', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/reviews?clubId=1&trainerId=1',
+      '/api/reviews?clubId=1&trainerId=1',
     );
 
     expect(response.status).toBe(400);
@@ -126,7 +126,7 @@ describe('Маршрут отзывов', () => {
 
   it('POST создаёт отзыв о тренере и пишет его в хранилище', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 1, trainerId: 1, rating: 5, text: 'Супер' });
 
     expect(response.status).toBe(201);
@@ -146,7 +146,7 @@ describe('Маршрут отзывов', () => {
 
   it('POST без адресата — 400 «Нужно указать clubId или trainerId»', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 1, rating: 5, text: 'Без адресата' });
 
     expect(response.status).toBe(400);
@@ -158,7 +158,7 @@ describe('Маршрут отзывов', () => {
 
   it('POST сразу на клуб и тренера — 400 с другим текстом', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 1, clubId: 1, trainerId: 1, rating: 5, text: 'Оба' });
 
     expect(response.status).toBe(400);
@@ -170,7 +170,7 @@ describe('Маршрут отзывов', () => {
 
   it('POST уведомляет провайдера и автора', async () => {
     await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 1, clubId: 1, rating: 5, text: 'Отличный клуб' });
 
     const notifications = await harness.read<{ userId: number; type: string }[]>('notifications');
@@ -185,7 +185,7 @@ describe('Маршрут отзывов', () => {
 
   it('отзыв самому себе не уведомляет провайдера, но уведомляет автора', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 2, clubId: 1, rating: 5, text: 'Сам себе' });
 
     expect(response.status).toBe(201);
@@ -202,7 +202,7 @@ describe('Маршрут отзывов', () => {
 
   it('POST на несуществующего тренера — 404 «Тренер не найден»', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/reviews')
+      .post('/api/reviews')
       .send({ userId: 1, trainerId: 999, rating: 5, text: 'Нет такого' });
 
     expect(response.status).toBe(404);

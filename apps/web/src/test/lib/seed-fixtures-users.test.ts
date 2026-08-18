@@ -3,7 +3,7 @@
 // analytics.route.test.ts с `totalUsers=3` продолжает работать от isolated fixtures).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getUsers } from '@/lib/db';
+import { readCollectionFile } from '../helpers/read-collection';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
@@ -34,7 +34,7 @@ describe('seedTestData пишет fixtureUsers (Step 26.6)', () => {
   });
 
   it('getUsers возвращает ровно 3 записи из isolated seed (не production)', async () => {
-    const users = await getUsers();
+    const users = await readCollectionFile<User>('users.json');
     expect(users).toHaveLength(3);
     expect(users.map((u) => u.role).sort()).toEqual(['admin', 'athlete', 'club_owner']);
   });

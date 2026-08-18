@@ -39,7 +39,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('атлет входит по почте, пароль наружу не уходит', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: 'athlete@test.local', accountType: 'athlete' });
 
     expect(response.status).toBe(200);
@@ -49,7 +49,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('вход проходит и с неверным паролем — проверки пароля нет', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: 'athlete@test.local', accountType: 'athlete', password: 'что угодно' });
 
     expect(response.status).toBe(200);
@@ -57,7 +57,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('неизвестная почта — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: 'nobody@test.local', accountType: 'athlete' });
 
     expect(response.status).toBe(404);
@@ -66,7 +66,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('несовпадение типа кабинета — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: 'owner@test.local', accountType: 'athlete' });
 
     expect(response.status).toBe(403);
@@ -75,7 +75,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('администратор через общий вход не пускается — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: 'admin@test.local', accountType: 'athlete' });
 
     expect(response.status).toBe(403);
@@ -83,7 +83,7 @@ describe('Маршруты входа и регистрации', () => {
   });
 
   it('регистрация атлета создаёт пользователя со следующим номером', async () => {
-    const response = await request(harness.app.getHttpServer()).post('/auth/register').send({
+    const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
       name: 'Новый',
       email: 'new@test.local',
       password: 'secret1',
@@ -99,7 +99,7 @@ describe('Маршруты входа и регистрации', () => {
   });
 
   it('регистрация провайдера создаёт владельца клуба', async () => {
-    const response = await request(harness.app.getHttpServer()).post('/auth/register').send({
+    const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
       name: 'Провайдер',
       email: 'provider@test.local',
       password: 'secret1',
@@ -113,7 +113,7 @@ describe('Маршруты входа и регистрации', () => {
   });
 
   it('занятая почта — 409', async () => {
-    const response = await request(harness.app.getHttpServer()).post('/auth/register').send({
+    const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
       name: 'Дубль',
       email: 'athlete@test.local',
       password: 'secret1',
@@ -125,7 +125,7 @@ describe('Маршруты входа и регистрации', () => {
   });
 
   it('короткое имя — 400', async () => {
-    const response = await request(harness.app.getHttpServer()).post('/auth/register').send({
+    const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
       name: 'А',
       email: 'short@test.local',
       password: 'secret1',

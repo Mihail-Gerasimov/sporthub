@@ -11,7 +11,7 @@ import {
   getTrainers,
   getUsers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

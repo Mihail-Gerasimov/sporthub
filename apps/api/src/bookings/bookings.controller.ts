@@ -83,7 +83,19 @@ export class BookingsController {
 
   /** Записи пользователя. Перед чтением отрабатывают автопереходы по времени. */
   @Get()
-  async findForUser(@Query('userId') rawUserId?: string): Promise<Booking[]> {
+  async findForUser(
+    @Query('userId') rawUserId?: string,
+    @Query('scope') scope?: string,
+  ): Promise<Booking[]> {
+    // Новый необязательный режим: полный срез нужен страницам провайдера и
+    // админского раздела, где записи разных людей считаются вместе.
+    // Автопереходы прогоняются и здесь — иначе срез покажет протухшие статусы.
+    if (scope === 'all') {
+      await this.bookings.runLazyTransitions();
+
+      return this.gateway.findAll();
+    }
+
     const parsed = Number(rawUserId);
 
     if (!rawUserId || !Number.isInteger(parsed) || parsed <= 0) {

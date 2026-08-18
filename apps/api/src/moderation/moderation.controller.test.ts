@@ -90,7 +90,7 @@ describe('Маршруты модерации', () => {
   });
 
   it('скрытие ставит состояние и причину, пишет запись в журнал', async () => {
-    const response = await request(harness.app.getHttpServer()).post('/moderation').send({
+    const response = await request(harness.app.getHttpServer()).post('/api/moderation').send({
       action: 'hide',
       entityType: 'club',
       entityId: 1,
@@ -107,11 +107,11 @@ describe('Маршруты модерации', () => {
 
   it('восстановление снимает состояние и причину', async () => {
     await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'hide', entityType: 'club', entityId: 1, moderatorId: 3, reason: 'Жалобы' });
 
     const response = await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'unhide', entityType: 'club', entityId: 1, moderatorId: 3 });
 
     expect(response.body.data.status).toBe('published');
@@ -120,7 +120,7 @@ describe('Маршруты модерации', () => {
 
   it('не администратор — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'hide', entityType: 'club', entityId: 1, moderatorId: 2, reason: 'Хочу' });
 
     expect(response.status).toBe(403);
@@ -128,7 +128,7 @@ describe('Маршруты модерации', () => {
 
   it('скрытие без причины — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'hide', entityType: 'club', entityId: 1, moderatorId: 3 });
 
     expect(response.status).toBe(400);
@@ -137,14 +137,14 @@ describe('Маршруты модерации', () => {
 
   it('несуществующая публикация — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'hide', entityType: 'club', entityId: 99, moderatorId: 3, reason: 'Нет' });
 
     expect(response.status).toBe(404);
   });
 
   it('сводный список объединяет клубы и тренеров', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/publications');
+    const response = await request(harness.app.getHttpServer()).get('/api/publications');
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(3);
@@ -153,29 +153,33 @@ describe('Маршруты модерации', () => {
 
   it('отбор по состоянию: публикация без состояния считается опубликованной', async () => {
     const published = await request(harness.app.getHttpServer()).get(
-      '/publications?status=published',
+      '/api/publications?status=published',
     );
     expect(published.body.data.map((item: { id: number }) => item.id)).toContain(2);
 
     await request(harness.app.getHttpServer())
-      .post('/moderation')
+      .post('/api/moderation')
       .send({ action: 'hide', entityType: 'club', entityId: 1, moderatorId: 3, reason: 'Жалобы' });
 
-    const hidden = await request(harness.app.getHttpServer()).get('/publications?status=hidden');
+    const hidden = await request(harness.app.getHttpServer()).get(
+      '/api/publications?status=hidden',
+    );
     expect(hidden.body.data).toHaveLength(1);
   });
 
   it('отбор по типу и поиск по названию', async () => {
-    const byType = await request(harness.app.getHttpServer()).get('/publications?type=club');
+    const byType = await request(harness.app.getHttpServer()).get('/api/publications?type=club');
     expect(byType.body.data).toHaveLength(2);
 
-    const bySearch = await request(harness.app.getHttpServer()).get('/publications?search=волна');
+    const bySearch = await request(harness.app.getHttpServer()).get(
+      '/api/publications?search=волна',
+    );
     expect(bySearch.body.data).toHaveLength(1);
   });
 
   it('пагинация отдаёт срез и общее число', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/publications?offset=1&limit=1',
+      '/api/publications?offset=1&limit=1',
     );
 
     expect(response.body.data).toHaveLength(1);

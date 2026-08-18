@@ -480,3 +480,22 @@ export interface ProviderClientNote extends BaseEntity {
   bookingId?: EntityId;
   updatedAt: ISODateTimeString;
 }
+
+/* ========================================
+   Подсказки адресов
+   ======================================== */
+
+/** Вид объекта в подсказке адреса. */
+export type SuggestItemType = 'locality' | 'street' | 'house' | 'other';
+
+/**
+ * Одна подсказка адреса. Тип общий для бэкенда и фронта: бэкенд приводит к нему
+ * ответ внешней службы, фронт по нему рисует список. Раньше объявление лежало
+ * внутри маршрута, из-за чего фронт зависел от файла бэкенда.
+ */
+export interface SuggestItem {
+  title: string;
+  subtitle?: string;
+  value: string;
+  type: SuggestItemType;
+}

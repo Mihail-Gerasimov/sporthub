@@ -13,6 +13,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../app.module';
+import { configureApp } from '../configure-app';
 
 describe('Маршруты услуг и пользователей', () => {
   let app: INestApplication;
@@ -80,7 +81,7 @@ describe('Маршруты услуг и пользователей', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = moduleRef.createNestApplication();
+    app = configureApp(moduleRef.createNestApplication());
     await app.init();
   });
 
@@ -92,7 +93,7 @@ describe('Маршруты услуг и пользователей', () => {
 
   describe('GET /offerings', () => {
     it('без фильтров отдаёт все услуги', async () => {
-      const response = await request(app.getHttpServer()).get('/offerings');
+      const response = await request(app.getHttpServer()).get('/api/offerings');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
@@ -100,7 +101,7 @@ describe('Маршруты услуг и пользователей', () => {
 
     it('фильтрует по владельцу', async () => {
       const response = await request(app.getHttpServer()).get(
-        '/offerings?ownerType=trainer&ownerId=5',
+        '/api/offerings?ownerType=trainer&ownerId=5',
       );
 
       expect(response.body.data).toHaveLength(1);
@@ -108,7 +109,9 @@ describe('Маршруты услуг и пользователей', () => {
     });
 
     it('неверный тип владельца отклоняется', async () => {
-      const response = await request(app.getHttpServer()).get('/offerings?ownerType=xxx&ownerId=1');
+      const response = await request(app.getHttpServer()).get(
+        '/api/offerings?ownerType=xxx&ownerId=1',
+      );
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
@@ -119,7 +122,7 @@ describe('Маршруты услуг и пользователей', () => {
 
     it('нечисловой идентификатор владельца отклоняется', async () => {
       const response = await request(app.getHttpServer()).get(
-        '/offerings?ownerType=club&ownerId=abc',
+        '/api/offerings?ownerType=club&ownerId=abc',
       );
 
       expect(response.status).toBe(400);
@@ -128,7 +131,7 @@ describe('Маршруты услуг и пользователей', () => {
 
   describe('GET /users', () => {
     it('отдаёт пользователей', async () => {
-      const response = await request(app.getHttpServer()).get('/users');
+      const response = await request(app.getHttpServer()).get('/api/users');
 
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(1);
@@ -136,7 +139,7 @@ describe('Маршруты услуг и пользователей', () => {
     });
 
     it('⚠️ пароль не уходит наружу ни в каком виде', async () => {
-      const response = await request(app.getHttpServer()).get('/users');
+      const response = await request(app.getHttpServer()).get('/api/users');
 
       expect(response.body.data[0]).not.toHaveProperty('password');
       // Дополнительная страховка: ищем значение пароля во всём теле ответа.

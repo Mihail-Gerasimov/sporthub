@@ -11,7 +11,7 @@ import {
   getSports,
   getTrainers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { ProviderStats } from '@/components/profile/provider/ProviderStats';
 
 export const dynamic = 'force-dynamic';

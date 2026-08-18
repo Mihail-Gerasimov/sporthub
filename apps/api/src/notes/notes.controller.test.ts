@@ -54,7 +54,7 @@ describe('Маршруты CRM-заметок', () => {
 
   it('провайдер заводит заметку про своего клиента', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 2, clientUserId: 1, note: 'Любит утренние тренировки' });
 
     expect(response.status).toBe(201);
@@ -64,7 +64,7 @@ describe('Маршруты CRM-заметок', () => {
 
   it('про чужого клиента заметку завести нельзя — 403', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 5, clientUserId: 1, note: 'Чужой клиент' });
 
     expect(response.status).toBe(403);
@@ -73,11 +73,11 @@ describe('Маршруты CRM-заметок', () => {
 
   it('выдача фильтруется по провайдеру и клиенту', async () => {
     await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 2, clientUserId: 1, note: 'Заметка' });
 
     const response = await request(harness.app.getHttpServer()).get(
-      '/provider-client-notes?providerUserId=2&clientUserId=1',
+      '/api/provider-client-notes?providerUserId=2&clientUserId=1',
     );
 
     expect(response.status).toBe(200);
@@ -85,18 +85,18 @@ describe('Маршруты CRM-заметок', () => {
   });
 
   it('без providerUserId выдача не отдаётся — 400', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/provider-client-notes');
+    const response = await request(harness.app.getHttpServer()).get('/api/provider-client-notes');
 
     expect(response.status).toBe(400);
   });
 
   it('автор правит свою заметку', async () => {
     const created = await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 2, clientUserId: 1, note: 'Старый текст' });
 
     const response = await request(harness.app.getHttpServer())
-      .patch(`/provider-client-notes/${created.body.data.id}`)
+      .patch(`/api/provider-client-notes/${created.body.data.id}`)
       .send({ userId: 2, note: 'Новый текст' });
 
     expect(response.status).toBe(200);
@@ -105,11 +105,11 @@ describe('Маршруты CRM-заметок', () => {
 
   it('чужую заметку править нельзя — 403', async () => {
     const created = await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 2, clientUserId: 1, note: 'Текст' });
 
     const response = await request(harness.app.getHttpServer())
-      .patch(`/provider-client-notes/${created.body.data.id}`)
+      .patch(`/api/provider-client-notes/${created.body.data.id}`)
       .send({ userId: 9, note: 'Взлом' });
 
     expect(response.status).toBe(403);
@@ -117,11 +117,11 @@ describe('Маршруты CRM-заметок', () => {
 
   it('автор удаляет заметку', async () => {
     const created = await request(harness.app.getHttpServer())
-      .post('/provider-client-notes')
+      .post('/api/provider-client-notes')
       .send({ providerUserId: 2, clientUserId: 1, note: 'На удаление' });
 
     const response = await request(harness.app.getHttpServer())
-      .delete(`/provider-client-notes/${created.body.data.id}`)
+      .delete(`/api/provider-client-notes/${created.body.data.id}`)
       .send({ userId: 2 });
 
     expect(response.status).toBe(200);
@@ -133,7 +133,7 @@ describe('Маршруты CRM-заметок', () => {
 
   it('несуществующая заметка — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/provider-client-notes/999')
+      .delete('/api/provider-client-notes/999')
       .send({ userId: 2 });
 
     expect(response.status).toBe(404);

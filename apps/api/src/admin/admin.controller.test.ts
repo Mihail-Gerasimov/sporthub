@@ -141,7 +141,7 @@ describe('Административные маршруты', () => {
 
   it('администратор удаляет запись и освобождает место', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/admin/bookings/1')
+      .delete('/api/admin/bookings/1')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(200);
@@ -156,7 +156,7 @@ describe('Административные маршруты', () => {
 
   it('не администратор получает отказ, запись остаётся', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/admin/bookings/1')
+      .delete('/api/admin/bookings/1')
       .send({ adminUserId: 1 });
 
     expect(response.status).toBe(403);
@@ -168,7 +168,7 @@ describe('Административные маршруты', () => {
 
   it('несуществующая запись — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .delete('/admin/bookings/99')
+      .delete('/api/admin/bookings/99')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(404);
@@ -177,7 +177,7 @@ describe('Административные маршруты', () => {
 
   it('принудительный разрыв связи уведомляет обе стороны и отвязывает услуги', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/trainer-club-links/1/force-revoke')
+      .post('/api/admin/trainer-club-links/1/force-revoke')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(200);
@@ -197,11 +197,11 @@ describe('Административные маршруты', () => {
 
   it('повторный принудительный разрыв — 409', async () => {
     await request(harness.app.getHttpServer())
-      .post('/admin/trainer-club-links/1/force-revoke')
+      .post('/api/admin/trainer-club-links/1/force-revoke')
       .send({ adminUserId: 3 });
 
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/trainer-club-links/1/force-revoke')
+      .post('/api/admin/trainer-club-links/1/force-revoke')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(409);
@@ -209,7 +209,7 @@ describe('Административные маршруты', () => {
 
   it('снятие карантина ставит метку и шлёт уведомление', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/users/1/lift-quarantine')
+      .post('/api/admin/users/1/lift-quarantine')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(200);
@@ -224,7 +224,7 @@ describe('Административные маршруты', () => {
 
   it('смена пароля администратором не требует текущего пароля', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/users/1/password')
+      .post('/api/admin/users/1/password')
       .send({ adminUserId: 3, newPassword: 'fresh-password-99' });
 
     expect(response.status).toBe(200);
@@ -238,7 +238,7 @@ describe('Административные маршруты', () => {
 
   it('короткий пароль — 400', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/users/1/password')
+      .post('/api/admin/users/1/password')
       .send({ adminUserId: 3, newPassword: '123' });
 
     expect(response.status).toBe(400);
@@ -246,7 +246,7 @@ describe('Административные маршруты', () => {
 
   it('пересчёт надёжности только пишет запись в журнал', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/users/1/recompute-reliability')
+      .post('/api/admin/users/1/recompute-reliability')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(200);
@@ -257,7 +257,7 @@ describe('Административные маршруты', () => {
 
   it('пересчёт для несуществующего пользователя — 404', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/admin/users/99/recompute-reliability')
+      .post('/api/admin/users/99/recompute-reliability')
       .send({ adminUserId: 3 });
 
     expect(response.status).toBe(404);

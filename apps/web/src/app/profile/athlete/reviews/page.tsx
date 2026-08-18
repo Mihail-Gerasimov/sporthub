@@ -1,7 +1,7 @@
 // Server page отзывов атлета (Step 25.6): тянет clubs/trainers/reviews, пропускает в
 // client-обёртку AthleteReviews — она применяет access-gate и резолвит targetName.
 import { AthleteReviews } from '@/components/profile/athlete/AthleteReviews';
-import { getClubs, getReviews, getTrainers } from '@/lib/db';
+import { getClubs, getReviews, getTrainers } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

@@ -2,7 +2,7 @@
  * Страница аналитики admin-панели.
  * Server component: загружает список видов спорта и передаёт в клиентский дашборд.
  */
-import { getSports } from '@/lib/db';
+import { getSports } from '@/lib/server-api';
 
 import { AnalyticsDashboard } from '@/components/admin/analytics/AnalyticsDashboard';
 

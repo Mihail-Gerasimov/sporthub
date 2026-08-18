@@ -7,6 +7,7 @@
 // есть — пять секунд. Разница перенесена как есть и записана в долги.
 
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import type { SuggestItem, SuggestItemType } from '@sporthub/types';
 import { z } from 'zod';
 
 import { ExternalServiceError, NotFoundError, ValidationError } from '../common/domain-error';
@@ -29,15 +30,6 @@ const GEOCODER_BASE_URL = 'https://geocode-maps.yandex.ru/1.x/';
 const SUGGEST_BASE_URL = 'https://suggest-maps.yandex.ru/v1/suggest';
 const DEFAULT_RESULTS = 7;
 const FETCH_TIMEOUT_MS = 5000;
-
-export type SuggestItemType = 'locality' | 'street' | 'house' | 'other';
-
-export type SuggestItem = {
-  title: string;
-  subtitle?: string;
-  value: string;
-  type: SuggestItemType;
-};
 
 /** Страны, которые в выдачу подсказок не попадают: сервис работает по России. */
 const FOREIGN_MARKERS = [

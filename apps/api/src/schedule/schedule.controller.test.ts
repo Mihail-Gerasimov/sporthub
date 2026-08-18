@@ -52,7 +52,7 @@ describe('GET /schedule', () => {
   });
 
   it('по умолчанию отдаёт только клубные слоты и считает свободные места', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -61,34 +61,38 @@ describe('GET /schedule', () => {
   });
 
   it('заполненный слот исчезает из выдачи целиком, а не показывается с нулём мест', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule');
 
     expect(response.body.data.some((item: { id: number }) => item.id === 4)).toBe(false);
   });
 
   it('фильтрует по clubId и date', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/schedule?clubId=1&date=2026-03-18',
+      '/api/schedule?clubId=1&date=2026-03-18',
     );
 
     expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([2, 1]);
   });
 
   it('ownerType=trainer отдаёт тренерские слоты', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule?ownerType=trainer');
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/schedule?ownerType=trainer',
+    );
 
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].id).toBe(1001);
   });
 
   it('фильтрует по sportId', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule?sportId=5');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule?sportId=5');
 
     expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([2]);
   });
 
   it('невалидный ownerType — 400 с текстом «Некорректные параметры запроса»', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule?ownerType=owner');
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/schedule?ownerType=owner',
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
@@ -98,7 +102,9 @@ describe('GET /schedule', () => {
   });
 
   it('невалидная дата — 400 с тем же текстом', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule?date=18-03-2026');
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/schedule?date=18-03-2026',
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({

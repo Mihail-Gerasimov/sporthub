@@ -7,7 +7,7 @@ import {
   getTrainers,
   getUsers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
 
 export const dynamic = 'force-dynamic';

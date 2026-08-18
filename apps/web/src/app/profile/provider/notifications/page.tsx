@@ -4,7 +4,7 @@
 // Phase 26 post-fix: userId берём из auth-cookie (реальный залогиненный юзер),
 // а не из hardcoded MVP_PROVIDER_USER_ID. Cookie пишется в useAuthStore при login.
 import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
-import { getNotifications } from '@/lib/db';
+import { getNotifications } from '@/lib/server-api';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 
 export const dynamic = 'force-dynamic';

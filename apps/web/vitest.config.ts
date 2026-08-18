@@ -4,10 +4,22 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-      'server-only': path.resolve(__dirname, 'src/test/mocks/server-only.ts'),
-    },
+    // Порядок важен: подмены разбираются сверху вниз, и общий '@' перехватил бы
+    // более точные записи, если бы стоял первым.
+    alias: [
+      {
+        // Страницы ходят за данными на бэкенд по HTTP. В тестах поднимать его
+        // незачем: подменяем клиент файловой реализацией с тем же набором
+        // функций. Транспорт проверяется тестами бэкенда и снимком контрактов.
+        find: '@/lib/server-api',
+        replacement: path.resolve(__dirname, 'src/test/mocks/server-api.ts'),
+      },
+      {
+        find: 'server-only',
+        replacement: path.resolve(__dirname, 'src/test/mocks/server-only.ts'),
+      },
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+    ],
   },
   test: {
     // Потолок воркеров. Без него vitest на 12 ядрах поднимает 11 форков

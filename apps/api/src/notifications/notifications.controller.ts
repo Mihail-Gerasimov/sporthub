@@ -70,7 +70,21 @@ export class NotificationsController {
     @Query('unreadOnly') unreadOnly?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
+    @Query('scope') scope?: string,
   ): Promise<{ items: Notification[]; total: number; unreadCount: number }> {
+    // Полный срез без разбора адресата: нужен сводкам личного кабинета
+    // провайдера. Настройки пользователя к нему не применяются — они
+    // персональные, а здесь смешаны уведомления разных людей.
+    if (scope === 'all') {
+      const all = await this.notifications.findMany({});
+
+      return {
+        items: all,
+        total: all.length,
+        unreadCount: all.filter((item) => item.readAt === undefined).length,
+      };
+    }
+
     const userId = requiredUserId(rawUserId);
     const onlyUnread = unreadOnly === 'true' || unreadOnly === '1';
     const offset = optionalNumber(rawOffset) ?? 0;

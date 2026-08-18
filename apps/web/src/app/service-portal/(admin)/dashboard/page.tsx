@@ -2,7 +2,7 @@
  * Server page dashboard admin-панели.
  * Загружает данные через Promise.all и передаёт в клиентский DashboardPage.
  */
-import { getBookings, getClubs, getTrainers, getUsers } from '@/lib/db';
+import { getBookings, getClubs, getTrainers, getUsers } from '@/lib/server-api';
 import { DashboardPage } from '@/components/admin/DashboardPage';
 
 export const dynamic = 'force-dynamic';

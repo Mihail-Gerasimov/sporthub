@@ -61,6 +61,7 @@ export class ClubsController {
     @Query('sort') sort?: string,
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
+    @Query('includeHidden') includeHidden?: string,
   ): Promise<Club[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
@@ -79,6 +80,9 @@ export class ClubsController {
       sportId: parseOptionalNumber(sportId),
       search: search?.trim() || undefined,
       minRating: rating,
+      // Скрытые публикации нужны личным кабинетам и админскому разделу:
+      // владелец должен видеть, что его публикация спрятана.
+      includeHidden: includeHidden === 'true',
     });
 
     if (sort === 'reliability' || excludeDanger === 'true') {
@@ -241,6 +245,7 @@ export class TrainersController {
     @Query('sort') sort?: string,
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
+    @Query('includeHidden') includeHidden?: string,
   ): Promise<Trainer[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
@@ -253,6 +258,7 @@ export class TrainersController {
       // Оба имени параметра поддерживаются — так было до переноса.
       clubId: parseOptionalNumber(affiliatedClubId) ?? parseOptionalNumber(clubId),
       sportId: parseOptionalNumber(sportId),
+      includeHidden: includeHidden === 'true',
     });
 
     if (sort === 'reliability' || excludeDanger === 'true') {

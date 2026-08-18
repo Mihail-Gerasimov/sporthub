@@ -13,7 +13,7 @@ import {
   getTrainerClubLinks,
   getTrainers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

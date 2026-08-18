@@ -2,7 +2,7 @@
  * Страница модерации публикаций в админ-панели.
  * Server component: загружает виды спорта и рендерит клиентский ModerationPage.
  */
-import { getSports } from '@/lib/db';
+import { getSports } from '@/lib/server-api';
 import { ModerationPage } from '@/components/admin/ModerationPage';
 
 export const dynamic = 'force-dynamic';

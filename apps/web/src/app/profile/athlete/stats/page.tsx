@@ -12,7 +12,7 @@ import {
   getSports,
   getTrainers,
   runLazyBookingTransitions,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { AthleteStats } from '@/components/profile/athlete/AthleteStats';
 
 export const dynamic = 'force-dynamic';

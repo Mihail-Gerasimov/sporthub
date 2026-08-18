@@ -16,7 +16,7 @@ import {
   getTrainerClubLinks,
   getTrainers,
   getUsers,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { computeClubReliability } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.

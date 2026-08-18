@@ -2,7 +2,7 @@
 // /profile/provider. Грузит clubs/trainers/offerings + все trainer-club-links одной
 // пачкой. Клиент сам фильтрует релевантные связи по managed-сущностям.
 import { ProviderLinks } from '@/components/profile/provider/ProviderLinks';
-import { getClubs, getOfferings, getTrainerClubLinks, getTrainers } from '@/lib/db';
+import { getClubs, getOfferings, getTrainerClubLinks, getTrainers } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 

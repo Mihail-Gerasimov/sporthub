@@ -16,6 +16,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../app.module';
+import { configureApp } from '../configure-app';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 
@@ -27,7 +28,7 @@ describe('Каркас apps/api', () => {
     moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = moduleRef.createNestApplication();
+    app = configureApp(moduleRef.createNestApplication());
     await app.init();
   });
 
@@ -36,7 +37,7 @@ describe('Каркас apps/api', () => {
   });
 
   it('GET /health отвечает 200 в контракте проекта { success, data }', async () => {
-    const response = await request(app.getHttpServer()).get('/health');
+    const response = await request(app.getHttpServer()).get('/api/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({

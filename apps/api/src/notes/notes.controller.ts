@@ -62,7 +62,14 @@ export class ProviderClientNotesController {
   async findMany(
     @Query('providerUserId') rawProviderUserId?: string,
     @Query('clientUserId') rawClientUserId?: string,
+    @Query('scope') scope?: string,
   ): Promise<ProviderClientNote[]> {
+    // Страница клиентов провайдера отбирает заметки уже у себя, поэтому ей
+    // нужен полный срез. Умолчание прежнее — только заметки одного провайдера.
+    if (scope === 'all') {
+      return this.notes.findAll();
+    }
+
     if (rawProviderUserId === undefined || !/^\d+$/.test(rawProviderUserId)) {
       throw new ValidationError('Некорректные параметры запроса');
     }

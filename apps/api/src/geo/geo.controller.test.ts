@@ -46,7 +46,7 @@ describe('Маршруты карт', () => {
       );
 
       const response = await request(harness.app.getHttpServer())
-        .post('/geocode')
+        .post('/api/geocode')
         .send({ city: 'Самара', address: 'Ленина 1' });
 
       expect(response.status).toBe(200);
@@ -61,7 +61,7 @@ describe('Маршруты карт', () => {
 
     it('пустой город — 400', async () => {
       const response = await request(harness.app.getHttpServer())
-        .post('/geocode')
+        .post('/api/geocode')
         .send({ city: '', address: 'Ленина 1' });
 
       expect(response.status).toBe(400);
@@ -74,7 +74,7 @@ describe('Маршруты карт', () => {
       );
 
       const response = await request(harness.app.getHttpServer())
-        .post('/geocode')
+        .post('/api/geocode')
         .send({ city: 'Самара', address: 'Несуществующая 9999' });
 
       expect(response.status).toBe(404);
@@ -85,7 +85,7 @@ describe('Маршруты карт', () => {
       vi.stubEnv('NEXT_PUBLIC_YANDEX_MAPS_API_KEY', '');
 
       const response = await request(harness.app.getHttpServer())
-        .post('/geocode')
+        .post('/api/geocode')
         .send({ city: 'Самара', address: 'Ленина 1' });
 
       expect(response.status).toBe(500);
@@ -97,7 +97,7 @@ describe('Маршруты карт', () => {
       vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('сеть недоступна'));
 
       const response = await request(harness.app.getHttpServer())
-        .post('/geocode')
+        .post('/api/geocode')
         .send({ city: 'Самара', address: 'Ленина 1' });
 
       expect(response.status).toBe(500);
@@ -118,7 +118,7 @@ describe('Маршруты карт', () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse(suggestPayload));
 
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: 'сам' });
 
       expect(response.status).toBe(200);
@@ -135,7 +135,7 @@ describe('Маршруты карт', () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({ results: [] }));
 
       await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({
           text: 'ленина',
           types: 'street',
@@ -152,7 +152,7 @@ describe('Маршруты карт', () => {
 
     it('пустой текст — 400', async () => {
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: '' });
 
       expect(response.status).toBe(400);
@@ -162,7 +162,7 @@ describe('Маршруты карт', () => {
       vi.stubEnv('YANDEX_SUGGEST_API_KEY', '');
 
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: 'сам' });
 
       expect(response.status).toBe(500);
@@ -178,7 +178,7 @@ describe('Маршруты карт', () => {
       } as unknown as Response);
 
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: 'сам' });
 
       expect(response.status).toBe(429);
@@ -195,7 +195,7 @@ describe('Маршруты карт', () => {
       } as unknown as Response);
 
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: 'сам' });
 
       expect(response.status).toBe(502);
@@ -206,7 +206,7 @@ describe('Маршруты карт', () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({}));
 
       const response = await request(harness.app.getHttpServer())
-        .post('/suggest')
+        .post('/api/suggest')
         .send({ text: 'сам' });
 
       expect(response.status).toBe(200);

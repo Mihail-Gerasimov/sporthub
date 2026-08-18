@@ -29,7 +29,7 @@ import {
   getSports,
   getTags,
   getTrainerClubLinks,
-} from '@/lib/db';
+} from '@/lib/server-api';
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 

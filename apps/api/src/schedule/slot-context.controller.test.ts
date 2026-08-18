@@ -83,7 +83,7 @@ describe('Добор маршрутов под страницы', () => {
   });
 
   it('контекст слота отдаёт слот, услугу и владельца', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule/1/context');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule/1/context');
 
     expect(response.status).toBe(200);
     expect(response.body.data.schedule.id).toBe(1);
@@ -92,29 +92,29 @@ describe('Добор маршрутов под страницы', () => {
   });
 
   it('заполненный слот выпадает из выдачи расписания, но контекст его отдаёт', async () => {
-    const list = await request(harness.app.getHttpServer()).get('/schedule');
+    const list = await request(harness.app.getHttpServer()).get('/api/schedule');
     expect(list.body.data).toHaveLength(0);
 
-    const context = await request(harness.app.getHttpServer()).get('/schedule/1/context');
+    const context = await request(harness.app.getHttpServer()).get('/api/schedule/1/context');
     expect(context.status).toBe(200);
   });
 
   it('несуществующий слот — 404', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule/999/context');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule/999/context');
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Слот расписания не найден');
   });
 
   it('нечисловой идентификатор слота — 400', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/schedule/abc/context');
+    const response = await request(harness.app.getHttpServer()).get('/api/schedule/abc/context');
 
     expect(response.status).toBe(400);
   });
 
   it('клуб находится по адресу-ссылке, регистр не важен', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/clubs/by-slug/Volna-Aquatic-Club',
+      '/api/clubs/by-slug/Volna-Aquatic-Club',
     );
 
     expect(response.status).toBe(200);
@@ -123,7 +123,7 @@ describe('Добор маршрутов под страницы', () => {
 
   it('тренер находится по адресу-ссылке', async () => {
     const response = await request(harness.app.getHttpServer()).get(
-      '/trainers/by-slug/marina-sokolova',
+      '/api/trainers/by-slug/marina-sokolova',
     );
 
     expect(response.status).toBe(200);
@@ -131,7 +131,9 @@ describe('Добор маршрутов под страницы', () => {
   });
 
   it('неизвестный адрес-ссылка — 404', async () => {
-    const response = await request(harness.app.getHttpServer()).get('/clubs/by-slug/нет-такого');
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/clubs/by-slug/нет-такого',
+    );
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Клуб не найден');
@@ -141,7 +143,7 @@ describe('Добор маршрутов под страницы', () => {
     // Они выполняются внутри чтения записей: отдельный маршрут позволил бы
     // запускать их снаружи в произвольный момент.
     const response = await request(harness.app.getHttpServer()).post(
-      '/bookings/run-lazy-transitions',
+      '/api/bookings/run-lazy-transitions',
     );
 
     expect(response.status).toBe(404);
