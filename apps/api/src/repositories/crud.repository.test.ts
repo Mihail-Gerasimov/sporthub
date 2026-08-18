@@ -8,6 +8,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { User } from '@sporthub/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { JsonStorage } from '../storage/json-storage';
@@ -101,14 +102,14 @@ describe('Простые CRUD-репозитории', () => {
   });
 
   describe('UsersRepository', () => {
-    const newUser = {
+    const newUser: Omit<User, 'id' | 'createdAt'> = {
       role: 'athlete',
       name: 'Иван',
       email: 'ivan@test.local',
       phone: '+7 (900) 000-00-00',
       password: 'secret1',
-      favoriteClubIds: [],
-    } as const;
+      favoriteClubIds: [] as number[],
+    };
 
     it('создаёт пользователя и находит его по id и по email', async () => {
       const users = new JsonUsersRepository(storage);

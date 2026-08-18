@@ -69,7 +69,7 @@ abstract class JsonCollectionRepository<TItem extends { id: number; createdAt: s
   ) {}
 
   protected async readAll(): Promise<TItem[]> {
-    return (await this.storage.read(this.collection)) as TItem[];
+    return (await this.storage.read(this.collection)) as unknown as TItem[];
   }
 
   protected async writeAll(items: TItem[]): Promise<void> {
@@ -235,7 +235,12 @@ export class JsonProviderClientNotesRepository
 
         return true;
       })
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      .sort((left, right) => {
+        // «Свежие первыми», при равных метках различаем по id — см. catalog.repository.
+        const byDate = right.createdAt.localeCompare(left.createdAt);
+
+        return byDate !== 0 ? byDate : right.id - left.id;
+      });
   }
 
   insert(

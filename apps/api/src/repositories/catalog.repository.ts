@@ -15,6 +15,21 @@ import type {
 
 import type { JsonStorage } from '../storage/json-storage';
 
+/**
+ * Сортировка «свежие первыми». При равных метках времени (две записи в одну
+ * миллисекунду — обычное дело при пакетной вставке) сравниваем по id: он растёт
+ * монотонно, поэтому порядок становится детерминированным. Без этого сравнения
+ * результат зависел бы от порядка вставки и тест на сортировку мигал бы.
+ */
+function compareByCreatedAtDesc<TItem extends { id: number; createdAt: string }>(
+  left: TItem,
+  right: TItem,
+): number {
+  const byDate = right.createdAt.localeCompare(left.createdAt);
+
+  return byDate !== 0 ? byDate : right.id - left.id;
+}
+
 // --- Токены внедрения ---------------------------------------------------------
 
 export const TRAINER_CLUB_LINKS_REPOSITORY = Symbol('TRAINER_CLUB_LINKS_REPOSITORY');
@@ -80,7 +95,7 @@ export class JsonTrainerClubLinksRepository implements TrainerClubLinksRepositor
 
         return true;
       })
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      .sort(compareByCreatedAtDesc);
   }
 
   async findById(id: number): Promise<TrainerClubLink | null> {
@@ -239,7 +254,7 @@ export class JsonNotificationsRepository implements NotificationsRepository {
     });
 
     // Свежие первыми — порядок зашит в реализацию, вызывающий код его не задаёт.
-    const sorted = filtered.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    const sorted = filtered.sort(compareByCreatedAtDesc);
     const offset = filter.offset ?? 0;
 
     return filter.limit === undefined
