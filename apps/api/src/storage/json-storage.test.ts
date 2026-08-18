@@ -80,11 +80,24 @@ describe('JsonStorage', () => {
     it('до коммита файлы на диске не меняются', async () => {
       await storage.runInTransaction(async (tx) => {
         await tx.write('clubs', [{ id: 1, name: 'Клуб' }] as never);
-        // Внутри транзакции диск ещё чист — запись отложена до коммита.
-        expect(await storage.read('clubs')).toEqual([]);
+
+        // Диск ещё чист — запись отложена до коммита. Читаем файл напрямую:
+        // через `read` транзакция обязана видеть собственную запись.
+        const onDisk = await readFile(path.join(dataDirectory, 'clubs.json'), 'utf8');
+        expect(JSON.parse(onDisk)).toEqual([]);
       });
 
       expect(await storage.read('clubs')).toHaveLength(1);
+    });
+
+    it('внутри транзакции чтение видит собственную незакоммиченную запись', async () => {
+      // На этом стоит вся атомарность сервисов: репозитории читают и пишут
+      // одну коллекцию по очереди и обязаны видеть правки друг друга.
+      await storage.runInTransaction(async (tx) => {
+        await tx.write('clubs', [{ id: 1, name: 'Клуб' }] as never);
+
+        expect(await storage.read('clubs')).toHaveLength(1);
+      });
     });
 
     it('ошибка внутри работы не оставляет частичной записи', async () => {

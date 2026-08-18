@@ -30,6 +30,7 @@ import type {
 import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
+import { JsonStorage } from '../storage/json-storage';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ScheduleRepository } from '../repositories/entities.repository';
@@ -62,6 +63,7 @@ export function getSlotEndAt(slot: Schedule): Date {
 @Injectable()
 export class BookingService {
   constructor(
+    private readonly storage: JsonStorage,
     @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
     @Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository,
     private readonly slotContext: SlotContextService,
@@ -115,16 +117,25 @@ export class BookingService {
     }
 
     const delta = getBookedCountDelta(booking.status, input.to);
-    const updated = await this.bookings.update(booking.id, patch);
 
-    if (delta !== 0) {
-      // Слот мог исчезнуть — прежняя реализация в этом случае молча продолжала.
-      const slot = await this.schedule.findById(booking.scheduleId);
-      if (slot) {
-        await this.schedule.changeBookedCount(slot.id, delta);
+    // Смена статуса и пересчёт мест — одна операция: иначе сбой на второй
+    // записи оставил бы занятое место у отменённой брони.
+    const updated = await this.storage.runInTransaction(async () => {
+      const result = await this.bookings.update(booking.id, patch);
+
+      if (delta !== 0) {
+        // Слот мог исчезнуть — прежняя реализация в этом случае молча продолжала.
+        const slot = await this.schedule.findById(booking.scheduleId);
+        if (slot) {
+          await this.schedule.changeBookedCount(slot.id, delta);
+        }
       }
-    }
 
+      return result;
+    });
+
+    // Уведомления — после записи и вне транзакции: сбой рассылки не должен
+    // откатывать смену статуса.
     await this.dispatchNotifications(updated, transition);
 
     return updated;
@@ -159,32 +170,36 @@ export class BookingService {
     // не должно менять правила для уже записавшегося.
     const snapshot: CancellationPolicy = offering?.cancellationPolicy ?? 'free_until_24h';
 
-    const created = await this.bookings.insert({
-      scheduleId: input.scheduleId,
-      offeringId: slot.offeringId,
-      ownerType: slot.ownerType,
-      ownerId: slot.ownerId,
-      userId: input.userId,
-      clubId: club?.id ?? affiliatedClub?.id,
-      trainerId: trainer?.id ?? slot.trainerId,
-      sportId: offering?.sportId ?? slot.sportId,
-      date: slot.date,
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      totalPrice: offering?.price ?? slot.price,
-      cancellationPolicySnapshot: snapshot,
-      statusHistory: [
-        {
-          from: null,
-          to: 'pending',
-          actor: 'athlete',
-          actorUserId: input.userId,
-          at: timestamp,
-        },
-      ],
-    });
+    const created = await this.storage.runInTransaction(async () => {
+      const booking = await this.bookings.insert({
+        scheduleId: input.scheduleId,
+        offeringId: slot.offeringId,
+        ownerType: slot.ownerType,
+        ownerId: slot.ownerId,
+        userId: input.userId,
+        clubId: club?.id ?? affiliatedClub?.id,
+        trainerId: trainer?.id ?? slot.trainerId,
+        sportId: offering?.sportId ?? slot.sportId,
+        date: slot.date,
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        totalPrice: offering?.price ?? slot.price,
+        cancellationPolicySnapshot: snapshot,
+        statusHistory: [
+          {
+            from: null,
+            to: 'pending',
+            actor: 'athlete',
+            actorUserId: input.userId,
+            at: timestamp,
+          },
+        ],
+      });
 
-    await this.schedule.changeBookedCount(slot.id, 1);
+      await this.schedule.changeBookedCount(slot.id, 1);
+
+      return booking;
+    });
 
     return created;
   }
@@ -220,14 +235,16 @@ export class BookingService {
       throw new NotFoundError('Запись не найдена');
     }
 
-    await this.bookings.remove(bookingId);
+    await this.storage.runInTransaction(async () => {
+      await this.bookings.remove(bookingId);
 
-    if (ACTIVE_BOOKING_STATUSES.has(booking.status)) {
-      const slot = await this.schedule.findById(booking.scheduleId);
-      if (slot) {
-        await this.schedule.changeBookedCount(slot.id, -1);
+      if (ACTIVE_BOOKING_STATUSES.has(booking.status)) {
+        const slot = await this.schedule.findById(booking.scheduleId);
+        if (slot) {
+          await this.schedule.changeBookedCount(slot.id, -1);
+        }
       }
-    }
+    });
   }
 
   /**

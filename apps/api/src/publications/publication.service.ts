@@ -9,6 +9,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import { JsonStorage } from '../storage/json-storage';
 import {
   clubFromForm,
   clubOfferingFromForm,
@@ -69,6 +70,7 @@ export type ClubPublicationResult = {
 @Injectable()
 export class PublicationService {
   constructor(
+    private readonly storage: JsonStorage,
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     @Inject(OFFERINGS_REPOSITORY)
@@ -83,6 +85,12 @@ export class PublicationService {
   // --- Создание ---------------------------------------------------------------
 
   async createClub(input: CreateClubInput): Promise<ClubPublicationResult> {
+    // Клуб, услуга и слоты появляются вместе или не появляются вовсе:
+    // клуб без основной услуги нельзя ни показать, ни забронировать.
+    return this.storage.runInTransaction(() => this.createClubInner(input));
+  }
+
+  private async createClubInner(input: CreateClubInput): Promise<ClubPublicationResult> {
     const club = await this.clubs.insert(input.club);
     const offering = await this.offerings.insert({
       ...input.offering,
@@ -97,6 +105,16 @@ export class PublicationService {
   }
 
   async createTrainer(input: {
+    trainer: Omit<Trainer, 'id' | 'createdAt'>;
+    offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
+    slots: PublicationSlotInput[];
+    clubId?: number | null;
+    userId: number;
+  }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
+    return this.storage.runInTransaction(() => this.createTrainerInner(input));
+  }
+
+  private async createTrainerInner(input: {
     trainer: Omit<Trainer, 'id' | 'createdAt'>;
     offering: Omit<Offering, 'id' | 'createdAt' | 'ownerId'>;
     slots: PublicationSlotInput[];
@@ -142,6 +160,10 @@ export class PublicationService {
   // --- Правка -----------------------------------------------------------------
 
   async updateClub(input: UpdateClubInput): Promise<ClubPublicationResult> {
+    return this.storage.runInTransaction(() => this.updateClubInner(input));
+  }
+
+  private async updateClubInner(input: UpdateClubInput): Promise<ClubPublicationResult> {
     const current = await this.clubs.findById(input.clubId);
 
     if (!current) {
@@ -183,6 +205,16 @@ export class PublicationService {
   }
 
   async updateTrainer(input: {
+    trainerId: number;
+    userId: number;
+    trainer: Partial<Trainer>;
+    offering: Partial<Offering>;
+    slots: PublicationSlotInput[];
+  }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
+    return this.storage.runInTransaction(() => this.updateTrainerInner(input));
+  }
+
+  private async updateTrainerInner(input: {
     trainerId: number;
     userId: number;
     trainer: Partial<Trainer>;
@@ -339,7 +371,13 @@ export class PublicationService {
   }
 
   /** Каскад: услуги, их слоты, записи и отзывы владельца. */
-  private async cascadeDelete(owner: {
+  private cascadeDelete(owner: { ownerType: 'club' | 'trainer'; ownerId: number }): Promise<void> {
+    // Удаление затрагивает пять коллекций: половинчатый результат оставил бы
+    // записи на несуществующие слоты.
+    return this.storage.runInTransaction(() => this.cascadeDeleteInner(owner));
+  }
+
+  private async cascadeDeleteInner(owner: {
     ownerType: 'club' | 'trainer';
     ownerId: number;
   }): Promise<void> {

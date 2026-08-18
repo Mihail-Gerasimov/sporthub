@@ -3,6 +3,7 @@
 // поэтому в фазе базы этот файл заменяется на Prisma-реализацию, а слой выше
 // не меняется вовсе.
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -82,15 +83,42 @@ type Identifiable = { id: number };
 export class JsonStorage {
   private writeFailureHook: ((key: CollectionKey) => void) | null = null;
 
+  /**
+   * Буфер активной транзакции, привязанный к контексту выполнения.
+   *
+   * Он нужен, чтобы репозитории ничего не знали о транзакциях: сервис
+   * оборачивает свою работу в `runInTransaction`, а вызванные внутри
+   * репозитории продолжают звать обычные `read`/`write` и всё равно попадают
+   * в буфер. Иначе пришлось бы протаскивать объект транзакции через каждый
+   * метод каждого репозитория — и в фазе базы этот проброс пришлось бы
+   * выкидывать целиком.
+   */
+  private readonly activeTransaction = new AsyncLocalStorage<Map<CollectionKey, unknown>>();
+
   constructor(private readonly dataDirectory: string) {}
 
   async read<Key extends CollectionKey>(key: Key): Promise<DataCollectionMap[Key]> {
+    const buffer = this.activeTransaction.getStore();
+
+    // Внутри транзакции видно то, что она сама уже записала.
+    if (buffer?.has(key)) {
+      return buffer.get(key) as DataCollectionMap[Key];
+    }
+
     const raw = await readFile(this.filePath(key), 'utf8');
 
     return JSON.parse(raw) as DataCollectionMap[Key];
   }
 
   async write<Key extends CollectionKey>(key: Key, data: DataCollectionMap[Key]): Promise<void> {
+    const buffer = this.activeTransaction.getStore();
+
+    if (buffer) {
+      buffer.set(key, data);
+
+      return;
+    }
+
     this.writeFailureHook?.(key);
 
     // Формат обязан совпадать с прежним побайтово: отступ 2 и завершающий
@@ -122,27 +150,32 @@ export class JsonStorage {
    * вызывающего кода не меняется.
    */
   async runInTransaction<T>(work: (tx: StorageTransaction) => Promise<T>): Promise<T> {
+    // Вложенный вызов присоединяется к внешней транзакции, а не открывает свою:
+    // иначе внутренняя половина работы попала бы на диск раньше внешней.
+    const running = this.activeTransaction.getStore();
+
+    if (running) {
+      return work(this.transactionFacade());
+    }
+
     const buffer = new Map<CollectionKey, unknown>();
 
-    const tx: StorageTransaction = {
-      read: async (key) => {
-        // Внутри транзакции видно то, что она сама уже записала.
-        if (buffer.has(key)) {
-          return buffer.get(key) as never;
-        }
-
-        return this.read(key);
-      },
-      write: async (key, data) => {
-        buffer.set(key, data);
-      },
-    };
-
-    const result = await work(tx);
+    const result = await this.activeTransaction.run(buffer, () => work(this.transactionFacade()));
 
     await this.commit(buffer);
 
     return result;
+  }
+
+  /**
+   * Явный доступ к транзакции для кода, который хочет читать и писать сам.
+   * Просто переадресует в `read`/`write` — те уже знают про активный буфер.
+   */
+  private transactionFacade(): StorageTransaction {
+    return {
+      read: (key) => this.read(key),
+      write: (key, data) => this.write(key, data),
+    };
   }
 
   /** Хук для тестов: имитирует сбой записи на диск. */

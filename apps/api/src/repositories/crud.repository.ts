@@ -76,13 +76,16 @@ abstract class JsonCollectionRepository<TItem extends { id: number; createdAt: s
   /** Добавление записи с автогенерацией id и createdAt — как в db.ts. */
   protected async append<TInput extends object>(
     input: TInput,
-    extra?: Record<string, unknown>,
+    extra?: Record<string, unknown> | ((createdAt: string) => Record<string, unknown>),
   ): Promise<TItem> {
     const items = await this.readAll();
+    // Момент создания берётся один раз: у заметок он же становится моментом
+    // последней правки, и два вызова часов подряд давали расхождение в миллисекунду.
+    const createdAt = new Date().toISOString();
     const item = {
       id: this.storage.getNextEntityId(items),
-      createdAt: new Date().toISOString(),
-      ...extra,
+      createdAt,
+      ...(typeof extra === 'function' ? extra(createdAt) : extra),
       ...input,
     } as unknown as TItem;
 
@@ -240,10 +243,8 @@ export class JsonProviderClientNotesRepository
   insert(
     note: Omit<ProviderClientNote, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<ProviderClientNote> {
-    // updatedAt при создании совпадает с createdAt — так же, как в db.ts.
-    const now = new Date().toISOString();
-
-    return this.append(note, { updatedAt: now });
+    // updatedAt при создании совпадает с createdAt — так же, как было раньше.
+    return this.append(note, (createdAt) => ({ updatedAt: createdAt }));
   }
 
   async update(

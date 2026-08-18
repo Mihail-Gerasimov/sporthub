@@ -14,6 +14,12 @@ import { CATALOG_CONTROLLERS } from './catalog/catalog.controller';
 import { CLUB_CONTROLLERS } from './catalog/clubs.controller';
 import { LinkService } from './links/link.service';
 import { LINK_CONTROLLERS } from './links/links.controller';
+import { ADMIN_CONTROLLERS } from './admin/admin.controller';
+import { ANALYTICS_CONTROLLERS } from './analytics/analytics.controller';
+import { AUTH_CONTROLLERS } from './auth/auth.controller';
+import { GEO_CONTROLLERS } from './geo/geo.controller';
+import { LOG_CONTROLLERS } from './logs/logs.controller';
+import { MODERATION_CONTROLLERS } from './moderation/moderation.controller';
 import { NOTE_CONTROLLERS } from './notes/notes.controller';
 import { NOTIFICATION_CONTROLLERS } from './notifications/notifications.controller';
 import { USER_ACCOUNT_CONTROLLERS } from './users/users-account.controller';
@@ -44,6 +50,12 @@ import { StorageModule } from './storage/storage.module';
     ...NOTIFICATION_CONTROLLERS,
     ...USER_ACCOUNT_CONTROLLERS,
     ...NOTE_CONTROLLERS,
+    ...AUTH_CONTROLLERS,
+    ...LOG_CONTROLLERS,
+    ...MODERATION_CONTROLLERS,
+    ...ANALYTICS_CONTROLLERS,
+    ...ADMIN_CONTROLLERS,
+    ...GEO_CONTROLLERS,
   ],
   providers: [
     // Формат ответа и разбор ошибок — общие для всех контроллеров.
