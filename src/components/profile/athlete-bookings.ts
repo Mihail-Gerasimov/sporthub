@@ -1,4 +1,4 @@
-import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 

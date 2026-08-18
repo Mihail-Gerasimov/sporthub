@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Card, ReliabilityBadge } from '@/components/ui';
-import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
+import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { cn, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';

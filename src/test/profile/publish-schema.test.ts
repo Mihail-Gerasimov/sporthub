@@ -2,7 +2,7 @@
 // Проверяют серверную валидацию: email, телефон, санитизация, длительность
 import { describe, expect, it } from 'vitest';
 
-import { publishClubSchema, publishTrainerSchema } from '@/lib/schemas/publish';
+import { publishClubSchema, publishTrainerSchema } from '@sporthub/domain';
 
 // --- Хелпер: минимально валидный payload клуба ---
 

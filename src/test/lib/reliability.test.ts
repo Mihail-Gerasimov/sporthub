@@ -2,14 +2,14 @@
 // computeCancelReason, isAthleteInQuarantine.
 import { describe, expect, it } from 'vitest';
 
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 import {
   computeAthleteReliability,
   computeCancelReason,
   computeClubReliability,
   computeTrainerReliability,
   isAthleteInQuarantine,
-} from '@/lib/reliability';
+} from '@sporthub/domain';
 import type { Booking, Schedule } from '@sporthub/types';
 
 function makeBooking(overrides: Partial<Booking>): Booking {

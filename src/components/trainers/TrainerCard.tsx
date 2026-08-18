@@ -33,7 +33,7 @@ import Link from 'next/link';
 import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 

@@ -4,7 +4,7 @@
  * Step 14.3
  */
 import type { UpdateClubPublicationInput } from '@/lib/db';
-import type { ScheduleSlotForm, ClubFormState } from '@/lib/schemas/publish';
+import type { ScheduleSlotForm, ClubFormState } from '@sporthub/domain';
 import type { Club, EntityId, Offering, Schedule } from '@sporthub/types';
 
 /* --- Типы формы — реэкспорт из единого источника publish.ts --- */

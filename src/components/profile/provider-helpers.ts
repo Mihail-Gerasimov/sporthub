@@ -1,5 +1,5 @@
 // Бизнес-логика провайдер-кабинета: фильтрация клубов, тренеров, букингов, отзывов и сводка.
-import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import {
   getBookingClubId,
   getBookingTrainerId,

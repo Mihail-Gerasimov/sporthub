@@ -10,7 +10,7 @@ import { startTransition, useEffect, useMemo, useState } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
-import { computeAthleteReliability } from '@/lib/reliability';
+import { computeAthleteReliability } from '@sporthub/domain';
 import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';

@@ -17,7 +17,7 @@ import {
   getTrainers,
   getUsers,
 } from '@/lib/db';
-import { computeClubReliability } from '@/lib/reliability';
+import { computeClubReliability } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';

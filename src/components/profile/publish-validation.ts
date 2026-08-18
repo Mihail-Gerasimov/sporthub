@@ -1,7 +1,7 @@
 // Чистые функции валидации publish-форм (Step 13.5, обновлено Phase 23).
 // Возвращают объект ошибок { fieldName: 'Сообщение' } или пустой объект.
 
-import type { ScheduleSlotForm } from '@/lib/schemas/publish';
+import type { ScheduleSlotForm } from '@sporthub/domain';
 import type { EntityId } from '@sporthub/types';
 
 // --- Типы форм (дублируем для валидации, т.к. оригиналы — локальные в модалках) ---

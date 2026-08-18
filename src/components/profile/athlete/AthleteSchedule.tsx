@@ -10,7 +10,7 @@ import { startTransition, useMemo, useState } from 'react';
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { Badge, Button, Card, Modal } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 import { cn, formatDate } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';

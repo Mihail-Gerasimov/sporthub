@@ -11,8 +11,8 @@ import {
   type UpcomingProfileBooking,
 } from '@/components/profile/athlete-bookings';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
-import { computeAthleteReliability, isAthleteInQuarantine } from '@/lib/reliability';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { computeAthleteReliability, isAthleteInQuarantine } from '@sporthub/domain';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,

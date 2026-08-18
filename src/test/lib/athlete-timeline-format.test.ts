@@ -2,7 +2,7 @@
 // в user-friendly строки для атлета без actor-кодов, скрывая автопереходы (actor='system').
 import { describe, expect, it } from 'vitest';
 
-import { formatStatusHistoryForAthlete } from '@/lib/athlete-timeline-format';
+import { formatStatusHistoryForAthlete } from '@sporthub/domain';
 import type { BookingStatusTransition } from '@sporthub/types';
 
 describe('formatStatusHistoryForAthlete', () => {

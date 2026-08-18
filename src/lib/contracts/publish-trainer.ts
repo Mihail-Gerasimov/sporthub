@@ -6,7 +6,7 @@
 import type { CreateTrainerPublicationInput, UpdateTrainerPublicationInput } from '@/lib/db';
 import type { EntityId, Offering, OfferingFormat, Schedule, Trainer } from '@sporthub/types';
 
-import type { TrainerFormState, TrainerOfferingFormItem } from '@/lib/schemas/publish';
+import type { TrainerFormState, TrainerOfferingFormItem } from '@sporthub/domain';
 
 /* --- Типы формы — реэкспорт из единого источника publish.ts --- */
 

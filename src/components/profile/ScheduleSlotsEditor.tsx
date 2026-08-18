@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 
-import type { ScheduleSlotForm } from '@/lib/schemas/publish';
+import type { ScheduleSlotForm } from '@sporthub/domain';
 import { Input } from '@/components/ui';
 
 /** Элемент справочника видов спорта (id + name) */

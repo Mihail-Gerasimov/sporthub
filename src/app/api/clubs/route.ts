@@ -11,8 +11,8 @@ import {
 } from '@/lib/db';
 import { mapClubFormToEntities } from '@/lib/contracts/publish-club';
 import { logAction } from '@/lib/logAction';
-import { computeClubReliability } from '@/lib/reliability';
-import { publishClubSchema } from '@/lib/schemas/publish';
+import { computeClubReliability } from '@sporthub/domain';
+import { publishClubSchema } from '@sporthub/domain';
 import { resolveNames } from '@/lib/utils';
 
 const clubsQuerySchema = z.object({

@@ -12,7 +12,7 @@
 import { CardSlider } from '@/components/ui';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { useFilterStore } from '@/stores/useFilterStore';
 import type { EntityId } from '@sporthub/types';
 

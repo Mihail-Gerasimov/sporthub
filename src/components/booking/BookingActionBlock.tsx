@@ -7,8 +7,8 @@ import { startTransition, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Card } from '@/components/ui';
-import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
-import type { QuarantineResult } from '@/lib/reliability';
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import type { QuarantineResult } from '@sporthub/domain';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';

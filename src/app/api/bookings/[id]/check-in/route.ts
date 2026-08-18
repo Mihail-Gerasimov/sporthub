@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 import { getBookings, getSchedule, transitionBooking } from '@/lib/db';
 import { isProviderOfBooking } from '@/lib/booking-guards';
 import { logAction } from '@/lib/logAction';

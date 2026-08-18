@@ -28,9 +28,9 @@ import {
 } from '@/components/profile/athlete-achievements';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
-import { computeCurrentStreak, computeMaxStreak } from '@/lib/athlete-streaks';
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
-import { computeAthleteReliability } from '@/lib/reliability';
+import { computeCurrentStreak, computeMaxStreak } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { computeAthleteReliability } from '@sporthub/domain';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,

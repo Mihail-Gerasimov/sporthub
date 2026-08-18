@@ -1,4 +1,4 @@
-import { CANCELLED_BOOKING_STATUSES, COMPLETED_BOOKING_STATUSES } from '@/lib/booking-status';
+import { CANCELLED_BOOKING_STATUSES, COMPLETED_BOOKING_STATUSES } from '@sporthub/domain';
 import type { AthleteAchievementId, Booking, Review } from '@sporthub/types';
 
 export type AthleteAchievement = {

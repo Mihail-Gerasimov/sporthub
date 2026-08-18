@@ -2,7 +2,7 @@
 // Admin-drawer (BookingStatusHistoryDrawer) остаётся отдельным — у админа свой формат.
 'use client';
 
-import { formatStatusHistoryForAthlete } from '@/lib/athlete-timeline-format';
+import { formatStatusHistoryForAthlete } from '@sporthub/domain';
 import type { BookingStatusTransition } from '@sporthub/types';
 
 interface AthleteBookingTimelineProps {

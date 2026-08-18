@@ -7,7 +7,7 @@ import {
   isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   REQUIRED_NOTIFICATION_TYPES,
-} from '@/lib/notification-types';
+} from '@sporthub/domain';
 import type { NotificationType, User } from '@sporthub/types';
 
 describe('notification-types (Step 25.14)', () => {

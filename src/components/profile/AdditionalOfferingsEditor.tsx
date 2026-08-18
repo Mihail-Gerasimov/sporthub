@@ -6,7 +6,7 @@
 
 import { Button, Input, Select } from '@/components/ui';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
-import type { TrainerOfferingFormItem } from '@/lib/schemas/publish';
+import type { TrainerOfferingFormItem } from '@sporthub/domain';
 import type { CancellationPolicy, TrainerClubLink } from '@sporthub/types';
 
 const OFFERING_FORMATS = ['Индивидуальная', 'Групповая', 'Мини-группа'];

@@ -5,7 +5,7 @@
 //   badge='warning' → жёлтый «Умеренно надёжен»
 //   badge='danger'  → красный «Низкая надёжность»
 //   иначе (≥90% и >=5 completed) → бейдж скрыт (возвращает null)
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { Badge } from '@/components/ui/Badge';
 
 export interface ReliabilityBadgeProps {

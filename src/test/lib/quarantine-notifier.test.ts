@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getNotifications } from '@/lib/db';
 import { maybeNotifyQuarantineEnd, maybeNotifyQuarantineStart } from '@/lib/quarantine-notifier';
-import type { QuarantineResult } from '@/lib/reliability';
+import type { QuarantineResult } from '@sporthub/domain';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,

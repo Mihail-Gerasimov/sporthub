@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 
 function makeResult(overrides: Partial<ReliabilityResult>): ReliabilityResult {
   return {

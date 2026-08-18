@@ -9,7 +9,7 @@
 import 'server-only';
 
 import { notify } from '@/lib/notify';
-import type { QuarantineResult } from '@/lib/reliability';
+import type { QuarantineResult } from '@sporthub/domain';
 import type { User } from '@sporthub/types';
 
 export interface QuarantineNotifierArgs {

@@ -11,7 +11,7 @@ import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Input } from '@/components/ui';
-import type { ClubFormState } from '@/lib/schemas/publish';
+import type { ClubFormState } from '@sporthub/domain';
 
 // --- Начальное состояние формы ---
 

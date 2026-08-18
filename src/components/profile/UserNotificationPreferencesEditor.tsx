@@ -17,7 +17,7 @@ import {
   isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   type NotificationGroupKey,
-} from '@/lib/notification-types';
+} from '@sporthub/domain';
 import { useToastStore } from '@/stores/useToastStore';
 import type { NotificationType } from '@sporthub/types';
 

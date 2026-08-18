@@ -4,7 +4,7 @@
 // к SSR-вызову (`page.tsx` загружает bookings и прокидывает в UI уже посчитанный
 // `ReliabilityResult`).
 
-import { DISCIPLINE_CONFIG, type DisciplineConfig } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG, type DisciplineConfig } from './discipline-config';
 import type {
   Booking,
   BookingActor,

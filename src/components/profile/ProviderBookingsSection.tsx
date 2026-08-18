@@ -1,7 +1,7 @@
 // Секция «Входящие записи» кабинета провайдера — список букингов на клубы и тренеров.
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
-import { computeAthleteReliability } from '@/lib/reliability';
+import { computeAthleteReliability } from '@sporthub/domain';
 import { formatDate, formatPrice } from '@/lib/utils';
 import type { Booking } from '@sporthub/types';
 

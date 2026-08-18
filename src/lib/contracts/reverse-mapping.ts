@@ -8,7 +8,7 @@ import type {
   ScheduleSlotForm,
   TrainerFormState,
   TrainerOfferingFormItem,
-} from '@/lib/schemas/publish';
+} from '@sporthub/domain';
 import { isValidCoordinates } from '@/lib/utils';
 import type {
   CancellationPolicy,

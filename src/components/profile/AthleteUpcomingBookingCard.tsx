@@ -4,7 +4,7 @@ import { startTransition, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Modal } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 import { formatDate } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 

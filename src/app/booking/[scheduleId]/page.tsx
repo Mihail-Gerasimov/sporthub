@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
 import { getBookings, getScheduleSlotContext, getUsers } from '@/lib/db';
-import { isAthleteInQuarantine, type QuarantineResult } from '@/lib/reliability';
+import { isAthleteInQuarantine, type QuarantineResult } from '@sporthub/domain';
 import { formatDate, formatPrice } from '@/lib/utils';
 import type { OfferingFormat } from '@sporthub/types';
 

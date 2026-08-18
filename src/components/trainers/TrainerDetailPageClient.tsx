@@ -36,7 +36,7 @@ import {
 } from '@/components/detail-shared/DetailScheduleWeek';
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';

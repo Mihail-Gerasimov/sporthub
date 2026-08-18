@@ -30,7 +30,7 @@ import {
   getTags,
   getTrainerClubLinks,
 } from '@/lib/db';
-import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
+import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 
 // Витрина читает живые JSON-данные после publish/edit/delete провайдеров.

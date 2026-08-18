@@ -17,7 +17,7 @@ import {
 } from '@/lib/db';
 import { mapTrainerFormToUpdateInput } from '@/lib/contracts/publish-trainer';
 import { logAction } from '@/lib/logAction';
-import { publishTrainerSchema } from '@/lib/schemas/publish';
+import { publishTrainerSchema } from '@sporthub/domain';
 import { getTrainerPrimarySportId } from '@/lib/utils';
 
 const trainerIdSchema = z.coerce.number().int().positive();

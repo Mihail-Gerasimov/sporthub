@@ -13,9 +13,9 @@ import {
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
-import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
-import { computeClubReliability, computeTrainerReliability } from '@/lib/reliability';
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';

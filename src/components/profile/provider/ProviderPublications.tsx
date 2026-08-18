@@ -16,7 +16,7 @@ import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
-import type { ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
+import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {

@@ -20,7 +20,7 @@ vi.mock('next/navigation', () => ({
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { AUTH_STORE_DEFAULT_STATE, MVP_ATHLETE_USER_ID, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { QuarantineResult } from '@/lib/reliability';
+import type { QuarantineResult } from '@sporthub/domain';
 
 describe('BookingActionBlock — quarantine (Step 25.7)', () => {
   const fetchMock = vi.fn();

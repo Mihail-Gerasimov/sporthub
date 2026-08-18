@@ -8,7 +8,7 @@ import {
   mapTrainerFormToUpdateInput,
 } from '@/lib/contracts/publish-trainer';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
-import { publishClubSchema, publishTrainerSchema } from '@/lib/schemas/publish';
+import { publishClubSchema, publishTrainerSchema } from '@sporthub/domain';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 /* --- Фикстуры --- */

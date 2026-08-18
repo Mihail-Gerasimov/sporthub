@@ -1,7 +1,7 @@
 // Тесты Zod-схемы слотов расписания — шаг 10 мин, sportId, cross-field refine (Step 23.9)
 import { describe, expect, it } from 'vitest';
 
-import { publishClubSchema, publishTrainerSchema } from '@/lib/schemas/publish';
+import { publishClubSchema, publishTrainerSchema } from '@sporthub/domain';
 
 /* --- Хелперы: минимальные валидные payload --- */
 

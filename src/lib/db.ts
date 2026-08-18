@@ -3,8 +3,8 @@ import 'server-only';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
-import { DISCIPLINE_CONFIG, type DisciplineConfig } from '@/lib/discipline-config';
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, type DisciplineConfig } from '@sporthub/domain';
 import { notify } from '@/lib/notify';
 import { getProjectDataDirectory } from '@/lib/projectPaths';
 import type {
@@ -695,7 +695,7 @@ export async function getNotifications(
   if (options.applyPreferences === true && options.userId !== undefined) {
     const user = await getUserById(options.userId);
     if (user) {
-      const { isNotificationTypeEnabled } = await import('@/lib/notification-types');
+      const { isNotificationTypeEnabled } = await import('@sporthub/domain');
       filtered = filtered.filter((notification) =>
         isNotificationTypeEnabled(user, notification.type),
       );
@@ -832,7 +832,7 @@ export async function getUnreadNotificationCount(
   if (applyPreferences === true) {
     const user = await getUserById(userId);
     if (user) {
-      const { isNotificationTypeEnabled } = await import('@/lib/notification-types');
+      const { isNotificationTypeEnabled } = await import('@sporthub/domain');
       filtered = filtered.filter((notification) =>
         isNotificationTypeEnabled(user, notification.type),
       );
@@ -851,7 +851,7 @@ export async function setUserNotificationPreferences(
   preferences: Partial<Record<NotificationType, boolean>>,
 ): Promise<User> {
   // Импортируем здесь, чтобы разорвать круг db.ts ↔ notification-types.ts
-  const { REQUIRED_NOTIFICATION_TYPES } = await import('@/lib/notification-types');
+  const { REQUIRED_NOTIFICATION_TYPES } = await import('@sporthub/domain');
 
   const users = await readCollection('users');
   const index = users.findIndex((user) => user.id === userId);
@@ -1339,7 +1339,7 @@ function getSlotEndAt(slot: Schedule): Date {
 // Phase 24 Step 24.12: computeCancelReason — теперь чистая функция в reliability.ts,
 // импортируется как единый источник правды. Здесь оставлен re-export внутреннего
 // имени, чтобы не менять call-сайты внутри db.ts.
-import { computeCancelReason as computeCancelReasonPure } from '@/lib/reliability';
+import { computeCancelReason as computeCancelReasonPure } from '@sporthub/domain';
 
 function computeCancelReason(
   booking: Booking,
@@ -1442,7 +1442,7 @@ async function dispatchTransitionNotifications(
         getBookings(),
       ]);
       if (athleteUser) {
-        const { isAthleteInQuarantine } = await import('@/lib/reliability');
+        const { isAthleteInQuarantine } = await import('@sporthub/domain');
         const { maybeNotifyQuarantineStart } = await import('@/lib/quarantine-notifier');
         const quarantine = isAthleteInQuarantine(bookingsAfter, athleteId, new Date(), {
           quarantineLiftedAt: athleteUser.quarantineLiftedAt ?? null,
@@ -1780,7 +1780,7 @@ export async function runLazyBookingTransitions(
     const [bookingsAfter, { isAthleteInQuarantine }, { maybeNotifyQuarantineEnd }] =
       await Promise.all([
         getBookings(),
-        import('@/lib/reliability'),
+        import('@sporthub/domain'),
         import('@/lib/quarantine-notifier'),
       ]);
 

@@ -4,7 +4,7 @@ import { useRef } from 'react';
 
 import { Badge, Button, Card } from '@/components/ui';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 import type { EntityId } from '@sporthub/types';

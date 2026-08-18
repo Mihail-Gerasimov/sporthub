@@ -2,8 +2,8 @@
 // Проверяют: shared form-state, edit payload, scope ограничения
 import { describe, expect, it } from 'vitest';
 
-import type { ScheduleSlotForm, ClubFormState, TrainerFormState } from '@/lib/schemas/publish';
-import { publishClubSchema, publishTrainerSchema } from '@/lib/schemas/publish';
+import type { ScheduleSlotForm, ClubFormState, TrainerFormState } from '@sporthub/domain';
+import { publishClubSchema, publishTrainerSchema } from '@sporthub/domain';
 
 /* ========================================
    Shared form-state типы

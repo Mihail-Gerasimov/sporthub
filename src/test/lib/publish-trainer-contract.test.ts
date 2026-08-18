@@ -6,7 +6,7 @@ import {
   mapTrainerFormToEntities,
   mapTrainerFormToUpdateInput,
 } from '@/lib/contracts/publish-trainer';
-import type { TrainerOfferingFormItem } from '@/lib/schemas/publish';
+import type { TrainerOfferingFormItem } from '@sporthub/domain';
 
 /* Минимальная валидная форма тренера */
 const validForm = {

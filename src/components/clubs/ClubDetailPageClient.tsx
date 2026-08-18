@@ -31,7 +31,7 @@ import {
   type DetailScheduleSlot,
 } from '@/components/detail-shared/DetailScheduleWeek';
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';

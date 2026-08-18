@@ -16,7 +16,7 @@ import type { Club, EntityId, Tag } from '@sporthub/types';
 import { CardSlider } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 type ClubListProps = {

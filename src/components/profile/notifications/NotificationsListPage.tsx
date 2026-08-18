@@ -36,7 +36,7 @@ import {
   NOTIFICATION_TYPE_GROUP,
   isNotificationTypeApplicable,
   type NotificationGroupKey,
-} from '@/lib/notification-types';
+} from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';

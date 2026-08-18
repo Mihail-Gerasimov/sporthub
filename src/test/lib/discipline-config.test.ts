@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
+import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 
 describe('DISCIPLINE_CONFIG', () => {
   it('экспортирует минимум completed для публичного бейджа надёжности', () => {

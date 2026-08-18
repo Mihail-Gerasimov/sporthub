@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { PopularTrainers } from '@/components/trainers';
 import { Badge, Button, Card } from '@/components/ui';
-import type { ReliabilityResult } from '@/lib/reliability';
+import type { ReliabilityResult } from '@sporthub/domain';
 import { useFilterStore } from '@/stores/useFilterStore';
 import type { Club, EntityId, Sport, Tag } from '@sporthub/types';
 

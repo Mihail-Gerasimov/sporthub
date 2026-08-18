@@ -11,8 +11,8 @@ import {
 } from '@/lib/db';
 import { mapTrainerFormToEntities } from '@/lib/contracts/publish-trainer';
 import { logAction } from '@/lib/logAction';
-import { computeTrainerReliability } from '@/lib/reliability';
-import { publishTrainerSchema } from '@/lib/schemas/publish';
+import { computeTrainerReliability } from '@sporthub/domain';
+import { publishTrainerSchema } from '@sporthub/domain';
 
 const trainersQuerySchema = z.object({
   affiliatedClubId: z.preprocess((value) => {

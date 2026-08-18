@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ScheduleSlotForm } from '@/lib/schemas/publish';
+import type { ScheduleSlotForm } from '@sporthub/domain';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 
 /** Хелпер: пустой слот */

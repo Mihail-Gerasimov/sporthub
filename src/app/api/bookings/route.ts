@@ -14,7 +14,7 @@ import {
 } from '@/lib/db';
 import { logAction } from '@/lib/logAction';
 import { notify } from '@/lib/notify';
-import { isAthleteInQuarantine } from '@/lib/reliability';
+import { isAthleteInQuarantine } from '@sporthub/domain';
 
 const bookingsQuerySchema = z.object({
   userId: z.preprocess((value) => {

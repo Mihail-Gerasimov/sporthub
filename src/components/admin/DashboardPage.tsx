@@ -29,7 +29,7 @@ import {
   isAthleteInQuarantine,
   type QuarantineResult,
   type ReliabilityResult,
-} from '@/lib/reliability';
+} from '@sporthub/domain';
 import { cn } from '@/lib/utils';
 import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';

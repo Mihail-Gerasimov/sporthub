@@ -12,7 +12,7 @@ import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Button, Input, Select } from '@/components/ui';
-import type { TrainerFormState, TrainerOfferingFormItem } from '@/lib/schemas/publish';
+import type { TrainerFormState, TrainerOfferingFormItem } from '@sporthub/domain';
 import type { TrainerClubLink } from '@sporthub/types';
 
 /** Минимальная информация о клубе для select-привязки */

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
-import type { ClubFormState } from '@/lib/schemas/publish';
+import type { ClubFormState } from '@sporthub/domain';
 
 /** Мок-справочники для TagSelector */
 const mockSports: TagSelectorItem[] = [

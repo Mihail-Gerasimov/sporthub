@@ -17,7 +17,7 @@ import {
 } from '@/lib/db';
 import { mapClubFormToUpdateInput } from '@/lib/contracts/publish-club';
 import { logAction } from '@/lib/logAction';
-import { publishClubSchema } from '@/lib/schemas/publish';
+import { publishClubSchema } from '@sporthub/domain';
 
 const clubIdSchema = z.coerce.number().int().positive();
 
