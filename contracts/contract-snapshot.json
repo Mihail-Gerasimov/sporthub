@@ -1,0 +1,2007 @@
+{
+  "GET /api/sports": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Йога",
+          "slug": "yoga",
+          "description": "Практики для гибкости, дыхания и баланса в спокойном ритме.",
+          "icon": "🧘",
+          "imageUrl": "/images/sports/yoga.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "name": "Бокс",
+          "slug": "boxing",
+          "description": "Тренировки на технику ударов, координацию и выносливость.",
+          "icon": "🥊",
+          "imageUrl": "/images/sports/boxing.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Плавание",
+          "slug": "swimming",
+          "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+          "icon": "🏊",
+          "imageUrl": "/images/sports/swimming.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 4,
+          "createdAt": "<время>",
+          "name": "Кроссфит",
+          "slug": "crossfit",
+          "description": "Интенсивные функциональные тренировки с прогрессией нагрузки.",
+          "icon": "🏋️",
+          "imageUrl": "/images/sports/crossfit.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 5,
+          "createdAt": "<время>",
+          "name": "Танцы",
+          "slug": "dance",
+          "description": "Современные танцевальные направления для взрослых и подростков.",
+          "icon": "💃",
+          "imageUrl": "/images/sports/dance.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 6,
+          "createdAt": "<время>",
+          "name": "Тренажёрный зал",
+          "slug": "gym",
+          "description": "Силовые и общефизические тренировки в зале с программой под цель.",
+          "icon": "🏋️‍♂️",
+          "imageUrl": "/images/sports/gym.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 7,
+          "createdAt": "<время>",
+          "name": "Единоборства",
+          "slug": "martial-arts",
+          "description": "Группы по технике, выносливости и самообороне.",
+          "icon": "🥋",
+          "imageUrl": "/images/sports/martial-arts.jpg",
+          "isPopular": false
+        },
+        {
+          "id": 8,
+          "createdAt": "<время>",
+          "name": "Пилатес",
+          "slug": "pilates",
+          "description": "Мягкая работа с осанкой, центром тела и контролем движения.",
+          "icon": "🤸",
+          "imageUrl": "/images/sports/pilates.jpg",
+          "isPopular": true
+        },
+        {
+          "id": 9,
+          "createdAt": "<время>",
+          "name": "Борьба четкая",
+          "slug": "borbahetkay",
+          "description": "",
+          "icon": "",
+          "imageUrl": "",
+          "isPopular": true
+        }
+      ]
+    }
+  },
+  "GET /api/cities": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Самара",
+          "coordinates": {
+            "lat": 53.195878,
+            "lng": 50.100202
+          }
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "name": "Москва",
+          "coordinates": {
+            "lat": 55.7558,
+            "lng": 37.6173
+          }
+        }
+      ]
+    }
+  },
+  "GET /api/clubs": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Volna Aquatic Club",
+          "slug": "volna-aquatic-club",
+          "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
+          "shortDescription": "Бассейн и пилатес рядом с набережной.",
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "phone": "+7 (846) 200-11-01",
+          "email": "hello@volna-club.ru",
+          "website": "https://volna-club.ru",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "sportIds": [
+            3,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/volna-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.8,
+          "reviewCount": 3,
+          "priceFrom": 900,
+          "distanceKm": 1.8,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "name": "Iron Gym",
+          "slug": "iron-gym",
+          "description": "Тренажёрный зал полного цикла.",
+          "shortDescription": "Тренажёрный зал полного цикла.",
+          "city": "Самара",
+          "address": "ул. Советская, 10",
+          "phone": "+7 (846) 200-11-02",
+          "coordinates": {
+            "lat": 53.2001,
+            "lng": 50.11
+          },
+          "sportIds": [
+            4
+          ],
+          "imageUrls": [
+            "/images/clubs/iron-gym-1.jpg"
+          ],
+          "amenityIds": [
+            2
+          ],
+          "tagIds": [
+            1
+          ],
+          "rating": 4.5,
+          "reviewCount": 2,
+          "priceFrom": 800,
+          "distanceKm": 3,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Balance Yoga House",
+          "slug": "balance-yoga-house",
+          "description": "Камерная студия для йоги и пилатеса в центре города.",
+          "shortDescription": "Йога и пилатес в центре города.",
+          "city": "Самара",
+          "address": "ул. Молодогвардейская, 86",
+          "phone": "+7 (846) 200-11-03",
+          "email": "hello@balance-house.ru",
+          "website": "https://balance-house.ru",
+          "coordinates": {
+            "lat": 53.1957,
+            "lng": 50.1006
+          },
+          "sportIds": [
+            1,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/balance-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.9,
+          "reviewCount": 5,
+          "priceFrom": 850,
+          "distanceKm": 2.3,
+          "source": "seed",
+          "status": "published"
+        }
+      ]
+    }
+  },
+  "GET /api/clubs?sportId=3": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Volna Aquatic Club",
+          "slug": "volna-aquatic-club",
+          "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
+          "shortDescription": "Бассейн и пилатес рядом с набережной.",
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "phone": "+7 (846) 200-11-01",
+          "email": "hello@volna-club.ru",
+          "website": "https://volna-club.ru",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "sportIds": [
+            3,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/volna-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.8,
+          "reviewCount": 3,
+          "priceFrom": 900,
+          "distanceKm": 1.8,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        }
+      ]
+    }
+  },
+  "GET /api/clubs?sort=reliability": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Balance Yoga House",
+          "slug": "balance-yoga-house",
+          "description": "Камерная студия для йоги и пилатеса в центре города.",
+          "shortDescription": "Йога и пилатес в центре города.",
+          "city": "Самара",
+          "address": "ул. Молодогвардейская, 86",
+          "phone": "+7 (846) 200-11-03",
+          "email": "hello@balance-house.ru",
+          "website": "https://balance-house.ru",
+          "coordinates": {
+            "lat": 53.1957,
+            "lng": 50.1006
+          },
+          "sportIds": [
+            1,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/balance-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.9,
+          "reviewCount": 5,
+          "priceFrom": 850,
+          "distanceKm": 2.3,
+          "source": "seed",
+          "status": "published"
+        },
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Volna Aquatic Club",
+          "slug": "volna-aquatic-club",
+          "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
+          "shortDescription": "Бассейн и пилатес рядом с набережной.",
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "phone": "+7 (846) 200-11-01",
+          "email": "hello@volna-club.ru",
+          "website": "https://volna-club.ru",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "sportIds": [
+            3,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/volna-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.8,
+          "reviewCount": 3,
+          "priceFrom": 900,
+          "distanceKm": 1.8,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "name": "Iron Gym",
+          "slug": "iron-gym",
+          "description": "Тренажёрный зал полного цикла.",
+          "shortDescription": "Тренажёрный зал полного цикла.",
+          "city": "Самара",
+          "address": "ул. Советская, 10",
+          "phone": "+7 (846) 200-11-02",
+          "coordinates": {
+            "lat": 53.2001,
+            "lng": 50.11
+          },
+          "sportIds": [
+            4
+          ],
+          "imageUrls": [
+            "/images/clubs/iron-gym-1.jpg"
+          ],
+          "amenityIds": [
+            2
+          ],
+          "tagIds": [
+            1
+          ],
+          "rating": 4.5,
+          "reviewCount": 2,
+          "priceFrom": 800,
+          "distanceKm": 3,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        }
+      ]
+    }
+  },
+  "POST /api/clubs": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "club": {
+          "id": 4,
+          "createdAt": "<время>",
+          "name": "Снимок Клуб",
+          "slug": "снимок-клуб",
+          "description": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "shortDescription": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "city": "Самара",
+          "address": "Ленина 1",
+          "phone": "+7 (900) 000-00-00",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          },
+          "sportIds": [
+            3
+          ],
+          "imageUrls": [],
+          "amenityIds": [],
+          "tagIds": [],
+          "rating": 0,
+          "reviewCount": 0,
+          "priceFrom": 1000,
+          "distanceKm": 0,
+          "managedByUserId": 2,
+          "source": "provider",
+          "status": "published"
+        },
+        "offering": {
+          "id": 102,
+          "createdAt": "<время>",
+          "ownerType": "club",
+          "ownerId": 4,
+          "sportId": 3,
+          "title": "Занятия — Снимок Клуб",
+          "description": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "format": "group",
+          "price": 1000,
+          "durationMinutes": 60,
+          "capacity": 20,
+          "address": "Ленина 1",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          }
+        },
+        "schedules": [
+          {
+            "id": 1002,
+            "createdAt": "<время>",
+            "offeringId": 102,
+            "ownerType": "club",
+            "ownerId": 4,
+            "clubId": 4,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-01",
+            "startTime": "10:00",
+            "endTime": "11:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 10,
+            "bookedCount": 0,
+            "price": 500,
+            "room": "Зал"
+          }
+        ]
+      }
+    }
+  },
+  "POST /api/clubs (ошибка)": {
+    "status": 400,
+    "body": {
+      "success": false,
+      "error": "Некорректные данные клуба",
+      "details": {
+        "city": [
+          "Invalid input: expected string, received undefined"
+        ],
+        "address": [
+          "Invalid input: expected string, received undefined"
+        ],
+        "description": [
+          "Invalid input: expected string, received undefined"
+        ],
+        "phone": [
+          "Invalid input: expected string, received undefined"
+        ],
+        "priceFrom": [
+          "Invalid input: expected string, received undefined"
+        ],
+        "sportIds": [
+          "Invalid input: expected array, received undefined"
+        ],
+        "tagIds": [
+          "Invalid input: expected array, received undefined"
+        ],
+        "amenityIds": [
+          "Invalid input: expected array, received undefined"
+        ],
+        "scheduleSlots": [
+          "Invalid input: expected array, received undefined"
+        ],
+        "userId": [
+          "Invalid input: expected number, received undefined"
+        ]
+      }
+    }
+  },
+  "GET /api/clubs/[id]": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "club": {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Volna Aquatic Club",
+          "slug": "volna-aquatic-club",
+          "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
+          "shortDescription": "Бассейн и пилатес рядом с набережной.",
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "phone": "+7 (846) 200-11-01",
+          "email": "hello@volna-club.ru",
+          "website": "https://volna-club.ru",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "sportIds": [
+            3,
+            8
+          ],
+          "imageUrls": [
+            "/images/clubs/volna-1.jpg"
+          ],
+          "amenityIds": [
+            1
+          ],
+          "tagIds": [
+            1,
+            2
+          ],
+          "rating": 4.8,
+          "reviewCount": 3,
+          "priceFrom": 900,
+          "distanceKm": 1.8,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        "primaryOffering": {
+          "id": 1,
+          "createdAt": "<время>",
+          "ownerType": "club",
+          "ownerId": 1,
+          "sportId": 3,
+          "title": "Утреннее плавание",
+          "description": "Групповое утреннее плавание в бассейне 25 м.",
+          "format": "group",
+          "price": 1100,
+          "durationMinutes": 60,
+          "capacity": 12,
+          "address": "ул. Лесная, 23к1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "cancellationPolicy": "free_until_24h"
+        },
+        "sports": [
+          {
+            "id": 3,
+            "createdAt": "<время>",
+            "name": "Плавание",
+            "slug": "swimming",
+            "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+            "icon": "🏊",
+            "imageUrl": "/images/sports/swimming.jpg",
+            "isPopular": true
+          },
+          {
+            "id": 8,
+            "createdAt": "<время>",
+            "name": "Пилатес",
+            "slug": "pilates",
+            "description": "Мягкая работа с осанкой, центром тела и контролем движения.",
+            "icon": "🤸",
+            "imageUrl": "/images/sports/pilates.jpg",
+            "isPopular": true
+          }
+        ],
+        "trainers": [],
+        "schedule": [
+          {
+            "id": 1,
+            "createdAt": "<время>",
+            "offeringId": 1,
+            "ownerType": "club",
+            "ownerId": 1,
+            "clubId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Утреннее плавание",
+            "date": "2026-03-18",
+            "startTime": "08:00",
+            "endTime": "09:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 12,
+            "bookedCount": 2,
+            "price": 1100
+          },
+          {
+            "id": 2,
+            "createdAt": "<время>",
+            "offeringId": 1,
+            "ownerType": "club",
+            "ownerId": 1,
+            "clubId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Дневное плавание",
+            "date": "2026-03-18",
+            "startTime": "12:00",
+            "endTime": "13:00",
+            "durationMinutes": 60,
+            "level": "beginner",
+            "capacity": 12,
+            "bookedCount": 0,
+            "price": 1100
+          },
+          {
+            "id": 3,
+            "createdAt": "<время>",
+            "offeringId": 1,
+            "ownerType": "club",
+            "ownerId": 1,
+            "clubId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Вечернее плавание",
+            "date": "2026-03-18",
+            "startTime": "19:00",
+            "endTime": "20:00",
+            "durationMinutes": 60,
+            "level": "intermediate",
+            "capacity": 12,
+            "bookedCount": 1,
+            "price": 1100
+          }
+        ],
+        "reviews": [
+          {
+            "id": 1,
+            "createdAt": "<время>",
+            "userId": 1,
+            "clubId": 1,
+            "rating": 5,
+            "text": "Отличный бассейн!"
+          }
+        ]
+      }
+    }
+  },
+  "GET /api/clubs/[id] (нет)": {
+    "status": 404,
+    "body": {
+      "success": false,
+      "error": "Клуб не найден"
+    }
+  },
+  "PATCH /api/clubs/[id]": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "club": {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Снимок Клуб",
+          "slug": "volna-aquatic-club",
+          "description": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "shortDescription": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "city": "Самара",
+          "address": "Ленина 1",
+          "phone": "+7 (900) 000-00-00",
+          "website": "https://volna-club.ru",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "sportIds": [
+            3
+          ],
+          "imageUrls": [
+            "/images/clubs/volna-1.jpg"
+          ],
+          "amenityIds": [],
+          "tagIds": [],
+          "rating": 4.8,
+          "reviewCount": 3,
+          "priceFrom": 1000,
+          "distanceKm": 1.8,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        "offering": {
+          "id": 1,
+          "createdAt": "<время>",
+          "ownerType": "club",
+          "ownerId": 1,
+          "sportId": 3,
+          "title": "Занятия — Снимок Клуб",
+          "description": "Описание клуба для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "format": "group",
+          "price": 1000,
+          "durationMinutes": 60,
+          "capacity": 20,
+          "address": "Ленина 1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "cancellationPolicy": "free_until_24h"
+        },
+        "schedules": [
+          {
+            "id": 1,
+            "createdAt": "<время>",
+            "offeringId": 1,
+            "ownerType": "club",
+            "ownerId": 1,
+            "clubId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-01",
+            "startTime": "10:00",
+            "endTime": "11:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 10,
+            "bookedCount": 2,
+            "price": 500,
+            "room": "Зал"
+          }
+        ]
+      }
+    }
+  },
+  "PATCH /api/clubs/[id] (чужой)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "Недостаточно прав для редактирования клуба с id 1"
+    }
+  },
+  "DELETE /api/clubs/[id]": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  },
+  "GET /api/trainers": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 5,
+          "createdAt": "<время>",
+          "name": "Анна Миронова",
+          "slug": "anna-mironova",
+          "bio": "Тренер по йоге.",
+          "avatarUrl": "/images/trainers/anna-mironova.jpg",
+          "experienceYears": 8,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            2
+          ],
+          "rating": 5,
+          "reviewCount": 3,
+          "priceFrom": 1300,
+          "sportIds": [
+            1
+          ],
+          "city": "Самара",
+          "address": "ул. Молодогвардейская, 86",
+          "coordinates": {
+            "lat": 53.1957,
+            "lng": 50.1006
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "sportId": 1
+        },
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Марина Соколова",
+          "slug": "marina-sokolova",
+          "bio": "Тренер по плаванию с 9-летним стажем.",
+          "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+          "experienceYears": 9,
+          "specialtyIds": [
+            1,
+            2
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.9,
+          "reviewCount": 2,
+          "priceFrom": 1400,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "sportId": 3
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Алексей Петров",
+          "slug": "alexey-petrov",
+          "bio": "Силовой тренер.",
+          "avatarUrl": "/images/trainers/alexey-petrov.jpg",
+          "experienceYears": 6,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.7,
+          "reviewCount": 1,
+          "priceFrom": 1600,
+          "sportIds": [
+            4
+          ],
+          "city": "Самара",
+          "address": "ул. Советская, 10",
+          "coordinates": {
+            "lat": 53.2001,
+            "lng": 50.11
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "sportId": 4
+        }
+      ]
+    }
+  },
+  "GET /api/trainers?clubId=1": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Марина Соколова",
+          "slug": "marina-sokolova",
+          "bio": "Тренер по плаванию с 9-летним стажем.",
+          "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+          "experienceYears": 9,
+          "specialtyIds": [
+            1,
+            2
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.9,
+          "reviewCount": 2,
+          "priceFrom": 1400,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "sportId": 3
+        }
+      ]
+    }
+  },
+  "POST /api/trainers": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "trainer": {
+          "id": 6,
+          "createdAt": "<время>",
+          "name": "Снимок Тренер",
+          "slug": "снимок-тренер",
+          "bio": "Описание тренера для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "avatarUrl": "",
+          "experienceYears": 5,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 0,
+          "reviewCount": 0,
+          "priceFrom": 2000,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "Ленина 2",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          },
+          "phone": "+7 (900) 000-00-00",
+          "managedByUserId": 2,
+          "source": "provider",
+          "status": "published"
+        },
+        "offering": {
+          "id": 102,
+          "createdAt": "<время>",
+          "ownerType": "trainer",
+          "ownerId": 6,
+          "sportId": 3,
+          "title": "Персональная",
+          "description": "Занятие один на один",
+          "format": "personal",
+          "price": 2000,
+          "durationMinutes": 60,
+          "capacity": 1,
+          "address": "Зал",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          }
+        },
+        "schedules": [
+          {
+            "id": 1002,
+            "createdAt": "<время>",
+            "offeringId": 102,
+            "ownerType": "trainer",
+            "ownerId": 6,
+            "trainerId": 6,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-02",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 1,
+            "bookedCount": 0,
+            "price": 2000,
+            "room": "Зал"
+          }
+        ]
+      }
+    }
+  },
+  "GET /api/trainers/[id]": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "trainer": {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Марина Соколова",
+          "slug": "marina-sokolova",
+          "bio": "Тренер по плаванию с 9-летним стажем.",
+          "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+          "experienceYears": 9,
+          "specialtyIds": [
+            1,
+            2
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.9,
+          "reviewCount": 2,
+          "priceFrom": 1400,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "ул. Лесная, 23к1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "sportId": 3
+        },
+        "affiliatedClub": null,
+        "club": null,
+        "primaryOffering": {
+          "id": 101,
+          "createdAt": "<время>",
+          "ownerType": "trainer",
+          "ownerId": 1,
+          "sportId": 3,
+          "title": "Персональная тренировка: Плавание",
+          "description": "Индивидуальная тренировка по плаванию.",
+          "format": "personal",
+          "price": 1400,
+          "durationMinutes": 60,
+          "capacity": 1,
+          "address": "ул. Лесная, 23к1",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "cancellationPolicy": "free_until_24h",
+          "trainerClubLinkId": 1
+        },
+        "additionalOfferings": [],
+        "offerings": [
+          {
+            "id": 101,
+            "createdAt": "<время>",
+            "ownerType": "trainer",
+            "ownerId": 1,
+            "sportId": 3,
+            "title": "Персональная тренировка: Плавание",
+            "description": "Индивидуальная тренировка по плаванию.",
+            "format": "personal",
+            "price": 1400,
+            "durationMinutes": 60,
+            "capacity": 1,
+            "address": "ул. Лесная, 23к1",
+            "coordinates": {
+              "lat": 53.2129,
+              "lng": 50.1245
+            },
+            "cancellationPolicy": "free_until_24h",
+            "trainerClubLinkId": 1
+          }
+        ],
+        "primarySport": {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Плавание",
+          "slug": "swimming",
+          "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+          "icon": "🏊",
+          "imageUrl": "/images/sports/swimming.jpg",
+          "isPopular": true
+        },
+        "sport": {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Плавание",
+          "slug": "swimming",
+          "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+          "icon": "🏊",
+          "imageUrl": "/images/sports/swimming.jpg",
+          "isPopular": true
+        },
+        "sports": [
+          {
+            "id": 3,
+            "createdAt": "<время>",
+            "name": "Плавание",
+            "slug": "swimming",
+            "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+            "icon": "🏊",
+            "imageUrl": "/images/sports/swimming.jpg",
+            "isPopular": true
+          }
+        ],
+        "schedule": [
+          {
+            "id": 1001,
+            "createdAt": "<время>",
+            "offeringId": 101,
+            "ownerType": "trainer",
+            "ownerId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Персональная тренировка: Плавание",
+            "date": "2026-03-20",
+            "startTime": "08:15",
+            "endTime": "09:15",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 1,
+            "bookedCount": 0,
+            "price": 1400
+          }
+        ],
+        "reviews": [
+          {
+            "id": 2,
+            "createdAt": "<время>",
+            "userId": 1,
+            "trainerId": 1,
+            "rating": 5,
+            "text": "Марина — отличный тренер."
+          }
+        ]
+      }
+    }
+  },
+  "GET /api/trainers/[id] (нет)": {
+    "status": 404,
+    "body": {
+      "success": false,
+      "error": "Тренер не найден"
+    }
+  },
+  "PATCH /api/trainers/[id]": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "trainer": {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Снимок Тренер",
+          "slug": "marina-sokolova",
+          "bio": "Описание тренера для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+          "experienceYears": 5,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.9,
+          "reviewCount": 2,
+          "priceFrom": 2000,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "Ленина 2",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published",
+          "phone": "+7 (900) 000-00-00",
+          "sportId": 3
+        },
+        "offering": {
+          "id": 101,
+          "createdAt": "<время>",
+          "ownerType": "trainer",
+          "ownerId": 1,
+          "sportId": 3,
+          "title": "Персональная",
+          "description": "Занятие один на один",
+          "format": "personal",
+          "price": 2000,
+          "durationMinutes": 60,
+          "capacity": 1,
+          "address": "Зал",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "cancellationPolicy": "free_until_24h",
+          "trainerClubLinkId": 1
+        },
+        "schedules": [
+          {
+            "id": 1001,
+            "createdAt": "<время>",
+            "offeringId": 101,
+            "ownerType": "trainer",
+            "ownerId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-02",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 1,
+            "bookedCount": 0,
+            "price": 2000,
+            "room": "Зал"
+          }
+        ]
+      }
+    }
+  },
+  "DELETE /api/trainers/[id]": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  },
+  "GET /api/schedule": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "title": "Утреннее плавание",
+          "date": "2026-03-18",
+          "startTime": "08:00",
+          "endTime": "09:00",
+          "durationMinutes": 60,
+          "level": "all_levels",
+          "capacity": 12,
+          "bookedCount": 2,
+          "price": 1100,
+          "availableSpots": 10
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "title": "Дневное плавание",
+          "date": "2026-03-18",
+          "startTime": "12:00",
+          "endTime": "13:00",
+          "durationMinutes": 60,
+          "level": "beginner",
+          "capacity": 12,
+          "bookedCount": 0,
+          "price": 1100,
+          "availableSpots": 12
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "title": "Вечернее плавание",
+          "date": "2026-03-18",
+          "startTime": "19:00",
+          "endTime": "20:00",
+          "durationMinutes": 60,
+          "level": "intermediate",
+          "capacity": 12,
+          "bookedCount": 1,
+          "price": 1100,
+          "availableSpots": 11
+        }
+      ]
+    }
+  },
+  "GET /api/schedule?ownerType=trainer": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1001,
+          "createdAt": "<время>",
+          "offeringId": 101,
+          "ownerType": "trainer",
+          "ownerId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "title": "Персональная тренировка: Плавание",
+          "date": "2026-03-20",
+          "startTime": "08:15",
+          "endTime": "09:15",
+          "durationMinutes": 60,
+          "level": "all_levels",
+          "capacity": 1,
+          "bookedCount": 0,
+          "price": 1400,
+          "availableSpots": 1
+        }
+      ]
+    }
+  },
+  "GET /api/schedule (ошибка)": {
+    "status": 400,
+    "body": {
+      "success": false,
+      "error": "Некорректные параметры запроса"
+    }
+  },
+  "GET /api/reviews": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "userId": 1,
+          "trainerId": 1,
+          "rating": 5,
+          "text": "Марина — отличный тренер."
+        },
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "userId": 1,
+          "clubId": 1,
+          "rating": 5,
+          "text": "Отличный бассейн!"
+        }
+      ]
+    }
+  },
+  "GET /api/reviews?clubId=1": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "userId": 1,
+          "clubId": 1,
+          "rating": 5,
+          "text": "Отличный бассейн!"
+        }
+      ]
+    }
+  },
+  "POST /api/reviews": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 3,
+        "createdAt": "<время>",
+        "userId": 1,
+        "trainerId": 1,
+        "rating": 5,
+        "text": "Снимок"
+      }
+    }
+  },
+  "POST /api/reviews (без адресата)": {
+    "status": 400,
+    "body": {
+      "success": false,
+      "error": "Нужно указать clubId или trainerId"
+    }
+  },
+  "GET /api/bookings": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "scheduleId": 2,
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "userId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "date": "2026-03-18",
+          "status": "unmarked",
+          "paymentStatus": "unpaid",
+          "totalPrice": 1100,
+          "statusHistory": [
+            {
+              "from": "confirmed",
+              "to": "unmarked",
+              "actor": "system",
+              "at": "<время>"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "createdAt": "<время>",
+          "scheduleId": 3,
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "userId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "date": "2026-03-18",
+          "status": "completed",
+          "paymentStatus": "paid",
+          "totalPrice": 1100
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "scheduleId": 3,
+          "offeringId": 1,
+          "ownerType": "club",
+          "ownerId": 1,
+          "userId": 1,
+          "clubId": 1,
+          "trainerId": 1,
+          "sportId": 3,
+          "date": "2026-03-18",
+          "status": "cancelled_by_provider",
+          "paymentStatus": "unpaid",
+          "totalPrice": 1100,
+          "statusHistory": [
+            {
+              "from": "pending",
+              "to": "cancelled_by_provider",
+              "actor": "system",
+              "at": "<время>",
+              "reason": "auto_cancel_pending_expired"
+            }
+          ],
+          "cancelledBy": "system"
+        }
+      ]
+    }
+  },
+  "POST /api/bookings": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 4,
+        "createdAt": "<время>",
+        "scheduleId": 1001,
+        "offeringId": 101,
+        "ownerType": "trainer",
+        "ownerId": 1,
+        "userId": 1,
+        "trainerId": 1,
+        "sportId": 3,
+        "date": "2026-03-20",
+        "status": "pending",
+        "paymentStatus": "unpaid",
+        "totalPrice": 1400,
+        "cancellationPolicySnapshot": "free_until_24h",
+        "statusHistory": [
+          {
+            "from": null,
+            "to": "pending",
+            "actor": "athlete",
+            "actorUserId": 1,
+            "at": "<время>"
+          }
+        ]
+      }
+    }
+  },
+  "POST /api/bookings (не атлет)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "Запись доступна только спортсмену"
+    }
+  },
+  "DELETE /api/bookings/[id]": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  },
+  "POST /api/bookings/[id]/confirm": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 3,
+        "createdAt": "<время>",
+        "scheduleId": 3,
+        "offeringId": 1,
+        "ownerType": "club",
+        "ownerId": 1,
+        "userId": 1,
+        "clubId": 1,
+        "trainerId": 1,
+        "sportId": 3,
+        "date": "2026-03-18",
+        "status": "confirmed",
+        "paymentStatus": "unpaid",
+        "totalPrice": 1100,
+        "statusHistory": [
+          {
+            "from": "pending",
+            "to": "confirmed",
+            "actor": "provider",
+            "actorUserId": 2,
+            "at": "<время>"
+          }
+        ]
+      }
+    }
+  },
+  "POST /api/bookings/[id]/reject": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 3,
+        "createdAt": "<время>",
+        "scheduleId": 3,
+        "offeringId": 1,
+        "ownerType": "club",
+        "ownerId": 1,
+        "userId": 1,
+        "clubId": 1,
+        "trainerId": 1,
+        "sportId": 3,
+        "date": "2026-03-18",
+        "status": "rejected_by_provider",
+        "paymentStatus": "unpaid",
+        "totalPrice": 1100,
+        "statusHistory": [
+          {
+            "from": "pending",
+            "to": "rejected_by_provider",
+            "actor": "provider",
+            "actorUserId": 2,
+            "at": "<время>",
+            "reason": "Нет мест"
+          }
+        ],
+        "cancelledBy": "provider"
+      }
+    }
+  },
+  "POST /api/bookings/[id]/cancel": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "scheduleId": 2,
+        "offeringId": 1,
+        "ownerType": "club",
+        "ownerId": 1,
+        "userId": 1,
+        "clubId": 1,
+        "trainerId": 1,
+        "sportId": 3,
+        "date": "2026-03-18",
+        "status": "cancelled_by_athlete",
+        "paymentStatus": "unpaid",
+        "totalPrice": 1100,
+        "statusHistory": [
+          {
+            "from": "confirmed",
+            "to": "cancelled_by_athlete",
+            "actor": "athlete",
+            "actorUserId": 1,
+            "at": "<время>"
+          }
+        ],
+        "cancelledBy": "athlete",
+        "cancelReason": "late"
+      }
+    }
+  },
+  "GET /api/trainer-club-links": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "trainerId": 1,
+          "clubId": 1,
+          "status": "confirmed",
+          "initiatedBy": "trainer",
+          "approvedAt": "<время>",
+          "approvedByUserId": 2
+        }
+      ]
+    }
+  },
+  "POST /api/trainer-club-links": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "trainerId": 1,
+        "clubId": 1,
+        "status": "pending",
+        "initiatedBy": "trainer"
+      }
+    }
+  },
+  "POST /api/trainer-club-links (нет прав)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "Недостаточно прав для отправки запроса"
+    }
+  },
+  "GET /api/notifications": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "items": [],
+        "total": 0,
+        "unreadCount": 0
+      }
+    }
+  },
+  "GET /api/notifications/unread-count": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "unreadCount": 0
+      }
+    }
+  },
+  "POST /api/notifications/read-all": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "updatedCount": 0
+      }
+    }
+  },
+  "GET /api/provider-client-notes": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": []
+    }
+  },
+  "POST /api/provider-client-notes": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "updatedAt": "<время>",
+        "providerUserId": 2,
+        "clientUserId": 1,
+        "note": "Снимок"
+      }
+    }
+  },
+  "GET /api/logs": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [],
+      "total": 0,
+      "offset": 0,
+      "limit": 50
+    }
+  },
+  "POST /api/logs": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "action": "admin_login",
+        "actorId": 3,
+        "actorRole": "admin",
+        "entityType": "user",
+        "entityId": 3
+      }
+    }
+  },
+  "GET /api/publications": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "name": "Volna Aquatic Club",
+          "type": "club",
+          "city": "Самара",
+          "sportIds": [
+            3,
+            8
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2
+        },
+        {
+          "id": 2,
+          "name": "Iron Gym",
+          "type": "club",
+          "city": "Самара",
+          "sportIds": [
+            4
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2
+        },
+        {
+          "id": 3,
+          "name": "Balance Yoga House",
+          "type": "club",
+          "city": "Самара",
+          "sportIds": [
+            1,
+            8
+          ],
+          "status": "published",
+          "createdAt": "<время>"
+        },
+        {
+          "id": 1,
+          "name": "Марина Соколова",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            3
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2
+        },
+        {
+          "id": 3,
+          "name": "Алексей Петров",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            4
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2
+        },
+        {
+          "id": 5,
+          "name": "Анна Миронова",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            1
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2
+        }
+      ],
+      "total": 6,
+      "offset": 0,
+      "limit": 50
+    }
+  },
+  "POST /api/moderation": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "name": "Volna Aquatic Club",
+        "slug": "volna-aquatic-club",
+        "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
+        "shortDescription": "Бассейн и пилатес рядом с набережной.",
+        "city": "Самара",
+        "address": "ул. Лесная, 23к1",
+        "phone": "+7 (846) 200-11-01",
+        "email": "hello@volna-club.ru",
+        "website": "https://volna-club.ru",
+        "coordinates": {
+          "lat": 53.2129,
+          "lng": 50.1245
+        },
+        "sportIds": [
+          3,
+          8
+        ],
+        "imageUrls": [
+          "/images/clubs/volna-1.jpg"
+        ],
+        "amenityIds": [
+          1
+        ],
+        "tagIds": [
+          1,
+          2
+        ],
+        "rating": 4.8,
+        "reviewCount": 3,
+        "priceFrom": 900,
+        "distanceKm": 1.8,
+        "managedByUserId": 2,
+        "source": "seed",
+        "status": "hidden",
+        "hideReason": "Снимок",
+        "hiddenByUserId": 3,
+        "hiddenAt": "<время>"
+      }
+    }
+  },
+  "POST /api/moderation (не админ)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "Только администратор может модерировать публикации"
+    }
+  },
+  "GET /api/analytics": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "kpi": {
+          "totalUsers": 3,
+          "totalAthletes": 1,
+          "totalProviders": 1,
+          "totalClubs": 3,
+          "totalTrainers": 3,
+          "totalBookings": 3,
+          "totalReviews": 2,
+          "averageSlotLoad": 0.08108108108108109
+        },
+        "bookingsByDate": [
+          {
+            "date": "2026-03-17",
+            "count": 3
+          }
+        ],
+        "sportPopularity": [
+          {
+            "sportId": 3,
+            "sportName": "Плавание",
+            "count": 3
+          }
+        ],
+        "topEntities": [
+          {
+            "id": 1,
+            "name": "Марина Соколова",
+            "type": "trainer",
+            "bookings": 3,
+            "rating": 4.9
+          },
+          {
+            "id": 1,
+            "name": "Volna Aquatic Club",
+            "type": "club",
+            "bookings": 3,
+            "rating": 4.8
+          }
+        ],
+        "platformActivity": []
+      }
+    }
+  },
+  "POST /api/auth/login": {
+    "status": 404,
+    "body": {
+      "success": false,
+      "error": "Пользователь не найден"
+    }
+  },
+  "POST /api/auth/login (нет)": {
+    "status": 404,
+    "body": {
+      "success": false,
+      "error": "Пользователь не найден"
+    }
+  },
+  "POST /api/auth/register": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 4,
+        "name": "Новый",
+        "email": "snapshot@example.com",
+        "phone": ""
+      }
+    }
+  },
+  "PATCH /api/users/[id]": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 1,
+        "createdAt": "<время>",
+        "role": "athlete",
+        "status": "active",
+        "name": "Алексей Смирнов",
+        "email": "alexey@sporthub.local",
+        "phone": "+7 (900) 111-22-33",
+        "avatarUrl": "/images/users/alexey-smirnov.jpg",
+        "favoriteClubIds": [],
+        "city": "Самара"
+      }
+    }
+  },
+  "GET /api/users/[id]/notification-preferences": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "notificationPreferences": {}
+      }
+    }
+  },
+  "PATCH /api/users/[id]/notification-preferences": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "notificationPreferences": {
+          "booking_rejected": false
+        }
+      }
+    }
+  },
+  "DELETE /api/admin/bookings/[id]": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  },
+  "POST /api/admin/users/[id]/lift-quarantine": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "quarantineLiftedAt": "<время>"
+      }
+    }
+  },
+  "POST /api/admin/users/[id]/password": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  },
+  "POST /api/admin/users/[id]/recompute-reliability": {
+    "status": 200,
+    "body": {
+      "success": true
+    }
+  }
+}
