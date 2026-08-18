@@ -47,6 +47,21 @@ export function calcDuration(startTime: string, endTime: string): number {
   return endHours * 60 + endMinutes - (startHours * 60 + startMinutes);
 }
 
+/**
+ * Название формата занятий из формы — в код услуги. Форма присылает русское
+ * слово, хранилище и фронт работают с кодом; при незнакомом значении берётся
+ * индивидуальный формат, как было и раньше.
+ */
+const OFFERING_FORMAT_BY_LABEL: Record<string, Offering['format']> = {
+  Индивидуальная: 'personal',
+  Групповая: 'group',
+  'Мини-группа': 'mini_group',
+};
+
+function offeringFormatFromLabel(label: string): Offering['format'] {
+  return OFFERING_FORMAT_BY_LABEL[label] ?? 'personal';
+}
+
 /** Форма публикации клуба — то, что приходит из модалки провайдера. */
 export type ClubForm = {
   name: string;
@@ -193,7 +208,7 @@ export function trainerOfferingFromForm(
     sportId: form.sportIds[0] ?? 0,
     title: form.offeringName,
     description: form.offeringDescription,
-    format: form.offeringFormat,
+    format: offeringFormatFromLabel(form.offeringFormat),
     price: Number(form.offeringPrice),
     durationMinutes: Number(form.offeringDuration),
     capacity: 1,
@@ -220,4 +235,83 @@ export function slotsFromForm(form: {
     price: Number(slot.price),
     room: slot.location,
   })) as PublicationSlotInput[];
+}
+
+/**
+ * Правка клуба меняет только то, что есть в форме.
+ *
+ * Адрес-ссылка, картинки, происхождение записи, расстояние и рейтинг остаются
+ * прежними: они либо назначены при создании, либо считаются системой. Прежний
+ * маппер собирал ровно этот набор полей, и порядок правки от него зависит —
+ * иначе правка клуба стирала бы его картинки и меняла адрес-ссылку.
+ */
+export function clubPatchFromForm(form: ClubForm): Partial<Club> {
+  return {
+    name: form.name,
+    description: form.description,
+    shortDescription: makeShortDescription(form.description),
+    city: form.city,
+    address: form.address,
+    phone: form.phone,
+    email: form.email || undefined,
+    vk: form.vk || undefined,
+    telegram: form.telegram || undefined,
+    facebook: form.facebook || undefined,
+    sportIds: form.sportIds,
+    amenityIds: form.amenityIds,
+    tagIds: form.tagIds,
+    priceFrom: Number(form.priceFrom),
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
+  } as Partial<Club>;
+}
+
+/** Правка услуги клуба. Координаты пишутся только если форма их дала. */
+export function clubOfferingPatchFromForm(form: ClubForm): Partial<Offering> {
+  return {
+    ownerType: 'club',
+    sportId: form.sportIds[0] ?? 0,
+    title: `Занятия — ${form.name}`,
+    description: form.description,
+    format: 'group',
+    price: Number(form.priceFrom),
+    durationMinutes: 60,
+    capacity: 20,
+    address: form.address,
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
+  } as Partial<Offering>;
+}
+
+/** Правка тренера — тот же принцип, что и у клуба. */
+export function trainerPatchFromForm(form: TrainerForm): Partial<Trainer> {
+  return {
+    name: `${form.firstName} ${form.lastName}`,
+    bio: form.bio,
+    experienceYears: Number(form.experience),
+    specialtyIds: form.specialtyIds,
+    workFormatIds: form.workFormatIds,
+    priceFrom: Number(form.offeringPrice),
+    sportIds: form.sportIds,
+    city: form.city,
+    address: form.address,
+    phone: form.phone || undefined,
+    vk: form.vk || undefined,
+    telegram: form.telegram || undefined,
+    facebook: form.facebook || undefined,
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
+  } as Partial<Trainer>;
+}
+
+export function trainerOfferingPatchFromForm(form: TrainerForm): Partial<Offering> {
+  return {
+    ownerType: 'trainer',
+    sportId: form.sportIds[0] ?? 0,
+    title: form.offeringName,
+    description: form.offeringDescription,
+    format: offeringFormatFromLabel(form.offeringFormat),
+    price: Number(form.offeringPrice),
+    durationMinutes: Number(form.offeringDuration),
+    capacity: 1,
+    address: form.offeringLocation,
+    ...(form.coordinates ? { coordinates: form.coordinates } : {}),
+  } as Partial<Offering>;
 }

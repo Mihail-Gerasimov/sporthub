@@ -25,7 +25,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { seedDefaultTrainerClubLink, seedTestData } from '@/test/helpers/seed-fixtures';
+import { seedDefaultTrainerClubLink, seedTestData } from '@sporthub/fixtures';
 
 describe('Booking page', () => {
   let dataDirectory: string;

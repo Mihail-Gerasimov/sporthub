@@ -23,6 +23,7 @@
     "@nestjs/testing": "^11.0.0",
     "@types/express": "^5.0.0",
     "@types/supertest": "^7.0.0",
-    "supertest": "^7.0.0"
+    "supertest": "^7.0.0",
+    "@sporthub/fixtures": "0.1.0"
   }
 }

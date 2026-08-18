@@ -6,14 +6,18 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { Booking, Club, Trainer, User } from '@sporthub/types';
+import type { Booking, Club, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
 import type {
   CitiesRepository,
   SimpleDictionaryRepository,
 } from '../dictionaries/dictionaries.repository';
-import { CITIES_REPOSITORY, TAGS_REPOSITORY } from '../dictionaries/dictionaries.repository';
+import {
+  CITIES_REPOSITORY,
+  SPORTS_REPOSITORY,
+  TAGS_REPOSITORY,
+} from '../dictionaries/dictionaries.repository';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
@@ -56,7 +60,16 @@ export class CatalogQueryService {
       id: number;
       name: string;
     }>,
+    @Inject(SPORTS_REPOSITORY)
+    private readonly sports: SimpleDictionaryRepository<Sport>,
   ) {}
+
+  /** Виды спорта публикации в порядке справочника — так их отдавали раньше. */
+  private async resolveSports(sportIds: readonly number[]): Promise<Sport[]> {
+    const all = await this.sports.findAll();
+
+    return all.filter((sport) => sportIds.includes(sport.id));
+  }
 
   allBookings(): Promise<Booking[]> {
     return this.bookings.findAll();
@@ -170,12 +183,13 @@ export class CatalogQueryService {
 
     if (!club) return null;
 
-    const [primaryOffering, allTrainers, slots, allReviews, confirmed] = await Promise.all([
+    const [primaryOffering, allTrainers, slots, allReviews, confirmed, sports] = await Promise.all([
       this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
       this.trainers.findAll(),
       this.schedule.findMany({ ownerType: 'club' }),
       this.reviews.findMany({ clubId }),
       this.links.findMany({ clubId, status: 'confirmed' }),
+      this.resolveSports(club.sportIds),
     ]);
 
     const trainerIds = new Set(confirmed.map((link) => link.trainerId));
@@ -183,7 +197,7 @@ export class CatalogQueryService {
     return {
       club,
       primaryOffering,
-      sports: [],
+      sports,
       trainers: allTrainers
         .filter((trainer) => trainerIds.has(trainer.id))
         .sort((left, right) => right.rating - left.rating),
@@ -202,11 +216,12 @@ export class CatalogQueryService {
 
     if (!trainer) return null;
 
-    const [offerings, slots, allReviews, confirmed] = await Promise.all([
+    const [offerings, slots, allReviews, confirmed, sports] = await Promise.all([
       this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
       this.schedule.findMany({ ownerType: 'trainer' }),
       this.reviews.findMany({ trainerId }),
       this.links.findMany({ trainerId, status: 'confirmed' }),
+      this.resolveSports(trainer.sportIds),
     ]);
 
     const venueClubId = confirmed[0]?.clubId;
@@ -230,9 +245,11 @@ export class CatalogQueryService {
         schedules: trainerSchedule.filter((slot) => slot.offeringId === offering.id),
       })),
       offerings: [...offerings].sort((left, right) => left.price - right.price),
-      primarySport: null,
-      sport: null,
-      sports: [],
+      // Основной вид спорта продублирован под двумя именами — на обоих
+      // завязан прежний фронт.
+      primarySport: sports[0] ?? null,
+      sport: sports[0] ?? null,
+      sports,
       schedule: trainerSchedule,
       reviews: allReviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     };

@@ -7,7 +7,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { seedTestData } from '@/test/helpers/seed-fixtures';
+import { seedTestData } from '@sporthub/fixtures';
 
 describe('Provider data layer (Step 12.1)', () => {
   let dataDirectory: string;

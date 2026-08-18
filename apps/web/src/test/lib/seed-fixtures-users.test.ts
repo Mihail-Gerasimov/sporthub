@@ -8,7 +8,7 @@ import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
-import { fixtureUsers, seedTestData } from '@/test/helpers/seed-fixtures';
+import { fixtureUsers, seedTestData } from '@sporthub/fixtures';
 
 describe('seedTestData пишет fixtureUsers (Step 26.6)', () => {
   let dataDirectory: string;

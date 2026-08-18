@@ -14,7 +14,7 @@ import {
   fixtureTrainerOffering,
   fixtureTrainerSlot,
   seedTestData,
-} from '@/test/helpers/seed-fixtures';
+} from '@sporthub/fixtures';
 
 describe('Trainer detail page', () => {
   let dataDirectory: string;

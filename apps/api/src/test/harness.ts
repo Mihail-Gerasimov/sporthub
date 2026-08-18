@@ -5,7 +5,7 @@
 // Пустые файлы создаются для всех коллекций сразу — иначе первый же запрос,
 // который читает соседнюю коллекцию, падает на отсутствующем файле.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -46,8 +46,20 @@ export type TestHarness = {
   close(): Promise<void>;
 };
 
-/** Поднять приложение на пустой директории данных. */
-export async function createTestHarness(prefix: string): Promise<TestHarness> {
+export type HarnessOptions = {
+  /**
+   * Начать с копии рабочей директории данных вместо пустых файлов.
+   * Нужен сверке контрактов: эталон снимался именно так, и справочники
+   * (виды спорта и прочие) в нём — рабочие, а не пустые.
+   */
+  copyProjectData?: boolean;
+};
+
+/** Поднять приложение на своей директории данных. */
+export async function createTestHarness(
+  prefix: string,
+  options: HarnessOptions = {},
+): Promise<TestHarness> {
   const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
   process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
 
@@ -59,8 +71,12 @@ export async function createTestHarness(prefix: string): Promise<TestHarness> {
     );
   };
 
-  for (const name of COLLECTIONS) {
-    await write(name, []);
+  if (options.copyProjectData) {
+    await cp(path.join(process.cwd(), '..', '..', 'data'), dataDirectory, { recursive: true });
+  } else {
+    for (const name of COLLECTIONS) {
+      await write(name, []);
+    }
   }
 
   const moduleRef = await Test.createTestingModule({

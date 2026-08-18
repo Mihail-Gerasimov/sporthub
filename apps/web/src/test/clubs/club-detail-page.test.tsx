@@ -14,7 +14,7 @@ import {
   fixtureClubOffering,
   fixtureClubSlot1,
   seedTestData,
-} from '@/test/helpers/seed-fixtures';
+} from '@sporthub/fixtures';
 
 describe('Club detail page', () => {
   let dataDirectory: string;

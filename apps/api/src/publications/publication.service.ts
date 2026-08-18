@@ -13,9 +13,13 @@ import { JsonStorage } from '../storage/json-storage';
 import {
   clubFromForm,
   clubOfferingFromForm,
+  clubOfferingPatchFromForm,
+  clubPatchFromForm,
   slotsFromForm,
   trainerFromForm,
   trainerOfferingFromForm,
+  trainerOfferingPatchFromForm,
+  trainerPatchFromForm,
   type ClubForm,
   type TrainerForm,
 } from './publication-form';
@@ -347,7 +351,10 @@ export class PublicationService {
         }
 
         keptIds.add(input.id);
-        const { id: _ignored, ...patch } = input;
+        // Занятые места принадлежат записям, а не форме: правка расписания
+        // не имеет права их обнулять, иначе слот «освободится» под уже
+        // существующими бронями.
+        const { id: _ignored, bookedCount: _bookedCount, ...patch } = input;
         const updated = await this.schedule.update(input.id, patch);
         result.push(updated);
 
@@ -414,13 +421,11 @@ export class PublicationService {
     clubId: number,
     userId: number,
   ): Promise<ClubPublicationResult> {
-    const { rating: _r, reviewCount: _rc, ...club } = clubFromForm(form, userId);
-
     return this.updateClub({
       clubId,
       userId,
-      club,
-      offering: clubOfferingFromForm(form),
+      club: clubPatchFromForm(form),
+      offering: clubOfferingPatchFromForm(form),
       slots: slotsFromForm(form),
     });
   }
@@ -443,13 +448,11 @@ export class PublicationService {
     trainerId: number,
     userId: number,
   ): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
-    const { rating: _r, reviewCount: _rc, ...trainer } = trainerFromForm(form, userId);
-
     return this.updateTrainer({
       trainerId,
       userId,
-      trainer,
-      offering: trainerOfferingFromForm(form),
+      trainer: trainerPatchFromForm(form),
+      offering: trainerOfferingPatchFromForm(form),
       slots: slotsFromForm(form),
     });
   }

@@ -5,5 +5,9 @@
   // У приложений свои настройки: apps/web — bundler-резолв под Next,
   // apps/api — nodenext с декораторами под NestJS.
   "files": [],
-  "references": [{ "path": "./packages/types" }, { "path": "./packages/domain" }]
+  "references": [
+    { "path": "./packages/types" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/fixtures" }
+  ]
 }
