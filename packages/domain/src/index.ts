@@ -3,6 +3,7 @@
 // ни про HTTP, ни про SQL. Поэтому её одинаково используют и фронт (apps/web),
 // и бэкенд (apps/api) — расчёт надёжности не имеет права разойтись между ними.
 export * from './booking-status';
+export * from './booking-fsm';
 export * from './discipline-config';
 export * from './athlete-streaks';
 export * from './athlete-timeline-format';
