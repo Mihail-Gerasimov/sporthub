@@ -9,6 +9,15 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import {
+  clubFromForm,
+  clubOfferingFromForm,
+  slotsFromForm,
+  trainerFromForm,
+  trainerOfferingFromForm,
+  type ClubForm,
+  type TrainerForm,
+} from './publication-form';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
@@ -323,5 +332,62 @@ export class PublicationService {
       owner.ownerType === 'club' ? { clubId: owner.ownerId } : { trainerId: owner.ownerId };
     await this.bookings.removeMany(ownerFilter);
     await this.reviews.removeMany(ownerFilter);
+  }
+
+  // --- Публикация из формы провайдера -----------------------------------------
+
+  /** Создание клуба из формы модалки. */
+  createClubFromForm(form: ClubForm, userId: number): Promise<ClubPublicationResult> {
+    return this.createClub({
+      club: clubFromForm(form, userId),
+      offering: clubOfferingFromForm(form),
+      slots: slotsFromForm(form),
+    });
+  }
+
+  /** Правка клуба из формы. Системные поля клуб сохраняет свои. */
+  updateClubFromForm(
+    form: ClubForm,
+    clubId: number,
+    userId: number,
+  ): Promise<ClubPublicationResult> {
+    const { rating: _r, reviewCount: _rc, ...club } = clubFromForm(form, userId);
+
+    return this.updateClub({
+      clubId,
+      userId,
+      club,
+      offering: clubOfferingFromForm(form),
+      slots: slotsFromForm(form),
+    });
+  }
+
+  createTrainerFromForm(
+    form: TrainerForm,
+    userId: number,
+  ): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
+    return this.createTrainer({
+      trainer: trainerFromForm(form, userId),
+      offering: trainerOfferingFromForm(form),
+      slots: slotsFromForm(form),
+      clubId: form.clubId ?? null,
+      userId,
+    });
+  }
+
+  updateTrainerFromForm(
+    form: TrainerForm,
+    trainerId: number,
+    userId: number,
+  ): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
+    const { rating: _r, reviewCount: _rc, ...trainer } = trainerFromForm(form, userId);
+
+    return this.updateTrainer({
+      trainerId,
+      userId,
+      trainer,
+      offering: trainerOfferingFromForm(form),
+      slots: slotsFromForm(form),
+    });
   }
 }

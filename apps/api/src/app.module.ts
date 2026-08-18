@@ -9,7 +9,9 @@ import { AccessService } from './access/access.service';
 import { BookingService } from './bookings/booking.service';
 import { BOOKING_CONTROLLERS } from './bookings/bookings.controller';
 import { BookingsGateway } from './bookings/bookings.gateway';
+import { CatalogQueryService } from './catalog/catalog-query.service';
 import { CATALOG_CONTROLLERS } from './catalog/catalog.controller';
+import { CLUB_CONTROLLERS } from './catalog/clubs.controller';
 import { DICTIONARY_CONTROLLERS } from './dictionaries/dictionaries.controller';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
 import { DomainErrorFilter } from './common/domain-error.filter';
@@ -23,7 +25,7 @@ import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [StorageModule],
-  controllers: [HealthController, ...DICTIONARY_CONTROLLERS, ...CATALOG_CONTROLLERS, ...BOOKING_CONTROLLERS],
+  controllers: [HealthController, ...DICTIONARY_CONTROLLERS, ...CATALOG_CONTROLLERS, ...BOOKING_CONTROLLERS, ...CLUB_CONTROLLERS],
   providers: [
     // Формат ответа и разбор ошибок — общие для всех контроллеров.
     { provide: APP_INTERCEPTOR, useClass: ApiResponseInterceptor },
@@ -36,6 +38,7 @@ import { StorageModule } from './storage/storage.module';
     BookingService,
     PublicationService,
     BookingsGateway,
+    CatalogQueryService,
   ],
 })
 export class AppModule {}
