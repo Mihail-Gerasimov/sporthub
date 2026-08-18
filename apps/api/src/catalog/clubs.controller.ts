@@ -108,6 +108,22 @@ export class ClubsController {
     return clubs;
   }
 
+  /**
+   * Поиск по адресу-ссылке. Отдельным маршрутом, а не через `:id`: адрес-ссылка
+   * и числовой идентификатор — разные способы адресации, и смешивать их в одном
+   * параметре значит гадать по виду значения.
+   */
+  @Get('by-slug/:slug')
+  async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
+    const club = await this.query.findClubBySlug(slug);
+
+    if (!club) {
+      throw new NotFoundError('Клуб не найден');
+    }
+
+    return this.query.getClubDetail(club.id);
+  }
+
   @Get(':id')
   async findOne(@Param('id') rawId: string): Promise<unknown> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
@@ -269,6 +285,17 @@ export class TrainersController {
         ? right.rating - left.rating
         : right.reviewCount - left.reviewCount,
     );
+  }
+
+  @Get('by-slug/:slug')
+  async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
+    const trainer = await this.query.findTrainerBySlug(slug);
+
+    if (!trainer) {
+      throw new NotFoundError('Тренер не найден');
+    }
+
+    return this.query.getTrainerDetail(trainer.id);
   }
 
   @Get(':id')

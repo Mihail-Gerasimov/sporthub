@@ -12,6 +12,7 @@ import type { CatalogOwnerType, Schedule } from '@sporthub/types';
 import { ValidationError } from '../common/domain-error';
 import type { ScheduleRepository } from '../repositories/entities.repository';
 import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
+import { SlotContextController } from './slot-context.controller';
 
 /** Слот с числом оставшихся мест — форма ответа маршрута. */
 export type ScheduleSlotWithAvailability = Schedule & {
@@ -104,4 +105,4 @@ export class ScheduleController {
   }
 }
 
-export const SCHEDULE_CONTROLLERS = [ScheduleController];
+export const SCHEDULE_CONTROLLERS = [ScheduleController, SlotContextController];

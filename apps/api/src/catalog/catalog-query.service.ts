@@ -62,6 +62,15 @@ export class CatalogQueryService {
     return this.bookings.findAll();
   }
 
+  /** Поиск по адресу-ссылке. Сравнение нечувствительно к регистру и кодировке. */
+  findClubBySlug(slug: string): Promise<Club | null> {
+    return this.clubs.findBySlug(slug);
+  }
+
+  findTrainerBySlug(slug: string): Promise<Trainer | null> {
+    return this.trainers.findBySlug(slug);
+  }
+
   findClub(clubId: number): Promise<Club | null> {
     return this.clubs.findById(clubId);
   }
