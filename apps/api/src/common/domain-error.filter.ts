@@ -4,7 +4,7 @@
 // уходит наружу дословно.
 
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
-import { Catch, Logger } from '@nestjs/common';
+import { Catch, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { DomainError, QuarantineError, ValidationError } from './domain-error';
@@ -44,7 +44,17 @@ export class DomainErrorFilter implements ExceptionFilter {
       return;
     }
 
-    // Всё, что не доменная ошибка, — наша вина. Наружу общий текст, в лог — детали.
+    // Ошибки самого фреймворка (несуществующий маршрут, неверный метод)
+    // сохраняют свой код — иначе всё превращается в 500.
+    if (exception instanceof HttpException) {
+      response
+        .status(exception.getStatus())
+        .json({ success: false, error: exception.message });
+
+      return;
+    }
+
+    // Всё остальное — наша вина. Наружу общий текст, в лог — детали.
     this.logger.error('Необработанная ошибка', exception instanceof Error ? exception.stack : exception);
     response.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }
