@@ -28,7 +28,7 @@ import Link from 'next/link';
 import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
 import { buildDictMap, formatCityDisplay, formatPrice } from '@/lib/utils';
 import type { ReliabilityResult } from '@/lib/reliability';
-import type { Club, Sport, Tag } from '@/types';
+import type { Club, Sport, Tag } from '@sporthub/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 

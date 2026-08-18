@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 
 import { getClubs, getTrainers } from '@/lib/db';
-import type { Club, Trainer } from '@/types';
+import type { Club, Trainer } from '@sporthub/types';
 
 /** Нормализованный элемент списка публикаций */
 interface PublicationItem {

@@ -3,7 +3,7 @@
 // считается от понедельника (локальное время сервера), как и в AthleteSchedule
 // (Step 25.4). Две разные completed в одной неделе считаются как одна неделя.
 
-import type { Booking, EntityId } from '@/types';
+import type { Booking, EntityId } from '@sporthub/types';
 
 /** Понедельник недели в формате YYYY-MM-DD. Sunday (getDay=0) → -6 дней. */
 function getWeekStartKey(dateStr: string): string {

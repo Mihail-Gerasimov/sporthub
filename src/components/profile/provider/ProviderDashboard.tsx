@@ -29,7 +29,7 @@ import type {
   Schedule,
   Trainer,
   TrainerClubLink,
-} from '@/types';
+} from '@sporthub/types';
 
 type ProviderDashboardProps = {
   bookings?: Booking[];

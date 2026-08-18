@@ -16,7 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { City } from '@/types';
+import type { City } from '@sporthub/types';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';

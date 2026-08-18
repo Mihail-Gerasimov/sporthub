@@ -1,5 +1,5 @@
-import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@/lib/constants';
-import type { Booking, Coordinates, EntityId, Schedule, Trainer } from '@/types';
+import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@sporthub/types';
+import type { Booking, Coordinates, EntityId, Schedule, Trainer } from '@sporthub/types';
 
 // --- Хелперы для резолвинга EntityId[] → display names (Step 23.10) ---
 

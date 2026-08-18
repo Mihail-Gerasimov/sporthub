@@ -1,7 +1,7 @@
-import { APP_LIMITS } from '@/lib/constants';
+import { APP_LIMITS } from '@sporthub/types';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { getScheduleClubId } from '@/lib/utils';
-import type { Club, EntityId, Schedule } from '@/types';
+import type { Club, EntityId, Schedule } from '@sporthub/types';
 
 export type UpcomingSessionItem = {
   id: EntityId;

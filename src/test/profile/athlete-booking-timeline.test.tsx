@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
-import type { BookingStatusTransition } from '@/types';
+import type { BookingStatusTransition } from '@sporthub/types';
 
 describe('AthleteBookingTimeline', () => {
   it('рендерит все non-system переходы с label и датой', () => {

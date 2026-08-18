@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PopularNearby } from '@/components/clubs/PopularNearby';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport } from '@/types';
+import type { Club, Sport } from '@sporthub/types';
 import type { TrainerDirectoryItem } from '@/components/trainers';
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [

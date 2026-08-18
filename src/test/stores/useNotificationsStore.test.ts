@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 
 function makeNotification(id: number, readAt?: string): Notification {
   return {

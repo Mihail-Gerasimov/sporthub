@@ -1,6 +1,6 @@
 import { ACTIVE_BOOKING_STATUSES } from '@/lib/booking-status';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
-import type { Booking, Club, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 
 export type UpcomingProfileBookingStatusTone = 'success' | 'outline' | 'teal' | 'danger';
 
@@ -18,7 +18,7 @@ export type UpcomingProfileBooking = {
   title: string;
   trainerName: string;
   /** Phase 24 Step 24.14: snapshot-policy booking'а — нужен для client-side late-cancel warning. */
-  cancellationPolicySnapshot?: import('@/types').CancellationPolicy;
+  cancellationPolicySnapshot?: import('@sporthub/types').CancellationPolicy;
 };
 
 type GetAthleteActiveFutureBookingsInput = {

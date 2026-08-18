@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { appendLog, getLogs } from '@/lib/db';
-import type { LogAction, LogEntityType, UserRole } from '@/types';
+import type { LogAction, LogEntityType, UserRole } from '@sporthub/types';
 
 /** Допустимые значения action для валидации */
 const LOG_ACTIONS: LogAction[] = [

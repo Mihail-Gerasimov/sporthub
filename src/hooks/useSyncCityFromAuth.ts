@@ -6,7 +6,7 @@
  */
 import { useEffect } from 'react';
 
-import { DEFAULT_CITY } from '@/lib/constants';
+import { DEFAULT_CITY } from '@sporthub/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';
 

@@ -22,7 +22,7 @@ import {
   MVP_PROVIDER_USER_ID,
   useAuthStore,
 } from '@/stores/useAuthStore';
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 
 interface FetchRoutes {
   unreadCount?: number;

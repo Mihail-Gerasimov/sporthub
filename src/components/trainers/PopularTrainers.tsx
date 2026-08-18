@@ -7,7 +7,7 @@ import { TrainerCard } from '@/components/trainers/TrainerCard';
 import type { ReliabilityResult } from '@/lib/reliability';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
-import type { EntityId } from '@/types';
+import type { EntityId } from '@sporthub/types';
 
 type PopularTrainersProps = {
   trainers: TrainerDirectoryItem[];

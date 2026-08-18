@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { User } from '@/types';
+import type { User } from '@sporthub/types';
 
 const athleteUser: User = {
   id: 1,

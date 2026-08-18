@@ -71,6 +71,10 @@ src/data/work-formats.json
 
 # typescript
 *.tsbuildinfo
+
+# Сборка внутренних пакетов монорепо (packages/*) — артефакт, не исходник
+packages/*/dist/
+apps/*/dist/
 next-env.d.ts
 
 # E2E tests (локальная работа, не коммитим)

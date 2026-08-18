@@ -1,7 +1,7 @@
 // Data-driven пункты навигации ЛК (Step 25.2).
 // Набор разделов зависит не от роли, а от фактических данных: у провайдера может быть
 // одновременно и club-side, и trainer-side, и даже пустой кабинет.
-import type { Club, Trainer } from '@/types';
+import type { Club, Trainer } from '@sporthub/types';
 
 /** Один пункт сайдбар-навигации внутри кабинета. */
 export interface ProfileNavItem {

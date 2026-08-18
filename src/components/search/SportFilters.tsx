@@ -1,6 +1,6 @@
 'use client';
 
-import type { Sport } from '@/types';
+import type { Sport } from '@sporthub/types';
 
 import { Chip } from '@/components/ui';
 import { useFilterStore } from '@/stores/useFilterStore';

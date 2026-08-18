@@ -1,7 +1,7 @@
 // Секция «Отзывы на мои услуги» кабинета провайдера — отзывы на клубы и тренеров.
 import { Badge, Card, Rating } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
-import type { Review } from '@/types';
+import type { Review } from '@sporthub/types';
 
 type ProviderReviewsSectionProps = {
   reviews: Review[];

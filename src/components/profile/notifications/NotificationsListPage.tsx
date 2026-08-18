@@ -40,7 +40,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 
 export interface NotificationsListPageProps {
   notifications: Notification[];

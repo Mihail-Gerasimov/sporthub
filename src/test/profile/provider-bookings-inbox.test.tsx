@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderBookingsInbox } from '@/components/profile/provider/ProviderBookingsInbox';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@/types';
+import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@sporthub/types';
 
 // Фиксируем TZ до любых Date-операций, чтобы `new Date('YYYY-MM-DDTHH:mm:ss')` без
 // суффикса Z парсил строку предсказуемо (иначе endAt-расчёты сдвигаются на оффсет local TZ).

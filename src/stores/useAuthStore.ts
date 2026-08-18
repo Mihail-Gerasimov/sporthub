@@ -8,7 +8,7 @@ import {
   readAuthUserIdCookie,
   setAuthUserIdCookie,
 } from '@/lib/auth-cookie';
-import type { AuthAccountType, UserRole } from '@/types';
+import type { AuthAccountType, UserRole } from '@sporthub/types';
 
 export type AuthSessionUser = {
   id?: number;

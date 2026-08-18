@@ -14,7 +14,7 @@ import { computeClubReliability, computeTrainerReliability } from '@/lib/reliabi
 import { cn, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@/types';
+import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
 type StatsWindow = 12 | 'all';

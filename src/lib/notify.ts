@@ -12,7 +12,7 @@
 
 import 'server-only';
 
-import type { EntityId, NotificationType } from '@/types';
+import type { EntityId, NotificationType } from '@sporthub/types';
 
 /**
  * Отправка уведомления пользователю. Возвращает Promise<void>, который разрешается

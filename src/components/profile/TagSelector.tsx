@@ -7,7 +7,7 @@
 
 import { useRef, useState } from 'react';
 
-import type { EntityId } from '@/types';
+import type { EntityId } from '@sporthub/types';
 
 export type TagSelectorItem = {
   id: EntityId;

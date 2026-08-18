@@ -37,7 +37,7 @@ import {
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Review, Schedule, Sport, Trainer } from '@/types';
+import type { Booking, Club, Review, Schedule, Sport, Trainer } from '@sporthub/types';
 
 type StatsWindow = 12 | 'all';
 

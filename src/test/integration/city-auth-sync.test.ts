@@ -3,7 +3,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { DEFAULT_CITY } from '@/lib/constants';
+import { DEFAULT_CITY } from '@sporthub/types';
 import { useSyncCityFromAuth } from '@/hooks/useSyncCityFromAuth';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';

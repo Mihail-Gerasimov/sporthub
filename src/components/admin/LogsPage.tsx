@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, EntityId, LogAction, LogEntry } from '@/types';
+import type { Booking, EntityId, LogAction, LogEntry } from '@sporthub/types';
 
 // Маппинг LogAction → human-readable русские метки.
 const ACTION_LABELS: Record<LogAction, string> = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getAthleteHistoryItems } from '@/components/profile/athlete-history';
-import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer } from '@sporthub/types';
 
 const historyBookings: Booking[] = [
   {

@@ -1,7 +1,7 @@
 // Тесты data-driven навигации ЛК (Step 25.2): пункты зависят от наличия публикаций и bookings.
 import { describe, expect, it } from 'vitest';
 
-import type { Club, Trainer } from '@/types';
+import type { Club, Trainer } from '@sporthub/types';
 import { getAthleteNavItems, getProviderNavItems } from '@/components/profile/profile-nav-items';
 
 const mockClub: Club = {

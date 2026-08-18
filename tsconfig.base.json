@@ -1,0 +1,20 @@
+{
+  // Базовый tsconfig монорепозитория. От него наследуются внутренние пакеты
+  // (packages/*), которые собираются в CommonJS-dist через `tsc -b`.
+  // Приложения (apps/*) держат свои настройки: у Next это moduleResolution
+  // "bundler", у NestJS — "nodenext" с декораторами. Общего у них мало,
+  // поэтому базовым делаем только то, что действительно общее.
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["ES2020"],
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "resolveJsonModule": true
+  }
+}

@@ -4,7 +4,7 @@ import {
   getAthleteActiveFutureBookings,
   getAthleteUpcomingProfileBookings,
 } from '@/components/profile/athlete-bookings';
-import type { Booking, Club, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 
 const FROZEN_UPCOMING_TEST_DATE = new Date('2026-03-19T12:00:00+04:00');
 

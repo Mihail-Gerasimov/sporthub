@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { computeCurrentStreak, computeMaxStreak } from '@/lib/athlete-streaks';
-import type { Booking } from '@/types';
+import type { Booking } from '@sporthub/types';
 
 const NOW = new Date('2026-04-22T12:00:00.000Z');
 

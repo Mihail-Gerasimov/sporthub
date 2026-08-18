@@ -3,8 +3,8 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_CITY } from '@/lib/constants';
-import type { Club, Coordinates } from '@/types';
+import { DEFAULT_CITY } from '@sporthub/types';
+import type { Club, Coordinates } from '@sporthub/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import type { Sport } from '@/types';
+import type { Sport } from '@sporthub/types';
 
 import { Badge, Card, Chip } from '@/components/ui';
 import { CitySelector } from '@/components/search/CitySelector';

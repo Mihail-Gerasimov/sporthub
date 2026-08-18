@@ -27,7 +27,7 @@ import type {
   Sport,
   Trainer,
   User,
-} from '@/types';
+} from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
 const APPROACHING_CHECKIN_WINDOW_MS = 6 * 60 * 60 * 1000;

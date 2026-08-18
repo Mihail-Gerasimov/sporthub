@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 
 import { AthleteFavorites } from '@/components/profile/athlete/AthleteFavorites';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Review, User } from '@/types';
+import type { Club, Review, User } from '@sporthub/types';
 
 const athleteUser: User = {
   id: 1,

@@ -17,7 +17,7 @@ vi.mock('next/navigation', () => ({
 
 import { AthleteStats } from '@/components/profile/athlete/AthleteStats';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Review, Schedule, Sport, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Schedule, Sport, Trainer, User } from '@sporthub/types';
 
 const NOW = new Date('2026-04-22T12:00:00.000Z');
 

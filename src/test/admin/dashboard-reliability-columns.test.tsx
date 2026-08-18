@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardPage } from '@/components/admin/DashboardPage';
 import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
 import { renderWithToast } from '@/test/helpers/render-with-toast';
-import type { Booking, Club, Trainer, User } from '@/types';
+import type { Booking, Club, Trainer, User } from '@sporthub/types';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),

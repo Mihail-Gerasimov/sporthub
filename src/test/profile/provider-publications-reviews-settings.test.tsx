@@ -19,7 +19,7 @@ import { ProviderPublications } from '@/components/profile/provider/ProviderPubl
 import { ProviderReviews } from '@/components/profile/provider/ProviderReviews';
 import { ProviderSettings } from '@/components/profile/provider/ProviderSettings';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { User } from '@/types';
+import type { User } from '@sporthub/types';
 
 const providerUser: User = {
   id: 10,

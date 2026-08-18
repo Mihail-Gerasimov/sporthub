@@ -16,8 +16,8 @@ import {
   getSports,
   getLogs,
 } from '@/lib/db';
-import { DEFAULT_TIME_ZONE } from '@/lib/constants';
-import type { Booking, Club, LogEntry, Schedule, Trainer } from '@/types';
+import { DEFAULT_TIME_ZONE } from '@sporthub/types';
+import type { Booking, Club, LogEntry, Schedule, Trainer } from '@sporthub/types';
 
 /** Типы периодов фильтрации */
 type Period = 'today' | 'week' | 'month' | 'all';

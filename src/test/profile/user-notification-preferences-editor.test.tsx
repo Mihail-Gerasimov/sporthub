@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 import { useToastStore } from '@/stores/useToastStore';
-import type { User } from '@/types';
+import type { User } from '@sporthub/types';
 
 const user: User = {
   id: 1,

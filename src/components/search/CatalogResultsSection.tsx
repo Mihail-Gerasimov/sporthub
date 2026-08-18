@@ -4,7 +4,7 @@ import { ClubList } from '@/components/clubs';
 import { TrainerList, type TrainerDirectoryItem } from '@/components/trainers';
 import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, EntityId, Sport, Tag } from '@/types';
+import type { Club, EntityId, Sport, Tag } from '@sporthub/types';
 
 type CatalogResultsSectionProps = {
   clubs: Club[];

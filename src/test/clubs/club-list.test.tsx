@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ClubList } from '@/components/clubs/ClubList';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport } from '@/types';
+import type { Club, Sport } from '@sporthub/types';
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [
   { id: 1, name: 'Йога', icon: '🧘' },

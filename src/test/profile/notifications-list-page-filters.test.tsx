@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { AuthAccountType, Notification } from '@/types';
+import type { AuthAccountType, Notification } from '@sporthub/types';
 
 // Phase 27 Step 27.8: helper для настройки auth-сессии под нужную роль.
 // NotificationsListPage теперь делает guard, сравнивая sessionAccountType с prop

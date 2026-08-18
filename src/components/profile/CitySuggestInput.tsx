@@ -10,7 +10,7 @@ import { useRef, useState } from 'react';
 
 import { Input } from '@/components/ui';
 import { useSuggest } from '@/hooks/useSuggest';
-import type { Coordinates } from '@/types';
+import type { Coordinates } from '@sporthub/types';
 
 export interface CitySuggestInputProps {
   /** Текущее значение города */

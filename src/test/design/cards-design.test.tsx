@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
-import type { Club, Sport } from '@/types';
+import type { Club, Sport } from '@sporthub/types';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
 const stubSport: Pick<Sport, 'id' | 'name' | 'icon'> = { id: 1, name: 'Бокс', icon: '🥊' };

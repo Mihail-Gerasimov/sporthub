@@ -10,7 +10,7 @@ import 'server-only';
 
 import { notify } from '@/lib/notify';
 import type { QuarantineResult } from '@/lib/reliability';
-import type { User } from '@/types';
+import type { User } from '@sporthub/types';
 
 export interface QuarantineNotifierArgs {
   user: User;

@@ -2,7 +2,7 @@
 // Проверяют: mapClubToFormState, mapTrainerToFormState, roundtrip schedule slots
 import { describe, expect, it } from 'vitest';
 
-import type { Club, Offering, Schedule, Trainer } from '@/types';
+import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 

@@ -1,4 +1,4 @@
-import { APP_LIMITS, DEFAULT_CITY } from '@/lib/constants';
+import { APP_LIMITS, DEFAULT_CITY } from '@sporthub/types';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { resolveNames } from '@/lib/utils';
 import type {
@@ -12,7 +12,7 @@ import type {
   Sport,
   Trainer,
   TrainerClubLink,
-} from '@/types';
+} from '@sporthub/types';
 
 export type TrainerPreviewSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 

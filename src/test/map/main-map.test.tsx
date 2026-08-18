@@ -3,7 +3,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@sporthub/types';
 
 /* --- Мокаем useYandexMap — управляем isLoaded из тестов --- */
 const mockUseYandexMap = vi.fn();

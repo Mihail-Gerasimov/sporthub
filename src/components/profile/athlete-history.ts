@@ -1,5 +1,5 @@
 import { getBookingClubId, getBookingTrainerId } from '@/lib/utils';
-import type { Booking, Club, Review, Schedule, Trainer } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer } from '@sporthub/types';
 
 export type AthleteHistoryItem = {
   id: number;

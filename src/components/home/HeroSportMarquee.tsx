@@ -15,7 +15,7 @@
  */
 'use client';
 
-import type { Sport } from '@/types';
+import type { Sport } from '@sporthub/types';
 
 type HeroSportMarqueeProps = {
   sports: Pick<Sport, 'id' | 'name'>[];

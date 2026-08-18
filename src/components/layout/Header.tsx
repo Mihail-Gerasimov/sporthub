@@ -11,7 +11,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { AUTH_ACCOUNT_TYPE_LABELS } from '@/lib/constants';
+import { AUTH_ACCOUNT_TYPE_LABELS } from '@sporthub/types';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { getPersonalCabinetConfig } from '@/stores/useAuthStore';
 import { useAuthStore } from '@/stores/useAuthStore';

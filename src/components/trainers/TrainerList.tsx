@@ -14,7 +14,7 @@ import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
 import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { EntityId } from '@/types';
+import type { EntityId } from '@sporthub/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 

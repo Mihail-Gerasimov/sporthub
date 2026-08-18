@@ -4,7 +4,7 @@
 import 'server-only';
 
 import { getClubById, getTrainerById } from '@/lib/db';
-import type { EntityId } from '@/types';
+import type { EntityId } from '@sporthub/types';
 
 /** Проверяет, что userId — manager тренера (trainer.managedByUserId === userId). */
 export async function isManagerOfTrainer(trainerId: EntityId, userId: EntityId): Promise<boolean> {

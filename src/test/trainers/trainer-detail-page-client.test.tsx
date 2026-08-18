@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
+import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@sporthub/types';
 
 /* Моковые данные тренера */
 const trainer: Trainer = {

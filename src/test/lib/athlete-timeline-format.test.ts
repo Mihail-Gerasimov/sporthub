@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { formatStatusHistoryForAthlete } from '@/lib/athlete-timeline-format';
-import type { BookingStatusTransition } from '@/types';
+import type { BookingStatusTransition } from '@sporthub/types';
 
 describe('formatStatusHistoryForAthlete', () => {
   it('athlete actor: создание + late-отмена — «Вы записались» и «Вы отменили (поздняя отмена)»', () => {

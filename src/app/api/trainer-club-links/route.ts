@@ -12,7 +12,7 @@ import { isManagerOfClub, isManagerOfTrainer } from '@/lib/link-guards';
 import { logAction } from '@/lib/logAction';
 import { notify } from '@/lib/notify';
 import { createTrainerClubLink, getClubById, getTrainerById, getTrainerClubLinks } from '@/lib/db';
-import type { TrainerClubLinkStatus } from '@/types';
+import type { TrainerClubLinkStatus } from '@sporthub/types';
 
 const createSchema = z
   .object({

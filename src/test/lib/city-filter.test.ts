@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { filterClubs } from '@/components/clubs/filterClubs';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
-import { DEFAULT_CITY } from '@/lib/constants';
+import { DEFAULT_CITY } from '@sporthub/types';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Coordinates } from '@/types';
+import type { Club, Coordinates } from '@sporthub/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { filterClubs } from '@/components/clubs/filterClubs';
-import type { Club, Tag } from '@/types';
+import type { Club, Tag } from '@sporthub/types';
 
 const tags: Tag[] = [
   { id: 1, name: 'Бассейн', createdAt: '2026-01-01T00:00:00.000Z' },

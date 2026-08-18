@@ -16,7 +16,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { Schedule } from '@/types';
+import type { Schedule } from '@sporthub/types';
 
 describe('Bookings API', () => {
   let dataDirectory: string;

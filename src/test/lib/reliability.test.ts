@@ -10,7 +10,7 @@ import {
   computeTrainerReliability,
   isAthleteInQuarantine,
 } from '@/lib/reliability';
-import type { Booking, Schedule } from '@/types';
+import type { Booking, Schedule } from '@sporthub/types';
 
 function makeBooking(overrides: Partial<Booking>): Booking {
   return {

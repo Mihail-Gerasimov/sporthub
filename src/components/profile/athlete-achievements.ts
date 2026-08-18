@@ -1,5 +1,5 @@
 import { CANCELLED_BOOKING_STATUSES, COMPLETED_BOOKING_STATUSES } from '@/lib/booking-status';
-import type { AthleteAchievementId, Booking, Review } from '@/types';
+import type { AthleteAchievementId, Booking, Review } from '@sporthub/types';
 
 export type AthleteAchievement = {
   id: AthleteAchievementId;

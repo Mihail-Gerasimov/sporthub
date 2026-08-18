@@ -5,7 +5,7 @@ import type {
   PaymentStatus,
   UserRole,
   UserStatus,
-} from '@/types';
+} from './types';
 
 export const DEFAULT_CITY = 'Самара';
 

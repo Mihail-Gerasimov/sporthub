@@ -3,7 +3,7 @@
 'use client';
 
 import { formatStatusHistoryForAthlete } from '@/lib/athlete-timeline-format';
-import type { BookingStatusTransition } from '@/types';
+import type { BookingStatusTransition } from '@sporthub/types';
 
 interface AthleteBookingTimelineProps {
   history: BookingStatusTransition[];

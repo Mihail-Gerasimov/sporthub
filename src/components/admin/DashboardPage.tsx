@@ -33,7 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, Club, Trainer, User, UserRole } from '@/types';
+import type { Booking, Club, Trainer, User, UserRole } from '@sporthub/types';
 
 type DashboardPageProps = {
   users: User[];

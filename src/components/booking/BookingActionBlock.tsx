@@ -13,7 +13,7 @@ import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 
-import type { Booking } from '@/types';
+import type { Booking } from '@sporthub/types';
 
 type BookingActionBlockProps = {
   scheduleId: number;

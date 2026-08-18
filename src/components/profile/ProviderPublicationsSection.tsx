@@ -4,7 +4,7 @@
 import Link from 'next/link';
 
 import { Badge, Card } from '@/components/ui';
-import type { Club, EntityId, Trainer } from '@/types';
+import type { Club, EntityId, Trainer } from '@sporthub/types';
 
 type ProviderPublicationsSectionProps = {
   clubs: Club[];

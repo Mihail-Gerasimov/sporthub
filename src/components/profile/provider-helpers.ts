@@ -7,7 +7,7 @@ import {
   getScheduleClubId,
   getScheduleTrainerId,
 } from '@/lib/utils';
-import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer, User } from '@sporthub/types';
 
 /** Сводка KPI провайдера для дэшборда */
 export type ProviderSummary = {

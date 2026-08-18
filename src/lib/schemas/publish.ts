@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 
-import type { CancellationPolicy, EntityId } from '@/types';
+import type { CancellationPolicy, EntityId } from '@sporthub/types';
 
 /** Опциональные координаты, полученные через Geocoder */
 const coordinatesSchema = z

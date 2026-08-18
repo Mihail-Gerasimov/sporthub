@@ -1,4 +1,4 @@
-import type { Club, Review, Trainer } from '@/types';
+import type { Club, Review, Trainer } from '@sporthub/types';
 
 export type AthleteReviewItem = {
   createdAt: string;

@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
-import type { Booking } from '@/types';
+import type { Booking } from '@sporthub/types';
 
 const fixtureBooking: Booking = {
   id: 42,

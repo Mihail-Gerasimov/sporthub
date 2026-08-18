@@ -19,7 +19,7 @@ import {
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Schedule, Trainer, User } from '@sporthub/types';
 
 type AthleteDashboardProps = {
   bookings?: Booking[];

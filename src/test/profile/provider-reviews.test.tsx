@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSection';
-import type { Review } from '@/types';
+import type { Review } from '@sporthub/types';
 
 const reviews: Review[] = [
   {

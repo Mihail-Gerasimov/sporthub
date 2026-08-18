@@ -4,7 +4,7 @@
  * /profile/{athlete|provider}/notifications. payload опционален — у некоторых
  * типов нужен только статический текст.
  */
-import type { NotificationType } from '@/types';
+import type { NotificationType } from '@sporthub/types';
 
 export interface NotificationCopy {
   /** Короткий заголовок карточки уведомления (bold). */

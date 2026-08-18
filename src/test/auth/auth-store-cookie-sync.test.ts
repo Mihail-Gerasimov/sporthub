@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AUTH_USER_ID_COOKIE_NAME, readAuthUserIdCookie } from '@/lib/auth-cookie';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { AuthAccountType } from '@/types';
+import type { AuthAccountType } from '@sporthub/types';
 
 const provider = {
   id: 2,

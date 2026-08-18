@@ -6,7 +6,7 @@
  */
 import { useMemo } from 'react';
 
-import type { Club, Coordinates, EntityId } from '@/types';
+import type { Club, Coordinates, EntityId } from '@sporthub/types';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 import { isValidCoordinates } from '@/lib/utils';
 import { useFilterStore } from '@/stores/useFilterStore';

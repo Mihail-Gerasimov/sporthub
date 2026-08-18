@@ -31,7 +31,7 @@ import type {
   Trainer,
   TrainerClubLink,
   WorkFormat,
-} from '@/types';
+} from '@sporthub/types';
 
 type ProviderPublicationsProps = {
   clubs?: Club[];

@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { createUser, getUsers } from '@/lib/db';
-import type { UserRole } from '@/types';
+import type { UserRole } from '@sporthub/types';
 
 const registerSchema = z
   .object({

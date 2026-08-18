@@ -2,7 +2,7 @@
 // Возвращают объект ошибок { fieldName: 'Сообщение' } или пустой объект.
 
 import type { ScheduleSlotForm } from '@/lib/schemas/publish';
-import type { EntityId } from '@/types';
+import type { EntityId } from '@sporthub/types';
 
 // --- Типы форм (дублируем для валидации, т.к. оригиналы — локальные в модалках) ---
 

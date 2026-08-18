@@ -11,7 +11,7 @@
  *
  * embedded prop удалён — нигде не использовался.
  */
-import type { Club, EntityId, Tag } from '@/types';
+import type { Club, EntityId, Tag } from '@sporthub/types';
 
 import { CardSlider } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';

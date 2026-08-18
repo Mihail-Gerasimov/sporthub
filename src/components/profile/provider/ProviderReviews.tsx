@@ -12,7 +12,7 @@ import {
 } from '@/components/profile/provider-helpers';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Club, Review, Trainer } from '@/types';
+import type { Club, Review, Trainer } from '@sporthub/types';
 
 type ProviderReviewsProps = {
   reviews?: Review[];

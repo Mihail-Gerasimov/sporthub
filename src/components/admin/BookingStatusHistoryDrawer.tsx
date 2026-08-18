@@ -8,7 +8,7 @@
 'use client';
 
 import { Modal } from '@/components/ui/Modal';
-import type { Booking, BookingActor, BookingStatus } from '@/types';
+import type { Booking, BookingActor, BookingStatus } from '@sporthub/types';
 
 export interface BookingStatusHistoryDrawerProps {
   open: boolean;

@@ -8,8 +8,8 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { User, UserRole, UserStatus } from '@/types';
-import { USER_STATUSES } from '@/lib/constants';
+import type { User, UserRole, UserStatus } from '@sporthub/types';
+import { USER_STATUSES } from '@sporthub/types';
 import { MVP_ADMIN_USER_ID } from '@/stores/useAuthStore';
 import {
   createIsolatedDataDirectory,

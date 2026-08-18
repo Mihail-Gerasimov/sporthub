@@ -3,9 +3,9 @@
 import { useId, useState } from 'react';
 import { z } from 'zod';
 
-import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@/lib/constants';
+import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@sporthub/types';
 import { formatPhone } from '@/lib/utils';
-import type { AuthAccountType } from '@/types';
+import type { AuthAccountType } from '@sporthub/types';
 
 import { Button, Chip, Input, Modal } from '@/components/ui';
 import { useAuthStore } from '@/stores/useAuthStore';

@@ -6,7 +6,7 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@sporthub/types';
 
 // --- Фикстуры пользователей (Phase 26 Step 26.6) ---
 // Копия исходных 3 users из production-seed. Нужна для изоляции тестов от

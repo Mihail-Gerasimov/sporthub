@@ -4,7 +4,7 @@
 // Чистая in-memory функция без зависимости от db — вызывается после того, как
 // роут уже прочитал bookings/clubs/trainers.
 import { getBookingClubId, getBookingTrainerId } from '@/lib/utils';
-import type { Booking, Club, EntityId, Trainer } from '@/types';
+import type { Booking, Club, EntityId, Trainer } from '@sporthub/types';
 
 /**
  * Проверяет, является ли `clientUserId` клиентом `providerUserId`. Критерий —

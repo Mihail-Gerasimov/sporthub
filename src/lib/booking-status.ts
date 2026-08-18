@@ -3,7 +3,7 @@
 // и будущих reliability-утилит (Step 24.12). Единый источник правды вместо локальных Set'ов
 // в каждом компоненте — снижает риск рассинхрона при добавлении новых статусов FSM.
 
-import type { BookingStatus } from '@/types';
+import type { BookingStatus } from '@sporthub/types';
 
 // Активные booking'и — слот физически занят, переходы по FSM ещё возможны.
 // Используется для ACTIVE-фильтрации в upcoming-блоках ЛК, capacity-guard'ах и carantine-guard'ах.

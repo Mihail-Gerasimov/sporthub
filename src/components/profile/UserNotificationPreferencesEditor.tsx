@@ -19,7 +19,7 @@ import {
   type NotificationGroupKey,
 } from '@/lib/notification-types';
 import { useToastStore } from '@/stores/useToastStore';
-import type { NotificationType } from '@/types';
+import type { NotificationType } from '@sporthub/types';
 
 const GROUP_TITLES: Record<NotificationGroupKey, string> = {
   booking: 'Записи',

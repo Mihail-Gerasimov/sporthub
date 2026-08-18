@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { getUpcomingSessions } from '@/components/schedule/getUpcomingSessions';
-import type { Club, Schedule } from '@/types';
+import type { Club, Schedule } from '@sporthub/types';
 
 /* Phase 30.7: фиксируем системное время на ~01:00 Samara (21:00 UTC предыдущего дня),
    чтобы все слоты с date='2026-03-17' и любыми endTime были в будущем относительно

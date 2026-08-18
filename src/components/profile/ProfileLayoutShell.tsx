@@ -6,7 +6,7 @@ import { useMemo, type ReactNode } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Trainer } from '@/types';
+import type { Booking, Club, Trainer } from '@sporthub/types';
 
 import { ProfileBreadcrumb } from './ProfileBreadcrumb';
 import { getAthleteNavItems, getProviderNavItems, type ProfileNavItem } from './profile-nav-items';

@@ -9,7 +9,7 @@ import {
 } from '@/lib/contracts/publish-trainer';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 import { publishClubSchema, publishTrainerSchema } from '@/lib/schemas/publish';
-import type { Club, Offering, Schedule, Trainer } from '@/types';
+import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 /* --- Фикстуры --- */
 

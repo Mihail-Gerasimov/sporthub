@@ -24,7 +24,7 @@ import type {
   Trainer,
   TrainerClubLink,
   TrainerClubLinkStatus,
-} from '@/types';
+} from '@sporthub/types';
 
 const trainerFixture: Trainer = {
   id: 101,

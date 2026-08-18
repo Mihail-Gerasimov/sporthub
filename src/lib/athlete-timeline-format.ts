@@ -4,7 +4,7 @@
 // (actor='system' + to='cancelled_by_provider' + reason='auto_cancel_pending_expired')
 // показываем явно, т.к. для атлета это важное событие: его запись отменили не
 // «провайдер вручную», а система из-за того, что провайдер не успел подтвердить.
-import type { BookingStatus, BookingStatusTransition, ISODateTimeString } from '@/types';
+import type { BookingStatus, BookingStatusTransition, ISODateTimeString } from '@sporthub/types';
 
 export interface AthleteTimelineEntry {
   label: string;

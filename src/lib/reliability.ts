@@ -13,7 +13,7 @@ import type {
   EntityId,
   ISODateTimeString,
   Schedule,
-} from '@/types';
+} from '@sporthub/types';
 
 /**
  * Результат расчёта надёжности для одной сущности (атлет, клуб или тренер).

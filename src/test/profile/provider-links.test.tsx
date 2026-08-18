@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderLinks } from '@/components/profile/provider/ProviderLinks';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Offering, Trainer, TrainerClubLink, User } from '@/types';
+import type { Club, Offering, Trainer, TrainerClubLink, User } from '@sporthub/types';
 
 process.env.TZ = 'UTC';
 

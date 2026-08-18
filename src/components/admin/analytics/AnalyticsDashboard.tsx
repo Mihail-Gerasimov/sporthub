@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import type { Sport } from '@/types';
+import type { Sport } from '@sporthub/types';
 import type { KpiData } from './KpiCards';
 import type { AnalyticsFiltersState } from './AnalyticsFilters';
 import { KpiCards } from './KpiCards';

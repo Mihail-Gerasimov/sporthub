@@ -13,7 +13,7 @@ import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Button, Input, Select } from '@/components/ui';
 import type { TrainerFormState, TrainerOfferingFormItem } from '@/lib/schemas/publish';
-import type { TrainerClubLink } from '@/types';
+import type { TrainerClubLink } from '@sporthub/types';
 
 /** Минимальная информация о клубе для select-привязки */
 type ClubOption = {

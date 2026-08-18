@@ -36,7 +36,7 @@ import { isSlotUpcoming } from '@/lib/slot-time';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
-import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@/types';
+import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@sporthub/types';
 
 type ReviewWithAuthor = Review & {
   authorName: string;

@@ -2,7 +2,7 @@
 // и редактора per-тип preferences в Settings. REQUIRED_NOTIFICATION_TYPES — критичные
 // типы, которые нельзя отключить (booking_confirmed, booking_cancelled_by_provider,
 // quarantine_start). При записи preferences через API такие ключи игнорируются.
-import type { AuthAccountType, NotificationType, User } from '@/types';
+import type { AuthAccountType, NotificationType, User } from '@sporthub/types';
 
 // Phase 29 Step 29.4: добавлена группа 'reviews' для уведомлений по отзывам
 // (получено провайдером + опубликовано автором). UI-фильтр группы появится

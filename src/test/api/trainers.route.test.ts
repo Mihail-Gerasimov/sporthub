@@ -7,7 +7,7 @@ import path from 'node:path';
 import { GET as GETTrainerDetail, PATCH } from '@/app/api/trainers/[id]/route';
 import { GET as GETTrainers, POST } from '@/app/api/trainers/route';
 import { getOfferings, getSchedule, getTrainers } from '@/lib/db';
-import type { Booking } from '@/types';
+import type { Booking } from '@sporthub/types';
 import {
   createIsolatedDataDirectory,
   removeIsolatedDataDirectory,

@@ -7,7 +7,7 @@
 import 'server-only';
 
 import { getClubById, getTrainerById, getUserById } from '@/lib/db';
-import type { Booking, EntityId } from '@/types';
+import type { Booking, EntityId } from '@sporthub/types';
 
 /**
  * Проверяет, является ли пользователь провайдером booking'а — владельцем клуба

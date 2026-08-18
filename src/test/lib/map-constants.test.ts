@@ -2,7 +2,7 @@
 // Проверяют наличие констант карты, города из cities.json и seed-пользователей
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_CITY, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import { DEFAULT_CITY, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@sporthub/types';
 import { getCities, getUsers } from '@/lib/db';
 
 describe('константы карты', () => {

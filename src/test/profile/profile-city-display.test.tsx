@@ -22,7 +22,7 @@ vi.mock('next/navigation', () => ({
 
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
-import type { Club } from '@/types';
+import type { Club } from '@sporthub/types';
 
 const baseUser = {
   id: 1,

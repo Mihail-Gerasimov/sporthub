@@ -22,7 +22,7 @@
 
 import { create } from 'zustand';
 
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 
 type NotificationsState = {
   /** Полный список уведомлений пользователя (для страницы и dropdown). */

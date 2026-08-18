@@ -35,7 +35,7 @@ import type {
   TrainerClubLinkStatus,
   User,
   WorkFormat,
-} from '@/types';
+} from '@sporthub/types';
 
 // STUB: заменить на Prisma при переходе на PostgreSQL.
 

@@ -15,7 +15,7 @@ import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/uti
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Offering, ProviderClientNote, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Offering, ProviderClientNote, Schedule, Trainer, User } from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
 // 30 дней — порог «свежего» визита. Клиенты без посещений за 30 дней считаются stale

@@ -17,7 +17,7 @@ import {
   getTrainerClubLinkById,
   updateTrainerClubLink,
 } from '@/lib/db';
-import type { TrainerClubLink } from '@/types';
+import type { TrainerClubLink } from '@sporthub/types';
 
 const bodySchema = z.object({ userId: z.number().int().positive() }).strict();
 

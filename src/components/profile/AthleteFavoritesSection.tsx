@@ -2,7 +2,7 @@ import { Badge, Card } from '@/components/ui';
 import { buildDictMap, formatCityDisplay } from '@/lib/utils';
 
 import type { AthleteFavoriteTrainer } from '@/components/profile/athlete-favorites';
-import type { Club, Specialty } from '@/types';
+import type { Club, Specialty } from '@sporthub/types';
 
 type AthleteFavoritesSectionProps = {
   favoriteClubs: Club[];

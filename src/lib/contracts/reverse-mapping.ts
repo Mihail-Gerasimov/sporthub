@@ -18,7 +18,7 @@ import type {
   Schedule,
   Trainer,
   TrainerClubLink,
-} from '@/types';
+} from '@sporthub/types';
 
 /** Обратный маппинг OfferingFormat → русское название для формы */
 const offeringFormatReverseMap: Record<OfferingFormat, string> = {

@@ -4,7 +4,7 @@ import {
   getAthleteAchievementProgressSummary,
   getAthleteAchievements,
 } from '@/components/profile/athlete-achievements';
-import type { AthleteAchievementId, Booking, Review } from '@/types';
+import type { AthleteAchievementId, Booking, Review } from '@sporthub/types';
 
 const bookings: Booking[] = [
   {

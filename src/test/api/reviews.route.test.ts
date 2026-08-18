@@ -11,7 +11,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { Review } from '@/types';
+import type { Review } from '@sporthub/types';
 
 describe('Reviews API', () => {
   let dataDirectory: string;

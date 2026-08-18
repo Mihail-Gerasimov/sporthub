@@ -14,7 +14,7 @@ import { DISCIPLINE_CONFIG } from '@/lib/discipline-config';
 import { cn, formatDate } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, Club, Schedule, Sport, Trainer } from '@/types';
+import type { Booking, Club, Schedule, Sport, Trainer } from '@sporthub/types';
 
 type ScheduleFilter = 'all' | 'active' | 'completed' | 'cancelled';
 

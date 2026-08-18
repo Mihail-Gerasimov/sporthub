@@ -16,7 +16,7 @@ import {
   selectAthleteActionUserId,
   useAuthStore,
 } from '@/stores/useAuthStore';
-import type { Club, Review, Trainer } from '@/types';
+import type { Club, Review, Trainer } from '@sporthub/types';
 
 type AthleteSettingsProps = {
   clubs?: Club[];

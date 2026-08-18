@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getUserById, setUserNotificationPreferences } from '@/lib/db';
-import type { NotificationType } from '@/types';
+import type { NotificationType } from '@sporthub/types';
 
 const patchSchema = z
   .object({

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { AnalyticsFilters } from '@/components/admin/analytics/AnalyticsFilters';
-import type { Sport } from '@/types';
+import type { Sport } from '@sporthub/types';
 
 const mockSports: Sport[] = [
   {

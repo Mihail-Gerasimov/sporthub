@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import type { AthleteFavoriteTrainer } from '@/components/profile/athlete-favorites';
-import type { Specialty } from '@/types';
+import type { Specialty } from '@sporthub/types';
 
 const specialties: Specialty[] = [
   { id: 1, name: 'Подготовка к соревнованиям', createdAt: '2026-01-01T00:00:00.000Z' },

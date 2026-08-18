@@ -1,5 +1,5 @@
 import { resolveNames } from '@/lib/utils';
-import type { Club, EntityId, Sport, Tag } from '@/types';
+import type { Club, EntityId, Sport, Tag } from '@sporthub/types';
 
 export type ClubListSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 

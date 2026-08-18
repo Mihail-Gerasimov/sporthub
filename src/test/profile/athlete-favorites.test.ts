@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
-import type { Booking, Club, Review, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Trainer, User } from '@sporthub/types';
 
 const users: User[] = [
   {

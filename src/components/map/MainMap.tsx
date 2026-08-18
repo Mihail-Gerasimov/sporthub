@@ -9,8 +9,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import type { City, Club, EntityId } from '@/types';
-import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
+import type { City, Club, EntityId } from '@sporthub/types';
+import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@sporthub/types';
 import { useYandexMap } from '@/components/map/YandexMapProvider';
 import { useMapMarkers, type MapMarkerData } from '@/components/map/useMapMarkers';
 import { MapThemeToggle } from '@/components/map/MapThemeToggle';

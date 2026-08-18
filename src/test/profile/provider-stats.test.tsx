@@ -20,7 +20,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderStats } from '@/components/profile/provider/ProviderStats';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@/types';
+import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@sporthub/types';
 
 process.env.TZ = 'UTC';
 

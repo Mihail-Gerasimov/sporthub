@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@/types';
+import type { Amenity, Club, Review, Schedule, Specialty, Sport, Tag, Trainer } from '@sporthub/types';
 
 const club: Club = {
   id: 1,

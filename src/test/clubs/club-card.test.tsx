@@ -16,7 +16,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClubCard } from '@/components/clubs/ClubCard';
-import type { Club, Sport, Tag } from '@/types';
+import type { Club, Sport, Tag } from '@sporthub/types';
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [
   { id: 3, name: 'Плавание', icon: '🏊' },

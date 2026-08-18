@@ -20,7 +20,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderPublications } from '@/components/profile/provider/ProviderPublications';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Club, Trainer } from '@/types';
+import type { Club, Trainer } from '@sporthub/types';
 
 const providerClub: Club = {
   id: 1,

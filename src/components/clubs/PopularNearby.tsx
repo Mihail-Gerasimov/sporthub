@@ -7,7 +7,7 @@ import { PopularTrainers } from '@/components/trainers';
 import { Badge, Button, Card } from '@/components/ui';
 import type { ReliabilityResult } from '@/lib/reliability';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, EntityId, Sport, Tag } from '@/types';
+import type { Club, EntityId, Sport, Tag } from '@sporthub/types';
 
 import type { TrainerDirectoryItem } from '@/components/trainers';
 

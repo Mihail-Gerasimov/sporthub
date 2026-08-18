@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 
-import type { City } from '@/types';
+import type { City } from '@sporthub/types';
 import { Select } from '@/components/ui';
 import { useSyncCityFromAuth } from '@/hooks/useSyncCityFromAuth';
 import { useFilterStore } from '@/stores/useFilterStore';

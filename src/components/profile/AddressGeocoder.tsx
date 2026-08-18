@@ -8,7 +8,7 @@
 
 import { useRef, useState } from 'react';
 
-import type { Coordinates } from '@/types';
+import type { Coordinates } from '@sporthub/types';
 import { Button, Input } from '@/components/ui';
 import { useSuggest } from '@/hooks/useSuggest';
 import { getCityBoundingBox } from '@/lib/utils';

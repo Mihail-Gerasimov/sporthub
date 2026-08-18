@@ -7,7 +7,7 @@ import { Badge, Card } from '@/components/ui';
 import { getBookings, getScheduleSlotContext, getUsers } from '@/lib/db';
 import { isAthleteInQuarantine, type QuarantineResult } from '@/lib/reliability';
 import { formatDate, formatPrice } from '@/lib/utils';
-import type { OfferingFormat } from '@/types';
+import type { OfferingFormat } from '@sporthub/types';
 
 // Явно отключаем статическую оптимизацию, чтобы booking-context не зависал после обновления слота.
 export const dynamic = 'force-dynamic';

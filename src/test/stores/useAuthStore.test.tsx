@@ -1,7 +1,7 @@
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { AuthAccountType, UserRole } from '@/types';
+import type { AuthAccountType, UserRole } from '@sporthub/types';
 import {
   AUTH_STORAGE_KEY,
   AUTH_STORE_DEFAULT_STATE,

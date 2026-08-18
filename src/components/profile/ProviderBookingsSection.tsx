@@ -3,7 +3,7 @@ import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
 import { computeAthleteReliability } from '@/lib/reliability';
 import { formatDate, formatPrice } from '@/lib/utils';
-import type { Booking } from '@/types';
+import type { Booking } from '@sporthub/types';
 
 type ProviderBookingsSectionProps = {
   bookings: ProviderIncomingBooking[];

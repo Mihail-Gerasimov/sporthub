@@ -10,7 +10,7 @@
  * Никаких `Date.setHours()` — он работает в локальном TZ исполнителя кода
  * (Vitest/Node по умолчанию UTC), что даёт рассинхрон ±4 часа с DEFAULT_TIME_ZONE.
  */
-import type { Schedule } from '@/types';
+import type { Schedule } from '@sporthub/types';
 
 import { getDateKeyInTimeZone, getTimeKeyInTimeZone } from './utils';
 

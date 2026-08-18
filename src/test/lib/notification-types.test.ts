@@ -8,7 +8,7 @@ import {
   isNotificationTypeEnabled,
   REQUIRED_NOTIFICATION_TYPES,
 } from '@/lib/notification-types';
-import type { NotificationType, User } from '@/types';
+import type { NotificationType, User } from '@sporthub/types';
 
 describe('notification-types (Step 25.14)', () => {
   it('canDisableNotificationType: required типы нельзя отключить', () => {

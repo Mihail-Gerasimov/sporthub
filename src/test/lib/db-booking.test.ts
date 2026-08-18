@@ -19,7 +19,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { Booking, Schedule } from '@/types';
+import type { Booking, Schedule } from '@sporthub/types';
 
 describe('db booking helpers', () => {
   let dataDirectory: string;

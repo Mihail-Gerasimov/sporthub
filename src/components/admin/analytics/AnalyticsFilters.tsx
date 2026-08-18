@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react';
 
-import type { City, Sport } from '@/types';
+import type { City, Sport } from '@sporthub/types';
 import { cn } from '@/lib/utils';
 
 /** Тип фильтров аналитики */

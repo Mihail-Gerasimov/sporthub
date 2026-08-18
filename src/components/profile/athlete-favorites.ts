@@ -1,5 +1,5 @@
 import { CANCELLED_BOOKING_STATUSES } from '@/lib/booking-status';
-import type { Booking, Club, Review, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Trainer, User } from '@sporthub/types';
 
 export type AthleteFavoriteTrainer = Trainer & {
   reasonLabel: string;

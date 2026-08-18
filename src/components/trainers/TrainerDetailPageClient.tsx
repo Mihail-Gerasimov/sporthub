@@ -40,7 +40,7 @@ import type { ReliabilityResult } from '@/lib/reliability';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@/types';
+import type { Club, Offering, Review, Schedule, Specialty, Sport, Trainer } from '@sporthub/types';
 
 type ReviewWithAuthor = Review & {
   authorName: string;

@@ -13,7 +13,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { LogEntry, User } from '@/types';
+import type { LogEntry, User } from '@sporthub/types';
 
 const createPostRequest = (id: string, body: Record<string, unknown>) => ({
   request: new Request(`http://localhost:3000/api/admin/users/${id}/password`, {

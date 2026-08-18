@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Schedule, User } from '@/types';
+import type { Booking, Schedule, User } from '@sporthub/types';
 
 const athleteUser: User = {
   id: 1,

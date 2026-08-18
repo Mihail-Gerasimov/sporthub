@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Club, Offering, Trainer, TrainerClubLink } from '@/types';
+import type { Club, Offering, Trainer, TrainerClubLink } from '@sporthub/types';
 
 type LinkTab = 'pending' | 'confirmed' | 'history';
 

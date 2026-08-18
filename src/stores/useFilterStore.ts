@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 
-import { DEFAULT_CITY } from '@/lib/constants';
+import { DEFAULT_CITY } from '@sporthub/types';
 import { normalizeCity } from '@/lib/utils';
 
 export type DiscoveryMode = 'clubs' | 'trainers';

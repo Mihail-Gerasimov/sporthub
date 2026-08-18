@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 
 const seed: Notification[] = [
   {

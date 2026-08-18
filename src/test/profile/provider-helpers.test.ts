@@ -1,7 +1,7 @@
 // Тесты бизнес-логики провайдер-кабинета (Step 12.3)
 import { describe, expect, it } from 'vitest';
 
-import type { Booking, Club, Review, Schedule, Trainer, User } from '@/types';
+import type { Booking, Club, Review, Schedule, Trainer, User } from '@sporthub/types';
 import {
   getProviderClubs,
   getProviderIncomingBookings,

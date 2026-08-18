@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
-import type { Club, Trainer } from '@/types';
+import type { Club, Trainer } from '@sporthub/types';
 
 const clubs: Club[] = [
   {

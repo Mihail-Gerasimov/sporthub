@@ -21,7 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
-import type { Notification } from '@/types';
+import type { Notification } from '@sporthub/types';
 import { useUnreadCountPolling } from '@/hooks/useUnreadCountPolling';
 
 const DROPDOWN_LIMIT = 5;

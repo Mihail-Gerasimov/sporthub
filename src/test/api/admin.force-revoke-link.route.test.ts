@@ -13,7 +13,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { LogEntry, Notification, TrainerClubLink } from '@/types';
+import type { LogEntry, Notification, TrainerClubLink } from '@sporthub/types';
 
 const createPostRequest = (id: string, body: Record<string, unknown>) => ({
   request: new Request(`http://localhost:3000/api/admin/trainer-club-links/${id}/force-revoke`, {

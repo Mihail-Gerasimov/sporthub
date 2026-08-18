@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getAthleteReviewItems } from '@/components/profile/athlete-review-items';
-import type { Club, Review, Trainer } from '@/types';
+import type { Club, Review, Trainer } from '@sporthub/types';
 
 const clubs: Club[] = [
   {

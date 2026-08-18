@@ -5,7 +5,7 @@
  */
 'use client';
 
-import type { Club, EntityId } from '@/types';
+import type { Club, EntityId } from '@sporthub/types';
 
 import { MainMap } from '@/components/map/MainMap';
 import { YandexMapProvider } from '@/components/map/YandexMapProvider';

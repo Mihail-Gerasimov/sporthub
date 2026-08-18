@@ -15,7 +15,7 @@ import {
   removeIsolatedDataDirectory,
 } from '@/test/helpers/data-directory';
 import { seedTestData } from '@/test/helpers/seed-fixtures';
-import type { User } from '@/types';
+import type { User } from '@sporthub/types';
 
 async function readUser(dataDirectory: string, userId: number): Promise<User> {
   const raw = await readFile(path.join(dataDirectory, 'users.json'), 'utf8');

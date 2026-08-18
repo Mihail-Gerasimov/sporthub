@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { isClientOfProvider } from '@/lib/provider-client-guards';
-import type { Booking, Club, Trainer } from '@/types';
+import type { Booking, Club, Trainer } from '@sporthub/types';
 
 const providerUserId = 2;
 const otherProviderUserId = 99;

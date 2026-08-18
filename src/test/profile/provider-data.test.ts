@@ -1,7 +1,7 @@
 // Тесты данных и типов для провайдер-кабинета (Step 12.1, обновлено Phase 14)
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { Club, EntityId, Trainer } from '@/types';
+import type { Club, EntityId, Trainer } from '@sporthub/types';
 import { getBookings, getClubs, getTrainers, getUsers } from '@/lib/db';
 import {
   createIsolatedDataDirectory,
