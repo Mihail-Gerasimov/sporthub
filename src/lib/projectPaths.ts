@@ -2,10 +2,29 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Phase 32: поддерживаем две раскладки одновременно.
+//   `src/data`  — старая, одиночный репозиторий (до переезда в монорепо);
+//   `data`      — новая, каталог поднят в корень репозитория, чтобы перезаливка
+//                 кода на прод не задевала боевые публикации и записи клиентов.
+// Порядок в массиве задаёт приоритет: новая раскладка выигрывает, если обе есть.
+const DATA_DIRECTORY_CANDIDATES = [['data'], ['src', 'data']] as const;
+
+/** Каталог данных внутри указанного корня, либо null, если ни одной раскладки нет. */
+function findDataDirectory(directoryPath: string): string | null {
+  for (const segments of DATA_DIRECTORY_CANDIDATES) {
+    const candidate = path.join(directoryPath, ...segments);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 function isProjectRoot(directoryPath: string): boolean {
   return (
     existsSync(path.join(directoryPath, 'package.json')) &&
-    existsSync(path.join(directoryPath, 'src', 'data'))
+    findDataDirectory(directoryPath) !== null
   );
 }
 
@@ -47,5 +66,15 @@ export function getProjectRoot(): string {
 }
 
 export function getProjectDataDirectory(): string {
-  return path.join(getProjectRoot(), 'src', 'data');
+  const projectRoot = getProjectRoot();
+  const dataDirectory = findDataDirectory(projectRoot);
+
+  // getProjectRoot() возвращает только каталог, прошедший isProjectRoot(),
+  // а тот уже требует наличия каталога данных — до null здесь дойти нельзя.
+  // Ветка оставлена ради явного сообщения, если инварианты разойдутся.
+  if (!dataDirectory) {
+    throw new Error(`Каталог данных не найден в корне проекта: ${projectRoot}`);
+  }
+
+  return dataDirectory;
 }
