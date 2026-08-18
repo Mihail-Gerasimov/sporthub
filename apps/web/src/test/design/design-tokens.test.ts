@@ -3,12 +3,19 @@
  * все обязательные CSS-переменные и @theme маппинг.
  */
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
 
 import { getProjectRoot } from '@/lib/projectPaths';
 
-const globalsCss = readFileSync(resolve(getProjectRoot(), 'src/app/globals.css'), 'utf-8');
+// Phase 32: путь считаем от самого теста, а не от корня монорепо. После переезда
+// в apps/web корень репозитория (там, где data/) и корень приложения — разные
+// директории, и getProjectRoot() указывает на первый.
+const globalsCss = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../app/globals.css'),
+  'utf-8',
+);
 
 describe('Дизайн-токены (globals.css)', () => {
   // --- Палитра ---

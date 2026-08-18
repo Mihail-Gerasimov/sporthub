@@ -1,39 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
-  ],
-  // `include` захватывает **/*.ts и **/*.tsx от корня репозитория, поэтому всё,
-  // что не является исходниками приложения, надо исключать явно.
-  // `проспорт/` — экспорт нового дизайна из Figma Make (69 файлов .tsx, локальный
-  // референс, в .gitignore). Он тянет lucide-react/leaflet, которых в проекте нет,
-  // и без этого исключения `next build` падает на тайпчеке чужого кода.
-  "exclude": ["node_modules", "проспорт"]
+  // Корневой tsconfig монорепозитория. Собственных исходников в корне нет —
+  // файл существует только чтобы `tsc -b` собирал внутренние пакеты одной
+  // командой, а IDE понимала связи между ними.
+  // У приложений свои настройки: apps/web — bundler-резолв под Next,
+  // apps/api — nodenext с декораторами под NestJS.
+  "files": [],
+  "references": [{ "path": "./packages/types" }, { "path": "./packages/domain" }]
 }

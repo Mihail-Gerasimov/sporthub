@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,14 +11,14 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -51,23 +51,23 @@ STACK_OVERVIEW.md
 README.md
 
 # data (seed-справочники и динамические файлы — всё локальное, не коммитится)
-src/data/amenities.json
-src/data/bookings.json
-src/data/cities.json
-src/data/clubs.json
-src/data/logs.json
-src/data/notifications.json
-src/data/offerings.json
-src/data/provider-client-notes.json
-src/data/reviews.json
-src/data/schedule.json
-src/data/specialties.json
-src/data/sports.json
-src/data/tags.json
-src/data/trainer-club-links.json
-src/data/trainers.json
-src/data/users.json
-src/data/work-formats.json
+data/amenities.json
+data/bookings.json
+data/cities.json
+data/clubs.json
+data/logs.json
+data/notifications.json
+data/offerings.json
+data/provider-client-notes.json
+data/reviews.json
+data/schedule.json
+data/specialties.json
+data/sports.json
+data/tags.json
+data/trainer-club-links.json
+data/trainers.json
+data/users.json
+data/work-formats.json
 
 # typescript
 *.tsbuildinfo
