@@ -10,6 +10,7 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { LogService } from './logs/log.service';
 import { NotificationService } from './notifications/notification.service';
+import { PublicationService } from './publications/publication.service';
 import { SlotContextService } from './schedule/slot-context.service';
 import { StorageModule } from './storage/storage.module';
 
@@ -23,6 +24,7 @@ import { StorageModule } from './storage/storage.module';
     NotificationService,
     LogService,
     BookingService,
+    PublicationService,
   ],
 })
 export class AppModule {}
