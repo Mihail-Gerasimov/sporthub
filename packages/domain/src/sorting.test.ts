@@ -47,3 +47,39 @@ describe('compareByCreatedAtDesc', () => {
     expect(compareByCreatedAtDesc(row, { ...row })).toBe(0);
   });
 });
+
+describe('Устойчивость порядка при равных метках', () => {
+  it('при совпадающих метках времени порядок задаёт номер, а не случай', () => {
+    // Именно этот случай ломается при переезде: `Array.prototype.sort` в движке
+    // устойчива и сохраняла порядок вставки, а `ORDER BY` в базе — нет.
+    const sameMoment = '2026-08-20T10:00:00.000Z';
+    const items = [
+      { id: 3, createdAt: sameMoment },
+      { id: 1, createdAt: sameMoment },
+      { id: 2, createdAt: sameMoment },
+    ];
+
+    expect([...items].sort(compareByCreatedAtDesc).map((item) => item.id)).toEqual([3, 2, 1]);
+    // Порядок на входе на результат не влияет — иначе он был бы случайным.
+    expect(
+      [...items]
+        .reverse()
+        .sort(compareByCreatedAtDesc)
+        .map((item) => item.id),
+    ).toEqual([3, 2, 1]);
+  });
+
+  it('кириллица в соседних полях порядку не мешает', () => {
+    const items = [
+      { id: 1, createdAt: '2026-08-20T10:00:00.000Z', name: 'Ёлка' },
+      { id: 2, createdAt: '2026-08-21T10:00:00.000Z', name: 'ёж' },
+      { id: 3, createdAt: '2026-08-19T10:00:00.000Z', name: 'Арена' },
+    ];
+
+    expect(items.sort(compareByCreatedAtDesc).map((item) => item.name)).toEqual([
+      'ёж',
+      'Ёлка',
+      'Арена',
+    ]);
+  });
+});

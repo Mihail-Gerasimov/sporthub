@@ -8,6 +8,7 @@
 // Уведомления идут обеим сторонам: провайдеру о полученном отзыве (кроме случая,
 // когда провайдер оценивает сам себя) и автору о публикации отзыва.
 
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { Review } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
@@ -75,7 +76,7 @@ export class ReviewsController {
 
     const reviews = await this.reviews.findMany({ clubId, trainerId });
 
-    return reviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return reviews.sort(compareByCreatedAtDesc);
   }
 
   @Post()

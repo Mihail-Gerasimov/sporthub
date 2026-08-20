@@ -15,7 +15,7 @@ import {
   getTrainerClubLinks,
   getUsers,
 } from '@/lib/server-api';
-import { computeTrainerReliability } from '@sporthub/domain';
+import { compareByCreatedAtDesc, computeTrainerReliability } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -79,7 +79,7 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   /* Отзывы тренера — от новых к старым */
   const trainerReviews = reviews
     .filter((review) => review.trainerId === trainer.id)
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    .sort(compareByCreatedAtDesc);
 
   /* Карта авторов отзывов: userId → name */
   const reviewAuthors = users.reduce<Record<number, string>>((accumulator, user) => {

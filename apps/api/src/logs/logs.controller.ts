@@ -9,6 +9,7 @@
 // ⚠️ Маршрут записи принимает исполнителя и его роль прямо из тела — подделать
 // авторство записи может кто угодно. Перенесено как есть.
 
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { LogAction, LogEntityType, LogEntry, UserRole } from '@sporthub/types';
 import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
@@ -80,7 +81,9 @@ export class LogsController {
       entries = entries.filter((entry) => entry.createdAt <= to);
     }
 
-    entries = entries.slice().sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    // Тай-брейкер обязателен: `ORDER BY` в базе неустойчив, и при равных метках
+    // времени порядок стал бы случайным от прогона к прогону.
+    entries = entries.slice().sort(compareByCreatedAtDesc);
 
     // Счётчики лежат РЯДОМ с data — форма ответа журнала и публикаций.
     return withTopLevel(entries.slice(offset, offset + limit), {

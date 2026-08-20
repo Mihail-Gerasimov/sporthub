@@ -1,3 +1,4 @@
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import type { Club, Review, Trainer } from '@sporthub/types';
 
 export type AthleteReviewItem = {
@@ -42,5 +43,5 @@ export function getAthleteReviewItems({
       targetTypeLabel: review.trainerId !== undefined ? 'Отзыв о тренере' : 'Отзыв о клубе',
       text: review.text,
     }))
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    .sort(compareByCreatedAtDesc);
 }

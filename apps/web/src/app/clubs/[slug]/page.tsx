@@ -17,7 +17,7 @@ import {
   getTrainers,
   getUsers,
 } from '@/lib/server-api';
-import { computeClubReliability } from '@sporthub/domain';
+import { compareByCreatedAtDesc, computeClubReliability } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -90,7 +90,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     });
   const clubReviews = reviews
     .filter((review) => review.clubId === club.id)
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    .sort(compareByCreatedAtDesc);
   const reviewAuthors = users.reduce<Record<number, string>>((accumulator, user) => {
     accumulator[user.id] = user.name;
     return accumulator;

@@ -3,6 +3,7 @@
 // Скрытие ставит причину, восстановление её снимает. Публикация без явного
 // состояния считается опубликованной — так устроены исходные данные.
 
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Club, Trainer } from '@sporthub/types';
 
@@ -238,7 +239,7 @@ export class PublicationsController {
       items = items.filter((item) => item.name.toLowerCase().includes(search));
     }
 
-    items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    items.sort(compareByCreatedAtDesc);
 
     return withTopLevel(items.slice(offset, offset + limit), {
       total: items.length,
