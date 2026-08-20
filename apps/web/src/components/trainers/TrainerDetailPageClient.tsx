@@ -36,6 +36,7 @@ import {
 } from '@/components/detail-shared/DetailScheduleWeek';
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
+import { APP_LIMITS } from '@sporthub/types';
 import type { ReliabilityResult } from '@sporthub/domain';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
@@ -59,7 +60,16 @@ type ReviewFormErrors = {
 
 const reviewFormSchema = z.object({
   rating: z.number().int().min(1, 'Выбери оценку.'),
-  text: z.string().trim().min(1, 'Напиши пару слов о впечатлении.'),
+  // Верхняя граница — из общего словаря лимитов: то же число проверяет
+  // схема отзыва на бэкенде, второй формы этого числа в проекте нет.
+  text: z
+    .string()
+    .trim()
+    .min(1, 'Напиши пару слов о впечатлении.')
+    .max(
+      APP_LIMITS.reviewTextMaxLength,
+      `Отзыв длиннее ${APP_LIMITS.reviewTextMaxLength} символов не принимается.`,
+    ),
 });
 
 function mapReviewsWithAuthors(

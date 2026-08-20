@@ -5,6 +5,7 @@
 // пользователя), остаётся сервисным — иначе в фазе базы такой фильтр не станет
 // обычным `where` и слой протечёт.
 
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import type {
   CatalogOwnerType,
   Notification,
@@ -14,21 +15,6 @@ import type {
 } from '@sporthub/types';
 
 import type { JsonStorage } from '../storage/json-storage';
-
-/**
- * Сортировка «свежие первыми». При равных метках времени (две записи в одну
- * миллисекунду — обычное дело при пакетной вставке) сравниваем по id: он растёт
- * монотонно, поэтому порядок становится детерминированным. Без этого сравнения
- * результат зависел бы от порядка вставки и тест на сортировку мигал бы.
- */
-function compareByCreatedAtDesc<TItem extends { id: number; createdAt: string }>(
-  left: TItem,
-  right: TItem,
-): number {
-  const byDate = right.createdAt.localeCompare(left.createdAt);
-
-  return byDate !== 0 ? byDate : right.id - left.id;
-}
 
 // --- Токены внедрения ---------------------------------------------------------
 

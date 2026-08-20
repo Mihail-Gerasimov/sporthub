@@ -9,6 +9,14 @@
 // контракты, а настоящая авторизация делается отдельной фазой.
 
 import { Inject, Injectable } from '@nestjs/common';
+// Правило «клиент ли атлет у провайдера» импортируется под другим именем:
+// одноимённый метод сервиса ниже делегирует ему, и без псевдонима строка
+// читалась бы как рекурсия.
+import {
+  getBookingClubId,
+  getBookingTrainerId,
+  isClientOfProvider as isClientOfProviderRule,
+} from '@sporthub/domain';
 import type { Booking, Club, Trainer } from '@sporthub/types';
 
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
@@ -37,15 +45,14 @@ export class AccessService {
    * для старого формата данных.
    */
   async isProviderOfBooking(booking: Booking, userId: number): Promise<boolean> {
-    const clubId = booking.clubId ?? (booking.ownerType === 'club' ? booking.ownerId : undefined);
-    const trainerId =
-      booking.trainerId ?? (booking.ownerType === 'trainer' ? booking.ownerId : undefined);
+    const clubId = getBookingClubId(booking);
+    const trainerId = getBookingTrainerId(booking);
 
-    if (clubId !== undefined && (await this.isManagerOfClub(clubId, userId))) {
+    if (clubId !== null && (await this.isManagerOfClub(clubId, userId))) {
       return true;
     }
 
-    if (trainerId !== undefined && (await this.isManagerOfTrainer(trainerId, userId))) {
+    if (trainerId !== null && (await this.isManagerOfTrainer(trainerId, userId))) {
       return true;
     }
 
@@ -65,9 +72,9 @@ export class AccessService {
   }
 
   /**
-   * Клиент ли атлет у провайдера. Критерий — существование записи на сущность,
-   * которой провайдер управляет. Отменённые и прошедшие записи тоже считаются:
-   * заметка о клиенте остаётся актуальной и после окончания занятий.
+   * Клиент ли атлет у провайдера. Сам критерий чистый и одинаков для фронта и
+   * бэкенда, поэтому живёт в `@sporthub/domain`; здесь метод остаётся ради
+   * единой точки входа во все проверки прав.
    */
   isClientOfProvider(
     clientUserId: number,
@@ -76,30 +83,6 @@ export class AccessService {
     clubs: Club[],
     trainers: Trainer[],
   ): boolean {
-    const providerClubIds = new Set(
-      clubs.filter((club) => club.managedByUserId === providerUserId).map((club) => club.id),
-    );
-    const providerTrainerIds = new Set(
-      trainers
-        .filter((trainer) => trainer.managedByUserId === providerUserId)
-        .map((trainer) => trainer.id),
-    );
-
-    if (providerClubIds.size === 0 && providerTrainerIds.size === 0) {
-      return false;
-    }
-
-    return bookings.some((booking) => {
-      if (booking.userId !== clientUserId) return false;
-
-      const clubId = booking.clubId ?? (booking.ownerType === 'club' ? booking.ownerId : undefined);
-      if (clubId !== undefined && providerClubIds.has(clubId)) return true;
-
-      const trainerId =
-        booking.trainerId ?? (booking.ownerType === 'trainer' ? booking.ownerId : undefined);
-      if (trainerId !== undefined && providerTrainerIds.has(trainerId)) return true;
-
-      return false;
-    });
+    return isClientOfProviderRule(clientUserId, providerUserId, bookings, clubs, trainers);
   }
 }

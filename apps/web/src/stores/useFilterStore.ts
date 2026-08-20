@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 
 import { DEFAULT_CITY } from '@sporthub/types';
-import { normalizeCity } from '@/lib/utils';
+import { formatCityTitleCase } from '@/lib/utils';
 
 export type DiscoveryMode = 'clubs' | 'trainers';
 
@@ -45,8 +45,11 @@ export const useFilterStore = create<FilterState>()((set) => ({
     });
   },
   setSelectedCity: (city) => {
+    // Город хранится в виде для показа: он выводится в бейдже фильтров, в
+    // селекторе и в тексте пустой карты. Сравнение с городами клубов и
+    // тренеров идёт по ключу `normalizeMatchKey`, регистр ему не важен.
     set({
-      selectedCity: normalizeCity(city),
+      selectedCity: formatCityTitleCase(city),
     });
   },
   resetFilters: () => {

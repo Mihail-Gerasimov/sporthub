@@ -1,5 +1,7 @@
 // Бизнес-логика провайдер-кабинета: фильтрация клубов, тренеров, букингов, отзывов и сводка.
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
+import type { BookingStatusTone } from '@/components/profile/booking-status-tone';
 import {
   getBookingClubId,
   getBookingTrainerId,
@@ -17,8 +19,6 @@ export type ProviderSummary = {
   averageRating: number;
 };
 
-export type ProviderIncomingBookingStatusTone = 'success' | 'outline' | 'teal' | 'danger';
-
 export type ProviderIncomingBooking = {
   athleteEmail: string;
   athleteName: string;
@@ -33,7 +33,7 @@ export type ProviderIncomingBooking = {
   paymentLabel: string;
   startTime: string;
   statusLabel: string;
-  statusTone: ProviderIncomingBookingStatusTone;
+  statusTone: BookingStatusTone;
   timeLabel: string;
   title: string;
   totalPrice: number;
@@ -61,17 +61,6 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   rejected_by_provider: 'Отклонена',
   cancelled_by_athlete: 'Отменена спортсменом',
   cancelled_by_provider: 'Отменена вами',
-};
-
-const BOOKING_STATUS_TONES: Record<Booking['status'], ProviderIncomingBookingStatusTone> = {
-  pending: 'outline',
-  confirmed: 'success',
-  completed: 'teal',
-  no_show: 'danger',
-  unmarked: 'outline',
-  rejected_by_provider: 'danger',
-  cancelled_by_athlete: 'danger',
-  cancelled_by_provider: 'danger',
 };
 
 const PAYMENT_STATUS_LABELS: Record<Booking['paymentStatus'], string> = {

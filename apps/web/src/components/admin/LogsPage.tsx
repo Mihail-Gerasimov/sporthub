@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, EntityId, LogAction, LogEntry } from '@sporthub/types';
+import type { Booking, EntityId, LogAction, LogEntityType, LogEntry } from '@sporthub/types';
 
 // Маппинг LogAction → human-readable русские метки.
 const ACTION_LABELS: Record<LogAction, string> = {
@@ -65,7 +65,9 @@ const ACTION_LABELS: Record<LogAction, string> = {
 // good (lime-soft) | warn (gold-soft) | danger (red-soft) | neutral (line-outline)
 type ActionTone = 'good' | 'warn' | 'danger' | 'neutral';
 
-const ACTION_TONES: Record<string, ActionTone> = {
+// Тип Record<LogAction, ...> обязателен: он не даёт словарю разойтись
+// с общим списком действий — забытый ключ ловит компилятор.
+const ACTION_TONES: Record<LogAction, ActionTone> = {
   publish_create: 'good',
   publish_update: 'neutral',
   publish_delete: 'danger',
@@ -91,6 +93,8 @@ const ACTION_TONES: Record<string, ActionTone> = {
   moderation_hide: 'warn',
   moderation_unhide: 'good',
   moderation_auto_restore: 'neutral',
+  // Админский сброс пароля — тон как у прочих админских вмешательств
+  admin_password_change: 'warn',
 };
 
 const ACTION_TONE_CLASSES: Record<ActionTone, string> = {
@@ -108,12 +112,15 @@ const ROLE_LABELS: Record<string, string> = {
   admin: 'Админ',
 };
 
-// Маппинг entityType → русское название
-const ENTITY_TYPE_LABELS: Record<string, string> = {
+// Маппинг entityType → русское название.
+// Тип Record<LogEntityType, string> держит словарь полным: пропущенный
+// тип сущности (как было с trainer_club_link) не соберётся.
+const ENTITY_TYPE_LABELS: Record<LogEntityType, string> = {
   club: 'Клуб',
   trainer: 'Тренер',
   booking: 'Запись',
   user: 'Пользователь',
+  trainer_club_link: 'Связь тренера с клубом',
 };
 
 // Пресеты периодов

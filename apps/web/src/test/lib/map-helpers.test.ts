@@ -1,43 +1,43 @@
 // Тесты хелперов карты (Step 19.1, дополнено Step 23.5)
-// normalizeCity — нормализация регистра города
+// formatCityTitleCase — нормализация регистра города
 // isValidCoordinates — валидация координат для маркеров
 // getCityBoundingBox — bounding box вокруг центра города
 import { describe, expect, it } from 'vitest';
 
-import { getCityBoundingBox, isValidCoordinates, normalizeCity } from '@/lib/utils';
+import { formatCityTitleCase, getCityBoundingBox, isValidCoordinates } from '@/lib/utils';
 
-describe('normalizeCity', () => {
+describe('formatCityTitleCase', () => {
   it('нормализует lowercase → каноничный вид', () => {
-    expect(normalizeCity('самара')).toBe('Самара');
+    expect(formatCityTitleCase('самара')).toBe('Самара');
   });
 
   it('нормализует UPPERCASE → каноничный вид', () => {
-    expect(normalizeCity('САМАРА')).toBe('Самара');
+    expect(formatCityTitleCase('САМАРА')).toBe('Самара');
   });
 
   it('нормализует смешанный регистр → каноничный вид', () => {
-    expect(normalizeCity('саМара')).toBe('Самара');
+    expect(formatCityTitleCase('саМара')).toBe('Самара');
   });
 
   it('оставляет уже корректное значение без изменений', () => {
-    expect(normalizeCity('Самара')).toBe('Самара');
+    expect(formatCityTitleCase('Самара')).toBe('Самара');
   });
 
   it('обрабатывает город с дефисом', () => {
-    expect(normalizeCity('санкт-петербург')).toBe('Санкт-Петербург');
+    expect(formatCityTitleCase('санкт-петербург')).toBe('Санкт-Петербург');
   });
 
   it('обрабатывает город с дефисом в верхнем регистре', () => {
-    expect(normalizeCity('САНКТ-ПЕТЕРБУРГ')).toBe('Санкт-Петербург');
+    expect(formatCityTitleCase('САНКТ-ПЕТЕРБУРГ')).toBe('Санкт-Петербург');
   });
 
   it('обрезает лишние пробелы', () => {
-    expect(normalizeCity('  самара  ')).toBe('Самара');
+    expect(formatCityTitleCase('  самара  ')).toBe('Самара');
   });
 
   it('возвращает пустую строку для пустого ввода', () => {
-    expect(normalizeCity('')).toBe('');
-    expect(normalizeCity('   ')).toBe('');
+    expect(formatCityTitleCase('')).toBe('');
+    expect(formatCityTitleCase('   ')).toBe('');
   });
 });
 

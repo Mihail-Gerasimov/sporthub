@@ -1,11 +1,18 @@
 // Базовые типы идентификаторов и дат для всех сущностей MVP.
+//
+// Часть типов-перечислений выводится из словарей-массивов в ./constants:
+// список значений объявлен там ровно один раз, тип — его проекция.
+// Импорт type-only, поэтому во время выполнения связи между модулями нет.
+import type { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from './constants';
+
 export type EntityId = number;
 export type ISODateString = string;
 export type ISODateTimeString = string;
 
 export type AuthAccountType = 'provider' | 'athlete';
 
-export type UserRole = 'athlete' | 'trainer' | 'club_owner' | 'admin';
+// Роль пользователя. Источник правды — USER_ROLES в constants.ts.
+export type UserRole = (typeof USER_ROLES)[number];
 
 // Статус пользователя: active по умолчанию, banned/suspended — для будущей модерации
 export type UserStatus = 'active' | 'banned' | 'suspended';
@@ -28,46 +35,14 @@ export type EntitySource = 'provider' | 'seed';
 // Статус публикации сущности
 export type EntityStatus = 'published' | 'draft' | 'hidden';
 
-// Типы действий для системы логирования активности платформы
-// Phase 20 — publish, booking, admin
-// Phase 22 — moderation
-// Phase 24 — FSM booking, trainer-club-links, карантин, reliability, admin hard-delete
-export type LogAction =
-  | 'publish_create'
-  | 'publish_update'
-  | 'publish_delete'
-  | 'booking_create'
-  | 'booking_cancel'
-  | 'admin_login'
-  | 'admin_impersonate_start'
-  | 'admin_impersonate_stop'
-  // Phase 22 — moderation
-  | 'moderation_hide'
-  | 'moderation_unhide'
-  | 'moderation_auto_restore'
-  // Phase 24 — FSM booking и действия провайдера
-  | 'booking_confirm'
-  | 'booking_reject'
-  | 'booking_check_in_completed'
-  | 'booking_check_in_no_show'
-  | 'booking_auto_expire'
-  // Phase 24 — trainer↔club link (двусторонняя привязка)
-  | 'link_request'
-  | 'link_approve'
-  | 'link_reject'
-  | 'link_revoke'
-  // Phase 24 — карантин и reliability
-  | 'quarantine_start'
-  | 'quarantine_end'
-  | 'quarantine_admin_lift'
-  | 'reliability_recompute'
-  // Phase 24 — админский hard-delete booking'а
-  | 'admin_hard_delete_booking'
-  // Phase 29 Step 29.7 — админский сброс пароля юзеру
-  | 'admin_password_change';
+// Типы действий для системы логирования активности платформы.
+// Источник правды — LOG_ACTIONS в constants.ts: там же лежат пояснения,
+// какая фаза какие действия завела. Здесь только проекция списка в тип.
+export type LogAction = (typeof LOG_ACTIONS)[number];
 
-// Тип сущности, затронутой действием
-export type LogEntityType = 'club' | 'trainer' | 'booking' | 'user' | 'trainer_club_link';
+// Тип сущности, затронутой действием.
+// Источник правды — LOG_ENTITY_TYPES в constants.ts.
+export type LogEntityType = (typeof LOG_ENTITY_TYPES)[number];
 
 // Запись лога активности платформы
 export interface LogEntry extends BaseEntity {

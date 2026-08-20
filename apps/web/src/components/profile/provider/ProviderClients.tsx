@@ -15,6 +15,7 @@ import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/uti
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { APP_LIMITS } from '@sporthub/types';
 import type {
   Booking,
   Club,
@@ -29,7 +30,9 @@ const ALL_VALUE = '__all__';
 // 30 дней — порог «свежего» визита. Клиенты без посещений за 30 дней считаются stale
 // (кандидаты на реактивацию). Значение зашито отдельной константой для тестируемости.
 const STALE_VISIT_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_NOTE_LENGTH = 2000;
+// Потолок длины заметки берём из общего словаря лимитов: то же число
+// применяют схемы создания и правки заметки на бэкенде.
+const MAX_NOTE_LENGTH = APP_LIMITS.providerNoteMaxLength;
 
 type ReliabilityFilter = typeof ALL_VALUE | 'new' | 'warning' | 'danger' | 'normal';
 type RecencyFilter = typeof ALL_VALUE | 'recent' | 'stale';

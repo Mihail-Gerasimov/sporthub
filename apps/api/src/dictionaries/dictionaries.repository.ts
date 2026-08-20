@@ -5,6 +5,7 @@
 // Смысл разделения — в фазе базы JSON-реализация заменяется на Prisma-версию
 // правкой одной строки провайдера в модуле, а сервисы и их тесты не трогаются.
 
+import { normalizeMatchKey } from '@sporthub/domain';
 import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub/types';
 
 import type { CollectionKey, JsonStorage } from '../storage/json-storage';
@@ -45,11 +46,6 @@ export interface CitiesRepository {
   findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City>;
 }
 
-/** Нормализация названия города для сравнения. */
-export function normalizeCityName(name: string): string {
-  return name.trim().toLocaleLowerCase('ru-RU');
-}
-
 // --- JSON-реализации ----------------------------------------------------------
 
 export class JsonSimpleDictionaryRepository<TItem> implements SimpleDictionaryRepository<TItem> {
@@ -72,8 +68,8 @@ export class JsonCitiesRepository implements CitiesRepository {
 
   async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
     const cities = await this.storage.read('cities');
-    const normalized = normalizeCityName(data.name);
-    const existing = cities.find((city) => normalizeCityName(city.name) === normalized);
+    const normalized = normalizeMatchKey(data.name);
+    const existing = cities.find((city) => normalizeMatchKey(city.name) === normalized);
 
     if (existing) {
       return existing;
@@ -106,8 +102,8 @@ export class InMemoryCitiesRepository implements CitiesRepository {
   }
 
   async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
-    const normalized = normalizeCityName(data.name);
-    const existing = this.cities.find((city) => normalizeCityName(city.name) === normalized);
+    const normalized = normalizeMatchKey(data.name);
+    const existing = this.cities.find((city) => normalizeMatchKey(city.name) === normalized);
 
     if (existing) {
       return existing;

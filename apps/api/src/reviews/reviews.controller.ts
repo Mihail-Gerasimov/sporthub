@@ -10,6 +10,7 @@
 
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { Review } from '@sporthub/types';
+import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
 
 import { NotFoundError, ValidationError } from '../common/domain-error';
@@ -24,7 +25,9 @@ const createReviewSchema = z.object({
   clubId: z.number().int().positive().optional(),
   trainerId: z.number().int().positive().optional(),
   rating: z.number().int().min(1).max(5),
-  text: z.string().trim().min(1),
+  // Потолок длины берётся из общего словаря лимитов, а не из литерала:
+  // то же число применяют обе формы отзыва на фронте.
+  text: z.string().trim().min(1).max(APP_LIMITS.reviewTextMaxLength),
 });
 
 /** Ровно один адресат: либо клуб, либо тренер. */

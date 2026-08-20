@@ -6,6 +6,7 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import type { Booking, Club, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
@@ -206,7 +207,9 @@ export class CatalogQueryService {
         .sort((left, right) =>
           `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
         ),
-      reviews: allReviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+      // Отзывы «свежие первыми» — общий компаратор с тай-брейкером по id:
+      // при равных метках порядок обязан быть детерминированным.
+      reviews: allReviews.sort(compareByCreatedAtDesc),
     };
   }
 
@@ -251,7 +254,9 @@ export class CatalogQueryService {
       sport: sports[0] ?? null,
       sports,
       schedule: trainerSchedule,
-      reviews: allReviews.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+      // Отзывы «свежие первыми» — общий компаратор с тай-брейкером по id:
+      // при равных метках порядок обязан быть детерминированным.
+      reviews: allReviews.sort(compareByCreatedAtDesc),
     };
   }
 }

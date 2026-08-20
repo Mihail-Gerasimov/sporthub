@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { startTransition, useMemo, useState } from 'react';
 
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
+import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { Badge, Button, Card, Modal } from '@/components/ui';
 import { DISCIPLINE_CONFIG } from '@sporthub/domain';
@@ -88,17 +89,6 @@ function formatWeekLabel(weekStart: string): string {
     { day: 'numeric', month: 'short' },
   )}`;
 }
-
-const STATUS_TONE: Record<Booking['status'], 'success' | 'outline' | 'teal' | 'danger'> = {
-  pending: 'outline',
-  confirmed: 'success',
-  completed: 'teal',
-  no_show: 'danger',
-  unmarked: 'outline',
-  rejected_by_provider: 'danger',
-  cancelled_by_athlete: 'danger',
-  cancelled_by_provider: 'danger',
-};
 
 const STATUS_LABEL: Record<Booking['status'], string> = {
   pending: 'Ожидает подтверждения',
@@ -306,7 +296,7 @@ function BookingRow({ item, onOpen }: { item: EnrichedBooking; onOpen: () => voi
     <div className="grid gap-3 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.2fr_1fr_auto] md:items-center">
       <div>
         <div className="flex flex-wrap gap-2">
-          <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
+          <Badge tone={BOOKING_STATUS_TONES[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
         </div>
         <p className="mt-3 text-base font-semibold text-ink">{title}</p>
         <p className="mt-1 text-xs text-muted">{trainerName || clubName || 'Занятие SportHub'}</p>
@@ -409,7 +399,9 @@ function AthleteBookingDrawer({
         {booking ? (
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap gap-2">
-              <Badge tone={STATUS_TONE[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
+              <Badge tone={BOOKING_STATUS_TONES[booking.status]}>
+                {STATUS_LABEL[booking.status]}
+              </Badge>
             </div>
             {slot ? (
               <p className="text-sm text-muted">

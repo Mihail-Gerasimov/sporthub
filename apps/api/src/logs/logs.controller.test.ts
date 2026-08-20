@@ -1,5 +1,5 @@
-// Тесты журнала. Отдельный кейс закрепляет расхождение: действия, которые
-// система пишет сама, фильтром не отбираются.
+// Тесты журнала. Набор допустимых значений фильтра совпадает с общим словарём
+// действий — полнота словарей отдельно закреплена в logs-dictionaries.test.ts.
 
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -78,12 +78,19 @@ describe('Маршруты журнала', () => {
     expect(response.body.offset).toBe(2);
   });
 
-  it('фильтр по действию, которое система пишет, но не знает список, — 400', async () => {
-    // Расхождение перенесено дословно: запись link_approve в журнале есть,
-    // а отобрать её по этому действию нельзя.
+  it('фильтр отбирает действие, которое система пишет сама', async () => {
+    // Раньше здесь был отказ: фильтр держал свою урезанную копию списка
+    // действий и не знал про link_approve, хотя запись в журнале есть.
     const response = await request(harness.app.getHttpServer()).get(
       '/api/logs?action=link_approve',
     );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([4]);
+  });
+
+  it('несуществующее действие в фильтре — по-прежнему 400', async () => {
+    const response = await request(harness.app.getHttpServer()).get('/api/logs?action=выдумка');
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Некорректные параметры запроса');

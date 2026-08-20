@@ -1,3 +1,4 @@
+import { normalizeMatchKey } from '@sporthub/domain';
 import { resolveNames } from '@/lib/utils';
 import type { Club, EntityId, Sport, Tag } from '@sporthub/types';
 
@@ -14,10 +15,6 @@ type FilterClubsOptions = {
   selectedCity?: string;
 };
 
-function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase('ru-RU');
-}
-
 export function filterClubs({
   clubs,
   searchQuery,
@@ -26,13 +23,13 @@ export function filterClubs({
   sports,
   tags = [],
 }: FilterClubsOptions): Club[] {
-  const normalizedSearch = normalize(searchQuery);
-  const normalizedCity = normalize(selectedCity);
+  const normalizedSearch = normalizeMatchKey(searchQuery);
+  const normalizedCity = normalizeMatchKey(selectedCity);
 
   return clubs.filter((club) => {
     const matchesSport = selectedSportId === null || club.sportIds.includes(selectedSportId);
 
-    const matchesCity = normalizedCity === '' || normalize(club.city) === normalizedCity;
+    const matchesCity = normalizedCity === '' || normalizeMatchKey(club.city) === normalizedCity;
 
     const searchStack = [
       club.name,

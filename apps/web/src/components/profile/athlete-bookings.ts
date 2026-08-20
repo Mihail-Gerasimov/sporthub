@@ -1,8 +1,8 @@
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
+import type { BookingStatusTone } from '@/components/profile/booking-status-tone';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
-
-export type UpcomingProfileBookingStatusTone = 'success' | 'outline' | 'teal' | 'danger';
 
 export type UpcomingProfileBooking = {
   bookingTypeLabel: string;
@@ -13,7 +13,7 @@ export type UpcomingProfileBooking = {
   locationLabel: string;
   startTime: string;
   statusLabel: string;
-  statusTone: UpcomingProfileBookingStatusTone;
+  statusTone: BookingStatusTone;
   timeLabel: string;
   title: string;
   trainerName: string;
@@ -46,17 +46,6 @@ const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
   rejected_by_provider: 'Отклонена провайдером',
   cancelled_by_athlete: 'Отменена вами',
   cancelled_by_provider: 'Отменена провайдером',
-};
-
-const BOOKING_STATUS_TONES: Record<Booking['status'], UpcomingProfileBookingStatusTone> = {
-  pending: 'outline',
-  confirmed: 'success',
-  completed: 'teal',
-  no_show: 'danger',
-  unmarked: 'outline',
-  rejected_by_provider: 'danger',
-  cancelled_by_athlete: 'danger',
-  cancelled_by_provider: 'danger',
 };
 
 function getBookingTypeLabel(booking: Pick<Booking, 'ownerType' | 'clubId' | 'trainerId'>) {

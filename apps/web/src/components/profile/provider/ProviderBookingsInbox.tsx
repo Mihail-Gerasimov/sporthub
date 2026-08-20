@@ -58,6 +58,12 @@ const HISTORY_STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled_by_provider: 'Вы отменили',
 };
 
+// Палитра истории намеренно НЕ берётся из общей карты `BOOKING_STATUS_TONES`:
+// в истории тон отвечает на другой вопрос. Там статус описывает состояние
+// активной записи, здесь — исход прошедшего занятия: проведённое становится
+// успехом (`success` вместо `teal`), неявка — предупреждением (`warning`
+// вместо `danger`), а отмена спортсменом перестаёт быть тревогой (`outline`).
+// Схлопывать эти две карты нельзя: совпадение части ключей случайно.
 const HISTORY_STATUS_TONES: Record<BookingStatus, 'success' | 'warning' | 'danger' | 'outline'> = {
   pending: 'outline',
   confirmed: 'outline',

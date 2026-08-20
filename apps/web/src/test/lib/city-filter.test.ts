@@ -96,7 +96,7 @@ describe('useFilterStore — selectedCity (Step 19.4)', () => {
     expect(useFilterStore.getState().selectedCity).toBe('Москва');
   });
 
-  it('setSelectedCity нормализует город через normalizeCity()', () => {
+  it('setSelectedCity приводит город к виду для показа через formatCityTitleCase()', () => {
     useFilterStore.getState().setSelectedCity('саНКТ-пЕТЕРБУРГ');
     expect(useFilterStore.getState().selectedCity).toBe('Санкт-Петербург');
   });

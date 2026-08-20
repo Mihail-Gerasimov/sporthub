@@ -6,6 +6,7 @@
 // Тексты ошибок перенесены из db.ts ДОСЛОВНО: на них завязаны роуты, которые
 // маппят сообщение в HTTP-код, и тесты, сравнивающие строку посимвольно.
 
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 import type { LogEntry, ProviderClientNote, Review, User } from '@sporthub/types';
 
 import type { CollectionKey, JsonStorage } from '../storage/json-storage';
@@ -223,6 +224,7 @@ export class JsonProviderClientNotesRepository
   }): Promise<ProviderClientNote[]> {
     const notes = await this.readAll();
 
+    // Порядок «свежие первыми» с тай-брейкером по id — общий компаратор домена.
     return notes
       .filter((note) => {
         if (note.providerUserId !== filter.providerUserId) return false;
@@ -232,12 +234,7 @@ export class JsonProviderClientNotesRepository
 
         return true;
       })
-      .sort((left, right) => {
-        // «Свежие первыми», при равных метках различаем по id — см. catalog.repository.
-        const byDate = right.createdAt.localeCompare(left.createdAt);
-
-        return byDate !== 0 ? byDate : right.id - left.id;
-      });
+      .sort(compareByCreatedAtDesc);
   }
 
   insert(

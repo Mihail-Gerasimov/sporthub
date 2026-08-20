@@ -1,5 +1,12 @@
 import { DEFAULT_LOCALE, DEFAULT_TIME_ZONE } from '@sporthub/types';
-import type { Booking, Coordinates, EntityId, Schedule, Trainer } from '@sporthub/types';
+import type { Coordinates, EntityId, Schedule, Trainer } from '@sporthub/types';
+
+// Клуб и тренер записи резолвятся общим доменным правилом: тем же самым, по
+// которому бэкенд решает вопросы доступа. Пока формула была продублирована на
+// фронте без отката на `ownerType`/`ownerId`, две стороны на старых записях
+// отвечали по-разному. Реэкспорт оставлен, чтобы существующие импорты из
+// `@/lib/utils` не расползались по двум источникам.
+export { getBookingClubId, getBookingTrainerId } from '@sporthub/domain';
 
 // --- Хелперы для резолвинга EntityId[] → display names (Step 23.10) ---
 
@@ -167,20 +174,16 @@ export function getScheduleTrainerId(scheduleItem: Pick<Schedule, 'trainerId'>):
   return scheduleItem.trainerId ?? null;
 }
 
-// Phase 25 Step 25.1b: legacy `Booking.affiliatedClubId` удалён.
-export function getBookingClubId(booking: Pick<Booking, 'clubId'>): EntityId | null {
-  return booking.clubId ?? null;
-}
-
-export function getBookingTrainerId(booking: Pick<Booking, 'trainerId'>): EntityId | null {
-  return booking.trainerId ?? null;
-}
-
 /**
- * Нормализует название города: первая буква каждого слова заглавная, остальные строчные.
- * "саМара" → "Самара", "САНКТ-ПЕТЕРБУРГ" → "Санкт-Петербург"
+ * Приводит название города к виду ДЛЯ ПОКАЗА: первая буква каждой части
+ * заглавная, остальные строчные. «саМара» → «Самара», «САНКТ-ПЕТЕРБУРГ» →
+ * «Санкт-Петербург». Город в этом виде попадает в шапку поиска, в бейдж
+ * фильтров и в текст пустой карты.
+ *
+ * ⚠️ Для СРАВНЕНИЯ городов эта функция не годится: сравнение идёт по ключу
+ * `normalizeMatchKey` из `@sporthub/domain`, регистр в нём не значим.
  */
-export function normalizeCity(input: string): string {
+export function formatCityTitleCase(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return '';
 

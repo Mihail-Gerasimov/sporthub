@@ -5,6 +5,7 @@
 // В фазе базы они исчезнут (колонки станут NOT NULL, поиск по slug — индексом),
 // поэтому им место внутри JSON-реализации, а не в интерфейсе репозитория.
 
+import { getTrainerPrimarySportId, getTrainerSportIds } from '@sporthub/domain';
 import type { CatalogOwnerType, Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import type { JsonStorage } from '../storage/json-storage';
@@ -43,17 +44,15 @@ export function normalizeSlugLookupValue(slug: string): string {
 /**
  * Починка тренера: в данных встречается устаревшее одиночное `sportId`,
  * тогда как тип объявляет массив `sportIds`. Приводим к обоим представлениям,
- * чтобы потребители не гадали.
+ * чтобы потребители не гадали. Сама формула — в `@sporthub/domain`: её же
+ * читает фронт, и разойтись они не должны.
  */
 function normalizeTrainer(trainer: Trainer): Trainer {
-  const sportIds =
-    Array.isArray(trainer.sportIds) && trainer.sportIds.length > 0
-      ? trainer.sportIds
-      : trainer.sportId !== undefined
-        ? [trainer.sportId]
-        : [];
-
-  return { ...trainer, sportIds, sportId: trainer.sportId ?? sportIds[0] };
+  return {
+    ...trainer,
+    sportIds: getTrainerSportIds(trainer),
+    sportId: getTrainerPrimarySportId(trainer),
+  };
 }
 
 /**

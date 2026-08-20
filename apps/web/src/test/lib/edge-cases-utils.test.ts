@@ -1,53 +1,53 @@
 // Тесты edge cases утилит Phase 19 (Step 19.9)
-// normalizeCity — нормализация регистра города, isValidCoordinates — проверка координат
+// formatCityTitleCase — нормализация регистра города, isValidCoordinates — проверка координат
 import { describe, expect, it } from 'vitest';
 
-import { isValidCoordinates, normalizeCity } from '@/lib/utils';
+import { formatCityTitleCase, isValidCoordinates } from '@/lib/utils';
 
 /* ========================================
-   1. normalizeCity — edge cases
+   1. formatCityTitleCase — edge cases
    ======================================== */
 
-describe('normalizeCity edge cases (Step 19.9)', () => {
+describe('formatCityTitleCase edge cases (Step 19.9)', () => {
   it('пустая строка → пустая строка', () => {
-    expect(normalizeCity('')).toBe('');
+    expect(formatCityTitleCase('')).toBe('');
   });
 
   it('только пробелы → пустая строка', () => {
-    expect(normalizeCity('   ')).toBe('');
+    expect(formatCityTitleCase('   ')).toBe('');
   });
 
   it('все строчные → первая заглавная', () => {
-    expect(normalizeCity('самара')).toBe('Самара');
+    expect(formatCityTitleCase('самара')).toBe('Самара');
   });
 
   it('все заглавные → первая заглавная, остальные строчные', () => {
-    expect(normalizeCity('САМАРА')).toBe('Самара');
+    expect(formatCityTitleCase('САМАРА')).toBe('Самара');
   });
 
   it('смешанный регистр → нормализованный', () => {
-    expect(normalizeCity('саМаРа')).toBe('Самара');
+    expect(formatCityTitleCase('саМаРа')).toBe('Самара');
   });
 
   it('город с дефисом — обе части с заглавной', () => {
-    expect(normalizeCity('санкт-петербург')).toBe('Санкт-Петербург');
+    expect(formatCityTitleCase('санкт-петербург')).toBe('Санкт-Петербург');
   });
 
   it('город с дефисом — uppercase → нормализованный', () => {
-    expect(normalizeCity('САНКТ-ПЕТЕРБУРГ')).toBe('Санкт-Петербург');
+    expect(formatCityTitleCase('САНКТ-ПЕТЕРБУРГ')).toBe('Санкт-Петербург');
   });
 
   it('уже нормализованный — без изменений', () => {
-    expect(normalizeCity('Самара')).toBe('Самара');
-    expect(normalizeCity('Санкт-Петербург')).toBe('Санкт-Петербург');
+    expect(formatCityTitleCase('Самара')).toBe('Самара');
+    expect(formatCityTitleCase('Санкт-Петербург')).toBe('Санкт-Петербург');
   });
 
   it('пробелы по краям обрезаются', () => {
-    expect(normalizeCity('  москва  ')).toBe('Москва');
+    expect(formatCityTitleCase('  москва  ')).toBe('Москва');
   });
 
   it('Тольятти — корректно нормализуется', () => {
-    expect(normalizeCity('тольятти')).toBe('Тольятти');
+    expect(formatCityTitleCase('тольятти')).toBe('Тольятти');
   });
 });
 

@@ -6,6 +6,7 @@
 
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import type { ProviderClientNote } from '@sporthub/types';
+import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
 
 import { AccessService } from '../access/access.service';
@@ -22,7 +23,7 @@ const createSchema = z
   .object({
     providerUserId: z.number().int().positive(),
     clientUserId: z.number().int().positive(),
-    note: z.string().trim().min(1).max(2000),
+    note: z.string().trim().min(1).max(APP_LIMITS.providerNoteMaxLength),
     bookingId: z.number().int().positive().optional(),
   })
   .strict();
@@ -30,7 +31,7 @@ const createSchema = z
 const patchSchema = z
   .object({
     userId: z.number().int().positive(),
-    note: z.string().trim().min(1).max(2000).optional(),
+    note: z.string().trim().min(1).max(APP_LIMITS.providerNoteMaxLength).optional(),
     bookingId: z.number().int().positive().nullable().optional(),
   })
   .strict();

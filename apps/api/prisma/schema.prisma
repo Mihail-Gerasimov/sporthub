@@ -1,0 +1,1026 @@
+// Схема базы данных SportHub.
+// Источник: project-phases/phase-33.md, разделы 6.1–6.8 (инвентарь 27 таблиц,
+// решения по спорным местам, основные и связующие таблицы, индексы, ограничения,
+// каскады, список диалектной специфики).
+//
+// Соглашения, принятые в фазе 33 и обязательные для всей схемы:
+//
+// 1. Физические имена. У каждой модели — @@map со snake_case, у каждой колонки — @map.
+//    Весь сырой SQL из 6.6 (CHECK-ограничения и частичные уникальные индексы) написан
+//    под snake_case: bookings, trainer_club_links, booked_count. Без карт имён каждое
+//    из двенадцати выражений упадёт при накате миграции.
+// 2. Перечисления — строковые колонки, а не типы-перечисления базы (решение 5.4).
+//    Словари объявлены один раз: типы-объединения в packages/types, наборы значений
+//    и правила переходов в packages/domain. Тип в базе дал бы второе объявление,
+//    которое разойдётся с первым при первой же правке.
+// 3. Идентификаторы — целые с автоинкрементом (решение 5.3): EntityId = number
+//    встречается в коде 288 раз, эталон контрактов содержит 80 числовых идентификаторов.
+// 4. Деньги — целые рубли (решение заказчика). Копеек, скидок и частичного возврата
+//    в планах нет; смена типа позже означала бы пересборку таблиц.
+// 5. Длины строк проставлены явно (требование 6.8): на PostgreSQL String — это текст
+//    без предела, а на MySQL Prisma по умолчанию даёт 191 символ, и описания молча
+//    обрежутся при смене СУБД. Свободный текст — @db.Text, короткие значения —
+//    @db.VarChar. Две длины взяты из кода: отзыв 1000 (APP_LIMITS.reviewTextMaxLength),
+//    заметка провайдера 2000 (проверка на входе).
+// 6. Комментарии — на русском, как во всём проекте.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// СПРАВОЧНИКИ — шесть таблиц
+// Все шесть построены на BaseEntity { id, createdAt } + name. Проверено по данным:
+// name уникален во всех справочниках, поэтому @unique безопасен и заодно защищает
+// от дублей при ручном наполнении.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Город. Хранит центр карты — Coordinates разложены в две колонки,
+/// чтобы не заводить составной тип и не терять индексируемость.
+model City {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @map("name") @db.VarChar(200)
+
+  /// Нормализованное имя: обрезка пробелов + нижний регистр + NFC.
+  /// Заполняется единственной функцией normalizeCityName из кода, НЕ выражением базы:
+  /// приведение регистра в базе идёт по её сортировке и для кириллицы не гарантировано,
+  /// а NFC в SQL не выражается вовсе. Уникальный индекс по хранимой колонке заменяет
+  /// функциональный индекс по lower(...) и переносится на любую СУБД.
+  nameNormalized String @unique @map("name_normalized") @db.VarChar(200)
+
+  /// Центр карты города.
+  latitude  Float @map("latitude")
+  longitude Float @map("longitude")
+
+  @@map("cities")
+}
+
+/// Вид спорта. Единственный справочник с собственным содержимым (описание,
+/// иконка, обложка) — он показывается пользователю отдельными страницами.
+/// Удаление запрещено (Restrict со всех сторон): вид спорта держит каталог.
+model Sport {
+  id          Int      @id @default(autoincrement()) @map("id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  name        String   @unique @map("name") @db.VarChar(200)
+  slug        String   @unique @map("slug") @db.VarChar(200)
+  description String   @map("description") @db.Text
+  icon        String   @map("icon") @db.VarChar(100)
+  imageUrl    String   @map("image_url") @db.VarChar(500)
+  isPopular   Boolean  @default(false) @map("is_popular")
+
+  clubs             ClubSport[]
+  trainers          TrainerSport[]
+  offerings         Offering[]
+  schedule          Schedule[]
+  bookings          Booking[]
+  primaryForTrainer Trainer[]      @relation("TrainerPrimarySport")
+
+  @@map("sports")
+}
+
+/// Тег клуба — чистая метка. Удаление тега обязано просто снимать метку,
+/// поэтому связующая таблица идёт с каскадом с обеих сторон (6.4).
+model Tag {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @unique @map("name") @db.VarChar(200)
+
+  clubs ClubTag[]
+
+  @@map("tags")
+}
+
+/// Удобство клуба (парковка, душ, шкафчики). Такая же чистая метка, как тег.
+model Amenity {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @unique @map("name") @db.VarChar(200)
+
+  clubs ClubAmenity[]
+
+  @@map("amenities")
+}
+
+/// Специализация тренера.
+model Specialty {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @unique @map("name") @db.VarChar(200)
+
+  trainers TrainerSpecialty[]
+
+  @@map("specialties")
+}
+
+/// Формат работы тренера (индивидуально, группа, онлайн).
+model WorkFormat {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @unique @map("name") @db.VarChar(200)
+
+  trainers TrainerWorkFormat[]
+
+  @@map("work_formats")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ЛЮДИ И ПУБЛИКАЦИИ
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Пользователь платформы: атлет, тренер, владелец клуба или админ.
+/// Физически не удаляется — для этого есть статусы, поэтому история (записи,
+/// отзывы, журнал) держит пользователя через Restrict (6.7).
+model User {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 'athlete' | 'trainer' | 'club_owner' | 'admin' — словарь USER_ROLES
+  /// в packages/types. Строка, а не тип базы: новая роль не должна требовать миграции.
+  role String @map("role") @db.VarChar(32)
+
+  /// 'active' | 'banned' | 'suspended'. В типе поле опционально, но во всех
+  /// 8 записях оно есть: «нет значения» и «active» — одно и то же, поэтому
+  /// колонка обязательная с дефолтом.
+  status String @default("active") @map("status") @db.VarChar(32)
+
+  name String @map("name") @db.VarChar(200)
+
+  /// Логин: вход ищет пользователя по почте. Сравнение в коде точное,
+  /// без нормализации регистра, — обычный уникальный индекс ему соответствует (6.6).
+  email String @unique @map("email") @db.VarChar(320)
+
+  /// Без @unique: телефон логином не служит.
+  phone String @map("phone") @db.VarChar(32)
+
+  /// Было User.password. Пароля открытым текстом в базе не остаётся нигде:
+  /// соль и параметры хранятся внутри самой строки хеша (5.9).
+  passwordHash String @map("password_hash") @db.VarChar(255)
+
+  avatarUrl String? @map("avatar_url") @db.VarChar(500)
+
+  /// В MVP это текст, а не ссылка на City — так объявлено в типах.
+  city String? @map("city") @db.VarChar(200)
+
+  /// Карантин атлета (фазы 24/25): ручное снятие админом.
+  quarantineLiftedAt DateTime? @map("quarantine_lifted_at")
+
+  /// Дедуп уведомления о начале карантина: хранит `until` последнего уведомления.
+  notifiedQuarantineUntil DateTime? @map("notified_quarantine_until")
+
+  managedClubs    Club[]    @relation("ClubManagedBy")
+  hiddenClubs     Club[]    @relation("ClubHiddenBy")
+  managedTrainers Trainer[] @relation("TrainerManagedBy")
+  hiddenTrainers  Trainer[] @relation("TrainerHiddenBy")
+
+  bookings           Booking[]
+  reviews            Review[]
+  logEntries         LogEntry[]
+  bookingTransitions BookingStatusTransition[]
+
+  notifications           Notification[]
+  notificationPreferences UserNotificationPreference[]
+  favoriteClubs           UserFavoriteClub[]
+
+  providerNotes ProviderClientNote[] @relation("NoteProvider")
+  clientNotes   ProviderClientNote[] @relation("NoteClient")
+
+  initiatedLinks TrainerClubLink[] @relation("LinkInitiatedBy")
+  approvedLinks  TrainerClubLink[] @relation("LinkApprovedBy")
+  rejectedLinks  TrainerClubLink[] @relation("LinkRejectedBy")
+  revokedLinks   TrainerClubLink[] @relation("LinkRevokedBy")
+
+  /// Счётчики атлетов и провайдеров в сводке.
+  @@index([role])
+  /// Вход: почта + активность одним условием (auth.controller.ts:64).
+  /// Отдельный индекс по одному статусу не заводится — он покрыт этим (6.5).
+  @@index([email, status])
+  @@map("users")
+}
+
+/// Клуб — публикация провайдера. Удаление клуба сносит услуги, слоты, записи,
+/// отзывы и связи с тренерами (6.7) — ровно то, что делает cascadeDeleteInner сегодня,
+/// плюс связи, которые нынешний код по недосмотру оставляет висеть.
+model Club {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @map("name") @db.VarChar(200)
+
+  /// Публичный адрес /clubs/[slug].
+  slug String @unique @map("slug") @db.VarChar(200)
+
+  /// Нормализованный адрес-ссылка: снятие URI-кодирования + NFC + нижний регистр.
+  /// Хранимая колонка, а не выражение: normalizeSlugLookupValue делает три операции,
+  /// и первые две в SQL не выражаются вовсе (6.6).
+  slugNormalized String @unique @map("slug_normalized") @db.VarChar(200)
+
+  description      String @map("description") @db.Text
+  shortDescription String @map("short_description") @db.Text
+
+  /// Текст, а не ссылка на City — так в типах.
+  city    String @map("city") @db.VarChar(200)
+  address String @map("address") @db.VarChar(300)
+  phone   String @map("phone") @db.VarChar(32)
+
+  /// Заполнена во всех 4 записях, но провайдер вправе не указать.
+  email    String? @map("email") @db.VarChar(320)
+  website  String? @map("website") @db.VarChar(500)
+  vk       String? @map("vk") @db.VarChar(500)
+  telegram String? @map("telegram") @db.VarChar(500)
+  facebook String? @map("facebook") @db.VarChar(500)
+
+  latitude  Float @map("latitude")
+  longitude Float @map("longitude")
+
+  /// Агрегаты отзывов. Писателя у них сегодня НЕТ — они выставляются в ноль
+  /// при создании и больше не меняются. Писатель заводится в 5.11: вставка отзыва
+  /// и обновление агрегата — одна операция внутри одной транзакции.
+  rating      Float @default(0) @map("rating")
+  reviewCount Int   @default(0) @map("review_count")
+  priceFrom   Int   @default(0) @map("price_from")
+  distanceKm  Float @default(0) @map("distance_km")
+
+  /// Владелец-провайдер. Опционален: seed-клубы бывают без хозяина.
+  /// При удалении пользователя обнуляется — потеря атрибуции допустима,
+  /// потеря клуба нет (6.7).
+  managedByUserId Int? @map("managed_by_user_id")
+
+  /// 'provider' | 'seed'. В типе опционально, в данных заполнено везде.
+  source String @default("seed") @map("source") @db.VarChar(32)
+
+  /// 'published' | 'draft' | 'hidden'.
+  status String @default("published") @map("status") @db.VarChar(32)
+
+  /// Модерация: заполняется при скрытии админом.
+  hideReason     String?   @map("hide_reason") @db.Text
+  hiddenAt       DateTime? @map("hidden_at")
+  hiddenByUserId Int?      @map("hidden_by_user_id")
+
+  managedByUser User? @relation("ClubManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  hiddenByUser  User? @relation("ClubHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+
+  /// Владение — каскад: удаление клуба сносит его каталог и историю.
+  ownedOfferings Offering[] @relation("OfferingOwnerClub")
+  ownedSchedule  Schedule[] @relation("ScheduleOwnerClub")
+  ownedBookings  Booking[]  @relation("BookingOwnerClub")
+
+  /// Площадка — отдельные сведения от владения (6.2): тренерское занятие
+  /// проходит в зале клуба, владельцем оставаясь тренерским.
+  venueOfferings Offering[] @relation("OfferingVenueClub")
+  venueSchedule  Schedule[] @relation("ScheduleVenueClub")
+  venueBookings  Booking[]  @relation("BookingVenueClub")
+
+  reviews     Review[]
+  images      ClubImage[]
+  sports      ClubSport[]
+  tags        ClubTag[]
+  amenities   ClubAmenity[]
+  favoritedBy UserFavoriteClub[]
+  trainerLink TrainerClubLink[]
+
+  /// Публичная выдача, отсев скрытых.
+  @@index([status])
+  /// «Мои публикации» и проверка прав.
+  @@index([managedByUserId])
+  /// Сводка и админский список.
+  @@index([city, status])
+  /// Список публикаций для модерации: фильтр + «свежие сверху».
+  @@index([status, createdAt(sort: Desc)])
+  /// ?minRating= фильтрует по рейтингу И отсекает скрытые — условие двухколоночное.
+  /// Симметрично тренеру; одиночный (rating DESC) его не покрывает (6.5).
+  @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
+  @@map("clubs")
+}
+
+/// Тренер — вторая публикация провайдера, симметричная клубу.
+/// ВНИМАНИЕ: legacy-поля affiliatedClubId и clubId, ещё лежащие в trainers.json,
+/// в схему НЕ переносятся — они удалены в фазе 25. Источник правды связи
+/// тренер↔клуб — только TrainerClubLink.
+model Trainer {
+  id             Int      @id @default(autoincrement()) @map("id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  name           String   @map("name") @db.VarChar(200)
+  slug           String   @unique @map("slug") @db.VarChar(200)
+  slugNormalized String   @unique @map("slug_normalized") @db.VarChar(200)
+
+  bio             String @map("bio") @db.Text
+  avatarUrl       String @default("") @map("avatar_url") @db.VarChar(500)
+  experienceYears Int    @map("experience_years")
+
+  /// Агрегаты отзывов — см. комментарий у клуба.
+  rating      Float @default(0) @map("rating")
+  reviewCount Int   @default(0) @map("review_count")
+  priceFrom   Int   @default(0) @map("price_from")
+
+  /// У тренера может не быть своей точки — в типе всё опционально.
+  city      String? @map("city") @db.VarChar(200)
+  address   String? @map("address") @db.VarChar(300)
+  latitude  Float?  @map("latitude")
+  longitude Float?  @map("longitude")
+
+  /// Телефон опционален «для совместимости с seed» — так в типах.
+  phone    String? @map("phone") @db.VarChar(32)
+  vk       String? @map("vk") @db.VarChar(500)
+  telegram String? @map("telegram") @db.VarChar(500)
+  facebook String? @map("facebook") @db.VarChar(500)
+
+  /// STUB: переходный «основной вид спорта» из фазы 25. Присутствует в эталоне
+  /// контрактов — убрать нельзя, только вычислять. Колонка отдельная, а не позиция
+  /// в TrainerSport (решение 6.4). Правило синхронизации: пересчитывается
+  /// в той же транзакции, что и TrainerSport, единственным хелпером.
+  sportId Int? @map("sport_id")
+
+  managedByUserId Int?   @map("managed_by_user_id")
+  source          String @default("seed") @map("source") @db.VarChar(32)
+  status          String @default("published") @map("status") @db.VarChar(32)
+
+  hideReason     String?   @map("hide_reason") @db.Text
+  hiddenAt       DateTime? @map("hidden_at")
+  hiddenByUserId Int?      @map("hidden_by_user_id")
+
+  managedByUser User?  @relation("TrainerManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  hiddenByUser  User?  @relation("TrainerHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+  /// SetNull, а не Restrict: поле переходное и помечено STUB (6.7).
+  sport         Sport? @relation("TrainerPrimarySport", fields: [sportId], references: [id], onDelete: SetNull)
+
+  offerings Offering[] @relation("OfferingOwnerTrainer")
+  schedule  Schedule[] @relation("ScheduleOwnerTrainer")
+  bookings  Booking[]  @relation("BookingOwnerTrainer")
+
+  reviews     Review[]
+  sports      TrainerSport[]
+  specialties TrainerSpecialty[]
+  workFormats TrainerWorkFormat[]
+  clubLinks   TrainerClubLink[]
+
+  @@index([status])
+  @@index([managedByUserId])
+  @@index([city, status])
+  @@index([status, createdAt(sort: Desc)])
+  /// Умолчальная сортировка выдачи тренеров трёхуровневая (clubs.controller.ts:289-293).
+  @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
+  @@map("trainers")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// КАТАЛОГ И ЗАПИСИ
+//
+// Владелец услуги, слота и записи — пара взаимоисключающих внешних ключей
+// ownerClubId / ownerTrainerId (ровно один заполнен, проверка CHECK в миграции),
+// ПЛЮС отдельная необязательная venueClubId — площадка (6.2).
+//
+// Почему не одна пара: booking.service.ts:176-177 при ownerType === 'trainer'
+// заполняет и clubId, и trainerId, когда тренерское занятие идёт в зале клуба,
+// а access.service.ts:40-42 обращается с этими сведениями как с независимыми.
+// Схлопывание убило бы одну из двух связей: владелец клуба потерял бы доступ
+// к записям на тренерские занятия в собственном зале, а удаление клуба перестало бы
+// их удалять. «Владелец» и «площадка» — разные сведения, схлопывать нельзя.
+//
+// Репозиторий при чтении собирает ownerType/ownerId/clubId/trainerId обратно —
+// четыре строки маппинга в одном месте. Интерфейс репозитория и 139 использований
+// ownerType в сервисах и UI не меняются.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Услуга — то, что продаёт клуб или тренер.
+model Offering {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Владелец: ровно один из двух заполнен — CHECK в миграции (6.6).
+  ownerClubId    Int? @map("owner_club_id")
+  ownerTrainerId Int? @map("owner_trainer_id")
+
+  /// Площадка: зал клуба, в котором тренер ведёт занятие. NULL — своя точка.
+  venueClubId Int? @map("venue_club_id")
+
+  /// Услуга тренера «в клубе» ссылается на подтверждённую связь.
+  /// NULL — услуга частная; при разрыве связи обнуляется (поведение фазы 24).
+  trainerClubLinkId Int? @map("trainer_club_link_id")
+
+  /// Остаётся необязательным, хотя семантика дефолта верна: эталон контрактов
+  /// фиксирует ОТСУТСТВИЕ этого ключа у услуги в ответах POST /api/clubs
+  /// и POST /api/trainers. Колонка с дефолтом добавила бы ключ, которого
+  /// в эталоне нет, и сверка разошлась бы. Read-fallback остаётся в коде.
+  cancellationPolicy String? @map("cancellation_policy") @db.VarChar(64)
+
+  sportId     Int    @map("sport_id")
+  title       String @map("title") @db.VarChar(200)
+  description String @map("description") @db.Text
+
+  /// 'group' | 'personal' | 'mini_group'.
+  format String @map("format") @db.VarChar(32)
+
+  /// Целые рубли — как и все денежные поля схемы.
+  price Int @map("price")
+
+  durationMinutes Int    @map("duration_minutes")
+  capacity        Int    @map("capacity")
+  address         String @map("address") @db.VarChar(300)
+  latitude        Float  @map("latitude")
+  longitude       Float  @map("longitude")
+
+  ownerClub       Club?            @relation("OfferingOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
+  ownerTrainer    Trainer?         @relation("OfferingOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  // Площадка удалена — услуга тренера остаётся, теряя площадку. Каскад здесь был бы
+  // изменением поведения: сегодня удаление клуба сносит только услуги самого клуба
+  // (`publication.service.ts:392-399` отбирает их по владельцу), а услуги тренера,
+  // проходящие в его зале, переживают удаление и становятся частными.
+  venueClub       Club?            @relation("OfferingVenueClub", fields: [venueClubId], references: [id], onDelete: SetNull)
+  trainerClubLink TrainerClubLink? @relation(fields: [trainerClubLinkId], references: [id], onDelete: SetNull)
+  sport           Sport            @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  schedule Schedule[]
+  /// SetNull со стороны записи: она обязана пережить исчезновение услуги.
+  bookings Booking[]
+
+  /// Услуги владельца.
+  @@index([ownerClubId])
+  @@index([ownerTrainerId])
+  /// Каскад по площадке и проверка доступа владельца зала (6.2).
+  @@index([venueClubId])
+  @@index([sportId])
+  /// Отвязка услуг при разрыве связи тренер↔клуб.
+  @@index([trainerClubLinkId])
+  /// Сортировка услуг тренера по цене (catalog-query.service.ts:247).
+  /// Парный клубный индекс не заводится: у клуба списка услуг нет вовсе,
+  /// карточка берёт одну основную (6.5).
+  @@index([ownerTrainerId, price])
+  @@map("offerings")
+}
+
+/// Слот расписания — конкретное занятие в конкретный день и час.
+/// Имя таблицы единственного числа (schedule) — под него написан сырой SQL в 6.6.
+model Schedule {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  offeringId     Int? @map("offering_id")
+  ownerClubId    Int? @map("owner_club_id")
+  ownerTrainerId Int? @map("owner_trainer_id")
+  venueClubId    Int? @map("venue_club_id")
+  sportId        Int  @map("sport_id")
+
+  title String @map("title") @db.VarChar(200)
+
+  /// Ни у одного из 10 слотов не заполнено.
+  description String? @map("description") @db.Text
+
+  /// Дата и время раздельными типами и БЕЗ часового пояса (решение 5.6):
+  /// занятие в 10:00 идёт в 10:00 там, где зал, независимо от пояса сервера.
+  /// На границе репозитория превращаются обратно в те же строки — контракт не меняется.
+  date      DateTime @map("date") @db.Date
+  startTime DateTime @map("start_time") @db.Time(0)
+  endTime   DateTime @map("end_time") @db.Time(0)
+
+  durationMinutes Int @map("duration_minutes")
+
+  /// 'beginner' | 'intermediate' | 'advanced' | 'all_levels'.
+  level String @map("level") @db.VarChar(32)
+
+  capacity Int @map("capacity")
+
+  /// Денормализованный счётчик занятых мест. Меняется ТОЛЬКО условным обновлением
+  /// внутри транзакции (5.7) — иначе чтение-подсчёт-запись даёт овербукинг при гонке.
+  /// Диапазон 0..capacity закрепляется CHECK-ограничением, но ставится оно ПОСЛЕ того,
+  /// как проверка вместимости переедет внутрь транзакции (6.6).
+  bookedCount Int @default(0) @map("booked_count")
+
+  price Int     @map("price")
+  room  String? @map("room") @db.VarChar(100)
+
+  offering     Offering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  ownerClub    Club?     @relation("ScheduleOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
+  ownerTrainer Trainer?  @relation("ScheduleOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  // Как и у услуги: слоты тренера переживают удаление зала, теряя площадку.
+  venueClub    Club?     @relation("ScheduleVenueClub", fields: [venueClubId], references: [id], onDelete: SetNull)
+  sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  /// Restrict, а не Cascade: каскад стёр бы историю атлета, включая завершённые
+  /// занятия. Перед удалением слота его записи переводятся в «отменено провайдером»
+  /// с уведомлением атлету (решение заказчика, 6.7).
+  bookings Booking[]
+
+  /// Согласование слотов при правке услуги и каскад.
+  @@index([offeringId])
+  /// Расписание клуба и тренера одним обходом.
+  @@index([ownerClubId, date, startTime])
+  /// Он же обслуживает «все клубные слоты платформы»: после 6.2 «клубный» —
+  /// это «владелец-тренер пуст», и NULL идут в начале индекса.
+  @@index([ownerTrainerId, date, startTime])
+  @@index([venueClubId])
+  /// ?sportId=&date= и срез аналитики.
+  @@index([sportId, date])
+  @@index([date, startTime])
+  @@map("schedule")
+}
+
+/// Запись атлета на занятие. Статус живёт по правилам FSM: тип — в packages/types,
+/// правила переходов — в packages/domain. История переходов вынесена
+/// в BookingStatusTransition, потому что перезапись массива целиком теряет
+/// одновременные переходы (7.9).
+model Booking {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  scheduleId     Int  @map("schedule_id")
+  offeringId     Int? @map("offering_id")
+  ownerClubId    Int? @map("owner_club_id")
+  ownerTrainerId Int? @map("owner_trainer_id")
+
+  /// Площадка. Именно на неё переводятся access.service и removeMany (6.2):
+  /// владелец клуба видит записи на тренерские занятия в своём зале,
+  /// а удаление клуба-площадки их удаляет.
+  venueClubId Int? @map("venue_club_id")
+
+  userId  Int @map("user_id")
+  sportId Int @map("sport_id")
+
+  /// Копия даты слота, синхронизируется при переносе занятия.
+  /// Расходится со слотом в 31 записи из 32 — это снимок, а не ошибка.
+  date DateTime @map("date") @db.Date
+
+  status        String @map("status") @db.VarChar(32)
+  paymentStatus String @default("unpaid") @map("payment_status") @db.VarChar(32)
+  totalPrice    Int    @map("total_price")
+
+  /// Снимок политики отмены на момент записи: защищает атлета от условий,
+  /// ужесточённых задним числом. Необязательное по той же причине, что и у услуги:
+  /// ключ есть у POST /api/bookings, но ОТСУТСТВУЕТ у GET /api/bookings,
+  /// /confirm, /reject, /cancel — колонка с дефолтом уронила бы 4 вызова из 57.
+  cancellationPolicySnapshot String? @map("cancellation_policy_snapshot") @db.VarChar(64)
+
+  /// Инициатор финального перехода, 22 из 32 записей.
+  cancelledBy String? @map("cancelled_by") @db.VarChar(32)
+
+  /// 'on_time' | 'late' — подстатус отмены атлетом, 5 из 32.
+  cancelReason String? @map("cancel_reason") @db.VarChar(32)
+
+  completedAt DateTime? @map("completed_at")
+
+  schedule     Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  /// В 6.7 правило для этой связи не задано отдельно: удаление владельца уже
+  /// каскадит на записи, а сама запись обязана пережить исчезновение услуги.
+  offering     Offering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  ownerClub    Club?     @relation("BookingOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
+  ownerTrainer Trainer?  @relation("BookingOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  // А вот записи каскадом удаляются — и это НЕ асимметрия ради асимметрии, а точное
+  // повторение сегодняшнего поведения: `cascadeDeleteInner` сносит записи фильтром
+  // `{ clubId }` (`publication.service.ts:402`), а `clubId` у тренерского занятия
+  // в зале клуба — это как раз площадка (`booking.service.ts:176`).
+  venueClub    Club?     @relation("BookingVenueClub", fields: [venueClubId], references: [id], onDelete: Cascade)
+  /// Restrict: пользователей не удаляют физически, а история обязана пережить аккаунт.
+  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  statusTransitions BookingStatusTransition[]
+  providerNotes     ProviderClientNote[]
+
+  /// «Мои записи»: фильтр + составная сортировка.
+  @@index([userId, date, createdAt])
+  /// Проверка дубля перед созданием.
+  @@index([scheduleId, userId, status])
+  /// Перенос даты слота тянет даты записей.
+  @@index([scheduleId])
+  /// Каскад, надёжность, сводка, график.
+  @@index([ownerClubId])
+  @@index([ownerTrainerId])
+  @@index([venueClubId])
+  @@index([sportId, createdAt])
+  @@index([createdAt])
+  @@map("bookings")
+}
+
+/// Отзыв. Ровно один адресат — клуб ИЛИ тренер (CHECK в миграции),
+/// оценка в диапазоне 1..5 (тоже CHECK).
+model Review {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+
+  clubId    Int? @map("club_id")
+  trainerId Int? @map("trainer_id")
+
+  rating Int @map("rating")
+
+  /// Длина из APP_LIMITS.reviewTextMaxLength.
+  text String @map("text") @db.VarChar(1000)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  club    Club?    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  trainer Trainer? @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Отзывы объекта «свежие сверху» — фильтр и сортировка вместе.
+  @@index([clubId, createdAt(sort: Desc)])
+  @@index([trainerId, createdAt(sort: Desc)])
+  /// Период в сводке. Индекс по (userId) не заводится: findMany принимает только
+  /// клуб и тренера (crud.repository.ts:29), выдачи «мои отзывы» в проекте нет (6.5).
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// СЛУЖЕБНОЕ
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Уведомление в ленте колокольчика. Производные данные: вне адресата
+/// бессмысленны, поэтому удаляются вместе с пользователем.
+model Notification {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+
+  /// Словарь NotificationType — 22 значения, объявлен в packages/types.
+  type String @map("type") @db.VarChar(64)
+
+  /// Форма зависит от типа, запросов по внутренностям нет. Json оставлен
+  /// сознательно (6.8): он даёт проверку формата при записи.
+  payload Json @map("payload")
+
+  /// NULL — непрочитано; 66 из 93 прочитаны.
+  readAt DateTime? @map("read_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Лента колокольчика с постраничностью.
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// Связь тренер ↔ клуб — источник правды об аффилиации.
+/// Обычный @@unique([trainerId, clubId]) НЕЛЬЗЯ: пары (4,3), (4,1), (4,2), (4,4)
+/// встречаются дважды — история rejected/revoked накапливается. Уникальность
+/// ставится частичным индексом по активным статусам (6.6).
+model TrainerClubLink {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  trainerId Int      @map("trainer_id")
+  clubId    Int      @map("club_id")
+
+  /// 'pending' | 'confirmed' | 'rejected' | 'revoked'.
+  status String @map("status") @db.VarChar(32)
+
+  /// 'trainer' | 'club' — сторона, начавшая связь.
+  initiatedBy String @map("initiated_by") @db.VarChar(32)
+
+  /// Есть в данных (2 из 11), но отсутствует в типе. Колонку заводим,
+  /// поле дописывается в тип — терять сведения не будем.
+  initiatedByUserId Int? @map("initiated_by_user_id")
+
+  approvedAt       DateTime? @map("approved_at")
+  approvedByUserId Int?      @map("approved_by_user_id")
+  rejectedAt       DateTime? @map("rejected_at")
+  rejectedByUserId Int?      @map("rejected_by_user_id")
+  rejectionReason  String?   @map("rejection_reason") @db.Text
+  revokedAt        DateTime? @map("revoked_at")
+  revokedByUserId  Int?      @map("revoked_by_user_id")
+
+  /// Сторона ('trainer' | 'club' | 'admin'), а не пользователь.
+  revokedBy String? @map("revoked_by") @db.VarChar(32)
+
+  /// Cascade чинит существующий дефект: cascadeDeleteInner связи не трогает,
+  /// и после удаления клуба остаётся подтверждённая связь на несуществующий клуб,
+  /// по которой каталог продолжает отбирать тренеров (6.7).
+  trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  initiatedByUser User? @relation("LinkInitiatedBy", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+  approvedByUser  User? @relation("LinkApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  rejectedByUser  User? @relation("LinkRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  revokedByUser   User? @relation("LinkRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  /// При разрыве связи услуга становится частной — SetNull (6.7).
+  offerings Offering[]
+
+  /// «Клубы тренера» и «тренеры клуба» через подтверждённую связь + порядок.
+  @@index([trainerId, status, createdAt(sort: Desc)])
+  @@index([clubId, status, createdAt(sort: Desc)])
+  @@map("trainer_club_links")
+}
+
+/// Журнал аудита. Единственное место, где полиморфная ссылка остаётся БЕЗ
+/// внешнего ключа, и это не компромисс, а требование: журнал фиксирует в том числе
+/// publish_delete и admin_hard_delete_booking, то есть запись обязана пережить
+/// удаление объекта. Внешний ключ превратил бы аудит в данные, удаляемые
+/// вместе с объектом (6.2).
+model LogEntry {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Словарь LogAction — 17 значений.
+  action String @map("action") @db.VarChar(64)
+
+  actorId Int @map("actor_id")
+
+  /// Роль на момент действия — снимок, а не текущая роль.
+  actorRole String @map("actor_role") @db.VarChar(32)
+
+  /// Полиморфизм без внешнего ключа — сознательно.
+  entityType String @map("entity_type") @db.VarChar(64)
+  entityId   Int    @map("entity_id")
+
+  meta Json? @map("meta")
+
+  /// Restrict: история обязана пережить аккаунт исполнителя.
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  /// Журнал с фильтрами и постраничностью.
+  @@index([action, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  /// Индекс (entityType, entityId) не заводится: схема запроса журнала
+  /// (logs.controller.ts:56-66) принимает только действие, исполнителя и границы дат.
+  /// Он вернётся вместе с выдачей «история сущности» (6.5).
+  @@map("logs")
+}
+
+/// Заметка провайдера о клиенте. В provider-client-notes.json 0 записей,
+/// обязательность полей взята из типа и проверки на входе (1..2000 символов).
+model ProviderClientNote {
+  id             Int      @id @default(autoincrement()) @map("id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @map("updated_at")
+  providerUserId Int      @map("provider_user_id")
+  clientUserId   Int      @map("client_user_id")
+  note           String   @map("note") @db.VarChar(2000)
+
+  /// Заметка переживает удаление записи, теряя только контекст.
+  bookingId Int? @map("booking_id")
+
+  providerUser User     @relation("NoteProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
+  clientUser   User     @relation("NoteClient", fields: [clientUserId], references: [id], onDelete: Cascade)
+  booking      Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  /// Заметки провайдера по клиенту.
+  @@index([providerUserId, clientUserId, createdAt(sort: Desc)])
+  @@index([bookingId])
+  @@map("provider_client_notes")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// СВЯЗУЮЩИЕ ТАБЛИЦЫ ВМЕСТО МАССИВОВ ССЫЛОК — семь штук
+//
+// sportIds, tagIds, amenityIds, specialtyIds, workFormatIds, favoriteClubIds
+// становятся таблицами связи: колонка-массив не даёт ни внешних ключей,
+// ни каскадов, ни индексируемого соединения (5.5).
+//
+// Составной первичный ключ сам даёт уникальность пары и покрывает прямой поиск;
+// обратный индекс нужен под запросы «кто ссылается».
+//
+// Колонки позиции НЕТ — решение заказчика (6.4). Массив восстанавливается
+// по возрастанию идентификатора, и у двух клубов из четырёх чипы перетасуются.
+// Это согласованное изменение поведения: семь колонок и семь ограничений
+// уникальности ради порядка, который смысла не несёт, не заводятся.
+//
+// Справочники — Restrict, ярлыки — Cascade. Вид спорта нигде не удаляют,
+// и случайное удаление не должно обрушить каталог; тег и удобство — чистые метки,
+// их удаление обязано просто снимать метку.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Виды спорта клуба.
+model ClubSport {
+  clubId  Int @map("club_id")
+  sportId Int @map("sport_id")
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  sport Sport @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  @@id([clubId, sportId])
+  /// GET /clubs?sportId=
+  @@index([sportId])
+  @@map("club_sports")
+}
+
+/// Теги клуба.
+model ClubTag {
+  clubId Int @map("club_id")
+  tagId  Int @map("tag_id")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, tagId])
+  /// Поиск по названиям тегов.
+  @@index([tagId])
+  @@map("club_tags")
+}
+
+/// Удобства клуба.
+model ClubAmenity {
+  clubId    Int @map("club_id")
+  amenityId Int @map("amenity_id")
+
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, amenityId])
+  /// Фильтр по удобствам.
+  @@index([amenityId])
+  @@map("club_amenities")
+}
+
+/// Виды спорта тренера. ВНИМАНИЕ: «первый вид спорта» как основной берётся
+/// НЕ отсюда — для него заведена колонка Trainer.sportId, пересчитываемая
+/// в той же транзакции единственным хелпером (6.4).
+model TrainerSport {
+  trainerId Int @map("trainer_id")
+  sportId   Int @map("sport_id")
+
+  trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  sport   Sport   @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  @@id([trainerId, sportId])
+  /// GET /trainers?sportId=
+  @@index([sportId])
+  @@map("trainer_sports")
+}
+
+/// Специализации тренера.
+model TrainerSpecialty {
+  trainerId   Int @map("trainer_id")
+  specialtyId Int @map("specialty_id")
+
+  trainer   Trainer   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([trainerId, specialtyId])
+  @@index([specialtyId])
+  @@map("trainer_specialties")
+}
+
+/// Форматы работы тренера.
+model TrainerWorkFormat {
+  trainerId    Int @map("trainer_id")
+  workFormatId Int @map("work_format_id")
+
+  trainer    Trainer    @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  workFormat WorkFormat @relation(fields: [workFormatId], references: [id], onDelete: Cascade)
+
+  @@id([trainerId, workFormatId])
+  @@index([workFormatId])
+  @@map("trainer_work_formats")
+}
+
+/// Избранные клубы пользователя. Единственная связующая таблица с меткой времени:
+/// без неё не построить ленту избранного «свежие сверху» (6.4).
+model UserFavoriteClub {
+  userId    Int      @map("user_id")
+  clubId    Int      @map("club_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([userId, clubId])
+  /// «Кто добавил клуб».
+  @@index([clubId])
+  /// Лента избранного.
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("user_favorite_clubs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ВЫНЕСЕННЫЕ ВЛОЖЕННЫЕ СТРУКТУРЫ — три таблицы
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Кадры галереи клуба вместо Club.imageUrls.
+/// Нативный массив строк PostgreSQL отвергнут по той же причине, что и типы-
+/// перечисления: String[] — диалектная специфика, Prisma поддерживает массивы
+/// только на PostgreSQL. Отдельная таблица переносится на любую СУБД, даёт явный
+/// порядок кадров и не мешает добавить подпись, когда для неё появится потребитель.
+///
+/// Уникальность (clubId, position) НЕ ставится: отложенных ограничений нет
+/// в MySQL, SQLite и SQL Server, Prisma их не выражает, а потребителей у порядка
+/// кадров сегодня ноль — imageUrls пуст у всех четырёх клубов. Порядок держит
+/// колонка, уникальность вводится вместе с загрузкой фото (6.4).
+model ClubImage {
+  id       Int    @id @default(autoincrement()) @map("id")
+  clubId   Int    @map("club_id")
+  url      String @map("url") @db.VarChar(500)
+  position Int    @map("position")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, position])
+  @@map("club_images")
+}
+
+/// Переход статуса записи вместо Booking.statusHistory.
+/// Массив переписывался целиком из объекта, прочитанного ДО транзакции
+/// (booking.service.ts:106), — два одновременных перехода теряли один бесследно,
+/// а по этой истории считаются надёжность и карантин. Здесь дописывание истории
+/// становится вставкой ОДНОЙ строки (7.9).
+model BookingStatusTransition {
+  id        Int @id @default(autoincrement()) @map("id")
+  bookingId Int @map("booking_id")
+
+  /// NULL у самой первой записи: создание всегда идёт как null → pending.
+  /// Ровно одна нулевая точка истории на запись закрепляется частичным
+  /// уникальным индексом в миграции (6.4, 6.6).
+  fromStatus String? @map("from_status") @db.VarChar(32)
+  toStatus   String  @map("to_status") @db.VarChar(32)
+
+  /// Сторона перехода: 'athlete' | 'provider' | 'system' | 'admin'.
+  actor String @map("actor") @db.VarChar(32)
+
+  /// SetNull: потеря атрибуции допустима, потеря самой истории — нет (6.7).
+  actorUserId Int? @map("actor_user_id")
+
+  at     DateTime @map("at")
+  reason String?  @map("reason") @db.Text
+
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actorUser User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  /// История записи по порядку — и для админки, и для расчёта надёжности.
+  @@index([bookingId, at])
+  @@index([actorUserId])
+  @@map("booking_status_transitions")
+}
+
+/// Настройка уведомлений по типу вместо User.notificationPreferences.
+/// Карта в колонке не позволяла выбрать запросом «кому можно слать этот тип».
+///
+/// ОТСУТСТВИЕ СТРОКИ ОЗНАЧАЕТ «ВКЛЮЧЕНО» — это нынешняя семантика (types.ts:382-386).
+/// Значит enabled почти всегда false, и таблица остаётся крошечной.
+/// Индекс по type не нужен: чтение всегда идёт по userId.
+model UserNotificationPreference {
+  userId  Int     @map("user_id")
+  type    String  @map("type") @db.VarChar(64)
+  enabled Boolean @map("enabled")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("user_notification_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ЧТО НЕ ВЫРАЖАЕТСЯ В СХЕМЕ PRISMA И УЕДЕТ В СЫРУЮ МИГРАЦИЮ (шаг 33.13)
+//
+// Prisma не умеет ни CHECK-ограничений, ни частичных индексов. Всё перечисленное
+// ниже дописывается руками в файл миграции. Физические имена таблиц и колонок
+// в этих выражениях совпадают с @@map/@map выше — на этом держится накат.
+//
+// A. CHECK-ограничения (6.6) — семь штук.
+//    Форма через CASE, а не num_nonnulls: та функция есть только в PostgreSQL,
+//    а запись через CASE переносится на любую СУБД без правки, и цена этому — ноль.
+//
+//    1. offerings_owner_one — ровно один владелец у услуги:
+//       (CASE WHEN owner_club_id IS NULL THEN 0 ELSE 1 END)
+//     + (CASE WHEN owner_trainer_id IS NULL THEN 0 ELSE 1 END) = 1
+//    2. schedule_owner_one — то же для слота.
+//    3. bookings_owner_one — то же для записи.
+//    4. reviews_target_one — ровно один адресат у отзыва (club_id / trainer_id).
+//    5. reviews_rating_range — rating BETWEEN 1 AND 5.
+//    6. schedule_booked_range — booked_count >= 0 AND booked_count <= capacity.
+//       ⚠ Ставится ПОСЛЕДНИМ, а не первым: сегодня зажим Math.max(0, …) маскирует
+//       уход счётчика в минус, а проверка вместимости стоит вне транзакции.
+//       Пока это не починено (5.7), ограничение превратит семь известных сценариев
+//       рассинхрона из тихих в пятисотки. Порядок: сначала условное обновление,
+//       потом проверка.
+//    7. schedule_time_order — end_time > start_time.
+//
+// B. Частичные УНИКАЛЬНЫЕ индексы (6.6) — три штуки. Это главный размен фазы:
+//    на MySQL/MariaDB их нет как класса, но выбор сделан в пользу уникальности
+//    в базе, а не в коде — ради того самого, зачем фаза и затевается
+//    (овербукинг, двойная запись, дубль активной связи).
+//
+//    1. bookings_active_slot_user_uq
+//       ON bookings (schedule_id, user_id) WHERE status IN ('pending','confirmed')
+//       Текст ошибки наружу прежний: «Пользователь уже записан на это занятие».
+//    2. links_active_pair_uq
+//       ON trainer_club_links (trainer_id, club_id) WHERE status IN ('pending','confirmed')
+//       Текст прежний: «Для этой пары уже существует активная связь».
+//       Обычный @@unique нельзя: история rejected/revoked накапливает дубли пар.
+//    3. bst_initial_uq
+//       ON booking_status_transitions (booking_id) WHERE from_status IS NULL
+//       У записи ровно одна нулевая точка истории.
+//
+// C. Частичные ОБЫЧНЫЕ индексы (6.5) — там, где отбираемая доля мала.
+//
+//    1. ON schedule (date, start_time) WHERE booked_count < capacity
+//       Умолчание маршрута — только слоты со свободными местами.
+//    2. ON bookings (status, schedule_id) WHERE status IN ('pending','confirmed')
+//       Автопереходы иначе читают всю таблицу ради двух статусов.
+//    3. ON notifications (user_id, created_at DESC) WHERE read_at IS NULL
+//       Счётчик непрочитанных. ⚠ Единственный индекс, выведенный НЕ из существующего
+//       запроса: count() объявлен (catalog.repository.ts:73) и не вызывается ни разу —
+//       маршрут материализует строки ради длины. Запрос под него пишется в шаге 33.24.
+//    4. Четвёртый частичный (нескрытые публикации) в 6.5 назван, но выражением
+//       не расписан — форма определяется вместе с шагом 33.13.
+//
+// D. Уникальность, которая В СХЕМЕ ЕСТЬ и в сырую миграцию НЕ едет — чтобы
+//    не продублировать её по ошибке: users.email, sports.name, sports.slug,
+//    tags/amenities/specialties/work_formats.name, clubs.slug, trainers.slug,
+//    а также уникальные индексы по ХРАНИМЫМ нормализованным колонкам
+//    cities.name_normalized, clubs.slug_normalized, trainers.slug_normalized.
+//    Последние три — именно колонки, а не выражения lower(...): нормализация
+//    делает три операции (снятие URI-кодирования, NFC, нижний регистр с русской
+//    локалью), и первые две в SQL не выражаются вовсе. Колонки заполняет та же
+//    функция из кода — словарь остаётся один.
+// ═══════════════════════════════════════════════════════════════════════════

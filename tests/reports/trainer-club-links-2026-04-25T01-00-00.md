@@ -11,34 +11,34 @@
 
 ## Таблица шагов
 
-| ID | Описание | Статус | Заметки |
-|----|----------|--------|---------|
-| **S1 — Club-side приглашает тренера** | | | |
-| step-1 | Login + клуб существует | ✅ | Marina имеет 4 клуба |
-| step-2 | Секция `provider-links-club-side` | ✅ | «Связи к моим клубам» |
-| step-3 | Click «Пригласить тренера» → InviteTrainerModal | ✅ | |
-| step-4 | Поиск по части имени → фильтрация | ✅ | Поиск «ыв» → 1 тренер (Anna) |
-| step-5 | Submit → `pending` | ❌ **FAILED** | POST /api/trainer-club-links → **403 «Недостаточно прав для отправки запроса»**. Guard `isManagerOfTrainer(trainerId, userId)` разрешает только trainer-owner'у создавать link. UI показывает кнопку, backend блокирует — несоответствие контракта |
-| **S2 — Trainer-side принимает запрос (адапт.)** | | | |
-| step-1 | Marina получает `link_requested` | ✅ | id=55 type `link_requested` |
-| step-2 | Tab pending, карточка запроса | ✅ | «ывавыа выаываыва / Самарская федерация Айкидо ёшинкан · Запрос от тренера» |
-| step-3 | Click «Подтвердить» | ✅ | toast «Связь подтверждена», tab «Подтверждённые» 3→4 |
-| step-4 | Public club page — тренер в «Тренеры клуба» | ✅ | На `/clubs/самарская-федерация-айкидо-ёшинкан` секция «Тренеры клуба 1 тренера» с Anna |
-| step-5 | Public trainer page — клуб в «Работает в» | ✅ | На `/trainers/ывавыа-выаываыва` секция «Работает в» + ссылка на клуб |
-| **S3 — Отказ** | | | |
-| step-1 | Создать pending + Reject | ✅ | link #6 создан (trainer=4 → club=2), reject → rejected |
-| step-2 | Public view без rejected | ✅ | API возвращает только confirmed, rejected не отображается |
-| step-3 | Anna получает `link_rejected` | ✅ | id=58 |
-| **S4 — Revoke с warning-модалкой** | | | |
-| step-1 | Confirmed link + offerings с attachmentMode=club | ⚠ partial | Link #5 есть, но offerings с attachmentMode=club в seed нет — warning-counter показывает 0 |
-| step-2 | Click «Разорвать» → warning-модалка | ✅ | Dialog «Разорвать связь?», текст «После разрыва связи 0 услуг(а) автоматически станут частными» |
-| step-3 | Confirm → revoked, offerings → `attachmentMode=null` | ✅ | Link #5 → revoked, tab «Подтверждённые» 4→3, toast «Связь разорвана» |
-| step-4 | Вторая сторона получает `link_revoked` | ✅ | Anna (user=5) получила notification id=59 type `link_revoked` |
-| **S5 — Запрос со стороны тренера-провайдера (Anna → Marina-клуб)** | | | |
-| step-1 | Кнопка «Отправить запрос клубу» → RequestLinkModal | ✅ | |
-| step-2 | Фильтр foreignClubs — без активных links | ✅ | Из 4 Marina-клубов показано 3, «Невесомость» (id=3) скрыт — там уже confirmed link #4 с Anna-trainer |
-| step-3 | Submit → pending | ✅ | link #5 создан, tab «Мои запросы» 0→1, toast «Запрос отправлен» |
-| step-4 | Marina получает `link_requested` | ✅ | id=55 (см. S2 step-1) |
+| ID                                                                 | Описание                                             | Статус        | Заметки                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------ | ---------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1 — Club-side приглашает тренера**                              |                                                      |               |                                                                                                                                                                                                                                                    |
+| step-1                                                             | Login + клуб существует                              | ✅            | Marina имеет 4 клуба                                                                                                                                                                                                                               |
+| step-2                                                             | Секция `provider-links-club-side`                    | ✅            | «Связи к моим клубам»                                                                                                                                                                                                                              |
+| step-3                                                             | Click «Пригласить тренера» → InviteTrainerModal      | ✅            |                                                                                                                                                                                                                                                    |
+| step-4                                                             | Поиск по части имени → фильтрация                    | ✅            | Поиск «ыв» → 1 тренер (Anna)                                                                                                                                                                                                                       |
+| step-5                                                             | Submit → `pending`                                   | ❌ **FAILED** | POST /api/trainer-club-links → **403 «Недостаточно прав для отправки запроса»**. Guard `isManagerOfTrainer(trainerId, userId)` разрешает только trainer-owner'у создавать link. UI показывает кнопку, backend блокирует — несоответствие контракта |
+| **S2 — Trainer-side принимает запрос (адапт.)**                    |                                                      |               |                                                                                                                                                                                                                                                    |
+| step-1                                                             | Marina получает `link_requested`                     | ✅            | id=55 type `link_requested`                                                                                                                                                                                                                        |
+| step-2                                                             | Tab pending, карточка запроса                        | ✅            | «ывавыа выаываыва / Самарская федерация Айкидо ёшинкан · Запрос от тренера»                                                                                                                                                                        |
+| step-3                                                             | Click «Подтвердить»                                  | ✅            | toast «Связь подтверждена», tab «Подтверждённые» 3→4                                                                                                                                                                                               |
+| step-4                                                             | Public club page — тренер в «Тренеры клуба»          | ✅            | На `/clubs/самарская-федерация-айкидо-ёшинкан` секция «Тренеры клуба 1 тренера» с Anna                                                                                                                                                             |
+| step-5                                                             | Public trainer page — клуб в «Работает в»            | ✅            | На `/trainers/ывавыа-выаываыва` секция «Работает в» + ссылка на клуб                                                                                                                                                                               |
+| **S3 — Отказ**                                                     |                                                      |               |                                                                                                                                                                                                                                                    |
+| step-1                                                             | Создать pending + Reject                             | ✅            | link #6 создан (trainer=4 → club=2), reject → rejected                                                                                                                                                                                             |
+| step-2                                                             | Public view без rejected                             | ✅            | API возвращает только confirmed, rejected не отображается                                                                                                                                                                                          |
+| step-3                                                             | Anna получает `link_rejected`                        | ✅            | id=58                                                                                                                                                                                                                                              |
+| **S4 — Revoke с warning-модалкой**                                 |                                                      |               |                                                                                                                                                                                                                                                    |
+| step-1                                                             | Confirmed link + offerings с attachmentMode=club     | ⚠ partial     | Link #5 есть, но offerings с attachmentMode=club в seed нет — warning-counter показывает 0                                                                                                                                                         |
+| step-2                                                             | Click «Разорвать» → warning-модалка                  | ✅            | Dialog «Разорвать связь?», текст «После разрыва связи 0 услуг(а) автоматически станут частными»                                                                                                                                                    |
+| step-3                                                             | Confirm → revoked, offerings → `attachmentMode=null` | ✅            | Link #5 → revoked, tab «Подтверждённые» 4→3, toast «Связь разорвана»                                                                                                                                                                               |
+| step-4                                                             | Вторая сторона получает `link_revoked`               | ✅            | Anna (user=5) получила notification id=59 type `link_revoked`                                                                                                                                                                                      |
+| **S5 — Запрос со стороны тренера-провайдера (Anna → Marina-клуб)** |                                                      |               |                                                                                                                                                                                                                                                    |
+| step-1                                                             | Кнопка «Отправить запрос клубу» → RequestLinkModal   | ✅            |                                                                                                                                                                                                                                                    |
+| step-2                                                             | Фильтр foreignClubs — без активных links             | ✅            | Из 4 Marina-клубов показано 3, «Невесомость» (id=3) скрыт — там уже confirmed link #4 с Anna-trainer                                                                                                                                               |
+| step-3                                                             | Submit → pending                                     | ✅            | link #5 создан, tab «Мои запросы» 0→1, toast «Запрос отправлен»                                                                                                                                                                                    |
+| step-4                                                             | Marina получает `link_requested`                     | ✅            | id=55 (см. S2 step-1)                                                                                                                                                                                                                              |
 
 ## Failures
 
@@ -56,12 +56,15 @@
 ## Notes
 
 ### Adaptation for seed state
+
 Marina вместо Dmitry — функциональная эквивалентность сохранена: тесты cross-provider link (owner A → owner B). Все проверки FSM (pending/confirmed/rejected/revoked), public пробросов и notification'ов релевантны независимо от конкретных ID.
 
 ### S4 step-1 partial
+
 Warning-модалка показывает count=0, т.к. у Anna-trainer нет offerings с `attachmentMode='club'`. Это валидный state (seed без multi-offering). Функциональность warning-модалки всё равно верифицирована — она открывается и отображает count (даже нулевой) и корректно запускает revoke при confirm.
 
 ### Data mutations
+
 - `trainer-club-links.json`: создано 3 новых link'а (id=5, 6, ещё 1) в статусах pending→confirmed→revoked, rejected.
 - `notifications.json`: +3 (link_requested для Marina, link_rejected + link_revoked для Anna).
 

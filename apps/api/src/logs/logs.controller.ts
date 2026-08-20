@@ -1,39 +1,23 @@
 // Журнал действий.
 //
-// ⚠️ Список допустимых действий в фильтре короче, чем список тех, что система
-// на самом деле пишет: одиннадцать против семнадцати. Запрос выдачи по действию
-// `link_approve` или `booking_confirm` возвращает отказ, хотя такие записи в
-// журнале есть. Расхождение перенесено дословно и записано в долги фазы.
+// Списки допустимых действий, типов сущностей и ролей не объявляются здесь:
+// они импортируются из @sporthub/types, где лежат единственными копиями
+// (LOG_ACTIONS / LOG_ENTITY_TYPES / USER_ROLES). Раньше контроллер держал свои
+// урезанные копии, и записи вроде `link_approve` или `booking_confirm` система
+// писала, но ни принять, ни отфильтровать по ним не могла.
 //
 // ⚠️ Маршрут записи принимает исполнителя и его роль прямо из тела — подделать
-// авторство записи может кто угодно. Тоже перенесено как есть.
+// авторство записи может кто угодно. Перенесено как есть.
 
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { LogAction, LogEntityType, LogEntry, UserRole } from '@sporthub/types';
+import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
 import { z } from 'zod';
 
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
 import { ValidationError } from '../common/domain-error';
 import type { LogsRepository } from '../repositories/crud.repository';
 import { LOGS_REPOSITORY } from '../repositories/crud.repository';
-
-/** Одиннадцать значений фильтра — ровно те, что были до переноса. */
-const LOG_ACTIONS: LogAction[] = [
-  'publish_create',
-  'publish_update',
-  'publish_delete',
-  'booking_create',
-  'booking_cancel',
-  'admin_login',
-  'admin_impersonate_start',
-  'admin_impersonate_stop',
-  'moderation_hide',
-  'moderation_unhide',
-  'moderation_auto_restore',
-];
-
-const LOG_ENTITY_TYPES: LogEntityType[] = ['club', 'trainer', 'booking', 'user'];
-const ACTOR_ROLES: UserRole[] = ['athlete', 'trainer', 'club_owner', 'admin'];
 
 const createSchema = z.object({
   action: z
@@ -42,7 +26,7 @@ const createSchema = z.object({
   actorId: z.number().int().positive(),
   actorRole: z
     .string()
-    .refine((value) => ACTOR_ROLES.includes(value as UserRole), 'Недопустимая роль'),
+    .refine((value) => USER_ROLES.includes(value as UserRole), 'Недопустимая роль'),
   entityType: z
     .string()
     .refine(
