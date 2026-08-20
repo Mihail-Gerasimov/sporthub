@@ -443,6 +443,18 @@ export class PublicationService {
   }): Promise<void> {
     const offerings = await this.offerings.findMany(owner);
     const offeringIds = offerings.map((offering) => offering.id);
+    const ownerFilter =
+      owner.ownerType === 'club' ? { clubId: owner.ownerId } : { trainerId: owner.ownerId };
+
+    // ⚠️ Порядок обязателен и изменён относительно прежней версии.
+    //
+    // Раньше сначала удалялись слоты, потом записи: файлу порядок был безразличен.
+    // В базе слот с записями удалить нельзя — внешний ключ стоит на `Restrict`
+    // намеренно, чтобы каскад не стёр историю атлета. Значит записи убираются
+    // первыми, и только потом слоты. Поведение при этом прежнее: тот же набор строк
+    // исчезает, меняется лишь очерёдность.
+    await this.bookings.removeMany(ownerFilter);
+    await this.reviews.removeMany(ownerFilter);
 
     for (const offeringId of offeringIds) {
       const slots = await this.schedule.findByOfferingId(offeringId);
@@ -450,11 +462,6 @@ export class PublicationService {
     }
 
     await this.offerings.removeMany(offeringIds);
-
-    const ownerFilter =
-      owner.ownerType === 'club' ? { clubId: owner.ownerId } : { trainerId: owner.ownerId };
-    await this.bookings.removeMany(ownerFilter);
-    await this.reviews.removeMany(ownerFilter);
   }
 
   // --- Публикация из формы провайдера -----------------------------------------

@@ -8,6 +8,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureUsers } from '@sporthub/fixtures';
 import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
 
 import { createTestHarness, type TestHarness } from '../test/harness';
@@ -20,7 +21,8 @@ describe('Словари журнала не расходятся с валид�
   });
 
   beforeEach(async () => {
-    await harness.write('logs', []);
+    // Запись журнала ссылается на пользователя-исполнителя — здесь это админ с номером 3.
+    await harness.writeMany({ users: fixtureUsers, logs: [] });
   });
 
   afterAll(async () => {

@@ -6,6 +6,14 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  fixtureClub,
+  fixtureClubOffering,
+  fixtureDictionaryCollections,
+  fixtureTrainer,
+  fixtureUsers,
+} from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Добор маршрутов под страницы', () => {
@@ -13,69 +21,37 @@ describe('Добор маршрутов под страницы', () => {
 
   beforeAll(async () => {
     harness = await createTestHarness('slot-context-http');
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna-aquatic-club',
-        city: 'Самара',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина Соколова',
-        slug: 'marina-sokolova',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('offerings', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'club',
-        ownerId: 1,
-        sportId: 3,
-        title: 'Занятия',
-        price: 500,
-      },
-    ]);
-    await harness.write('schedule', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'club',
-        ownerId: 1,
-        clubId: 1,
-        offeringId: 1,
-        sportId: 3,
-        title: 'Полный слот',
-        date: '2026-03-18',
-        startTime: '10:00',
-        endTime: '11:00',
-        durationMinutes: 60,
-        level: 'all_levels',
-        capacity: 2,
-        bookedCount: 2,
-        price: 500,
-      },
-    ]);
+    // Раньше здесь лежали урезанные подобия клуба, тренера и услуги — без координат,
+    // описания и телефона. Файлам этого хватало, базе нет: половины обязательных
+    // колонок у такой записи просто не было. Берём готовые фикстуры: они целостны
+    // и совпадают с прежними подобиями по номерам и адресам-ссылкам.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: fixtureUsers,
+      clubs: [fixtureClub],
+      trainers: [fixtureTrainer],
+      offerings: [fixtureClubOffering],
+      schedule: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          offeringId: 1,
+          sportId: 3,
+          title: 'Полный слот',
+          date: '2026-03-18',
+          startTime: '10:00',
+          endTime: '11:00',
+          durationMinutes: 60,
+          level: 'all_levels',
+          capacity: 2,
+          bookedCount: 2,
+          price: 500,
+        },
+      ],
+    });
   });
 
   afterAll(async () => {

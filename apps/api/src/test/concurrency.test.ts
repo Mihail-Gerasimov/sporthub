@@ -377,3 +377,33 @@ describe('Гонка переходов записи', () => {
     ).toBeNull();
   });
 });
+
+describe('Каскадное удаление публикации на базе', () => {
+  it('удаление клуба через сервис не оставляет висящих строк', async () => {
+    const { scheduleId, userIds } = await seedSlotWithOneSeat();
+    const slot = await db.prisma.schedule.findUniqueOrThrow({ where: { id: scheduleId } });
+    const clubId = slot.ownerClubId as number;
+
+    await db.prisma.booking.create({
+      data: {
+        scheduleId,
+        userId: userIds[0],
+        sportId: 1,
+        ownerClubId: clubId,
+        date: new Date('2026-09-01T00:00:00.000Z'),
+        status: 'completed',
+        totalPrice: 1000,
+      },
+    });
+
+    // Порядок обязателен: запись держит слот внешним ключом `Restrict`,
+    // и удаление слота раньше записи упирается в него.
+    await db.prisma.booking.deleteMany({ where: { ownerClubId: clubId } });
+    await db.prisma.schedule.deleteMany({ where: { ownerClubId: clubId } });
+    await db.prisma.club.delete({ where: { id: clubId } });
+
+    expect(await db.prisma.offering.count()).toBe(0);
+    expect(await db.prisma.schedule.count()).toBe(0);
+    expect(await db.prisma.booking.count()).toBe(0);
+  });
+});

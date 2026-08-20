@@ -4,6 +4,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureUsers } from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 const entry = (id: number, over: Record<string, unknown>) => ({
@@ -25,17 +27,22 @@ describe('Маршруты журнала', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('logs', [
-      entry(1, {}),
-      entry(2, {
-        action: 'booking_create',
-        actorId: 1,
-        actorRole: 'athlete',
-        entityType: 'booking',
-      }),
-      entry(3, { action: 'moderation_hide', actorId: 3, actorRole: 'admin' }),
-      entry(4, { action: 'link_approve', actorId: 2, entityType: 'trainer' }),
-    ]);
+    // Исполнитель записи журнала — существующий пользователь. Файлы принимали любой
+    // номер, база — только настоящий: журнал ссылается на пользователя.
+    await harness.writeMany({
+      users: fixtureUsers,
+      logs: [
+        entry(1, {}),
+        entry(2, {
+          action: 'booking_create',
+          actorId: 1,
+          actorRole: 'athlete',
+          entityType: 'booking',
+        }),
+        entry(3, { action: 'moderation_hide', actorId: 3, actorRole: 'admin' }),
+        entry(4, { action: 'link_approve', actorId: 2, entityType: 'trainer' }),
+      ],
+    });
   });
 
   afterAll(async () => {
