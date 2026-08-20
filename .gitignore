@@ -69,6 +69,10 @@ data/trainers.json
 data/users.json
 data/work-formats.json
 
+# Сгенерированный клиент Prisma — артефакт сборки, а не исходник.
+# Генерация встроена в сборку: иначе образ соберётся на клиенте от прошлой схемы.
+apps/api/src/storage/prisma-client/
+
 # typescript
 *.tsbuildinfo
 
