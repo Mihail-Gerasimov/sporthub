@@ -62,9 +62,22 @@ const profileScenarios = {
   },
 };
 
+// Участники гонки — существующие атлеты. Номера задаются списком, а не диапазоном:
+// роли в базе идут вперемешку, и «плюс номер виртуального пользователя» попадал бы
+// в провайдера или в несуществующую строку, то есть мерил бы не то.
+const RACE_USER_IDS = (__ENV.RACE_USER_IDS || '1,6,7,8')
+  .split(',')
+  .map((value) => Number(value.trim()))
+  .filter((value) => Number.isInteger(value) && value > 0);
+
 const raceScenario = {
-  // Проверка не скорости, а корректности: десять запросов на одно свободное место.
-  race: { executor: 'per-vu-iterations', vus: 10, iterations: 1, exec: 'race' },
+  // Проверка не скорости, а корректности: все участники бьются за одно место.
+  race: {
+    executor: 'per-vu-iterations',
+    vus: RACE_USER_IDS.length,
+    iterations: 1,
+    exec: 'race',
+  },
 };
 
 export const options = {
@@ -153,10 +166,7 @@ export function race() {
 
   const response = http.post(
     `${API}/api/bookings`,
-    JSON.stringify({
-      scheduleId,
-      userId: Number(__ENV.RACE_USER_ID || 1) + __VU,
-    }),
+    JSON.stringify({ scheduleId, userId: RACE_USER_IDS[(__VU - 1) % RACE_USER_IDS.length] }),
     JSON_HEADERS,
   );
 
