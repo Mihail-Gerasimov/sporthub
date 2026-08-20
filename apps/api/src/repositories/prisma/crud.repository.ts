@@ -36,7 +36,7 @@ import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import { fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 import { ConflictError } from '../../common/domain-error';
-import { isUniqueViolation, withUniqueViolation } from './unique-violation';
+import { isUniqueViolation } from './unique-violation';
 
 /**
  * Метка времени строкой → значение колонки.
@@ -331,38 +331,45 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    // Уникальность почты держит база, а не проверка перед вставкой: между «проверил»
-    // и «записал» всегда есть щель, и две одновременные регистрации проходили обе.
-    // Текст ошибки прежний — на него завязан маршрут регистрации и его тесты.
-    const created = await withUniqueViolation(
-      () =>
-        this.client.user.create({
-          data: {
-            role: user.role,
-            // Колонка обязательная с дефолтом: «нет значения» и «active» — одно и то же.
-            ...(user.status === undefined ? {} : { status: user.status }),
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            passwordHash: user.passwordHash,
-            avatarUrl: user.avatarUrl ?? null,
-            city: user.city ?? null,
-            quarantineLiftedAt: fromOptionalIsoString(user.quarantineLiftedAt),
-            notifiedQuarantineUntil: fromOptionalIsoString(user.notifiedQuarantineUntil),
-            favoriteClubs: {
-              create: idsOf(user.favoriteClubIds).map((clubId) => ({ clubId })),
-            },
-            notificationPreferences: {
-              create: Object.entries(user.notificationPreferences ?? {})
-                .filter(([, enabled]) => enabled !== undefined)
-                .map(([type, enabled]) => ({ type, enabled: enabled as boolean })),
-            },
-          },
-          include: USER_RELATIONS,
-        }),
-      (error) =>
-        isUniqueViolation(error, 'email') ? new ConflictError('Email уже зарегистрирован') : null,
-    );
+    try {
+      return await this.insertInner(user);
+    } catch (error) {
+      // Уникальность почты держит база, а не проверка перед вставкой: между «проверил»
+      // и «записал» всегда есть щель, и две одновременные регистрации проходили обе.
+      // Текст прежний — на него завязан маршрут регистрации и его тесты.
+      if (isUniqueViolation(error, 'email')) {
+        throw new ConflictError('Email уже зарегистрирован');
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertInner(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+    const created = await this.client.user.create({
+      data: {
+        role: user.role,
+        // Колонка обязательная с дефолтом: «нет значения» и «active» — одно и то же.
+        ...(user.status === undefined ? {} : { status: user.status }),
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        passwordHash: user.passwordHash,
+        avatarUrl: user.avatarUrl ?? null,
+        city: user.city ?? null,
+        quarantineLiftedAt: fromOptionalIsoString(user.quarantineLiftedAt),
+        notifiedQuarantineUntil: fromOptionalIsoString(user.notifiedQuarantineUntil),
+        favoriteClubs: {
+          create: idsOf(user.favoriteClubIds).map((clubId) => ({ clubId })),
+        },
+        notificationPreferences: {
+          create: Object.entries(user.notificationPreferences ?? {})
+            .filter(([, enabled]) => enabled !== undefined)
+            .map(([type, enabled]) => ({ type, enabled: enabled as boolean })),
+        },
+      },
+      include: USER_RELATIONS,
+    });
 
     return PrismaUsersRepository.toUser(created as UserRow);
   }

@@ -56,25 +56,3 @@ export function isUniqueViolation(error: unknown, constraint?: string): boolean 
 
   return describeConstraint(meta).includes(constraint);
 }
-
-/**
- * Выполнить работу, переведя нарушение уникальности в доменную ошибку.
- *
- * Обёртка нужна затем, чтобы перевод нельзя было забыть: без неё вставка молча
- * отдавала бы наружу пятисотку с текстом от базы вместо прежнего сообщения,
- * на которое завязаны и маршруты, и тесты.
- */
-export async function withUniqueViolation<T>(
-  work: () => Promise<T>,
-  translate: (error: unknown) => Error | null,
-): Promise<T> {
-  try {
-    return await work();
-  } catch (error) {
-    const domain = translate(error);
-
-    if (domain !== null) throw domain;
-
-    throw error;
-  }
-}
