@@ -368,5 +368,82 @@ describe('Маршруты записей', () => {
       expect(response.status).toBe(200);
       expect(response.body.data).toHaveLength(2);
     });
+
+    // Сужение выдачи (шаг 33.27a). До него 14 страниц фронта тянули полный срез
+    // записей платформы, чтобы показать записи одного человека или одного клуба.
+    // Все параметры ниже — необязательные: без них маршрут отвечает как прежде.
+    describe('сужение выдачи', () => {
+      beforeEach(async () => {
+        await harness.write('bookings', [
+          booking(7, { date: '2026-03-10', status: 'pending' }),
+          booking(8, { userId: 4, date: '2026-03-20', status: 'confirmed' }),
+          booking(9, {
+            date: '2026-03-30',
+            status: 'completed',
+            ownerType: 'club',
+            ownerId: 2,
+            clubId: 2,
+            trainerId: undefined,
+          }),
+        ]);
+      });
+
+      it('полный срез сужается по клубу', async () => {
+        const response = await request(server()).get('/api/bookings?scope=all&clubId=2');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([9]);
+      });
+
+      it('полный срез сужается по тренеру', async () => {
+        const response = await request(server()).get('/api/bookings?scope=all&trainerId=1');
+
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([7, 8]);
+      });
+
+      it('полный срез сужается по периоду дня занятия', async () => {
+        const response = await request(server()).get(
+          '/api/bookings?scope=all&dateFrom=2026-03-20&dateTo=2026-03-30',
+        );
+
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([8, 9]);
+      });
+
+      it('полный срез сужается по набору статусов через запятую', async () => {
+        const response = await request(server()).get(
+          '/api/bookings?scope=all&status=pending,confirmed',
+        );
+
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([7, 8]);
+      });
+
+      it('постраничность режет полный срез', async () => {
+        const response = await request(server()).get('/api/bookings?scope=all&offset=1&limit=1');
+
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([8]);
+      });
+
+      it('выдумка в наборе статусов — 400 с прежним текстом', async () => {
+        const response = await request(server()).get('/api/bookings?scope=all&status=выдумка');
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Некорректные параметры запроса');
+      });
+
+      it('неизвестный параметр по-прежнему игнорируется, а не отвергается', async () => {
+        // Прежний маршрут лишние параметры молча пропускал; превращать их в отказ
+        // значило бы сломать уже работающие ссылки.
+        const response = await request(server()).get('/api/bookings?scope=all&неведомое=1');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(3);
+      });
+
+      it('записи атлета сужаются теми же параметрами', async () => {
+        const response = await request(server()).get('/api/bookings?userId=1&dateFrom=2026-03-30');
+
+        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([9]);
+      });
+    });
   });
 });
