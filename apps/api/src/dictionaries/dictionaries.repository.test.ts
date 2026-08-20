@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { normalizeMatchKey } from '@sporthub/domain';
-import type { City } from '@sporthub/types';
+import type { City, Tag } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -221,7 +221,7 @@ describe('Репозитории справочников', () => {
         await db.prisma.tag.create({ data: { name } });
       }
 
-      const tags = await new PrismaSimpleDictionaryRepository(
+      const tags = await new PrismaSimpleDictionaryRepository<Tag>(
         new PrismaTransactionRunner(db.service),
         'tag',
       ).findAll();

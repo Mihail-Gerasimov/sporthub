@@ -46,6 +46,7 @@ import {
 } from '../repositories/entities.repository';
 import { JsonStorage } from './json-storage';
 import { resolveDataDirectory } from './resolve-data-directory';
+import { STORAGE_HEALTH } from './storage-health';
 import { TRANSACTION_RUNNER } from './transaction-runner';
 
 /** Простые справочники отличаются только именем коллекции. */
@@ -63,6 +64,8 @@ const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
     },
     // Сервисам достаётся только транзакция — про файлы они не знают.
     { provide: TRANSACTION_RUNNER, useExisting: JsonStorage },
+    // Проверке живости достаётся только ответ «да или нет».
+    { provide: STORAGE_HEALTH, useExisting: JsonStorage },
     { provide: SPORTS_REPOSITORY, ...simpleDictionary('sports') },
     { provide: TAGS_REPOSITORY, ...simpleDictionary('tags') },
     { provide: AMENITIES_REPOSITORY, ...simpleDictionary('amenities') },
@@ -131,6 +134,7 @@ const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
   ],
   exports: [
     TRANSACTION_RUNNER,
+    STORAGE_HEALTH,
     SPORTS_REPOSITORY,
     TAGS_REPOSITORY,
     AMENITIES_REPOSITORY,

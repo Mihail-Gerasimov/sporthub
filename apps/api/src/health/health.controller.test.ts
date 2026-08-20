@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 import { HealthController } from './health.controller';
+import { STORAGE_HEALTH } from '../storage/storage-health';
 import { HealthService } from './health.service';
 
 describe('Каркас apps/api', () => {
@@ -58,12 +59,31 @@ describe('Каркас apps/api', () => {
     expect(controller.healthService).toBe(service);
   });
 
-  it('сервис отдаёт статус ok и неотрицательный uptime', () => {
+  it('сервис отдаёт статус ok и неотрицательный uptime', async () => {
     const service = moduleRef.get(HealthService);
-    const status = service.getStatus();
+    const status = await service.getStatus();
 
     expect(status.status).toBe('ok');
+    expect(status.database).toBe('up');
     expect(status.uptime).toBeGreaterThanOrEqual(0);
     expect(() => new Date(status.timestamp).toISOString()).not.toThrow();
+  });
+
+  it('при недоступном хранилище отвечает отказом, а не «всё хорошо»', async () => {
+    // Прежняя проверка смотрела только на сам процесс и отвечала 200 всегда.
+    // Именно так сломанный сервис доживает до боевого сервера: мониторинг видит
+    // зелёный статус, а страницы пустые.
+    const storage = moduleRef.get<{ isAlive: () => Promise<boolean> }>(STORAGE_HEALTH);
+    const original = storage.isAlive;
+    storage.isAlive = async () => false;
+
+    try {
+      const response = await request(app.getHttpServer()).get('/api/health');
+
+      expect(response.status).toBe(503);
+      expect(response.body).toMatchObject({ success: false });
+    } finally {
+      storage.isAlive = original;
+    }
   });
 });

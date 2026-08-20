@@ -178,6 +178,24 @@ export class JsonStorage {
     };
   }
 
+  /**
+   * Читается ли хранилище прямо сейчас.
+   *
+   * Для файлов это доступность каталога данных. Проверка нужна не ради самих
+   * файлов, а ради единого ответа на вопрос живости: после переезда на базу
+   * тот же метод будет означать «соединение отвечает», и проверка живости
+   * не заметит подмены.
+   */
+  async isAlive(): Promise<boolean> {
+    try {
+      await readFile(this.filePath('sports'), 'utf8');
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Хук для тестов: имитирует сбой записи на диск. */
   setWriteFailureHookForTests(hook: ((key: CollectionKey) => void) | null): void {
     this.writeFailureHook = hook;

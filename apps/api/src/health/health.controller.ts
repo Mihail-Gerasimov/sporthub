@@ -12,7 +12,7 @@ export class HealthController {
   constructor(public readonly healthService: HealthService) {}
 
   @Get()
-  check(): HealthStatus {
+  check(): Promise<HealthStatus> {
     // Обёртку `{ success, data }` добавляет общий интерцептор — контроллеры
     // возвращают только полезную нагрузку.
     return this.healthService.getStatus();
