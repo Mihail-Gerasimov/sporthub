@@ -4,6 +4,15 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  fixtureClub,
+  fixtureClub2,
+  fixtureClubOffering,
+  fixtureDictionaryCollections,
+  fixtureTrainer,
+  fixtureUsers,
+} from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 const slot = (over: Record<string, unknown>) => ({
@@ -30,21 +39,31 @@ describe('GET /schedule', () => {
 
   beforeAll(async () => {
     harness = await createTestHarness('schedule-http');
-    await harness.write('schedule', [
-      slot({ id: 1, date: '2026-03-18', startTime: '10:00' }),
-      slot({ id: 2, date: '2026-03-18', startTime: '08:00', sportId: 5 }),
-      slot({ id: 3, date: '2026-03-19', clubId: 2, ownerId: 2 }),
-      slot({ id: 4, capacity: 4, bookedCount: 4 }),
-      slot({
-        id: 1001,
-        ownerType: 'trainer',
-        ownerId: 1,
-        clubId: undefined,
-        trainerId: 1,
-        date: '2026-03-20',
-        startTime: '08:15',
-      }),
-    ]);
+    // Слоты ссылаются на услугу, клуб, тренера и вид спорта. Раньше набор состоял
+    // из одних слотов: файлы принимали ссылку на несуществующее, база — нет.
+    // Достраиваем окружение, а не ослабляем проверку.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: fixtureUsers,
+      clubs: [fixtureClub, fixtureClub2],
+      trainers: [fixtureTrainer],
+      offerings: [fixtureClubOffering],
+      schedule: [
+        slot({ id: 1, date: '2026-03-18', startTime: '10:00' }),
+        slot({ id: 2, date: '2026-03-18', startTime: '08:00', sportId: 5 }),
+        slot({ id: 3, date: '2026-03-19', clubId: 2, ownerId: 2 }),
+        slot({ id: 4, capacity: 4, bookedCount: 4 }),
+        slot({
+          id: 1001,
+          ownerType: 'trainer',
+          ownerId: 1,
+          clubId: undefined,
+          trainerId: 1,
+          date: '2026-03-20',
+          startTime: '08:15',
+        }),
+      ],
+    });
   });
 
   afterAll(async () => {

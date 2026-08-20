@@ -103,6 +103,15 @@ export type PrepareOptions = {
    * все остальные — нет.
    */
   repairTexts?: boolean;
+  /**
+   * Пересчитывать ли денормализованные счётчики: занятые места слота и агрегаты отзывов.
+   *
+   * Пересчёт — свойство ПЕРЕНОСА, а не хранилища: он чинит счётчики, разъехавшиеся
+   * за годы жизни файлов. Тестовой обвязке он вреден ровно так же, как словарь починок:
+   * набор, объявивший «слот занят целиком», получил бы ноль занятых мест, и та же
+   * проверка на файлах и на базе перестала бы быть той же проверкой.
+   */
+  recalculate?: boolean;
 };
 
 /** Владение, площадка и ведущий — четыре колонки вместо прежней пары «тип владельца + номер». */
@@ -179,7 +188,7 @@ function requireTimestamp(value: string | undefined, what: string): Date {
 
 /** Подготовить весь срез: строки таблиц плюс журнал того, что изменилось. */
 export function prepareRows(source: SourceData, options: PrepareOptions = {}): PreparedImport {
-  const { repairTexts = false } = options;
+  const { repairTexts = false, recalculate = true } = options;
   const changes: ChangeLog = { repairs: [], rescues: [], recalculations: [], notes: [] };
   const userRepairs = repairTexts ? USER_REPAIRS : EMPTY_USER_REPAIRS;
   const roomRepairs = repairTexts ? SCHEDULE_ROOM_REPAIRS : EMPTY_TEXT_REPAIRS;
@@ -293,7 +302,9 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
   let clubImageId = 0;
 
   for (const club of source.clubs) {
-    const aggregate = clubRatings.get(club.id) ?? { rating: 0, reviewCount: 0 };
+    const aggregate = recalculate
+      ? (clubRatings.get(club.id) ?? { rating: 0, reviewCount: 0 })
+      : { rating: club.rating, reviewCount: club.reviewCount };
 
     if (aggregate.rating !== club.rating || aggregate.reviewCount !== club.reviewCount) {
       changes.recalculations.push(
@@ -357,7 +368,9 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
   const trainerWorkFormats: Prisma.TrainerWorkFormatCreateManyInput[] = [];
 
   for (const trainer of source.trainers) {
-    const aggregate = trainerRatings.get(trainer.id) ?? { rating: 0, reviewCount: 0 };
+    const aggregate = recalculate
+      ? (trainerRatings.get(trainer.id) ?? { rating: 0, reviewCount: 0 })
+      : { rating: trainer.rating, reviewCount: trainer.reviewCount };
 
     if (aggregate.rating !== trainer.rating || aggregate.reviewCount !== trainer.reviewCount) {
       changes.recalculations.push(
@@ -553,7 +566,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       );
     }
 
-    const bookedCount = activeBySlot.get(slot.id) ?? 0;
+    const bookedCount = recalculate ? (activeBySlot.get(slot.id) ?? 0) : slot.bookedCount;
 
     if (bookedCount !== slot.bookedCount) {
       changes.recalculations.push({

@@ -126,6 +126,14 @@ export type ImportOptions = {
    * только переносом из файлов. Сид для разработки идёт без него.
    */
   repairTexts?: boolean;
+  /**
+   * Пересчитывать ли денормализованные счётчики (занятые места, агрегаты отзывов).
+   *
+   * По умолчанию да — перенос из файлов чинит счётчики, разъехавшиеся за годы.
+   * Тестовая обвязка отключает: она обязана положить в базу ровно то, что объявил
+   * набор, иначе та же проверка на файлах и на базе перестанет быть той же проверкой.
+   */
+  recalculate?: boolean;
   source: SourceData;
 };
 
@@ -134,8 +142,9 @@ export async function importSourceData({
   client,
   source,
   repairTexts = false,
+  recalculate = true,
 }: ImportOptions): Promise<ImportReport> {
-  const { rows, changes } = prepareRows(source, { repairTexts });
+  const { rows, changes } = prepareRows(source, { repairTexts, recalculate });
 
   // Вся вставка — одна транзакция: наполовину перенесённая база хуже непере-
   // несённой, потому что выглядит рабочей. Пределы заданы явно — умолчальных

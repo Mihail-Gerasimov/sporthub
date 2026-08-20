@@ -115,7 +115,31 @@ export class BookingService {
     // Смена статуса и пересчёт мест — одна операция: иначе сбой на второй
     // записи оставил бы занятое место у отменённой брони.
     const updated = await this.transactions.runInTransaction(async () => {
-      const result = await this.bookings.update(booking.id, patch);
+      // ⚠️ Обновление с УСЛОВИЕМ по ожидаемому прежнему статусу.
+      //
+      // Проверка допустимости перехода сделана выше, по прочитанной записи. Между
+      // ней и записью помещается чужой запрос: два одновременных решения по одной
+      // заявке проходили оба — её и подтверждали, и отклоняли, а счётчик мест уходил
+      // на два. Условие в самом запросе закрывает эту щель.
+      const result = await this.bookings.updateIfStatus(booking.id, booking.status, patch);
+
+      if (result === null) {
+        // Кто-то успел раньше. Перечитываем и прогоняем те же правила: так наружу
+        // уйдёт ровно тот текст, который получил бы последовательный вызов.
+        const fresh = await this.bookings.findById(booking.id);
+
+        if (!fresh) throw new NotFoundError('Запись не найдена');
+
+        try {
+          validateTransition(fresh.status, input.to, input.actor);
+        } catch (error) {
+          throw new ConflictError(error instanceof Error ? error.message : 'Недопустимый переход');
+        }
+
+        // Переход из нового состояния допустим — значит гонка не изменила смысла,
+        // и повторять её разбор незачем: отвечаем конфликтом состояния.
+        throw new ConflictError('Состояние записи изменилось, повторите действие');
+      }
 
       if (delta !== 0) {
         // Слот мог исчезнуть — прежняя реализация в этом случае молча продолжала.

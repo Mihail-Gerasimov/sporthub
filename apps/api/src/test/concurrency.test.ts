@@ -320,3 +320,60 @@ describe('Ограничения базы отдают ПРЕЖНИЕ текст
     );
   });
 });
+
+describe('Гонка переходов записи', () => {
+  it('два одновременных решения по одной заявке проходят не оба', async () => {
+    const { scheduleId, userIds } = await seedSlotWithOneSeat();
+    const bookings = new PrismaBookingsRepository(new PrismaTransactionRunner(db.service));
+
+    const created = await bookings.insert({
+      scheduleId,
+      userId: userIds[0],
+      ownerType: 'club',
+      ownerId: 1,
+      sportId: 1,
+      date: '2026-09-01',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+      statusHistory: [],
+    } as never);
+
+    // Провайдер нажал «подтвердить», и в ту же секунду — «отклонить».
+    const results = await Promise.all([
+      bookings.updateIfStatus(created.id, 'pending', { status: 'confirmed' }),
+      bookings.updateIfStatus(created.id, 'pending', { status: 'rejected_by_provider' }),
+    ]);
+
+    expect(results.filter((item) => item !== null)).toHaveLength(1);
+
+    const fresh = await bookings.findById(created.id);
+
+    // Состояние ровно одно — не «и подтверждена, и отклонена».
+    expect(['confirmed', 'rejected_by_provider']).toContain(fresh?.status);
+  });
+
+  it('переход из уже изменённого состояния не выполняется', async () => {
+    const { scheduleId, userIds } = await seedSlotWithOneSeat();
+    const bookings = new PrismaBookingsRepository(new PrismaTransactionRunner(db.service));
+
+    const created = await bookings.insert({
+      scheduleId,
+      userId: userIds[0],
+      ownerType: 'club',
+      ownerId: 1,
+      sportId: 1,
+      date: '2026-09-01',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+      statusHistory: [],
+    } as never);
+
+    await bookings.updateIfStatus(created.id, 'pending', { status: 'confirmed' });
+
+    expect(
+      await bookings.updateIfStatus(created.id, 'pending', { status: 'cancelled_by_athlete' }),
+    ).toBeNull();
+  });
+});

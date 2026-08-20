@@ -65,6 +65,19 @@ export interface BookingsRepository {
   findMany(filter: BookingsFilter): Promise<Booking[]>;
   insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking>;
   update(id: number, patch: Partial<Booking>): Promise<Booking>;
+  /**
+   * Обновление с условием по ожидаемому прежнему статусу.
+   *
+   * Возвращает `null`, если статус уже другой — значит кто-то успел раньше.
+   * Без такого условия два одновременных запроса выполняют переход оба: заявку
+   * и подтверждают, и отклоняют, а счётчик мест уходит на два. Проверка перед
+   * записью этого не ловит — между ней и записью всегда есть щель.
+   */
+  updateIfStatus(
+    id: number,
+    expected: BookingStatus,
+    patch: Partial<Booking>,
+  ): Promise<Booking | null>;
   /** Перенос даты слота тянет за собой даты его записей. */
   updateDateByScheduleId(scheduleId: number, date: string): Promise<number>;
   remove(id: number): Promise<void>;
@@ -183,6 +196,23 @@ export class JsonBookingsRepository implements BookingsRepository {
     await this.storage.write('bookings', next);
 
     return updated;
+  }
+
+  async updateIfStatus(
+    id: number,
+    expected: BookingStatus,
+    patch: Partial<Booking>,
+  ): Promise<Booking | null> {
+    const bookings = await this.storage.read('bookings');
+    const current = bookings.find((booking) => booking.id === id);
+
+    // У файлового хранилища «условие» настоящим условием быть не может: между
+    // чтением и записью всё равно есть щель. Проверка здесь воспроизводит поведение
+    // базы, чтобы один и тот же набор проверок проходил на обеих реализациях,
+    // но настоящую гарантию даёт только база.
+    if (!current || current.status !== expected) return null;
+
+    return this.update(id, patch);
   }
 
   async updateDateByScheduleId(scheduleId: number, date: string): Promise<number> {

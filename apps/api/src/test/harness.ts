@@ -117,7 +117,10 @@ async function createDatabaseHarness(): Promise<TestHarness> {
 
   const reimport = async (): Promise<void> => {
     await db.truncateAll();
-    await importSourceData({ client: db.prisma, source });
+    // ⚠️ Пересчёт счётчиков выключен намеренно: обвязка обязана положить в базу
+    // ровно тот срез, который объявил набор. Иначе «слот занят целиком» превратился
+    // бы в «свободен», и одна и та же проверка на файлах и на базе проверяла бы разное.
+    await importSourceData({ client: db.prisma, source, recalculate: false });
   };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

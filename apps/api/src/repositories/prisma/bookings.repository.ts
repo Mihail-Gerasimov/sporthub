@@ -338,6 +338,31 @@ export class PrismaBookingsRepository implements BookingsRepository {
   }
 
   /**
+   * Обновление с условием по ожидаемому прежнему статусу — ОДНОЙ операцией.
+   *
+   * Условие стоит в самом запросе, а не в проверке перед ним: между «прочитал статус»
+   * и «записал новый» помещается чужой запрос, и два одновременных решения по одной
+   * заявке проходят оба — её и подтверждают, и отклоняют, а счётчик мест уходит на два.
+   * Ноль затронутых строк означает «кто-то успел раньше», и это не ошибка, а ответ.
+   */
+  async updateIfStatus(
+    id: number,
+    expected: BookingStatus,
+    patch: Partial<Booking>,
+  ): Promise<Booking | null> {
+    const affected = await this.client.$executeRaw`
+      UPDATE bookings SET status = ${patch.status ?? expected}
+       WHERE id = ${id} AND status = ${expected}
+    `;
+
+    if (affected === 0) return null;
+
+    // Статус уже переставлен условно; остальные поля записываются обычной правкой,
+    // и гонки на них нет — до сюда доходит только победивший запрос.
+    return this.update(id, patch);
+  }
+
+  /**
    * Дописывание истории.
    *
    * Сервис отдаёт историю целиком — прежний массив плюс новый переход, — но
