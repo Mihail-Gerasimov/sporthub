@@ -41,11 +41,40 @@ export type DatabaseClient = Parameters<Parameters<PrismaClient['$transaction']>
  */
 const TRANSACTION_OPTIONS = { maxWait: 5_000, timeout: 15_000 };
 
+/** Работа, которую нельзя делать до коммита. */
+type AfterCommitTask = () => void | Promise<void>;
+
 @Injectable()
 export class PrismaTransactionRunner implements TransactionRunner {
   private readonly activeTransaction = new AsyncLocalStorage<DatabaseClient>();
 
+  /**
+   * Очередь побочных эффектов текущей транзакции.
+   *
+   * Уведомление, отправленное ДО коммита, невозможно отозвать: транзакция откатится,
+   * записи не станет, а письмо о ней уже ушло. Поэтому такие действия копятся здесь
+   * и выполняются после того, как база подтвердила запись.
+   */
+  private readonly afterCommitTasks = new AsyncLocalStorage<AfterCommitTask[]>();
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Отложить побочный эффект до коммита.
+   *
+   * Вне транзакции выполняется сразу — откатывать нечего.
+   */
+  async afterCommit(task: AfterCommitTask): Promise<void> {
+    const queue = this.afterCommitTasks.getStore();
+
+    if (!queue) {
+      await task();
+
+      return;
+    }
+
+    queue.push(task);
+  }
 
   /**
    * Клиент для текущего запроса.
@@ -65,10 +94,21 @@ export class PrismaTransactionRunner implements TransactionRunner {
       return work();
     }
 
-    return this.prisma.client.$transaction(
-      (transaction) => this.activeTransaction.run(transaction, work),
-      TRANSACTION_OPTIONS,
+    const tasks: AfterCommitTask[] = [];
+
+    const result = await this.afterCommitTasks.run(tasks, () =>
+      this.prisma.client.$transaction(
+        (transaction) => this.activeTransaction.run(transaction, work),
+        TRANSACTION_OPTIONS,
+      ),
     );
+
+    // Досюда доходим только при успешном коммите: откат бросает исключение выше.
+    for (const task of tasks) {
+      await task();
+    }
+
+    return result;
   }
 
   /** Открыта ли сейчас транзакция. Нужно сторожу «побочные эффекты только после коммита». */

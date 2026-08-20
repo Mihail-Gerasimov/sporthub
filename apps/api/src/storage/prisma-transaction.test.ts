@@ -118,3 +118,65 @@ describe('Транзакция', () => {
     expect(transactions.isInTransaction).toBe(false);
   });
 });
+
+describe('Побочные эффекты после коммита', () => {
+  it('внутри транзакции откладываются до подтверждения записи', async () => {
+    const order: string[] = [];
+
+    await transactions.runInTransaction(async () => {
+      await transactions.client.sport.create({ data: sport('Бокс') });
+      await transactions.afterCommit(() => {
+        order.push('уведомление');
+      });
+
+      order.push('работа');
+      // На этот момент уведомление ещё не ушло — иначе его нельзя было бы отозвать.
+      expect(order).toEqual(['работа']);
+    });
+
+    expect(order).toEqual(['работа', 'уведомление']);
+  });
+
+  it('на откате не выполняются вовсе', async () => {
+    const sent: string[] = [];
+
+    await expect(
+      transactions.runInTransaction(async () => {
+        await transactions.afterCommit(() => {
+          sent.push('уведомление о записи, которой не будет');
+        });
+
+        throw new Error('сбой посреди работы');
+      }),
+    ).rejects.toThrow('сбой посреди работы');
+
+    expect(sent).toEqual([]);
+  });
+
+  it('вне транзакции выполняются сразу — откатывать нечего', async () => {
+    const sent: string[] = [];
+
+    await transactions.afterCommit(() => {
+      sent.push('уведомление');
+    });
+
+    expect(sent).toEqual(['уведомление']);
+  });
+
+  it('отложенное из вложенного вызова тоже ждёт внешний коммит', async () => {
+    const order: string[] = [];
+
+    await transactions.runInTransaction(async () => {
+      await transactions.runInTransaction(async () => {
+        await transactions.afterCommit(() => {
+          order.push('изнутри');
+        });
+      });
+
+      order.push('внешняя работа');
+      expect(order).toEqual(['внешняя работа']);
+    });
+
+    expect(order).toEqual(['внешняя работа', 'изнутри']);
+  });
+});

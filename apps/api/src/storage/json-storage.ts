@@ -95,6 +95,9 @@ export class JsonStorage {
    */
   private readonly activeTransaction = new AsyncLocalStorage<Map<CollectionKey, unknown>>();
 
+  /** Очередь побочных эффектов текущей транзакции. См. `afterCommit`. */
+  private readonly afterCommitTasks = new AsyncLocalStorage<(() => void | Promise<void>)[]>();
+
   constructor(private readonly dataDirectory: string) {}
 
   async read<Key extends CollectionKey>(key: Key): Promise<DataCollectionMap[Key]> {
@@ -159,10 +162,20 @@ export class JsonStorage {
     }
 
     const buffer = new Map<CollectionKey, unknown>();
+    const tasks: (() => void | Promise<void>)[] = [];
 
-    const result = await this.activeTransaction.run(buffer, () => work(this.transactionFacade()));
+    const result = await this.afterCommitTasks.run(tasks, async () => {
+      const value = await this.activeTransaction.run(buffer, () => work(this.transactionFacade()));
 
-    await this.commit(buffer);
+      await this.commit(buffer);
+
+      return value;
+    });
+
+    // Досюда доходим только при успешной записи: сбой бросает исключение выше.
+    for (const task of tasks) {
+      await task();
+    }
 
     return result;
   }
@@ -176,6 +189,25 @@ export class JsonStorage {
       read: (key) => this.read(key),
       write: (key, data) => this.write(key, data),
     };
+  }
+
+  /**
+   * Отложить побочный эффект до записи на диск.
+   *
+   * У файлового хранилища коммит — это запись буфера, и отложить работу до него
+   * так же осмысленно, как и у базы: уведомление о записи, которой не станет,
+   * отозвать нельзя.
+   */
+  async afterCommit(task: () => void | Promise<void>): Promise<void> {
+    const queue = this.afterCommitTasks.getStore();
+
+    if (!queue) {
+      await task();
+
+      return;
+    }
+
+    queue.push(task);
   }
 
   /**
