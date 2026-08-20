@@ -15,6 +15,8 @@ import type {
   Schedule,
 } from '@sporthub/types';
 
+import { hoursUntilSlotStart } from './time';
+
 /**
  * Результат расчёта надёжности для одной сущности (атлет, клуб или тренер).
  * Поле badge=null означает «рейтинг ≥ warningThreshold, бейджа не показываем».
@@ -186,14 +188,10 @@ export function computeCancelReason(
   // Защитный дефолт: если слот не найден (удалён параллельно), считаем отмену поздней.
   if (!slot) return 'late';
 
-  const startAt = getSlotStartAt(slot);
-  const hoursBeforeStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-  return hoursBeforeStart >= freeUntilHours ? 'on_time' : 'late';
-}
-
-/** Возвращает Date начала слота из date + startTime (локальный часовой пояс сервера). */
-function getSlotStartAt(slot: Schedule): Date {
-  return new Date(`${slot.date}T${slot.startTime}:00`);
+  // Часы до начала считает общий помощник: он работает по часам зала, а не по поясу
+  // процесса. Прежняя копия давала расхождение до четырёх часов — больше, чем окно
+  // строгой политики отмены, то есть решение переворачивалось целиком.
+  return hoursUntilSlotStart(slot, now) >= freeUntilHours ? 'on_time' : 'late';
 }
 
 export interface QuarantineResult {

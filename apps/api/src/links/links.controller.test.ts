@@ -13,7 +13,7 @@ const user = (id: number, role: string) => ({
   name: `Пользователь ${id}`,
   email: `u${id}@test.local`,
   phone: '+7 (900) 000-00-00',
-  password: 'demo123',
+  passwordHash: 'demo123',
   favoriteClubIds: [],
 });
 

@@ -7,6 +7,7 @@
 // При разрыве связи услуги тренера, привязанные к ней, становятся частными:
 // иначе публичные страницы продолжали бы показывать «в клубе X».
 
+import { isActiveLinkStatus } from '@sporthub/domain';
 import { Inject, Injectable } from '@nestjs/common';
 import type { TrainerClubLink } from '@sporthub/types';
 
@@ -93,7 +94,8 @@ export class LinkService {
       clubId: input.clubId,
     });
 
-    if (existing.some((link) => link.status === 'pending' || link.status === 'confirmed')) {
+    // Набор действующих состояний общий с предикатом уникального индекса в базе.
+    if (existing.some((link) => isActiveLinkStatus(link.status))) {
       throw new ConflictError('Для этой пары уже существует активная связь');
     }
 

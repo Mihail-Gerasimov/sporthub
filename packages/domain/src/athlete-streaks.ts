@@ -1,36 +1,19 @@
-// Step 25.5: стрики атлета по неделям с хотя бы одной completed-тренировкой.
-// Чистые функции без обращения к БД — вход: массив Booking и userId. Неделя
-// считается от понедельника (локальное время сервера), как и в AthleteSchedule
-// (Step 25.4). Две разные completed в одной неделе считаются как одна неделя.
+// Стрики атлета: недели подряд, в каждой из которых была хотя бы одна завершённая
+// тренировка. Чистые функции без обращения к хранилищу — вход это записи и номер атлета.
+// Неделя считается от понедельника, как и в расписании атлета. Две завершённые
+// тренировки в одну неделю считаются за одну неделю.
+//
+// Прежняя версия строила понедельник через `new Date(\`${date}T00:00:00\`)` и `setDate`,
+// то есть в поясе процесса. На границе суток это уводило день на соседний, а стрик —
+// на целую неделю. Календарные вычисления переехали в общий помощник времени.
 
 import type { Booking, EntityId } from '@sporthub/types';
 
-/** Понедельник недели в формате YYYY-MM-DD. Sunday (getDay=0) → -6 дней. */
-function getWeekStartKey(dateStr: string): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-
-  date.setDate(date.getDate() + diff);
-
-  return toDateKey(date);
-}
-
-function toDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${d}`;
-}
+import { getDateKeyInTimeZone, getWeekStartKey, shiftDateKey } from './time';
 
 /** Сдвигает понедельник недели на `weeks` (может быть отрицательным). */
 function shiftWeekStart(weekStart: string, weeks: number): string {
-  const date = new Date(`${weekStart}T00:00:00`);
-
-  date.setDate(date.getDate() + weeks * 7);
-
-  return toDateKey(date);
+  return shiftDateKey(weekStart, weeks * 7);
 }
 
 /** Уникальные понедельники недель, в которых у атлета была хотя бы одна completed. */
@@ -62,7 +45,7 @@ export function computeCurrentStreak(
 
   if (weeks.size === 0) return 0;
 
-  const currentWeek = getWeekStartKey(toDateKey(now));
+  const currentWeek = getWeekStartKey(getDateKeyInTimeZone(now));
   let startWeek: string | null = null;
 
   if (weeks.has(currentWeek)) {

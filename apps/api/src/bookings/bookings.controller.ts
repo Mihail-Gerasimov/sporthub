@@ -18,7 +18,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { DISCIPLINE_CONFIG, isAthleteInQuarantine } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotEndAt, isAthleteInQuarantine } from '@sporthub/domain';
 import type { Booking } from '@sporthub/types';
 import { z } from 'zod';
 
@@ -34,7 +34,7 @@ import { AccessService } from '../access/access.service';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
 import { SlotContextService } from '../schedule/slot-context.service';
-import { BookingService, getSlotEndAt } from './booking.service';
+import { BookingService } from './booking.service';
 import { BookingsGateway } from './bookings.gateway';
 
 const positiveId = z.number().int().positive();

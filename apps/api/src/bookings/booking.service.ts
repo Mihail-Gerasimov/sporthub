@@ -10,13 +10,15 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  computeCancelReason,
-  getBookedCountDelta,
-  isAthleteInQuarantine,
-  validateTransition,
   ACTIVE_BOOKING_STATUSES,
   DISCIPLINE_CONFIG,
+  computeCancelReason,
+  getBookedCountDelta,
+  getSlotEndAt,
+  getSlotStartAt,
+  isAthleteInQuarantine,
   type DisciplineConfig,
+  validateTransition,
 } from '@sporthub/domain';
 import type {
   Booking,
@@ -51,15 +53,6 @@ export type LazyTransitionsResult = {
   autoCancelledPending: number;
   autoUnmarked: number;
 };
-
-/** Начало и конец слота. Время локальное — конвенция сохранена от прежней версии. */
-export function getSlotStartAt(slot: Schedule): Date {
-  return new Date(`${slot.date}T${slot.startTime}:00`);
-}
-
-export function getSlotEndAt(slot: Schedule): Date {
-  return new Date(`${slot.date}T${slot.endTime}:00`);
-}
 
 @Injectable()
 export class BookingService {

@@ -15,6 +15,17 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 
+// Phase 33 Step 33.9: пароля открытым текстом в хранилище больше нет — тесты
+// кладут в пользователей готовый argon2id-хеш. Пара «пароль + его хеш»
+// объявлена здесь один раз: копия в каждом наборе разъехалась бы при первой же
+// смене параметров хеширования.
+/** Пароль тестовых пользователей — в открытом виде нужен только запросам. */
+export const DEMO_PASSWORD = 'demo123';
+
+/** Его argon2id-хеш теми же параметрами, что и в рабочем коде. */
+export const DEMO_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$S3YSJKRRJ61/o2IZha4RnQ$gKfspZaaqYNv4W41Lx/WoX8Q/fPn1WZKjQLIGbz3YDQ';
+
 /** Все коллекции проекта. Отсутствие файла — ошибка чтения, поэтому создаются все. */
 export const COLLECTIONS = [
   'clubs',

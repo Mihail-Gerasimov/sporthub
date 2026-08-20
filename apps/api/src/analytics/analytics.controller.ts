@@ -27,6 +27,8 @@ import type {
   ScheduleRepository,
   TrainersRepository,
 } from '../repositories/entities.repository';
+import { getDateKeyInTimeZone, shiftDateKey } from '@sporthub/domain';
+
 import {
   CLUBS_REPOSITORY,
   SCHEDULE_REPOSITORY,
@@ -35,26 +37,36 @@ import {
 
 type Period = 'today' | 'week' | 'month' | 'all';
 
-/** Начало периода в часовом поясе проекта. */
-function getFromDate(period: Period): string | null {
+/**
+ * Начало периода в часовом поясе проекта.
+ *
+ * Прежняя версия смешивала три пояса в пяти строках: `new Date('2026-08-20')`
+ * разбирается как полночь UTC, `setDate`/`setMonth` работают в поясе процесса,
+ * а `toISOString()` возвращает обратно в UTC. Для пояса восточнее UTC граница
+ * периода уезжала на сутки. Теперь календарь считается календарём: сегодняшний
+ * день берётся по часам проекта, сдвиг — по суткам, без участия пояса процесса.
+ */
+function getFromDate(period: Period, now: Date = new Date()): string | null {
   if (period === 'all') return null;
 
-  const now = new Date();
-  const todayText = now.toLocaleDateString('sv-SE', { timeZone: DEFAULT_TIME_ZONE });
-  const today = new Date(todayText);
+  const today = getDateKeyInTimeZone(now, DEFAULT_TIME_ZONE);
 
-  if (period === 'today') return todayText;
+  if (period === 'today') return today;
+  if (period === 'week') return shiftDateKey(today, -7);
 
-  if (period === 'week') {
-    today.setDate(today.getDate() - 7);
+  // Месяц назад — это тот же день предыдущего месяца, а не «минус тридцать суток».
+  const [year, month, day] = today.split('-').map(Number);
+  const previousMonth = month === 1 ? 12 : month - 1;
+  const previousYear = month === 1 ? year - 1 : year;
+  // 31 марта минус месяц — это 28 или 29 февраля, а не 3 марта.
+  const daysInPreviousMonth = new Date(Date.UTC(previousYear, previousMonth, 0)).getUTCDate();
+  const safeDay = Math.min(day, daysInPreviousMonth);
 
-    return today.toISOString().slice(0, 10);
-  }
-
-  today.setMonth(today.getMonth() - 1);
-
-  return today.toISOString().slice(0, 10);
+  return `${previousYear}-${String(previousMonth).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
 }
+
+/** Точка входа для тестов: граница периода — единственное, что здесь стоит проверять. */
+export const getFromDateForTests = getFromDate;
 
 function extractDate(isoString: string): string {
   return isoString.slice(0, 10);
