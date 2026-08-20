@@ -25,7 +25,7 @@ const athleteUser: User = {
   name: 'Алексей Миронов',
   email: 'alexey@sporthub.local',
   phone: '+7 999 111-22-33',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 

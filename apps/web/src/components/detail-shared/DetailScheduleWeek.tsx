@@ -22,6 +22,8 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { getDateKeyInTimeZone, getWeekStartKey, shiftDateKey } from '@sporthub/domain';
+
 /* Формат слота для week-расписания. priceLabel и sub — уже готовые строки,
  * собирает вызывающий код (на club: sub = `${time}, ${trainerName}`;
  * на trainer: sub = `${time}, ${room}`). */
@@ -45,37 +47,24 @@ type DetailScheduleWeekProps = {
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
 
-/* День ISO-недели: Пн=0, Вт=1, ..., Вс=6. */
-function getDayIndex(date: Date): number {
-  return (date.getDay() + 6) % 7;
-}
-
-/* Дата → строка `YYYY-MM-DD` в локальной TZ (формат, в котором лежат slot.date). */
-function formatIsoDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 export function DetailScheduleWeek({
   slots,
   isAthlete,
   onGuestSlotAction,
 }: DetailScheduleWeekProps) {
-  /* Понедельник текущей ISO-недели + массив 7 дат [Пн..Вс] в формате `YYYY-MM-DD`. */
+  /* Понедельник текущей ISO-недели + массив 7 дат [Пн..Вс] в формате `YYYY-MM-DD`.
+   *
+   * Неделя считается по календарю зала — тому же, в котором лежит `slot.date`.
+   * Прежний расчёт брал полночь в поясе браузера и собирал дни через `setDate`:
+   * у зрителя западнее зала «сегодня» отставало на день, поэтому в воскресенье
+   * подсвечивался чужой день, а в понедельник открывалась прошлая неделя целиком —
+   * с пустыми вкладками вместо слотов. */
   const { weekDates, todayIndex } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dayIdx = getDayIndex(today);
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - dayIdx);
-    const dates = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      return formatIsoDate(date);
-    });
-    return { weekDates: dates, todayIndex: dayIdx };
+    const todayKey = getDateKeyInTimeZone(new Date());
+    const mondayKey = getWeekStartKey(todayKey);
+    const dates = Array.from({ length: 7 }, (_, i) => shiftDateKey(mondayKey, i));
+
+    return { weekDates: dates, todayIndex: Math.max(dates.indexOf(todayKey), 0) };
   }, []);
 
   /* Группировка слотов по дате недели + сортировка по id (стабильный порядок). */

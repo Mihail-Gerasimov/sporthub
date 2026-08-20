@@ -14,7 +14,7 @@ import {
 } from '@/components/profile/provider-helpers';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotEndAt, shiftDateKey } from '@sporthub/domain';
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
@@ -60,19 +60,6 @@ function belongsToProvider(
   if (bookingTrainer !== null && trainerIds.has(bookingTrainer)) return true;
 
   return false;
-}
-
-/** Добавляет N дней к YYYY-MM-DD ключу, возвращает новый YYYY-MM-DD. */
-function addDays(dateKey: string, days: number): string {
-  const date = new Date(`${dateKey}T00:00:00`);
-
-  date.setDate(date.getDate() + days);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
 }
 
 /** KPI-карточка с числом и подписью + опциональный link. */
@@ -167,7 +154,10 @@ export function ProviderDashboard({
       const slot = slotById.get(b.scheduleId);
       if (!slot) return false;
 
-      const endAt = new Date(`${slot.date}T${slot.endTime}:00`).getTime();
+      // Конец занятия — по часам зала. Момент в поясе браузера сдвигал всё окно
+      // отметки исхода на смещение пояса: счётчик «check-in истекает» зажигался
+      // и гас не тогда, когда окно действительно закрывается на бэкенде.
+      const endAt = getSlotEndAt(slot).getTime();
       const windowEnd = endAt + CHECK_IN_WINDOW_MS;
       const msLeft = windowEnd - now;
 
@@ -215,8 +205,12 @@ export function ProviderDashboard({
 
   // KPI активных записей на сегодня и на ближайшие 7 дней.
   const { activeToday, activeWeek } = useMemo(() => {
-    const todayKey = getDateKeyInTimeZone();
-    const weekEndKey = addDays(todayKey, DAY_KEYS_IN_WEEK);
+    // Момент передаётся явно: `Intl` без аргумента берёт время в обход подменённых
+    // часов, и такой расчёт нельзя ни проверить тестом, ни зафиксировать во времени.
+    const todayKey = getDateKeyInTimeZone(new Date());
+    // Граница недели — сдвиг календарного ключа. Прежний `addDays` шёл через полночь
+    // в поясе браузера и на границе суток отдавал соседний день.
+    const weekEndKey = shiftDateKey(todayKey, DAY_KEYS_IN_WEEK);
 
     let today = 0;
     let week = 0;

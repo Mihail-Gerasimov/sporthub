@@ -72,7 +72,9 @@ export default async function Home() {
     trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
   );
 
-  const todayDateKey = getDateKeyInTimeZone();
+  // Момент передаётся явно: без аргумента форматирование берёт время в обход
+  // подменённых часов, и зафиксировать расчёт тестом становится нечем.
+  const todayDateKey = getDateKeyInTimeZone(new Date());
   const upcomingSessions = getUpcomingSessions({
     clubs,
     schedule: clubSchedule,

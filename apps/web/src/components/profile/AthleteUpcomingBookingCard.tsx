@@ -4,7 +4,7 @@ import { startTransition, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Modal } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, hoursUntilSlotStart } from '@sporthub/domain';
 import { formatDate } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 
@@ -20,18 +20,34 @@ type BookingCancelResponse = {
   error?: string;
 };
 
+/**
+ * Время слота в формате `HH:MM`. Поле `startTime` карточки — не только время:
+ * когда слот записи не найден, `getAthleteUpcomingProfileBookings` кладёт туда
+ * подпись «Время уточняется». Считать по ней момент нельзя.
+ */
+const TIME_KEY_PATTERN = /^\d{1,2}:\d{2}$/;
+
 /** Phase 24 Step 24.14: client-side детектор late-cancel — покажет warning-модалку
  * до реального DELETE. Логика дублирует `computeCancelReason` сервера для UX, сервер
  * всё равно пересчитывает reason авторитетно.
+ *
+ * Момент начала считает общий помощник по поясу зала. Раньше здесь строился
+ * `new Date(\`${date}T${time}:00\`)` — момент в поясе браузера, из-за чего окно
+ * бесплатной отмены съезжало на смещение пояса зрителя: у клиента западнее Самары
+ * предупреждение появлялось раньше срока, восточнее — не появлялось вовсе.
  */
 function isLateCancelPreview(booking: UpcomingProfileBooking, now: Date): boolean {
   const policy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
   const freeUntilHours = DISCIPLINE_CONFIG.lateCancel.freeUntil[policy];
   if (!Number.isFinite(freeUntilHours)) return false;
   if (freeUntilHours === 0) return true;
-  const startAt = new Date(`${booking.date}T${booking.startTime}:00`);
-  const hoursBeforeStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-  return hoursBeforeStart < freeUntilHours;
+
+  // Время начала неизвестно — окно отмены не определено, предупреждение не показываем.
+  // Прежний код в этом случае получал `Invalid Date` и приходил к тому же ответу,
+  // но молча: любое сравнение с NaN ложно. Здесь случай назван вслух.
+  if (!TIME_KEY_PATTERN.test(booking.startTime)) return false;
+
+  return hoursUntilSlotStart(booking, now) < freeUntilHours;
 }
 
 export function AthleteUpcomingBookingCard({

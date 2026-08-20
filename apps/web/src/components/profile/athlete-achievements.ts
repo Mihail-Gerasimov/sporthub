@@ -1,4 +1,8 @@
-import { CANCELLED_BOOKING_STATUSES, COMPLETED_BOOKING_STATUSES } from '@sporthub/domain';
+import {
+  CANCELLED_BOOKING_STATUSES,
+  COMPLETED_BOOKING_STATUSES,
+  zonedDateTime,
+} from '@sporthub/domain';
 import type { AthleteAchievementId, Booking, Review } from '@sporthub/types';
 
 export type AthleteAchievement = {
@@ -23,8 +27,16 @@ type GetAthleteAchievementsInput = {
   reviews: Review[];
 };
 
+/**
+ * Начало дня записи в миллисекундах. Момент строит общий помощник — по поясу зала.
+ *
+ * Раньше здесь стояла единственная во фронте явная привязка к UTC (`T00:00:00Z`).
+ * На порядок и на окно «три занятия за семь дней» это не влияло: там важна только
+ * разница между днями, а она одинакова в любом поясе. Но формула момента в проекте
+ * одна, и исключений у неё быть не должно — иначе следующая правка снова разойдётся.
+ */
 function getDateValue(date: string) {
-  return new Date(`${date}T00:00:00Z`).getTime();
+  return zonedDateTime(date, '00:00').getTime();
 }
 
 function getCompletedBookings(bookings: Booking[], athleteUserId: number | null) {

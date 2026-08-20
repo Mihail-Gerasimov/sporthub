@@ -10,7 +10,7 @@ import { startTransition, useEffect, useMemo, useState } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
-import { computeAthleteReliability } from '@sporthub/domain';
+import { computeAthleteReliability, zonedDateTime } from '@sporthub/domain';
 import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -156,8 +156,12 @@ export function ProviderClients({
       const reliability = computeAthleteReliability(bookings, userId);
       const completedCount = userBookings.filter((b) => b.status === 'completed').length;
 
+      // Дата визита — полночь дня в поясе зала. Раньше полночь бралась в поясе
+      // браузера, а показывалась потом через `formatDate`, который форматирует в
+      // поясе зала: двойная конвертация уводила подписи «первый/последний визит»
+      // на день назад у любого зрителя западнее Самары.
       const visitMs = userBookings
-        .map((b) => new Date(`${b.date}T00:00:00`).getTime())
+        .map((b) => zonedDateTime(b.date, '00:00').getTime())
         .filter((t) => !Number.isNaN(t))
         .sort((a, b) => a - b);
 

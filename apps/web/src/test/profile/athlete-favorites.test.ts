@@ -11,7 +11,7 @@ const users: User[] = [
     name: 'Алексей Смирнов',
     email: 'alexey@sporthub.local',
     phone: '+7 (927) 000-10-10',
-    password: 'sporthub123',
+    passwordHash: 'sporthub123',
     favoriteClubIds: [1, 3],
   },
 ];

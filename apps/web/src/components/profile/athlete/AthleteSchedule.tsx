@@ -11,7 +11,12 @@ import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBook
 import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { Badge, Button, Card, Modal } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import {
+  DISCIPLINE_CONFIG,
+  getWeekStartKey,
+  hoursUntilSlotStart,
+  shiftDateKey,
+} from '@sporthub/domain';
 import { cn, formatDate } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -63,31 +68,20 @@ function inFilterGroup(status: Booking['status'], filter: ScheduleFilter): boole
   );
 }
 
-/** Понедельник недели в формате YYYY-MM-DD (локальное время). */
-function getWeekStart(dateStr: string): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-
-  date.setDate(date.getDate() + diff);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${d}`;
-}
-
+/**
+ * Подпись диапазона недели: «1 июн — 7 июн».
+ *
+ * Обе границы — календарные дни, а не моменты: конец недели получается сдвигом ключа
+ * на шесть суток, форматирование идёт по ключу. Прежняя версия строила полночь в поясе
+ * браузера и возвращала её через `toISOString().slice(0, 10)` — то есть день в UTC.
+ * Для любого пояса восточнее UTC (в том числе для нашей Самары) это всегда предыдущая
+ * дата: заголовок недели показывал 31 мая вместо 1 июня.
+ */
 function formatWeekLabel(weekStart: string): string {
-  const start = new Date(`${weekStart}T00:00:00`);
-  const end = new Date(start);
+  const weekEnd = shiftDateKey(weekStart, 6);
+  const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
 
-  end.setDate(start.getDate() + 6);
-
-  return `${formatDate(start.toISOString().slice(0, 10), { day: 'numeric', month: 'short' })} — ${formatDate(
-    end.toISOString().slice(0, 10),
-    { day: 'numeric', month: 'short' },
-  )}`;
+  return `${formatDate(weekStart, options)} — ${formatDate(weekEnd, options)}`;
 }
 
 const STATUS_LABEL: Record<Booking['status'], string> = {
@@ -101,7 +95,11 @@ const STATUS_LABEL: Record<Booking['status'], string> = {
   cancelled_by_provider: 'Отменена провайдером',
 };
 
-/** client-side превью late-cancel (сервер пересчитывает авторитетно). */
+/** client-side превью late-cancel (сервер пересчитывает авторитетно).
+ *
+ * Часы до начала считает общий помощник по поясу зала: своя формула строила момент
+ * в поясе браузера и промахивалась мимо окна ровно на смещение пояса зрителя.
+ */
 function isLateCancel(
   slot: Pick<Schedule, 'date' | 'startTime'> | undefined,
   policy: Booking['cancellationPolicySnapshot'],
@@ -121,10 +119,7 @@ function isLateCancel(
     return true;
   }
 
-  const startAt = new Date(`${slot.date}T${slot.startTime}:00`);
-  const hoursBefore = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-  return hoursBefore < freeUntilHours;
+  return hoursUntilSlotStart(slot, now) < freeUntilHours;
 }
 
 export function AthleteSchedule({
@@ -189,7 +184,7 @@ export function AthleteSchedule({
     const map = new Map<string, EnrichedBooking[]>();
 
     enriched.forEach((item) => {
-      const weekStart = getWeekStart(item.booking.date);
+      const weekStart = getWeekStartKey(item.booking.date);
       const arr = map.get(weekStart);
 
       if (arr) {

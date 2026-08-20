@@ -21,6 +21,11 @@ export function resolveNames(ids: EntityId[], dict: { id: EntityId; name: string
   return ids.map((id) => map.get(id)?.name).filter((name): name is string => name !== undefined);
 }
 
+// День и время в поясе проекта считает общий пакет: те же функции нужны бэкенду,
+// а две копии одной формулы уже однажды разошлись. Путь импорта `@/lib/utils`
+// сохранён — на него завязаны существующие потребители.
+export { getDateKeyInTimeZone, getTimeKeyInTimeZone } from '@sporthub/domain';
+
 type ClassNameValue = string | false | null | undefined;
 
 export function cn(...values: ClassNameValue[]): string {
@@ -44,30 +49,6 @@ export function formatDate(
   return new Intl.DateTimeFormat(DEFAULT_LOCALE, {
     timeZone: DEFAULT_TIME_ZONE,
     ...options,
-  }).format(date);
-}
-
-export function getDateKeyInTimeZone(date = new Date(), timeZone = DEFAULT_TIME_ZONE): string {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-}
-
-/**
- * Phase 30.7: возвращает время дня в формате 'HH:MM' в указанной TZ.
- * Используется для TZ-safe сравнения с slot.endTime / slot.startTime —
- * никаких Date.setHours, которые работают в локальном TZ исполнителя кода.
- * 'en-GB' даёт 24-часовой формат с zero-pad.
- */
-export function getTimeKeyInTimeZone(date = new Date(), timeZone = DEFAULT_TIME_ZONE): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
   }).format(date);
 }
 

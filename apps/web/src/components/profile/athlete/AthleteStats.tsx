@@ -32,6 +32,13 @@ import { computeCurrentStreak, computeMaxStreak } from '@sporthub/domain';
 import { DISCIPLINE_CONFIG } from '@sporthub/domain';
 import { computeAthleteReliability } from '@sporthub/domain';
 import {
+  formatMonthLabel,
+  generateMonthRange,
+  getCurrentMonthKey,
+  getMonthKey,
+  shiftMonthKey,
+} from '@/lib/month-keys';
+import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
   useAuthStore,
@@ -56,50 +63,11 @@ const FSM_SLICE_COLORS = {
   cancelled: 'var(--ui-warning)',
 } as const;
 
-const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
-  month: 'short',
-  year: 'numeric',
-});
-
-/** YYYY-MM ключ месяца по ISO-дате YYYY-MM-DD. */
-function getMonthKey(dateStr: string): string {
-  return dateStr.slice(0, 7);
-}
-
-/** Человекочитаемая подпись месяца для оси X (например, «апр. 2026»). */
-function formatMonthLabel(monthKey: string): string {
-  return MONTH_LABEL_FORMATTER.format(new Date(`${monthKey}-01T00:00:00`));
-}
-
 /** Подсчёт минут длительности слота из scheduleId. 0, если слот не найден. */
 function getBookingMinutes(booking: Booking, scheduleById: Map<number, Schedule>): number {
   const slot = scheduleById.get(booking.scheduleId);
 
   return slot?.durationMinutes ?? 0;
-}
-
-/**
- * Генерирует последовательность YYYY-MM ключей между двумя датами (включительно).
- * Нужна для заполнения помесячных графиков «пустыми» месяцами, чтобы линия не рвалась.
- */
-function generateMonthRange(startKey: string, endKey: string): string[] {
-  if (startKey > endKey) {
-    return [];
-  }
-
-  const result: string[] = [];
-  let cursor = new Date(`${startKey}-01T00:00:00`);
-  const end = new Date(`${endKey}-01T00:00:00`);
-
-  while (cursor.getTime() <= end.getTime()) {
-    const year = cursor.getFullYear();
-    const month = String(cursor.getMonth() + 1).padStart(2, '0');
-
-    result.push(`${year}-${month}`);
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-  }
-
-  return result;
 }
 
 export function AthleteStats({
@@ -180,15 +148,12 @@ export function AthleteStats({
   );
 
   // Фильтр по окну: для 12-месячного окна берём начало-месяц 11 мес назад от текущего.
+  // Текущий месяц — по календарю зала, а не браузера: `now.getMonth()` на границе
+  // месяца у западных поясов отдавал предыдущий месяц и сдвигал всё окно.
   const windowStartKey = useMemo<string | null>(() => {
     if (windowSetting === 'all') return null;
 
-    const now = new Date();
-    const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const year = windowStart.getFullYear();
-    const month = String(windowStart.getMonth() + 1).padStart(2, '0');
-
-    return `${year}-${month}`;
+    return shiftMonthKey(getCurrentMonthKey(), -11);
   }, [windowSetting]);
 
   const windowedCompleted = useMemo(() => {

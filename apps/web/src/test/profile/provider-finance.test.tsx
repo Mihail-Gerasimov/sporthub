@@ -15,7 +15,7 @@ const providerUser: User = {
   name: 'Ирина Провайдер',
   email: 'provider@studio.local',
   phone: '+7 999 222-33-44',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 

@@ -161,7 +161,7 @@ export function getProviderIncomingBookings(
     providerClubIds,
     providerTrainerIds,
     schedule = [],
-    todayDateKey = getDateKeyInTimeZone(),
+    todayDateKey = getDateKeyInTimeZone(new Date()),
     trainers = [],
     users = [],
   } = input;

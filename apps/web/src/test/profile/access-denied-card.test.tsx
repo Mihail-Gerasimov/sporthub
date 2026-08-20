@@ -16,7 +16,7 @@ const athleteUser: User = {
   name: 'Алексей',
   email: 'alexey@test',
   phone: '',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 

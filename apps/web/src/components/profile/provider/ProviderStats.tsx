@@ -11,6 +11,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Card, ReliabilityBadge } from '@/components/ui';
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
+import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
+import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
 import { cn, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
@@ -19,29 +21,33 @@ import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthu
 const ALL_VALUE = '__all__';
 type StatsWindow = 12 | 'all';
 
-const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
-  month: 'short',
-  year: 'numeric',
-});
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 // Дни недели с понедельника (соответствует нашим locale-соглашениям).
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-function getMonthKey(dateStr: string): string {
-  return dateStr.slice(0, 7);
-}
-
-function formatMonthLabel(monthKey: string): string {
-  return MONTH_LABEL_FORMATTER.format(new Date(`${monthKey}-01T00:00:00`));
-}
-
-/** ISO-day-of-week (Mon=0..Sun=6) из slot.startTime и booking.date. */
+/**
+ * Клетка тепловой карты: день недели (Пн=0..Вс=6) и час — по часам зала.
+ *
+ * Прежняя версия была сломана по существу: строка `${date}T${time}:00` разбиралась
+ * в поясе БРАУЗЕРА, а день и час читались через `getUTCDay()` и `getUTCHours()` —
+ * то есть в UTC. Разница между этими двумя поясами уезжала прямо в координаты
+ * клетки: у зрителя в Самаре занятие в 10:00 попадало в колонку 6 часов, а
+ * занятия раннего утра и позднего вечера переезжали ещё и на соседний день недели.
+ *
+ * Теперь обе координаты берутся из того, что показывают часы зала. Час читается
+ * прямо из `startTime` — это и есть время зала, никакого пояса тут нет вовсе.
+ * День недели считается как расстояние от понедельника той же недели: обе даты
+ * берутся полуночью в поясе зала, поэтому разница — ровно целые сутки.
+ */
 function getDayHourKey(dateStr: string, startTime: string): { day: number; hour: number } {
-  const dt = new Date(`${dateStr}T${startTime}:00`);
-  const jsDay = dt.getUTCDay(); // 0=Sun..6=Sat
-  const day = jsDay === 0 ? 6 : jsDay - 1; // → 0=Mon..6=Sun
-  const hour = dt.getUTCHours();
-  return { day, hour };
+  const weekStartKey = getWeekStartKey(dateStr);
+  const dayOffsetMs =
+    zonedDateTime(dateStr, '00:00').getTime() - zonedDateTime(weekStartKey, '00:00').getTime();
+  const day = Math.round(dayOffsetMs / MS_IN_DAY);
+  const hour = Number(startTime.split(':')[0]);
+
+  return { day, hour: Number.isFinite(hour) ? hour : -1 };
 }
 
 type ProviderStatsProps = {
@@ -109,11 +115,12 @@ export function ProviderStats({
   );
 
   // Порог окна: YYYY-MM 11 месяцев назад (включая текущий — итого 12).
+  // Текущий месяц берётся по календарю зала: `now.getMonth()` в поясе браузера
+  // на границе месяца отдавал соседний месяц и двигал всё окно.
   const windowStartKey = useMemo<string | null>(() => {
     if (windowSetting === 'all') return null;
-    const now = new Date();
-    const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    return `${windowStart.getFullYear()}-${String(windowStart.getMonth() + 1).padStart(2, '0')}`;
+
+    return shiftMonthKey(getCurrentMonthKey(), -11);
   }, [windowSetting]);
 
   // Фильтрация по окну и per-offering.

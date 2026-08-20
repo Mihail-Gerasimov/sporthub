@@ -222,7 +222,7 @@ const users: User[] = [
     name: 'Алексей Миронов',
     email: 'alexey@sporthub.local',
     phone: '+7 999 123-45-67',
-    password: 'secret',
+    passwordHash: 'secret',
     favoriteClubIds: [],
   },
 ];

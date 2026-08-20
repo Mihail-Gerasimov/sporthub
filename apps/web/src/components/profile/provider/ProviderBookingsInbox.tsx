@@ -12,7 +12,7 @@ import { startTransition, useMemo, useState } from 'react';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { RejectBookingReasonModal } from '@/components/profile/provider/RejectBookingReasonModal';
 import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotEndAt, getSlotStartAt } from '@sporthub/domain';
 import { computeAthleteReliability } from '@sporthub/domain';
 import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -98,8 +98,17 @@ type EnrichedBooking = {
   endAtMs: number | null;
 };
 
-function getSlotEndAt(slot: Schedule): number {
-  return new Date(`${slot.date}T${slot.endTime}:00`).getTime();
+/**
+ * Конец занятия в миллисекундах. Момент даёт общий помощник — по часам зала.
+ *
+ * Раньше здесь жила своя функция с тем же именем `getSlotEndAt`, что и на бэкенде,
+ * но с другим типом результата (число вместо `Date`) и с моментом в поясе браузера:
+ * от неё зависело и распределение записей по табу «Требуют check-in», и красная
+ * рамка «меньше шести часов до конца окна». Смещение пояса больше этих шести часов,
+ * поэтому подсветка срочности показывалась не тем записям.
+ */
+function getSlotEndAtMs(slot: Schedule): number {
+  return getSlotEndAt(slot).getTime();
 }
 
 export function ProviderBookingsInbox({
@@ -192,7 +201,7 @@ export function ProviderBookingsInbox({
       const timeLabel = slot
         ? `${slot.startTime}${slot.endTime ? ` – ${slot.endTime}` : ''}`
         : 'Время уточняется';
-      const endAtMs = slot ? getSlotEndAt(slot) : null;
+      const endAtMs = slot ? getSlotEndAtMs(slot) : null;
 
       return {
         booking,
@@ -238,10 +247,10 @@ export function ProviderBookingsInbox({
       history.push(enriched);
     }
 
-    // Sort confirmed — по startAt asc.
+    // Sort confirmed — по startAt asc. Момент начала берёт общий помощник.
     confirmed.sort((a, b) => {
-      const aMs = a.slot ? new Date(`${a.slot.date}T${a.slot.startTime}:00`).getTime() : 0;
-      const bMs = b.slot ? new Date(`${b.slot.date}T${b.slot.startTime}:00`).getTime() : 0;
+      const aMs = a.slot ? getSlotStartAt(a.slot).getTime() : 0;
+      const bMs = b.slot ? getSlotStartAt(b.slot).getTime() : 0;
       return aMs - bMs;
     });
     // Sort check-in — по убыванию срочности (меньше msLeft = выше).

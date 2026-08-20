@@ -36,7 +36,7 @@ const providerUser: User = {
   name: 'Марина Крылова',
   email: 'marina@studio.local',
   phone: '+7 999 222-33-44',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 
@@ -47,7 +47,7 @@ const athleteUser: User = {
   name: 'Алексей Смирнов',
   email: 'alexey@sporthub.local',
   phone: '+7 999 111-22-33',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 
@@ -536,13 +536,19 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
   it('критичность <6h: карточка с endAt+48h - now ≈ 4h имеет data-approaching=true и красный border', () => {
     authenticateProvider();
 
-    // NOW = 2026-04-22T12:00Z. endAt + 48h = 2026-04-22T16:00Z → msLeft = 4h < 6h → approaching.
-    // Значит endAt = 2026-04-20T16:00 → date=2026-04-20, endTime=16:00.
+    // NOW = 2026-04-22T12:00Z. Занятие кончается в 20:00 по часам зала (Самара, UTC+4),
+    // то есть в 2026-04-20T16:00Z. Окно отметки исхода закрывается через 48 часов —
+    // в 2026-04-22T16:00Z, значит до конца окна 4 часа < 6 → карточка критична.
+    //
+    // Момент записан в UTC намеренно: если бы конец занятия считался в поясе процесса
+    // (тест идёт под TZ=UTC), окно закрывалось бы в 2026-04-22T20:00Z, до конца было бы
+    // 8 часов и подсветки не было бы вовсе. Раньше тест это и проверял — по неверной
+    // формуле, совпадающей с кодом.
     const slot = makeSchedule({
       id: 2001,
       date: '2026-04-20',
-      startTime: '15:00',
-      endTime: '16:00',
+      startTime: '19:00',
+      endTime: '20:00',
     });
     const booking = makeBooking({
       id: 701,

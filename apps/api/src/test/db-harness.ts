@@ -21,9 +21,19 @@ const run = promisify(execFile);
 
 const API_ROOT = path.join(__dirname, '..', '..');
 
-/** Схема этого исполнителя. Номер даёт сам Vitest. */
+/**
+ * Схема этого исполнителя. Номер даёт сам Vitest.
+ *
+ * Необязательный суффикс нужен, когда прогонов идёт несколько ОДНОВРЕМЕННО — например,
+ * два человека или две задачи на одной машине. Номера исполнителей у них совпадут,
+ * и они начнут чистить таблицы друг друга: тесты станут падать через раз, а причина
+ * будет выглядеть как случайность.
+ */
 export function testSchemaName(): string {
-  return `test_${process.env.VITEST_WORKER_ID ?? '1'}`;
+  const worker = process.env.VITEST_WORKER_ID ?? '1';
+  const suffix = process.env.SPORTHUB_TEST_SCHEMA_SUFFIX;
+
+  return suffix ? `test_${suffix}_${worker}` : `test_${worker}`;
 }
 
 /**

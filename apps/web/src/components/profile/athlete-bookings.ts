@@ -97,7 +97,7 @@ function getBookingLocationLabel({
 export function getAthleteActiveFutureBookings({
   athleteUserId,
   bookings,
-  todayDateKey = getDateKeyInTimeZone(),
+  todayDateKey = getDateKeyInTimeZone(new Date()),
 }: GetAthleteActiveFutureBookingsInput): Booking[] {
   if (athleteUserId === null) {
     return [];

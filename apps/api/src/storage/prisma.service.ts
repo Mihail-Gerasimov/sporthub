@@ -67,6 +67,11 @@ export class PrismaService implements OnModuleDestroy {
     this.pool = new Pool({
       connectionString: settings.connectionString,
       max: settings.poolSize,
+      // ⚠️ Схему задаём на самом соединении, а не только адаптеру. Адаптер подставляет
+      // её в запросы, которые строит Prisma, но СЫРОЙ SQL идёт мимо — а на нём держится
+      // атомарный счётчик мест. Без этой строки такой запрос ушёл бы в схему по умолчанию
+      // и не нашёл таблицу — причём только там, где схема не `public`, то есть в тестах.
+      options: `-c search_path="${settings.schema}"`,
     });
 
     this.client = new PrismaClient({

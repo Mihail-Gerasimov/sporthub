@@ -39,7 +39,7 @@ const providerUser: User = {
   name: 'Ирина Провайдер',
   email: 'provider@studio.local',
   phone: '+7 999 222-33-44',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 
@@ -50,7 +50,7 @@ const athleteUser: User = {
   name: 'Алексей Смирнов',
   email: 'alexey@sporthub.local',
   phone: '+7 999 111-22-33',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 
@@ -61,7 +61,7 @@ const athleteUser2: User = {
   name: 'Ольга Петрова',
   email: 'olga@sporthub.local',
   phone: '+7 999 000-00-00',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 

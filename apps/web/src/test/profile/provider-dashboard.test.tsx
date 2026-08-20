@@ -27,7 +27,7 @@ const providerUser: User = {
   name: 'Марина Крылова',
   email: 'marina@studio.local',
   phone: '+7 999 222-33-44',
-  password: 'secret',
+  passwordHash: 'secret',
   favoriteClubIds: [],
 };
 

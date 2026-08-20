@@ -11,7 +11,7 @@ import {
   type UpcomingProfileBooking,
 } from '@/components/profile/athlete-bookings';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
 import { computeAthleteReliability, isAthleteInQuarantine } from '@sporthub/domain';
 import {
   getPersonalCabinetConfig,
@@ -29,12 +29,13 @@ type AthleteDashboardProps = {
   users?: User[];
 };
 
-/** Вычисляет startAt слота из date + startTime (совпадает с логикой reliability.ts). */
-function getSlotStartAt(slot: Pick<Schedule, 'date' | 'startTime'>): Date {
-  return new Date(`${slot.date}T${slot.startTime}:00`);
-}
-
-/** Остаток мс до авто-отмены pending (1h до старта слота). Отрицательный — окно уже прошло. */
+/** Остаток мс до авто-отмены pending (1h до старта слота). Отрицательный — окно уже прошло.
+ *
+ * Момент начала берётся у общего помощника — того же, по которому авто-отмену считает
+ * бэкенд. Своя копия формулы строила момент в поясе браузера: при смещении в четыре
+ * часа отсчёт до часового окна показывал произвольное число, вплоть до «скоро» у
+ * записи, до которой ещё сутки.
+ */
 function getAutoCancelRemainingMs(slot: Pick<Schedule, 'date' | 'startTime'>, now: Date): number {
   const startAt = getSlotStartAt(slot).getTime();
   const cancelAt = startAt - DISCIPLINE_CONFIG.pending.autoCancelHoursBeforeStart * 60 * 60 * 1000;
