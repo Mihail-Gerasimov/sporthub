@@ -22,6 +22,7 @@ import { CLUBS_REPOSITORY, SCHEDULE_REPOSITORY } from '../repositories/entities.
 import { StorageModule } from '../storage/storage.module';
 import type { PublicationSlotInput } from './publication.service';
 import { PublicationService } from './publication.service';
+import { AppModule } from '../app.module';
 
 describe('PublicationService', () => {
   let dataDirectory: string;
@@ -105,9 +106,12 @@ describe('PublicationService', () => {
       await writeFile(path.join(dataDirectory, `${file}.json`), '[]\n', 'utf8');
     }
 
+    // Поднимается всё приложение, а не один сервис с хранилищем: отмена записей
+    // на удаляемый слот делается сервисом записей, а тот тянет журнал, уведомления
+    // и контекст слота. Список провайдеров вручную пришлось бы дописывать
+    // при каждой новой зависимости — и он бы протух молча.
     const moduleRef = await Test.createTestingModule({
-      imports: [StorageModule],
-      providers: [PublicationService],
+      imports: [AppModule],
     }).compile();
 
     service = moduleRef.get(PublicationService);
@@ -312,5 +316,76 @@ describe('PublicationService', () => {
 
     expect(result.offering.trainerClubLinkId).toBeDefined();
     expect(result.schedules[0].trainerId).toBe(result.trainer.id);
+  });
+
+  describe('Удаление слота с записями', () => {
+    it('переводит записи в «отменено провайдером», а не бросает их на несуществующий слот', async () => {
+      const created = await createClub();
+      const slotId = created.schedules[0].id;
+
+      await bookings.insert({
+        scheduleId: slotId,
+        offeringId: created.offering.id,
+        ownerType: 'club',
+        ownerId: created.club.id,
+        clubId: created.club.id,
+        userId: 1,
+        sportId: 1,
+        date: created.schedules[0].date,
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
+        totalPrice: 1000,
+        statusHistory: [],
+      } as never);
+
+      // Правка расписания без этого слота = его удаление.
+      await service.updateClub({
+        clubId: created.club.id,
+        userId: 2,
+        club: {},
+        offering: {},
+        slots: [],
+      });
+
+      const all = await bookings.findAll();
+
+      expect(all).toHaveLength(1);
+      // История атлета цела: запись осталась, но отменена.
+      expect(all[0].status).toBe('cancelled_by_provider');
+      expect(await schedule.findByOfferingId(created.offering.id)).toHaveLength(0);
+    });
+
+    it('освобождает места удаляемого слота', async () => {
+      const created = await createClub();
+      const slotId = created.schedules[0].id;
+
+      await bookings.insert({
+        scheduleId: slotId,
+        offeringId: created.offering.id,
+        ownerType: 'club',
+        ownerId: created.club.id,
+        clubId: created.club.id,
+        userId: 1,
+        sportId: 1,
+        date: created.schedules[0].date,
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
+        totalPrice: 1000,
+        statusHistory: [],
+      } as never);
+      await schedule.changeBookedCount(slotId, 1);
+
+      await service.updateClub({
+        clubId: created.club.id,
+        userId: 2,
+        club: {},
+        offering: {},
+        slots: [],
+      });
+
+      const all = await bookings.findAll();
+
+      expect(all[0].status).toBe('cancelled_by_provider');
+    });
   });
 });

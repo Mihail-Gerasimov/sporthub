@@ -5,6 +5,7 @@
 // их снимками. Здесь то же самое выражено через репозитории внутри транзакции,
 // поэтому в фазе базы вызывающий код не меняется вовсе.
 
+import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
@@ -46,6 +47,7 @@ import {
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
+import { BookingService } from '../bookings/booking.service';
 
 /** Слот в запросе на публикацию: без id — новый, с id — правка существующего. */
 export type PublicationSlotInput = Omit<Schedule, 'id' | 'createdAt'> & {
@@ -85,6 +87,9 @@ export class PublicationService {
     @Inject(REVIEWS_REPOSITORY) private readonly reviews: ReviewsRepository,
     @Inject(TRAINER_CLUB_LINKS_REPOSITORY)
     private readonly links: TrainerClubLinksRepository,
+    // Отмена записей на удаляемый слот делается сервисом записей: у него
+    // правила переходов, история, пересчёт мест и уведомления.
+    private readonly bookingService: BookingService,
   ) {}
 
   // --- Создание ---------------------------------------------------------------
@@ -202,9 +207,12 @@ export class PublicationService {
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
-    const schedules = await this.syncSlots(input.slots, offering.id, {
-      clubId: input.clubId,
-    });
+    const schedules = await this.syncSlots(
+      input.slots,
+      offering.id,
+      { clubId: input.clubId },
+      input.userId,
+    );
 
     return { club, offering: updatedOffering, schedules };
   }
@@ -258,9 +266,12 @@ export class PublicationService {
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
-    const schedules = await this.syncSlots(input.slots, offering.id, {
-      trainerId: input.trainerId,
-    });
+    const schedules = await this.syncSlots(
+      input.slots,
+      offering.id,
+      { trainerId: input.trainerId },
+      input.userId,
+    );
 
     return { trainer, offering: updatedOffering, schedules };
   }
@@ -336,6 +347,8 @@ export class PublicationService {
     slots: PublicationSlotInput[],
     offeringId: number,
     owner: { clubId?: number; trainerId?: number },
+    // Кто правит расписание: он же указывается актором отмены записей.
+    actorUserId?: number,
   ): Promise<Schedule[]> {
     const existing = await this.schedule.findByOfferingId(offeringId);
     const existingById = new Map(existing.map((slot) => [slot.id, slot]));
@@ -373,9 +386,48 @@ export class PublicationService {
     result.push(...created);
 
     const removed = existing.filter((slot) => !keptIds.has(slot.id)).map((slot) => slot.id);
+
+    // ⚠️ Перед удалением слота его записи надо отменить, а не бросить.
+    //
+    // Раньше запись просто повисала на несуществующем слоте: в файле это было
+    // возможно, в базе — нет, там стоит внешний ключ. Каскад тоже не годится:
+    // он стёр бы историю атлета, включая уже прошедшие занятия. Поэтому записи
+    // переводятся в «отменено провайдером» — атлет видит отмену, а не пустоту,
+    // места освобождаются, уведомления уходят после коммита.
+    for (const slotId of removed) {
+      await this.cancelBookingsOfRemovedSlot(slotId, actorUserId);
+    }
+
     await this.schedule.removeMany(removed);
 
     return result;
+  }
+
+  /**
+   * Отмена записей на удаляемый слот.
+   *
+   * Переход делает сам сервис записей: у него правила переходов, история,
+   * пересчёт мест и уведомления. Дублировать это здесь означало бы завести
+   * вторую, расходящуюся копию тех же правил.
+   */
+  private async cancelBookingsOfRemovedSlot(
+    scheduleId: number,
+    actorUserId: number | undefined,
+  ): Promise<void> {
+    const affected = await this.bookings.findMany({
+      scheduleId,
+      status: [...ACTIVE_BOOKING_STATUSES],
+    });
+
+    for (const booking of affected) {
+      await this.bookingService.transition({
+        bookingId: booking.id,
+        to: 'cancelled_by_provider',
+        actor: 'provider',
+        actorUserId,
+        reason: 'Занятие отменено: слот удалён из расписания',
+      });
+    }
   }
 
   /** Каскад: услуги, их слоты, записи и отзывы владельца. */
