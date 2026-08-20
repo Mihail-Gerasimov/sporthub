@@ -3,6 +3,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Маршруты модерации', () => {
@@ -13,76 +15,99 @@ describe('Маршруты модерации', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      {
-        id: 2,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'club_owner',
-        name: 'Марина',
-        email: 'm@test.local',
-        phone: '+7 (900) 000-00-02',
-        passwordHash: 'demo123',
-        favoriteClubIds: [],
-      },
-      {
-        id: 3,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'admin',
-        name: 'Админ',
-        email: 'a@test.local',
-        phone: '+7 (900) 000-00-03',
-        passwordHash: 'demo123',
-        favoriteClubIds: [],
-      },
-    ]);
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-03T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna',
-        city: 'Самара',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-      {
-        id: 2,
-        createdAt: '2026-01-02T00:00:00.000Z',
-        name: 'Железо',
-        slug: 'iron',
-        city: 'Москва',
-        managedByUserId: 2,
-        sportIds: [5],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-      },
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина Соколова',
-        slug: 'marina',
-        city: 'Самара',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('logs', []);
+    // Один перенос на весь срез: у базы есть внешние ключи, и публикация,
+    // записанная до справочника видов спорта, в неё просто не ляжет.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'club_owner',
+          name: 'Марина',
+          email: 'm@test.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: 'demo123',
+          favoriteClubIds: [],
+        },
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'admin',
+          name: 'Админ',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-03',
+          passwordHash: 'demo123',
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          city: 'Самара',
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-02T00:00:00.000Z',
+          name: 'Железо',
+          slug: 'iron',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          city: 'Москва',
+          managedByUserId: 2,
+          sportIds: [5],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина Соколова',
+          slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          city: 'Самара',
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      logs: [],
+    });
   });
 
   afterAll(async () => {

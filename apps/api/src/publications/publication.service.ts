@@ -398,7 +398,22 @@ export class PublicationService {
       await this.cancelBookingsOfRemovedSlot(slotId, actorUserId);
     }
 
-    await this.schedule.removeMany(removed);
+    // ⚠️ А вот ЗАВЕРШЁННУЮ запись отменить нечем: правила переходов из завершения
+    // не выводят, и это правильно — занятие действительно состоялось. Значит слот,
+    // на котором она висит, — история, а не строка расписания, и удалять его нельзя:
+    // вместе с ним исчезла бы и сама запись атлета. Такой слот остаётся, остальные
+    // уходят. Прежнее поведение — «удалить слот, а запись бросить на несуществующий» —
+    // не воспроизводится намеренно ни на файлах, ни в базе: это была порча данных,
+    // просто молчаливая.
+    const deletable: number[] = [];
+
+    for (const slotId of removed) {
+      const remaining = await this.bookings.findMany({ scheduleId: slotId });
+
+      if (remaining.length === 0) deletable.push(slotId);
+    }
+
+    await this.schedule.removeMany(deletable);
 
     return result;
   }

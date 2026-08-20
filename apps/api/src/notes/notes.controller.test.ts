@@ -4,6 +4,15 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  fixtureClub,
+  fixtureClubOffering,
+  fixtureClubSlot1,
+  fixtureDictionaryCollections,
+  fixtureTrainer,
+  fixtureUsers,
+} from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Маршруты CRM-заметок', () => {
@@ -14,38 +23,37 @@ describe('Маршруты CRM-заметок', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('bookings', [
-      {
-        id: 1,
-        createdAt: '2026-02-01T00:00:00.000Z',
-        userId: 1,
-        scheduleId: 1,
-        clubId: 1,
-        ownerType: 'club',
-        ownerId: 1,
-        sportId: 3,
-        status: 'confirmed',
-        date: '2026-03-18',
-        statusHistory: [],
-      },
-    ]);
-    await harness.write('provider-client-notes', []);
+    // Право завести заметку выводится из записей клиента, поэтому набору нужны
+    // и запись, и всё, на что она ссылается: пользователь, слот, услуга, клуб,
+    // справочник видов спорта. Раньше здесь были только клуб и запись — файлы
+    // принимали ссылку в пустоту, база нет.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: fixtureUsers,
+      clubs: [fixtureClub],
+      // Слот ведёт тренер: у клубного занятия «кто ведёт» — отдельная ссылка.
+      trainers: [fixtureTrainer],
+      offerings: [fixtureClubOffering],
+      schedule: [fixtureClubSlot1],
+      bookings: [
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          userId: 1,
+          scheduleId: 1,
+          offeringId: 1,
+          clubId: 1,
+          ownerType: 'club',
+          ownerId: 1,
+          sportId: 3,
+          status: 'confirmed',
+          date: '2026-03-18',
+          totalPrice: 1100,
+          statusHistory: [],
+        },
+      ],
+      'provider-client-notes': [],
+    });
   });
 
   afterAll(async () => {

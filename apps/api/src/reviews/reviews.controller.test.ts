@@ -4,6 +4,8 @@
 import request from 'supertest';
 import { afterAll, beforeEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Маршрут отзывов', () => {
@@ -14,78 +16,95 @@ describe('Маршрут отзывов', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'athlete',
-        name: 'Алексей Смирнов',
-        email: 'a@test.local',
-        phone: '+7 (900) 000-00-01',
-        passwordHash: 'demo123',
-        favoriteClubIds: [],
-      },
-      {
-        id: 2,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'club_owner',
-        name: 'Марина Крылова',
-        email: 'm@test.local',
-        phone: '+7 (900) 000-00-02',
-        passwordHash: 'demo123',
-        favoriteClubIds: [],
-      },
-    ]);
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4.5,
-        reviewCount: 1,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина Соколова',
-        slug: 'marina-sokolova',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('reviews', [
-      {
-        id: 1,
-        createdAt: '2026-02-01T00:00:00.000Z',
-        userId: 1,
-        clubId: 1,
-        rating: 5,
-        text: 'Отлично',
-      },
-      {
-        id: 2,
-        createdAt: '2026-02-02T00:00:00.000Z',
-        userId: 1,
-        trainerId: 1,
-        rating: 4,
-        text: 'Хорошо',
-      },
-    ]);
-    await harness.write('notifications', []);
+    // Один перенос на весь срез: публикация ссылается на справочник видов спорта,
+    // отзыв — на пользователя и публикацию.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'athlete',
+          name: 'Алексей Смирнов',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: 'demo123',
+          favoriteClubIds: [],
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'club_owner',
+          name: 'Марина Крылова',
+          email: 'm@test.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: 'demo123',
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          city: 'Самара',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4.5,
+          reviewCount: 1,
+          status: 'published',
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина Соколова',
+          slug: 'marina-sokolova',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      reviews: [
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          userId: 1,
+          clubId: 1,
+          rating: 5,
+          text: 'Отлично',
+        },
+        {
+          id: 2,
+          createdAt: '2026-02-02T00:00:00.000Z',
+          userId: 1,
+          trainerId: 1,
+          rating: 4,
+          text: 'Хорошо',
+        },
+      ],
+      notifications: [],
+    });
   });
 
   afterAll(async () => {

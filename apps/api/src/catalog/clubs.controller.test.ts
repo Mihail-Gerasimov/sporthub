@@ -7,6 +7,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 const club = (id: number, over: Record<string, unknown> = {}) => ({
@@ -42,39 +44,48 @@ describe('Маршруты клубов и тренеров', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      {
-        id: 2,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'club_owner',
-        name: 'Марина',
-        email: 'm@test.local',
-        phone: '+7 (900) 000-00-02',
-        passwordHash: 'demo123',
-        favoriteClubIds: [],
-      },
-    ]);
-    await harness.write('clubs', [club(1), club(2, { rating: 2, sportIds: [5] })]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина Соколова',
-        slug: 'marina-sokolova',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('offerings', []);
-    await harness.write('schedule', []);
-    await harness.write('bookings', []);
-    await harness.write('reviews', []);
-    await harness.write('logs', []);
+    // Один перенос на весь срез: у базы есть внешние ключи, и публикацию не записать
+    // раньше справочника видов спорта.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'club_owner',
+          name: 'Марина',
+          email: 'm@test.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: 'demo123',
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: [club(1), club(2, { rating: 2, sportIds: [5] })],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина Соколова',
+          slug: 'marina-sokolova',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      reviews: [],
+      logs: [],
+    });
   });
 
   afterAll(async () => {
@@ -210,39 +221,49 @@ describe('Маршруты клубов и тренеров', () => {
     });
 
     it('правка чужой публикации запрещена', async () => {
-      await harness.write('users', [
-        {
-          id: 2,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
-          name: 'Марина',
-          email: 'm@test.local',
-          phone: '+7 (900) 000-00-02',
-          passwordHash: 'demo123',
-          favoriteClubIds: [],
-        },
-        {
-          id: 9,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
-          name: 'Чужой',
-          email: 'x@test.local',
-          phone: '+7 (900) 000-00-09',
-          passwordHash: 'demo123',
-          favoriteClubIds: [],
-        },
-      ]);
-      await harness.write('offerings', [
-        {
-          id: 1,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          ownerType: 'club',
-          ownerId: 1,
-          sportId: 3,
-          title: 'Занятия',
-          price: 500,
-        },
-      ]);
+      await harness.writeMany({
+        users: [
+          {
+            id: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            role: 'club_owner',
+            name: 'Марина',
+            email: 'm@test.local',
+            phone: '+7 (900) 000-00-02',
+            passwordHash: 'demo123',
+            favoriteClubIds: [],
+          },
+          {
+            id: 9,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            role: 'club_owner',
+            name: 'Чужой',
+            email: 'x@test.local',
+            phone: '+7 (900) 000-00-09',
+            passwordHash: 'demo123',
+            favoriteClubIds: [],
+          },
+        ],
+        // Услуга была урезанной: без описания, формата, длительности и адреса.
+        // Файлы такую принимали, база — нет: половины обязательных колонок у неё нет.
+        offerings: [
+          {
+            id: 1,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            ownerType: 'club',
+            ownerId: 1,
+            sportId: 3,
+            title: 'Занятия',
+            description: 'Описание',
+            format: 'group',
+            price: 500,
+            durationMinutes: 60,
+            capacity: 10,
+            address: 'Ленина 1',
+            coordinates: { lat: 53.2, lng: 50.1 },
+          },
+        ],
+      });
 
       const response = await request(server())
         .patch('/api/clubs/1')

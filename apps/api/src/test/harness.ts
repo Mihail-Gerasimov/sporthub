@@ -58,6 +58,14 @@ export type CollectionName = (typeof COLLECTIONS)[number];
 
 export type TestHarness = {
   app: INestApplication;
+  /**
+   * На чём поднято приложение.
+   *
+   * Нужно ровно одному месту — там, где состояние, которое проверяет набор,
+   * ОДНО ХРАНИЛИЩЕ ДОПУСКАЕТ, А ДРУГОЕ ЗАПРЕЩАЕТ. Такие места обязаны быть видны
+   * в коде набора и объяснены рядом, а не спрятаны за молчаливым пропуском.
+   */
+  storage: 'files' | 'database';
   dataDirectory: string;
   /** Перезаписать коллекцию целиком — тем же форматом, что пишет хранилище. */
   write(name: string, data: unknown): Promise<void>;
@@ -106,21 +114,38 @@ function emptySource(): SourceData {
 /**
  * Обвязка на БАЗЕ: тот же набор проверок, другое хранилище.
  *
- * `write` не пишет одну таблицу в отрыве от других — так нельзя: у базы есть внешние
- * ключи, и запись на несуществующий слот она не примет. Поэтому обвязка держит срез
- * целиком и переносит его заново после каждой правки. Для наборов в десяток строк это
- * дешевле, чем разбираться в порядке вставки на каждом вызове.
+ * Две вещи здесь сделаны иначе, чем у файлов, и обе — вынужденно:
+ *
+ * 1. **Одну таблицу в отрыве от других не записать.** У базы есть внешние ключи, и
+ *    запись на несуществующий слот она не примет. Поэтому правка идёт срезом целиком:
+ *    таблицы чистятся и переносятся заново одним переносом.
+ * 2. **Правка обязана менять ТОЛЬКО названные коллекции.** Файловая обвязка пишет один
+ *    файл и остальных не касается, и наборы на это опираются: половина из них создаёт
+ *    сущность запросом, а потом дописывает соседнюю коллекцию. Поэтому текущее состояние
+ *    базы выгружается целиком, и правка накладывается НА НЕГО — иначе всё, что успело
+ *    создать приложение, исчезало бы при первой же дозаписи.
  */
 async function createDatabaseHarness(): Promise<TestHarness> {
   const db = await createTestDatabase();
-  const source = emptySource();
 
-  const reimport = async (): Promise<void> => {
+  // Стартовый срез пуст: наборы засеивают себя сами. Чистка обязательна: схема
+  // переживает прогон, и без неё набор начинался бы на остатках предыдущего —
+  // причём молча, потому что остатки выглядят как обычные данные.
+  await db.truncateAll();
+  await importSourceData({ client: db.prisma, source: emptySource(), recalculate: false });
+
+  const applyWrite = async (patch: Partial<Record<CollectionName, unknown>>): Promise<void> => {
+    const current = await exportSourceShape(db.prisma);
+
+    for (const [name, data] of Object.entries(patch)) {
+      current[SOURCE_FIELD[name as CollectionName]] = data as never;
+    }
+
     await db.truncateAll();
-    // ⚠️ Пересчёт счётчиков выключен намеренно: обвязка обязана положить в базу
-    // ровно тот срез, который объявил набор. Иначе «слот занят целиком» превратился
-    // бы в «свободен», и одна и та же проверка на файлах и на базе проверяла бы разное.
-    await importSourceData({ client: db.prisma, source, recalculate: false });
+    // ⚠️ Пересчёт счётчиков выключен намеренно: обвязка обязана положить в базу ровно
+    // тот срез, который объявил набор. Иначе «слот занят целиком» превратился бы
+    // в «свободен», и одна и та же проверка на файлах и на базе проверяла бы разное.
+    await importSourceData({ client: db.prisma, source: current, recalculate: false });
   };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -129,24 +154,20 @@ async function createDatabaseHarness(): Promise<TestHarness> {
 
   return {
     app,
+    storage: 'database',
     // Каталога данных у этой обвязки нет: путь оставлен пустым намеренно, чтобы
     // обращение к нему было видно сразу, а не молча читало чужие файлы.
     dataDirectory: '',
-    async write(name, data) {
-      source[SOURCE_FIELD[name as CollectionName]] = data as never;
-      await reimport();
+    write(name, data) {
+      return applyWrite({ [name as CollectionName]: data });
     },
-    async writeMany(collections) {
-      for (const [name, data] of Object.entries(collections)) {
-        source[SOURCE_FIELD[name as CollectionName]] = data as never;
-      }
-
-      await reimport();
+    writeMany(collections) {
+      return applyWrite(collections);
     },
     async read<T>(name: string): Promise<T> {
       const exported = await exportSourceShape(db.prisma);
 
-      return exported[SOURCE_FIELD[name as (typeof COLLECTIONS)[number]]] as T;
+      return exported[SOURCE_FIELD[name as CollectionName]] as T;
     },
     async close() {
       await app.close();
@@ -210,6 +231,7 @@ export async function createTestHarness(prefix: string): Promise<TestHarness> {
 
   return {
     app,
+    storage: 'files',
     dataDirectory,
     write,
     async writeMany(collections) {

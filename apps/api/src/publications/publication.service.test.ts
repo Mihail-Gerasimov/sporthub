@@ -356,7 +356,15 @@ describe('PublicationService', () => {
       expect(all).toHaveLength(1);
       // История атлета цела: запись осталась, но отменена.
       expect(all[0].status).toBe('cancelled_by_provider');
-      expect(await schedule.findByOfferingId(created.offering.id)).toHaveLength(0);
+      // ⚠️ А сам слот ОСТАЁТСЯ, и это не недоделка.
+      //
+      // Запись ссылается на слот, и ссылка эта обязательная: отмена её не снимает.
+      // Удалить слот, оставив запись, нельзя ни в базе (внешний ключ на Restrict),
+      // ни по смыслу — атлет открыл бы отменённую запись в пустоту. Прежнее файловое
+      // поведение «удалить слот, а запись бросить» не воспроизводится намеренно:
+      // это была порча данных, просто молчаливая.
+      const remaining = await schedule.findByOfferingId(created.offering.id);
+      expect(remaining.map((slot) => slot.id)).toEqual([slotId]);
     });
 
     it('освобождает места удаляемого слота', async () => {

@@ -403,7 +403,15 @@ export class PrismaTrainersRepository implements TrainersRepository {
     return this.transactions.client;
   }
 
-  private static toTrainer(row: TrainerRow): Trainer {
+  /**
+   * Строка базы → тренер.
+   *
+   * `derivePrimarySport` повторяет несимметричность файловой реализации, и это не
+   * недосмотр: чтение выводит основной вид спорта из списка, а ВСТАВКА возвращает
+   * запись ровно такой, какой её передали. В эталоне контрактов это видно прямо:
+   * у созданного тренера ключа `sportId` нет, у прочитанного — есть.
+   */
+  private static toTrainer(row: TrainerRow, derivePrimarySport = true): Trainer {
     const sportIds = row.sports.map((link) => link.sportId);
 
     return omitNulls({
@@ -435,7 +443,9 @@ export class PrismaTrainersRepository implements TrainersRepository {
       // которая была нужна файловой реализации, здесь не требуется — основной вид
       // спорта лежит в собственной колонке. Но само поле в ответе обязано остаться:
       // оно есть в эталоне контрактов. Формула — общая с фронтом, из @sporthub/domain.
-      sportId: getTrainerPrimarySportId({ sportIds, sportId: row.sportId ?? undefined }),
+      sportId: derivePrimarySport
+        ? getTrainerPrimarySportId({ sportIds, sportId: row.sportId ?? undefined })
+        : (row.sportId ?? undefined),
       managedByUserId: row.managedByUserId ?? undefined,
       source: row.source as EntitySource,
       status: row.status as EntityStatus,
@@ -516,7 +526,7 @@ export class PrismaTrainersRepository implements TrainersRepository {
       include: TRAINER_INCLUDE,
     });
 
-    return PrismaTrainersRepository.toTrainer(created);
+    return PrismaTrainersRepository.toTrainer(created, false);
   }
 
   async update(id: EntityId, patch: Partial<Trainer>): Promise<Trainer> {

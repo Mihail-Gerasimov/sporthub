@@ -12,7 +12,9 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestHarness, type TestHarness } from '../test/harness';
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
+import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 /** Дата и время слота, сдвинутые относительно текущего момента. */
 function slotAt(offsetHoursFromNow: number, durationMinutes = 60) {
@@ -35,7 +37,7 @@ const user = (id: number, role: string, over: Record<string, unknown> = {}) => (
   name: `Пользователь ${id}`,
   email: `u${id}@test.local`,
   phone: '+7 (900) 000-00-00',
-  password: 'demo123',
+  passwordHash: DEMO_PASSWORD_HASH,
   favoriteClubIds: [],
   ...over,
 });
@@ -74,6 +76,7 @@ const booking = (id: number, over: Record<string, unknown> = {}) => ({
   sportId: 3,
   status: 'confirmed',
   date: '2026-03-18',
+  totalPrice: 1000,
   statusHistory: [],
   ...over,
 });
@@ -86,43 +89,76 @@ describe('Маршруты записей', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      user(1, 'athlete'),
-      user(2, 'club_owner'),
-      user(3, 'admin'),
-      user(4, 'athlete'),
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина',
-        slug: 'marina',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('offerings', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'trainer',
-        ownerId: 1,
-        sportId: 3,
-        title: 'Персональная',
-        price: 1000,
-        cancellationPolicy: 'free_until_24h',
-      },
-    ]);
-    await harness.write('clubs', []);
-    await harness.write('bookings', []);
-    await harness.write('notifications', []);
-    await harness.write('logs', []);
+    // Один перенос на весь срез: слот ссылается на услугу и тренера, тренер —
+    // на справочник видов спорта и управляющего пользователя.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'admin'), user(4, 'athlete')],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина',
+          slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 1000,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      offerings: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'trainer',
+          ownerId: 1,
+          sportId: 3,
+          title: 'Персональная',
+          description: 'Описание',
+          format: 'personal',
+          price: 1000,
+          durationMinutes: 60,
+          capacity: 5,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          cancellationPolicy: 'free_until_24h',
+        },
+      ],
+      clubs: [
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          city: 'Самара',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          priceFrom: 500,
+          distanceKm: 1,
+          managedByUserId: 2,
+          status: 'published',
+        },
+      ],
+      bookings: [],
+      notifications: [],
+      logs: [],
+    });
   });
 
   afterAll(async () => {
@@ -258,9 +294,20 @@ describe('Маршруты записей', () => {
       expect(response.body.error).toBe('Запись не найдена');
     });
 
-    it('исчезнувший слот — не найдено', async () => {
-      await harness.write('schedule', []);
-      await harness.write('bookings', [booking(7)]);
+    it('исчезнувший слот — не найдено; в базе такое состояние запрещено', async () => {
+      // ⚠️ Единственное место набора, где хранилища расходятся не в мелочи.
+      // Состояние «запись есть, а слота нет» файлы допускают, а база — нет: у записи
+      // внешний ключ на слот, а удаление слота с записями запрещено (Restrict).
+      // Поэтому проверяются оба обещания, и каждое там, где оно вообще существует:
+      // где состояние создаётся — ветка обязана ответить 404;
+      // где не создаётся — хранилище обязано ОТКАЗАТЬ, а не принять молча.
+      if (harness.storage === 'database') {
+        await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
+
+        return;
+      }
+
+      await harness.writeMany({ schedule: [], bookings: [booking(7)] });
 
       const response = await request(server())
         .post('/api/bookings/7/check-in')
@@ -324,6 +371,10 @@ describe('Маршруты записей', () => {
           createdAt: '2026-01-01T00:00:00.000Z',
           name: 'Марина',
           slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 1000,
           managedByUserId: 2,
           sportIds: [3],
           specialtyIds: [],

@@ -4,6 +4,8 @@
 import request from 'supertest';
 import { afterAll, beforeEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { createTestHarness, type TestHarness } from '../test/harness';
 
 const user = (id: number, role: string) => ({
@@ -25,62 +27,78 @@ describe('Маршруты связей тренер↔клуб', () => {
   });
 
   beforeEach(async () => {
-    // Пользователь 2 управляет и клубом 1, и тренером 1 — это позволяет
-    // проверить обе стороны. Пользователь 5 — посторонний владелец тренера 3.
-    await harness.write('users', [
-      user(1, 'athlete'),
-      user(2, 'club_owner'),
-      user(3, 'admin'),
-      user(5, 'trainer'),
-    ]);
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Марина',
-        slug: 'marina',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-      {
-        id: 3,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Алексей',
-        slug: 'alexey',
-        managedByUserId: 5,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainer-club-links', []);
-    await harness.write('offerings', []);
-    await harness.write('notifications', []);
-    await harness.write('logs', []);
+    // Один перенос на весь срез: публикация ссылается на справочник видов спорта
+    // и на управляющего пользователя.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      // Пользователь 2 управляет и клубом 1, и тренером 1 — это позволяет
+      // проверить обе стороны. Пользователь 5 — посторонний владелец тренера 3.
+      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'admin'), user(5, 'trainer')],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          city: 'Самара',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина',
+          slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Алексей',
+          slug: 'alexey',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 3,
+          priceFrom: 800,
+          managedByUserId: 5,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      'trainer-club-links': [],
+      offerings: [],
+      notifications: [],
+      logs: [],
+    });
   });
 
   afterAll(async () => {
@@ -217,7 +235,15 @@ describe('Маршруты связей тренер↔клуб', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         ownerType: 'trainer',
         ownerId: 3,
+        sportId: 3,
         title: 'Персональная',
+        description: 'Описание',
+        format: 'personal',
+        price: 800,
+        durationMinutes: 60,
+        capacity: 1,
+        address: 'ул. Ленина, 1',
+        coordinates: { lat: 53.2, lng: 50.1 },
         trainerClubLinkId: linkId,
       },
     ]);

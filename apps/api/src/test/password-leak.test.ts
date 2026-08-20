@@ -15,7 +15,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { seedTestData } from '@sporthub/fixtures';
+import { fixtureCollections } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from './harness';
 
@@ -229,7 +229,9 @@ describe('Сторож: пароль и его хеш не уходят нару
   });
 
   beforeEach(async () => {
-    await seedTestData(harness.dataDirectory);
+    // Срез засеивается ДАННЫМИ, а не записью файлов: у обвязки на базе директории
+    // данных нет вовсе, и прежний вызов писал бы файлы мимо хранилища.
+    await harness.writeMany(fixtureCollections);
   });
 
   afterAll(async () => {

@@ -4,6 +4,8 @@ import { verify } from '@node-rs/argon2';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Административные маршруты', () => {
@@ -14,126 +16,168 @@ describe('Административные маршруты', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'athlete',
-        name: 'Атлет',
-        email: 'a@test.local',
-        phone: '+7 (900) 000-00-01',
-        passwordHash: DEMO_PASSWORD_HASH,
-        favoriteClubIds: [],
-      },
-      {
-        id: 2,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'club_owner',
-        name: 'Провайдер',
-        email: 'p@test.local',
-        phone: '+7 (900) 000-00-02',
-        passwordHash: DEMO_PASSWORD_HASH,
-        favoriteClubIds: [],
-      },
-      {
-        id: 3,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        role: 'admin',
-        name: 'Админ',
-        email: 'ad@test.local',
-        phone: '+7 (900) 000-00-03',
-        passwordHash: DEMO_PASSWORD_HASH,
-        favoriteClubIds: [],
-      },
-    ]);
-    await harness.write('schedule', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'club',
-        ownerId: 1,
-        clubId: 1,
-        offeringId: 1,
-        sportId: 3,
-        title: 'Слот',
-        date: '2026-03-18',
-        startTime: '10:00',
-        endTime: '11:00',
-        durationMinutes: 60,
-        level: 'all_levels',
-        capacity: 10,
-        bookedCount: 1,
-        price: 500,
-      },
-    ]);
-    await harness.write('bookings', [
-      {
-        id: 1,
-        createdAt: '2026-02-01T00:00:00.000Z',
-        userId: 1,
-        scheduleId: 1,
-        clubId: 1,
-        ownerType: 'club',
-        ownerId: 1,
-        sportId: 3,
-        status: 'pending',
-        date: '2026-03-18',
-        statusHistory: [],
-      },
-    ]);
-    await harness.write('clubs', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Волна',
-        slug: 'volna',
-        managedByUserId: 2,
-        sportIds: [3],
-        tagIds: [],
-        amenityIds: [],
-        imageUrls: [],
-        rating: 4,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainers', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Тренер',
-        slug: 'trener',
-        managedByUserId: 2,
-        sportIds: [3],
-        specialtyIds: [],
-        workFormatIds: [],
-        rating: 5,
-        reviewCount: 0,
-        status: 'published',
-      },
-    ]);
-    await harness.write('trainer-club-links', [
-      {
-        id: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        trainerId: 1,
-        clubId: 1,
-        status: 'confirmed',
-        initiatedBy: 'trainer',
-      },
-    ]);
-    await harness.write('offerings', [
-      {
-        id: 1001,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'trainer',
-        ownerId: 1,
-        title: 'Услуга',
-        trainerClubLinkId: 1,
-      },
-    ]);
-    await harness.write('logs', []);
-    await harness.write('notifications', []);
+    // Один перенос на весь срез: запись ссылается на слот, слот — на услугу и клуб,
+    // публикация — на справочник видов спорта. По отдельности такой срез в базу не ляжет.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'athlete',
+          name: 'Атлет',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'club_owner',
+          name: 'Провайдер',
+          email: 'p@test.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'admin',
+          name: 'Админ',
+          email: 'ad@test.local',
+          phone: '+7 (900) 000-00-03',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      schedule: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          offeringId: 1,
+          sportId: 3,
+          title: 'Слот',
+          date: '2026-03-18',
+          startTime: '10:00',
+          endTime: '11:00',
+          durationMinutes: 60,
+          level: 'all_levels',
+          capacity: 10,
+          bookedCount: 1,
+          price: 500,
+        },
+      ],
+      bookings: [
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          userId: 1,
+          scheduleId: 1,
+          clubId: 1,
+          ownerType: 'club',
+          ownerId: 1,
+          sportId: 3,
+          status: 'pending',
+          date: '2026-03-18',
+          totalPrice: 500,
+          statusHistory: [],
+        },
+      ],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          city: 'Самара',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Тренер',
+          slug: 'trener',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      'trainer-club-links': [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          trainerId: 1,
+          clubId: 1,
+          status: 'confirmed',
+          initiatedBy: 'trainer',
+        },
+      ],
+      offerings: [
+        // Услуга слота: раньше её в наборе не было вовсе, а слот на неё ссылался.
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'club',
+          ownerId: 1,
+          sportId: 3,
+          title: 'Занятия',
+          description: 'Описание',
+          format: 'group',
+          price: 500,
+          durationMinutes: 60,
+          capacity: 10,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+        },
+        {
+          id: 1001,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'trainer',
+          ownerId: 1,
+          sportId: 3,
+          title: 'Услуга',
+          description: 'Описание',
+          format: 'personal',
+          price: 900,
+          durationMinutes: 60,
+          capacity: 1,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          trainerClubLinkId: 1,
+        },
+      ],
+      logs: [],
+      notifications: [],
+    });
   });
 
   afterAll(async () => {
@@ -184,8 +228,10 @@ describe('Административные маршруты', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ status: 'revoked', revokedBy: 'admin' });
 
-    const offerings = await harness.read<{ trainerClubLinkId?: number }[]>('offerings');
-    expect(offerings[0].trainerClubLinkId).toBeUndefined();
+    // Услуга ищется по номеру, а не берётся первой: в наборе их теперь две,
+    // и «первая попавшаяся» проверяла бы ту, у которой связи и не было.
+    const offerings = await harness.read<{ id: number; trainerClubLinkId?: number }[]>('offerings');
+    expect(offerings.find((item) => item.id === 1001)?.trainerClubLinkId).toBeUndefined();
 
     const notifications = await harness.read<{ type: string }[]>('notifications');
     expect(

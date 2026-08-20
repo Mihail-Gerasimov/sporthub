@@ -21,7 +21,11 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { seedTestData, seedDefaultTrainerClubLink } from '@sporthub/fixtures';
+import {
+  fixtureCollections,
+  fixtureConfirmedLinkCollections,
+  fixtureHistoricLinkCollections,
+} from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from './harness';
 import { ISO_TIME_SHAPE, VOLATILE_KEYS, collectTimeShapes } from './time-shape';
@@ -126,7 +130,8 @@ type Call = {
   method: 'get' | 'post' | 'patch' | 'delete';
   url: string;
   body?: unknown;
-  prepare?: (dataDirectory: string) => Promise<void>;
+  /** Дозасев перед вызовом: базовый срез для него неполон. */
+  prepare?: (harness: TestHarness) => Promise<void>;
 };
 
 const CALLS: Call[] = [
@@ -161,16 +166,25 @@ const CALLS: Call[] = [
     name: 'GET /api/trainers?clubId=1',
     method: 'get',
     url: '/api/trainers?clubId=1',
-    prepare: seedDefaultTrainerClubLink,
+    prepare: (harness: TestHarness) => harness.writeMany(fixtureConfirmedLinkCollections),
   },
   { name: 'POST /api/trainers', method: 'post', url: '/api/trainers', body: trainerForm },
-  { name: 'GET /api/trainers/[id]', method: 'get', url: '/api/trainers/1' },
+  {
+    name: 'GET /api/trainers/[id]',
+    method: 'get',
+    url: '/api/trainers/1',
+    // Ответ отдаёт `trainerClubLinkId: 1` при пустом `affiliatedClub`: связь есть,
+    // но недействующая. Базовый срез её не держит — дозасеваем здесь.
+    prepare: (harness: TestHarness) => harness.writeMany(fixtureHistoricLinkCollections),
+  },
   { name: 'GET /api/trainers/[id] (нет)', method: 'get', url: '/api/trainers/999' },
   {
     name: 'PATCH /api/trainers/[id]',
     method: 'patch',
     url: '/api/trainers/1',
     body: { ...trainerForm, scheduleSlots: [{ ...trainerForm.scheduleSlots[0], id: 1001 }] },
+    // Правка сохраняет номер связи у услуги — значит, связь должна существовать.
+    prepare: (harness: TestHarness) => harness.writeMany(fixtureHistoricLinkCollections),
   },
   { name: 'DELETE /api/trainers/[id]', method: 'delete', url: '/api/trainers/5' },
   { name: 'GET /api/schedule', method: 'get', url: '/api/schedule' },
@@ -235,7 +249,7 @@ const CALLS: Call[] = [
     name: 'GET /api/trainer-club-links',
     method: 'get',
     url: '/api/trainer-club-links',
-    prepare: seedDefaultTrainerClubLink,
+    prepare: (harness: TestHarness) => harness.writeMany(fixtureConfirmedLinkCollections),
   },
   {
     name: 'POST /api/trainer-club-links',
@@ -378,8 +392,9 @@ describe('Сверка с эталоном контрактов прежнего
   });
 
   beforeEach(async () => {
-    // Те же данные, что и при съёмке эталона: пакет фикстур общий.
-    await seedTestData(harness.dataDirectory);
+    // Те же данные, что и при съёмке эталона: пакет фикстур общий. Срез идёт
+    // ДАННЫМИ, а не записью файлов: у обвязки на базе директории данных нет вовсе.
+    await harness.writeMany(fixtureCollections);
   });
 
   afterAll(async () => {
@@ -397,7 +412,7 @@ describe('Сверка с эталоном контрактов прежнего
   for (const call of CALLS) {
     it(`${call.name} отвечает так же, как прежний бэкенд`, async () => {
       if (call.prepare) {
-        await call.prepare(harness.dataDirectory);
+        await call.prepare(harness);
       }
 
       const agent = request(harness.app.getHttpServer());

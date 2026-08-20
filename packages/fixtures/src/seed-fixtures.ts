@@ -457,6 +457,99 @@ const DEFAULT_TRAINER_CLUB_LINK = {
 };
 
 /**
+ * Услуга тренера БЕЗ ссылки на связь — то, что лежит в базовом срезе.
+ *
+ * `fixtureTrainerOffering` хранит `trainerClubLinkId: 1`, а связей базовый срез
+ * не засеивает: это ссылка в пустоту. Файлы её терпели, база — нет, у услуги
+ * внешний ключ на связь. Отцепленная копия оставляет наблюдаемый ответ прежним
+ * (номер связи не всплывает нигде, кроме карточки тренера) и делает срез целостным.
+ * Наборам, которым нужна сама ссылка, её выдают наборы ниже — вместе со связью.
+ */
+export const fixtureTrainerOfferingDetached: Offering = (() => {
+  const { trainerClubLinkId: _linked, ...rest } = fixtureTrainerOffering;
+
+  return rest;
+})();
+
+/**
+ * Недействующая связь тренер1↔клуб1 плюс услуга, которая на неё ссылается.
+ *
+ * Ровно то состояние, в котором снят эталон контрактов: у услуги номер связи есть,
+ * а `affiliatedClub` пуст. Публичные поверхности читают только подтверждённые связи,
+ * поэтому разорванная связь наблюдаемого ответа не меняет — но ссылке есть на что
+ * указывать, и внешний ключ базы выполнен.
+ */
+export const fixtureHistoricLinkCollections = {
+  'trainer-club-links': [
+    {
+      id: 1,
+      createdAt: '2026-03-17T09:00:00.000Z',
+      trainerId: 1,
+      clubId: 1,
+      status: 'revoked' as const,
+      initiatedBy: 'trainer' as const,
+      revokedAt: '2026-03-17T09:00:00.000Z',
+      revokedBy: 'trainer' as const,
+    },
+  ],
+  offerings: [fixtureClubOffering, fixtureTrainerOffering],
+} as const;
+
+/**
+ * Справочники одним значением.
+ *
+ * Публикация ссылается на вид спорта, тег и удобство. В файлах такая ссылка ни на что
+ * не опиралась, в базе это внешние ключи, поэтому справочники засеиваются вместе
+ * с любой публикацией — и списком, а не по одному.
+ */
+export const fixtureDictionaryCollections = {
+  sports: fixtureSports,
+  cities: fixtureCities,
+  tags: fixtureTags,
+  amenities: fixtureAmenities,
+  specialties: fixtureSpecialties,
+  'work-formats': fixtureWorkFormats,
+} as const;
+
+/** Подтверждённая связь тренер1↔клуб1 плюс услуга, которая на неё ссылается. */
+export const fixtureConfirmedLinkCollections = {
+  'trainer-club-links': [DEFAULT_TRAINER_CLUB_LINK],
+  offerings: [fixtureClubOffering, fixtureTrainerOffering],
+} as const;
+
+/**
+ * Полный срез фикстур ДАННЫМИ, а не файлами.
+ *
+ * Появился в шаге 33.43: до него набор умел записываться только в директорию,
+ * то есть годился одному хранилищу из двух. Ключи — имена коллекций, ровно те же,
+ * что у файлов; кто пишет их на диск, а кто переносит в базу, решает потребитель.
+ *
+ * Срез ЦЕЛОСТНЫЙ: пользователи, справочники и публикации в нём есть всегда,
+ * потому что на них ссылается всё остальное. У файлов это было необязательно —
+ * у базы это внешние ключи.
+ */
+export const fixtureCollections = {
+  users: fixtureUsers,
+  clubs: [fixtureClub, fixtureClub2, fixtureClub3],
+  trainers: [fixtureTrainer, fixtureTrainer3, fixtureTrainer5],
+  offerings: [fixtureClubOffering, fixtureTrainerOfferingDetached],
+  schedule: [fixtureClubSlot1, fixtureClubSlot2, fixtureClubSlot3, fixtureTrainerSlot],
+  reviews: fixtureReviews,
+  bookings: fixtureBookings,
+  logs: [],
+  sports: fixtureSports,
+  cities: fixtureCities,
+  tags: fixtureTags,
+  amenities: fixtureAmenities,
+  'work-formats': fixtureWorkFormats,
+  specialties: fixtureSpecialties,
+  notifications: [],
+  // Связь тренер1↔клуб1 по умолчанию пуста: CRUD-наборы ссылок работают
+  // на чистом срезе и заводят её сами.
+  'trainer-club-links': [],
+} as const;
+
+/**
  * Phase 25 Step 25.1b: засеивает confirmed-link trainer1↔club1 для тестов, которые
  * в старой модели полагались на `fixtureTrainer.affiliatedClubId=1`. Вызывать после
  * `seedTestData`, перед тестом.
@@ -483,7 +576,7 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     write('users.json', fixtureUsers),
     write('clubs.json', [fixtureClub, fixtureClub2, fixtureClub3]),
     write('trainers.json', [fixtureTrainer, fixtureTrainer3, fixtureTrainer5]),
-    write('offerings.json', [fixtureClubOffering, fixtureTrainerOffering]),
+    write('offerings.json', [fixtureClubOffering, fixtureTrainerOfferingDetached]),
     write('schedule.json', [
       fixtureClubSlot1,
       fixtureClubSlot2,
