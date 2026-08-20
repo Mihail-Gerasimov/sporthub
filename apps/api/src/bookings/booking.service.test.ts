@@ -44,6 +44,9 @@ describe('BookingService', () => {
   beforeEach(async () => {
     dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-booking-svc-'));
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+    // Прогон на файловой реализации: она остаётся путём отката до выкатки
+    // на боевой сервер, и её поведение обязано быть проверено.
+    process.env.SPORT_HUB_STORAGE = 'files';
 
     await write('clubs.json', []);
     await write('trainers.json', [
@@ -111,6 +114,7 @@ describe('BookingService', () => {
 
   afterEach(async () => {
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
+    delete process.env.SPORT_HUB_STORAGE;
     await rm(dataDirectory, { force: true, recursive: true });
   });
 

@@ -21,6 +21,9 @@ describe('Контроллеры справочников', () => {
   beforeAll(async () => {
     dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-dict-http-'));
     process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+    // Прогон на файловой реализации: она остаётся путём отката до выкатки
+    // на боевой сервер, и её поведение обязано быть проверено.
+    process.env.SPORT_HUB_STORAGE = 'files';
 
     const fixtures: Record<string, unknown[]> = {
       sports: [
@@ -70,6 +73,7 @@ describe('Контроллеры справочников', () => {
   afterAll(async () => {
     await app.close();
     delete process.env.SPORT_HUB_DATA_DIRECTORY;
+    delete process.env.SPORT_HUB_STORAGE;
     await rm(dataDirectory, { force: true, recursive: true });
   });
 

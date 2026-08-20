@@ -61,6 +61,11 @@ export type TestHarness = {
 export async function createTestHarness(prefix: string): Promise<TestHarness> {
   const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
   process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+  // ⚠️ Обвязка поднимает приложение на ФАЙЛАХ. Это временно и снимается шагом 33.43:
+  // до тех пор эти прогоны доказывают, что путь отката жив, а проверки на базе
+  // живут отдельными файлами (`schema.test.ts`, `concurrency.test.ts`, контрактные
+  // наборы репозиториев).
+  process.env.SPORT_HUB_STORAGE = 'files';
 
   const write = async (name: string, data: unknown): Promise<void> => {
     await writeFile(

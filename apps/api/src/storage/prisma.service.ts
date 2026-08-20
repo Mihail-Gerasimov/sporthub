@@ -10,7 +10,7 @@
 // 3. **Живость базы проверяется через хранилище**, а не прямым доступом к клиенту
 //    из проверки живости: клиент базы не должен быть виден за пределами этого слоя.
 
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Optional, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
@@ -59,11 +59,27 @@ export function readDatabaseSettings(env: NodeJS.ProcessEnv = process.env): Data
 
 @Injectable()
 export class PrismaService implements OnModuleDestroy {
-  private readonly pool: Pool;
+  private pool: Pool | null = null;
 
-  readonly client: PrismaClient;
+  private prisma: PrismaClient | null = null;
 
-  constructor(@Inject(DATABASE_SETTINGS) settings: DatabaseSettings) {
+  /**
+   * Настройки читаются лениво — вместе с первым обращением к клиенту.
+   *
+   * Так соединение не открывается там, где база не нужна: в режиме отката на файлы
+   * и в тестах прежней реализации. Прежний вариант с чтением в конструкторе ронял
+   * запуск на отсутствующей строке подключения ровно тогда, когда откат и требовался.
+   */
+  constructor(
+    @Optional() @Inject(DATABASE_SETTINGS) private readonly settings?: DatabaseSettings,
+  ) {}
+
+  /** Клиент базы. Соединение открывается при первом обращении. */
+  get client(): PrismaClient {
+    if (this.prisma !== null) return this.prisma;
+
+    const settings = this.settings ?? readDatabaseSettings();
+
     this.pool = new Pool({
       connectionString: settings.connectionString,
       max: settings.poolSize,
@@ -74,9 +90,11 @@ export class PrismaService implements OnModuleDestroy {
       options: `-c search_path="${settings.schema}"`,
     });
 
-    this.client = new PrismaClient({
+    this.prisma = new PrismaClient({
       adapter: new PrismaPg(this.pool, { schema: settings.schema }),
     });
+
+    return this.prisma;
   }
 
   /**
@@ -95,9 +113,23 @@ export class PrismaService implements OnModuleDestroy {
     }
   }
 
-  /** Закрытие соединений при остановке процесса. */
+  /**
+   * Закрытие соединений при остановке процесса.
+   *
+   * Ссылки снимаются ДО ожидания, а не после: остановку зовут дважды — сам Nest
+   * и обвязка тестов, — и второй вызов успевал бы войти внутрь, пока первый ждёт.
+   * Пул на это отвечает «закрыт повторно», и падает не соединение, а прогон.
+   */
   async onModuleDestroy(): Promise<void> {
-    await this.client.$disconnect();
-    await this.pool.end();
+    const prisma = this.prisma;
+    const pool = this.pool;
+
+    this.prisma = null;
+    this.pool = null;
+
+    if (prisma === null) return;
+
+    await prisma.$disconnect();
+    await pool?.end();
   }
 }
