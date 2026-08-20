@@ -3,10 +3,12 @@
  * и страницы следуют минималистичному стилю.
  */
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
 import { useFilterStore } from '@/stores/useFilterStore';
+import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 
 /* Мок next/navigation для useRouter */
 vi.mock('next/navigation', () => ({
@@ -22,12 +24,19 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('Минималистичный стиль страниц', () => {
+  let stub: ApiStub;
+
   beforeEach(() => {
+    stub = installApiStub(createFixtureRoutes());
     useFilterStore.setState({
       discoveryMode: 'clubs',
       searchQuery: '',
       selectedSportId: null,
     });
+  });
+
+  afterEach(() => {
+    stub?.restore();
   });
 
   describe('Home page hero', () => {

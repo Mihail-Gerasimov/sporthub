@@ -4,8 +4,9 @@
 // Next выдаст один и тот же результат за время одного рендера.
 import { cache } from 'react';
 
+import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
 import {
-  getBookings,
+  getBookingsByUser,
   getClubs,
   getReviews,
   getSchedule,
@@ -18,8 +19,13 @@ export const dynamic = 'force-dynamic';
 
 /** Кэшированный loader: одна выборка всех данных на SSR-рендер. */
 const loadAthleteStatsData = cache(async () => {
+  // Кто смотрит — известно из cookie входа: клиентская часть всё равно отберёт
+  // записи по этому же атлету, поэтому спрашивать чужие незачем. У гостя записей
+  // нет вовсе — раздел покажет отказ в доступе.
+  const athleteUserId = await getAuthUserIdFromCookies();
+
   const [bookings, clubs, schedule, sports, trainers, reviews] = await Promise.all([
-    getBookings(),
+    athleteUserId === null ? [] : getBookingsByUser(athleteUserId),
     getClubs(),
     getSchedule({ ownerType: 'all' }),
     getSports(),

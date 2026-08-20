@@ -19,8 +19,9 @@ import { HeroSportMarquee } from '@/components/home/HeroSportMarquee';
 import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
+import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
-  getBookings,
+  getBookingsWhere,
   getOfferings,
   getPublishedClubs,
   getPublishedTrainers,
@@ -61,7 +62,11 @@ export default async function Home() {
     getSchedule({ ownerType: 'trainer' }),
     getPublishedTrainers(),
     getTrainerClubLinks({ status: 'confirmed' }),
-    getBookings(),
+    // Витрина показывает бейдж надёжности у каждой карточки каталога, поэтому
+    // владельца сузить нечем — карточек здесь столько же, сколько публикаций.
+    // Зато сужается набор статусов: расчёт надёжности читает ровно четыре из восьми,
+    // и остальные записи страница получала и выбрасывала.
+    getBookingsWhere({ status: PROVIDER_RELIABILITY_STATUSES }),
   ]);
 
   // Phase 25 Step 25.13: публичные reliability-бейджи. SSR-снапшот один раз для всех карточек.

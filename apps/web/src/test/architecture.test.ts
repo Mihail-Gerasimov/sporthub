@@ -59,14 +59,50 @@ describe('Граница фронта и бэкенда', () => {
   });
 
   it('фронт не читает директорию данных', async () => {
+    // Исключений больше НЕТ. Раньше одно было — модуль, вычислявший путь к каталогу
+    // данных «для тестов». Через него знание о раскладке файлов на диске жило во
+    // фронте и утекало в тестовую подмену клиента, которая читала те же файлы.
+    // Модуль удалён вместе с подменой: тесты подменяют ответы, а не хранилище.
     const sources = await readProductionSources();
-    // Разрешено только определение пути: им пользуются тесты.
     const offenders = sources
-      .filter(({ file }) => file !== 'src/lib/projectPaths.ts')
       .filter(({ text }) => /readFile\(|writeFile\(|getProjectDataDirectory\(/.test(text))
       .map(({ file }) => file);
 
     expect(offenders).toEqual([]);
+  });
+
+  it('фронт не знает про каталог данных вовсе', async () => {
+    // Ни пути, ни переменной окружения, ни имени коллекции: единственный способ
+    // добраться до данных — запрос к бэкенду.
+    const sources = await readProductionSources();
+    const offenders = sources
+      .filter(({ text }) =>
+        /SPORT_HUB_DATA_DIRECTORY|SPORT_HUB_PROJECT_ROOT|projectPaths/.test(text),
+      )
+      .map(({ file }) => file);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('фронт не импортирует клиент базы', async () => {
+    // Данными владеет бэкенд; клиент базы живёт только в его слое хранилища.
+    // Импорт во фронте означал бы второй путь к данным — в обход HTTP, прав
+    // и правил, а заодно потащил бы драйвер в браузерную сборку.
+    const sources = await readProductionSources();
+    const offenders = sources
+      .filter(({ text }) => /@prisma\/client|prisma-client|new PrismaClient/.test(text))
+      .map(({ file }) => file);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('тестовой подмены модуля доступа к данным не осталось', async () => {
+    // Подмена целого модуля повторяла логику бэкенда поверх файлов — второй источник
+    // правды, расходившийся с первым молча. Теперь подменяются ответы, и вернуться
+    // к подмене модуля незаметно не выйдет.
+    const config = await readFile(path.join(WEB_ROOT, 'vitest.config.ts'), 'utf8');
+
+    expect(config).not.toContain("find: '@/lib/server-api'");
   });
 
   it('фронт не запускает автопереходы записей сам', async () => {

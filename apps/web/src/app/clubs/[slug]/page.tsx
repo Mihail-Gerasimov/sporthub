@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
+import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
   getAmenities,
-  getBookings,
+  getBookingsWhere,
   getClubBySlug,
   getOfferings,
   getReviews,
@@ -67,7 +68,9 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     getSchedule(),
     getReviews(),
     getUsers(),
-    getBookings(),
+    // Карточке нужен один бейдж — надёжность этого клуба. Записи чужих публикаций
+    // и статусы, которых расчёт не читает, ей не нужны вовсе.
+    getBookingsWhere({ clubId: club.id, status: PROVIDER_RELIABILITY_STATUSES }),
   ]);
 
   // Phase 25 Step 25.13: публичная симметрия reliability.

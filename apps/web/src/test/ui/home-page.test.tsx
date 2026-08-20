@@ -1,15 +1,14 @@
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-
+// Тесты главной страницы.
+//
+// Данные приходят настоящим клиентом с заготовленного стенда ответов
+// (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
 import { useFilterStore } from '@/stores/useFilterStore';
-import {
-  createIsolatedDataDirectory,
-  removeIsolatedDataDirectory,
-} from '@/test/helpers/data-directory';
+import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 
 /* Мок next/navigation для useRouter (используется в UpcomingSessions/TrainerAvailability) */
 vi.mock('next/navigation', () => ({
@@ -25,9 +24,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('Home page', () => {
-  let dataDirectory: string | null = null;
+  let stub: ApiStub;
 
   beforeEach(() => {
+    stub = installApiStub(createFixtureRoutes());
     useFilterStore.setState({
       discoveryMode: 'clubs',
       searchQuery: '',
@@ -35,13 +35,8 @@ describe('Home page', () => {
     });
   });
 
-  afterEach(async () => {
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-
-    if (dataDirectory) {
-      await removeIsolatedDataDirectory(dataDirectory);
-      dataDirectory = null;
-    }
+  afterEach(() => {
+    stub?.restore();
   });
 
   it('рендерит собранную главную с ключевыми секциями и переключает discovery mode', async () => {
@@ -72,26 +67,32 @@ describe('Home page', () => {
     ).toBeInTheDocument();
   });
 
+  it('витрина спрашивает записи только теми статусами, которые читает бейдж надёжности', async () => {
+    await Home();
+
+    const call = stub.callTo('/bookings');
+    expect(call).toBeDefined();
+    // Владельца здесь сузить нечем — бейдж стоит у каждой карточки каталога,
+    // — но четыре статуса из восьми это уже не полный срез площадки.
+    expect(call).toContain('scope=all');
+    expect(call).toContain(
+      'status=completed%2Cno_show%2Ccancelled_by_provider%2Crejected_by_provider',
+    );
+  });
+
   it('показывает честный empty-state, если каталог пуст', async () => {
-    dataDirectory = await createIsolatedDataDirectory();
-    const isolatedDataDirectory = dataDirectory;
-    process.env.SPORT_HUB_DATA_DIRECTORY = isolatedDataDirectory;
-
-    const writeCollection = async (filename: string, data: unknown) => {
-      await writeFile(
-        path.join(isolatedDataDirectory, filename),
-        `${JSON.stringify(data, null, 2)}\n`,
-      );
-    };
-
-    await Promise.all([
-      writeCollection('clubs.json', []),
-      writeCollection('trainers.json', []),
-      writeCollection('offerings.json', []),
-      writeCollection('schedule.json', []),
-      writeCollection('reviews.json', []),
-      writeCollection('bookings.json', []),
-    ]);
+    stub.restore();
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      '/clubs': [],
+      '/trainers': [],
+      '/offerings': [],
+      '/schedule?ownerType=club&includeFull=true': [],
+      '/schedule?ownerType=trainer&includeFull=true': [],
+      '/reviews': [],
+      '/bookings': [],
+      '/trainer-club-links': [],
+    });
 
     render(await Home());
 

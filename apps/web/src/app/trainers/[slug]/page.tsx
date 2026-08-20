@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
+import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
-  getBookings,
+  getBookingsWhere,
   getClubById,
   getOfferings,
   getReviews,
@@ -52,7 +53,9 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     getSchedule({ ownerType: 'all' }),
     getReviews(),
     getUsers(),
-    getBookings(),
+    // Симметрично карточке клуба: один бейдж — записи только этого тренера
+    // и только те статусы, которые читает расчёт надёжности.
+    getBookingsWhere({ trainerId: trainer.id, status: PROVIDER_RELIABILITY_STATUSES }),
   ]);
 
   // Phase 25 Step 25.13: публичная симметрия reliability.

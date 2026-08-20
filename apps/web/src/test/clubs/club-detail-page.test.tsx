@@ -1,45 +1,41 @@
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-
+// Тесты публичной страницы клуба.
+//
+// Бэкенд не поднимается: страница ходит настоящим клиентом, а стенд отвечает
+// заготовленными телами (`helpers/api-stub`). Поэтому здесь же проверяется и то,
+// КАКИМ запросом страница забирает записи — карточке нужен один бейдж надёжности,
+// и тянуть ради него записи всей площадки она больше не должна.
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ClubDetailPage from '@/app/clubs/[slug]/page';
-import {
-  createIsolatedDataDirectory,
-  removeIsolatedDataDirectory,
-} from '@/test/helpers/data-directory';
-import {
-  fixtureClub,
-  fixtureClubOffering,
-  fixtureClubSlot1,
-  seedTestData,
-} from '@sporthub/fixtures';
+import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
+import { fixtureClub, fixtureClubOffering, fixtureClubSlot1 } from '@sporthub/fixtures';
+
+/** Адрес карточки по ссылке — собирается так же, как его собирает клиент. */
+const bySlug = (slug: string) => `/clubs/by-slug/${encodeURIComponent(slug)}`;
 
 describe('Club detail page', () => {
-  let dataDirectory: string;
+  let stub: ApiStub;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     /* Phase 28.22: anchor расписания на 2026-03-18 — слоты фикстур
      * (date='2026-03-18' / '2026-03-20') попадают в текущую ISO-неделю. */
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
-    dataDirectory = await createIsolatedDataDirectory();
-    await seedTestData(dataDirectory);
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    await removeIsolatedDataDirectory(dataDirectory);
+    stub?.restore();
   });
-
-  async function writeCollection(filename: string, data: unknown) {
-    await writeFile(path.join(dataDirectory, filename), `${JSON.stringify(data, null, 2)}\n`);
-  }
 
   it('рендерит публичную страницу клуба с ключевыми секциями', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('volna-aquatic-club')]: { club: fixtureClub },
+    });
+
     render(await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) }));
 
     expect(screen.getByRole('heading', { name: 'Volna Aquatic Club' })).toBeInTheDocument();
@@ -49,7 +45,29 @@ describe('Club detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы клуба' })).toBeInTheDocument();
   });
 
+  it('записи спрашивает только по своему клубу и только нужными статусами', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('volna-aquatic-club')]: { club: fixtureClub },
+    });
+
+    await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) });
+
+    const call = stub.callTo('/bookings');
+    expect(call).toBeDefined();
+    expect(call).toContain(`clubId=${fixtureClub.id}`);
+    expect(call).toContain(
+      'status=completed%2Cno_show%2Ccancelled_by_provider%2Crejected_by_provider',
+    );
+  });
+
   it('отдаёт notFound для несуществующего клуба', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      // Пустое тело — код 404: страница обязана отличить его от недоступного бэкенда.
+      [bySlug('missing-club')]: null,
+    });
+
     await expect(
       ClubDetailPage({ params: Promise.resolve({ slug: 'missing-club' }) }),
     ).rejects.toMatchObject({
@@ -79,7 +97,6 @@ describe('Club detail page', () => {
       ...fixtureClubOffering,
       id: 201,
       ownerId: cyrillicClub.id,
-      affiliatedClubId: cyrillicClub.id,
       title: 'Стартовая группа',
       description: cyrillicClub.description,
       address: cyrillicClub.address,
@@ -99,21 +116,22 @@ describe('Club detail page', () => {
       price: 1200,
       room: 'Зал A',
     };
+    const encodedSlug = '%D0%BA%D0%BB%D1%83%D0%B1-%D0%BC%D1%81';
 
-    await Promise.all([
-      writeCollection('clubs.json', [cyrillicClub]),
-      writeCollection('trainers.json', []),
-      writeCollection('offerings.json', [cyrillicOffering]),
-      writeCollection('schedule.json', [cyrillicSchedule]),
-      writeCollection('reviews.json', []),
-      writeCollection('bookings.json', []),
-    ]);
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      // Раскодирование ссылки — работа бэкенда: он отвечает на закодированный адрес
+      // той же карточкой. Здесь важно лишь, что страница до него доходит.
+      [bySlug(encodedSlug)]: { club: cyrillicClub },
+      '/trainers?includeHidden=true': [],
+      '/offerings': [cyrillicOffering],
+      '/schedule?ownerType=club&includeFull=true': [cyrillicSchedule],
+      '/reviews': [],
+      '/bookings': [],
+      '/trainer-club-links': [],
+    });
 
-    render(
-      await ClubDetailPage({
-        params: Promise.resolve({ slug: '%D0%BA%D0%BB%D1%83%D0%B1-%D0%BC%D1%81' }),
-      }),
-    );
+    render(await ClubDetailPage({ params: Promise.resolve({ slug: encodedSlug }) }));
 
     expect(screen.getByRole('heading', { name: 'Клуб МС' })).toBeInTheDocument();
     expect(screen.getByText('Стартовая группа')).toBeInTheDocument();
@@ -139,7 +157,6 @@ describe('Club detail page', () => {
       ...fixtureClubOffering,
       id: 201,
       ownerId: minimalClub.id,
-      affiliatedClubId: minimalClub.id,
       title: 'Стартовая группа',
       description: minimalClub.description,
       price: 1200,
@@ -160,14 +177,16 @@ describe('Club detail page', () => {
       room: 'Зал A',
     };
 
-    await Promise.all([
-      writeCollection('clubs.json', [minimalClub]),
-      writeCollection('trainers.json', []),
-      writeCollection('offerings.json', [minimalOffering]),
-      writeCollection('schedule.json', [minimalSchedule]),
-      writeCollection('reviews.json', []),
-      writeCollection('bookings.json', []),
-    ]);
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('start-swim-club')]: { club: minimalClub },
+      '/trainers?includeHidden=true': [],
+      '/offerings': [minimalOffering],
+      '/schedule?ownerType=club&includeFull=true': [minimalSchedule],
+      '/reviews': [],
+      '/bookings': [],
+      '/trainer-club-links': [],
+    });
 
     render(await ClubDetailPage({ params: Promise.resolve({ slug: 'start-swim-club' }) }));
 

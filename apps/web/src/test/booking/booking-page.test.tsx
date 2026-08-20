@@ -1,4 +1,8 @@
-// Тесты booking page: preview-часть страницы и интеграция action block (Step 16.3)
+// Тесты страницы записи на занятие: превью слота и интеграция блока действий.
+//
+// Контекст слота приходит с заготовленного стенда ответов — так же, как его отдаёт
+// бэкенд одним запросом. Собирать его на месте из коллекций больше не нужно: это
+// была работа бэкенда, повторённая в тестовой подмене.
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,28 +25,53 @@ vi.mock('next/navigation', () => ({
 import BookingPage from '@/app/booking/[scheduleId]/page';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 import {
-  createIsolatedDataDirectory,
-  removeIsolatedDataDirectory,
-} from '@/test/helpers/data-directory';
-import { seedDefaultTrainerClubLink, seedTestData } from '@sporthub/fixtures';
+  fixtureClub,
+  fixtureClubOffering,
+  fixtureClubSlot1,
+  fixtureTrainer,
+  fixtureTrainerOffering,
+  fixtureTrainerSlot,
+} from '@sporthub/fixtures';
+
+/** Клубное занятие: владелец — клуб, тренер ведёт. */
+const clubSlotContext = {
+  affiliatedClub: fixtureClub,
+  club: fixtureClub,
+  offering: fixtureClubOffering,
+  schedule: fixtureClubSlot1,
+  trainer: fixtureTrainer,
+};
+
+/** Тренерское занятие в зале клуба: владелец — тренер, клуб указан площадкой. */
+const trainerSlotContext = {
+  affiliatedClub: fixtureClub,
+  club: null,
+  offering: fixtureTrainerOffering,
+  schedule: fixtureTrainerSlot,
+  trainer: fixtureTrainer,
+};
 
 describe('Booking page', () => {
-  let dataDirectory: string;
+  let stub: ApiStub;
 
-  beforeEach(async () => {
-    dataDirectory = await createIsolatedDataDirectory();
-    await seedTestData(dataDirectory);
-    await seedDefaultTrainerClubLink(dataDirectory);
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
+  beforeEach(() => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      '/schedule/1/context': clubSlotContext,
+      '/schedule/1001/context': trainerSlotContext,
+      // Пустое тело — код 404: слота нет, страница обязана отдать «не найдено».
+      '/schedule/999999/context': null,
+    });
     localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useUIStore.setState({ isAuthModalOpen: false });
   });
 
-  afterEach(async () => {
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    await removeIsolatedDataDirectory(dataDirectory);
+  afterEach(() => {
+    stub?.restore();
   });
 
   it('рендерит booking details для club slot без stub-копирайта', async () => {
@@ -64,6 +93,17 @@ describe('Booking page', () => {
     expect(screen.getAllByText('Персональная тренировка: Плавание').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Volna Aquatic Club').length).toBeGreaterThan(0);
     expect(screen.getByText('ул. Лесная, 23к1')).toBeInTheDocument();
+  });
+
+  it('записи спрашивает только теми статусами и тем периодом, что читает карантин', async () => {
+    await BookingPage({ params: Promise.resolve({ scheduleId: '1' }) });
+
+    const call = stub.callTo('/bookings');
+    expect(call).toBeDefined();
+    // Карантин смотрит на завершённые занятия и неявки за последние тридцать дней;
+    // остальные пять статусов и вся история до окна странице не нужны.
+    expect(call).toContain('status=completed%2Cno_show');
+    expect(call).toMatch(/dateFrom=\d{4}-\d{2}-\d{2}/);
   });
 
   it('отдаёт notFound для несуществующего slot id', async () => {

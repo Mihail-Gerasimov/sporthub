@@ -7,11 +7,8 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
 
-import { getProjectRoot } from '@/lib/projectPaths';
-
-// Phase 32: путь считаем от самого теста, а не от корня монорепо. После переезда
-// в apps/web корень репозитория (там, где data/) и корень приложения — разные
-// директории, и getProjectRoot() указывает на первый.
+// Путь считается от самого теста. Определять его через «корень проекта» больше
+// нечем и незачем: каталога данных, по которому корень раньше искали, у фронта нет.
 const globalsCss = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), '../../app/globals.css'),
   'utf-8',

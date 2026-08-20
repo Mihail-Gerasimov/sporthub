@@ -13,9 +13,11 @@ import 'server-only';
 import type {
   Amenity,
   Booking,
+  BookingStatus,
   City,
   Club,
   EntityId,
+  ISODateString,
   Notification,
   Offering,
   ProviderClientNote,
@@ -207,16 +209,116 @@ export const getScheduleSlotContext = (
 } | null> => apiGetOptional(`/schedule/${scheduleId}/context`);
 
 // --- Записи ---------------------------------------------------------------------
+//
+// ⚠️ Раньше КАЖДАЯ из четырнадцати страниц забирала полный срез записей платформы
+// и отбирала нужное уже в разметке. Стоимость такой страницы росла вместе с числом
+// записей всей площадки, а не своих: кабинет одного атлета с тремя занятиями тянул
+// столько же, сколько админская сводка.
+//
+// Теперь у каждой страницы свой запрос. Отбор задаёт `GetBookingsOptions`, и любое
+// его поле необязательно: вызов без полей означает ровно то же, чем был `getBookings()`.
 
 /**
- * Полный срез записей. Автопереходы по времени бэкенд прогоняет сам при чтении,
- * поэтому отдельного вызова для них больше нет.
+ * Отбор записей. Повторяет необязательные параметры маршрута `GET /api/bookings`.
+ *
+ * Про клуб и тренера: бэкенд считает записью клуба и ту, где клуб — владелец,
+ * и ту, где он площадка (тренер ведёт занятие в его зале); с тренером симметрично —
+ * владелец либо ведущий. Это те же правила, по которым разбирают запись
+ * `getBookingClubId` / `getBookingTrainerId`, поэтому выдача не уже того, что
+ * страница потом отберёт сама.
+ */
+export type GetBookingsOptions = {
+  userId?: EntityId;
+  clubId?: EntityId;
+  trainerId?: EntityId;
+  scheduleId?: EntityId;
+  /** Набор статусов; на проводе — перечисление через запятую. */
+  status?: readonly BookingStatus[];
+  /** Границы дня занятия включительно, строки `YYYY-MM-DD`. */
+  dateFrom?: ISODateString;
+  dateTo?: ISODateString;
+  offset?: number;
+  limit?: number;
+};
+
+/**
+ * Полный срез записей платформы.
+ *
+ * Оставлен рабочим намеренно: на него смотрит эталон контрактов, и он честно нужен
+ * там, где страница считает по всей площадке (админская сводка). Во всех остальных
+ * местах вместо него стоит `getBookingsWhere` со своим отбором.
+ *
+ * Автопереходы по времени бэкенд прогоняет сам при чтении, отдельного вызова нет.
  */
 export const getBookings = (): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ scope: 'all' })}`);
 
+/**
+ * Записи с отбором.
+ *
+ * Без указания атлета маршрут требует явного признака полного среза — иначе он
+ * отвечает отказом. Это защита от забытого параметра: запрос без единого условия
+ * не должен случайно превращаться в выдачу всей площадки.
+ */
+export const getBookingsWhere = (options: GetBookingsOptions = {}): Promise<Booking[]> =>
+  apiGet<Booking[]>(
+    `/bookings${query({
+      ...(options.userId === undefined ? { scope: 'all' } : { userId: options.userId }),
+      clubId: options.clubId,
+      trainerId: options.trainerId,
+      scheduleId: options.scheduleId,
+      status: options.status === undefined ? undefined : options.status.join(','),
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo,
+      offset: options.offset,
+      limit: options.limit,
+    })}`,
+  );
+
 export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ userId })}`);
+
+/**
+ * Записи нескольких владельцев одним набором.
+ *
+ * Маршрут принимает ОДНОГО владельца за запрос, а у провайдера их бывает несколько —
+ * поэтому запросы идут веером и сливаются здесь. Число запросов равно числу публикаций
+ * провайдера (в кабинете это единицы), а не числу записей площадки, поэтому размен
+ * в нужную сторону: раньше был один запрос на всю платформу.
+ *
+ * Слияние идёт по номеру: клуб-владелец и клуб-площадка могут вернуть одну и ту же
+ * запись дважды, и без склейки страница показала бы дубль.
+ */
+export async function getBookingsForOwners(
+  owners: { clubIds?: readonly EntityId[]; trainerIds?: readonly EntityId[] },
+  options: Omit<GetBookingsOptions, 'clubId' | 'trainerId' | 'userId'> = {},
+): Promise<Booking[]> {
+  const requests = [
+    ...(owners.clubIds ?? []).map((clubId) => getBookingsWhere({ ...options, clubId })),
+    ...(owners.trainerIds ?? []).map((trainerId) => getBookingsWhere({ ...options, trainerId })),
+  ];
+
+  if (requests.length === 0) return [];
+
+  return mergeBookingsById(...(await Promise.all(requests)));
+}
+
+/**
+ * Слияние нескольких наборов записей в один, без повторов.
+ *
+ * Нужно везде, где страница собирает выдачу из нескольких запросов: один и тот же
+ * ряд приходит и от клуба-владельца, и от клуба-площадки, и из истории атлета.
+ * Порядок восстанавливается по номеру — тот же, в котором ряды отдаёт маршрут.
+ */
+export function mergeBookingsById(...chunks: Booking[][]): Booking[] {
+  const byId = new Map<EntityId, Booking>();
+
+  for (const chunk of chunks) {
+    for (const booking of chunk) byId.set(booking.id, booking);
+  }
+
+  return [...byId.values()].sort((left, right) => left.id - right.id);
+}
 
 // --- Прочие коллекции -----------------------------------------------------------
 

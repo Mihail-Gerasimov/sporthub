@@ -1,45 +1,38 @@
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-
+// Тесты публичной страницы тренера.
+//
+// Данные приходят настоящим клиентом с заготовленного стенда ответов
+// (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TrainerDetailPage from '@/app/trainers/[slug]/page';
-import {
-  createIsolatedDataDirectory,
-  removeIsolatedDataDirectory,
-} from '@/test/helpers/data-directory';
-import {
-  fixtureTrainer,
-  fixtureTrainerOffering,
-  fixtureTrainerSlot,
-  seedTestData,
-} from '@sporthub/fixtures';
+import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
+import { fixtureTrainer, fixtureTrainerOffering, fixtureTrainerSlot } from '@sporthub/fixtures';
+
+const bySlug = (slug: string) => `/trainers/by-slug/${encodeURIComponent(slug)}`;
 
 describe('Trainer detail page', () => {
-  let dataDirectory: string;
+  let stub: ApiStub;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     /* Phase 28.23: anchor расписания на 2026-03-18 — слоты фикстур
      * (date='2026-03-18') попадают в текущую ISO-неделю. */
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-18T10:00:00.000Z'));
-    dataDirectory = await createIsolatedDataDirectory();
-    await seedTestData(dataDirectory);
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    await removeIsolatedDataDirectory(dataDirectory);
+    stub?.restore();
   });
-
-  async function writeCollection(filename: string, data: unknown) {
-    await writeFile(path.join(dataDirectory, filename), `${JSON.stringify(data, null, 2)}\n`);
-  }
 
   it('рендерит публичную страницу тренера с ключевыми секциями', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('marina-sokolova')]: { trainer: fixtureTrainer },
+    });
+
     render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) }));
 
     /* Имя тренера из данных */
@@ -50,7 +43,28 @@ describe('Trainer detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы' })).toBeInTheDocument();
   });
 
+  it('записи спрашивает только по своему тренеру и только нужными статусами', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('marina-sokolova')]: { trainer: fixtureTrainer },
+    });
+
+    await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) });
+
+    const call = stub.callTo('/bookings');
+    expect(call).toBeDefined();
+    expect(call).toContain(`trainerId=${fixtureTrainer.id}`);
+    expect(call).toContain(
+      'status=completed%2Cno_show%2Ccancelled_by_provider%2Crejected_by_provider',
+    );
+  });
+
   it('отдаёт notFound для несуществующего тренера', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('missing-trainer')]: null,
+    });
+
     await expect(
       TrainerDetailPage({ params: Promise.resolve({ slug: 'missing-trainer' }) }),
     ).rejects.toMatchObject({
@@ -59,11 +73,15 @@ describe('Trainer detail page', () => {
   });
 
   it('отдаёт notFound для пустого slug', async () => {
+    // Пустая ссылка отсекается ДО запроса — стенд ответов здесь даже не нужен.
+    stub = installApiStub({});
+
     await expect(
       TrainerDetailPage({ params: Promise.resolve({ slug: '' }) }),
     ).rejects.toMatchObject({
       digest: expect.stringContaining('404'),
     });
+    expect(stub.calls).toEqual([]);
   });
 
   it('не ломается на минимальной provider-публикации тренера без связанного клуба и отзывов', async () => {
@@ -76,7 +94,6 @@ describe('Trainer detail page', () => {
       avatarUrl: '',
       reviewCount: 0,
       rating: 0,
-      affiliatedClubId: undefined,
       source: 'provider' as const,
       status: 'published' as const,
     };
@@ -84,7 +101,6 @@ describe('Trainer detail page', () => {
       ...fixtureTrainerOffering,
       id: 201,
       ownerId: minimalTrainer.id,
-      affiliatedClubId: undefined,
       title: 'Персональная тренировка: Плавание',
       description: 'Первая персональная услуга без привязки к клубу.',
       address: minimalTrainer.address ?? 'ул. Лесная, 23к1',
@@ -95,7 +111,6 @@ describe('Trainer detail page', () => {
       offeringId: minimalOffering.id,
       ownerId: minimalTrainer.id,
       trainerId: minimalTrainer.id,
-      affiliatedClubId: undefined,
       title: 'Персональная тренировка: Плавание',
       /* Phase 28.23: дата = текущий день анчора (2026-03-18), чтобы slot
        * попадал на активный таб DetailScheduleWeek и chip room рендерился. */
@@ -106,14 +121,17 @@ describe('Trainer detail page', () => {
       room: 'Индивидуальный зал',
     };
 
-    await Promise.all([
-      writeCollection('clubs.json', []),
-      writeCollection('trainers.json', [minimalTrainer]),
-      writeCollection('offerings.json', [minimalOffering]),
-      writeCollection('schedule.json', [minimalSchedule]),
-      writeCollection('reviews.json', []),
-      writeCollection('bookings.json', []),
-    ]);
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('ivan-belov')]: { trainer: minimalTrainer },
+      '/clubs?includeHidden=true': [],
+      '/offerings': [minimalOffering],
+      '/schedule?ownerType=all&includeFull=true': [minimalSchedule],
+      '/reviews': [],
+      '/bookings': [],
+      // Подтверждённых связей нет — секция связанного клуба не должна появиться.
+      '/trainer-club-links': [],
+    });
 
     render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'ivan-belov' }) }));
 

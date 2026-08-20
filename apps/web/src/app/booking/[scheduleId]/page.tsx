@@ -4,9 +4,10 @@ import { notFound } from 'next/navigation';
 
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
-import { getBookings, getScheduleSlotContext, getUsers } from '@/lib/server-api';
+import { getQuarantineDateFrom, QUARANTINE_STATUSES } from '@/lib/booking-scopes';
+import { getBookingsWhere, getScheduleSlotContext, getUsers } from '@/lib/server-api';
 import { isAthleteInQuarantine, type QuarantineResult } from '@sporthub/domain';
-import { formatDate, formatPrice } from '@/lib/utils';
+import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 import type { OfferingFormat } from '@sporthub/types';
 
 // Явно отключаем статическую оптимизацию, чтобы booking-context не зависал после обновления слота.
@@ -37,9 +38,21 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound();
   }
 
+  // Момент считается один раз: он же уходит в нижнюю границу запроса и в расчёт
+  // карантина ниже, и разъезжаться этим двум значениям нельзя.
+  const now = new Date();
+
   const [slotContext, bookings, users] = await Promise.all([
     getScheduleSlotContext(normalizedScheduleId),
-    getBookings(),
+    // ⚠️ Записи здесь нужны НЕ по этому слоту, а по истории атлетов: страница
+    // заранее считает карантин, чтобы клиентская часть выбрала из готового свой.
+    // Сузить по атлету нечем — кто смотрит, страница узнает уже в браузере.
+    // Поэтому сужаем тем, что читает само правило: два статуса и окно последних
+    // тридцати дней (плюс окно отметки исхода, см. `booking-scopes`).
+    getBookingsWhere({
+      status: QUARANTINE_STATUSES,
+      dateFrom: getQuarantineDateFrom(getDateKeyInTimeZone(now)),
+    }),
     getUsers(),
   ]);
 
@@ -51,7 +64,6 @@ export default async function BookingPage({ params }: BookingPageProps) {
   // пользователя (MVP seed). Client выбирает нужный по своему athleteUserId
   // из useAuthStore. Провайдеры/админы не учитываются — им booking-CTA в любом
   // случае недоступен по role-guard внутри компонента.
-  const now = new Date();
   const quarantineByUserId: Record<number, QuarantineResult> = {};
   for (const user of users) {
     if (user.role !== 'athlete') continue;
