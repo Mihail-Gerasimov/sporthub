@@ -8,6 +8,8 @@ import path from 'node:path';
 
 import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@sporthub/types';
 
+import { fixtureSports } from './dictionaries';
+
 // --- Фикстуры пользователей (Phase 26 Step 26.6) ---
 // Копия исходных 3 users из production-seed. Нужна для изоляции тестов от
 // расширенного production users.json (после 26.6 там 7 записей — athlete+
@@ -492,6 +494,9 @@ export async function seedTestData(dataDirectory: string): Promise<void> {
     write('bookings.json', fixtureBookings),
     write('logs.json', []),
     // Справочники (Phase 23)
+    // Виды спорта добавлены в фазе 33: раньше они приезжали копией рабочего каталога
+    // `data/`, и после его удаления сверку контрактов стало бы нечем поднять.
+    write('sports.json', fixtureSports),
     write('cities.json', fixtureCities),
     write('tags.json', fixtureTags),
     write('amenities.json', fixtureAmenities),

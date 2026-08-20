@@ -370,8 +370,10 @@ describe('Сверка с эталоном контрактов прежнего
   let expected: Record<string, SnapshotEntry>;
 
   beforeAll(async () => {
-    // Копия рабочих данных: справочники в эталоне не пустые.
-    harness = await createTestHarness('contract-parity', { copyProjectData: true });
+    // Никакой копии рабочего каталога: набор фиксирован в пакете фикстур.
+    // Иначе после удаления `data/` сверку нельзя было бы запустить — а она
+    // и есть главный признак того, что переезд ничего не сломал.
+    harness = await createTestHarness('contract-parity');
     expected = JSON.parse(await readFile(SNAPSHOT_PATH, 'utf8')) as Record<string, SnapshotEntry>;
   });
 

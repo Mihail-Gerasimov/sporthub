@@ -224,7 +224,7 @@ describe('Сторож: пароль и его хеш не уходят нару
   beforeAll(async () => {
     // Рабочие данные плюс общий набор фикстур: у пользователей есть хеши,
     // и утечке есть чему утекать.
-    harness = await createTestHarness('password-leak', { copyProjectData: true });
+    harness = await createTestHarness('password-leak');
     routes = collectRoutes(harness.app);
   });
 

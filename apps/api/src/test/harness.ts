@@ -5,7 +5,7 @@
 // Пустые файлы создаются для всех коллекций сразу — иначе первый же запрос,
 // который читает соседнюю коллекцию, падает на отсутствующем файле.
 
-import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -57,20 +57,8 @@ export type TestHarness = {
   close(): Promise<void>;
 };
 
-export type HarnessOptions = {
-  /**
-   * Начать с копии рабочей директории данных вместо пустых файлов.
-   * Нужен сверке контрактов: эталон снимался именно так, и справочники
-   * (виды спорта и прочие) в нём — рабочие, а не пустые.
-   */
-  copyProjectData?: boolean;
-};
-
 /** Поднять приложение на своей директории данных. */
-export async function createTestHarness(
-  prefix: string,
-  options: HarnessOptions = {},
-): Promise<TestHarness> {
+export async function createTestHarness(prefix: string): Promise<TestHarness> {
   const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
   process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
 
@@ -82,12 +70,11 @@ export async function createTestHarness(
     );
   };
 
-  if (options.copyProjectData) {
-    await cp(path.join(process.cwd(), '..', '..', 'data'), dataDirectory, { recursive: true });
-  } else {
-    for (const name of COLLECTIONS) {
-      await write(name, []);
-    }
+  // Пустые коллекции: наборы данных тесты засеивают сами через пакет фикстур.
+  // Копии рабочего каталога `data/` здесь больше нет — она держала тесты
+  // на живых данных, которых после переезда на базу не станет.
+  for (const name of COLLECTIONS) {
+    await write(name, []);
   }
 
   const moduleRef = await Test.createTestingModule({
