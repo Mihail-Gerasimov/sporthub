@@ -80,6 +80,9 @@ services:
       args:
         # Вшивается в бандл на сборке — рантайм-переменной не подменить.
         NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
+        # Адрес бэкенда нужен дважды: здесь он попадает в манифест маршрутов
+        # (прокси `/api/*`), ниже в environment — в отрисовку страниц на сервере.
+        SPORT_HUB_API_ORIGIN: http://api:3001
     container_name: sporthub_web
     restart: unless-stopped
     depends_on:

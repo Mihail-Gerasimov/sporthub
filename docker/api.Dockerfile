@@ -14,6 +14,7 @@ WORKDIR /app
 # Сначала только описания пакетов: слой с установкой зависимостей переиспользуется,
 # пока они не менялись, и правка исходника не тянет за собой повторную установку.
 COPY package.json package-lock.json ./
+COPY tsconfig.base.json tsconfig.json ./
 COPY packages/types/package.json packages/types/
 COPY packages/domain/package.json packages/domain/
 COPY packages/fixtures/package.json packages/fixtures/
@@ -32,6 +33,7 @@ RUN npm run build --workspace @sporthub/types \
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY tsconfig.base.json tsconfig.json ./
 COPY packages/types/package.json packages/types/
 COPY packages/domain/package.json packages/domain/
 COPY packages/fixtures/package.json packages/fixtures/
