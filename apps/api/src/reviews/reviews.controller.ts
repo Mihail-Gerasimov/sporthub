@@ -20,6 +20,8 @@ import type { ReviewsRepository, UsersRepository } from '../repositories/crud.re
 import { REVIEWS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repository';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
+import type { TransactionRunner } from '../storage/transaction-runner';
+import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 
 const createReviewSchema = z.object({
   userId: z.number().int().positive(),
@@ -55,8 +57,40 @@ export class ReviewsController {
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
+    @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     private readonly notifications: NotificationService,
   ) {}
+
+  /**
+   * Пересчёт агрегатов адресата по фактическим отзывам.
+   *
+   * Писателя у полей `rating` и `reviewCount` не было вовсе: в данных они стояли
+   * нулями при живых отзывах. Считается по фактам, а не увеличением счётчика:
+   * увеличение накапливает расхождение при каждом сбое, пересчёт — нет.
+   */
+  private async recomputeAggregates(target: {
+    clubId?: number;
+    trainerId?: number;
+  }): Promise<void> {
+    const reviews = await this.reviews.findMany(target);
+    const reviewCount = reviews.length;
+    // Один знак после запятой — тот же вид, в котором рейтинг живёт в данных
+    // и показывается в карточке.
+    const rating =
+      reviewCount === 0
+        ? 0
+        : Math.round((reviews.reduce((sum, item) => sum + item.rating, 0) / reviewCount) * 10) / 10;
+
+    if (target.clubId !== undefined) {
+      await this.clubs.update(target.clubId, { rating, reviewCount });
+
+      return;
+    }
+
+    if (target.trainerId !== undefined) {
+      await this.trainers.update(target.trainerId, { rating, reviewCount });
+    }
+  }
 
   @Get()
   async findMany(
@@ -115,13 +149,22 @@ export class ReviewsController {
       throw new NotFoundError('Тренер не найден');
     }
 
-    const review = await this.reviews.insert({
-      userId,
-      clubId,
-      trainerId,
-      rating,
-      text,
-    } as Omit<Review, 'id' | 'createdAt'>);
+    // Вставка и пересчёт агрегатов — одна транзакция. Порознь они дают карточку
+    // с отзывом, но со старым рейтингом: расхождение видно сразу, а починить его
+    // нечем — писателя у этих полей до сих пор не было.
+    const review = await this.transactions.runInTransaction(async () => {
+      const created = await this.reviews.insert({
+        userId,
+        clubId,
+        trainerId,
+        rating,
+        text,
+      } as Omit<Review, 'id' | 'createdAt'>);
+
+      await this.recomputeAggregates({ clubId, trainerId });
+
+      return created;
+    });
 
     const entity = club ?? trainer;
     const entityType: 'club' | 'trainer' = clubId !== undefined ? 'club' : 'trainer';

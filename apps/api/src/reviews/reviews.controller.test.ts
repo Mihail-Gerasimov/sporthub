@@ -242,4 +242,52 @@ describe('Маршрут отзывов', () => {
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Клуб не найден');
   });
+
+  describe('Агрегаты отзывов', () => {
+    it('после отзыва рейтинг и число отзывов у клуба пересчитываются', async () => {
+      // До фазы 33 писателя у этих полей не было вовсе: в данных они стояли нулями
+      // при живых отзывах, и карточка показывала «нет оценок» у клуба с двумя.
+      await request(harness.app.getHttpServer())
+        .post('/api/reviews')
+        .send({ userId: 1, clubId: 1, rating: 4, text: 'Хороший зал' })
+        .expect(201);
+
+      const clubs =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+      const club = clubs.find((item) => item.id === 1);
+
+      expect(club?.reviewCount).toBeGreaterThan(0);
+      expect(club?.rating).toBeGreaterThan(0);
+    });
+
+    it('рейтинг равен среднему по фактическим отзывам, а не последнему', async () => {
+      const server = harness.app.getHttpServer();
+
+      await request(server)
+        .post('/api/reviews')
+        .send({ userId: 1, clubId: 1, rating: 5, text: 'Отлично' })
+        .expect(201);
+      await request(server)
+        .post('/api/reviews')
+        .send({ userId: 1, clubId: 1, rating: 1, text: 'Плохо' })
+        .expect(201);
+
+      // Ожидание считается по фактическому содержимому, а не по числу из головы:
+      // в наборе у клуба могут быть и прежние отзывы, и тогда среднее другое.
+      const reviews = await harness.read<{ clubId?: number; rating: number }[]>('reviews');
+      const forClub = reviews.filter((item) => item.clubId === 1);
+      const expected =
+        Math.round((forClub.reduce((sum, item) => sum + item.rating, 0) / forClub.length) * 10) /
+        10;
+
+      const clubs =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+      const club = clubs.find((item) => item.id === 1);
+
+      expect(club?.reviewCount).toBe(forClub.length);
+      expect(club?.rating).toBe(expected);
+      // Именно среднее, а не оценка последнего отзыва.
+      expect(club?.rating).not.toBe(1);
+    });
+  });
 });
