@@ -53,11 +53,23 @@ export const COLLECTIONS = [
   'work-formats',
 ] as const;
 
+/** Имя коллекции. */
+export type CollectionName = (typeof COLLECTIONS)[number];
+
 export type TestHarness = {
   app: INestApplication;
   dataDirectory: string;
   /** Перезаписать коллекцию целиком — тем же форматом, что пишет хранилище. */
   write(name: string, data: unknown): Promise<void>;
+  /**
+   * Перезаписать сразу несколько коллекций.
+   *
+   * Нужно не для краткости: на базе каждая запись переносит срез целиком, потому что
+   * таблицу нельзя записать в отрыве от тех, на которые она ссылается. Набор,
+   * разложенный на десяток вызовов `write`, дал бы десяток переносов — и каждый
+   * промежуточный обязан был бы быть целостным, чего у половины наборов нет.
+   */
+  writeMany(collections: Partial<Record<CollectionName, unknown>>): Promise<void>;
   /** Прочитать коллекцию с диска: проверка состояния после запроса. */
   read<T = unknown>(name: string): Promise<T>;
   close(): Promise<void>;
@@ -118,7 +130,14 @@ async function createDatabaseHarness(): Promise<TestHarness> {
     // обращение к нему было видно сразу, а не молча читало чужие файлы.
     dataDirectory: '',
     async write(name, data) {
-      source[SOURCE_FIELD[name as (typeof COLLECTIONS)[number]]] = data as never;
+      source[SOURCE_FIELD[name as CollectionName]] = data as never;
+      await reimport();
+    },
+    async writeMany(collections) {
+      for (const [name, data] of Object.entries(collections)) {
+        source[SOURCE_FIELD[name as CollectionName]] = data as never;
+      }
+
       await reimport();
     },
     async read<T>(name: string): Promise<T> {
@@ -190,6 +209,11 @@ export async function createTestHarness(prefix: string): Promise<TestHarness> {
     app,
     dataDirectory,
     write,
+    async writeMany(collections) {
+      for (const [name, data] of Object.entries(collections)) {
+        await write(name, data);
+      }
+    },
     read,
     async close() {
       await app.close();

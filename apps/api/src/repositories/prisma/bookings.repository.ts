@@ -39,6 +39,8 @@ import {
 } from '../prisma-mappers';
 import { fromOwnerRef, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey } from './patch';
+import { isUniqueViolation } from './unique-violation';
+import { ConflictError } from '../../common/domain-error';
 
 type TransitionRow = {
   id: number;
@@ -241,7 +243,25 @@ export class PrismaBookingsRepository implements BookingsRepository {
   }
 
   async insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking> {
+    try {
+      return await this.insertInner(booking);
+    } catch (error) {
+      // Один код нарушения уникальности — три разных текста наружу. Различить их
+      // можно только по контексту операции, поэтому перевод стоит здесь, а не в общем
+      // фильтре ошибок: там известен код, но неизвестно, что именно делали.
+      if (isUniqueViolation(error)) {
+        throw new ConflictError('Пользователь уже записан на это занятие');
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertInner(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking> {
     const owner = PrismaBookingsRepository.requireOwner(booking);
+    // Повторную активную запись на то же занятие отбивает база частичным уникальным
+    // индексом, а не проверка перед вставкой: проверка проходила при гонке, и один
+    // человек получал две записи на одно занятие. Текст прежний.
     const created = await this.client.booking.create({
       data: {
         scheduleId: booking.scheduleId,

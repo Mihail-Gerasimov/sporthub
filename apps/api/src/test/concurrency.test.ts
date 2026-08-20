@@ -10,6 +10,8 @@
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { PrismaBookingsRepository } from '../repositories/prisma/bookings.repository';
+import { PrismaUsersRepository } from '../repositories/prisma/crud.repository';
 import { PrismaScheduleRepository } from '../repositories/prisma/entities.repository';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from './db-harness';
@@ -273,5 +275,48 @@ describe('Атомарный счётчик мест в реализации р�
     await Promise.all(Array.from({ length: 5 }, () => schedule.changeBookedCount(scheduleId, -1)));
 
     expect((await schedule.findById(scheduleId))?.bookedCount).toBe(0);
+  });
+});
+
+describe('Ограничения базы отдают ПРЕЖНИЕ тексты ошибок', () => {
+  it('занятая почта — «Email уже зарегистрирован»', async () => {
+    const users = new PrismaUsersRepository(new PrismaTransactionRunner(db.service));
+    const user = {
+      role: 'athlete',
+      status: 'active',
+      name: 'Первый',
+      email: 'duplicate@test.local',
+      phone: '+7 (900) 000-00-00',
+      passwordHash: 'хеш-заглушка',
+      favoriteClubIds: [],
+    } as never;
+
+    await users.insert(user);
+
+    // Текст обязан совпадать дословно: на него завязан маршрут регистрации.
+    await expect(users.insert(user)).rejects.toThrow('Email уже зарегистрирован');
+  });
+
+  it('повторная активная запись — «Пользователь уже записан на это занятие»', async () => {
+    const { scheduleId, userIds } = await seedSlotWithOneSeat();
+    const bookings = new PrismaBookingsRepository(new PrismaTransactionRunner(db.service));
+    const booking = {
+      scheduleId,
+      userId: userIds[0],
+      ownerType: 'club',
+      ownerId: 1,
+      sportId: 1,
+      date: '2026-09-01',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+      statusHistory: [],
+    } as never;
+
+    await bookings.insert(booking);
+
+    await expect(bookings.insert(booking)).rejects.toThrow(
+      'Пользователь уже записан на это занятие',
+    );
   });
 });

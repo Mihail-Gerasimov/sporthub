@@ -44,6 +44,8 @@ import {
 } from '../prisma-mappers';
 import { fromOwnerRef, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey } from './patch';
+import { isUniqueViolation } from './unique-violation';
+import { ConflictError } from '../../common/domain-error';
 
 /**
  * «Свежие первыми» одним выражением на все три домена.
@@ -142,6 +144,22 @@ export class PrismaTrainerClubLinksRepository implements TrainerClubLinksReposit
   }
 
   async insert(link: Omit<TrainerClubLink, 'id' | 'createdAt'>): Promise<TrainerClubLink> {
+    try {
+      return await this.insertInner(link);
+    } catch (error) {
+      // Вторую действующую связь на ту же пару отбивает частичный уникальный индекс,
+      // а не проверка перед вставкой: та проходила при одновременных запросах.
+      if (isUniqueViolation(error)) {
+        throw new ConflictError('Для этой пары уже существует активная связь');
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertInner(
+    link: Omit<TrainerClubLink, 'id' | 'createdAt'>,
+  ): Promise<TrainerClubLink> {
     const stored = link as Omit<StoredTrainerClubLink, 'id' | 'createdAt'>;
 
     const created = await this.client.trainerClubLink.create({

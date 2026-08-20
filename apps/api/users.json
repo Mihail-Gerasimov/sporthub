@@ -1,0 +1,40 @@
+[
+  {
+    "id": 1,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "role": "athlete",
+    "status": "active",
+    "name": "Алексей Смирнов",
+    "email": "alexey@sporthub.local",
+    "phone": "+7 (927) 000-10-10",
+    "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$CgCRS3ngEJKeoa9semqLSQ$mxTjcFt/GVvJAZbQTbeV5i5sS3ZgO47vH9a6KwZhLN8",
+    "avatarUrl": "/images/users/alexey-smirnov.jpg",
+    "favoriteClubIds": [],
+    "city": "Самара"
+  },
+  {
+    "id": 2,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "role": "club_owner",
+    "status": "active",
+    "name": "Марина Крылова",
+    "email": "marina@studio.local",
+    "phone": "+7 (927) 000-20-20",
+    "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$CgCRS3ngEJKeoa9semqLSQ$mxTjcFt/GVvJAZbQTbeV5i5sS3ZgO47vH9a6KwZhLN8",
+    "avatarUrl": "/images/users/marina-krylova.jpg",
+    "favoriteClubIds": [],
+    "city": "Самара"
+  },
+  {
+    "id": 3,
+    "createdAt": "2026-04-07T09:00:00.000Z",
+    "role": "admin",
+    "status": "active",
+    "name": "Администратор SportHub",
+    "email": "admin@sporthub.local",
+    "phone": "+7 (927) 000-30-30",
+    "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$J4aplICq3nY8up+XpROw9g$DIZtaXmthO840qf0k84Y0G+ZC+ZSvBOJYpD3Pl+GYb4",
+    "avatarUrl": "/images/users/admin.jpg",
+    "favoriteClubIds": []
+  }
+]

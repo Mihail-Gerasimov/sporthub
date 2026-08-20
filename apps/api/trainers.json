@@ -1,0 +1,93 @@
+[
+  {
+    "id": 1,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Марина Соколова",
+    "slug": "marina-sokolova",
+    "bio": "Тренер по плаванию с 9-летним стажем.",
+    "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+    "experienceYears": 9,
+    "specialtyIds": [
+      1,
+      2
+    ],
+    "workFormatIds": [
+      1
+    ],
+    "rating": 4.9,
+    "reviewCount": 2,
+    "priceFrom": 1400,
+    "sportIds": [
+      3
+    ],
+    "city": "Самара",
+    "address": "ул. Лесная, 23к1",
+    "coordinates": {
+      "lat": 53.2129,
+      "lng": 50.1245
+    },
+    "managedByUserId": 2,
+    "source": "seed",
+    "status": "published"
+  },
+  {
+    "id": 3,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Алексей Петров",
+    "slug": "alexey-petrov",
+    "bio": "Силовой тренер.",
+    "avatarUrl": "/images/trainers/alexey-petrov.jpg",
+    "experienceYears": 6,
+    "specialtyIds": [
+      1
+    ],
+    "workFormatIds": [
+      1
+    ],
+    "rating": 4.7,
+    "reviewCount": 1,
+    "priceFrom": 1600,
+    "sportIds": [
+      4
+    ],
+    "city": "Самара",
+    "address": "ул. Советская, 10",
+    "coordinates": {
+      "lat": 53.2001,
+      "lng": 50.11
+    },
+    "managedByUserId": 2,
+    "source": "seed",
+    "status": "published"
+  },
+  {
+    "id": 5,
+    "createdAt": "2026-03-17T09:00:00.000Z",
+    "name": "Анна Миронова",
+    "slug": "anna-mironova",
+    "bio": "Тренер по йоге.",
+    "avatarUrl": "/images/trainers/anna-mironova.jpg",
+    "experienceYears": 8,
+    "specialtyIds": [
+      1
+    ],
+    "workFormatIds": [
+      2
+    ],
+    "rating": 5,
+    "reviewCount": 3,
+    "priceFrom": 1300,
+    "sportIds": [
+      1
+    ],
+    "city": "Самара",
+    "address": "ул. Молодогвардейская, 86",
+    "coordinates": {
+      "lat": 53.1957,
+      "lng": 50.1006
+    },
+    "managedByUserId": 2,
+    "source": "seed",
+    "status": "published"
+  }
+]
