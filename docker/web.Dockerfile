@@ -30,8 +30,11 @@ ENV NEXT_PUBLIC_YANDEX_MAPS_API_KEY=$NEXT_PUBLIC_YANDEX_MAPS_API_KEY
 # При запуске та же переменная читается второй раз — отрисовкой страниц на сервере.
 ARG SPORT_HUB_API_ORIGIN='http://localhost:3001'
 ENV SPORT_HUB_API_ORIGIN=$SPORT_HUB_API_ORIGIN
+# Фикстуры собираются наравне с остальными общими пакетами: их импортируют тестовые
+# помощники, а сборка Next проверяет типы во всём дереве исходников, включая тесты.
 RUN npm run build --workspace @sporthub/types \
  && npm run build --workspace @sporthub/domain \
+ && npm run build --workspace @sporthub/fixtures \
  && npm run build --workspace @sporthub/web
 
 FROM node:24-bookworm-slim AS runner
