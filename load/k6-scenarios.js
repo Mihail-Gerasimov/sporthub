@@ -80,17 +80,32 @@ const raceScenario = {
   },
 };
 
+/**
+ * Что гоняем.
+ *
+ * По умолчанию — всё сразу. `ONLY=race` — только проверка гонки, `ONLY=profiles` — только
+ * профили. Разделение нужно потому, что гонке требуется подготовленный слот с ОДНИМ
+ * свободным местом: без него она не может ни выиграть, ни проиграть, и её порог падал бы,
+ * утягивая за собой весь прогон профилей.
+ */
+const scenarios =
+  ONLY === 'race'
+    ? raceScenario
+    : ONLY === 'profiles'
+      ? profileScenarios
+      : { ...profileScenarios, ...raceScenario };
+
 export const options = {
-  scenarios: ONLY === 'race' ? raceScenario : { ...profileScenarios, ...raceScenario },
+  scenarios,
   // Пороги — не «красиво», а «дальше начинается разговор про железо».
   thresholds: {
     error_rate: ['rate<0.01'],
     profile_athlete: ['p(95)<1500'],
     profile_provider: ['p(95)<2000'],
     profile_admin: ['p(95)<3000'],
-    // Ровно один успех на десять одновременных запросов к слоту с одним местом.
-    race_won: ['count==1'],
-    race_unexpected: ['count==0'],
+    // Ровно один успех на все одновременные запросы к слоту с одним местом.
+    // Порог объявляется только тогда, когда гонка вообще гоняется.
+    ...(ONLY === 'profiles' ? {} : { race_won: ['count==1'], race_unexpected: ['count==0'] }),
   },
 };
 
