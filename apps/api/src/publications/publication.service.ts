@@ -9,7 +9,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
-import { JsonStorage } from '../storage/json-storage';
+import type { TransactionRunner } from '../storage/transaction-runner';
+import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 import {
   clubFromForm,
   clubOfferingFromForm,
@@ -74,7 +75,7 @@ export type ClubPublicationResult = {
 @Injectable()
 export class PublicationService {
   constructor(
-    private readonly storage: JsonStorage,
+    @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     @Inject(OFFERINGS_REPOSITORY)
@@ -91,7 +92,7 @@ export class PublicationService {
   async createClub(input: CreateClubInput): Promise<ClubPublicationResult> {
     // Клуб, услуга и слоты появляются вместе или не появляются вовсе:
     // клуб без основной услуги нельзя ни показать, ни забронировать.
-    return this.storage.runInTransaction(() => this.createClubInner(input));
+    return this.transactions.runInTransaction(() => this.createClubInner(input));
   }
 
   private async createClubInner(input: CreateClubInput): Promise<ClubPublicationResult> {
@@ -115,7 +116,7 @@ export class PublicationService {
     clubId?: number | null;
     userId: number;
   }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
-    return this.storage.runInTransaction(() => this.createTrainerInner(input));
+    return this.transactions.runInTransaction(() => this.createTrainerInner(input));
   }
 
   private async createTrainerInner(input: {
@@ -164,7 +165,7 @@ export class PublicationService {
   // --- Правка -----------------------------------------------------------------
 
   async updateClub(input: UpdateClubInput): Promise<ClubPublicationResult> {
-    return this.storage.runInTransaction(() => this.updateClubInner(input));
+    return this.transactions.runInTransaction(() => this.updateClubInner(input));
   }
 
   private async updateClubInner(input: UpdateClubInput): Promise<ClubPublicationResult> {
@@ -215,7 +216,7 @@ export class PublicationService {
     offering: Partial<Offering>;
     slots: PublicationSlotInput[];
   }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
-    return this.storage.runInTransaction(() => this.updateTrainerInner(input));
+    return this.transactions.runInTransaction(() => this.updateTrainerInner(input));
   }
 
   private async updateTrainerInner(input: {
@@ -381,7 +382,7 @@ export class PublicationService {
   private cascadeDelete(owner: { ownerType: 'club' | 'trainer'; ownerId: number }): Promise<void> {
     // Удаление затрагивает пять коллекций: половинчатый результат оставил бы
     // записи на несуществующие слоты.
-    return this.storage.runInTransaction(() => this.cascadeDeleteInner(owner));
+    return this.transactions.runInTransaction(() => this.cascadeDeleteInner(owner));
   }
 
   private async cascadeDeleteInner(owner: {

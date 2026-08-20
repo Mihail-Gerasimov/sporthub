@@ -30,7 +30,8 @@ import type {
 import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
-import { JsonStorage } from '../storage/json-storage';
+import type { TransactionRunner } from '../storage/transaction-runner';
+import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ScheduleRepository } from '../repositories/entities.repository';
@@ -63,7 +64,7 @@ export function getSlotEndAt(slot: Schedule): Date {
 @Injectable()
 export class BookingService {
   constructor(
-    private readonly storage: JsonStorage,
+    @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
     @Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository,
     private readonly slotContext: SlotContextService,
@@ -120,7 +121,7 @@ export class BookingService {
 
     // Смена статуса и пересчёт мест — одна операция: иначе сбой на второй
     // записи оставил бы занятое место у отменённой брони.
-    const updated = await this.storage.runInTransaction(async () => {
+    const updated = await this.transactions.runInTransaction(async () => {
       const result = await this.bookings.update(booking.id, patch);
 
       if (delta !== 0) {
@@ -170,7 +171,7 @@ export class BookingService {
     // не должно менять правила для уже записавшегося.
     const snapshot: CancellationPolicy = offering?.cancellationPolicy ?? 'free_until_24h';
 
-    const created = await this.storage.runInTransaction(async () => {
+    const created = await this.transactions.runInTransaction(async () => {
       const booking = await this.bookings.insert({
         scheduleId: input.scheduleId,
         offeringId: slot.offeringId,
@@ -235,7 +236,7 @@ export class BookingService {
       throw new NotFoundError('Запись не найдена');
     }
 
-    await this.storage.runInTransaction(async () => {
+    await this.transactions.runInTransaction(async () => {
       await this.bookings.remove(bookingId);
 
       if (ACTIVE_BOOKING_STATUSES.has(booking.status)) {

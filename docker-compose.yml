@@ -1,0 +1,97 @@
+# Локальное окружение SportHub.
+#
+# Обычный `docker compose up -d` поднимает ТОЛЬКО базу: в повседневной работе
+# приложение запускается напрямую, а контейнер нужен ради базы. Приложение
+# поднимается явно — `docker compose --profile app up -d`, — потому что образы
+# собираются минуты, и платить это время на каждой правке исходника незачем.
+services:
+  db:
+    image: postgres:16
+    # Префикс проекта в имени: на машине разработчика рядом живут контейнеры
+    # других проектов, и совпадение имён даёт тихие ошибки.
+    container_name: sporthub_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sporthub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sporthub}
+      POSTGRES_DB: sporthub
+      # Пароль проверяется всегда, включая подключения изнутри контейнера.
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      # Локаль сравнения строк задаётся ОДИН раз при создании тома и потом
+      # меняется только пересозданием кластера. От неё зависит порядок кириллицы
+      # (`Ё`, `ё`, регистр) — то есть порядок карточек и списков на страницах.
+      # Провайдер ICU выбран потому, что он даёт тот же порядок, что и
+      # `localeCompare` в движке, а от него зависит нынешняя выдача.
+      POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=ru-RU --encoding=UTF8'
+    ports:
+      # Только локальный адрес: база не должна быть видна из сети.
+      # Порт 5432 занимают штатные установки, 5433 — соседний проект.
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - sporthub_pgdata:/var/lib/postgresql/data
+      # Отрабатывает только при первом создании тома.
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # С указанием базы: иначе «здоров» означает «процесс стартовал»,
+      # а не «принимает запросы к нужной базе».
+      test: ['CMD-SHELL', 'pg_isready -U sporthub -d sporthub']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: sporthub_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      API_PORT: 3001
+      # Каталог данных задаётся явно: в образе структура каталогов другая,
+      # и поиск «вверх по дереву» до него не доберётся.
+      # STUB: живёт до шага 33.58 — до переезда на базу хранилище ещё файловое.
+      SPORT_HUB_DATA_DIRECTORY: /app/data
+      DATABASE_URL: postgresql://sporthub:${POSTGRES_PASSWORD:-sporthub}@db:5432/sporthub?schema=public
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
+      YANDEX_SUGGEST_API_KEY: ${YANDEX_SUGGEST_API_KEY:-}
+    ports:
+      - '127.0.0.1:3001:3001'
+    volumes:
+      # Том, а не копия внутрь образа: без него каждая пересборка стирала бы
+      # записи, публикации и отзывы молча.
+      # STUB: снимается на шаге 33.58 вместе с файловым хранилищем.
+      - ./data:/app/data
+    healthcheck:
+      test: ['CMD', 'node', '/app/healthcheck.mjs']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  web:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        # Вшивается в бандл на сборке — рантайм-переменной не подменить.
+        NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
+    container_name: sporthub_web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      # Читается при запуске: и прокси `/api/*`, и отрисовка страниц на сервере.
+      SPORT_HUB_API_ORIGIN: http://api:3001
+    ports:
+      - '127.0.0.1:3000:3000'
+
+volumes:
+  sporthub_pgdata:
+    name: sporthub_pgdata

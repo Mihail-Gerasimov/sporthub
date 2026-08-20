@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=24.0.0",
@@ -18,7 +18,18 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:watch": "npm run test:watch -w @sporthub/web",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose stop db",
+    "db:logs": "docker compose logs -f db",
+    "db:psql": "docker compose exec db psql -U sporthub -d sporthub",
+    "db:reset": "docker compose down -v && docker compose up -d db",
+    "test:db": "npm run db:up && node scripts/wait-for-db.mjs && npm run test",
+    "app:up": "docker compose --profile app up -d --build",
+    "app:down": "docker compose --profile app down",
+    "app:logs": "docker compose --profile app logs -f",
+    "images:build": "docker compose --profile app build",
+    "images:build:server": "docker buildx build --platform linux/amd64 -f docker/api.Dockerfile -t sporthub-api:latest . && docker buildx build --platform linux/amd64 -f docker/web.Dockerfile -t sporthub-web:latest ."
   },
   "devDependencies": {
     "eslint": "^9",

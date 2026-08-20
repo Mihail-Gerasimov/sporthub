@@ -1,4 +1,4 @@
-// Модуль данных: связывает токены репозиториев с JSON-реализациями.
+// Модуль данных: связывает токены репозиториев и транзакции с JSON-реализациями.
 //
 // Это единственное место во всём бэкенде, где написано, что данные лежат
 // в файлах. В фазе базы здесь меняются реализации на Prisma-версии — сервисы
@@ -46,6 +46,7 @@ import {
 } from '../repositories/entities.repository';
 import { JsonStorage } from './json-storage';
 import { resolveDataDirectory } from './resolve-data-directory';
+import { TRANSACTION_RUNNER } from './transaction-runner';
 
 /** Простые справочники отличаются только именем коллекции. */
 const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
@@ -60,6 +61,8 @@ const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
       provide: JsonStorage,
       useFactory: () => new JsonStorage(resolveDataDirectory()),
     },
+    // Сервисам достаётся только транзакция — про файлы они не знают.
+    { provide: TRANSACTION_RUNNER, useExisting: JsonStorage },
     { provide: SPORTS_REPOSITORY, ...simpleDictionary('sports') },
     { provide: TAGS_REPOSITORY, ...simpleDictionary('tags') },
     { provide: AMENITIES_REPOSITORY, ...simpleDictionary('amenities') },
@@ -127,7 +130,7 @@ const simpleDictionary = (collection: Parameters<JsonStorage['read']>[0]) => ({
     },
   ],
   exports: [
-    JsonStorage,
+    TRANSACTION_RUNNER,
     SPORTS_REPOSITORY,
     TAGS_REPOSITORY,
     AMENITIES_REPOSITORY,
