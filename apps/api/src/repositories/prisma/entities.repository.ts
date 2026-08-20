@@ -1,0 +1,838 @@
+// Публикации поверх базы: клубы, тренеры и расписание.
+//
+// Устройство — как у справочников (`./dictionaries.repository.ts`): клиент берётся
+// у `PrismaTransactionRunner` при КАЖДОМ запросе, порядок выдачи задан явно, значения
+// на границе переводятся мапперами из `../prisma-mappers`. Здесь к этому добавляются
+// четыре места, которых у справочников не было:
+//
+// 1. **Наборы ссылок стали связующими таблицами.** `sportIds`, `tagIds`, `amenityIds`,
+//    `specialtyIds`, `workFormatIds` — это строки отдельных таблиц. Правка разбирается
+//    на «добавить» и «убрать» (`syncIdLinks`), а не переписывается целиком.
+//    ⚠️ Порядок в этих массивах теперь ПО НОМЕРУ: колонки позиции у связующих таблиц
+//    нет (решение заказчика), и файловый порядок записи не воспроизводится. Это
+//    согласованное изменение поведения, а не побочный эффект.
+// 2. **Поиск по адресу-ссылке идёт по хранимой колонке `slugNormalized`.**
+//    `normalizeSlugLookupValue` делает три операции — снятие URI-кодирования,
+//    приведение NFC и нижний регистр с русской локалью, — и первые две в выражении
+//    базы не воспроизводятся вовсе. Значит, приведение считает та же функция, что
+//    и в файловой реализации, а колонка заполняется ею же при вставке и правке.
+// 3. **Владелец слота — пара взаимоисключающих колонок плюс отдельная площадка.**
+//    Сборка обратно в `ownerType`/`ownerId`/`clubId`/`trainerId` — в `./owner-columns.ts`.
+// 4. **Дата и время слота — колонки типа даты и времени.** На границе они обязаны
+//    снова стать строками `YYYY-MM-DD` и `HH:MM`.
+
+import { Injectable } from '@nestjs/common';
+import { getTrainerPrimarySportId } from '@sporthub/domain';
+import type {
+  CatalogOwnerType,
+  Club,
+  EntityId,
+  EntitySource,
+  EntityStatus,
+  Schedule,
+  SessionLevel,
+  Trainer,
+} from '@sporthub/types';
+
+import type { DatabaseClient } from '../../storage/prisma-transaction';
+import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
+import type { Prisma } from '../../storage/prisma-client/client';
+import type {
+  ClubsRepository,
+  PublicationStatusFilter,
+  ScheduleRepository,
+  TrainersRepository,
+} from '../entities.repository';
+import { normalizeSlugLookupValue } from '../entities.repository';
+import {
+  fromDateKey,
+  fromTimeKey,
+  omitNulls,
+  toDateKey,
+  toIsoString,
+  toNullable,
+  toOptionalIsoString,
+  toTimeKey,
+} from '../prisma-mappers';
+import { fromOwnerRef, ownerTypeWhere, toOwnerRef } from './owner-columns';
+import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
+
+// --- Клубы --------------------------------------------------------------------
+
+/**
+ * Что подтягивается вместе с клубом.
+ *
+ * Порядок строк связующих таблиц задан явно и здесь: без него база вправе вернуть
+ * их в любом порядке, и набор видов спорта у карточки менялся бы сам после каждой
+ * правки строки. Кадры галереи упорядочены своей колонкой позиции — она у них есть,
+ * в отличие от связующих таблиц.
+ */
+const CLUB_INCLUDE = {
+  sports: { select: { sportId: true }, orderBy: { sportId: 'asc' } },
+  tags: { select: { tagId: true }, orderBy: { tagId: 'asc' } },
+  amenities: { select: { amenityId: true }, orderBy: { amenityId: 'asc' } },
+  images: { select: { id: true, url: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+} satisfies Prisma.ClubInclude;
+
+type ClubRow = Prisma.ClubGetPayload<{ include: typeof CLUB_INCLUDE }>;
+
+/** Поля клуба, ложащиеся в колонки NOT NULL один в один. */
+const CLUB_PLAIN_FIELDS = [
+  'name',
+  'description',
+  'shortDescription',
+  'city',
+  'address',
+  'phone',
+  'rating',
+  'reviewCount',
+  'priceFrom',
+  'distanceKm',
+  'source',
+  'status',
+] as const satisfies readonly (keyof Club)[];
+
+/** Поля клуба, которые правка вправе стереть. */
+const CLUB_ERASABLE_FIELDS = [
+  'email',
+  'website',
+  'vk',
+  'telegram',
+  'facebook',
+  'managedByUserId',
+  'hideReason',
+  'hiddenByUserId',
+] as const satisfies readonly (keyof Club)[];
+
+@Injectable()
+export class PrismaClubsRepository implements ClubsRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toClub(row: ClubRow): Club {
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      shortDescription: row.shortDescription,
+      city: row.city,
+      address: row.address,
+      phone: row.phone,
+      email: row.email ?? undefined,
+      website: row.website ?? undefined,
+      coordinates: { lat: row.latitude, lng: row.longitude },
+      sportIds: row.sports.map((link) => link.sportId),
+      imageUrls: row.images.map((image) => image.url),
+      amenityIds: row.amenities.map((link) => link.amenityId),
+      tagIds: row.tags.map((link) => link.tagId),
+      vk: row.vk ?? undefined,
+      telegram: row.telegram ?? undefined,
+      facebook: row.facebook ?? undefined,
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      priceFrom: row.priceFrom,
+      distanceKm: row.distanceKm,
+      managedByUserId: row.managedByUserId ?? undefined,
+      source: row.source as EntitySource,
+      status: row.status as EntityStatus,
+      hideReason: row.hideReason ?? undefined,
+      hiddenByUserId: row.hiddenByUserId ?? undefined,
+      hiddenAt: toOptionalIsoString(row.hiddenAt),
+    });
+  }
+
+  async findAll(filter: PublicationStatusFilter = {}): Promise<Club[]> {
+    const rows = await this.client.club.findMany({
+      // Отсев скрытых — условие запроса, а не фильтр в памяти: иначе выдача тянула бы
+      // из базы всё, включая то, что заведомо выбрасывает.
+      where: filter.excludeHidden === true ? { status: { not: 'hidden' } } : undefined,
+      include: CLUB_INCLUDE,
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaClubsRepository.toClub(row));
+  }
+
+  async findById(id: EntityId): Promise<Club | null> {
+    const row = await this.client.club.findUnique({ where: { id }, include: CLUB_INCLUDE });
+
+    return row === null ? null : PrismaClubsRepository.toClub(row);
+  }
+
+  async findBySlug(slug: string): Promise<Club | null> {
+    const slugNormalized = normalizeSlugLookupValue(slug);
+
+    // Пустой адрес-ссылка не ищется вовсе: в базе такого значения нет, но лишний
+    // запрос по пустой строке — тоже запрос. Файловая реализация ведёт себя так же.
+    if (slugNormalized === '') return null;
+
+    const row = await this.client.club.findUnique({
+      where: { slugNormalized },
+      include: CLUB_INCLUDE,
+    });
+
+    return row === null ? null : PrismaClubsRepository.toClub(row);
+  }
+
+  async insert(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club> {
+    const created = await this.client.club.create({
+      data: {
+        name: club.name,
+        slug: club.slug,
+        slugNormalized: normalizeSlugLookupValue(club.slug),
+        description: club.description,
+        shortDescription: club.shortDescription,
+        city: club.city,
+        address: club.address,
+        phone: club.phone,
+        email: club.email,
+        website: club.website,
+        vk: club.vk,
+        telegram: club.telegram,
+        facebook: club.facebook,
+        latitude: club.coordinates.lat,
+        longitude: club.coordinates.lng,
+        rating: club.rating,
+        reviewCount: club.reviewCount,
+        priceFrom: club.priceFrom,
+        distanceKm: club.distanceKm,
+        managedByUserId: club.managedByUserId,
+        source: club.source,
+        status: club.status,
+        hideReason: club.hideReason,
+        hiddenByUserId: club.hiddenByUserId,
+        hiddenAt: club.hiddenAt === undefined ? null : new Date(club.hiddenAt),
+        sports: { create: idsOf(club.sportIds).map((sportId) => ({ sportId })) },
+        tags: { create: idsOf(club.tagIds).map((tagId) => ({ tagId })) },
+        amenities: { create: idsOf(club.amenityIds).map((amenityId) => ({ amenityId })) },
+        images: {
+          create: (club.imageUrls ?? []).map((url, position) => ({ url, position })),
+        },
+      },
+      include: CLUB_INCLUDE,
+    });
+
+    return PrismaClubsRepository.toClub(created);
+  }
+
+  async update(id: EntityId, patch: Partial<Club>): Promise<Club> {
+    const current = await this.client.club.findUnique({ where: { id }, include: CLUB_INCLUDE });
+
+    if (current === null) {
+      throw new Error(`Клуб с id ${id} не найден`);
+    }
+
+    await this.client.club.update({ where: { id }, data: buildClubPatch(patch) });
+    await this.syncClubLinks(id, current, patch);
+
+    // Перечитываем: связующие таблицы правились после основного запроса, и собрать
+    // ответ из его результата значило бы отдать состояние до правки набора ссылок.
+    return (await this.findById(id)) as Club;
+  }
+
+  /** Согласование связующих таблиц клуба с новыми наборами ссылок. */
+  private async syncClubLinks(id: EntityId, current: ClubRow, patch: Partial<Club>): Promise<void> {
+    if (hasKey(patch, 'sportIds')) {
+      await syncIdLinks({
+        previous: current.sports.map((link) => link.sportId),
+        next: idsOf(patch.sportIds),
+        remove: (ids) =>
+          this.client.clubSport.deleteMany({ where: { clubId: id, sportId: { in: ids } } }),
+        add: (ids) =>
+          this.client.clubSport.createMany({
+            data: ids.map((sportId) => ({ clubId: id, sportId })),
+          }),
+      });
+    }
+
+    if (hasKey(patch, 'tagIds')) {
+      await syncIdLinks({
+        previous: current.tags.map((link) => link.tagId),
+        next: idsOf(patch.tagIds),
+        remove: (ids) =>
+          this.client.clubTag.deleteMany({ where: { clubId: id, tagId: { in: ids } } }),
+        add: (ids) =>
+          this.client.clubTag.createMany({ data: ids.map((tagId) => ({ clubId: id, tagId })) }),
+      });
+    }
+
+    if (hasKey(patch, 'amenityIds')) {
+      await syncIdLinks({
+        previous: current.amenities.map((link) => link.amenityId),
+        next: idsOf(patch.amenityIds),
+        remove: (ids) =>
+          this.client.clubAmenity.deleteMany({ where: { clubId: id, amenityId: { in: ids } } }),
+        add: (ids) =>
+          this.client.clubAmenity.createMany({
+            data: ids.map((amenityId) => ({ clubId: id, amenityId })),
+          }),
+      });
+    }
+
+    if (hasKey(patch, 'imageUrls')) {
+      await this.syncClubImages(id, current.images, patch.imageUrls ?? []);
+    }
+  }
+
+  /**
+   * Согласование галереи.
+   *
+   * Кадры сравниваются ПОЗИЦИОННО, а не по множеству ссылок: у галереи порядок
+   * значим, и одна и та же ссылка вправе встретиться дважды — множество этого
+   * не выражает. Совпавшие позиции остаются теми же строками, лишние удаляются,
+   * недостающие дописываются; полная перезапись завела бы новые строки даже там,
+   * где ссылка не менялась.
+   */
+  private async syncClubImages(
+    clubId: EntityId,
+    previous: ClubRow['images'],
+    next: string[],
+  ): Promise<void> {
+    const shared = Math.min(previous.length, next.length);
+
+    for (let index = 0; index < shared; index += 1) {
+      if (previous[index].url === next[index]) continue;
+
+      await this.client.clubImage.update({
+        where: { id: previous[index].id },
+        data: { url: next[index] },
+      });
+    }
+
+    if (previous.length > next.length) {
+      await this.client.clubImage.deleteMany({
+        where: { id: { in: previous.slice(next.length).map((image) => image.id) } },
+      });
+    }
+
+    if (next.length > previous.length) {
+      await this.client.clubImage.createMany({
+        data: next.slice(previous.length).map((url, offset) => ({
+          clubId,
+          url,
+          position: previous.length + offset,
+        })),
+      });
+    }
+  }
+
+  async remove(id: EntityId): Promise<void> {
+    // Как и в файловой реализации: удаление отсутствующего клуба — не ошибка.
+    await this.client.club.deleteMany({ where: { id } });
+  }
+}
+
+/** Скалярная часть правки клуба. Вынесена из класса: чистое преобразование без запросов. */
+function buildClubPatch(patch: Partial<Club>): Prisma.ClubUncheckedUpdateInput {
+  const data: Record<string, unknown> = {};
+
+  copyPresent(patch, CLUB_PLAIN_FIELDS, data);
+  copyErasable(patch, CLUB_ERASABLE_FIELDS, data);
+
+  // Адрес-ссылка тянет за собой приведённую колонку: разъехавшись, они превратят
+  // поиск по кириллическому адресу в «не найдено» без единой ошибки.
+  if (hasKey(patch, 'slug') && patch.slug !== undefined) {
+    data.slug = patch.slug;
+    data.slugNormalized = normalizeSlugLookupValue(patch.slug);
+  }
+
+  if (hasKey(patch, 'coordinates') && patch.coordinates !== undefined) {
+    data.latitude = patch.coordinates.lat;
+    data.longitude = patch.coordinates.lng;
+  }
+
+  if (hasKey(patch, 'hiddenAt')) {
+    data.hiddenAt = patch.hiddenAt === undefined ? null : new Date(patch.hiddenAt);
+  }
+
+  return data as Prisma.ClubUncheckedUpdateInput;
+}
+
+// --- Тренеры ------------------------------------------------------------------
+
+const TRAINER_INCLUDE = {
+  sports: { select: { sportId: true }, orderBy: { sportId: 'asc' } },
+  specialties: { select: { specialtyId: true }, orderBy: { specialtyId: 'asc' } },
+  workFormats: { select: { workFormatId: true }, orderBy: { workFormatId: 'asc' } },
+} satisfies Prisma.TrainerInclude;
+
+type TrainerRow = Prisma.TrainerGetPayload<{ include: typeof TRAINER_INCLUDE }>;
+
+const TRAINER_PLAIN_FIELDS = [
+  'name',
+  'bio',
+  'avatarUrl',
+  'experienceYears',
+  'rating',
+  'reviewCount',
+  'priceFrom',
+  'source',
+  'status',
+] as const satisfies readonly (keyof Trainer)[];
+
+const TRAINER_ERASABLE_FIELDS = [
+  'city',
+  'address',
+  'phone',
+  'vk',
+  'telegram',
+  'facebook',
+  // STUB: колонка основного вида спорта. В неё ложится ТОЛЬКО явно названный
+  // основной вид — тот, что пришёл в данных. Выведенный из первого элемента списка
+  // сюда не пишется намеренно: записанный однажды, он перестал бы выводиться заново
+  // и после правки списка видов спорта карточка показывала бы вид, которого у тренера
+  // уже нет. Файловая реализация выводит его при каждом чтении — здесь то же самое,
+  // только вывод делает `getTrainerPrimarySportId` на границе.
+  'sportId',
+  'managedByUserId',
+  'hideReason',
+  'hiddenByUserId',
+] as const satisfies readonly (keyof Trainer)[];
+
+@Injectable()
+export class PrismaTrainersRepository implements TrainersRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toTrainer(row: TrainerRow): Trainer {
+    const sportIds = row.sports.map((link) => link.sportId);
+
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      name: row.name,
+      slug: row.slug,
+      bio: row.bio,
+      avatarUrl: row.avatarUrl,
+      experienceYears: row.experienceYears,
+      specialtyIds: row.specialties.map((link) => link.specialtyId),
+      workFormatIds: row.workFormats.map((link) => link.workFormatId),
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      priceFrom: row.priceFrom,
+      sportIds,
+      city: row.city ?? undefined,
+      address: row.address ?? undefined,
+      // Координаты — одно сведение из двух колонок: половины точки не бывает.
+      coordinates:
+        row.latitude === null || row.longitude === null
+          ? undefined
+          : { lat: row.latitude, lng: row.longitude },
+      phone: row.phone ?? undefined,
+      vk: row.vk ?? undefined,
+      telegram: row.telegram ?? undefined,
+      facebook: row.facebook ?? undefined,
+      // STUB: переходное одиночное поле из фазы 25. Починка «sportId ← sportIds[0]»,
+      // которая была нужна файловой реализации, здесь не требуется — основной вид
+      // спорта лежит в собственной колонке. Но само поле в ответе обязано остаться:
+      // оно есть в эталоне контрактов. Формула — общая с фронтом, из @sporthub/domain.
+      sportId: getTrainerPrimarySportId({ sportIds, sportId: row.sportId ?? undefined }),
+      managedByUserId: row.managedByUserId ?? undefined,
+      source: row.source as EntitySource,
+      status: row.status as EntityStatus,
+      hideReason: row.hideReason ?? undefined,
+      hiddenByUserId: row.hiddenByUserId ?? undefined,
+      hiddenAt: toOptionalIsoString(row.hiddenAt),
+    });
+  }
+
+  async findAll(filter: PublicationStatusFilter = {}): Promise<Trainer[]> {
+    const rows = await this.client.trainer.findMany({
+      where: filter.excludeHidden === true ? { status: { not: 'hidden' } } : undefined,
+      include: TRAINER_INCLUDE,
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaTrainersRepository.toTrainer(row));
+  }
+
+  async findById(id: EntityId): Promise<Trainer | null> {
+    const row = await this.client.trainer.findUnique({ where: { id }, include: TRAINER_INCLUDE });
+
+    return row === null ? null : PrismaTrainersRepository.toTrainer(row);
+  }
+
+  async findBySlug(slug: string): Promise<Trainer | null> {
+    const slugNormalized = normalizeSlugLookupValue(slug);
+
+    if (slugNormalized === '') return null;
+
+    const row = await this.client.trainer.findUnique({
+      where: { slugNormalized },
+      include: TRAINER_INCLUDE,
+    });
+
+    return row === null ? null : PrismaTrainersRepository.toTrainer(row);
+  }
+
+  async insert(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer> {
+    const sportIds = idsOf(trainer.sportIds);
+
+    const created = await this.client.trainer.create({
+      data: {
+        name: trainer.name,
+        slug: trainer.slug,
+        slugNormalized: normalizeSlugLookupValue(trainer.slug),
+        bio: trainer.bio,
+        avatarUrl: trainer.avatarUrl,
+        experienceYears: trainer.experienceYears,
+        rating: trainer.rating,
+        reviewCount: trainer.reviewCount,
+        priceFrom: trainer.priceFrom,
+        city: trainer.city,
+        address: trainer.address,
+        latitude: trainer.coordinates?.lat,
+        longitude: trainer.coordinates?.lng,
+        phone: trainer.phone,
+        vk: trainer.vk,
+        telegram: trainer.telegram,
+        facebook: trainer.facebook,
+        // Явно названный основной вид спорта — как пришёл. Выведенный из первого
+        // элемента списка не записывается: см. комментарий у TRAINER_ERASABLE_FIELDS.
+        sportId: trainer.sportId,
+        managedByUserId: trainer.managedByUserId,
+        source: trainer.source,
+        status: trainer.status,
+        hideReason: trainer.hideReason,
+        hiddenByUserId: trainer.hiddenByUserId,
+        hiddenAt: trainer.hiddenAt === undefined ? null : new Date(trainer.hiddenAt),
+        sports: { create: sportIds.map((sportId) => ({ sportId })) },
+        specialties: {
+          create: idsOf(trainer.specialtyIds).map((specialtyId) => ({ specialtyId })),
+        },
+        workFormats: {
+          create: idsOf(trainer.workFormatIds).map((workFormatId) => ({ workFormatId })),
+        },
+      },
+      include: TRAINER_INCLUDE,
+    });
+
+    return PrismaTrainersRepository.toTrainer(created);
+  }
+
+  async update(id: EntityId, patch: Partial<Trainer>): Promise<Trainer> {
+    const current = await this.client.trainer.findUnique({
+      where: { id },
+      include: TRAINER_INCLUDE,
+    });
+
+    if (current === null) {
+      throw new Error(`Тренер с id ${id} не найден`);
+    }
+
+    await this.client.trainer.update({ where: { id }, data: buildTrainerPatch(patch) });
+    await this.syncTrainerLinks(id, current, patch);
+
+    return (await this.findById(id)) as Trainer;
+  }
+
+  private async syncTrainerLinks(
+    id: EntityId,
+    current: TrainerRow,
+    patch: Partial<Trainer>,
+  ): Promise<void> {
+    if (hasKey(patch, 'sportIds')) {
+      await syncIdLinks({
+        previous: current.sports.map((link) => link.sportId),
+        next: idsOf(patch.sportIds),
+        remove: (ids) =>
+          this.client.trainerSport.deleteMany({ where: { trainerId: id, sportId: { in: ids } } }),
+        add: (ids) =>
+          this.client.trainerSport.createMany({
+            data: ids.map((sportId) => ({ trainerId: id, sportId })),
+          }),
+      });
+    }
+
+    if (hasKey(patch, 'specialtyIds')) {
+      await syncIdLinks({
+        previous: current.specialties.map((link) => link.specialtyId),
+        next: idsOf(patch.specialtyIds),
+        remove: (ids) =>
+          this.client.trainerSpecialty.deleteMany({
+            where: { trainerId: id, specialtyId: { in: ids } },
+          }),
+        add: (ids) =>
+          this.client.trainerSpecialty.createMany({
+            data: ids.map((specialtyId) => ({ trainerId: id, specialtyId })),
+          }),
+      });
+    }
+
+    if (hasKey(patch, 'workFormatIds')) {
+      await syncIdLinks({
+        previous: current.workFormats.map((link) => link.workFormatId),
+        next: idsOf(patch.workFormatIds),
+        remove: (ids) =>
+          this.client.trainerWorkFormat.deleteMany({
+            where: { trainerId: id, workFormatId: { in: ids } },
+          }),
+        add: (ids) =>
+          this.client.trainerWorkFormat.createMany({
+            data: ids.map((workFormatId) => ({ trainerId: id, workFormatId })),
+          }),
+      });
+    }
+  }
+
+  async remove(id: EntityId): Promise<void> {
+    await this.client.trainer.deleteMany({ where: { id } });
+  }
+}
+
+/** Скалярная часть правки тренера. */
+function buildTrainerPatch(patch: Partial<Trainer>): Prisma.TrainerUncheckedUpdateInput {
+  const data: Record<string, unknown> = {};
+
+  copyPresent(patch, TRAINER_PLAIN_FIELDS, data);
+  copyErasable(patch, TRAINER_ERASABLE_FIELDS, data);
+
+  if (hasKey(patch, 'slug') && patch.slug !== undefined) {
+    data.slug = patch.slug;
+    data.slugNormalized = normalizeSlugLookupValue(patch.slug);
+  }
+
+  if (hasKey(patch, 'coordinates')) {
+    data.latitude = toNullable(patch.coordinates?.lat);
+    data.longitude = toNullable(patch.coordinates?.lng);
+  }
+
+  if (hasKey(patch, 'hiddenAt')) {
+    data.hiddenAt = patch.hiddenAt === undefined ? null : new Date(patch.hiddenAt);
+  }
+
+  // Колонка основного вида спорта правится только явным указанием — она попала
+  // в TRAINER_ERASABLE_FIELDS и уже перенесена выше. Пересчёта из списка здесь нет
+  // намеренно: см. комментарий у этого списка.
+
+  return data as Prisma.TrainerUncheckedUpdateInput;
+}
+
+// --- Расписание ---------------------------------------------------------------
+
+type ScheduleRow = Prisma.ScheduleModel;
+
+const SCHEDULE_PLAIN_FIELDS = [
+  'sportId',
+  'title',
+  'durationMinutes',
+  'level',
+  'capacity',
+  'bookedCount',
+  'price',
+] as const satisfies readonly (keyof Schedule)[];
+
+const SCHEDULE_ERASABLE_FIELDS = [
+  'offeringId',
+  'description',
+  'room',
+] as const satisfies readonly (keyof Schedule)[];
+
+@Injectable()
+export class PrismaScheduleRepository implements ScheduleRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toSchedule(row: ScheduleRow): Schedule {
+    const owner = toOwnerRef(row);
+
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      offeringId: row.offeringId ?? undefined,
+      ownerType: owner.ownerType,
+      ownerId: owner.ownerId,
+      // Клуб слота — это либо клуб-владелец, либо зал, в котором ведёт тренер.
+      // У тренерского слота без зала клуба нет вовсе: файловая реализация его тоже
+      // не достраивала, это делает потребитель через связь тренер↔клуб.
+      clubId: row.ownerClubId ?? row.venueClubId ?? undefined,
+      trainerId: row.ownerTrainerId ?? undefined,
+      sportId: row.sportId,
+      title: row.title,
+      description: row.description ?? undefined,
+      date: toDateKey(row.date),
+      startTime: toTimeKey(row.startTime),
+      endTime: toTimeKey(row.endTime),
+      durationMinutes: row.durationMinutes,
+      level: row.level as SessionLevel,
+      capacity: row.capacity,
+      bookedCount: row.bookedCount,
+      price: row.price,
+      room: row.room ?? undefined,
+    });
+  }
+
+  async findMany(filter: { ownerType?: CatalogOwnerType | 'all' } = {}): Promise<Schedule[]> {
+    // Умолчание перенесено из файловой реализации: без указания владельца
+    // отдаются только клубные слоты.
+    const ownerType = filter.ownerType ?? 'club';
+    const rows = await this.client.schedule.findMany({
+      where: ownerType === 'all' ? undefined : ownerTypeWhere(ownerType),
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaScheduleRepository.toSchedule(row));
+  }
+
+  async findById(id: EntityId): Promise<Schedule | null> {
+    const row = await this.client.schedule.findUnique({ where: { id } });
+
+    return row === null ? null : PrismaScheduleRepository.toSchedule(row);
+  }
+
+  async findByOfferingId(offeringId: EntityId): Promise<Schedule[]> {
+    const rows = await this.client.schedule.findMany({
+      where: { offeringId },
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaScheduleRepository.toSchedule(row));
+  }
+
+  async insertMany(slots: Omit<Schedule, 'id' | 'createdAt'>[]): Promise<Schedule[]> {
+    if (slots.length === 0) return [];
+
+    const created = await this.client.schedule.createManyAndReturn({
+      data: slots.map((slot) => {
+        const owner = resolveSlotOwner(slot);
+
+        return {
+          offeringId: toNullable(slot.offeringId),
+          ...fromOwnerRef(owner.ownerType, owner.ownerId),
+          // Площадка есть только у тренерского слота: у клубного «зал» и «владелец» —
+          // один и тот же клуб, и вторая ссылка на него была бы дублем.
+          venueClubId: owner.ownerType === 'trainer' ? toNullable(slot.clubId) : null,
+          sportId: slot.sportId,
+          title: slot.title,
+          description: toNullable(slot.description),
+          date: fromDateKey(slot.date),
+          startTime: fromTimeKey(slot.startTime),
+          endTime: fromTimeKey(slot.endTime),
+          durationMinutes: slot.durationMinutes,
+          level: slot.level,
+          capacity: slot.capacity,
+          bookedCount: slot.bookedCount,
+          price: slot.price,
+          room: toNullable(slot.room),
+        };
+      }),
+    });
+
+    // Порядок выдачи обязан совпасть с порядком входа: вызывающий код сопоставляет
+    // созданные слоты с формой по позиции. Номера растут монотонно, поэтому
+    // сортировка по ним и есть порядок вставки.
+    return [...created]
+      .sort((left, right) => left.id - right.id)
+      .map((row) => PrismaScheduleRepository.toSchedule(row));
+  }
+
+  async update(id: EntityId, patch: Partial<Schedule>): Promise<Schedule> {
+    const current = await this.client.schedule.findUnique({ where: { id } });
+
+    if (current === null) {
+      throw new Error(`Слот с id ${id} не найден`);
+    }
+
+    const updated = await this.client.schedule.update({
+      where: { id },
+      data: buildSchedulePatch(current, patch),
+    });
+
+    return PrismaScheduleRepository.toSchedule(updated);
+  }
+
+  async changeBookedCount(id: EntityId, delta: number): Promise<Schedule> {
+    const current = await this.client.schedule.findUnique({ where: { id } });
+
+    if (current === null) {
+      throw new Error(`Слот с id ${id} не найден`);
+    }
+
+    // ⚠️ Пока это обычные чтение-подсчёт-запись, как в файловой реализации: два
+    // одновременных запроса дадут овербукинг. Атомарным условным обновлением это
+    // становится на шаге 33.29 — здесь такой правки нет намеренно, чтобы шаг
+    // менял поведение одного метода, а не всего репозитория разом.
+    const bookedCount = Math.max(0, current.bookedCount + delta);
+    const updated = await this.client.schedule.update({ where: { id }, data: { bookedCount } });
+
+    return PrismaScheduleRepository.toSchedule(updated);
+  }
+
+  async removeMany(ids: EntityId[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const { count } = await this.client.schedule.deleteMany({ where: { id: { in: ids } } });
+
+    return count;
+  }
+}
+
+/**
+ * Владелец нового слота.
+ *
+ * Пара полей контракта необязательна, но колонки базы обязаны получить ровно одну
+ * заполненную ссылку — этого требует CHECK. Поэтому владелец достраивается из того,
+ * что пришло: сначала явная пара, затем `clubId`/`trainerId`.
+ */
+function resolveSlotOwner(slot: Omit<Schedule, 'id' | 'createdAt'>): {
+  ownerType: CatalogOwnerType;
+  ownerId: EntityId;
+} {
+  const ownerType = slot.ownerType ?? (slot.trainerId !== undefined ? 'trainer' : 'club');
+  const ownerId = slot.ownerId ?? (ownerType === 'club' ? slot.clubId : slot.trainerId);
+
+  if (ownerId === undefined) {
+    throw new Error('Слот без владельца: не заданы ни клуб, ни тренер');
+  }
+
+  return { ownerType, ownerId };
+}
+
+/** Скалярная часть правки слота. */
+function buildSchedulePatch(
+  current: ScheduleRow,
+  patch: Partial<Schedule>,
+): Prisma.ScheduleUncheckedUpdateInput {
+  const data: Record<string, unknown> = {};
+
+  copyPresent(patch, SCHEDULE_PLAIN_FIELDS, data);
+  copyErasable(patch, SCHEDULE_ERASABLE_FIELDS, data);
+
+  if (hasKey(patch, 'date') && patch.date !== undefined) data.date = fromDateKey(patch.date);
+  if (hasKey(patch, 'startTime') && patch.startTime !== undefined) {
+    data.startTime = fromTimeKey(patch.startTime);
+  }
+  if (hasKey(patch, 'endTime') && patch.endTime !== undefined) {
+    data.endTime = fromTimeKey(patch.endTime);
+  }
+
+  // Владелец правится целиком или не правится вовсе: «половина владельца» — тип
+  // без номера — базе непредставима, CHECK требует ровно одну заполненную колонку.
+  if (hasKey(patch, 'ownerType') || hasKey(patch, 'ownerId')) {
+    const currentOwner = toOwnerRef(current);
+    const ownerType = patch.ownerType ?? currentOwner.ownerType;
+    const ownerId = patch.ownerId ?? currentOwner.ownerId;
+
+    Object.assign(data, fromOwnerRef(ownerType, ownerId));
+  }
+
+  // Площадка — отдельное сведение, а не второе имя владельца.
+  if (hasKey(patch, 'clubId')) {
+    const ownerType = patch.ownerType ?? toOwnerRef(current).ownerType;
+
+    data.venueClubId = ownerType === 'trainer' ? toNullable(patch.clubId) : null;
+  }
+
+  return data as Prisma.ScheduleUncheckedUpdateInput;
+}

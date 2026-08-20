@@ -7,7 +7,7 @@
 // маппят сообщение в HTTP-код, и тесты, сравнивающие строку посимвольно.
 
 import { compareByCreatedAtDesc } from '@sporthub/domain';
-import type { LogEntry, ProviderClientNote, Review, User } from '@sporthub/types';
+import type { LogAction, LogEntry, ProviderClientNote, Review, User } from '@sporthub/types';
 
 import type { CollectionKey, JsonStorage } from '../storage/json-storage';
 
@@ -20,8 +20,36 @@ export const PROVIDER_CLIENT_NOTES_REPOSITORY = Symbol('PROVIDER_CLIENT_NOTES_RE
 
 // --- Интерфейсы ---------------------------------------------------------------
 
+/**
+ * Отбор журнала. Все поля необязательные: маршрут вправе не задать ни одного.
+ *
+ * Отбор и постраничность живут ЗДЕСЬ, а не в контроллере, намеренно. Раньше журнал
+ * читался целиком, фильтровался в памяти и резался срезом массива — то есть каждая
+ * страница админки поднимала в память весь журнал платформы. На базе тот же набор
+ * полей превращается в `WHERE` + `LIMIT/OFFSET`, и цена страницы перестаёт зависеть
+ * от размера журнала.
+ */
+export interface LogsQuery {
+  action?: LogAction;
+  actorId?: number;
+  /** Нижняя граница метки времени, включительно. */
+  from?: string;
+  /** Верхняя граница метки времени, включительно. */
+  to?: string;
+  offset?: number;
+  limit?: number;
+}
+
+/** Страница журнала: сама выдача и общее число подошедших записей. */
+export interface LogsPage {
+  items: LogEntry[];
+  total: number;
+}
+
 export interface LogsRepository {
   findAll(): Promise<LogEntry[]>;
+  /** Отобранная и порезанная страница журнала — оба действия уходят в запрос. */
+  findPage(query: LogsQuery): Promise<LogsPage>;
   insert(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry>;
 }
 
@@ -52,6 +80,43 @@ export interface ProviderClientNotesRepository {
   ): Promise<ProviderClientNote>;
   update(id: number, patch: { note?: string; bookingId?: number }): Promise<ProviderClientNote>;
   remove(id: number): Promise<void>;
+}
+
+// --- Общие мелочи файловых реализаций -----------------------------------------
+
+/**
+ * Срез страницы для файловых реализаций.
+ *
+ * Экспортируется, потому что тем же способом режет выдачу репозиторий записей:
+ * формула у постраничности одна на проект, и расходиться ей нельзя. В реализациях
+ * на базе этой функции соответствуют `skip`/`take` — там резать в памяти нечего.
+ */
+export function sliceToPage<TItem>(
+  items: TItem[],
+  page: { offset?: number; limit?: number },
+): TItem[] {
+  const offset = page.offset ?? 0;
+
+  return page.limit === undefined ? items.slice(offset) : items.slice(offset, offset + page.limit);
+}
+
+/**
+ * Попадает ли метка времени в границы отбора.
+ *
+ * Сравнение идёт по МОМЕНТУ, а не по строке. Строковое сравнение работало, пока
+ * обе стороны писались одним и тем же способом, но `2026-02-02T00:00:00Z`
+ * и `2026-02-02T00:00:00.000Z` — один и тот же момент и разные строки, а границы
+ * приходят от клиента. На базе сравниваются значения времени, и файловая
+ * реализация обязана отвечать так же, иначе один и тот же контрактный набор
+ * не пройдёт на обеих.
+ */
+function isWithinInterval(value: string, from?: string, to?: string): boolean {
+  const moment = new Date(value).getTime();
+
+  if (from !== undefined && moment < new Date(from).getTime()) return false;
+  if (to !== undefined && moment > new Date(to).getTime()) return false;
+
+  return true;
 }
 
 // --- Базовый класс ------------------------------------------------------------
@@ -108,6 +173,25 @@ export class JsonLogsRepository
 
   findAll(): Promise<LogEntry[]> {
     return this.readAll();
+  }
+
+  async findPage(query: LogsQuery): Promise<LogsPage> {
+    const entries = await this.readAll();
+    const selected = entries.filter((entry) => {
+      if (query.action !== undefined && entry.action !== query.action) return false;
+      if (query.actorId !== undefined && entry.actorId !== query.actorId) return false;
+
+      return isWithinInterval(entry.createdAt, query.from, query.to);
+    });
+
+    // Порядок «свежие первыми» с тай-брейкером по номеру — общий компаратор домена.
+    // Тай-брейкер обязателен: в журнал пишут пачками, метки совпадают до миллисекунды,
+    // и без него страница 2 могла бы повторить строку со страницы 1.
+    selected.sort(compareByCreatedAtDesc);
+
+    // Общее число считается ДО среза: счётчик над таблицей показывает, сколько
+    // записей подошло под фильтр, а не сколько влезло на страницу.
+    return { items: sliceToPage(selected, query), total: selected.length };
   }
 
   insert(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry> {

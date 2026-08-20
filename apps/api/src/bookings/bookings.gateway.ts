@@ -7,7 +7,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Booking, Schedule, User } from '@sporthub/types';
 
-import type { BookingsRepository } from '../repositories/bookings.repository';
+import type { BookingsFilter, BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
@@ -30,8 +30,14 @@ export class BookingsGateway {
     return this.bookings.findById(id);
   }
 
-  findByUser(userId: number): Promise<Booking[]> {
-    return this.bookings.findMany({ userId });
+  /**
+   * Суженная выдача записей.
+   *
+   * Фильтр проходит насквозь до репозитория и не разбирается здесь: разбор
+   * означал бы отбор в памяти — ровно то, от чего этот шаг и уходит.
+   */
+  findMany(filter: BookingsFilter): Promise<Booking[]> {
+    return this.bookings.findMany(filter);
   }
 
   findUser(userId: number): Promise<User | null> {

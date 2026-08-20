@@ -9,7 +9,6 @@
 // ⚠️ Маршрут записи принимает исполнителя и его роль прямо из тела — подделать
 // авторство записи может кто угодно. Перенесено как есть.
 
-import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { LogAction, LogEntityType, LogEntry, UserRole } from '@sporthub/types';
 import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
@@ -63,34 +62,28 @@ export class LogsController {
     }
 
     const { action, actorId, from, to, offset, limit } = parsed.data;
-    let entries = await this.logs.findAll();
 
-    if (action) {
-      entries = entries.filter((entry) => entry.action === action);
-    }
-
-    if (actorId !== undefined) {
-      entries = entries.filter((entry) => entry.actorId === actorId);
-    }
-
-    if (from) {
-      entries = entries.filter((entry) => entry.createdAt >= from);
-    }
-
-    if (to) {
-      entries = entries.filter((entry) => entry.createdAt <= to);
-    }
-
-    // Тай-брейкер обязателен: `ORDER BY` в базе неустойчив, и при равных метках
-    // времени порядок стал бы случайным от прогона к прогону.
-    entries = entries.slice().sort(compareByCreatedAtDesc);
-
-    // Счётчики лежат РЯДОМ с data — форма ответа журнала и публикаций.
-    return withTopLevel(entries.slice(offset, offset + limit), {
-      total: entries.length,
+    // ⚠️ Отбор, порядок и постраничность целиком уходят в хранилище. Раньше журнал
+    // читался ЦЕЛИКОМ, четырежды фильтровался в памяти и резался срезом массива:
+    // каждая страница админки поднимала весь журнал платформы, а общее число
+    // считалось длиной этого массива. Теперь это условие запроса, `LIMIT/OFFSET`
+    // и отдельный счёт — цена страницы перестала зависеть от размера журнала.
+    // Порядок «свежие первыми» с тай-брейкером по номеру задаёт сам репозиторий:
+    // `ORDER BY` в базе неустойчив, и при равных метках страница 2 могла бы
+    // повторить строку со страницы 1.
+    const page = await this.logs.findPage({
+      // Значение уже сверено со словарём действий в схеме выше — приведение
+      // только сообщает об этом типам, проверки оно не заменяет.
+      action: action as LogAction | undefined,
+      actorId,
+      from,
+      to,
       offset,
       limit,
     });
+
+    // Счётчики лежат РЯДОМ с data — форма ответа журнала и публикаций.
+    return withTopLevel(page.items, { total: page.total, offset, limit });
   }
 
   @Post()

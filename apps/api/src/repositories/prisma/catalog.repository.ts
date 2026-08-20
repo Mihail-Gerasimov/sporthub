@@ -1,0 +1,502 @@
+// Каталог поверх базы: связи тренер↔клуб, услуги и уведомления.
+//
+// Устройство — как у справочников и публикаций: клиент берётся у
+// `PrismaTransactionRunner` при каждом запросе, значения на границе переводятся
+// мапперами из `../prisma-mappers`. Своего здесь три вещи:
+//
+// 1. **Порядок выдачи ушёл в запрос.** Файловая реализация читала коллекцию целиком
+//    и сортировала её в памяти общим компаратором `compareByCreatedAtDesc`. В базе
+//    это `ORDER BY`, иначе постраничность ленты уведомлений режет неотсортированное:
+//    вторая страница отдала бы то, что уже было на первой. Тай-брейкер по номеру
+//    обязателен — `ORDER BY created_at DESC` неустойчив, и при равных метках времени
+//    (а вставка внутри одной транзакции даёт им ОДНУ метку) база вправе вернуть
+//    строки в любом порядке.
+// 2. **«Основная услуга» выбирается явным порядком.** В файле это была первая
+//    записанная; в базе без `ORDER BY` первой окажется та, которую вернул диск, —
+//    то есть после любой правки строки карточка клуба показала бы другую цену.
+// 3. **Владелец услуги — пара взаимоисключающих колонок** (см. `./owner-columns.ts`).
+
+import { Injectable } from '@nestjs/common';
+import type {
+  CatalogOwnerType,
+  EntityId,
+  Notification,
+  NotificationType,
+  Offering,
+  OfferingFormat,
+  TrainerClubLink,
+  TrainerClubLinkStatus,
+} from '@sporthub/types';
+
+import type { Prisma } from '../../storage/prisma-client/client';
+import type { DatabaseClient } from '../../storage/prisma-transaction';
+import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
+import type {
+  NotificationsRepository,
+  OfferingsRepository,
+  TrainerClubLinksRepository,
+} from '../catalog.repository';
+import { omitNulls, toIsoString, toOptionalIsoString } from '../prisma-mappers';
+import { fromOwnerRef, toOwnerRef } from './owner-columns';
+import { copyErasable, copyPresent, hasKey } from './patch';
+
+/**
+ * «Свежие первыми» одним выражением на все три домена.
+ *
+ * Второе поле — не украшение: без него порядок при равных метках времени зависит
+ * от того, как база сложила строки, и тест на сортировку начинает мигать.
+ */
+const NEWEST_FIRST = [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
+
+// --- Связи тренер↔клуб --------------------------------------------------------
+
+type TrainerClubLinkRow = Prisma.TrainerClubLinkModel;
+
+/**
+ * Связь в том виде, в котором её хранит база.
+ *
+ * `initiatedByUserId` есть в данных и в схеме, но в типе `TrainerClubLink` его пока
+ * нет. Терять сведения при переносе нельзя, поэтому поле возится сверх типа —
+ * ровно так же, как его возит файловое хранилище, которое просто не трогает
+ * незнакомые ключи.
+ */
+type StoredTrainerClubLink = TrainerClubLink & { initiatedByUserId?: EntityId };
+
+const LINK_PLAIN_FIELDS = [
+  'trainerId',
+  'clubId',
+  'status',
+  'initiatedBy',
+] as const satisfies readonly (keyof StoredTrainerClubLink)[];
+
+const LINK_ERASABLE_FIELDS = [
+  'initiatedByUserId',
+  'approvedByUserId',
+  'rejectedByUserId',
+  'rejectionReason',
+  'revokedByUserId',
+  'revokedBy',
+] as const satisfies readonly (keyof StoredTrainerClubLink)[];
+
+/** Метки времени связи: в контракте строки, в базе — колонки типа метки времени. */
+const LINK_TIMESTAMP_FIELDS = [
+  'approvedAt',
+  'rejectedAt',
+  'revokedAt',
+] as const satisfies readonly (keyof StoredTrainerClubLink)[];
+
+@Injectable()
+export class PrismaTrainerClubLinksRepository implements TrainerClubLinksRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toLink(row: TrainerClubLinkRow): TrainerClubLink {
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      trainerId: row.trainerId,
+      clubId: row.clubId,
+      status: row.status as TrainerClubLinkStatus,
+      initiatedBy: row.initiatedBy as TrainerClubLink['initiatedBy'],
+      initiatedByUserId: row.initiatedByUserId ?? undefined,
+      approvedAt: toOptionalIsoString(row.approvedAt),
+      approvedByUserId: row.approvedByUserId ?? undefined,
+      rejectedAt: toOptionalIsoString(row.rejectedAt),
+      rejectedByUserId: row.rejectedByUserId ?? undefined,
+      rejectionReason: row.rejectionReason ?? undefined,
+      revokedAt: toOptionalIsoString(row.revokedAt),
+      revokedByUserId: row.revokedByUserId ?? undefined,
+      revokedBy: (row.revokedBy ?? undefined) as TrainerClubLink['revokedBy'],
+    }) satisfies StoredTrainerClubLink;
+  }
+
+  async findMany(
+    filter: { trainerId?: EntityId; clubId?: EntityId; status?: TrainerClubLinkStatus } = {},
+  ): Promise<TrainerClubLink[]> {
+    const rows = await this.client.trainerClubLink.findMany({
+      // Отсутствующие в фильтре поля дают `undefined`, а его Prisma опускает —
+      // отдельных ветвей «фильтр задан / не задан» не нужно.
+      where: {
+        trainerId: filter.trainerId,
+        clubId: filter.clubId,
+        status: filter.status,
+      },
+      orderBy: NEWEST_FIRST,
+    });
+
+    return rows.map((row) => PrismaTrainerClubLinksRepository.toLink(row));
+  }
+
+  async findById(id: EntityId): Promise<TrainerClubLink | null> {
+    const row = await this.client.trainerClubLink.findUnique({ where: { id } });
+
+    return row === null ? null : PrismaTrainerClubLinksRepository.toLink(row);
+  }
+
+  async insert(link: Omit<TrainerClubLink, 'id' | 'createdAt'>): Promise<TrainerClubLink> {
+    const stored = link as Omit<StoredTrainerClubLink, 'id' | 'createdAt'>;
+
+    const created = await this.client.trainerClubLink.create({
+      data: {
+        trainerId: stored.trainerId,
+        clubId: stored.clubId,
+        status: stored.status,
+        initiatedBy: stored.initiatedBy,
+        initiatedByUserId: stored.initiatedByUserId,
+        approvedAt: toTimestamp(stored.approvedAt),
+        approvedByUserId: stored.approvedByUserId,
+        rejectedAt: toTimestamp(stored.rejectedAt),
+        rejectedByUserId: stored.rejectedByUserId,
+        rejectionReason: stored.rejectionReason,
+        revokedAt: toTimestamp(stored.revokedAt),
+        revokedByUserId: stored.revokedByUserId,
+        revokedBy: stored.revokedBy,
+      },
+    });
+
+    return PrismaTrainerClubLinksRepository.toLink(created);
+  }
+
+  async update(id: EntityId, patch: Partial<TrainerClubLink>): Promise<TrainerClubLink> {
+    const current = await this.client.trainerClubLink.findUnique({ where: { id } });
+
+    if (current === null) {
+      // Текст с символом «↔» перенесён из db.ts дословно — на него завязан тест.
+      throw new Error('Привязка тренер↔клуб не найдена');
+    }
+
+    const stored = patch as Partial<StoredTrainerClubLink>;
+    const data: Record<string, unknown> = {};
+
+    copyPresent(stored, LINK_PLAIN_FIELDS, data);
+    copyErasable(stored, LINK_ERASABLE_FIELDS, data);
+
+    for (const field of LINK_TIMESTAMP_FIELDS) {
+      if (!hasKey(stored, field)) continue;
+
+      data[field] = toTimestamp(stored[field]) ?? null;
+    }
+
+    const updated = await this.client.trainerClubLink.update({
+      where: { id },
+      data: data as Prisma.TrainerClubLinkUncheckedUpdateInput,
+    });
+
+    return PrismaTrainerClubLinksRepository.toLink(updated);
+  }
+}
+
+/** Строка метки времени → значение колонки. Отсутствие остаётся отсутствием. */
+function toTimestamp(value: string | undefined): Date | undefined {
+  return value === undefined ? undefined : new Date(value);
+}
+
+// --- Услуги -------------------------------------------------------------------
+
+type OfferingRow = Prisma.OfferingModel;
+
+const OFFERING_PLAIN_FIELDS = [
+  'sportId',
+  'title',
+  'description',
+  'format',
+  'price',
+  'durationMinutes',
+  'capacity',
+  'address',
+] as const satisfies readonly (keyof Offering)[];
+
+const OFFERING_ERASABLE_FIELDS = [
+  'trainerClubLinkId',
+  'cancellationPolicy',
+] as const satisfies readonly (keyof Offering)[];
+
+@Injectable()
+export class PrismaOfferingsRepository implements OfferingsRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toOffering(row: OfferingRow): Offering {
+    const owner = toOwnerRef(row);
+
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      ownerType: owner.ownerType,
+      ownerId: owner.ownerId,
+      trainerClubLinkId: row.trainerClubLinkId ?? undefined,
+      cancellationPolicy: (row.cancellationPolicy ?? undefined) as Offering['cancellationPolicy'],
+      sportId: row.sportId,
+      title: row.title,
+      description: row.description,
+      format: row.format as OfferingFormat,
+      price: row.price,
+      durationMinutes: row.durationMinutes,
+      capacity: row.capacity,
+      address: row.address,
+      coordinates: { lat: row.latitude, lng: row.longitude },
+    });
+  }
+
+  async findAll(): Promise<Offering[]> {
+    const rows = await this.client.offering.findMany({ orderBy: { id: 'asc' } });
+
+    return rows.map((row) => PrismaOfferingsRepository.toOffering(row));
+  }
+
+  async findById(id: EntityId): Promise<Offering | null> {
+    const row = await this.client.offering.findUnique({ where: { id } });
+
+    return row === null ? null : PrismaOfferingsRepository.toOffering(row);
+  }
+
+  async findMany(filter: { ownerType: CatalogOwnerType; ownerId: EntityId }): Promise<Offering[]> {
+    const rows = await this.client.offering.findMany({
+      where: ownerWhere(filter),
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaOfferingsRepository.toOffering(row));
+  }
+
+  async findFirst(filter: {
+    ownerType: CatalogOwnerType;
+    ownerId: EntityId;
+  }): Promise<Offering | null> {
+    // «Основная услуга» = первая заведённая. Порядок задаётся явно и берётся одна
+    // строка: без `ORDER BY` база вправе вернуть любую, и карточка владельца
+    // показывала бы разную цену от правки к правке.
+    const row = await this.client.offering.findFirst({
+      where: ownerWhere(filter),
+      orderBy: { id: 'asc' },
+    });
+
+    return row === null ? null : PrismaOfferingsRepository.toOffering(row);
+  }
+
+  async findByLinkId(trainerClubLinkId: EntityId): Promise<Offering[]> {
+    const rows = await this.client.offering.findMany({
+      where: { trainerClubLinkId },
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaOfferingsRepository.toOffering(row));
+  }
+
+  async insert(offering: Omit<Offering, 'id' | 'createdAt'>): Promise<Offering> {
+    const created = await this.client.offering.create({
+      data: {
+        ...fromOwnerRef(offering.ownerType, offering.ownerId),
+        trainerClubLinkId: offering.trainerClubLinkId,
+        cancellationPolicy: offering.cancellationPolicy,
+        sportId: offering.sportId,
+        title: offering.title,
+        description: offering.description,
+        format: offering.format,
+        price: offering.price,
+        durationMinutes: offering.durationMinutes,
+        capacity: offering.capacity,
+        address: offering.address,
+        latitude: offering.coordinates.lat,
+        longitude: offering.coordinates.lng,
+      },
+    });
+
+    return PrismaOfferingsRepository.toOffering(created);
+  }
+
+  async update(id: EntityId, patch: Partial<Offering>): Promise<Offering> {
+    const current = await this.client.offering.findUnique({ where: { id } });
+
+    if (current === null) {
+      throw new Error(`Услуга с id ${id} не найдена`);
+    }
+
+    const updated = await this.client.offering.update({
+      where: { id },
+      data: buildOfferingPatch(current, patch),
+    });
+
+    return PrismaOfferingsRepository.toOffering(updated);
+  }
+
+  async updateMany(ids: EntityId[], patch: Partial<Offering>): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    // Владелец здесь не правится: массовая правка используется для отвязки услуг
+    // от разорванной связи, а смена владельца пачкой сменила бы его всем строкам
+    // разом — включая те, у которых он был другим. Поэтому текущая строка не читается.
+    const { count } = await this.client.offering.updateMany({
+      where: { id: { in: ids } },
+      data: buildOfferingPatch(null, patch),
+    });
+
+    return count;
+  }
+
+  async removeMany(ids: EntityId[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const { count } = await this.client.offering.deleteMany({ where: { id: { in: ids } } });
+
+    return count;
+  }
+}
+
+/** Условие отбора по владельцу: одна из двух колонок, а не поле `ownerType`. */
+function ownerWhere(filter: { ownerType: CatalogOwnerType; ownerId: EntityId }): {
+  ownerClubId?: number | null;
+  ownerTrainerId?: number | null;
+} {
+  return filter.ownerType === 'club'
+    ? { ownerClubId: filter.ownerId }
+    : { ownerTrainerId: filter.ownerId };
+}
+
+/**
+ * Скалярная часть правки услуги.
+ *
+ * `current` пуст у массовой правки: там строк много и «текущего владельца» у них
+ * нет одного на всех. Смена владельца в этом случае требует полной пары полей.
+ */
+function buildOfferingPatch(
+  current: OfferingRow | null,
+  patch: Partial<Offering>,
+): Prisma.OfferingUncheckedUpdateManyInput {
+  const data: Record<string, unknown> = {};
+
+  copyPresent(patch, OFFERING_PLAIN_FIELDS, data);
+  copyErasable(patch, OFFERING_ERASABLE_FIELDS, data);
+
+  if (hasKey(patch, 'coordinates') && patch.coordinates !== undefined) {
+    data.latitude = patch.coordinates.lat;
+    data.longitude = patch.coordinates.lng;
+  }
+
+  if (hasKey(patch, 'ownerType') || hasKey(patch, 'ownerId')) {
+    const currentOwner = current === null ? null : toOwnerRef(current);
+    const ownerType = patch.ownerType ?? currentOwner?.ownerType;
+    const ownerId = patch.ownerId ?? currentOwner?.ownerId;
+
+    if (ownerType === undefined || ownerId === undefined) {
+      throw new Error('Смена владельца услуги требует и типа владельца, и его номера');
+    }
+
+    Object.assign(data, fromOwnerRef(ownerType, ownerId));
+  }
+
+  return data as Prisma.OfferingUncheckedUpdateManyInput;
+}
+
+// --- Уведомления --------------------------------------------------------------
+
+type NotificationRow = Prisma.NotificationModel;
+
+@Injectable()
+export class PrismaNotificationsRepository implements NotificationsRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toNotification(row: NotificationRow): Notification {
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      userId: row.userId,
+      type: row.type as NotificationType,
+      // Колонка объявлена как JSON, значит содержимое приходит уже разобранным.
+      payload: (row.payload ?? {}) as Record<string, unknown>,
+      readAt: toOptionalIsoString(row.readAt),
+    });
+  }
+
+  /** Условие ленты: свой пользователь и, если попросили, только непрочитанные. */
+  private static where(filter: {
+    userId?: EntityId;
+    unreadOnly?: boolean;
+  }): Prisma.NotificationWhereInput {
+    return {
+      userId: filter.userId,
+      readAt: filter.unreadOnly === true ? null : undefined,
+    };
+  }
+
+  async findMany(filter: {
+    userId?: EntityId;
+    unreadOnly?: boolean;
+    offset?: number;
+    limit?: number;
+  }): Promise<Notification[]> {
+    const rows = await this.client.notification.findMany({
+      where: PrismaNotificationsRepository.where(filter),
+      orderBy: NEWEST_FIRST,
+      // Постраничность — в запросе: читать всю ленту, чтобы отдать две строки,
+      // хранилище не обязано и не будет.
+      skip: filter.offset,
+      take: filter.limit,
+    });
+
+    return rows.map((row) => PrismaNotificationsRepository.toNotification(row));
+  }
+
+  count(filter: { userId: EntityId; unreadOnly?: boolean }): Promise<number> {
+    return this.client.notification.count({
+      where: PrismaNotificationsRepository.where(filter),
+    });
+  }
+
+  async insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {
+    const created = await this.client.notification.create({
+      data: {
+        userId: notification.userId,
+        type: notification.type,
+        payload: (notification.payload ?? {}) as Prisma.InputJsonValue,
+        readAt: toTimestamp(notification.readAt),
+      },
+    });
+
+    return PrismaNotificationsRepository.toNotification(created);
+  }
+
+  async markRead(id: EntityId): Promise<Notification> {
+    const current = await this.client.notification.findUnique({ where: { id } });
+
+    if (current === null) {
+      throw new Error('Уведомление не найдено');
+    }
+
+    const updated = await this.client.notification.update({
+      where: { id },
+      data: { readAt: new Date() },
+    });
+
+    return PrismaNotificationsRepository.toNotification(updated);
+  }
+
+  async markAllRead(userId: EntityId): Promise<number> {
+    // Одним запросом: чтение ленты целиком ради пометки прочитанным дало бы
+    // столько же работы, сколько её отрисовка, и разъехалось бы при гонке.
+    const { count } = await this.client.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+
+    return count;
+  }
+
+  async removeMany(ids: EntityId[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const { count } = await this.client.notification.deleteMany({ where: { id: { in: ids } } });
+
+    return count;
+  }
+}

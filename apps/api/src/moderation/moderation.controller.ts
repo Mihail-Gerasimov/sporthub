@@ -3,7 +3,6 @@
 // Скрытие ставит причину, восстановление её снимает. Публикация без явного
 // состояния считается опубликованной — так устроены исходные данные.
 
-import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Club, Trainer } from '@sporthub/types';
 
@@ -57,6 +56,30 @@ function trainerToItem(trainer: Trainer): PublicationItem {
     hideReason: trainer.hideReason,
     hiddenAt: trainer.hiddenAt,
   };
+}
+
+/**
+ * Порядок списка публикаций: свежие первыми, при равных метках — как раньше.
+ *
+ * Общий тай-брейкер по номеру здесь НЕ подходит, и это не мелочь. Список склеен
+ * из двух коллекций с независимой нумерацией: клуб 1 и тренер 1 — разные записи
+ * с одинаковым номером. Сортировка по номеру перемешала бы их между собой,
+ * а сегодня склеенный массив стабилен по порядку слияния — сначала все клубы,
+ * потом все тренеры, каждая группа по возрастанию номера. Именно это и надо
+ * воспроизвести, иначе первая же страница модерации покажет другое.
+ */
+function comparePublications(
+  left: { createdAt: string; type: string; id: number },
+  right: { createdAt: string; type: string; id: number },
+): number {
+  const byDate = right.createdAt.localeCompare(left.createdAt);
+
+  if (byDate !== 0) return byDate;
+
+  // Клубы идут раньше тренеров — таков порядок слияния.
+  if (left.type !== right.type) return left.type === 'club' ? -1 : 1;
+
+  return left.id - right.id;
 }
 
 @Controller('moderation')
@@ -239,7 +262,7 @@ export class PublicationsController {
       items = items.filter((item) => item.name.toLowerCase().includes(search));
     }
 
-    items.sort(compareByCreatedAtDesc);
+    items.sort(comparePublications);
 
     return withTopLevel(items.slice(offset, offset + limit), {
       total: items.length,

@@ -19,7 +19,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { DISCIPLINE_CONFIG, getSlotEndAt, isAthleteInQuarantine } from '@sporthub/domain';
-import type { Booking } from '@sporthub/types';
+import type { Booking, BookingStatus } from '@sporthub/types';
+import { BOOKING_STATUSES } from '@sporthub/types';
 import { z } from 'zod';
 
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
@@ -48,6 +49,44 @@ const checkInSchema = z
   .object({ userId: positiveId, outcome: z.enum(['completed', 'no_show']) })
   .strict();
 const adminSchema = z.object({ adminUserId: positiveId }).strict();
+
+/** День занятия в параметрах отбора — та же строка `YYYY-MM-DD`, что и в записи. */
+const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/**
+ * Параметры выдачи записей.
+ *
+ * ⚠️ Все поля, кроме прежних `userId` и `scope`, НЕОБЯЗАТЕЛЬНЫЕ и добавлены этим
+ * шагом: без них 14 страниц фронта тянули полный срез записей платформы, чтобы
+ * показать записи одного человека или одного клуба. Необязательность здесь —
+ * не вежливость, а условие: старый клиент обязан пережить выкатку, а `?scope=all`
+ * обязан отвечать ровно тем же, чем отвечал.
+ *
+ * Схема НЕ строгая: неизвестные параметры прежний маршрут молча игнорировал,
+ * и превращать их в отказ значило бы сломать уже работающие ссылки.
+ */
+const listQuerySchema = z.object({
+  userId: z.coerce.number().int().positive().optional(),
+  scope: z.string().optional(),
+  clubId: z.coerce.number().int().positive().optional(),
+  trainerId: z.coerce.number().int().positive().optional(),
+  dateFrom: dateKey.optional(),
+  dateTo: dateKey.optional(),
+  // Набор статусов приходит перечислением через запятую: повторять параметр
+  // умеют не все клиенты, а список словарный и проверяется по нему же.
+  status: z
+    .string()
+    .transform((value) => value.split(',').map((item) => item.trim()))
+    .refine(
+      (values) =>
+        values.length > 0 &&
+        values.every((value) => BOOKING_STATUSES.includes(value as BookingStatus)),
+      'Недопустимый статус записи',
+    )
+    .optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
 
 /** Разбор идентификатора записи с текстом, который отдавал прежний маршрут. */
 function parseBookingId(raw: string): number {
@@ -81,34 +120,49 @@ export class BookingsController {
     private readonly logs: LogService,
   ) {}
 
-  /** Записи пользователя. Перед чтением отрабатывают автопереходы по времени. */
+  /**
+   * Выдача записей. Перед чтением отрабатывают автопереходы по времени.
+   *
+   * Два режима, как и раньше: записи одного атлета и полный срез по `?scope=all`
+   * для страниц провайдера и админского раздела. Что изменилось — оба режима
+   * теперь принимают отбор по клубу, тренеру, периоду и набору статусов плюс
+   * постраничность, и всё это уходит в запрос к хранилищу, а не режется в памяти.
+   */
   @Get()
-  async findForUser(
-    @Query('userId') rawUserId?: string,
-    @Query('scope') scope?: string,
-  ): Promise<Booking[]> {
-    // Новый необязательный режим: полный срез нужен страницам провайдера и
-    // админского раздела, где записи разных людей считаются вместе.
-    // Автопереходы прогоняются и здесь — иначе срез покажет протухшие статусы.
-    if (scope === 'all') {
-      await this.bookings.runLazyTransitions();
+  async findMany(@Query() rawQuery: Record<string, string>): Promise<Booking[]> {
+    const parsed = listQuerySchema.safeParse(rawQuery);
 
-      return this.gateway.findAll();
-    }
-
-    const parsed = Number(rawUserId);
-
-    if (!rawUserId || !Number.isInteger(parsed) || parsed <= 0) {
+    if (!parsed.success) {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
+    const { clubId, dateFrom, dateTo, limit, offset, scope, status, trainerId, userId } =
+      parsed.data;
+
+    // Полный срез — только по явному запросу. Во всех остальных случаях атлет
+    // обязателен: иначе один забытый параметр отдал бы записи всей платформы.
+    if (scope !== 'all' && userId === undefined) {
+      throw new ValidationError('Некорректные параметры запроса');
+    }
+
+    // Автопереходы прогоняются в обоих режимах — иначе выдача покажет протухшие статусы.
     await this.bookings.runLazyTransitions();
 
-    const all = await this.gateway.findByUser(parsed);
-
-    return all.sort((left, right) =>
-      `${left.date}T${left.createdAt}`.localeCompare(`${right.date}T${right.createdAt}`),
-    );
+    return this.gateway.findMany({
+      ...(userId === undefined ? {} : { userId }),
+      ...(clubId === undefined ? {} : { clubId }),
+      ...(trainerId === undefined ? {} : { trainerId }),
+      ...(dateFrom === undefined ? {} : { dateFrom }),
+      ...(dateTo === undefined ? {} : { dateTo }),
+      ...(status === undefined ? {} : { status: status as BookingStatus[] }),
+      ...(offset === undefined ? {} : { offset }),
+      ...(limit === undefined ? {} : { limit }),
+      // ⚠️ Порядок «мои записи» раньше наводился сортировкой уже ПОСЛЕ чтения всей
+      // выдачи. С постраничностью так нельзя: порядок решает, какие строки вообще
+      // попадут на страницу, — поэтому он уходит в запрос. Полный срез сохраняет
+      // прежний порядок появления, на нём стоит эталон контрактов.
+      order: userId === undefined ? 'id' : 'slotDate',
+    });
   }
 
   @Post()
