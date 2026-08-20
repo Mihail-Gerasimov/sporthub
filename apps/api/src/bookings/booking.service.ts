@@ -145,26 +145,41 @@ export class BookingService {
 
     const { affiliatedClub, club, offering, schedule: slot, trainer } = context;
 
-    const existing = await this.bookings.findMany({
-      userId: input.userId,
-      scheduleId: input.scheduleId,
-    });
-    const duplicate = existing.find((booking) => ACTIVE_BOOKING_STATUSES.has(booking.status));
-
-    if (duplicate) {
-      throw new ConflictError('Пользователь уже записан на это занятие');
-    }
-
-    if (slot.bookedCount >= slot.capacity) {
-      throw new ConflictError('Свободных мест нет');
-    }
-
     const timestamp = new Date().toISOString();
     // Политика отмены фиксируется на момент записи: изменение условий позже
     // не должно менять правила для уже записавшегося.
     const snapshot: CancellationPolicy = offering?.cancellationPolicy ?? 'free_until_24h';
 
     const created = await this.transactions.runInTransaction(async () => {
+      // ⚠️ Обе проверки стоят ВНУТРИ транзакции, а не перед ней.
+      //
+      // Снаружи между «проверил» и «записал» помещается чужой запрос: двое,
+      // нажавшие «Записаться» на последнее место, оба проходили проверку и оба
+      // получали место. Тот же зазор давал две записи одного человека на одно
+      // занятие. Внутри транзакции этого зазора нет, а окончательную гарантию
+      // даёт база: частичный уникальный индекс по паре «слот + участник»
+      // и условное обновление счётчика мест.
+      const existing = await this.bookings.findMany({
+        userId: input.userId,
+        scheduleId: input.scheduleId,
+      });
+
+      if (existing.some((booking) => ACTIVE_BOOKING_STATUSES.has(booking.status))) {
+        throw new ConflictError('Пользователь уже записан на это занятие');
+      }
+
+      // Слот перечитывается: снаружи он был прочитан до транзакции, и к этому
+      // моменту счётчик мог измениться.
+      const fresh = await this.schedule.findById(slot.id);
+
+      if (!fresh) {
+        throw new NotFoundError('Слот расписания не найден');
+      }
+
+      if (fresh.bookedCount >= fresh.capacity) {
+        throw new ConflictError('Свободных мест нет');
+      }
+
       const booking = await this.bookings.insert({
         scheduleId: input.scheduleId,
         offeringId: slot.offeringId,
@@ -250,8 +265,12 @@ export class BookingService {
     now: Date = new Date(),
     config: DisciplineConfig = DISCIPLINE_CONFIG,
   ): Promise<LazyTransitionsResult> {
+    // ⚠️ Отбор по действующим статусам уходит в ЗАПРОС, а не в цикл ниже: иначе
+    // каждое чтение записей поднимало бы всю таблицу платформы ради двух статусов.
+    // Набор берётся из общего словаря — новый активный статус не должен требовать
+    // правки этого места.
     const [bookings, slots] = await Promise.all([
-      this.bookings.findAll(),
+      this.bookings.findMany({ status: [...ACTIVE_BOOKING_STATUSES] }),
       this.schedule.findMany({ ownerType: 'all' }),
     ]);
     const slotById = new Map(slots.map((slot) => [slot.id, slot]));
