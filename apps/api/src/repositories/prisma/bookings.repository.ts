@@ -30,6 +30,7 @@ import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import {
   fromDateKey,
+  fromOptionalIsoString,
   omitEmptyArrays,
   omitNulls,
   toDateKey,
@@ -57,6 +58,7 @@ type BookingRow = {
   ownerClubId: number | null;
   ownerTrainerId: number | null;
   venueClubId: number | null;
+  conductedByTrainerId: number | null;
   userId: number;
   sportId: number;
   date: Date;
@@ -138,8 +140,10 @@ export class PrismaBookingsRepository implements BookingsRepository {
         userId: row.userId,
         // Клуб записи — владелец либо зал. Собирается так же, как у слота
         // расписания: у клубной записи зал и владелец — один и тот же клуб.
+        // Клуб и тренер занятия собираются из двух источников каждый: либо владелец,
+        // либо участник другой роли — площадка у клуба, ведущий у тренера.
         clubId: row.ownerClubId ?? row.venueClubId,
-        trainerId: row.ownerTrainerId,
+        trainerId: row.ownerTrainerId ?? row.conductedByTrainerId,
         sportId: row.sportId,
         date: toDateKey(row.date),
         status: row.status,
@@ -185,7 +189,12 @@ export class PrismaBookingsRepository implements BookingsRepository {
       });
     }
 
-    if (filter.trainerId !== undefined) conditions.push({ ownerTrainerId: filter.trainerId });
+    if (filter.trainerId !== undefined) {
+      // Тот же приём, что и с клубом: тренер записи — это либо владелец, либо ведущий.
+      conditions.push({
+        OR: [{ ownerTrainerId: filter.trainerId }, { conductedByTrainerId: filter.trainerId }],
+      });
+    }
 
     const date: Record<string, Date> = {};
 
@@ -242,6 +251,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
         // это сам клуб-владелец, и вторая ссылка на него дала бы второе место,
         // где эти сведения можно рассинхронизировать.
         venueClubId: owner.ownerType === 'trainer' ? toNullable(booking.clubId) : null,
+        conductedByTrainerId: owner.ownerType === 'club' ? toNullable(booking.trainerId) : null,
         userId: booking.userId,
         sportId: booking.sportId,
         date: fromDateKey(booking.date),
@@ -251,7 +261,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
         cancellationPolicySnapshot: toNullable(booking.cancellationPolicySnapshot),
         cancelledBy: toNullable(booking.cancelledBy),
         cancelReason: toNullable(booking.cancelReason),
-        completedAt: PrismaBookingsRepository.toTimestamp(booking.completedAt),
+        completedAt: fromOptionalIsoString(booking.completedAt),
         statusTransitions: {
           create: (booking.statusHistory ?? []).map((transition) =>
             PrismaBookingsRepository.fromTransition(transition),
@@ -282,7 +292,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
 
     if (hasKey(patch, 'date') && patch.date !== undefined) data.date = fromDateKey(patch.date);
     if (hasKey(patch, 'completedAt')) {
-      data.completedAt = PrismaBookingsRepository.toTimestamp(patch.completedAt);
+      data.completedAt = fromOptionalIsoString(patch.completedAt);
     }
 
     // Владелец правится только целиком: половина пары оставила бы строку
@@ -290,6 +300,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
     if (patch.ownerType !== undefined && patch.ownerId !== undefined) {
       Object.assign(data, fromOwnerRef(patch.ownerType, patch.ownerId));
       data.venueClubId = patch.ownerType === 'trainer' ? toNullable(patch.clubId) : null;
+      data.conductedByTrainerId = patch.ownerType === 'club' ? toNullable(patch.trainerId) : null;
     }
 
     await this.client.booking.update({ where: { id }, data });
@@ -357,7 +368,12 @@ export class PrismaBookingsRepository implements BookingsRepository {
       targets.push({ ownerClubId: filter.clubId }, { venueClubId: filter.clubId });
     }
 
-    if (filter.trainerId !== undefined) targets.push({ ownerTrainerId: filter.trainerId });
+    if (filter.trainerId !== undefined) {
+      targets.push(
+        { ownerTrainerId: filter.trainerId },
+        { conductedByTrainerId: filter.trainerId },
+      );
+    }
 
     // Пустой фильтр означает «никого», а не «всех»: `deleteMany` без условия
     // вычистил бы таблицу целиком.
@@ -400,15 +416,4 @@ export class PrismaBookingsRepository implements BookingsRepository {
   }
 
   /** Метка времени строкой → значение колонки. */
-  private static toTimestamp(value: string | undefined): Date | null {
-    if (value === undefined) return null;
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`Не удалось разобрать метку времени: ${value}`);
-    }
-
-    return parsed;
-  }
 }

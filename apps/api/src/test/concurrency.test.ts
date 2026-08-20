@@ -10,6 +10,8 @@
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { PrismaScheduleRepository } from '../repositories/prisma/entities.repository';
+import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
 
@@ -240,5 +242,36 @@ describe('Каскады', () => {
     });
 
     await expect(db.prisma.schedule.delete({ where: { id: scheduleId } })).rejects.toThrow();
+  });
+});
+
+describe('Атомарный счётчик мест в реализации расписания', () => {
+  it('десять одновременных попыток занять одно место дают одну запись', async () => {
+    const { scheduleId } = await seedSlotWithOneSeat();
+    const schedule = new PrismaScheduleRepository(new PrismaTransactionRunner(db.service));
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () => schedule.changeBookedCount(scheduleId, 1)),
+    );
+
+    expect(results.filter((item) => item.status === 'fulfilled')).toHaveLength(1);
+    // Остальные получают прежний текст ошибки, а не пятисотку.
+    for (const item of results) {
+      if (item.status === 'rejected') {
+        expect(String(item.reason)).toContain('Свободных мест нет');
+      }
+    }
+
+    expect((await schedule.findById(scheduleId))?.bookedCount).toBe(1);
+  });
+
+  it('одновременное освобождение не уводит счётчик в минус', async () => {
+    const { scheduleId } = await seedSlotWithOneSeat();
+    const schedule = new PrismaScheduleRepository(new PrismaTransactionRunner(db.service));
+
+    await schedule.changeBookedCount(scheduleId, 1);
+    await Promise.all(Array.from({ length: 5 }, () => schedule.changeBookedCount(scheduleId, -1)));
+
+    expect((await schedule.findById(scheduleId))?.bookedCount).toBe(0);
   });
 });

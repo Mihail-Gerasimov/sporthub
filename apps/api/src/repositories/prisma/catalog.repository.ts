@@ -36,7 +36,12 @@ import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
 } from '../catalog.repository';
-import { omitNulls, toIsoString, toOptionalIsoString } from '../prisma-mappers';
+import {
+  fromOptionalIsoString,
+  omitNulls,
+  toIsoString,
+  toOptionalIsoString,
+} from '../prisma-mappers';
 import { fromOwnerRef, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey } from './patch';
 
@@ -146,12 +151,12 @@ export class PrismaTrainerClubLinksRepository implements TrainerClubLinksReposit
         status: stored.status,
         initiatedBy: stored.initiatedBy,
         initiatedByUserId: stored.initiatedByUserId,
-        approvedAt: toTimestamp(stored.approvedAt),
+        approvedAt: fromOptionalIsoString(stored.approvedAt),
         approvedByUserId: stored.approvedByUserId,
-        rejectedAt: toTimestamp(stored.rejectedAt),
+        rejectedAt: fromOptionalIsoString(stored.rejectedAt),
         rejectedByUserId: stored.rejectedByUserId,
         rejectionReason: stored.rejectionReason,
-        revokedAt: toTimestamp(stored.revokedAt),
+        revokedAt: fromOptionalIsoString(stored.revokedAt),
         revokedByUserId: stored.revokedByUserId,
         revokedBy: stored.revokedBy,
       },
@@ -177,7 +182,7 @@ export class PrismaTrainerClubLinksRepository implements TrainerClubLinksReposit
     for (const field of LINK_TIMESTAMP_FIELDS) {
       if (!hasKey(stored, field)) continue;
 
-      data[field] = toTimestamp(stored[field]) ?? null;
+      data[field] = fromOptionalIsoString(stored[field]) ?? null;
     }
 
     const updated = await this.client.trainerClubLink.update({
@@ -190,9 +195,6 @@ export class PrismaTrainerClubLinksRepository implements TrainerClubLinksReposit
 }
 
 /** Строка метки времени → значение колонки. Отсутствие остаётся отсутствием. */
-function toTimestamp(value: string | undefined): Date | undefined {
-  return value === undefined ? undefined : new Date(value);
-}
 
 // --- Услуги -------------------------------------------------------------------
 
@@ -459,7 +461,7 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
         userId: notification.userId,
         type: notification.type,
         payload: (notification.payload ?? {}) as Prisma.InputJsonValue,
-        readAt: toTimestamp(notification.readAt),
+        readAt: fromOptionalIsoString(notification.readAt),
       },
     });
 

@@ -105,11 +105,19 @@ export type PrepareOptions = {
   repairTexts?: boolean;
 };
 
-/** Владение и площадка — три колонки вместо прежней пары «тип владельца + номер». */
+/** Владение, площадка и ведущий — четыре колонки вместо прежней пары «тип владельца + номер». */
 type Placement = {
   ownerClubId: number | null;
   ownerTrainerId: number | null;
   venueClubId: number | null;
+  /**
+   * Тренер занятия, когда владелец — клуб.
+   *
+   * Симметрично площадке. Без этой колонки у клубного занятия с тренером тренер
+   * терялся бы: пара взаимоисключающих ссылок владельца вторую занять не даёт,
+   * а поле `trainerId` есть и в типе, и в эталоне контрактов.
+   */
+  conductedByTrainerId: number | null;
 };
 
 /**
@@ -124,6 +132,7 @@ function placeOwner(
   ownerType: CatalogOwnerType,
   ownerId: EntityId,
   venueCandidate: EntityId | undefined,
+  trainerCandidate?: EntityId,
 ): Placement {
   if (ownerType === 'club') {
     return {
@@ -131,6 +140,7 @@ function placeOwner(
       ownerTrainerId: null,
       venueClubId:
         venueCandidate !== undefined && venueCandidate !== ownerId ? venueCandidate : null,
+      conductedByTrainerId: trainerCandidate ?? null,
     };
   }
 
@@ -138,6 +148,8 @@ function placeOwner(
     ownerClubId: null,
     ownerTrainerId: ownerId,
     venueClubId: venueCandidate ?? null,
+    // Владелец — тренер, значит отдельного ведущего нет: он же и владелец.
+    conductedByTrainerId: null,
   };
 }
 
@@ -519,7 +531,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
     // Клуб слота мог быть записан двумя разными полями: типизированным `clubId`
     // и прежним `affiliatedClubId`. Первое главнее, второе — запасное.
     const venueCandidate = slot.clubId ?? slot.affiliatedClubId;
-    const placement = placeOwner(ownerType, ownerId, venueCandidate);
+    const placement = placeOwner(ownerType, ownerId, venueCandidate, slot.trainerId);
 
     if (
       placement.venueClubId !== null &&
@@ -564,6 +576,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       ownerClubId: placement.ownerClubId,
       ownerTrainerId: placement.ownerTrainerId,
       venueClubId: placement.venueClubId,
+      conductedByTrainerId: placement.conductedByTrainerId,
       sportId: slot.sportId,
       title: slot.title,
       description: slot.description ?? null,
@@ -599,7 +612,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       throw new Error(`У записи ${booking.id} не указан владелец — в базе колонка обязательна`);
     }
 
-    const placement = placeOwner(ownerType, ownerId, booking.clubId);
+    const placement = placeOwner(ownerType, ownerId, booking.clubId, booking.trainerId);
 
     bookings.push({
       id: booking.id,
@@ -609,6 +622,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       ownerClubId: placement.ownerClubId,
       ownerTrainerId: placement.ownerTrainerId,
       venueClubId: placement.venueClubId,
+      conductedByTrainerId: placement.conductedByTrainerId,
       userId: booking.userId,
       sportId: booking.sportId,
       // Дата записи — снимок на момент записи, а не копия даты слота: у 31 записи

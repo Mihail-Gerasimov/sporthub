@@ -33,7 +33,7 @@ import type {
 } from '../crud.repository';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
-import { omitNulls, toIsoString } from '../prisma-mappers';
+import { fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 
 /**
@@ -42,17 +42,6 @@ import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
  * Отсутствие метки означает пустое поле. Разбор строгий: молча записанное
  * `Invalid Date` не отличить от честной метки, пока оно не всплывёт при чтении.
  */
-function toTimestamp(value: string | undefined): Date | null {
-  if (value === undefined) return null;
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`Не удалось разобрать метку времени: ${value}`);
-  }
-
-  return parsed;
-}
 
 /** Поля пользователя, которые правятся как есть: колонки NOT NULL. */
 const USER_PLAIN_FIELDS = [
@@ -351,8 +340,8 @@ export class PrismaUsersRepository implements UsersRepository {
         passwordHash: user.passwordHash,
         avatarUrl: user.avatarUrl ?? null,
         city: user.city ?? null,
-        quarantineLiftedAt: toTimestamp(user.quarantineLiftedAt),
-        notifiedQuarantineUntil: toTimestamp(user.notifiedQuarantineUntil),
+        quarantineLiftedAt: fromOptionalIsoString(user.quarantineLiftedAt),
+        notifiedQuarantineUntil: fromOptionalIsoString(user.notifiedQuarantineUntil),
         favoriteClubs: {
           create: idsOf(user.favoriteClubIds).map((clubId) => ({ clubId })),
         },
@@ -387,7 +376,7 @@ export class PrismaUsersRepository implements UsersRepository {
     for (const field of USER_TIMESTAMP_FIELDS) {
       // Так снимается метка карантина при ручном снятии администратором: маршрут
       // шлёт ключ с пустым значением, и поле обязано обнулиться, а не остаться прежним.
-      if (hasKey(patch, field)) data[field] = toTimestamp(patch[field]);
+      if (hasKey(patch, field)) data[field] = fromOptionalIsoString(patch[field]);
     }
 
     await this.client.user.update({ where: { id }, data });

@@ -368,6 +368,10 @@ model Trainer {
   /// Умолчальная сортировка выдачи тренеров трёхуровневая (clubs.controller.ts:289-293).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("trainers")
+
+  conductedSchedule Schedule[] @relation("ScheduleConductedBy")
+  conductedBookings Booking[]  @relation("BookingConductedBy")
+
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -466,6 +470,13 @@ model Schedule {
   ownerClubId    Int? @map("owner_club_id")
   ownerTrainerId Int? @map("owner_trainer_id")
   venueClubId    Int? @map("venue_club_id")
+
+  /// Тренер занятия, когда владелец — клуб.
+  /// Симметрично площадке: «кто ведёт» и «кому принадлежит» — разные сведения.
+  /// Без этой колонки у клубного занятия с тренером тренер терялся бы: пара
+  /// взаимоисключающих ссылок владельца вторую занять не даёт, а поле `trainerId`
+  /// есть и в типе, и в эталоне контрактов.
+  conductedByTrainerId Int? @map("conducted_by_trainer_id")
   sportId        Int  @map("sport_id")
 
   title String @map("title") @db.VarChar(200)
@@ -501,6 +512,8 @@ model Schedule {
   ownerTrainer Trainer?  @relation("ScheduleOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
   // Как и у услуги: слоты тренера переживают удаление зала, теряя площадку.
   venueClub    Club?     @relation("ScheduleVenueClub", fields: [venueClubId], references: [id], onDelete: SetNull)
+  // Каскад, а не обнуление: удаление тренера сегодня уносит и его занятия.
+  conductedByTrainer Trainer? @relation("ScheduleConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
   sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
 
   /// Restrict, а не Cascade: каскад стёр бы историю атлета, включая завершённые
@@ -516,6 +529,7 @@ model Schedule {
   /// это «владелец-тренер пуст», и NULL идут в начале индекса.
   @@index([ownerTrainerId, date, startTime])
   @@index([venueClubId])
+  @@index([conductedByTrainerId])
   /// ?sportId=&date= и срез аналитики.
   @@index([sportId, date])
   @@index([date, startTime])
@@ -539,6 +553,12 @@ model Booking {
   /// владелец клуба видит записи на тренерские занятия в своём зале,
   /// а удаление клуба-площадки их удаляет.
   venueClubId Int? @map("venue_club_id")
+
+  /// Тренер занятия, когда владелец — клуб. Симметрично площадке: «кто ведёт»
+  /// и «кому принадлежит» — разные сведения. Без этой колонки у клубной записи
+  /// с тренером тренер терялся бы: пара взаимоисключающих ссылок владельца
+  /// вторую занять не даёт, а поле `trainerId` есть и в типе, и в эталоне.
+  conductedByTrainerId Int? @map("conducted_by_trainer_id")
 
   userId  Int @map("user_id")
   sportId Int @map("sport_id")
@@ -576,6 +596,9 @@ model Booking {
   // `{ clubId }` (`publication.service.ts:402`), а `clubId` у тренерского занятия
   // в зале клуба — это как раз площадка (`booking.service.ts:176`).
   venueClub    Club?     @relation("BookingVenueClub", fields: [venueClubId], references: [id], onDelete: Cascade)
+  // Каскад: удаление тренера сегодня уносит и записи на его занятия
+  // (`publication.service.ts` отбирает их фильтром по тренеру).
+  conductedByTrainer Trainer? @relation("BookingConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
   /// Restrict: пользователей не удаляют физически, а история обязана пережить аккаунт.
   user         User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
@@ -593,6 +616,7 @@ model Booking {
   @@index([ownerClubId])
   @@index([ownerTrainerId])
   @@index([venueClubId])
+  @@index([conductedByTrainerId])
   @@index([sportId, createdAt])
   @@index([createdAt])
   @@map("bookings")

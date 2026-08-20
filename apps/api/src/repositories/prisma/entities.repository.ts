@@ -56,6 +56,7 @@ import {
 } from '../prisma-mappers';
 import { fromOwnerRef, ownerTypeWhere, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
+import { ConflictError } from '../../common/domain-error';
 
 // --- Клубы --------------------------------------------------------------------
 
@@ -656,8 +657,10 @@ export class PrismaScheduleRepository implements ScheduleRepository {
       // Клуб слота — это либо клуб-владелец, либо зал, в котором ведёт тренер.
       // У тренерского слота без зала клуба нет вовсе: файловая реализация его тоже
       // не достраивала, это делает потребитель через связь тренер↔клуб.
+      // Клуб и тренер занятия собираются из двух источников каждый: либо это
+      // владелец, либо участник другой роли — площадка у клуба, ведущий у тренера.
       clubId: row.ownerClubId ?? row.venueClubId ?? undefined,
-      trainerId: row.ownerTrainerId ?? undefined,
+      trainerId: row.ownerTrainerId ?? row.conductedByTrainerId ?? undefined,
       sportId: row.sportId,
       title: row.title,
       description: row.description ?? undefined,
@@ -713,6 +716,9 @@ export class PrismaScheduleRepository implements ScheduleRepository {
           // Площадка есть только у тренерского слота: у клубного «зал» и «владелец» —
           // один и тот же клуб, и вторая ссылка на него была бы дублем.
           venueClubId: owner.ownerType === 'trainer' ? toNullable(slot.clubId) : null,
+          // Зеркально площадке: у клубного занятия тренер — ведущий, а не владелец.
+          // Без этой колонки он терялся бы, а поле есть и в типе, и в эталоне.
+          conductedByTrainerId: owner.ownerType === 'club' ? toNullable(slot.trainerId) : null,
           sportId: slot.sportId,
           title: slot.title,
           description: toNullable(slot.description),
@@ -752,19 +758,54 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     return PrismaScheduleRepository.toSchedule(updated);
   }
 
+  /**
+   * Изменение счётчика занятых мест — ОДНОЙ операцией с условием.
+   *
+   * Чтение-подсчёт-запись здесь не годится, и это главная причина всей фазы:
+   * между чтением и записью помещается чужой запрос, и двое, нажавшие
+   * «Записаться» на последнее место, оба его получают. Аудит нашёл семь способов,
+   * которыми это ломается сегодня, — включая зажим нулём, который молча прятал
+   * уход счётчика в минус.
+   *
+   * Границы стоят прямо в условии: вверх — вместимость, вниз — ноль. Ноль
+   * затронутых строк означает, что граница достигнута, и это не молчаливый
+   * результат, а явная ошибка с тем же текстом, что и раньше.
+   */
   async changeBookedCount(id: EntityId, delta: number): Promise<Schedule> {
-    const current = await this.client.schedule.findUnique({ where: { id } });
+    // Направления ведут себя по-разному, и это не asymmetry ради асимметрии.
+    //
+    // Занять место сверх вместимости — ошибка, о которой надо сказать вслух:
+    // именно она и есть овербукинг. Освободить больше, чем занято, — не ошибка,
+    // а следствие уже разъехавшегося счётчика (в данных такие слоты есть),
+    // и падать на отмене записи из-за этого нельзя. Нижняя граница поэтому
+    // зажимается прямо в выражении: одной операцией, без чтения перед записью.
+    const affected =
+      delta > 0
+        ? await this.client.$executeRaw`
+            UPDATE schedule
+               SET booked_count = booked_count + ${delta}
+             WHERE id = ${id}
+               AND booked_count + ${delta} <= capacity
+          `
+        : await this.client.$executeRaw`
+            UPDATE schedule
+               SET booked_count = GREATEST(0, booked_count + ${delta})
+             WHERE id = ${id}
+          `;
 
-    if (current === null) {
-      throw new Error(`Слот с id ${id} не найден`);
+    if (affected === 0) {
+      const current = await this.client.schedule.findUnique({ where: { id } });
+
+      if (current === null) {
+        throw new Error(`Слот с id ${id} не найден`);
+      }
+
+      // Слот есть, но условие не выполнилось — значит мест не хватило.
+      // Текст прежний: на него завязаны маршруты и тесты.
+      throw new ConflictError('Свободных мест нет');
     }
 
-    // ⚠️ Пока это обычные чтение-подсчёт-запись, как в файловой реализации: два
-    // одновременных запроса дадут овербукинг. Атомарным условным обновлением это
-    // становится на шаге 33.29 — здесь такой правки нет намеренно, чтобы шаг
-    // менял поведение одного метода, а не всего репозитория разом.
-    const bookedCount = Math.max(0, current.bookedCount + delta);
-    const updated = await this.client.schedule.update({ where: { id }, data: { bookedCount } });
+    const updated = await this.client.schedule.findUniqueOrThrow({ where: { id } });
 
     return PrismaScheduleRepository.toSchedule(updated);
   }
@@ -832,6 +873,7 @@ function buildSchedulePatch(
     const ownerType = patch.ownerType ?? toOwnerRef(current).ownerType;
 
     data.venueClubId = ownerType === 'trainer' ? toNullable(patch.clubId) : null;
+    data.conductedByTrainerId = ownerType === 'club' ? toNullable(patch.trainerId) : null;
   }
 
   return data as Prisma.ScheduleUncheckedUpdateInput;

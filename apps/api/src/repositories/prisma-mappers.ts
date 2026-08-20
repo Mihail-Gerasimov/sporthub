@@ -110,6 +110,27 @@ export function toNullable<TValue>(value: TValue | undefined): TValue | null {
   return value === undefined ? null : value;
 }
 
+/**
+ * Строка метки времени → значение колонки.
+ *
+ * Отсутствие метки в контракте выражается отсутствием ключа, в базе — пустым
+ * значением. Обратный перевод делает `toOptionalIsoString`.
+ *
+ * ⚠️ Неразборчивое значение не превращается молча в «нет метки»: так в базу уехала бы
+ * пустота вместо даты, и потеря обнаружилась бы через месяц, когда исходник уже стёрт.
+ */
+export function fromOptionalIsoString(value: string | undefined | null): Date | null {
+  if (value === undefined || value === null || value === '') return null;
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Не удалось разобрать метку времени: ${value}`);
+  }
+
+  return parsed;
+}
+
 /** Что добавить и что убрать, чтобы связующая таблица совпала с новым набором. */
 export type IdSetDiff = { added: number[]; removed: number[] };
 
