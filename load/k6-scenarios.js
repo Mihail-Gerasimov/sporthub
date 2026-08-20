@@ -197,6 +197,7 @@ export function race() {
   }
 
   check(response, {
-    'ответ либо успешный, либо «мест нет»': () => response.status < 400 || text.includes('Свободных мест нет'),
+    'ответ либо успешный, либо «мест нет»': () =>
+      response.status < 400 || text.includes('Свободных мест нет'),
   });
 }
