@@ -12,7 +12,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PrismaBookingsRepository } from '../repositories/prisma/bookings.repository';
 import { PrismaUsersRepository } from '../repositories/prisma/crud.repository';
-import { PrismaScheduleRepository } from '../repositories/prisma/entities.repository';
+import {
+  PrismaClubsRepository,
+  PrismaScheduleRepository,
+} from '../repositories/prisma/entities.repository';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
@@ -414,5 +417,38 @@ describe('Каскадное удаление публикации на базе
     expect(await db.prisma.offering.count()).toBe(0);
     expect(await db.prisma.schedule.count()).toBe(0);
     expect(await db.prisma.booking.count()).toBe(0);
+  });
+});
+
+describe('Занятый адрес-ссылка', () => {
+  it('второй клуб с тем же названием отбивается внятной ошибкой, а не пятисоткой', async () => {
+    const clubs = new PrismaClubsRepository(new PrismaTransactionRunner(db.service));
+    const club = {
+      name: 'Клуб с занятым именем',
+      slug: 'club-taken',
+      description: '',
+      shortDescription: '',
+      city: 'Самара',
+      address: '',
+      phone: '',
+      coordinates: { lat: 0, lng: 0 },
+      sportIds: [],
+      tagIds: [],
+      amenityIds: [],
+      imageUrls: [],
+      rating: 0,
+      reviewCount: 0,
+      priceFrom: 0,
+      source: 'provider',
+      status: 'published',
+    } as never;
+
+    await clubs.insert(club);
+
+    // ⚠️ До фазы 33 второй клуб просто получал ту же ссылку, и его карточка
+    // становилась недостижимой — молча.
+    await expect(clubs.insert(club)).rejects.toThrow(
+      'Клуб с таким названием уже есть — измените название',
+    );
   });
 });

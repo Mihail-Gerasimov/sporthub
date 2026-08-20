@@ -57,6 +57,7 @@ import {
 import { fromOwnerRef, ownerTypeWhere, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 import { ConflictError } from '../../common/domain-error';
+import { isUniqueViolation } from './unique-violation';
 
 // --- Клубы --------------------------------------------------------------------
 
@@ -181,6 +182,21 @@ export class PrismaClubsRepository implements ClubsRepository {
   }
 
   async insert(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club> {
+    try {
+      return await this.insertInner(club);
+    } catch (error) {
+      // ⚠️ Адрес-ссылка выводится из названия, и до фазы 33 два клуба с одинаковым
+      // названием молча получали одинаковую ссылку: вторая карточка становилась
+      // недостижимой. База это вскрыла — значит нужен текст, которого раньше не было.
+      if (isUniqueViolation(error, 'slug')) {
+        throw new ConflictError('Клуб с таким названием уже есть — измените название');
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertInner(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club> {
     const created = await this.client.club.create({
       data: {
         name: club.name,
@@ -485,6 +501,19 @@ export class PrismaTrainersRepository implements TrainersRepository {
   }
 
   async insert(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer> {
+    try {
+      return await this.insertInner(trainer);
+    } catch (error) {
+      // Та же ловушка, что и у клуба: имя тренера превращается в адрес-ссылку.
+      if (isUniqueViolation(error, 'slug')) {
+        throw new ConflictError('Тренер с таким именем уже есть — измените имя');
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertInner(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer> {
     const sportIds = idsOf(trainer.sportIds);
 
     const created = await this.client.trainer.create({
