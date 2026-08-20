@@ -9,6 +9,29 @@ import type { Response } from 'express';
 
 import { DomainError, QuarantineError, ValidationError } from './domain-error';
 
+/**
+ * Ошибка соединения с базой, а не ошибка запроса.
+ *
+ * Коды взяты из справочника Prisma: не удалось открыть соединение, база не отвечает,
+ * соединение оборвалось. Наружу такие ошибки не показываются вовсе — ни адреса,
+ * ни порта, ни имени схемы: клиент видит только «база недоступна».
+ */
+const DATABASE_UNAVAILABLE_CODES = new Set(['P1000', 'P1001', 'P1002', 'P1008', 'P1017', 'P2024']);
+
+function isDatabaseUnavailable(exception: unknown): boolean {
+  if (typeof exception !== 'object' || exception === null) return false;
+
+  const { code } = exception as { code?: unknown };
+
+  if (typeof code === 'string' && DATABASE_UNAVAILABLE_CODES.has(code)) return true;
+
+  // Драйвер PostgreSQL до кода Prisma не всегда доходит: если процесс базы остановлен,
+  // соединение отбивается на уровне сети.
+  const message = exception instanceof Error ? exception.message : '';
+
+  return /ECONNREFUSED|ETIMEDOUT|Connection terminated|server closed the connection/i.test(message);
+}
+
 @Catch()
 export class DomainErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger(DomainErrorFilter.name);
@@ -48,6 +71,25 @@ export class DomainErrorFilter implements ExceptionFilter {
     // сохраняют свой код — иначе всё превращается в 500.
     if (exception instanceof HttpException) {
       response.status(exception.getStatus()).json({ success: false, error: exception.message });
+
+      return;
+    }
+
+    // Недоступная база — не «наша вина» в смысле дефекта, а состояние окружения,
+    // и отвечать на неё пятисоткой неверно: мониторинг обязан отличать сломанный код
+    // от лежащей базы, а фронт — показать «сервис временно недоступен», а не «что-то
+    // пошло не так».
+    //
+    // ⚠️ Это единственный перевод ошибки базы, живущий в общем фильтре. Нарушения
+    // уникальности переводятся в реализациях репозиториев: там один код обязан давать
+    // три разных текста, и различить их можно только по контексту операции. Здесь
+    // контекст не нужен — «база не отвечает» означает одно и то же везде.
+    if (isDatabaseUnavailable(exception)) {
+      this.logger.error(
+        'База недоступна',
+        exception instanceof Error ? exception.stack : exception,
+      );
+      response.status(503).json({ success: false, error: 'База данных недоступна' });
 
       return;
     }
