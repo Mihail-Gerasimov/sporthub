@@ -8,6 +8,12 @@
 // вместе с причиной. Пустой список означал бы, что переезд прошёл совсем
 // незаметно для клиента; каждая запись в нём — обещание, которое пришлось
 // изменить, и она должна быть объяснима.
+//
+// Значения меток времени сравнивать нельзя — они зависят от момента вызова, поэтому
+// маскируются. Но вместе со значением пряталcя и вид записи, а он при переезде
+// хранилища меняется первым: файл отдаёт строку, база — объект даты. Поэтому вид
+// проверяется отдельным сторожем (`time-shape.ts`): значение по-прежнему не сравнивается,
+// формат — сравнивается. Эталон снят с файлового хранилища, оно же и задаёт формат.
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -18,26 +24,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedTestData, seedDefaultTrainerClubLink } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from './harness';
+import { ISO_TIME_SHAPE, VOLATILE_KEYS, collectTimeShapes } from './time-shape';
 
 const SNAPSHOT_PATH = path.join(process.cwd(), '..', '..', 'contracts', 'contract-snapshot.json');
-
-/** Поля, значение которых зависит от момента вызова. */
-const VOLATILE_KEYS = new Set([
-  'createdAt',
-  'updatedAt',
-  'at',
-  'readAt',
-  'approvedAt',
-  'rejectedAt',
-  'revokedAt',
-  'hiddenAt',
-  'completedAt',
-  'quarantineLiftedAt',
-  'notifiedQuarantineUntil',
-  'until',
-  'timestamp',
-  'uptime',
-]);
 
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -417,6 +406,13 @@ describe('Сверка с эталоном контрактов прежнего
 
       const actual = { status: response.status, body: normalize(response.body) };
       const reference = expected[call.name];
+
+      // Вид записи каждой метки времени. Сравнение тела его не увидит: там маска.
+      const wrongShape = collectTimeShapes(response.body).filter(
+        (entry) => entry.shape !== ISO_TIME_SHAPE,
+      );
+
+      expect(wrongShape).toEqual([]);
 
       if (KNOWN_DIFFERENCES[call.name]) {
         expect(actual).not.toEqual(reference);
