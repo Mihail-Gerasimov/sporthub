@@ -4,7 +4,9 @@
 // Полноценной проверки сессии нет — тело запроса и есть единственный источник
 // личности, и это записано в долгах фазы.
 //
-// Пароли лежат открытым текстом, поэтому ответ всегда очищается от поля пароля.
+// Phase 33 Step 33.9: в хранилище лежит argon2id-хеш, а не сам пароль.
+// Ответ всё равно очищается от него: хеш наружу не отдаётся никогда — он
+// пригоден для перебора офлайн, и «это же не пароль» тут не оправдание.
 
 import { Body, Controller, Get, Inject, Param, Patch } from '@nestjs/common';
 import { REQUIRED_NOTIFICATION_TYPES } from '@sporthub/domain';
@@ -17,6 +19,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../common/domain-error';
+import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -45,10 +48,16 @@ const preferencesSchema = z
   })
   .strict();
 
-export type SafeUser = Omit<User, 'password'>;
+/** Пользователь без хеша пароля. Ровно то, что уходит наружу. */
+export type SafeUser = Omit<User, 'passwordHash'>;
 
-function stripPassword(user: User): SafeUser {
-  const { password: _removed, ...safe } = user;
+/**
+ * Убрать хеш пароля из ответа. Имя поля здесь обязано совпадать с типом:
+ * если оно разойдётся, вырезаться будет несуществующее поле, а хеш утечёт
+ * молча. От этого страхует сторож `password-leak.test.ts`.
+ */
+function stripPasswordHash(user: User): SafeUser {
+  const { passwordHash: _removed, ...safe } = user;
 
   return safe;
 }
@@ -89,21 +98,24 @@ export class UserAccountController {
     }
 
     if (password !== undefined) {
-      const stored = (user.password ?? '').trim();
+      // Сверка идёт через проверку хеша: сравнивать строки больше не с чем.
+      // Пробелы по краям режутся так же, как резались до перехода на хеш, —
+      // поведение формы не меняется.
+      const matches = await verifyPassword(user.passwordHash ?? '', (currentPassword ?? '').trim());
 
-      if (stored !== (currentPassword ?? '').trim()) {
+      if (!matches) {
         throw new UnauthorizedError('Неверный текущий пароль');
       }
     }
 
-    const patch: Partial<Pick<User, 'phone' | 'password'>> = {};
+    const patch: Partial<Pick<User, 'phone' | 'passwordHash'>> = {};
 
     if (phone !== undefined) patch.phone = phone;
-    if (password !== undefined) patch.password = password;
+    if (password !== undefined) patch.passwordHash = await hashPassword(password);
 
     const updated = await this.users.update(targetUserId, patch);
 
-    return stripPassword(updated);
+    return stripPasswordHash(updated);
   }
 
   @Get(':id/notification-preferences')

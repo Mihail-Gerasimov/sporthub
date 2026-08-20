@@ -1,10 +1,13 @@
-// Тесты входа и регистрации. Проверяется и то, что пароль не уходит наружу,
-// и то, что вход НЕ проверяет пароль — это поведение перенесено сознательно.
+// Тесты входа и регистрации. Проверяется и то, что ни пароль, ни его хеш
+// не уходят наружу, и то, что вход НЕ проверяет пароль — это поведение
+// перенесено сознательно. Phase 33 Step 33.9: регистрация обязана записывать
+// argon2id-хеш, а не сам пароль.
 
+import { verify } from '@node-rs/argon2';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestHarness, type TestHarness } from '../test/harness';
+import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 const user = (id: number, role: string, email: string) => ({
   id,
@@ -14,7 +17,7 @@ const user = (id: number, role: string, email: string) => ({
   name: `Пользователь ${id}`,
   email,
   phone: '+7 (900) 000-00-00',
-  password: 'demo123',
+  passwordHash: DEMO_PASSWORD_HASH,
   favoriteClubIds: [],
 });
 
@@ -45,6 +48,7 @@ describe('Маршруты входа и регистрации', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.id).toBe(1);
     expect(response.body.data.password).toBeUndefined();
+    expect(response.body.data.passwordHash).toBeUndefined();
   });
 
   it('вход проходит и с неверным паролем — проверки пароля нет', async () => {
@@ -93,9 +97,16 @@ describe('Маршруты входа и регистрации', () => {
     expect(response.status).toBe(201);
     expect(response.body.data.id).toBe(4);
 
-    const stored = await harness.read<{ id: number; role: string }[]>('users');
+    const stored =
+      await harness.read<{ id: number; role: string; password?: string; passwordHash: string }[]>(
+        'users',
+      );
     expect(stored).toHaveLength(4);
     expect(stored[3].role).toBe('athlete');
+    // Открытого пароля в записи нет вовсе, а хеш проверяется исходным паролем.
+    expect(stored[3].password).toBeUndefined();
+    expect(stored[3].passwordHash.startsWith('$argon2id$')).toBe(true);
+    expect(await verify(stored[3].passwordHash, 'secret1')).toBe(true);
   });
 
   it('регистрация провайдера создаёт владельца клуба', async () => {

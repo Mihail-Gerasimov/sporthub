@@ -23,7 +23,7 @@ const fixtureAthlete: User = {
   name: 'Тестовый атлет',
   email: 'athlete@sporthub.local',
   phone: '',
-  password: 'x',
+  passwordHash: 'x',
   favoriteClubIds: [],
 };
 
@@ -35,7 +35,7 @@ const fixtureProvider: User = {
   name: 'Марина Крылова',
   email: 'provider@sporthub.local',
   phone: '',
-  password: 'x',
+  passwordHash: 'x',
   favoriteClubIds: [],
 };
 

@@ -34,7 +34,7 @@ describe('Admin domain model (Step 17.1)', () => {
       name: 'Тест',
       email: 'test@test.local',
       phone: '+7 000 000 00 00',
-      password: '123456',
+      passwordHash: '123456',
       favoriteClubIds: [],
     };
 

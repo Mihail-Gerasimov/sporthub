@@ -14,10 +14,8 @@ import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-
-import { PrismaClient } from '../storage/prisma-client/client';
+import type { PrismaClient } from '../storage/prisma-client/client';
+import { PrismaService, readDatabaseSettings } from '../storage/prisma.service';
 
 const run = promisify(execFile);
 
@@ -79,6 +77,7 @@ export async function migrateTestSchema(): Promise<void> {
 
 export type TestDatabase = {
   prisma: PrismaClient;
+  service: PrismaService;
   /** Очистка всех таблиц схемы. Порядок не важен: чистится одной командой. */
   truncateAll: () => Promise<void>;
   close: () => Promise<void>;
@@ -87,10 +86,15 @@ export type TestDatabase = {
 /** Клиент, привязанный к схеме этого исполнителя. */
 export async function createTestDatabase(): Promise<TestDatabase> {
   const schema = testSchemaName();
-  const pool = new Pool({ connectionString: testDatabaseUrl(schema), max: 2 });
-  // Схему адаптеру надо назвать отдельно: параметр `?schema=` в строке подключения
-  // понимает движок миграций, а драйвер PostgreSQL — нет, и клиент ушёл бы в public.
-  const prisma = new PrismaClient({ adapter: new PrismaPg(pool, { schema }) });
+  // Соединение собирает тот же класс, что и в бою: иначе тесты проверяли бы
+  // не то подключение, которое работает на самом деле.
+  const service = new PrismaService(
+    readDatabaseSettings({
+      DATABASE_URL: testDatabaseUrl(schema),
+      DATABASE_POOL_SIZE: '2',
+    } as NodeJS.ProcessEnv),
+  );
+  const prisma = service.client;
 
   const tableNames = async (): Promise<string[]> => {
     const rows = await prisma.$queryRaw<{ tablename: string }[]>`
@@ -103,6 +107,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
 
   return {
     prisma,
+    service,
     async truncateAll() {
       const tables = await tableNames();
 
@@ -115,8 +120,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
     },
     async close() {
-      await prisma.$disconnect();
-      await pool.end();
+      await service.onModuleDestroy();
     },
   };
 }

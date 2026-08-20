@@ -54,7 +54,7 @@ describe('Маршруты услуг и пользователей', () => {
         name: 'Иван',
         email: 'ivan@test.local',
         phone: '+7 (900) 000-00-00',
-        password: 'очень-секретный-пароль',
+        passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$c29sdHNvbHRzb2x0cw$очень-секретный-хеш',
         favoriteClubIds: [],
       },
     ]);
@@ -138,12 +138,14 @@ describe('Маршруты услуг и пользователей', () => {
       expect(response.body.data[0].email).toBe('ivan@test.local');
     });
 
-    it('⚠️ пароль не уходит наружу ни в каком виде', async () => {
+    it('⚠️ ни пароль, ни его хеш не уходят наружу ни в каком виде', async () => {
       const response = await request(app.getHttpServer()).get('/api/users');
 
       expect(response.body.data[0]).not.toHaveProperty('password');
-      // Дополнительная страховка: ищем значение пароля во всём теле ответа.
-      expect(JSON.stringify(response.body)).not.toContain('очень-секретный-пароль');
+      expect(response.body.data[0]).not.toHaveProperty('passwordHash');
+      // Дополнительная страховка: ищем значение хеша во всём теле ответа.
+      expect(JSON.stringify(response.body)).not.toContain('очень-секретный-хеш');
+      expect(JSON.stringify(response.body)).not.toContain('$argon2');
     });
   });
 });

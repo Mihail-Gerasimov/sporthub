@@ -22,7 +22,7 @@ describe('Маршрут отзывов', () => {
         name: 'Алексей Смирнов',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-01',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
       {
@@ -32,7 +32,7 @@ describe('Маршрут отзывов', () => {
         name: 'Марина Крылова',
         email: 'm@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
     ]);

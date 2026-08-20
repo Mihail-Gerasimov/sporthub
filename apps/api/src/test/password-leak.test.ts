@@ -173,7 +173,13 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   },
   'post /api/logs': {
     url: '/api/logs',
-    body: { action: 'admin_login', actorId: 3, actorRole: 'admin', entityType: 'user', entityId: 3 },
+    body: {
+      action: 'admin_login',
+      actorId: 3,
+      actorRole: 'admin',
+      entityType: 'user',
+      entityId: 3,
+    },
   },
   'post /api/moderation': {
     url: '/api/moderation',

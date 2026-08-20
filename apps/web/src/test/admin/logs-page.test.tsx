@@ -119,7 +119,7 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
         name: 'Admin',
         email: 'a@a.com',
         phone: '+7',
-        password: 's',
+        passwordHash: 's',
         favoriteClubIds: [],
       },
       accountType: 'provider',

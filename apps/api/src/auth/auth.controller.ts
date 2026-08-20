@@ -3,7 +3,11 @@
 // ⚠️ Пароль при входе НЕ проверяется — маршрут пускает по одному лишь адресу
 // почты. Поле принимается ради совместимости формы и игнорируется. Это
 // сознательно перенесённая дыра: фаза сохраняет поведение, настоящая проверка
-// будет отдельной фазой. Пароль при регистрации сохраняется открытым текстом.
+// будет отдельной фазой.
+//
+// Phase 33 Step 33.9: пароль при регистрации сохраняется argon2id-хешем —
+// открытого пароля в хранилище не остаётся. На вход это не влияет: он пароль
+// и так не смотрит.
 
 import { Body, Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
 import type { User, UserRole } from '@sporthub/types';
@@ -15,6 +19,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../common/domain-error';
+import { hashPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -118,7 +123,8 @@ export class AuthController {
       name,
       email,
       phone: phone ?? '',
-      password,
+      // Хеш считается до вставки: открытый пароль дальше этой строки не идёт.
+      passwordHash: await hashPassword(password),
       avatarUrl: '',
       favoriteClubIds: [],
       city,

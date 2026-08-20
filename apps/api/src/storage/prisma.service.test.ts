@@ -18,7 +18,16 @@ describe('Настройки соединения с базой', () => {
     ).toEqual({
       connectionString: 'postgresql://sporthub@127.0.0.1:5434/sporthub',
       poolSize: 4,
+      schema: 'public',
     });
+  });
+
+  it('берёт схему из строки подключения, если она там указана', () => {
+    expect(
+      readDatabaseSettings({
+        DATABASE_URL: 'postgresql://sporthub@127.0.0.1:5434/sporthub_test?schema=test_2',
+      } as NodeJS.ProcessEnv).schema,
+    ).toBe('test_2');
   });
 
   it('без явного размера пула берёт значение по умолчанию', () => {

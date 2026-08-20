@@ -17,8 +17,17 @@ import { describe, expect, it } from 'vitest';
 
 const API_ROOT = process.cwd();
 
-/** Сборка момента из шаблонной строки с датой и временем. */
-const NAIVE_DATE_TIME = /new Date\(`[^`]*\$\{[^`]*\}T/;
+/**
+ * Сборка момента из шаблонной строки с датой и временем — БЕЗ явного пояса.
+ *
+ * Явный пояс (`...Z`) ошибкой не является: так работает граница хранилища, где день
+ * занятия переводится в значение колонки типа даты. Ошибка — именно молчаливый пояс:
+ * его подставит процесс, и результат уедет вместе с сервером.
+ */
+const NAIVE_DATE_TIME = /new Date\(`[^`]*\$\{[^`]*\}T[^`]*`\)/;
+
+/** Тот же вызов, но с явно указанным поясом. */
+const EXPLICIT_ZONE = /new Date\(`[^`]*\$\{[^`]*\}T[^`]*(?:Z|[+-]\d{2}:\d{2})`\)/;
 
 async function collectSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -52,8 +61,13 @@ describe('Граница работы со временем', () => {
     for (const file of files) {
       const text = await readFile(path.join(API_ROOT, file), 'utf8');
 
-      if (NAIVE_DATE_TIME.test(text)) {
-        offenders.push(file.split(path.sep).join('/'));
+      // Строку разбираем целиком: в файле может быть и допустимый вызов, и нет.
+      for (const line of text.split('\n')) {
+        if (NAIVE_DATE_TIME.test(line) && !EXPLICIT_ZONE.test(line)) {
+          offenders.push(file.split(path.sep).join('/'));
+
+          break;
+        }
       }
     }
 

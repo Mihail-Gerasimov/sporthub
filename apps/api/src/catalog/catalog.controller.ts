@@ -3,8 +3,9 @@
 // Оба маршрута новые: страницы читали эти коллекции прямо из слоя данных,
 // минуя API. После переезда фронта им нужен собственный маршрут.
 //
-// ⚠️ Пользователи отдаются без пароля всегда. Пароли лежат открытым текстом,
-// и этот маршрут создаётся с нуля — утечка здесь стоила бы дороже всей фазы.
+// ⚠️ Пользователи отдаются без хеша пароля всегда. Phase 33 Step 33.9: поле
+// переименовано в `passwordHash`, и вырезать его нужно под новым именем —
+// иначе вырезалось бы несуществующее поле, а хеш уходил бы наружу.
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Offering, User } from '@sporthub/types';
@@ -15,11 +16,11 @@ import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
-/** Пользователь без пароля. Ровно то, что уходит наружу. */
-export type SafeUser = Omit<User, 'password'>;
+/** Пользователь без хеша пароля. Ровно то, что уходит наружу. */
+export type SafeUser = Omit<User, 'passwordHash'>;
 
-function stripPassword(user: User): SafeUser {
-  const { password: _removed, ...safe } = user;
+function stripPasswordHash(user: User): SafeUser {
+  const { passwordHash: _removed, ...safe } = user;
 
   return safe;
 }
@@ -65,7 +66,7 @@ export class UsersController {
   async findAll(): Promise<SafeUser[]> {
     const users = await this.users.findAll();
 
-    return users.map(stripPassword);
+    return users.map(stripPasswordHash);
   }
 }
 

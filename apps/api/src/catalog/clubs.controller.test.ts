@@ -50,7 +50,7 @@ describe('Маршруты клубов и тренеров', () => {
         name: 'Марина',
         email: 'm@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
     ]);
@@ -218,7 +218,7 @@ describe('Маршруты клубов и тренеров', () => {
           name: 'Марина',
           email: 'm@test.local',
           phone: '+7 (900) 000-00-02',
-          password: 'demo123',
+          passwordHash: 'demo123',
           favoriteClubIds: [],
         },
         {
@@ -228,7 +228,7 @@ describe('Маршруты клубов и тренеров', () => {
           name: 'Чужой',
           email: 'x@test.local',
           phone: '+7 (900) 000-00-09',
-          password: 'demo123',
+          passwordHash: 'demo123',
           favoriteClubIds: [],
         },
       ]);

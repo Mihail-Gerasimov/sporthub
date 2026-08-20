@@ -35,7 +35,7 @@ const fixtureUsers: User[] = [
     name: 'Алексей Смирнов',
     email: 'alexey@sporthub.local',
     phone: '+7 (927) 000-10-10',
-    password: 'sporthub123',
+    passwordHash: 'sporthub123',
     favoriteClubIds: [],
   },
   {
@@ -46,7 +46,7 @@ const fixtureUsers: User[] = [
     name: 'Марина Крылова',
     email: 'marina@studio.local',
     phone: '+7 (927) 000-20-20',
-    password: 'sporthub123',
+    passwordHash: 'sporthub123',
     favoriteClubIds: [],
   },
 ];
@@ -148,7 +148,7 @@ describe('DashboardPage (Step 17.4)', () => {
         name: 'Администратор',
         email: 'admin@sporthub.local',
         phone: '',
-        password: 'admin',
+        passwordHash: 'admin',
         favoriteClubIds: [],
       },
     ];

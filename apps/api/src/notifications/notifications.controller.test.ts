@@ -31,7 +31,7 @@ describe('Маршруты уведомлений', () => {
         name: 'Алексей',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-01',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
       {
@@ -41,7 +41,7 @@ describe('Маршруты уведомлений', () => {
         name: 'Пётр',
         email: 'p@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
         notificationPreferences: { booking_completed: false },
       },

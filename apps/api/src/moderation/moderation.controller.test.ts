@@ -21,7 +21,7 @@ describe('Маршруты модерации', () => {
         name: 'Марина',
         email: 'm@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
       {
@@ -31,7 +31,7 @@ describe('Маршруты модерации', () => {
         name: 'Админ',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-03',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
     ]);

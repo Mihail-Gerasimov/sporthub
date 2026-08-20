@@ -132,7 +132,7 @@ describe('Простые CRUD-репозитории', () => {
       name: 'Иван',
       email: 'ivan@test.local',
       phone: '+7 (900) 000-00-00',
-      password: 'secret1',
+      passwordHash: 'secret1',
       favoriteClubIds: [] as number[],
     };
 

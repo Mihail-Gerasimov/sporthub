@@ -105,7 +105,7 @@ describe('Диверсия слоёв: хранилище в памяти', () =
         name: 'Атлет',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-00',
-        password: 'demo123',
+        passwordHash: 'demo123',
         favoriteClubIds: [],
       },
     ] as never);

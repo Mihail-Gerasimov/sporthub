@@ -13,6 +13,21 @@ import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@
 // расширенного production users.json (после 26.6 там 7 записей — athlete+
 // provider-stage testing). analytics.route.test.ts с `totalUsers=3` продолжает
 // работать благодаря этим fixtures.
+// Phase 33 Step 33.9: пароля открытым текстом в фикстурах не остаётся —
+// поле хранит готовый argon2id-хеш с теми же параметрами, что и рабочий код
+// (19456 КиБ / 2 прохода / 1 дорожка). Хеши посчитаны заранее и записаны
+// константами: считать их при загрузке модуля нельзя — расчёт асинхронный,
+// а данные должны быть готовы сразу.
+/** argon2id-хеш пароля `sporthub123` — им пользуются атлет и провайдер. */
+export const FIXTURE_PASSWORD_PLAIN = 'sporthub123';
+export const FIXTURE_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$CgCRS3ngEJKeoa9semqLSQ$mxTjcFt/GVvJAZbQTbeV5i5sS3ZgO47vH9a6KwZhLN8';
+
+/** argon2id-хеш пароля `admin-sporthub-2026` — администратор фикстур. */
+export const FIXTURE_ADMIN_PASSWORD_PLAIN = 'admin-sporthub-2026';
+export const FIXTURE_ADMIN_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$J4aplICq3nY8up+XpROw9g$DIZtaXmthO840qf0k84Y0G+ZC+ZSvBOJYpD3Pl+GYb4';
+
 export const fixtureUsers: User[] = [
   {
     id: 1,
@@ -22,7 +37,7 @@ export const fixtureUsers: User[] = [
     name: 'Алексей Смирнов',
     email: 'alexey@sporthub.local',
     phone: '+7 (927) 000-10-10',
-    password: 'sporthub123',
+    passwordHash: FIXTURE_PASSWORD_HASH,
     avatarUrl: '/images/users/alexey-smirnov.jpg',
     favoriteClubIds: [],
     city: 'Самара',
@@ -35,7 +50,7 @@ export const fixtureUsers: User[] = [
     name: 'Марина Крылова',
     email: 'marina@studio.local',
     phone: '+7 (927) 000-20-20',
-    password: 'sporthub123',
+    passwordHash: FIXTURE_PASSWORD_HASH,
     avatarUrl: '/images/users/marina-krylova.jpg',
     favoriteClubIds: [],
     city: 'Самара',
@@ -48,7 +63,7 @@ export const fixtureUsers: User[] = [
     name: 'Администратор SportHub',
     email: 'admin@sporthub.local',
     phone: '+7 (927) 000-30-30',
-    password: 'admin-sporthub-2026',
+    passwordHash: FIXTURE_ADMIN_PASSWORD_HASH,
     avatarUrl: '/images/users/admin.jpg',
     favoriteClubIds: [],
   },

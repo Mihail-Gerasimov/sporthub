@@ -20,6 +20,12 @@ import { PrismaClient } from './prisma-client/client';
 export type DatabaseSettings = {
   connectionString: string;
   poolSize: number;
+  /**
+   * Схема базы. Драйвер PostgreSQL параметр `?schema=` в строке подключения не понимает —
+   * его знает только движок миграций, — поэтому имя достаётся адаптеру отдельно.
+   * Без этого клиент молча уходит в `public`, и тесты со своей схемой видят пустую базу.
+   */
+  schema: string;
 };
 
 export const DATABASE_SETTINGS = Symbol('DATABASE_SETTINGS');
@@ -44,7 +50,11 @@ export function readDatabaseSettings(env: NodeJS.ProcessEnv = process.env): Data
     throw new Error(`Размер пула соединений задан неверно: ${env.DATABASE_POOL_SIZE}`);
   }
 
-  return { connectionString, poolSize };
+  // Схема указывается в строке подключения тем же параметром, что понимает движок
+  // миграций, — чтобы адрес базы оставался одним значением, а не двумя.
+  const schema = new URL(connectionString).searchParams.get('schema') ?? 'public';
+
+  return { connectionString, poolSize, schema };
 }
 
 @Injectable()
@@ -59,7 +69,9 @@ export class PrismaService implements OnModuleDestroy {
       max: settings.poolSize,
     });
 
-    this.client = new PrismaClient({ adapter: new PrismaPg(this.pool) });
+    this.client = new PrismaClient({
+      adapter: new PrismaPg(this.pool, { schema: settings.schema }),
+    });
   }
 
   /**

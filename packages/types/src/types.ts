@@ -334,7 +334,13 @@ export interface User extends BaseEntity {
   name: string;
   email: string;
   phone: string;
-  password: string;
+  /**
+   * Phase 33 Step 33.9: argon2id-хеш пароля. Открытого пароля в хранилище
+   * не остаётся нигде. Соль и параметры (память, число проходов, дорожки)
+   * лежат внутри самой строки хеша, поэтому отдельных колонок под них не
+   * нужно, а смена настроек в будущем не обесценит уже записанные хеши.
+   */
+  passwordHash: string;
   avatarUrl?: string;
   favoriteClubIds: EntityId[];
   // Город пользователя (MVP: display-only, без редактирования из ЛК)

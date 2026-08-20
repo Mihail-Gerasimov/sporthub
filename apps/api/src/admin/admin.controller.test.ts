@@ -1,9 +1,10 @@
 // Тесты административных маршрутов: каждый проверяет роль по хранилищу.
 
+import { verify } from '@node-rs/argon2';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestHarness, type TestHarness } from '../test/harness';
+import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Административные маршруты', () => {
   let harness: TestHarness;
@@ -21,7 +22,7 @@ describe('Административные маршруты', () => {
         name: 'Атлет',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-01',
-        password: 'demo123',
+        passwordHash: DEMO_PASSWORD_HASH,
         favoriteClubIds: [],
       },
       {
@@ -31,7 +32,7 @@ describe('Административные маршруты', () => {
         name: 'Провайдер',
         email: 'p@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: DEMO_PASSWORD_HASH,
         favoriteClubIds: [],
       },
       {
@@ -41,7 +42,7 @@ describe('Административные маршруты', () => {
         name: 'Админ',
         email: 'ad@test.local',
         phone: '+7 (900) 000-00-03',
-        password: 'demo123',
+        passwordHash: DEMO_PASSWORD_HASH,
         favoriteClubIds: [],
       },
     ]);
@@ -229,8 +230,11 @@ describe('Административные маршруты', () => {
 
     expect(response.status).toBe(200);
 
-    const users = await harness.read<{ password: string }[]>('users');
-    expect(users[0].password).toBe('fresh-password-99');
+    // В хранилище лежит хеш, а не сам пароль: проверяем это разбором строки
+    // и сверкой с новым паролем.
+    const users = await harness.read<{ passwordHash: string }[]>('users');
+    expect(users[0].passwordHash.startsWith('$argon2id$')).toBe(true);
+    expect(await verify(users[0].passwordHash, 'fresh-password-99')).toBe(true);
 
     const logs = await harness.read<{ action: string }[]>('logs');
     expect(logs[0].action).toBe('admin_password_change');
@@ -287,8 +291,8 @@ describe('Административные маршруты', () => {
 
     expect(response.status).toBe(403);
 
-    const users = await harness.read<{ password: string }[]>('users');
-    expect(users[0].password).toBe('demo123');
+    const users = await harness.read<{ passwordHash: string }[]>('users');
+    expect(users[0].passwordHash).toBe(DEMO_PASSWORD_HASH);
   });
 
   it('пересчёт надёжности не-администратором запрещён', async () => {

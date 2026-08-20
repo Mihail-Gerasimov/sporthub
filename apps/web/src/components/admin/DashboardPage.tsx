@@ -517,12 +517,11 @@ function UserCard({
   const inQuarantine = quarantine.inQuarantine;
   const userStatus = user.status ?? 'active';
 
-  // Phase 29 Step 29.7: блок «Учётные данные» с password-toggle и модалкой
-  // смены. password-state локальный — каждый UserCard хранит свой toggle.
-  const [showPassword, setShowPassword] = useState(false);
+  // Блок «Учётные данные». Phase 33 Step 33.10: показа чужого пароля здесь
+  // больше нет — в хранилище лежит argon2id-хеш, и показывать физически
+  // нечего. Осталась смена пароля: админ выдаёт новый и один раз видит
+  // выданное значение внутри модалки.
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const passwordValue = (user.password ?? '').trim();
-  const hasPassword = passwordValue.length > 0;
 
   return (
     <article className="grid grid-cols-1 items-start gap-x-4 gap-y-3.5 rounded-[16px] border border-line bg-card p-[18px] transition-colors hover:border-line sm:p-[18px_22px] xl:grid-cols-[1fr_440px]">
@@ -548,10 +547,12 @@ function UserCard({
           {stats.label}: <strong className="font-bold tabular-nums text-ink">{stats.value}</strong>
         </p>
 
-        {/* Phase 29 Step 29.7: блок «Учётные данные» — login (=email)
-            и password с masked-toggle. Виден только super-admin'у (DashboardPage
-            живёт под admin-guard в layout). Phone опускаем — он уже в основной
-            строке profile, отдельно дублировать не нужно. */}
+        {/* Блок «Учётные данные» — login (=email) и смена пароля. Виден
+            только super-admin'у (DashboardPage живёт под admin-guard в layout).
+            Phone опускаем — он уже в основной строке profile, отдельно
+            дублировать не нужно.
+            Phase 33 Step 33.10: значения пароля здесь нет и быть не может —
+            хранится хеш. Админ выдаёт новый пароль и один раз видит выданное. */}
         <div
           data-testid={`user-credentials-${user.id}`}
           className="mt-2 flex flex-col gap-1.5 rounded-[12px] border border-line bg-bg p-3 sm:flex-row sm:items-center sm:gap-4"
@@ -569,21 +570,10 @@ function UserCard({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 data-testid={`user-credentials-password-${user.id}`}
-                className="break-all font-mono text-[12px] text-ink"
+                className="text-[12px] text-muted"
               >
-                {!hasPassword ? '(не задан)' : showPassword ? passwordValue : '••••••••'}
+                Хранится хешем — показать нельзя
               </span>
-              {hasPassword ? (
-                <button
-                  type="button"
-                  data-testid={`user-credentials-toggle-${user.id}`}
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="rounded-pill border border-line bg-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-muted hover:border-lime hover:text-lime"
-                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                >
-                  {showPassword ? 'Скрыть' : 'Показать'}
-                </button>
-              ) : null}
               <button
                 type="button"
                 data-testid={`user-credentials-change-${user.id}`}

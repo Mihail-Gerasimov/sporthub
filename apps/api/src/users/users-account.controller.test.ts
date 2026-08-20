@@ -1,10 +1,16 @@
-// Тесты учётных данных. Пароль не должен появляться в ответе ни при каких
-// обстоятельствах, а обязательные типы уведомлений нельзя выключить.
+// Тесты учётных данных. Ни пароль, ни его хеш не должны появляться в ответе
+// ни при каких обстоятельствах, а обязательные типы уведомлений нельзя выключить.
 
+import { verify } from '@node-rs/argon2';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTestHarness, type TestHarness } from '../test/harness';
+import {
+  DEMO_PASSWORD,
+  DEMO_PASSWORD_HASH,
+  createTestHarness,
+  type TestHarness,
+} from '../test/harness';
 
 describe('Маршруты учётных данных', () => {
   let harness: TestHarness;
@@ -22,7 +28,7 @@ describe('Маршруты учётных данных', () => {
         name: 'Алексей',
         email: 'a@test.local',
         phone: '+7 (900) 000-00-01',
-        password: 'demo123',
+        passwordHash: DEMO_PASSWORD_HASH,
         favoriteClubIds: [],
       },
       {
@@ -32,7 +38,7 @@ describe('Маршруты учётных данных', () => {
         name: 'Марина',
         email: 'm@test.local',
         phone: '+7 (900) 000-00-02',
-        password: 'demo123',
+        passwordHash: DEMO_PASSWORD_HASH,
         favoriteClubIds: [],
       },
     ]);
@@ -50,6 +56,7 @@ describe('Маршруты учётных данных', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.phone).toBe('+7 (900) 111-22-33');
     expect(response.body.data.password).toBeUndefined();
+    expect(response.body.data.passwordHash).toBeUndefined();
 
     const stored = await harness.read<{ id: number; phone: string }[]>('users');
     expect(stored[0].phone).toBe('+7 (900) 111-22-33');
@@ -58,12 +65,15 @@ describe('Маршруты учётных данных', () => {
   it('меняет пароль при верном текущем', async () => {
     const response = await request(harness.app.getHttpServer())
       .patch('/api/users/1')
-      .send({ userId: 1, password: 'newpass1', currentPassword: 'demo123' });
+      .send({ userId: 1, password: 'newpass1', currentPassword: DEMO_PASSWORD });
 
     expect(response.status).toBe(200);
+    expect(response.body.data.passwordHash).toBeUndefined();
 
-    const stored = await harness.read<{ password: string }[]>('users');
-    expect(stored[0].password).toBe('newpass1');
+    // Записан новый хеш, а не сам пароль.
+    const stored = await harness.read<{ passwordHash: string }[]>('users');
+    expect(stored[0].passwordHash).not.toBe(DEMO_PASSWORD_HASH);
+    expect(await verify(stored[0].passwordHash, 'newpass1')).toBe(true);
   });
 
   it('неверный текущий пароль — 401 и данные не меняются', async () => {
@@ -74,8 +84,8 @@ describe('Маршруты учётных данных', () => {
     expect(response.status).toBe(401);
     expect(response.body.error).toMatch(/Неверный текущий пароль/);
 
-    const stored = await harness.read<{ password: string }[]>('users');
-    expect(stored[0].password).toBe('demo123');
+    const stored = await harness.read<{ passwordHash: string }[]>('users');
+    expect(stored[0].passwordHash).toBe(DEMO_PASSWORD_HASH);
   });
 
   it('смена пароля без текущего — 400', async () => {

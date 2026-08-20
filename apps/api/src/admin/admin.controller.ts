@@ -23,6 +23,7 @@ import { AccessService } from '../access/access.service';
 import { BookingService } from '../bookings/booking.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import { hashPassword } from '../common/password';
 import { LinkService } from '../links/link.service';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -159,9 +160,14 @@ export class AdminController {
       throw new NotFoundError('Пользователь не найден');
     }
 
-    await this.users.update(targetUserId, { password: parsed.data.newPassword });
+    // Phase 33 Step 33.9: в хранилище уходит argon2id-хеш, а не сам пароль.
+    // Текущий пароль администратору не нужен — действие админское и пишется
+    // в журнал.
+    await this.users.update(targetUserId, {
+      passwordHash: await hashPassword(parsed.data.newPassword),
+    });
 
-    // Сам пароль в журнал не попадает — только факт смены.
+    // Ни пароль, ни его хеш в журнал не попадают — только факт смены.
     await this.logs.record({
       action: 'admin_password_change',
       actorId: parsed.data.adminUserId,
