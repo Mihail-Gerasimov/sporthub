@@ -3,6 +3,7 @@ import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
 import type { BookingStatusTone } from '@/components/profile/booking-status-tone';
 import {
+  findBookingSlot,
   getBookingClubId,
   getBookingTrainerId,
   getDateKeyInTimeZone,
@@ -191,7 +192,7 @@ export function getProviderIncomingBookings(
       return false;
     })
     .map((booking) => {
-      const slot = scheduleById.get(booking.scheduleId);
+      const slot = findBookingSlot(booking, scheduleById);
       const athlete = userById.get(booking.userId);
       const resolvedClubId = getBookingClubId(booking) ?? (slot ? getScheduleClubId(slot) : null);
       const resolvedTrainerId =

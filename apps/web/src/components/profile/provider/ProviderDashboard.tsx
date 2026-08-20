@@ -16,7 +16,12 @@ import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { DISCIPLINE_CONFIG, getSlotEndAt, shiftDateKey } from '@sporthub/domain';
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
-import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
+import {
+  findBookingSlot,
+  getBookingClubId,
+  getBookingTrainerId,
+  getDateKeyInTimeZone,
+} from '@/lib/utils';
 import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type {
@@ -151,7 +156,7 @@ export function ProviderDashboard({
     return providerBookings.filter((b) => {
       if (b.status !== 'confirmed') return false;
 
-      const slot = slotById.get(b.scheduleId);
+      const slot = findBookingSlot(b, slotById);
       if (!slot) return false;
 
       // Конец занятия — по часам зала. Момент в поясе браузера сдвигал всё окно

@@ -527,6 +527,8 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
 
   for (const booking of source.bookings) {
     if (!ACTIVE_BOOKING_STATUSES.has(booking.status)) continue;
+    // Запись без слота в счёт занятых мест не идёт: считать не для чего.
+    if (booking.scheduleId === null) continue;
 
     activeBySlot.set(booking.scheduleId, (activeBySlot.get(booking.scheduleId) ?? 0) + 1);
   }

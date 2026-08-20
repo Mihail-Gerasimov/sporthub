@@ -551,7 +551,17 @@ model Booking {
   id        Int      @id @default(autoincrement()) @map("id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  scheduleId     Int  @map("schedule_id")
+  /// Слот, на который сделана запись.
+  ///
+  /// ⚠️ Ссылка НЕОБЯЗАТЕЛЬНАЯ, и это решение, а не упрощение. Провайдер вправе убрать
+  /// занятие из расписания; его записи при этом отменяются, но исчезнуть не должны —
+  /// это история атлета. Каскад стёр бы её, `Restrict` не дал бы убрать занятие вовсе
+  /// (провайдер получал бы успех, а слот оставался в расписании — молчаливый полууспех).
+  /// Обнуление ссылки сохраняет и то и другое: запись жива, слот убран.
+  ///
+  /// Терять при этом нечего: дата, цена и вид спорта записаны в самой записи снимком
+  /// на момент бронирования — именно потому, что слот мог измениться.
+  scheduleId     Int? @map("schedule_id")
   offeringId     Int? @map("offering_id")
   ownerClubId    Int? @map("owner_club_id")
   ownerTrainerId Int? @map("owner_trainer_id")
@@ -592,7 +602,7 @@ model Booking {
 
   completedAt DateTime? @map("completed_at")
 
-  schedule     Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  schedule     Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   /// В 6.7 правило для этой связи не задано отдельно: удаление владельца уже
   /// каскадит на записи, а сама запись обязана пережить исчезновение услуги.
   offering     Offering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)

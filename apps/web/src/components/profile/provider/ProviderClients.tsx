@@ -11,7 +11,13 @@ import { startTransition, useEffect, useMemo, useState } from 'react';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
 import { computeAthleteReliability, zonedDateTime } from '@sporthub/domain';
-import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
+import {
+  cn,
+  findBookingSlot,
+  formatDate,
+  getBookingClubId,
+  getBookingTrainerId,
+} from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
@@ -571,7 +577,7 @@ export function ProviderClients({
                   .slice()
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((booking) => {
-                    const slot = scheduleById.get(booking.scheduleId);
+                    const slot = findBookingSlot(booking, scheduleById);
                     const offering =
                       booking.offeringId !== undefined
                         ? offeringById.get(booking.offeringId)

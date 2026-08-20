@@ -17,7 +17,7 @@ import {
   hoursUntilSlotStart,
   shiftDateKey,
 } from '@sporthub/domain';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, findBookingSlot, formatDate } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Schedule, Sport, Trainer } from '@sporthub/types';
@@ -159,7 +159,7 @@ export function AthleteSchedule({
     () =>
       filtered
         .map((booking) => {
-          const slot = scheduleById.get(booking.scheduleId);
+          const slot = findBookingSlot(booking, scheduleById);
           const clubName =
             (booking.clubId !== undefined ? clubById.get(booking.clubId)?.name : undefined) ?? '';
           const trainerName =
@@ -210,7 +210,7 @@ export function AthleteSchedule({
       return null;
     }
 
-    const slot = scheduleById.get(opened.scheduleId);
+    const slot = findBookingSlot(opened, scheduleById);
     const clubName =
       (opened.clubId !== undefined ? clubById.get(opened.clubId)?.name : undefined) ?? '';
 

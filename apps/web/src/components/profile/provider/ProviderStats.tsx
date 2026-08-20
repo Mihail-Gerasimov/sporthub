@@ -13,7 +13,7 @@ import { Card, ReliabilityBadge } from '@/components/ui';
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
 import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
-import { cn, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
+import { cn, findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthub/types';
@@ -148,7 +148,7 @@ export function ProviderStats({
     let minutes = 0;
     for (const booking of filteredBookings) {
       if (booking.status !== 'completed') continue;
-      const slot = scheduleById.get(booking.scheduleId);
+      const slot = findBookingSlot(booking, scheduleById);
       minutes += slot?.durationMinutes ?? 0;
     }
     return Math.round((minutes / 60) * 10) / 10;
@@ -184,7 +184,7 @@ export function ProviderStats({
     const grid: number[][] = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
     for (const booking of filteredBookings) {
       if (booking.status !== 'completed') continue;
-      const slot = scheduleById.get(booking.scheduleId);
+      const slot = findBookingSlot(booking, scheduleById);
       if (!slot) continue;
       const { day, hour } = getDayHourKey(booking.date, slot.startTime);
       if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {

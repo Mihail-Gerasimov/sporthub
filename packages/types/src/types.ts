@@ -274,7 +274,11 @@ export interface Schedule extends BaseEntity {
 }
 
 export interface Booking extends BaseEntity {
-  scheduleId: EntityId;
+  /**
+   * Слот занятия. Пусто, если провайдер убрал занятие из расписания: сама запись
+   * при этом сохраняется — дата, цена и вид спорта лежат в ней снимком.
+   */
+  scheduleId: EntityId | null;
   offeringId?: EntityId;
   ownerType?: CatalogOwnerType;
   ownerId?: EntityId;

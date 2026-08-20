@@ -1,4 +1,4 @@
-import { getBookingClubId, getBookingTrainerId } from '@/lib/utils';
+import { findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import type { Booking, Club, Review, Schedule, Trainer } from '@sporthub/types';
 
 export type AthleteHistoryItem = {
@@ -70,7 +70,7 @@ export function getAthleteHistoryItems({
   return bookings
     .filter((booking) => booking.userId === athleteUserId && booking.status === 'completed')
     .map((booking) => {
-      const scheduleItem = scheduleItems.get(booking.scheduleId);
+      const scheduleItem = findBookingSlot(booking, scheduleItems);
       const reviewStatusLabel = hasRelatedReview({
         athleteUserId,
         booking,

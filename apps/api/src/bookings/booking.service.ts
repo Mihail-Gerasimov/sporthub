@@ -101,7 +101,9 @@ export class BookingService {
     };
 
     if (input.to === 'cancelled_by_athlete') {
-      const slot = await this.schedule.findById(booking.scheduleId);
+      // Слот мог быть убран из расписания: ссылка тогда пуста, а запись жива.
+      const slot =
+        booking.scheduleId === null ? null : await this.schedule.findById(booking.scheduleId);
       patch.cancelledBy = input.actor;
       patch.cancelReason = computeCancelReason(booking, slot, now);
     } else if (input.to === 'cancelled_by_provider' || input.to === 'rejected_by_provider') {
@@ -143,7 +145,8 @@ export class BookingService {
 
       if (delta !== 0) {
         // Слот мог исчезнуть — прежняя реализация в этом случае молча продолжала.
-        const slot = await this.schedule.findById(booking.scheduleId);
+        const slot =
+          booking.scheduleId === null ? null : await this.schedule.findById(booking.scheduleId);
         if (slot) {
           await this.schedule.changeBookedCount(slot.id, delta);
         }
@@ -271,7 +274,7 @@ export class BookingService {
     await this.transactions.runInTransaction(async () => {
       await this.bookings.remove(bookingId);
 
-      if (ACTIVE_BOOKING_STATUSES.has(booking.status)) {
+      if (ACTIVE_BOOKING_STATUSES.has(booking.status) && booking.scheduleId !== null) {
         const slot = await this.schedule.findById(booking.scheduleId);
         if (slot) {
           await this.schedule.changeBookedCount(slot.id, -1);
@@ -305,7 +308,9 @@ export class BookingService {
     const toUnmark: Booking[] = [];
 
     for (const booking of bookings) {
-      const slot = slotById.get(booking.scheduleId);
+      // Запись без слота — занятие убрано из расписания. Автопереходы по времени
+      // ей неприменимы: считать не от чего.
+      const slot = booking.scheduleId === null ? undefined : slotById.get(booking.scheduleId);
 
       if (!slot) continue;
 

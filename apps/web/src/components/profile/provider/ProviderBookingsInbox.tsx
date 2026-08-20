@@ -14,7 +14,13 @@ import { RejectBookingReasonModal } from '@/components/profile/provider/RejectBo
 import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotEndAt, getSlotStartAt } from '@sporthub/domain';
 import { computeAthleteReliability } from '@sporthub/domain';
-import { cn, formatDate, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
+import {
+  cn,
+  findBookingSlot,
+  formatDate,
+  getBookingClubId,
+  getBookingTrainerId,
+} from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
@@ -185,7 +191,7 @@ export function ProviderBookingsInbox({
   // Разбивка по табам.
   const bookingsByTab = useMemo<Record<InboxTab, EnrichedBooking[]>>(() => {
     const enrich = (booking: Booking): EnrichedBooking => {
-      const slot = scheduleById.get(booking.scheduleId);
+      const slot = findBookingSlot(booking, scheduleById);
       const offering =
         booking.offeringId !== undefined ? offeringById.get(booking.offeringId) : undefined;
       const athlete = userById.get(booking.userId);

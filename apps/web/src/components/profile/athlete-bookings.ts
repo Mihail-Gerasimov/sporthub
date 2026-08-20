@@ -1,7 +1,12 @@
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
 import type { BookingStatusTone } from '@/components/profile/booking-status-tone';
-import { getBookingClubId, getBookingTrainerId, getDateKeyInTimeZone } from '@/lib/utils';
+import {
+  findBookingSlot,
+  getBookingClubId,
+  getBookingTrainerId,
+  getDateKeyInTimeZone,
+} from '@/lib/utils';
 import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 
 export type UpcomingProfileBooking = {
@@ -133,7 +138,7 @@ export function getAthleteUpcomingProfileBookings({
 
   return activeFutureBookings
     .map((booking) => {
-      const slot = scheduleItems.get(booking.scheduleId);
+      const slot = findBookingSlot(booking, scheduleItems);
       const clubName = clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub';
 
       return {

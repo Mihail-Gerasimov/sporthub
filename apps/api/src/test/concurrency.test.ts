@@ -228,10 +228,10 @@ describe('Каскады', () => {
     expect(await db.prisma.booking.count()).toBe(0);
   });
 
-  it('слот с записями удалить нельзя — история атлета не теряется', async () => {
+  it('удаление слота не стирает запись — у неё обнуляется ссылка', async () => {
     const { scheduleId, userIds } = await seedSlotWithOneSeat();
 
-    await db.prisma.booking.create({
+    const booking = await db.prisma.booking.create({
       data: {
         scheduleId,
         userId: userIds[0],
@@ -243,7 +243,16 @@ describe('Каскады', () => {
       },
     });
 
-    await expect(db.prisma.schedule.delete({ where: { id: scheduleId } })).rejects.toThrow();
+    // Провайдер вправе убрать занятие из расписания. Каскад стёр бы историю атлета,
+    // `Restrict` не дал бы убрать вовсе — обнуление ссылки сохраняет и то и другое.
+    await db.prisma.schedule.delete({ where: { id: scheduleId } });
+
+    const survivor = await db.prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
+
+    expect(survivor.scheduleId).toBeNull();
+    // Снимки на месте: по ним запись и показывается атлету.
+    expect(survivor.status).toBe('completed');
+    expect(survivor.totalPrice).toBe(1000);
   });
 });
 

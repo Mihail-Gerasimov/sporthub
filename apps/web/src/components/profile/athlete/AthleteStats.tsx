@@ -45,6 +45,7 @@ import {
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Review, Schedule, Sport, Trainer } from '@sporthub/types';
+import { findBookingSlot } from '@/lib/utils';
 
 type StatsWindow = 12 | 'all';
 
@@ -65,7 +66,7 @@ const FSM_SLICE_COLORS = {
 
 /** Подсчёт минут длительности слота из scheduleId. 0, если слот не найден. */
 function getBookingMinutes(booking: Booking, scheduleById: Map<number, Schedule>): number {
-  const slot = scheduleById.get(booking.scheduleId);
+  const slot = findBookingSlot(booking, scheduleById);
 
   return slot?.durationMinutes ?? 0;
 }

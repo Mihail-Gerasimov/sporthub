@@ -380,7 +380,8 @@ export class BookingsController {
 
     await this.requireProvider(booking, userId, 'Недостаточно прав для check-in');
 
-    const slot = await this.gateway.findSlot(booking.scheduleId);
+    const slot =
+      booking.scheduleId === null ? null : await this.gateway.findSlot(booking.scheduleId);
 
     if (!slot) {
       throw new NotFoundError('Слот расписания не найден');

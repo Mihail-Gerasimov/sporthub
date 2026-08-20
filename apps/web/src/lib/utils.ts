@@ -26,6 +26,21 @@ export function resolveNames(ids: EntityId[], dict: { id: EntityId; name: string
 // сохранён — на него завязаны существующие потребители.
 export { getDateKeyInTimeZone, getTimeKeyInTimeZone } from '@sporthub/domain';
 
+/**
+ * Слот записи по карте слотов.
+ *
+ * Ссылка записи на слот необязательна: провайдер вправе убрать занятие из расписания,
+ * и тогда запись остаётся, а слота нет. Отдельный помощник нужен, чтобы эта проверка
+ * стояла в ОДНОМ месте: без него она разошлась бы по двенадцати компонентам, и в первом
+ * же забытом месте страница упала бы на пустой ссылке.
+ */
+export function findBookingSlot<TSlot>(
+  booking: { scheduleId: EntityId | null },
+  slots: ReadonlyMap<EntityId, TSlot>,
+): TSlot | undefined {
+  return booking.scheduleId === null ? undefined : slots.get(booking.scheduleId);
+}
+
 type ClassNameValue = string | false | null | undefined;
 
 export function cn(...values: ClassNameValue[]): string {

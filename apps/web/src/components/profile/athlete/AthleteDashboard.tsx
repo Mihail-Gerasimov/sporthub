@@ -20,6 +20,7 @@ import {
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Schedule, Trainer, User } from '@sporthub/types';
+import { findBookingSlot } from '@/lib/utils';
 
 type AthleteDashboardProps = {
   bookings?: Booking[];
@@ -136,7 +137,7 @@ export function AthleteDashboard({
     return athleteBookings
       .filter((booking) => booking.status === 'pending')
       .map((booking) => {
-        const slot = scheduleById.get(booking.scheduleId);
+        const slot = findBookingSlot(booking, scheduleById);
 
         if (!slot) {
           return null;
