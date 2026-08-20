@@ -15,6 +15,12 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 
+import { exportSourceShape } from '../storage/seed/export-source-shape';
+import { importSourceData } from '../storage/seed/import-from-files';
+import type { SourceData } from '../storage/seed/source-data';
+import { createTestDatabase } from './db-harness';
+import { ensureTestSchema } from './db-setup';
+
 // Phase 33 Step 33.9: пароля открытым текстом в хранилище больше нет — тесты
 // кладут в пользователей готовый argon2id-хеш. Пара «пароль + его хеш»
 // объявлена здесь один раз: копия в каждом наборе разъехалась бы при первой же
@@ -57,8 +63,92 @@ export type TestHarness = {
   close(): Promise<void>;
 };
 
-/** Поднять приложение на своей директории данных. */
+/** Имя коллекции → поле среза данных. Отличаются только те, где дефис или два слова. */
+const SOURCE_FIELD: Record<(typeof COLLECTIONS)[number], keyof SourceData> = {
+  clubs: 'clubs',
+  trainers: 'trainers',
+  offerings: 'offerings',
+  schedule: 'schedule',
+  bookings: 'bookings',
+  reviews: 'reviews',
+  users: 'users',
+  notifications: 'notifications',
+  logs: 'logs',
+  'trainer-club-links': 'trainerClubLinks',
+  'provider-client-notes': 'providerClientNotes',
+  sports: 'sports',
+  cities: 'cities',
+  tags: 'tags',
+  amenities: 'amenities',
+  specialties: 'specialties',
+  'work-formats': 'workFormats',
+};
+
+/** Пустой срез: с него начинается каждый набор. */
+function emptySource(): SourceData {
+  return Object.fromEntries(
+    Object.values(SOURCE_FIELD).map((field) => [field, []]),
+  ) as unknown as SourceData;
+}
+
+/**
+ * Обвязка на БАЗЕ: тот же набор проверок, другое хранилище.
+ *
+ * `write` не пишет одну таблицу в отрыве от других — так нельзя: у базы есть внешние
+ * ключи, и запись на несуществующий слот она не примет. Поэтому обвязка держит срез
+ * целиком и переносит его заново после каждой правки. Для наборов в десяток строк это
+ * дешевле, чем разбираться в порядке вставки на каждом вызове.
+ */
+async function createDatabaseHarness(): Promise<TestHarness> {
+  const db = await createTestDatabase();
+  const source = emptySource();
+
+  const reimport = async (): Promise<void> => {
+    await db.truncateAll();
+    await importSourceData({ client: db.prisma, source });
+  };
+
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const app = configureApp(moduleRef.createNestApplication());
+  await app.init();
+
+  return {
+    app,
+    // Каталога данных у этой обвязки нет: путь оставлен пустым намеренно, чтобы
+    // обращение к нему было видно сразу, а не молча читало чужие файлы.
+    dataDirectory: '',
+    async write(name, data) {
+      source[SOURCE_FIELD[name as (typeof COLLECTIONS)[number]]] = data as never;
+      await reimport();
+    },
+    async read<T>(name: string): Promise<T> {
+      const exported = await exportSourceShape(db.prisma);
+
+      return exported[SOURCE_FIELD[name as (typeof COLLECTIONS)[number]]] as T;
+    },
+    async close() {
+      await app.close();
+      await db.close();
+    },
+  };
+}
+
+/**
+ * Поднять приложение на своей директории данных.
+ *
+ * ⚠️ Хранилище выбирается переменной `SPORTHUB_TEST_ON_DATABASE`. По умолчанию это
+ * файлы: пока файловая реализация жива как путь отката, её поведение обязано быть
+ * проверено. Тот же набор на базе — тот же набор, и совпадение результатов и есть
+ * доказательство, что переезд ничего не изменил.
+ */
 export async function createTestHarness(prefix: string): Promise<TestHarness> {
+  if (process.env.SPORTHUB_TEST_ON_DATABASE === '1') {
+    process.env.SPORT_HUB_STORAGE = 'database';
+    await ensureTestSchema();
+
+    return createDatabaseHarness();
+  }
+
   const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
   process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
   // ⚠️ Обвязка поднимает приложение на ФАЙЛАХ. Это временно и снимается шагом 33.43:
