@@ -72,6 +72,29 @@ services:
       timeout: 5s
       retries: 6
 
+  # Разовый запуск миграций.
+  #
+  # Отдельный сервис, а не команда внутри образа бэкенда: средства миграции —
+  # зависимости разработки, и тащить их в рабочий образ незачем. Порядок выкатки
+  # при изменении схемы: сначала миграция, потом новый код. Аддитивная миграция
+  # безопасна для ещё работающего старого кода; обратный порядок даёт окно,
+  # в котором новый код обращается к колонкам, которых ещё нет.
+  #
+  # Запуск: docker compose --profile migrate run --rm migrate
+  migrate:
+    profiles: ['migrate']
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: builder
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://sporthub:${POSTGRES_PASSWORD:-sporthub}@db:5432/sporthub?schema=public
+    working_dir: /app/apps/api
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+
   web:
     profiles: ['app']
     build:

@@ -11,7 +11,16 @@ import { defineConfig } from 'prisma/config';
 
 // Переменные окружения читает сам процесс: у бэкенда это `apps/api/.env`,
 // в контейнере — окружение сервиса.
-process.loadEnvFile?.(path.join(__dirname, '.env'));
+//
+// ⚠️ Отсутствие файла ошибкой не считается. В образе его нет намеренно: слой
+// неизменяем, и попавший в него ключ потом не вычистить. Без этой обёртки
+// `prisma generate` падал бы прямо на сборке образа — причём с сообщением
+// про файл, а не про то, что переменные приходят из окружения.
+try {
+  process.loadEnvFile(path.join(__dirname, '.env'));
+} catch {
+  // Файла нет — работаем на том, что уже в окружении.
+}
 
 export default defineConfig({
   schema: path.join(__dirname, 'prisma', 'schema.prisma'),
