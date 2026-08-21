@@ -54,6 +54,17 @@ COPY --from=builder /app/packages/fixtures/package.json packages/fixtures/packag
 COPY --from=builder /app/packages/fixtures/dist packages/fixtures/dist
 COPY --from=builder /app/apps/api/package.json apps/api/package.json
 COPY --from=builder /app/apps/api/dist apps/api/dist
+
+# Схема и миграции кладутся в РАБОЧИЙ образ, хотя код их не читает.
+#
+# Это ~120 КБ, и они снимают с прода необходимость тащить туда ступень `builder`
+# со всем монорепозиторием и зависимостями разработки — на машине с двумя
+# гигабайтами это была бы сборка прямо на бою. Движок миграций в образе уже есть:
+# `prisma` — рабочая зависимость `@prisma/client`, а не средство разработки,
+# поэтому `npx prisma migrate deploy` выполняется прямо здесь.
+COPY --from=builder /app/apps/api/prisma apps/api/prisma
+COPY --from=builder /app/apps/api/prisma.config.ts apps/api/prisma.config.ts
+
 COPY docker/api-healthcheck.mjs /app/healthcheck.mjs
 
 # Процесс не должен работать от суперпользователя: у образа node такой
