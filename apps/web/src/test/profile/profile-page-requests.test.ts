@@ -135,6 +135,22 @@ describe('Запросы серверных страниц кабинетов', 
       }
     });
 
+    it('обзор берёт уведомления своего пользователя, а не ленту всей площадки', async () => {
+      signedInUserId = '2';
+      const { default: ProviderDashboardRoute } =
+        await import('@/app/profile/provider/dashboard/page');
+
+      await ProviderDashboardRoute();
+
+      // ⚠️ Обзору нужно ОДНО число — сколько у провайдера непрочитанных. Раньше ради
+      // него запрашивалась лента ВСЕЙ площадки (`scope=all`) и фильтровалась в памяти:
+      // цена страницы росла вместе с числом уведомлений всех пользователей сразу.
+      const notificationCalls = stub.calls.filter((call) => call.startsWith('/notifications'));
+
+      expect(notificationCalls.some((url) => url.includes('userId=2'))).toBe(true);
+      expect(notificationCalls.some((url) => url.includes('scope=all'))).toBe(false);
+    });
+
     it('раздел клиентов дополнительно берёт историю клиентов — но не весь срез', async () => {
       signedInUserId = '2';
       const { default: ProviderClientsRoute } = await import('@/app/profile/provider/clients/page');

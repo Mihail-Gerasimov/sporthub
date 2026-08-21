@@ -17,15 +17,20 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderDashboardRoute() {
-  const [{ bookings, clubs, trainers }, offerings, schedule, links, notifications, reviews] =
-    await Promise.all([
-      loadProviderScope(),
-      getOfferings(),
-      getSchedule({ ownerType: 'all' }),
-      getTrainerClubLinks(),
-      getNotifications(),
-      getReviews(),
-    ]);
+  // ⚠️ Область провайдера читается ПЕРВОЙ, потому что от неё зависит, чьи уведомления
+  // запрашивать. Раньше страница брала ленту ВСЕЙ платформы (`scope=all`) и считала
+  // по ней непрочитанные одного пользователя фильтром в памяти — цена страницы росла
+  // вместе с числом уведомлений всех пользователей сразу.
+  const scope = await loadProviderScope();
+  const { bookings, clubs, trainers, userId } = scope;
+
+  const [offerings, schedule, links, notifications, reviews] = await Promise.all([
+    getOfferings(),
+    getSchedule({ ownerType: 'all' }),
+    getTrainerClubLinks(),
+    userId === null ? Promise.resolve([]) : getNotifications({ userId }),
+    getReviews(),
+  ]);
 
   return (
     <ProviderDashboard
