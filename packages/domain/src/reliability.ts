@@ -124,6 +124,21 @@ function computeProviderReliability(
 }
 
 /** Рейтинг клуба — по его booking'ам (ownerType='club' && ownerId=clubId или clubId=clubId). */
+/**
+ * Статусы, из которых складывается надёжность провайдера.
+ *
+ * Объявлены отдельно, потому что у набора ДВА потребителя: сам расчёт ниже и
+ * запрос, который отбирает записи до чтения. Раньше список был вшит в тело
+ * функции, и запрос, повторивший его своими словами, разошёлся бы с расчётом
+ * при первой же правке — молча, просто выдав другие числа.
+ */
+export const PROVIDER_RELIABILITY_STATUSES = [
+  'completed',
+  'no_show',
+  'cancelled_by_provider',
+  'rejected_by_provider',
+] as const;
+
 export function computeClubReliability(
   bookings: Booking[],
   clubId: EntityId,
@@ -133,13 +148,10 @@ export function computeClubReliability(
     const matchesClub =
       booking.clubId === clubId || (booking.ownerType === 'club' && booking.ownerId === clubId);
     if (!matchesClub) return false;
-    return (
-      booking.status === 'completed' ||
-      booking.status === 'no_show' ||
-      booking.status === 'cancelled_by_provider' ||
-      booking.status === 'rejected_by_provider'
-    );
+
+    return (PROVIDER_RELIABILITY_STATUSES as readonly string[]).includes(booking.status);
   });
+
   return computeProviderReliability(relevant, config);
 }
 
@@ -154,12 +166,8 @@ export function computeTrainerReliability(
       booking.trainerId === trainerId ||
       (booking.ownerType === 'trainer' && booking.ownerId === trainerId);
     if (!matchesTrainer) return false;
-    return (
-      booking.status === 'completed' ||
-      booking.status === 'no_show' ||
-      booking.status === 'cancelled_by_provider' ||
-      booking.status === 'rejected_by_provider'
-    );
+
+    return (PROVIDER_RELIABILITY_STATUSES as readonly string[]).includes(booking.status);
   });
   return computeProviderReliability(relevant, config);
 }

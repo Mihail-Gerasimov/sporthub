@@ -94,19 +94,26 @@ export class ProviderClientNotesController {
     }
 
     const { providerUserId, clientUserId, note, bookingId } = parsed.data;
-    // Клиент — тот, у кого есть хотя бы одна запись на сущность провайдера.
-    const [bookings, clubs, trainers] = await Promise.all([
-      this.bookings.findAll(),
-      this.clubs.findAll(),
-      this.trainers.findAll(),
+
+    // Клиент — тот, у кого есть хотя бы одна запись на публикацию провайдера.
+    //
+    // ⚠️ Раньше ради этой проверки поднимались ЦЕЛИКОМ три таблицы: все записи
+    // платформы, все клубы и все тренеры. Теперь два точечных запроса: публикации
+    // провайдера (по индексу владельца) и СЧЁТ записей клиента на них. Считает
+    // база, а не длина массива, и ни одна строка записей не доезжает до приложения.
+    const [clubs, trainers] = await Promise.all([
+      this.clubs.findAll({ managedByUserId: providerUserId }),
+      this.trainers.findAll({ managedByUserId: providerUserId }),
     ]);
-    const isClient = this.access.isClientOfProvider(
-      clientUserId,
-      providerUserId,
-      bookings,
-      clubs,
-      trainers,
-    );
+
+    // Без владений клиентов быть не может — второй запрос не нужен вовсе.
+    const owners = {
+      clubIds: clubs.map((club) => club.id),
+      trainerIds: trainers.map((trainer) => trainer.id),
+    };
+    const isClient =
+      owners.clubIds.length + owners.trainerIds.length > 0 &&
+      (await this.bookings.count({ userId: clientUserId, owners })) > 0;
 
     if (!isClient) {
       throw new ForbiddenError('Этот пользователь не является вашим клиентом');

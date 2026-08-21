@@ -131,6 +131,7 @@ function buildPublicationWhere(
   // Город хранится строкой у самой публикации — под пару «город и состояние»
   // индекс уже есть.
   if (filter.city !== undefined) where.city = filter.city;
+  if (filter.managedByUserId !== undefined) where.managedByUserId = filter.managedByUserId;
 
   // Поиск по названию: `insensitive` разворачивается в `ILIKE`, который знает
   // про регистр кириллицы. Индекса под подстроку нет — это отдельная работа,

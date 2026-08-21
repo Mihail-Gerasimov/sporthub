@@ -180,8 +180,17 @@ export class BookingsController {
     }
 
     // Карантин отсекает запись до всех остальных проверок.
-    const allBookings = await this.gateway.findAll();
-    const quarantine = isAthleteInQuarantine(allBookings, userId, new Date(), {
+    //
+    // ⚠️ Читаются записи ТОЛЬКО этого человека и только двух статусов. Раньше здесь
+    // поднималась вся таблица записей платформы: расчёт всё равно отбрасывал чужие
+    // и все прочие статусы внутри себя, то есть 99% поднятого выбрасывалось сразу.
+    // Отбор перенесён в запрос — результат тот же, потому что условие дословно
+    // повторяет то, по которому фильтрует сам расчёт.
+    const athleteHistory = await this.gateway.findMany({
+      userId,
+      status: ['completed', 'no_show'],
+    });
+    const quarantine = isAthleteInQuarantine(athleteHistory, userId, new Date(), {
       quarantineLiftedAt: user.quarantineLiftedAt ?? null,
     });
 

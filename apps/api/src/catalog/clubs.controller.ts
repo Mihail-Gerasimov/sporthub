@@ -86,7 +86,12 @@ export class ClubsController {
     });
 
     if (sort === 'reliability' || excludeDanger === 'true') {
-      const bookings = await this.query.allBookings();
+      // Записи берутся ТОЛЬКО по клубам этой выдачи и только по статусам, из которых
+      // складывается надёжность. Раньше поднималась вся таблица записей платформы.
+      const bookings = await this.query.bookingsForReliability({
+        clubIds: clubs.map((club) => club.id),
+        trainerIds: [],
+      });
       const byId = new Map(
         clubs.map((club) => [club.id, computeClubReliability(bookings, club.id)]),
       );
@@ -262,7 +267,11 @@ export class TrainersController {
     });
 
     if (sort === 'reliability' || excludeDanger === 'true') {
-      const bookings = await this.query.allBookings();
+      // То же для тренеров: только их записи и только значимые статусы.
+      const bookings = await this.query.bookingsForReliability({
+        clubIds: [],
+        trainerIds: trainers.map((trainer) => trainer.id),
+      });
       const byId = new Map(
         trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
       );

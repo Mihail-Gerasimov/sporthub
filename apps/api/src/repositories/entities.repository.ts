@@ -111,6 +111,14 @@ export type PublicationStatusFilter = {
   /** Город публикации — точное совпадение, как в прежнем отборе в памяти. */
   city?: string;
   /**
+   * Владелец публикации — пользователь, который ей управляет.
+   *
+   * Под это уже есть индексы `clubs_managed_by_user_id_idx` и
+   * `trainers_managed_by_user_id_idx`; до сих пор публикации провайдера
+   * отбирались перебором всей таблицы в памяти.
+   */
+  managedByUserId?: number;
+  /**
    * Только скрытые. Обратное к `excludeHidden`, нужно очереди модерации.
    *
    * Отдельным полем, а не значением состояния: состояний три, а спрашивают
@@ -276,6 +284,9 @@ function selectPublications<T extends Club | Trainer>(
     if (filter.sportId !== undefined && !item.sportIds.includes(filter.sportId)) return false;
     if (filter.minRating !== undefined && item.rating < filter.minRating) return false;
     if (filter.city !== undefined && item.city !== filter.city) return false;
+    if (filter.managedByUserId !== undefined && item.managedByUserId !== filter.managedByUserId) {
+      return false;
+    }
     if (needle !== undefined && needle !== '' && !item.name.toLowerCase().includes(needle)) {
       return false;
     }

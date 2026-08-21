@@ -6,6 +6,7 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
+import { PROVIDER_RELIABILITY_STATUSES } from '@sporthub/domain';
 import type { Booking, Club, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
@@ -71,8 +72,25 @@ export class CatalogQueryService {
     return all.filter((sport) => sportIds.includes(sport.id));
   }
 
-  allBookings(): Promise<Booking[]> {
-    return this.bookings.findAll();
+  /**
+   * Записи, из которых считается надёжность перечисленных публикаций.
+   *
+   * ⚠️ Раньше здесь читалась ВСЯ таблица записей платформы — на каждый запрос
+   * каталога с сортировкой по надёжности или с отсевом ненадёжных. Расчёт всё равно
+   * отбрасывал чужие публикации и все прочие статусы внутри себя, то есть почти всё
+   * поднятое выбрасывалось сразу. Теперь оба условия — в запросе; набор статусов
+   * берётся из того же объявления, которым пользуется сам расчёт, поэтому разойтись
+   * они не могут.
+   */
+  bookingsForReliability(owners: { clubIds: number[]; trainerIds: number[] }): Promise<Booking[]> {
+    if (owners.clubIds.length === 0 && owners.trainerIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.bookings.findMany({
+      owners,
+      status: [...PROVIDER_RELIABILITY_STATUSES],
+    });
   }
 
   /** Поиск по адресу-ссылке. Сравнение нечувствительно к регистру и кодировке. */
