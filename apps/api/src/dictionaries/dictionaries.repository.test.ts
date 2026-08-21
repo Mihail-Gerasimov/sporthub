@@ -199,6 +199,26 @@ describe('Репозитории справочников', () => {
 
       return new PrismaCitiesRepository(new PrismaTransactionRunner(db.service));
     });
+
+    it('одновременное создание одного города даёт одну строку, а не ошибку', async () => {
+      // Проверка гонки, которой у файлов быть не могло: там запись идёт через один
+      // буфер, здесь — два независимых соединения. Уникальность держит база
+      // (`cities_name_normalized_key`), а репозиторий обязан отличить ЭТО нарушение
+      // от любой другой ошибки и перечитать строку. Если распознавание имени
+      // ограничения сломается, проигравший вызов бросит наружу — тест покраснеет.
+      await db.truncateAll();
+
+      const repository = new PrismaCitiesRepository(new PrismaTransactionRunner(db.service));
+      const payload = { name: 'Тольятти', coordinates: { lat: 53.5, lng: 49.4 } };
+
+      const [first, second] = await Promise.all([
+        repository.findOrCreateByName(payload),
+        repository.findOrCreateByName(payload),
+      ]);
+
+      expect(first.id).toBe(second.id);
+      expect(await repository.findAll()).toHaveLength(1);
+    });
   });
 
   describe('простые справочники — реализация на базе', () => {

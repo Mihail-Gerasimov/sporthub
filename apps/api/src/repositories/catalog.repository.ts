@@ -49,14 +49,39 @@ export interface OfferingsRepository {
   removeMany(ids: number[]): Promise<number>;
 }
 
+/**
+ * Отбор ленты уведомлений. Все поля необязательные.
+ *
+ * ⚠️ `excludeTypes` — это перевод НАСТРОЕК пользователя в условие запроса, а не
+ * знание репозитория о них. Настройки живут в другой таблице и разбираются правилом
+ * домена (`isNotificationTypeEnabled`); маршрут читает пользователя, превращает
+ * правило в список отключённых типов и отдаёт сюда уже готовый список. Так граница
+ * «репозиторий фильтрует только по своим полям» остаётся целой, а отбор всё равно
+ * становится `WHERE`, а не проверкой после чтения ленты целиком.
+ */
+export interface NotificationsFilter {
+  userId?: number;
+  unreadOnly?: boolean;
+  /** Отобрать только эти уведомления. Пустой список означает «ни одного». */
+  ids?: number[];
+  /** Типы, которые пользователь отключил: в ленту они не попадают и не считаются. */
+  excludeTypes?: string[];
+  offset?: number;
+  limit?: number;
+}
+
+/**
+ * Отбор для счётчика: та же лента без постраничности — резать счётчику нечего.
+ * Адресат обязателен: счётчик по всей платформе не нужен никому и был бы запросом
+ * без границ.
+ */
+export type NotificationsCountFilter = Omit<NotificationsFilter, 'offset' | 'limit'> & {
+  userId: number;
+};
+
 export interface NotificationsRepository {
-  findMany(filter: {
-    userId?: number;
-    unreadOnly?: boolean;
-    offset?: number;
-    limit?: number;
-  }): Promise<Notification[]>;
-  count(filter: { userId: number; unreadOnly?: boolean }): Promise<number>;
+  findMany(filter: NotificationsFilter): Promise<Notification[]>;
+  count(filter: NotificationsCountFilter): Promise<number>;
   insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification>;
   markRead(id: number): Promise<Notification>;
   markAllRead(userId: number): Promise<number>;
@@ -227,23 +252,27 @@ export class JsonOfferingsRepository implements OfferingsRepository {
 export class JsonNotificationsRepository implements NotificationsRepository {
   constructor(private readonly storage: JsonStorage) {}
 
-  async findMany(filter: {
-    userId?: number;
-    unreadOnly?: boolean;
-    offset?: number;
-    limit?: number;
-  }): Promise<Notification[]> {
+  /** Отбор без порядка и среза — один на ленту и на счётчик, чтобы они не разошлись. */
+  private async select(filter: NotificationsFilter): Promise<Notification[]> {
     const notifications = await this.storage.read('notifications');
+    const ids = filter.ids === undefined ? null : new Set(filter.ids);
+    const excluded = filter.excludeTypes === undefined ? null : new Set(filter.excludeTypes);
 
-    const filtered = notifications.filter((notification) => {
+    return notifications.filter((notification) => {
       if (filter.userId !== undefined && notification.userId !== filter.userId) return false;
       if (filter.unreadOnly === true && notification.readAt !== undefined) return false;
+      if (ids !== null && !ids.has(notification.id)) return false;
+      if (excluded !== null && excluded.has(notification.type)) return false;
 
       return true;
     });
+  }
+
+  async findMany(filter: NotificationsFilter): Promise<Notification[]> {
+    const selected = await this.select(filter);
 
     // Свежие первыми — порядок зашит в реализацию, вызывающий код его не задаёт.
-    const sorted = filtered.sort(compareByCreatedAtDesc);
+    const sorted = selected.sort(compareByCreatedAtDesc);
     const offset = filter.offset ?? 0;
 
     return filter.limit === undefined
@@ -251,15 +280,8 @@ export class JsonNotificationsRepository implements NotificationsRepository {
       : sorted.slice(offset, offset + filter.limit);
   }
 
-  async count(filter: { userId: number; unreadOnly?: boolean }): Promise<number> {
-    const notifications = await this.storage.read('notifications');
-
-    return notifications.filter((notification) => {
-      if (notification.userId !== filter.userId) return false;
-      if (filter.unreadOnly === true && notification.readAt !== undefined) return false;
-
-      return true;
-    }).length;
+  async count(filter: NotificationsCountFilter): Promise<number> {
+    return (await this.select(filter)).length;
   }
 
   async insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {

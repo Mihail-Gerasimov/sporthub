@@ -8,16 +8,22 @@
 // свободное место обязаны дать ровно одну запись, а не десять.
 
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Test } from '@nestjs/testing';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BookingService } from '../bookings/booking.service';
+import { LogService } from '../logs/log.service';
+import { NotificationService } from '../notifications/notification.service';
 import { PrismaBookingsRepository } from '../repositories/prisma/bookings.repository';
 import { PrismaUsersRepository } from '../repositories/prisma/crud.repository';
 import {
   PrismaClubsRepository,
   PrismaScheduleRepository,
 } from '../repositories/prisma/entities.repository';
+import { SlotContextService } from '../schedule/slot-context.service';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
-import { createTestDatabase, type TestDatabase } from './db-harness';
+import { StorageModule } from '../storage/storage.module';
+import { createTestDatabase, testDatabaseUrl, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
 
 let db: TestDatabase;
@@ -450,5 +456,107 @@ describe('Занятый адрес-ссылка', () => {
     await expect(clubs.insert(club)).rejects.toThrow(
       'Клуб с таким названием уже есть — измените название',
     );
+  });
+});
+
+/**
+ * Гонка решений по одной заявке — через СЕРВИС, а не через репозиторий.
+ *
+ * Проверка выше («два одновременных решения проходят не оба») дёргает
+ * `bookings.updateIfStatus` напрямую. Она доказывает, что условное обновление
+ * работает, — и только это. Что делает сервис, когда условное обновление вернуло
+ * пусто, она не видит вовсе: у репозитория этой ветки просто нет.
+ *
+ * А ветка есть, и она несёт обещание: проигравший узнаёт НАСТОЯЩУЮ причину отказа —
+ * ту же, что получил бы, нажми он кнопку секундой позже, — а не безличное «состояние
+ * изменилось». Ради этого сервис перечитывает запись и прогоняет по ней те же правила
+ * переходов. Здесь проверяется именно этот текст: подмена его общим отказом означала бы,
+ * что проигравшая ветка выродилась, а провайдер вместо «заявка уже подтверждена»
+ * видит «повторите действие» — и повторяет, снова и снова.
+ */
+describe('Гонка переходов записи через сервис', () => {
+  let cleanup: (() => Promise<void>) | undefined;
+
+  afterEach(async () => {
+    await cleanup?.();
+    cleanup = undefined;
+  });
+
+  /**
+   * Сервис записей со всеми зависимостями, поднятый на базе.
+   *
+   * Собирается тем же модулем данных, что и рабочий сервер: подменять хранилище
+   * заглушкой здесь нельзя вовсе — гонка живёт именно в базе.
+   */
+  async function createBookingService(): Promise<BookingService> {
+    const previousUrl = process.env.DATABASE_URL;
+    const previousStorage = process.env.SPORT_HUB_STORAGE;
+
+    // Приложение читает адрес базы из окружения — направляем его в схему прогона.
+    process.env.DATABASE_URL = testDatabaseUrl();
+    process.env.SPORT_HUB_STORAGE = 'database';
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [StorageModule],
+      providers: [SlotContextService, NotificationService, LogService, BookingService],
+    }).compile();
+
+    cleanup = async () => {
+      await moduleRef.close();
+
+      if (previousUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousUrl;
+
+      if (previousStorage === undefined) delete process.env.SPORT_HUB_STORAGE;
+      else process.env.SPORT_HUB_STORAGE = previousStorage;
+    };
+
+    return moduleRef.get(BookingService);
+  }
+
+  it('проигравший получает дословную причину отказа, а не безличный конфликт', async () => {
+    const { scheduleId, userIds } = await seedSlotWithOneSeat();
+    const bookings = new PrismaBookingsRepository(new PrismaTransactionRunner(db.service));
+    const service = await createBookingService();
+
+    const created = await bookings.insert({
+      scheduleId,
+      userId: userIds[0],
+      ownerType: 'club',
+      ownerId: 1,
+      sportId: 1,
+      date: '2026-09-01',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+      statusHistory: [],
+    } as never);
+
+    // Провайдер нажал «подтвердить» дважды — например, с двух вкладок сразу.
+    const confirm = () =>
+      service.transition({
+        bookingId: created.id,
+        to: 'confirmed',
+        actor: 'provider',
+        actorUserId: userIds[1],
+      });
+
+    const outcomes = await Promise.allSettled([confirm(), confirm()]);
+
+    expect(outcomes.filter((item) => item.status === 'fulfilled')).toHaveLength(1);
+
+    const rejected = outcomes.filter(
+      (item): item is PromiseRejectedResult => item.status === 'rejected',
+    );
+
+    expect(rejected).toHaveLength(1);
+    // Дословно тот же текст, что отдают правила переходов: заявка уже подтверждена,
+    // и подтвердить её второй раз нельзя.
+    expect((rejected[0].reason as Error).message).toBe(
+      'Недопустимый переход booking: confirmed → confirmed',
+    );
+
+    // Состояние ровно одно, история не раздвоилась.
+    expect((await bookings.findById(created.id))?.status).toBe('confirmed');
   });
 });

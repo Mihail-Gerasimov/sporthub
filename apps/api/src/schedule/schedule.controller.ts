@@ -1,10 +1,13 @@
 // Контроллер расписания.
 //
-// ⚠️ Маршрут отдаёт только слоты со свободными местами: фильтр
-// `bookedCount < capacity` стоит раньше расчёта `availableSpots`, поэтому
-// заполненный слот исчезает из выдачи целиком. Страницы личных кабинетов
+// ⚠️ Маршрут отдаёт только слоты со свободными местами: условие
+// `bookedCount < capacity` отсекает их ещё в запросе, до расчёта `availableSpots`,
+// поэтому заполненный слот исчезает из выдачи целиком. Страницы личных кабинетов
 // поэтому читали слой данных напрямую — им нужны и заполненные слоты.
 // Поведение маршрута сохранено дословно, добор для страниц сделан отдельно.
+//
+// Сам контроллер данные не отбирает и не сортирует: его дело — разобрать параметры
+// запроса, отдать их фильтру репозитория и досчитать число оставшихся мест.
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Schedule } from '@sporthub/types';
@@ -73,40 +76,32 @@ export class ScheduleController {
     const trainerId = optionalId(rawTrainerId);
     const sportId = optionalId(rawSportId);
 
-    let slots = await this.schedule.findMany({
+    // Отбор и порядок — целиком в запросе к хранилищу.
+    //
+    // ⚠️ Раньше здесь стояло пять проходов по массиву и сортировка: маршрут поднимал
+    // ВСЕ клубные слоты платформы и выбрасывал почти всё. Девять индексов таблицы
+    // расписания при этом не использовались ни разу. Условие ничем не отличается от
+    // прежнего — отличается только место, где оно выполняется.
+    //
+    // `includeFull=true` — по-прежнему необязательный признак «показать и заполненные»:
+    // страницам личных кабинетов нужны все слоты. Умолчание прежнее — только со
+    // свободными местами.
+    const slots = await this.schedule.findMany({
       ownerType: ownerType as CatalogOwnerType | 'all' | undefined,
+      clubId,
+      trainerId,
+      sportId,
+      date,
+      onlyWithFreeSeats: includeFull !== 'true',
+      order: 'dateTime',
     });
 
-    // Новый необязательный признак: страницы личных кабинетов показывают и
-    // заполненные слоты. Умолчание прежнее — только со свободными местами.
-    if (includeFull !== 'true') {
-      slots = slots.filter((slot) => slot.bookedCount < slot.capacity);
-    }
-
-    if (clubId !== undefined) {
-      slots = slots.filter((slot) => slot.clubId === clubId);
-    }
-
-    if (trainerId !== undefined) {
-      slots = slots.filter((slot) => slot.trainerId === trainerId);
-    }
-
-    if (sportId !== undefined) {
-      slots = slots.filter((slot) => slot.sportId === sportId);
-    }
-
-    if (date !== undefined) {
-      slots = slots.filter((slot) => slot.date === date);
-    }
-
-    return slots
-      .map((slot) => ({
-        ...slot,
-        availableSpots: slot.capacity - slot.bookedCount,
-      }))
-      .sort((left, right) =>
-        `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
-      );
+    // Число оставшихся мест считается при отображении, а не хранится: денормализовать
+    // его значило бы завести второй счётчик, который обязан совпадать с первым.
+    return slots.map((slot) => ({
+      ...slot,
+      availableSpots: slot.capacity - slot.bookedCount,
+    }));
   }
 }
 

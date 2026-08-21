@@ -19,6 +19,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { roleLabel as formatRoleLabel } from '@sporthub/domain';
+
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
 import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -102,14 +104,6 @@ const ACTION_TONE_CLASSES: Record<ActionTone, string> = {
   warn: 'border-[rgba(245,197,24,0.35)] bg-[rgba(245,197,24,0.08)] text-gold',
   danger: 'border-[rgba(231,76,60,0.40)] bg-[rgba(231,76,60,0.08)] text-red',
   neutral: 'border-line bg-card-2 text-ink',
-};
-
-// Тон badge для роли актора
-const ROLE_LABELS: Record<string, string> = {
-  athlete: 'Спортсмен',
-  club_owner: 'Провайдер',
-  trainer: 'Тренер',
-  admin: 'Админ',
 };
 
 // Маппинг entityType → русское название.
@@ -610,7 +604,7 @@ function LogCard({
 }) {
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
   const actionTone = ACTION_TONES[log.action] ?? 'neutral';
-  const roleLabel = ROLE_LABELS[log.actorRole] ?? log.actorRole;
+  const roleLabel = formatRoleLabel(log.actorRole);
   const entityLabel = ENTITY_TYPE_LABELS[log.entityType] ?? log.entityType;
   const metaName = log.meta?.name as string | undefined;
 

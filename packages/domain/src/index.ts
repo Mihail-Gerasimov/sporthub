@@ -16,3 +16,4 @@ export * from './trainer-sports';
 export * from './schemas/publish';
 export * from './time';
 export * from './link-status';
+export * from './role-labels';

@@ -21,6 +21,7 @@ import { cn, findBookingSlot, formatDate } from '@/lib/utils';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Schedule, Sport, Trainer } from '@sporthub/types';
+import { ATHLETE_BOOKING_STATUS_LABELS } from '@/components/profile/booking-status-labels';
 
 type ScheduleFilter = 'all' | 'active' | 'completed' | 'cancelled';
 
@@ -83,17 +84,6 @@ function formatWeekLabel(weekStart: string): string {
 
   return `${formatDate(weekStart, options)} — ${formatDate(weekEnd, options)}`;
 }
-
-const STATUS_LABEL: Record<Booking['status'], string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтверждена',
-  completed: 'Завершена',
-  no_show: 'Не пришли',
-  unmarked: 'Не отмечена',
-  rejected_by_provider: 'Отклонена',
-  cancelled_by_athlete: 'Отменена вами',
-  cancelled_by_provider: 'Отменена провайдером',
-};
 
 /** client-side превью late-cancel (сервер пересчитывает авторитетно).
  *
@@ -291,7 +281,9 @@ function BookingRow({ item, onOpen }: { item: EnrichedBooking; onOpen: () => voi
     <div className="grid gap-3 rounded-card border border-line bg-canvas p-4 md:grid-cols-[1.2fr_1fr_auto] md:items-center">
       <div>
         <div className="flex flex-wrap gap-2">
-          <Badge tone={BOOKING_STATUS_TONES[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
+          <Badge tone={BOOKING_STATUS_TONES[booking.status]}>
+            {ATHLETE_BOOKING_STATUS_LABELS[booking.status]}
+          </Badge>
         </div>
         <p className="mt-3 text-base font-semibold text-ink">{title}</p>
         <p className="mt-1 text-xs text-muted">{trainerName || clubName || 'Занятие SportHub'}</p>
@@ -395,7 +387,7 @@ function AthleteBookingDrawer({
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap gap-2">
               <Badge tone={BOOKING_STATUS_TONES[booking.status]}>
-                {STATUS_LABEL[booking.status]}
+                {ATHLETE_BOOKING_STATUS_LABELS[booking.status]}
               </Badge>
             </div>
             {slot ? (

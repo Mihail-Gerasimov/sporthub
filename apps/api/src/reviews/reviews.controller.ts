@@ -8,7 +8,6 @@
 // Уведомления идут обеим сторонам: провайдеру о полученном отзыве (кроме случая,
 // когда провайдер оценивает сам себя) и автору о публикации отзыва.
 
-import { compareByCreatedAtDesc } from '@sporthub/domain';
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import type { Review } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
@@ -108,9 +107,9 @@ export class ReviewsController {
       throw new ValidationError('Нужно указать либо clubId, либо trainerId');
     }
 
-    const reviews = await this.reviews.findMany({ clubId, trainerId });
-
-    return reviews.sort(compareByCreatedAtDesc);
+    // Порядок «свежие первыми» просит запрос, а не наводит потребитель:
+    // индексы отзывов включают метку времени в ключ, и до этого их хвост простаивал.
+    return this.reviews.findMany({ clubId, trainerId, order: 'newest' });
   }
 
   @Post()

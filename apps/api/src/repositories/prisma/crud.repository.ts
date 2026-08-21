@@ -24,16 +24,21 @@ import { Injectable } from '@nestjs/common';
 import type { LogEntry, NotificationType, ProviderClientNote, Review, User } from '@sporthub/types';
 
 import type {
+  DailyCount,
   LogsPage,
   LogsQuery,
   LogsRepository,
+  OwnerIdFilter,
   ProviderClientNotesRepository,
+  ReviewsCountFilter,
+  ReviewsFilter,
   ReviewsRepository,
   UsersRepository,
 } from '../crud.repository';
+import { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
-import { fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
+import { fromDateKey, fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 import { ConflictError } from '../../common/domain-error';
 import { isUniqueViolation } from './unique-violation';
@@ -64,6 +69,70 @@ const USER_TIMESTAMP_FIELDS = [
   'quarantineLiftedAt',
   'notifiedQuarantineUntil',
 ] as const satisfies readonly (keyof User & string)[];
+
+// --- Суточная группировка ------------------------------------------------------
+
+/**
+ * Нижняя граница дня как условие запроса.
+ *
+ * День берётся в UTC, поэтому граница — это полночь UTC того же дня, а сравнение
+ * идёт по самой колонке, а не по её преобразованию: выражение вокруг колонки
+ * отключило бы индекс по метке времени. Приведение стоит у ПАРАМЕТРА (`::timestamp`),
+ * а не у колонки, и это не косметика: колонка объявлена без пояса, а драйвер
+ * сериализует объект даты в пояс процесса — приведи мы значение на стороне
+ * драйвера, граница уехала бы на часы.
+ */
+export function sinceDayCondition(fromDate: string | undefined): Prisma.Sql {
+  return fromDate === undefined
+    ? Prisma.sql`TRUE`
+    : Prisma.sql`created_at >= ${fromDate}::timestamp`;
+}
+
+/**
+ * Группировка по дню создания — ОДНИМ запросом, по строке на день.
+ *
+ * Prisma не умеет группировать по выражению над колонкой, а группировать надо
+ * именно по дню метки времени. Поэтому здесь сырой запрос: он вернёт десятки строк
+ * там, где чтение коллекции возвращало сотни тысяч.
+ *
+ * Три решения в этих шести строках, и каждое проверялось планом:
+ *
+ * 1. **Группировка идёт по значению ДАТЫ, а перевод в строку — уже над результатом.**
+ *    Группировка сразу по `to_char` складывает строки переменной длины: сортировка
+ *    не влезает в память и уходит на диск (внешнее слияние, временные файлы) —
+ *    на полумиллионе строк это вдвое дороже. По дате ключ фиксированный, сортировка
+ *    остаётся в памяти, а форматируются только сами дни, которых десятки.
+ * 2. **Наружу отдаётся строка, а не дата.** Колонка типа даты вернулась бы объектом
+ *    даты, и драйвер разобрал бы её в поясе процесса — день уехал бы на сутки для
+ *    любого пояса западнее UTC. Нужен ровно тот же вид, что и первые десять символов
+ *    метки, поэтому перевод в строку делает база.
+ * 3. **`COUNT(*)::int`.** Без приведения счётчик приходит длинным целым, то есть
+ *    `BigInt`, и молча ломает сериализацию ответа.
+ *
+ * Отбор стоит условием по самой колонке, поэтому ложится на индекс по метке времени
+ * и берётся из него без обращения к таблице.
+ *
+ * Экспортируется вместе с `sinceDayCondition`, потому что тем же способом считает
+ * свой график записей репозиторий записей: формула дня одна на проект.
+ */
+export async function selectDailyCounts(
+  client: DatabaseClient,
+  table: Prisma.Sql,
+  condition: Prisma.Sql,
+): Promise<DailyCount[]> {
+  const rows = await client.$queryRaw<{ date: string; count: number }[]>`
+    SELECT to_char(day, 'YYYY-MM-DD') AS date, count
+      FROM (
+        SELECT created_at::date AS day, COUNT(*)::int AS count
+          FROM ${table}
+         WHERE ${condition}
+         GROUP BY 1
+      ) AS grouped
+     ORDER BY day
+  `;
+
+  return rows.map((row) => ({ date: row.date, count: Number(row.count) }));
+}
 
 // --- Журнал -------------------------------------------------------------------
 
@@ -141,6 +210,14 @@ export class PrismaLogsRepository implements LogsRepository {
     return { items: rows.map((row) => PrismaLogsRepository.toEntry(row as LogRow)), total };
   }
 
+  countByDate(query: { fromDate?: string }): Promise<DailyCount[]> {
+    // Прежде сводка читала ВЕСЬ журнал и группировала его в памяти. Журнал растёт
+    // быстрее всех таблиц и не чистится, так что ломалась бы сводка первой — не от
+    // числа пользователей, а от времени работы системы. Теперь наружу выходит
+    // по строке на день, а отбор по периоду ложится на индекс по метке времени.
+    return selectDailyCounts(this.client, Prisma.sql`logs`, sinceDayCondition(query.fromDate));
+  }
+
   async insert(entry: Omit<LogEntry, 'id' | 'createdAt'>): Promise<LogEntry> {
     const created = await this.client.logEntry.create({
       data: {
@@ -170,6 +247,20 @@ type ReviewRow = {
   text: string;
 };
 
+/**
+ * «Отзыв относится к одной из перечисленных публикаций» — одной скобкой.
+ *
+ * Адресат у отзыва ровно один, но какой именно — заранее неизвестно, поэтому
+ * условие остаётся объединением по двум колонкам. Пустой набор даёт `IN ()`,
+ * то есть условие, которому не отвечает ни одна строка, — ровно как пустое
+ * множество в файловой реализации.
+ */
+function reviewOwnerCondition(owners: OwnerIdFilter): Prisma.ReviewWhereInput {
+  return {
+    OR: [{ clubId: { in: owners.clubIds } }, { trainerId: { in: owners.trainerIds } }],
+  };
+}
+
 @Injectable()
 export class PrismaReviewsRepository implements ReviewsRepository {
   constructor(private readonly transactions: PrismaTransactionRunner) {}
@@ -197,16 +288,40 @@ export class PrismaReviewsRepository implements ReviewsRepository {
     return rows.map((row) => PrismaReviewsRepository.toReview(row));
   }
 
-  async findMany(filter: { clubId?: number; trainerId?: number }): Promise<Review[]> {
+  async findMany(filter: ReviewsFilter): Promise<Review[]> {
     const rows = await this.client.review.findMany({
       where: {
         ...(filter.clubId !== undefined ? { clubId: filter.clubId } : {}),
         ...(filter.trainerId !== undefined ? { trainerId: filter.trainerId } : {}),
       },
-      orderBy: { id: 'asc' },
+      // Порядок «свежие первыми» уходит в запрос: под него уже есть индексы
+      // `[clubId, createdAt desc]` и `[trainerId, createdAt desc]`, и до этого
+      // работал только их префикс. Тай-брейкер по номеру обязателен: при равных
+      // метках времени `ORDER BY` в базе неустойчив.
+      orderBy: filter.order === 'newest' ? [{ createdAt: 'desc' }, { id: 'desc' }] : { id: 'asc' },
     });
 
     return rows.map((row) => PrismaReviewsRepository.toReview(row));
+  }
+
+  count(filter: ReviewsCountFilter): Promise<number> {
+    const conditions: Prisma.ReviewWhereInput[] = [];
+
+    // Граница периода — по дню в UTC, то есть полночь того же дня.
+    if (filter.fromDate !== undefined) {
+      conditions.push({ createdAt: { gte: fromDateKey(filter.fromDate) } });
+    }
+
+    // Города у отзыва нет — он отбирается через свои публикации. Пустые наборы
+    // дают условие, которому не отвечает никто: это «в городе никого», а не
+    // «фильтра нет».
+    if (filter.owners !== undefined) {
+      conditions.push(reviewOwnerCondition(filter.owners));
+    }
+
+    return this.client.review.count({
+      where: conditions.length === 0 ? {} : { AND: conditions },
+    });
   }
 
   async insert(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
@@ -328,6 +443,19 @@ export class PrismaUsersRepository implements UsersRepository {
     const row = await this.client.user.findUnique({ where: { email }, include: USER_RELATIONS });
 
     return row === null ? null : PrismaUsersRepository.toUser(row as UserRow);
+  }
+
+  async countByRole(): Promise<Record<string, number>> {
+    // Считает база: сводке нужны три числа, а не таблица пользователей со всеми
+    // связями. Группировка ложится на индекс по роли, заведённый ровно под неё.
+    const rows = await this.client.user.groupBy({ by: ['role'], _count: { _all: true } });
+    const counts: Record<string, number> = {};
+
+    for (const row of rows) {
+      counts[row.role] = row._count._all;
+    }
+
+    return counts;
   }
 
   async insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {

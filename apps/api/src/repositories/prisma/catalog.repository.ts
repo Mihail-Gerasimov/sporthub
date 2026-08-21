@@ -32,6 +32,8 @@ import type { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import type {
+  NotificationsCountFilter,
+  NotificationsFilter,
   NotificationsRepository,
   OfferingsRepository,
   TrainerClubLinksRepository,
@@ -438,23 +440,28 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     });
   }
 
-  /** Условие ленты: свой пользователь и, если попросили, только непрочитанные. */
-  private static where(filter: {
-    userId?: EntityId;
-    unreadOnly?: boolean;
-  }): Prisma.NotificationWhereInput {
+  /**
+   * Условие ленты — одно на выдачу и на счётчик, чтобы они не разошлись.
+   *
+   * Отключённые типы приходят готовым списком и становятся `NOT IN`. Раньше этот
+   * отбор стоял ПОСЛЕ чтения ленты целиком, и из-за него постраничность с счётчиком
+   * тоже не могли уехать в запрос: срез по уже отфильтрованному в памяти набору
+   * невозможно выразить `LIMIT`ом. Пустой список отключённых типов условия не даёт.
+   */
+  private static where(filter: NotificationsFilter): Prisma.NotificationWhereInput {
     return {
       userId: filter.userId,
       readAt: filter.unreadOnly === true ? null : undefined,
+      // Пустой список `ids` означает «ни одного», и `IN ()` даёт ровно это.
+      id: filter.ids === undefined ? undefined : { in: filter.ids },
+      type:
+        filter.excludeTypes === undefined || filter.excludeTypes.length === 0
+          ? undefined
+          : { notIn: filter.excludeTypes },
     };
   }
 
-  async findMany(filter: {
-    userId?: EntityId;
-    unreadOnly?: boolean;
-    offset?: number;
-    limit?: number;
-  }): Promise<Notification[]> {
+  async findMany(filter: NotificationsFilter): Promise<Notification[]> {
     const rows = await this.client.notification.findMany({
       where: PrismaNotificationsRepository.where(filter),
       orderBy: NEWEST_FIRST,
@@ -467,7 +474,7 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     return rows.map((row) => PrismaNotificationsRepository.toNotification(row));
   }
 
-  count(filter: { userId: EntityId; unreadOnly?: boolean }): Promise<number> {
+  count(filter: NotificationsCountFilter): Promise<number> {
     return this.client.notification.count({
       where: PrismaNotificationsRepository.where(filter),
     });

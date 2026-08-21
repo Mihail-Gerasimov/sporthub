@@ -296,10 +296,25 @@ export class BookingService {
     // каждое чтение записей поднимало бы всю таблицу платформы ради двух статусов.
     // Набор берётся из общего словаря — новый активный статус не должен требовать
     // правки этого места.
-    const [bookings, slots] = await Promise.all([
-      this.bookings.findMany({ status: [...ACTIVE_BOOKING_STATUSES] }),
-      this.schedule.findMany({ ownerType: 'all' }),
-    ]);
+    const bookings = await this.bookings.findMany({ status: [...ACTIVE_BOOKING_STATUSES] });
+
+    // ⚠️ Слоты берутся ПО НОМЕРАМ найденных записей, а не все подряд. Прежний вызов
+    // `findMany({ ownerType: 'all' })` был выборкой без единого условия — всё расписание
+    // платформы поднималось в память на КАЖДОЕ чтение записей ради сборки Map.
+    // Записи уже отобраны по действующим статусам, значит нужны ровно те слоты,
+    // на которые они ссылаются; пустой набор номеров не доходит до хранилища вовсе.
+    //
+    // Два запроса подряд, а не параллельно: номера слотов известны только после того,
+    // как найдены записи. Это цена, которую стоит платить: параллельность экономила
+    // один обход туда-обратно, а стоила чтения всей таблицы.
+    const slotIds = [
+      ...new Set(
+        bookings
+          .map((booking) => booking.scheduleId)
+          .filter((scheduleId): scheduleId is number => typeof scheduleId === 'number'),
+      ),
+    ];
+    const slots = await this.schedule.findMany({ ownerType: 'all', ids: slotIds });
     const slotById = new Map(slots.map((slot) => [slot.id, slot]));
     const autoCancelMs = config.pending.autoCancelHoursBeforeStart * 60 * 60 * 1000;
     const unmarkMs = config.checkIn.windowHoursAfterEnd * 60 * 60 * 1000;

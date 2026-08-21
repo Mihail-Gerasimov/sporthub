@@ -25,6 +25,7 @@ import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import {
+  ROLE_LABELS,
   computeAthleteReliability,
   isAthleteInQuarantine,
   type QuarantineResult,
@@ -47,13 +48,6 @@ type StatusFilter = 'all' | 'active' | 'banned' | 'suspended';
 
 const PAGE_SIZE = 15;
 const MAX_VISIBLE_PAGE_BUTTONS = 5;
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  athlete: 'Спортсмен',
-  club_owner: 'Провайдер',
-  trainer: 'Провайдер',
-  admin: 'Администратор',
-};
 
 // Bейдж роли: атлет/провайдер — lime-fill, админ — orange-fill
 type RoleTone = 'lime-fill' | 'orange-fill';

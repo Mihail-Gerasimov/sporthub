@@ -110,9 +110,4 @@ export class PrismaTransactionRunner implements TransactionRunner {
 
     return result;
   }
-
-  /** Открыта ли сейчас транзакция. Нужно сторожу «побочные эффекты только после коммита». */
-  get isInTransaction(): boolean {
-    return this.activeTransaction.getStore() !== undefined;
-  }
 }

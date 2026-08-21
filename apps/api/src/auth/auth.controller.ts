@@ -66,12 +66,15 @@ export class AuthController {
     }
 
     const { email, accountType } = parsed.data;
-    const all = await this.users.findAll();
-    const user = all.find(
-      (candidate) => candidate.email === email && candidate.status === 'active',
-    );
+    // ⚠️ Раньше вход поднимал ВСЮ таблицу пользователей ради одной строки —
+    // цена входа росла вместе с числом зарегистрированных. Теперь это запрос
+    // по уникальному индексу почты. Неактивный пользователь отвечает тем же
+    // «не найден», что и несуществующий: почта уникальна, поэтому разделять
+    // эти два случая нечем, да и незачем — иначе ответ подсказывал бы, какие
+    // почты в системе заведены.
+    const user = await this.users.findByEmail(email);
 
-    if (!user) {
+    if (!user || user.status !== 'active') {
       throw new NotFoundError('Пользователь не найден');
     }
 

@@ -6,6 +6,13 @@
 //
 // Настройки пользователя применяются при чтении, а не при создании: выключенный
 // тип продолжает писаться в хранилище, но не показывается и не считается.
+//
+// Раньше эти настройки и мешали переносу: отбор по ним стоял ПОСЛЕ чтения ленты,
+// а значит ни постраничность, ни счётчик непрочитанных не могли уехать в запрос —
+// срез по набору, отфильтрованному в памяти, `LIMIT`ом не выражается. Теперь правило
+// домена сначала превращается в СПИСОК отключённых типов (для этого достаточно
+// одного чтения пользователя), а список — в обычное условие запроса. Репозиторий
+// при этом по-прежнему не знает ни про настройки, ни про обязательные типы.
 
 import {
   Body,
@@ -20,7 +27,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { isNotificationTypeEnabled } from '@sporthub/domain';
-import type { Notification } from '@sporthub/types';
+import type { Notification, NotificationType } from '@sporthub/types';
 import { z } from 'zod';
 
 import { NotFoundError, ValidationError } from '../common/domain-error';
@@ -75,6 +82,11 @@ export class NotificationsController {
     // Полный срез без разбора адресата: нужен сводкам личного кабинета
     // провайдера. Настройки пользователя к нему не применяются — они
     // персональные, а здесь смешаны уведомления разных людей.
+    //
+    // ⚠️ Единственное место в этом файле, где чтение осталось полным, и убрать его
+    // правкой контроллера нельзя: маршрут по контракту отдаёт всю ленту целиком,
+    // а считать длину уже прочитанного массива дешевле, чем спрашивать базу второй
+    // раз. Закрывается только вместе с потребителем — сводками кабинета провайдера.
     if (scope === 'all') {
       const all = await this.notifications.findMany({});
 
@@ -92,22 +104,34 @@ export class NotificationsController {
     const limit =
       rawLimitValue !== undefined && rawLimitValue > MAX_LIMIT ? MAX_LIMIT : rawLimitValue;
 
-    const [all, unread] = await Promise.all([
-      this.allowed(userId, { unreadOnly: onlyUnread }),
-      this.allowed(userId, { unreadOnly: true }),
+    const excludeTypes = await this.disabledTypes(userId);
+
+    // Страница, общее число и непрочитанные — тремя запросами и параллельно.
+    // Прежде это была ОДНА лента, прочитанная целиком и порезанная срезом массива,
+    // плюс вторая такая же ради счётчика непрочитанных.
+    const [items, total, unreadCount] = await Promise.all([
+      this.notifications.findMany({
+        userId,
+        unreadOnly: onlyUnread,
+        excludeTypes,
+        offset,
+        ...(limit === undefined ? {} : { limit }),
+      }),
+      this.notifications.count({ userId, unreadOnly: onlyUnread, excludeTypes }),
+      this.notifications.count({ userId, unreadOnly: true, excludeTypes }),
     ]);
 
-    const items = limit === undefined ? all.slice(offset) : all.slice(offset, offset + limit);
-
-    return { items, total: all.length, unreadCount: unread.length };
+    return { items, total, unreadCount };
   }
 
   @Get('unread-count')
   async unreadCount(@Query('userId') rawUserId?: string): Promise<{ unreadCount: number }> {
     const userId = requiredUserId(rawUserId);
-    const unread = await this.allowed(userId, { unreadOnly: true });
+    const excludeTypes = await this.disabledTypes(userId);
 
-    return { unreadCount: unread.length };
+    return {
+      unreadCount: await this.notifications.count({ userId, unreadOnly: true, excludeTypes }),
+    };
   }
 
   @Post('read-all')
@@ -142,9 +166,15 @@ export class NotificationsController {
     // Чужое уведомление отвечает тем же «не найдено», что и несуществующее:
     // иначе по коду ответа можно было бы перебирать чужие идентификаторы.
     // Настройки здесь НЕ применяются: пометить прочитанным можно и скрытое.
-    const own = await this.notifications.findMany({ userId: parsed.data.userId });
+    //
+    // Принадлежность проверяет запрос по одному номеру, а не чтение всей ленты
+    // пользователя ради поиска в ней одной строки.
+    const owned = await this.notifications.count({
+      userId: parsed.data.userId,
+      ids: [notificationId],
+    });
 
-    if (!own.some((item) => item.id === notificationId)) {
+    if (owned === 0) {
       throw new NotFoundError('Уведомление не найдено');
     }
 
@@ -159,27 +189,36 @@ export class NotificationsController {
       throw new ValidationError('Некорректное тело запроса');
     }
 
-    const own = await this.notifications.findMany({ userId: parsed.data.userId });
-    const ownIds = new Set(own.map((item) => item.id));
+    // Спрашивается только про названные номера, а не про всю ленту пользователя:
+    // чужие среди них просто не вернутся.
+    const own = await this.notifications.findMany({
+      userId: parsed.data.userId,
+      ids: parsed.data.ids,
+    });
     // Чужие идентификаторы отбрасываются молча — в ответе видно только
     // фактическое число удалённого.
-    const deleted = await this.notifications.removeMany(
-      parsed.data.ids.filter((id) => ownIds.has(id)),
-    );
+    const deleted = await this.notifications.removeMany(own.map((item) => item.id));
 
     return { deleted };
   }
 
-  /** Уведомления пользователя с учётом его настроек. */
-  private async allowed(userId: number, filter: { unreadOnly?: boolean }): Promise<Notification[]> {
-    const [items, user] = await Promise.all([
-      this.notifications.findMany({ userId, unreadOnly: filter.unreadOnly }),
-      this.users.findById(userId),
-    ]);
+  /**
+   * Типы, которые пользователь у себя выключил.
+   *
+   * Правило «включён ли тип» живёт в домене и знает про обязательные типы, которые
+   * отключить нельзя. Здесь оно применяется к тем типам, про которые у пользователя
+   * вообще есть решение, и превращается в список для условия запроса. Пользователя
+   * нет — списка нет: лента показывается целиком, как и раньше.
+   */
+  private async disabledTypes(userId: number): Promise<string[]> {
+    const user = await this.users.findById(userId);
+    const preferences = user?.notificationPreferences;
 
-    if (!user) return items;
+    if (!user || !preferences) return [];
 
-    return items.filter((item) => isNotificationTypeEnabled(user, item.type));
+    return (Object.keys(preferences) as NotificationType[]).filter(
+      (type) => !isNotificationTypeEnabled(user, type),
+    );
   }
 }
 

@@ -8,6 +8,7 @@
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { ACTIVE_BOOKING_STATUSES, ACTIVE_LINK_STATUSES } from '@sporthub/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -16,6 +17,40 @@ import { createTestDatabase, testSchemaName, type TestDatabase } from './db-harn
 import { ensureTestSchema } from './db-setup';
 
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'prisma', 'schema.prisma');
+
+/** Генератор ограничений: путь до него и форма того, что он объявляет. */
+const CONSTRAINTS_GENERATOR_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  'scripts',
+  'db-constraints.mjs',
+);
+
+type CheckSpec = { table: string; expression: string };
+type IndexSpec = { table: string; columns: string };
+
+type ConstraintsGenerator = {
+  CHECK_CONSTRAINTS: Record<string, CheckSpec>;
+  PARTIAL_UNIQUE_INDEXES: Record<string, IndexSpec>;
+  PARTIAL_INDEXES: Record<string, IndexSpec>;
+  INDEX_PREDICATES: Record<string, string>;
+};
+
+/**
+ * Поднять генератор.
+ *
+ * Путь собирается из частей намеренно: файл лежит вне `rootDir` бэкенда, и обычный
+ * импорт по строковому литералу сломал бы сборку `tsc`. Форма объявлена здесь же —
+ * это не вторая копия наборов, а описание того, что модуль отдаёт.
+ */
+async function loadConstraintsGenerator(): Promise<ConstraintsGenerator> {
+  const loaded: unknown = await import(pathToFileURL(CONSTRAINTS_GENERATOR_PATH).href);
+
+  return loaded as ConstraintsGenerator;
+}
 
 /** Физические имена из схемы Prisma: что должно оказаться в базе. */
 async function readPhysicalNames(): Promise<{ tables: string[]; columns: string[] }> {
@@ -213,5 +248,161 @@ describe('Ограничения работают, а не просто суще
         data: { name: 'САМАРА', nameNormalized: 'самара', latitude: 0, longitude: 0 },
       }),
     ).rejects.toThrow(/name_normalized/);
+  });
+});
+
+/**
+ * Генератор ограничений против того, что реально стоит в базе.
+ *
+ * `scripts/db-constraints.mjs` — единственное место, где записаны проверки целостности
+ * и предикаты частичных индексов. Но сам по себе он ни на что не влияет: собранный им
+ * SQL один раз попал в миграцию и там застыл. Значит правка генератора расходится
+ * с базой МОЛЧА — а молчаливое расхождение хуже, чем отсутствие генератора вовсе:
+ * читающий код верит, что правит базу, а не текстовый файл.
+ *
+ * Этот набор и есть недостающая связь. Он не сверяет строки «как написано»: база
+ * хранит не текст, а разобранное дерево, и печатает его по-своему — `BETWEEN`
+ * превращается в пару сравнений, перечисление — в массив. Поэтому выражения генератора
+ * накладываются на ТУ ЖЕ базу под временными именами: обе стороны проходят один разбор,
+ * и совпадение напечатанного означает совпадение смысла, а не написания.
+ *
+ * Отложенных ограничений больше нет: `schedule_booked_range` переведён в действующие
+ * вместе с миграцией `20260821_schedule_booked_range`. Отсрочка держалась на двух
+ * условиях — «счётчик мест меняется одной операцией с условием» и «проверка мест
+ * стоит внутри транзакции», — и оба выполнены.
+ */
+describe('Генератор ограничений и база', () => {
+  /** CHECK-ограничения схемы прогона: имя → таблица и разобранное базой определение. */
+  async function checksInDatabase(): Promise<Map<string, { table: string; definition: string }>> {
+    const rows = await db.prisma.$queryRaw<
+      { conname: string; relname: string; definition: string }[]
+    >`
+      SELECT c.conname, t.relname, pg_get_constraintdef(c.oid) AS definition
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = c.connamespace
+       WHERE c.contype = 'c' AND n.nspname = ${testSchemaName()}
+    `;
+
+    return new Map(
+      rows.map((row) => [row.conname, { table: row.relname, definition: row.definition }]),
+    );
+  }
+
+  /** Частичные индексы схемы прогона: имя → готовое определение из базы. */
+  async function partialIndexesInDatabase(): Promise<Map<string, string>> {
+    const rows = await db.prisma.$queryRaw<{ indexname: string; indexdef: string }[]>`
+      SELECT indexname, indexdef FROM pg_indexes
+       WHERE schemaname = ${testSchemaName()} AND indexdef LIKE '% WHERE %'
+    `;
+
+    return new Map(rows.map((row) => [row.indexname, row.indexdef]));
+  }
+
+  /** Как база понимает выражение генератора: ставим его временно и читаем разбор. */
+  async function checkAsUnderstoodByDatabase(name: string, spec: CheckSpec): Promise<string> {
+    const probe = `probe_${name}`;
+
+    try {
+      // NOT VALID — чтобы проверка не пошла по уже лежащим строкам: нас интересует
+      // разбор выражения, а не состояние данных соседних наборов.
+      await db.prisma.$executeRawUnsafe(
+        `ALTER TABLE "${spec.table}" ADD CONSTRAINT "${probe}" CHECK (${spec.expression}) NOT VALID`,
+      );
+
+      const rows = await db.prisma.$queryRaw<{ definition: string }[]>`
+        SELECT pg_get_constraintdef(c.oid) AS definition
+          FROM pg_constraint c
+          JOIN pg_namespace n ON n.oid = c.connamespace
+         WHERE n.nspname = ${testSchemaName()} AND c.conname = ${probe}
+      `;
+
+      return rows[0].definition.replace(/ NOT VALID$/, '');
+    } finally {
+      await db.prisma.$executeRawUnsafe(
+        `ALTER TABLE "${spec.table}" DROP CONSTRAINT IF EXISTS "${probe}"`,
+      );
+    }
+  }
+
+  /** То же для индекса: ставим временный по описанию генератора и читаем его определение. */
+  async function indexAsUnderstoodByDatabase(
+    name: string,
+    spec: IndexSpec,
+    predicate: string,
+    unique: boolean,
+  ): Promise<string> {
+    const probe = `probe_${name}`;
+
+    try {
+      await db.prisma.$executeRawUnsafe(
+        `CREATE ${unique ? 'UNIQUE ' : ''}INDEX "${probe}" ON "${spec.table}" (${spec.columns}) WHERE ${predicate}`,
+      );
+
+      const rows = await db.prisma.$queryRaw<{ indexdef: string }[]>`
+        SELECT indexdef FROM pg_indexes
+         WHERE schemaname = ${testSchemaName()} AND indexname = ${probe}
+      `;
+
+      // Имя временного индекса меняем на настоящее: сравнивать надо всё остальное.
+      return rows[0].indexdef.replace(probe, name);
+    } finally {
+      await db.prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${probe}"`);
+    }
+  }
+
+  it('в базе стоят ровно те проверки целостности, которые объявил генератор', async () => {
+    const { CHECK_CONSTRAINTS } = await loadConstraintsGenerator();
+    const actual = await checksInDatabase();
+
+    expect([...actual.keys()].sort()).toEqual(Object.keys(CHECK_CONSTRAINTS).sort());
+  });
+
+  it('каждая проверка стоит на объявленной таблице и означает то же, что в генераторе', async () => {
+    const { CHECK_CONSTRAINTS } = await loadConstraintsGenerator();
+    const actual = await checksInDatabase();
+
+    for (const [name, spec] of Object.entries(CHECK_CONSTRAINTS)) {
+      const inDatabase = actual.get(name);
+
+      expect(inDatabase, `проверки ${name} нет в базе`).toBeDefined();
+      expect(inDatabase?.table, `проверка ${name} стоит не на той таблице`).toBe(spec.table);
+      expect(await checkAsUnderstoodByDatabase(name, spec), `проверка ${name} разошлась`).toBe(
+        inDatabase?.definition,
+      );
+    }
+  });
+
+  it('в базе стоят ровно те частичные индексы, которые объявил генератор', async () => {
+    const { PARTIAL_UNIQUE_INDEXES, PARTIAL_INDEXES } = await loadConstraintsGenerator();
+    const declared = [...Object.keys(PARTIAL_UNIQUE_INDEXES), ...Object.keys(PARTIAL_INDEXES)];
+    const actual = await partialIndexesInDatabase();
+
+    expect([...actual.keys()].sort()).toEqual(declared.sort());
+  });
+
+  it('каждый частичный индекс собран из тех же колонок и того же предиката', async () => {
+    const { PARTIAL_UNIQUE_INDEXES, PARTIAL_INDEXES, INDEX_PREDICATES } =
+      await loadConstraintsGenerator();
+    const actual = await partialIndexesInDatabase();
+
+    const declared: [string, IndexSpec, boolean][] = [
+      ...Object.entries(PARTIAL_UNIQUE_INDEXES).map(
+        ([name, spec]) => [name, spec, true] as [string, IndexSpec, boolean],
+      ),
+      ...Object.entries(PARTIAL_INDEXES).map(
+        ([name, spec]) => [name, spec, false] as [string, IndexSpec, boolean],
+      ),
+    ];
+
+    for (const [name, spec, unique] of declared) {
+      const inDatabase = actual.get(name);
+
+      expect(inDatabase, `индекса ${name} нет в базе`).toBeDefined();
+      expect(
+        await indexAsUnderstoodByDatabase(name, spec, INDEX_PREDICATES[name], unique),
+        `индекс ${name} разошёлся`,
+      ).toBe(inDatabase);
+    }
   });
 });

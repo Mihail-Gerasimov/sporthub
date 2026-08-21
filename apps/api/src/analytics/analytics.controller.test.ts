@@ -291,6 +291,26 @@ describe('Сводка платформы', () => {
           entityType: 'booking',
           entityId: 1,
         },
+        // Второе событие того же дня и одно событие соседнего: без них график
+        // выглядел бы одинаково и при свёртке по дням, и без неё.
+        {
+          id: 2,
+          createdAt: '2026-03-01T22:00:00.000Z',
+          action: 'admin_login',
+          actorId: 3,
+          actorRole: 'admin',
+          entityType: 'user',
+          entityId: 3,
+        },
+        {
+          id: 3,
+          createdAt: '2026-03-02T09:00:00.000Z',
+          action: 'admin_login',
+          actorId: 3,
+          actorRole: 'admin',
+          entityType: 'user',
+          entityId: 3,
+        },
       ],
     });
   });
@@ -382,5 +402,34 @@ describe('Сводка платформы', () => {
 
     expect(response.body.data.topEntities).toHaveLength(2);
     expect(response.body.data.topEntities[0].bookings).toBe(1);
+  });
+
+  it('журнал приходит свёрнутым по дням и по возрастанию', async () => {
+    const response = await request(server()).get('/api/analytics');
+
+    // Три события за два дня дают ДВЕ строки, а не три: свёртку делает хранилище.
+    // Дни идут по возрастанию — так их рисует график.
+    expect(response.body.data.platformActivity).toEqual([
+      { date: '2026-03-01', count: 2 },
+      { date: '2026-03-02', count: 1 },
+    ]);
+  });
+
+  it('график записей считается по дню создания, а не по дню занятия', async () => {
+    const response = await request(server()).get('/api/analytics');
+
+    // Занятие у обеих записей одно — 18 марта, а созданы они 1 и 2 марта.
+    expect(response.body.data.bookingsByDate).toEqual([
+      { date: '2026-03-01', count: 1 },
+      { date: '2026-03-02', count: 1 },
+    ]);
+  });
+
+  it('пустой журнал даёт пустой график, а не строку с нулём', async () => {
+    await harness.write('logs', []);
+
+    const response = await request(server()).get('/api/analytics');
+
+    expect(response.body.data.platformActivity).toEqual([]);
   });
 });

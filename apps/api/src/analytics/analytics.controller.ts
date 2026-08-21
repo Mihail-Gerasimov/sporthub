@@ -1,17 +1,33 @@
 // Сводка платформы для админского раздела.
 //
-// Единственный маршрут, который читает все коллекции разом. Порядок фильтров
-// важен: город сначала отбирает клубы и тренеров, а записи, слоты и отзывы
-// отбираются уже по ним — у них своего города нет.
+// Порядок фильтров важен: город сначала отбирает клубы и тренеров, а записи, слоты
+// и отзывы отбираются уже по ним — своего города у них нет.
+//
+// Считают здесь ЗАПРОСЫ, а не циклы. Раньше маршрут читал восемь коллекций целиком,
+// включая весь журнал платформы и все записи с историей переходов, и складывал
+// пятнадцать фильтров, группировок и сортировок в памяти. Сводка ломалась бы не от
+// числа пользователей, а от времени работы системы: журнал растёт быстрее всех
+// и не чистится. Теперь каждое число — `count` или группировка на стороне хранилища.
+//
+// Что осталось чтением коллекции и почему:
+//
+// - Клубы и тренеры читаются целиком, потому что из них же берутся названия и рейтинги
+//   верхушки. Скрытые публикации отсекает запрос (`excludeHidden`); отбор по городу
+//   и виду спорта остаётся в памяти — методов под него у репозитория публикаций нет.
+// - Расписание читается целиком ради средней загрузки слотов: сумма занятых и общей
+//   вместимости — тоже группировка, но в репозитории расписания её пока нет.
+//
+// Обе оставшиеся строки — не «так и надо», а известный незакрытый хвост.
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { DEFAULT_TIME_ZONE } from '@sporthub/types';
-import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
+import type { Club, Schedule, Trainer } from '@sporthub/types';
 
-import type { BookingsRepository } from '../repositories/bookings.repository';
+import type { BookingsCountFilter, BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
   LogsRepository,
+  OwnerIdFilter,
   ReviewsRepository,
   UsersRepository,
 } from '../repositories/crud.repository';
@@ -68,29 +84,6 @@ function getFromDate(period: Period, now: Date = new Date()): string | null {
 /** Точка входа для тестов: граница периода — единственное, что здесь стоит проверять. */
 export const getFromDateForTests = getFromDate;
 
-function extractDate(isoString: string): string {
-  return isoString.slice(0, 10);
-}
-
-function groupByDate(
-  items: { createdAt: string }[],
-  fromDate: string | null,
-): { date: string; count: number }[] {
-  const counts = new Map<string, number>();
-
-  for (const item of items) {
-    const date = extractDate(item.createdAt);
-
-    if (fromDate && date < fromDate) continue;
-
-    counts.set(date, (counts.get(date) ?? 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .map(([date, count]) => ({ date, count }))
-    .sort((left, right) => left.date.localeCompare(right.date));
-}
-
 @Controller('analytics')
 export class AnalyticsController {
   constructor(
@@ -116,27 +109,26 @@ export class AnalyticsController {
     const sportId = rawSportId ? Number(rawSportId) : null;
     const fromDate = getFromDate(period);
 
-    const [users, allClubs, allTrainers, allBookings, allReviews, allSchedule, sports, logs] =
-      await Promise.all([
-        this.users.findAll(),
-        this.clubs.findAll(),
-        this.trainers.findAll(),
-        this.bookings.findAll(),
-        this.reviews.findAll(),
-        this.schedule.findMany({ ownerType: 'all' }),
-        this.sports.findAll(),
-        this.logs.findAll(),
-      ]);
+    // Первая волна: всё, что не зависит от отобранных публикаций.
+    //
+    // Скрытые публикации отсекает ЗАПРОС, а не фильтр после чтения: это вторая линия
+    // защиты поверх самих выдач, и тянуть скрытое из хранилища ради его выбрасывания
+    // незачем.
+    const [allClubs, allTrainers, roleCounts, platformActivity, sports] = await Promise.all([
+      this.clubs.findAll({ excludeHidden: true }),
+      this.trainers.findAll({ excludeHidden: true }),
+      this.users.countByRole(),
+      this.logs.countByDate({ fromDate: fromDate ?? undefined }),
+      this.sports.findAll(),
+    ]);
 
-    // Скрытые публикации не попадают в сводку — вторая линия защиты поверх
-    // фильтра в самих выдачах.
-    let clubs = allClubs.filter((club: Club) => club.status !== 'hidden');
-    let trainers = allTrainers.filter((trainer: Trainer) => trainer.status !== 'hidden');
+    let clubs = allClubs;
+    let trainers = allTrainers;
 
     if (city) {
-      clubs = clubs.filter((club) => club.city === city);
+      clubs = clubs.filter((club: Club) => club.city === city);
       // Тренер без города показывается во всех городах.
-      trainers = trainers.filter((trainer) => !trainer.city || trainer.city === city);
+      trainers = trainers.filter((trainer: Trainer) => !trainer.city || trainer.city === city);
     }
 
     if (sportId) {
@@ -144,102 +136,75 @@ export class AnalyticsController {
       trainers = trainers.filter((trainer) => trainer.sportIds.includes(sportId));
     }
 
-    let bookings = allBookings;
+    // Записи, слоты и отзывы города не знают — берём их через уже отобранные
+    // клубы и тренеров. Ограничение появляется ТОЛЬКО при отборе по городу:
+    // без него скрытая публикация со своими записями считалась и раньше.
+    const owners: OwnerIdFilter | undefined = city
+      ? { clubIds: clubs.map((club) => club.id), trainerIds: trainers.map((trainer) => trainer.id) }
+      : undefined;
 
-    if (fromDate) {
-      bookings = bookings.filter((booking) => extractDate(booking.createdAt) >= fromDate);
-    }
-
-    if (sportId) {
-      bookings = bookings.filter((booking) => booking.sportId === sportId);
-    }
-
-    let schedule = allSchedule;
-
-    if (sportId) {
-      schedule = schedule.filter((slot) => slot.sportId === sportId);
-    }
-
-    let reviews = allReviews;
-
-    if (fromDate) {
-      reviews = reviews.filter((review) => extractDate(review.createdAt) >= fromDate);
-    }
-
-    if (city) {
-      // Записи, слоты и отзывы города не знают — берём их через уже отобранные
-      // клубы и тренеров.
-      const clubIds = new Set(clubs.map((club) => club.id));
-      const trainerIds = new Set(trainers.map((trainer) => trainer.id));
-
-      bookings = bookings.filter(
-        (booking) =>
-          (booking.clubId !== undefined && clubIds.has(booking.clubId)) ||
-          (booking.trainerId !== undefined && trainerIds.has(booking.trainerId)),
-      );
-      schedule = schedule.filter(
-        (slot: Schedule) =>
-          (slot.clubId !== undefined && clubIds.has(slot.clubId)) ||
-          (slot.trainerId !== undefined && trainerIds.has(slot.trainerId)),
-      );
-      reviews = reviews.filter(
-        (review) =>
-          (review.clubId !== undefined && clubIds.has(review.clubId)) ||
-          (review.trainerId !== undefined && trainerIds.has(review.trainerId)),
-      );
-    }
-
-    const withCapacity = schedule.filter((slot) => slot.capacity > 0);
-    const totalBooked = withCapacity.reduce((sum, slot) => sum + slot.bookedCount, 0);
-    const totalCapacity = withCapacity.reduce((sum, slot) => sum + slot.capacity, 0);
-
-    const kpi = {
-      totalUsers: users.length,
-      totalAthletes: users.filter((user) => user.role === 'athlete').length,
-      totalProviders: users.filter((user) => user.role === 'club_owner' || user.role === 'trainer')
-        .length,
-      totalClubs: clubs.length,
-      totalTrainers: trainers.length,
-      totalBookings: bookings.length,
-      totalReviews: reviews.length,
-      averageSlotLoad: totalCapacity > 0 ? totalBooked / totalCapacity : 0,
+    const bookingsFilter: BookingsCountFilter = {
+      ...(fromDate === null ? {} : { createdFrom: fromDate }),
+      ...(sportId ? { sportId } : {}),
+      ...(owners === undefined ? {} : { owners }),
     };
 
-    const sportCounts = new Map<number, number>();
+    // Вторая волна: шесть чисел и три группировки — все на стороне хранилища.
+    const [totalBookings, bookingsByDate, sportCounts, ownerCounts, totalReviews, seats] =
+      await Promise.all([
+        this.bookings.count(bookingsFilter),
+        this.bookings.countByCreatedDay(bookingsFilter),
+        this.bookings.countBySport(bookingsFilter),
+        this.bookings.countByOwner(bookingsFilter),
+        this.reviews.count({
+          ...(fromDate === null ? {} : { fromDate }),
+          ...(owners === undefined ? {} : { owners }),
+        }),
+        // ⚠️ Средняя загрузка — две суммы, и ради них поднималось ВСЁ расписание
+        // платформы. Расписание растёт со временем работы, а не с числом
+        // пользователей, поэтому сводка ломалась бы первой и без всякого роста
+        // аудитории. Теперь это агрегат в запросе.
+        this.schedule.sumSeats({
+          ownerType: 'all',
+          ...(sportId ? { sportId } : {}),
+          ...(owners === undefined ? {} : { owners }),
+        }),
+      ]);
 
-    for (const booking of bookings) {
-      sportCounts.set(booking.sportId, (sportCounts.get(booking.sportId) ?? 0) + 1);
-    }
+    // Роли, которых нет ни у кого, в ответе группировки отсутствуют — отсюда `?? 0`.
+    const roleCount = (role: string): number => roleCounts[role] ?? 0;
 
-    const sportPopularity = [...sportCounts.entries()]
-      .map(([id, count]) => ({
+    const kpi = {
+      totalUsers: Object.values(roleCounts).reduce((sum, count) => sum + count, 0),
+      totalAthletes: roleCount('athlete'),
+      totalProviders: roleCount('club_owner') + roleCount('trainer'),
+      totalClubs: clubs.length,
+      totalTrainers: trainers.length,
+      totalBookings,
+      totalReviews,
+      averageSlotLoad: seats.capacity > 0 ? seats.booked / seats.capacity : 0,
+    };
+
+    // Ранжирование остаётся здесь, и это не недоделка. Сортировка устойчивая:
+    // при равном числе записей порядок задаёт выдача группировки (номер первой
+    // записи вида спорта), и оба хранилища дают его одинаково.
+    const sportPopularity = sportCounts
+      .map(({ sportId: id, count }) => ({
         sportId: id,
         sportName: sports.find((sport) => sport.id === id)?.name ?? `Sport #${id}`,
         count,
       }))
       .sort((left, right) => right.count - left.count);
 
-    const entityCounts = new Map<string, number>();
-
-    for (const booking of bookings as Booking[]) {
-      if (booking.clubId) {
-        const key = `club:${booking.clubId}`;
-        entityCounts.set(key, (entityCounts.get(key) ?? 0) + 1);
-      }
-
-      if (booking.trainerId) {
-        const key = `trainer:${booking.trainerId}`;
-        entityCounts.set(key, (entityCounts.get(key) ?? 0) + 1);
-      }
-    }
-
-    // Названия берутся из уже отфильтрованных наборов: иначе при отборе
-    // по городу в верхушку попали бы чужие города.
-    const topEntities = [...entityCounts.entries()]
-      .map(([key, count]) => {
-        const [type, rawId] = key.split(':');
-        const id = Number(rawId);
-
+    // Названия и рейтинги берутся из уже отфильтрованных наборов: иначе при отборе
+    // по городу в верхушку попали бы чужие города. Поэтому и ранжирование здесь,
+    // а не в запросе — рейтинг у публикации вне отбора считается нулевым, и вытащить
+    // это правило в группировку по записям нечем.
+    //
+    // Сортируется набор размером с каталог, а не с таблицей записей: группировка
+    // уже свернула миллионы строк в строку на публикацию.
+    const topEntities = ownerCounts
+      .map(({ type, id, count }) => {
         if (type === 'club') {
           const club = clubs.find((candidate) => candidate.id === id);
 
@@ -267,10 +232,10 @@ export class AnalyticsController {
 
     return {
       kpi,
-      bookingsByDate: groupByDate(bookings, null),
+      bookingsByDate,
       sportPopularity,
       topEntities,
-      platformActivity: groupByDate(logs, fromDate),
+      platformActivity,
     };
   }
 }

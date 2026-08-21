@@ -68,6 +68,22 @@ describe('Маршруты входа и регистрации', () => {
     expect(response.body.error).toMatch(/не найден/i);
   });
 
+  it('заблокированный пользователь не входит — 404, как и неизвестная почта', async () => {
+    // Закрепляет поведение до перевода входа на поиск по почте: почта уникальна,
+    // поэтому «нашли строку, но она неактивна» обязано отвечать так же, как
+    // «строки нет вовсе» — иначе ответ подсказывал бы, что такая почта заведена.
+    await harness.write('users', [
+      { ...user(1, 'athlete', 'athlete@test.local'), status: 'blocked' },
+    ]);
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'athlete@test.local', accountType: 'athlete' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toMatch(/не найден/i);
+  });
+
   it('несовпадение типа кабинета — 403', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')

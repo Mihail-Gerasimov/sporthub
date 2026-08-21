@@ -11,6 +11,7 @@ import {
   getScheduleTrainerId,
 } from '@/lib/utils';
 import type { Booking, Club, Review, Schedule, Trainer, User } from '@sporthub/types';
+import { PROVIDER_BOOKING_STATUS_LABELS } from '@/components/profile/booking-status-labels';
 
 /** Сводка KPI провайдера для дэшборда */
 export type ProviderSummary = {
@@ -49,19 +50,6 @@ type GetProviderIncomingBookingsInput = {
   todayDateKey?: string;
   trainers?: Trainer[];
   users?: User[];
-};
-
-// Phase 24: лейблы для всех 8 значений BookingStatus.
-// Временные тексты для новых FSM-статусов — финальная UX-формулировка в Step 24.13 (Reliability UI).
-const BOOKING_STATUS_LABELS: Record<Booking['status'], string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтверждена',
-  completed: 'Завершена',
-  no_show: 'Не пришёл',
-  unmarked: 'Не отмечено',
-  rejected_by_provider: 'Отклонена',
-  cancelled_by_athlete: 'Отменена спортсменом',
-  cancelled_by_provider: 'Отменена вами',
 };
 
 const PAYMENT_STATUS_LABELS: Record<Booking['paymentStatus'], string> = {
@@ -227,7 +215,7 @@ export function getProviderIncomingBookings(
         }),
         paymentLabel: PAYMENT_STATUS_LABELS[booking.paymentStatus],
         startTime,
-        statusLabel: BOOKING_STATUS_LABELS[booking.status],
+        statusLabel: PROVIDER_BOOKING_STATUS_LABELS[booking.status],
         statusTone: BOOKING_STATUS_TONES[booking.status],
         timeLabel: getProviderBookingTimeLabel(slot),
         title: slot?.title ?? 'Занятие SportHub',

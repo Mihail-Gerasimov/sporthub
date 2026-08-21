@@ -24,8 +24,15 @@
 import { Injectable } from '@nestjs/common';
 import type { Booking, BookingStatus, BookingStatusTransition } from '@sporthub/types';
 
-import type { BookingsFilter, BookingsRepository } from '../bookings.repository';
-import type { Prisma } from '../../storage/prisma-client/client';
+import type {
+  BookingsCountFilter,
+  BookingsFilter,
+  BookingsRepository,
+  OwnerBookingCount,
+  SportBookingCount,
+} from '../bookings.repository';
+import type { DailyCount, OwnerIdFilter } from '../crud.repository';
+import { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import {
@@ -37,6 +44,7 @@ import {
   toIsoString,
   toNullable,
 } from '../prisma-mappers';
+import { selectDailyCounts, sinceDayCondition } from './crud.repository';
 import { fromOwnerRef, toOwnerRef } from './owner-columns';
 import { copyErasable, copyPresent, hasKey } from './patch';
 import { isUniqueViolation } from './unique-violation';
@@ -103,6 +111,19 @@ const BOOKING_ERASABLE_FIELDS = [
   'cancelledBy',
   'cancelReason',
 ] as const satisfies readonly (keyof Booking & string)[];
+
+/**
+ * Принадлежность колонки набору значений для сырых запросов.
+ *
+ * Пустой набор превращается в `FALSE`, а не в `IN ()`: последнее — синтаксическая
+ * ошибка, а по смыслу пустой набор означает «не подходит никто». Ровно так же
+ * ведёт себя пустое множество в файловой реализации.
+ */
+function inValues(column: Prisma.Sql, values: (number | string)[]): Prisma.Sql {
+  return values.length === 0
+    ? Prisma.sql`FALSE`
+    : Prisma.sql`${column} IN (${Prisma.join(values)})`;
+}
 
 @Injectable()
 export class PrismaBookingsRepository implements BookingsRepository {
@@ -198,6 +219,20 @@ export class PrismaBookingsRepository implements BookingsRepository {
       });
     }
 
+    if (filter.sportId !== undefined) conditions.push({ sportId: filter.sportId });
+
+    if (filter.createdFrom !== undefined) {
+      // Граница периода — по ДНЮ создания в UTC, то есть полночь того же дня.
+      conditions.push({ createdAt: { gte: fromDateKey(filter.createdFrom) } });
+    }
+
+    if (filter.owners !== undefined) {
+      // Города у записи нет — она отбирается через свои публикации. Все четыре
+      // варианта в ОДНОЙ скобке: клуб и тренер здесь не два условия подряд,
+      // а два способа подойти под одно.
+      conditions.push(PrismaBookingsRepository.ownerCondition(filter.owners));
+    }
+
     const date: Record<string, Date> = {};
 
     if (filter.dateFrom !== undefined) date.gte = fromDateKey(filter.dateFrom);
@@ -206,6 +241,88 @@ export class PrismaBookingsRepository implements BookingsRepository {
     if (Object.keys(date).length > 0) conditions.push({ date });
 
     return conditions.length === 0 ? {} : { AND: conditions };
+  }
+
+  /**
+   * «Запись относится к одной из перечисленных публикаций» — одной скобкой.
+   *
+   * Колонок четыре, потому что клуб записи — это владелец ЛИБО площадка, а тренер —
+   * владелец ЛИБО ведущий. Пустой набор даёт `IN ()`, то есть условие, которому
+   * не отвечает ни одна строка: «в городе никого» — это не «фильтра нет».
+   */
+  private static ownerCondition(owners: OwnerIdFilter): Record<string, unknown> {
+    return {
+      OR: [
+        { ownerClubId: { in: owners.clubIds } },
+        { venueClubId: { in: owners.clubIds } },
+        { ownerTrainerId: { in: owners.trainerIds } },
+        { conductedByTrainerId: { in: owners.trainerIds } },
+      ],
+    };
+  }
+
+  /**
+   * Тот же отбор, но выражением SQL.
+   *
+   * ⚠️ Второй вид ОДНОГО набора условий, и это осознанная плата. Группировать по дню
+   * метки времени построитель запросов Prisma не умеет вовсе — только по колонке,
+   * а нужен день, — поэтому три подсчёта уходят в сырой запрос и берут условие
+   * отсюда. Оба вида ОБЯЗАНЫ означать одно и то же: правка `toWhere` без правки
+   * этого метода — дефект, а не мелочь.
+   *
+   * Расхождение ловится не глазами: контрактный набор прогоняет один и тот же отбор
+   * через `count` (построитель Prisma) и через `countByCreatedDay` (этот метод)
+   * и требует, чтобы сумма по дням совпала с общим числом.
+   */
+  private static toSqlCondition(filter: BookingsCountFilter): Prisma.Sql {
+    const parts: Prisma.Sql[] = [];
+
+    if (filter.userId !== undefined) parts.push(Prisma.sql`user_id = ${filter.userId}`);
+
+    if (filter.scheduleId !== undefined) {
+      parts.push(Prisma.sql`schedule_id = ${filter.scheduleId}`);
+    }
+
+    if (filter.status !== undefined) {
+      const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
+
+      parts.push(inValues(Prisma.sql`status`, statuses));
+    }
+
+    if (filter.clubId !== undefined) {
+      parts.push(
+        Prisma.sql`(owner_club_id = ${filter.clubId} OR venue_club_id = ${filter.clubId})`,
+      );
+    }
+
+    if (filter.trainerId !== undefined) {
+      parts.push(
+        Prisma.sql`(owner_trainer_id = ${filter.trainerId} OR conducted_by_trainer_id = ${filter.trainerId})`,
+      );
+    }
+
+    // День занятия — колонка типа даты; строка приводится у параметра, как и везде.
+    if (filter.dateFrom !== undefined) parts.push(Prisma.sql`date >= ${filter.dateFrom}::date`);
+    if (filter.dateTo !== undefined) parts.push(Prisma.sql`date <= ${filter.dateTo}::date`);
+
+    if (filter.sportId !== undefined) parts.push(Prisma.sql`sport_id = ${filter.sportId}`);
+
+    if (filter.createdFrom !== undefined) {
+      parts.push(sinceDayCondition(filter.createdFrom));
+    }
+
+    if (filter.owners !== undefined) {
+      const { clubIds, trainerIds } = filter.owners;
+
+      parts.push(
+        Prisma.sql`(${inValues(Prisma.sql`owner_club_id`, clubIds)}
+                 OR ${inValues(Prisma.sql`venue_club_id`, clubIds)}
+                 OR ${inValues(Prisma.sql`owner_trainer_id`, trainerIds)}
+                 OR ${inValues(Prisma.sql`conducted_by_trainer_id`, trainerIds)})`,
+      );
+    }
+
+    return parts.length === 0 ? Prisma.sql`TRUE` : Prisma.join(parts, ' AND ');
   }
 
   /** Порядок выдачи — всегда явный, иначе страница зависела бы от плана запроса. */
@@ -240,6 +357,78 @@ export class PrismaBookingsRepository implements BookingsRepository {
     });
 
     return rows.map((row) => PrismaBookingsRepository.toBooking(row as BookingRow));
+  }
+
+  count(filter: BookingsCountFilter): Promise<number> {
+    // Считает база. Прежде сводка читала ВСЕ записи платформы вместе с историей
+    // переходов каждой — ради одного числа на карточке.
+    return this.client.booking.count({ where: PrismaBookingsRepository.toWhere(filter) });
+  }
+
+  countByCreatedDay(filter: BookingsCountFilter): Promise<DailyCount[]> {
+    return selectDailyCounts(
+      this.client,
+      Prisma.sql`bookings`,
+      PrismaBookingsRepository.toSqlCondition(filter),
+    );
+  }
+
+  async countBySport(filter: BookingsCountFilter): Promise<SportBookingCount[]> {
+    // `ORDER BY MIN(id)` — тот самый «порядок первого появления» из контракта:
+    // потребитель ранжирует выдачу устойчивой сортировкой по числу записей,
+    // и при равных числах порядок решает именно этот ключ.
+    const rows = await this.client.$queryRaw<{ sportId: number; count: number }[]>`
+      SELECT sport_id AS "sportId", COUNT(*)::int AS count
+        FROM bookings
+       WHERE ${PrismaBookingsRepository.toSqlCondition(filter)}
+       GROUP BY sport_id
+       ORDER BY MIN(id)
+    `;
+
+    return rows.map((row) => ({ sportId: row.sportId, count: Number(row.count) }));
+  }
+
+  async countByOwner(filter: BookingsCountFilter): Promise<OwnerBookingCount[]> {
+    const condition = PrismaBookingsRepository.toSqlCondition(filter);
+    // Две группировки одной выдачей. Клуб записи — владелец ЛИБО площадка, тренер —
+    // владелец ЛИБО ведущий, поэтому счёт идёт по `COALESCE`, а не по одной колонке:
+    // иначе записи на тренерские занятия в чужом зале не попали бы в счётчик клуба.
+    //
+    // Одна запись законно попадает в ОБЕ половины — и к клубу, и к тренеру, — как
+    // и в прежнем обходе выдачи. `UNION ALL`, а не `UNION`: снятие дублей здесь
+    // склеило бы разные публикации с одинаковым числом записей.
+    const rows = await this.client.$queryRaw<
+      { ownerType: string; ownerId: number; count: number }[]
+    >`
+      SELECT owner_type AS "ownerType", owner_id AS "ownerId", count
+        FROM (
+          SELECT 'club' AS owner_type,
+                 COALESCE(owner_club_id, venue_club_id) AS owner_id,
+                 COUNT(*)::int AS count,
+                 MIN(id) AS first_id
+            FROM bookings
+           WHERE (${condition}) AND COALESCE(owner_club_id, venue_club_id) IS NOT NULL
+           GROUP BY 1, 2
+          UNION ALL
+          SELECT 'trainer' AS owner_type,
+                 COALESCE(owner_trainer_id, conducted_by_trainer_id) AS owner_id,
+                 COUNT(*)::int AS count,
+                 MIN(id) AS first_id
+            FROM bookings
+           WHERE (${condition})
+             AND COALESCE(owner_trainer_id, conducted_by_trainer_id) IS NOT NULL
+           GROUP BY 1, 2
+        ) AS grouped
+       ORDER BY first_id, owner_type
+    `;
+
+    // Порядок задан запросом: сначала номер первой записи, затем вид. «club» перед
+    // «trainer» по алфавиту — это и есть правило «в одной записи клуб идёт раньше».
+    return rows.map((row) => ({
+      type: row.ownerType as OwnerBookingCount['type'],
+      id: row.ownerId,
+      count: Number(row.count),
+    }));
   }
 
   async insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking> {

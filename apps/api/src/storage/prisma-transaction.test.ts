@@ -105,18 +105,14 @@ describe('Транзакция', () => {
     await transactions.client.sport.create({ data: sport('Бокс') });
 
     expect(await db.prisma.sport.count()).toBe(1);
-    expect(transactions.isInTransaction).toBe(false);
   });
 
-  it('знает, открыта ли транзакция прямо сейчас', async () => {
-    expect(transactions.isInTransaction).toBe(false);
-
-    await transactions.runInTransaction(async () => {
-      expect(transactions.isInTransaction).toBe(true);
-    });
-
-    expect(transactions.isInTransaction).toBe(false);
-  });
+  // Проверки геттера «открыта ли транзакция» здесь больше нет вместе с самим
+  // геттером: у него не было ни одного потребителя в рабочем коде — только эти
+  // проверки. Метод существовал ради теста, тест ради метода, и правило
+  // «никаких абстракций без второго потребителя» этот круг запрещает.
+  // Само присоединение к открытой транзакции проверяется наборами выше,
+  // по наблюдаемому поведению: вложенный вызов пишет в ту же транзакцию.
 });
 
 describe('Побочные эффекты после коммита', () => {

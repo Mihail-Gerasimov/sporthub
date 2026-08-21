@@ -6,7 +6,6 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
-import { compareByCreatedAtDesc } from '@sporthub/domain';
 import type { Booking, Club, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
@@ -120,11 +119,14 @@ export class CatalogQueryService {
     minRating?: number;
     includeHidden?: boolean;
   }): Promise<Club[]> {
-    let clubs = await this.clubs.findAll({ excludeHidden: !filter.includeHidden });
-
-    if (filter.sportId !== undefined) {
-      clubs = clubs.filter((club) => club.sportIds.includes(filter.sportId as number));
-    }
+    // Вид спорта и рейтинг — условия запроса: под них есть связующая таблица
+    // и индекс с рейтингом в ключе. Раньше оба отсеивались уже после того, как
+    // из базы поднялась вся таблица публикаций.
+    let clubs = await this.clubs.findAll({
+      excludeHidden: !filter.includeHidden,
+      sportId: filter.sportId,
+      minRating: filter.minRating,
+    });
 
     if (filter.search !== undefined) {
       // Поиск идёт и по названиям тегов, поэтому справочник подтягивается.
@@ -147,10 +149,6 @@ export class CatalogQueryService {
       });
     }
 
-    if (filter.minRating !== undefined) {
-      clubs = clubs.filter((club) => club.rating >= (filter.minRating as number));
-    }
-
     return clubs;
   }
 
@@ -159,23 +157,25 @@ export class CatalogQueryService {
     sportId?: number;
     includeHidden?: boolean;
   }): Promise<Trainer[]> {
-    let trainers = await this.trainers.findAll({ excludeHidden: !filter.includeHidden });
+    // Тренеры клуба — только через подтверждённую связь. Номера берутся ПЕРВЫМ
+    // запросом и уходят условием во второй: раньше поднимались все тренеры
+    // платформы и отсеивались по множеству в памяти.
+    let ids: number[] | undefined;
 
     if (filter.clubId !== undefined) {
-      // Тренеры клуба — только через подтверждённую связь.
       const confirmed = await this.links.findMany({
         clubId: filter.clubId,
         status: 'confirmed',
       });
-      const ids = new Set(confirmed.map((link) => link.trainerId));
-      trainers = trainers.filter((trainer) => ids.has(trainer.id));
+
+      ids = [...new Set(confirmed.map((link) => link.trainerId))];
     }
 
-    if (filter.sportId !== undefined) {
-      trainers = trainers.filter((trainer) => trainer.sportIds.includes(filter.sportId as number));
-    }
-
-    return trainers;
+    return this.trainers.findAll({
+      excludeHidden: !filter.includeHidden,
+      ids,
+      sportId: filter.sportId,
+    });
   }
 
   /** Детальная карточка клуба: тренеры через связи, расписание и отзывы по времени. */
@@ -184,32 +184,31 @@ export class CatalogQueryService {
 
     if (!club) return null;
 
-    const [primaryOffering, allTrainers, slots, allReviews, confirmed, sports] = await Promise.all([
+    // ⚠️ Связи запрашиваются ПЕРВЫМИ, потому что от них зависят номера тренеров.
+    // Раньше вместо этого поднимались ВСЕ тренеры платформы и ВСЁ расписание клубов,
+    // а лишнее отсеивалось в памяти — карточка одного клуба стоила двух полных таблиц.
+    const confirmed = await this.links.findMany({ clubId, status: 'confirmed' });
+    const trainerIds = [...new Set(confirmed.map((link) => link.trainerId))];
+
+    const [primaryOffering, clubTrainers, slots, allReviews, sports] = await Promise.all([
       this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
-      this.trainers.findAll(),
-      this.schedule.findMany({ ownerType: 'club' }),
-      this.reviews.findMany({ clubId }),
-      this.links.findMany({ clubId, status: 'confirmed' }),
+      this.trainers.findAll({ ids: trainerIds }),
+      // Порядок задаёт запрос: сортировать после чтения можно было, пока читалось всё.
+      this.schedule.findMany({ ownerType: 'club', clubId, order: 'dateTime' }),
+      this.reviews.findMany({ clubId, order: 'newest' }),
       this.resolveSports(club.sportIds),
     ]);
-
-    const trainerIds = new Set(confirmed.map((link) => link.trainerId));
 
     return {
       club,
       primaryOffering,
       sports,
-      trainers: allTrainers
-        .filter((trainer) => trainerIds.has(trainer.id))
-        .sort((left, right) => right.rating - left.rating),
-      schedule: slots
-        .filter((slot) => slot.clubId === clubId)
-        .sort((left, right) =>
-          `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
-        ),
-      // Отзывы «свежие первыми» — общий компаратор с тай-брейкером по id:
-      // при равных метках порядок обязан быть детерминированным.
-      reviews: allReviews.sort(compareByCreatedAtDesc),
+      // Порядок «сначала с высоким рейтингом» остаётся в памяти намеренно: тренеров
+      // у клуба единицы, а условие отбора у них — номера, не рейтинг.
+      trainers: [...clubTrainers].sort((left, right) => right.rating - left.rating),
+      schedule: slots,
+      // Отзывы приходят из запроса уже «свежие первыми», с тай-брейкером по номеру.
+      reviews: allReviews,
     };
   }
 
@@ -219,10 +218,12 @@ export class CatalogQueryService {
 
     if (!trainer) return null;
 
-    const [offerings, slots, allReviews, confirmed, sports] = await Promise.all([
+    const [offerings, trainerSchedule, allReviews, confirmed, sports] = await Promise.all([
       this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
-      this.schedule.findMany({ ownerType: 'trainer' }),
-      this.reviews.findMany({ trainerId }),
+      // Отбор по тренеру и порядок — в запросе: раньше поднималось всё тренерское
+      // расписание платформы и отсеивалось в памяти.
+      this.schedule.findMany({ ownerType: 'trainer', trainerId, order: 'dateTime' }),
+      this.reviews.findMany({ trainerId, order: 'newest' }),
       this.links.findMany({ trainerId, status: 'confirmed' }),
       this.resolveSports(trainer.sportIds),
     ]);
@@ -230,12 +231,6 @@ export class CatalogQueryService {
     const venueClubId = confirmed[0]?.clubId;
     const affiliatedClub =
       venueClubId === undefined ? null : await this.clubs.findById(venueClubId);
-
-    const trainerSchedule = slots
-      .filter((slot) => slot.trainerId === trainerId)
-      .sort((left, right) =>
-        `${left.date}T${left.startTime}`.localeCompare(`${right.date}T${right.startTime}`),
-      );
 
     return {
       trainer,
@@ -254,9 +249,8 @@ export class CatalogQueryService {
       sport: sports[0] ?? null,
       sports,
       schedule: trainerSchedule,
-      // Отзывы «свежие первыми» — общий компаратор с тай-брейкером по id:
-      // при равных метках порядок обязан быть детерминированным.
-      reviews: allReviews.sort(compareByCreatedAtDesc),
+      // Отзывы приходят из запроса уже «свежие первыми», с тай-брейкером по номеру.
+      reviews: allReviews,
     };
   }
 }

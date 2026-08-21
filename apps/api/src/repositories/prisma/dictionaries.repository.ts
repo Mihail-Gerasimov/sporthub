@@ -26,6 +26,7 @@ import type {
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import { toIsoString } from '../prisma-mappers';
+import { isUniqueViolation } from './unique-violation';
 
 /** Имена таблиц простых справочников — единственное, чем они отличаются друг от друга. */
 export type SimpleDictionaryTable = 'tag' | 'amenity' | 'specialty' | 'workFormat';
@@ -142,7 +143,12 @@ export class PrismaCitiesRepository implements CitiesRepository {
 
       return PrismaCitiesRepository.toCity(created);
     } catch (error) {
-      // Гонка: пока мы искали, город завёл кто-то другой. Это не ошибка — перечитываем.
+      // Перечитываем ТОЛЬКО нарушение уникальности: это гонка — пока мы искали,
+      // город завёл кто-то другой, и это не ошибка. Любая другая ошибка (нет связи
+      // с базой, отказ в правах) обязана дойти наверх как есть: раньше её глушил
+      // общий `catch`, и обрыв базы выглядел бы как «город не нашёлся».
+      if (!isUniqueViolation(error, 'name_normalized')) throw error;
+
       const raced = await this.client.city.findUnique({ where: { nameNormalized } });
 
       if (raced) return PrismaCitiesRepository.toCity(raced);

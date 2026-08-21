@@ -196,6 +196,31 @@ const logsContract = (createRepository: () => Promise<LogsRepository>) => {
 
     expect(entry.meta).toEqual({ scheduleId: 7, source: 'тест' });
   });
+
+  it('активность по дням — строка на день, а не на событие', async () => {
+    const logs = await createRepository();
+    const first = await logs.insert({ ...base });
+    await logs.insert({ ...base });
+    await logs.insert({ ...base });
+
+    // Все три записи созданы сейчас, значит день у них один — и строк тоже одна.
+    // Проверяется именно свёртка: раньше сводка получала три строки вместо одной,
+    // а на живой платформе — весь журнал целиком.
+    const today = first.createdAt.slice(0, 10);
+
+    expect(await logs.countByDate({})).toEqual([{ date: today, count: 3 }]);
+  });
+
+  it('граница периода у активности — по дню, включительно', async () => {
+    const logs = await createRepository();
+    const entry = await logs.insert({ ...base });
+    const today = entry.createdAt.slice(0, 10);
+
+    // Сегодняшний день попадает целиком: граница задаётся днём, а не моментом.
+    expect(await logs.countByDate({ fromDate: today })).toEqual([{ date: today, count: 1 }]);
+    // Завтрашний день не попадает — и это ПУСТОЙ список, а не строка с нулём.
+    expect(await logs.countByDate({ fromDate: '2999-01-01' })).toEqual([]);
+  });
 };
 
 const reviewsContract = (createRepository: () => Promise<ReviewsRepository>) => {
@@ -231,6 +256,37 @@ const reviewsContract = (createRepository: () => Promise<ReviewsRepository>) => 
     expect(await reviews.findAll()).toHaveLength(1);
   });
 
+  it('считает отзывы запросом, а не длиной прочитанного', async () => {
+    const reviews = await createRepository();
+    await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Клубный' });
+    await reviews.insert({ userId: 1, trainerId: 2, rating: 4, text: 'Тренерский' });
+
+    expect(await reviews.count({})).toBe(2);
+  });
+
+  it('отбор по адресатам покрывает и клубы, и тренеров одним условием', async () => {
+    const reviews = await createRepository();
+    await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Клуб 1' });
+    await reviews.insert({ userId: 1, clubId: 2, rating: 4, text: 'Клуб 2' });
+    await reviews.insert({ userId: 1, trainerId: 2, rating: 3, text: 'Тренер 2' });
+
+    // Так сводка отбирает по городу: своего города у отзыва нет, и он берётся
+    // через уже отобранные публикации.
+    expect(await reviews.count({ owners: { clubIds: [1], trainerIds: [2] } })).toBe(2);
+    expect(await reviews.count({ owners: { clubIds: [1, 2], trainerIds: [] } })).toBe(2);
+    // ⚠️ Пустые наборы означают «никто не подошёл», а не «фильтра нет».
+    expect(await reviews.count({ owners: { clubIds: [], trainerIds: [] } })).toBe(0);
+  });
+
+  it('граница периода у счётчика отзывов — по дню, включительно', async () => {
+    const reviews = await createRepository();
+    const created = await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Клубный' });
+    const today = created.createdAt.slice(0, 10);
+
+    expect(await reviews.count({ fromDate: today })).toBe(1);
+    expect(await reviews.count({ fromDate: '2999-01-01' })).toBe(0);
+  });
+
   it('пустой фильтр удаления не забирает НИЧЕГО', async () => {
     const reviews = await createRepository();
     await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Клубный' });
@@ -260,6 +316,20 @@ const usersContract = (createRepository: () => Promise<UsersRepository>) => {
 
     expect(await users.findById(created.id)).toMatchObject({ email: 'ivan@test.local' });
     expect(await users.findByEmail('ivan@test.local')).toMatchObject({ id: created.id });
+  });
+
+  it('считает пользователей по ролям, роли без единого — пропускает', async () => {
+    const users = await createRepository();
+    await users.insert({ ...newUser });
+    await users.insert({ ...newUser, email: 'petr@test.local' });
+    await users.insert({ ...newUser, email: 'club@test.local', role: 'club_owner' });
+
+    const counts = await users.countByRole();
+
+    expect(counts).toEqual({ athlete: 2, club_owner: 1 });
+    // Роли, у которой нет ни одного пользователя, в ответе нет вовсе — потребитель
+    // подставляет ноль сам, и новая роль не требует правки репозитория.
+    expect(counts.admin).toBeUndefined();
   });
 
   it('поиск по несуществующим ключам отдаёт null, а не бросает', async () => {

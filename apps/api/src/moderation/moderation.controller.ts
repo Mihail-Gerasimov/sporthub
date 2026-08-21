@@ -206,6 +206,22 @@ export class ModerationController {
   }
 }
 
+/**
+ * Сводный список публикаций админки.
+ *
+ * ⚠️ Незакрытый хвост, и он назван вслух. Отбор по городу и виду спорта, поиск по
+ * названию, сортировка и постраничность ЗДЕСЬ остаются в памяти: список склеен из
+ * двух РАЗНЫХ таблиц с независимой нумерацией, и честный перенос требует либо
+ * объединения запросом с общим порядком, либо счётных методов у репозиториев клубов
+ * и тренеров. Ни того ни другого сейчас нет.
+ *
+ * Что уже уехало в запрос: отсев скрытых при `status=published` и отказ читать
+ * ненужную половину при отборе по типу.
+ *
+ * Что менять НЕЛЬЗЯ, не сломав выдачу: порядок задаёт `comparePublications`, и он
+ * держится на порядке слияния (сначала клубы, потом тренеры). Наивная замена его
+ * на общий компаратор уже ломала `GET /api/publications` однажды.
+ */
 @Controller('publications')
 export class PublicationsController {
   constructor(
@@ -231,23 +247,24 @@ export class PublicationsController {
     const offset = Math.max(0, Number(rawOffset ?? 0));
     const limit = Math.min(100, Math.max(1, Number(rawLimit ?? 50)));
 
-    const [clubs, trainers] = await Promise.all([this.clubs.findAll(), this.trainers.findAll()]);
+    const wantsClubs = typeFilter === 'all' || typeFilter === 'club';
+    const wantsTrainers = typeFilter === 'all' || typeFilter === 'trainer';
+    // «Только опубликованные» — единственное состояние, которое умеет отсечь запрос.
+    // Публикация без состояния считается опубликованной, и `excludeHidden` означает
+    // ровно это. Обратного условия («только скрытые») у репозитория публикаций нет.
+    const publicationFilter = statusFilter === 'published' ? { excludeHidden: true } : {};
 
-    let items: PublicationItem[] = [];
+    // Ненужная половина не читается вовсе: при `type=club` таблица тренеров
+    // прежде читалась целиком, чтобы тут же быть выброшенной.
+    const [clubs, trainers] = await Promise.all([
+      wantsClubs ? this.clubs.findAll(publicationFilter) : Promise.resolve([]),
+      wantsTrainers ? this.trainers.findAll(publicationFilter) : Promise.resolve([]),
+    ]);
 
-    if (typeFilter === 'all' || typeFilter === 'club') {
-      items.push(...clubs.map(clubToItem));
-    }
-
-    if (typeFilter === 'all' || typeFilter === 'trainer') {
-      items.push(...trainers.map(trainerToItem));
-    }
+    let items: PublicationItem[] = [...clubs.map(clubToItem), ...trainers.map(trainerToItem)];
 
     if (statusFilter === 'hidden') {
       items = items.filter((item) => item.status === 'hidden');
-    } else if (statusFilter === 'published') {
-      // Публикация без состояния считается опубликованной.
-      items = items.filter((item) => item.status !== 'hidden');
     }
 
     if (cityFilter) {

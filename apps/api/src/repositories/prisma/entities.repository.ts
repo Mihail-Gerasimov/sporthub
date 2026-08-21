@@ -40,6 +40,7 @@ import type { Prisma } from '../../storage/prisma-client/client';
 import type {
   ClubsRepository,
   PublicationStatusFilter,
+  ScheduleFilter,
   ScheduleRepository,
   TrainersRepository,
 } from '../entities.repository';
@@ -106,6 +107,35 @@ const CLUB_ERASABLE_FIELDS = [
   'hiddenByUserId',
 ] as const satisfies readonly (keyof Club)[];
 
+/**
+ * Условие отбора публикаций — общее для клубов и тренеров.
+ *
+ * Условия у них одни и те же, отличается только имя связующей таблицы, поэтому
+ * оно и передаётся параметром: две копии этого кода разошлись бы при первой правке.
+ *
+ * ⚠️ `status: { not: 'hidden' }` индексом по статусу не покрывается — btree не работает
+ * на «не равно». Это осознанно оставлено как есть: значений статуса три, и отсев
+ * скрытых всё равно читает почти всю таблицу. Ускоряют здесь другие условия —
+ * вид спорта (соединение по связующей таблице) и рейтинг (индекс с ним в ключе).
+ */
+function buildPublicationWhere(
+  filter: PublicationStatusFilter,
+  sportsRelation: 'sports',
+): Record<string, unknown> | undefined {
+  const where: Record<string, unknown> = {};
+
+  if (filter.excludeHidden === true) where.status = { not: 'hidden' };
+  if (filter.ids !== undefined) where.id = { in: filter.ids };
+  if (filter.minRating !== undefined) where.rating = { gte: filter.minRating };
+  // Вид спорта живёт в связующей таблице — отбор идёт соединением, а не разбором
+  // массива в памяти. У связующей таблицы есть индекс по виду спорта.
+  if (filter.sportId !== undefined) {
+    where[sportsRelation] = { some: { sportId: filter.sportId } };
+  }
+
+  return Object.keys(where).length === 0 ? undefined : where;
+}
+
 @Injectable()
 export class PrismaClubsRepository implements ClubsRepository {
   constructor(private readonly transactions: PrismaTransactionRunner) {}
@@ -149,10 +179,14 @@ export class PrismaClubsRepository implements ClubsRepository {
   }
 
   async findAll(filter: PublicationStatusFilter = {}): Promise<Club[]> {
+    // Пустой набор номеров — заведомо пустая выдача. Запрос не делается вовсе,
+    // и файловая реализация ведёт себя так же.
+    if (filter.ids !== undefined && filter.ids.length === 0) return [];
+
     const rows = await this.client.club.findMany({
-      // Отсев скрытых — условие запроса, а не фильтр в памяти: иначе выдача тянула бы
+      // Весь отбор — условие запроса, а не фильтр в памяти: иначе выдача тянула бы
       // из базы всё, включая то, что заведомо выбрасывает.
-      where: filter.excludeHidden === true ? { status: { not: 'hidden' } } : undefined,
+      where: buildPublicationWhere(filter, 'sports'),
       include: CLUB_INCLUDE,
       orderBy: { id: 'asc' },
     });
@@ -472,8 +506,10 @@ export class PrismaTrainersRepository implements TrainersRepository {
   }
 
   async findAll(filter: PublicationStatusFilter = {}): Promise<Trainer[]> {
+    if (filter.ids !== undefined && filter.ids.length === 0) return [];
+
     const rows = await this.client.trainer.findMany({
-      where: filter.excludeHidden === true ? { status: { not: 'hidden' } } : undefined,
+      where: buildPublicationWhere(filter, 'sports'),
       include: TRAINER_INCLUDE,
       orderBy: { id: 'asc' },
     });
@@ -715,13 +751,112 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     });
   }
 
-  async findMany(filter: { ownerType?: CatalogOwnerType | 'all' } = {}): Promise<Schedule[]> {
+  /**
+   * Условие отбора слотов — целиком в запросе.
+   *
+   * Собирается здесь, а не рядом с вызовом, потому что «есть свободные места» требует
+   * ссылки на колонку той же таблицы (`this.client.schedule.fields`), а она доступна
+   * только через клиент.
+   */
+  private buildWhere(filter: ScheduleFilter): Prisma.ScheduleWhereInput | undefined {
+    const conditions: Prisma.ScheduleWhereInput[] = [];
     // Умолчание перенесено из файловой реализации: без указания владельца
     // отдаются только клубные слоты.
     const ownerType = filter.ownerType ?? 'club';
+
+    if (ownerType !== 'all') conditions.push(ownerTypeWhere(ownerType));
+    if (filter.ids !== undefined) conditions.push({ id: { in: filter.ids } });
+
+    // Клуб и тренер занятия собираются из ДВУХ колонок каждый — ровно так же, как
+    // их собирает `toSchedule`. Условие по одной колонке молча теряло бы половину:
+    // владелец зала не увидел бы тренерских занятий у себя, а клубное занятие
+    // не нашлось бы по своему ведущему.
+    if (filter.clubId !== undefined) {
+      conditions.push({
+        OR: [{ ownerClubId: filter.clubId }, { ownerClubId: null, venueClubId: filter.clubId }],
+      });
+    }
+
+    if (filter.trainerId !== undefined) {
+      conditions.push({
+        OR: [
+          { ownerTrainerId: filter.trainerId },
+          { ownerTrainerId: null, conductedByTrainerId: filter.trainerId },
+        ],
+      });
+    }
+
+    if (filter.sportId !== undefined) conditions.push({ sportId: filter.sportId });
+    if (filter.date !== undefined) conditions.push({ date: fromDateKey(filter.date) });
+
+    if (filter.onlyWithFreeSeats === true) {
+      // ⚠️ Сравнение двух КОЛОНОК одной строки, а не колонки со значением. Обычное
+      // условие Prisma так не умеет, и вариантов было два: сырой запрос через
+      // `$queryRaw` либо ссылка на поле (`client.schedule.fields`). Выбрана ссылка
+      // на поле, и вот почему:
+      //
+      // 1. Она даёт ровно тот текст условия, под который построен частичный индекс
+      //    `schedule_has_free_seats_idx (date, start_time) WHERE booked_count < capacity`.
+      //    Планировщик сопоставляет предикат запроса с предикатом индекса —
+      //    совпадение выражения и есть условие того, что индекс вообще применим.
+      // 2. Сырой запрос вернул бы строки с именами колонок базы, и их пришлось бы
+      //    перекладывать в форму строки вручную — второй, отдельно живущий маппер
+      //    рядом с `toSchedule`. Разъехались бы они молча.
+      //
+      // Условие остаётся частью общего `AND`, а не отдельным проходом: PostgreSQL
+      // раскладывает такой список в плоский набор предикатов, и сопоставление
+      // с индексом от этого не страдает.
+      conditions.push({ bookedCount: { lt: this.client.schedule.fields.capacity } });
+    }
+
+    // Набор владельцев: слот считается своим, если совпал клуб ИЛИ тренер —
+    // причём каждый из них собирается из двух колонок, как и в `toSchedule`.
+    if (filter.owners !== undefined) {
+      const { clubIds, trainerIds } = filter.owners;
+
+      conditions.push({
+        OR: [
+          { ownerClubId: { in: clubIds } },
+          { venueClubId: { in: clubIds } },
+          { ownerTrainerId: { in: trainerIds } },
+          { conductedByTrainerId: { in: trainerIds } },
+        ],
+      });
+    }
+
+    return conditions.length === 0 ? undefined : { AND: conditions };
+  }
+
+  async sumSeats(filter: ScheduleFilter = {}): Promise<{ booked: number; capacity: number }> {
+    // Две суммы одним запросом вместо чтения всего расписания ради них же.
+    // Слоты без мест исключены условием, а не после чтения: `capacity = 0` в сумму
+    // всё равно не вносит ничего, но и строку поднимать незачем.
+    const where = this.buildWhere({ ...filter });
+    const aggregate = await this.client.schedule.aggregate({
+      where:
+        where === undefined ? { capacity: { gt: 0 } } : { AND: [where, { capacity: { gt: 0 } }] },
+      _sum: { bookedCount: true, capacity: true },
+    });
+
+    return {
+      booked: aggregate._sum.bookedCount ?? 0,
+      capacity: aggregate._sum.capacity ?? 0,
+    };
+  }
+
+  async findMany(filter: ScheduleFilter = {}): Promise<Schedule[]> {
+    // Пустой набор номеров — заведомо пустая выдача, запрос не нужен вовсе.
+    if (filter.ids !== undefined && filter.ids.length === 0) return [];
+
     const rows = await this.client.schedule.findMany({
-      where: ownerType === 'all' ? undefined : ownerTypeWhere(ownerType),
-      orderBy: { id: 'asc' },
+      where: this.buildWhere(filter),
+      // Порядок задаёт запрос, а не потребитель: сортировать после чтения можно было,
+      // пока читалась вся таблица. Как только выдача ограничена условием, порядок
+      // становится частью самого отбора.
+      orderBy:
+        filter.order === 'dateTime'
+          ? [{ date: 'asc' }, { startTime: 'asc' }, { id: 'asc' }]
+          : { id: 'asc' },
     });
 
     return rows.map((row) => PrismaScheduleRepository.toSchedule(row));

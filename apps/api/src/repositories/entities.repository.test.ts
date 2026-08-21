@@ -310,6 +310,33 @@ const clubsContract = (createRepository: () => Promise<ClubsRepository>) => {
     expect((await clubs.findAll()).map((club) => club.id)).toEqual([1, 2]);
   });
 
+  /**
+   * Порядок выдачи не зависит от того, как хранилище разложило строки.
+   *
+   * Проверка выше на это НЕ отвечает: в сиде два клуба, только что вставленных подряд,
+   * и любое хранилище отдаст их в порядке вставки — он же порядок номеров. Снятый
+   * `orderBy` такая проверка не заметит.
+   *
+   * Здесь порядок хранения ломается намеренно: в PostgreSQL UPDATE не правит строку
+   * на месте, а пишет новую версию — правленый клуб физически переезжает в конец кучи,
+   * и выдача без явного порядка отдала бы его последним. Совпадение с порядком
+   * физического хранения проверяется отдельно, в наборе на базе: у файлов кучи нет.
+   */
+  it('порядок выдачи не зависит от порядка хранения строк', async () => {
+    const clubs = await createRepository();
+
+    const first = await clubs.insert(newClub({ name: 'Альфа', slug: 'альфа' }));
+    await clubs.insert(newClub({ name: 'Бета', slug: 'бета' }));
+    await clubs.insert(newClub({ name: 'Гамма', slug: 'гамма' }));
+
+    await clubs.update(first.id, { name: 'Альфа (правка)' });
+
+    const ids = (await clubs.findAll()).map((club) => club.id);
+
+    expect(ids).toEqual([...ids].sort((left, right) => left - right));
+    expect(ids).toContain(first.id);
+  });
+
   it('фильтр скрытых убирает только status=hidden', async () => {
     const clubs = await createRepository();
 
@@ -604,6 +631,171 @@ const scheduleContract = (createRepository: () => Promise<ScheduleRepository>) =
     ]);
   });
 
+  // --- Отбор слотов ---
+  //
+  // Тот же набор проверок идёт на обеих реализациях: на файлах это отбор в памяти,
+  // на базе — условие запроса. Совпадение результатов и есть смысл проверки:
+  // условие в базе обязано означать ровно то же, что означал проход по массиву.
+
+  it('отбор по клубу берёт и клуб-владельца, и зал-площадку', async () => {
+    const schedule = await createRepository();
+
+    // Слот 2 принадлежит клубу 1, слот 1 принадлежит тренеру, но идёт в зале клуба 1.
+    // Оба обязаны найтись: владелец зала видит и чужие занятия у себя.
+    expect((await schedule.findMany({ ownerType: 'all', clubId: 1 })).map((s) => s.id)).toEqual([
+      1, 2,
+    ]);
+    expect(await schedule.findMany({ ownerType: 'all', clubId: 999 })).toHaveLength(0);
+  });
+
+  it('отбор по тренеру берёт и владельца, и ведущего чужого занятия', async () => {
+    const schedule = await createRepository();
+
+    expect((await schedule.findMany({ ownerType: 'all', trainerId: 1 })).map((s) => s.id)).toEqual([
+      1, 3,
+    ]);
+    expect(await schedule.findMany({ ownerType: 'all', trainerId: 999 })).toHaveLength(0);
+  });
+
+  it('отбор по виду спорта и по дню', async () => {
+    const schedule = await createRepository();
+
+    expect((await schedule.findMany({ ownerType: 'all', sportId: 3 })).map((s) => s.id)).toEqual([
+      1, 3,
+    ]);
+    expect(
+      (await schedule.findMany({ ownerType: 'all', date: '2026-03-02' })).map((s) => s.id),
+    ).toEqual([2]);
+    expect(await schedule.findMany({ ownerType: 'all', date: '2026-12-31' })).toHaveLength(0);
+  });
+
+  it('условия складываются друг с другом', async () => {
+    const schedule = await createRepository();
+
+    expect(
+      (await schedule.findMany({ ownerType: 'trainer', clubId: 1, sportId: 3 })).map((s) => s.id),
+    ).toEqual([1]);
+    // Клубный слот у клуба 1 есть, но вид спорта у него другой — выдача пуста.
+    expect(await schedule.findMany({ ownerType: 'club', clubId: 1, sportId: 3 })).toHaveLength(0);
+  });
+
+  it('onlyWithFreeSeats убирает слоты, где мест уже нет', async () => {
+    const schedule = await createRepository();
+
+    // Слот 2: вместимость 10, занято 1 — добираем до полного.
+    await schedule.changeBookedCount(2, 9);
+
+    expect(
+      (await schedule.findMany({ ownerType: 'all', onlyWithFreeSeats: true })).map((s) => s.id),
+    ).toEqual([1, 3]);
+    // Без признака выдача прежняя: заполненный слот на месте.
+    expect(await schedule.findMany({ ownerType: 'all' })).toHaveLength(3);
+  });
+
+  it('отбор по номерам: пустой набор даёт пустую выдачу', async () => {
+    const schedule = await createRepository();
+
+    expect((await schedule.findMany({ ownerType: 'all', ids: [3, 1] })).map((s) => s.id)).toEqual([
+      1, 3,
+    ]);
+    expect(await schedule.findMany({ ownerType: 'all', ids: [] })).toEqual([]);
+    // Несуществующий номер — не ошибка, а пустая выдача.
+    expect(await schedule.findMany({ ownerType: 'all', ids: [999] })).toEqual([]);
+  });
+
+  it('без указания порядка слоты приходят по возрастанию номера', async () => {
+    // Умолчание обязано означать ОДНО И ТО ЖЕ у файлов и у базы. Раньше оно
+    // называлось «порядок хранилища» и означало разное: база отдавала по номеру,
+    // файл — в том порядке, в каком строки лежат в нём физически.
+    const schedule = await createRepository();
+
+    // Правка строки с меньшим номером: в базе `UPDATE` переписывает строку
+    // физически, и она переезжает в конец кучи. Без явного порядка выдача
+    // поехала бы следом.
+    await schedule.update(1, { title: 'Переписанный' });
+
+    const ids = (await schedule.findMany({ ownerType: 'all' })).map((slot) => slot.id);
+
+    expect(ids).toEqual([...ids].sort((left, right) => left - right));
+    expect(ids).toEqual([1, 2, 3]);
+  });
+
+  it('отбор по набору владельцев берёт и клубные, и тренерские слоты', async () => {
+    const schedule = await createRepository();
+
+    // Набор владельцев — то, чем сводка ограничивает себя публикациями провайдера.
+    // Слот попадает в набор, если совпал ЛИБО клуб, ЛИБО тренер.
+    const onlyClub = await schedule.findMany({
+      ownerType: 'all',
+      owners: { clubIds: [1], trainerIds: [] },
+    });
+    const onlyTrainer = await schedule.findMany({
+      ownerType: 'all',
+      owners: { clubIds: [], trainerIds: [1] },
+    });
+    const nobody = await schedule.findMany({
+      ownerType: 'all',
+      owners: { clubIds: [], trainerIds: [] },
+    });
+
+    expect(onlyClub.every((slot) => slot.clubId === 1)).toBe(true);
+    expect(onlyClub.length).toBeGreaterThan(0);
+    expect(onlyTrainer.every((slot) => slot.trainerId === 1)).toBe(true);
+    expect(onlyTrainer.length).toBeGreaterThan(0);
+    expect(nobody).toEqual([]);
+  });
+
+  it('sumSeats считает занятые места и вместимость по тому же отбору', async () => {
+    const schedule = await createRepository();
+
+    const all = await schedule.findMany({ ownerType: 'all' });
+    const expected = all
+      .filter((slot) => slot.capacity > 0)
+      .reduce(
+        (sum, slot) => ({
+          booked: sum.booked + slot.bookedCount,
+          capacity: sum.capacity + slot.capacity,
+        }),
+        { booked: 0, capacity: 0 },
+      );
+
+    expect(await schedule.sumSeats({ ownerType: 'all' })).toEqual(expected);
+
+    // Отбор действует и на суммы: слоты чужого вида спорта в них не входят.
+    const bySport = await schedule.findMany({ ownerType: 'all', sportId: 3 });
+    const expectedBySport = bySport
+      .filter((slot) => slot.capacity > 0)
+      .reduce(
+        (sum, slot) => ({
+          booked: sum.booked + slot.bookedCount,
+          capacity: sum.capacity + slot.capacity,
+        }),
+        { booked: 0, capacity: 0 },
+      );
+
+    expect(await schedule.sumSeats({ ownerType: 'all', sportId: 3 })).toEqual(expectedBySport);
+    // Пустой набор владельцев — пустые суммы, а не суммы по всей платформе.
+    expect(
+      await schedule.sumSeats({ ownerType: 'all', owners: { clubIds: [], trainerIds: [] } }),
+    ).toEqual({ booked: 0, capacity: 0 });
+  });
+
+  it('order=dateTime выстраивает слоты по дню и времени начала, ничьи разводит номер', async () => {
+    const schedule = await createRepository();
+
+    // Два слота на один день и одно время — проверка ничьи; и один пораньше,
+    // чтобы порядок заведомо разошёлся с порядком номеров.
+    const [early, sameA, sameB] = await schedule.insertMany([
+      newSlot({ title: 'Ранний', date: '2026-02-01', startTime: '07:00', endTime: '08:00' }),
+      newSlot({ title: 'Ничья A', date: '2026-02-01', startTime: '09:00', endTime: '10:00' }),
+      newSlot({ title: 'Ничья B', date: '2026-02-01', startTime: '09:00', endTime: '10:00' }),
+    ]);
+
+    const ordered = await schedule.findMany({ ownerType: 'all', order: 'dateTime' });
+
+    expect(ordered.map((slot) => slot.id)).toEqual([early.id, sameA.id, sameB.id, 1, 2, 3]);
+  });
+
   it('владелец тренерского слота собирается вместе с залом-площадкой', async () => {
     const schedule = await createRepository();
 
@@ -801,6 +993,19 @@ describe('Репозитории сущностей каталога', () => {
 
   describe('ScheduleRepository — файловая реализация', () => {
     scheduleContract(async () => new JsonScheduleRepository(storage));
+
+    it('порядок выдачи не зависит от того, как строки лежат в файле', async () => {
+      // Рабочий `data/schedule.json` хранит слоты как `9,10,6,4,5,3,2,8,7,1` —
+      // порядок записи, а не номеров. Пока файловая реализация отдавала «как лежит»,
+      // она расходилась с базой на одном и том же вызове, и заметить это можно
+      // было только на проде после переключения хранилища.
+      await writeCollection('schedule.json', [...SEED_SCHEDULE].reverse());
+
+      const schedule = new JsonScheduleRepository(storage);
+      const ids = (await schedule.findMany({ ownerType: 'all' })).map((slot) => slot.id);
+
+      expect(ids).toEqual([1, 2, 3]);
+    });
   });
 
   // Починки кривых данных — свойство ФАЙЛОВОГО хранилища, а не контракта. В базе
@@ -1034,6 +1239,41 @@ describe('Репозитории сущностей каталога — реа�
       await seedDatabase();
 
       return new PrismaScheduleRepository(new PrismaTransactionRunner(db.service));
+    });
+  });
+
+  /**
+   * Порядок выдачи против порядка кучи.
+   *
+   * Сторож для `orderBy` в выдаче: без него проверка порядка проходит вслепую.
+   * В сиде две строки, вставленные подряд, — куча отдаёт их в порядке вставки,
+   * то есть в порядке номеров, и снятый `orderBy` остаётся незамеченным.
+   *
+   * Здесь порядок кучи ломается намеренно: UPDATE в PostgreSQL пишет НОВУЮ версию
+   * строки, старая остаётся мёртвой, и правленый клуб физически оказывается в конце.
+   * Расхождение проверяется явно (`ORDER BY ctid`) — иначе тест мог бы стать зелёным
+   * не потому, что порядок задан, а потому, что ломать было нечего.
+   */
+  describe('устойчивый порядок выдачи', () => {
+    it('клубы приходят по возрастанию номера, даже когда куча разложила их иначе', async () => {
+      await seedDatabase();
+      const clubs = new PrismaClubsRepository(new PrismaTransactionRunner(db.service));
+
+      const first = await clubs.insert(newClub({ name: 'Альфа', slug: 'альфа' }));
+      await clubs.insert(newClub({ name: 'Бета', slug: 'бета' }));
+      await clubs.insert(newClub({ name: 'Гамма', slug: 'гамма' }));
+
+      await clubs.update(first.id, { name: 'Альфа (правка)' });
+
+      const heapOrder = (
+        await db.prisma.$queryRaw<{ id: number }[]>`SELECT id FROM clubs ORDER BY ctid`
+      ).map((row) => row.id);
+      const byNumber = [...heapOrder].sort((left, right) => left - right);
+
+      // Сторож самого теста: если куча вдруг совпала с порядком номеров, проверка ниже
+      // ничего не доказывает — и знать об этом надо сразу, а не считать её зелёной.
+      expect(heapOrder).not.toEqual(byNumber);
+      expect((await clubs.findAll()).map((club) => club.id)).toEqual(byNumber);
     });
   });
 

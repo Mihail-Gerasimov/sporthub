@@ -259,6 +259,140 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
 
     expect(read).toMatchObject({ ownerType: 'trainer', ownerId: 5, clubId: 1, trainerId: 5 });
   });
+
+  // --- Подсчёты сводки --------------------------------------------------------
+
+  it('счётчик понимает тот же отбор, что и выдача', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+    await bookings.insert({ ...trainerBooking });
+    await bookings.insert({
+      ...base,
+      scheduleId: 4004,
+      ownerId: 2,
+      clubId: 2,
+      status: 'confirmed',
+    });
+
+    expect(await bookings.count({})).toBe(3);
+    expect(await bookings.count({ clubId: 1 })).toBe(2);
+    expect(await bookings.count({ status: 'pending' })).toBe(2);
+    expect(await bookings.count({ trainerId: 5 })).toBe(1);
+  });
+
+  it('отбирает по виду спорта и по дню создания', async () => {
+    const bookings = await createRepository();
+    const created = await bookings.insert({ ...base, sportId: 1 });
+    await bookings.insert({ ...base, scheduleId: 2002, sportId: 2 });
+    const today = created.createdAt.slice(0, 10);
+
+    expect(await bookings.count({ sportId: 1 })).toBe(1);
+    // День создания — не день занятия: занятие стоит на 2026-03-20, а запись сделана
+    // сейчас, и границу периода сводка отсчитывает именно от момента записи.
+    expect(await bookings.count({ createdFrom: today })).toBe(2);
+    expect(await bookings.count({ createdFrom: '2999-01-01' })).toBe(0);
+    expect(await bookings.findMany({ sportId: 2 })).toHaveLength(1);
+  });
+
+  it('отбор по публикациям — одно условие на два набора', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+    await bookings.insert({ ...trainerBooking });
+    await bookings.insert({ ...base, scheduleId: 4004, ownerId: 2, clubId: 2 });
+
+    // Тренерская запись подходит и по клубу-площадке, и по тренеру: это ОДНО
+    // условие, а не два подряд, поэтому достаточно совпасть с любой половиной.
+    expect(await bookings.count({ owners: { clubIds: [1], trainerIds: [] } })).toBe(2);
+    expect(await bookings.count({ owners: { clubIds: [], trainerIds: [5] } })).toBe(1);
+    expect(await bookings.count({ owners: { clubIds: [2], trainerIds: [5] } })).toBe(2);
+    // ⚠️ Пустые наборы означают «никто не подошёл», а не «фильтра нет».
+    expect(await bookings.count({ owners: { clubIds: [], trainerIds: [] } })).toBe(0);
+  });
+
+  it('график по дням сворачивает записи в строку на день', async () => {
+    const bookings = await createRepository();
+    const created = await bookings.insert({ ...base });
+    await bookings.insert({ ...base, scheduleId: 2002 });
+    const today = created.createdAt.slice(0, 10);
+
+    expect(await bookings.countByCreatedDay({})).toEqual([{ date: today, count: 2 }]);
+  });
+
+  it('сумма по дням совпадает с общим числом при ЛЮБОМ отборе', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+    await bookings.insert({ ...trainerBooking, sportId: 2 });
+    await bookings.insert({
+      ...base,
+      scheduleId: 4004,
+      ownerId: 2,
+      clubId: 2,
+      status: 'confirmed',
+    });
+
+    // ⚠️ Сторож двух видов одного условия. Счётчик строит условие построителем
+    // запросов, а график по дням — выражением SQL: группировать по дню метки
+    // времени построитель не умеет. Разойдясь, эти два вида дадут правдоподобные,
+    // но разные числа на одной карточке. Отбор берётся насыщенный — по всем полям
+    // сразу, чтобы сторож смотрел на каждое.
+    const filters = [
+      {},
+      { clubId: 1 },
+      { status: ['pending' as const, 'confirmed' as const] },
+      { sportId: 2 },
+      { owners: { clubIds: [1], trainerIds: [5] } },
+      { userId: 1, dateFrom: '2026-03-01', dateTo: '2026-12-31', sportId: 1 },
+    ];
+
+    for (const filter of filters) {
+      const byDay = await bookings.countByCreatedDay(filter);
+      const total = await bookings.count(filter);
+
+      expect(byDay.reduce((sum, day) => sum + day.count, 0)).toBe(total);
+    }
+  });
+
+  it('группировка по видам спорта идёт в порядке первой записи вида', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base, sportId: 2 });
+    await bookings.insert({ ...base, scheduleId: 2002, sportId: 1 });
+    await bookings.insert({ ...base, scheduleId: 4004, ownerId: 2, clubId: 2, sportId: 1 });
+
+    // Порядок — по номеру ПЕРВОЙ записи вида, а не по числу записей: ранжирует
+    // потребитель, и делает это устойчивой сортировкой поверх этого порядка.
+    expect(await bookings.countBySport({})).toEqual([
+      { sportId: 2, count: 1 },
+      { sportId: 1, count: 2 },
+    ]);
+  });
+
+  it('одна запись считается И клубу, И тренеру, клуб идёт раньше', async () => {
+    const bookings = await createRepository();
+    // Тренерское занятие в зале клуба 1: относится к обоим.
+    await bookings.insert({ ...trainerBooking });
+    await bookings.insert({ ...base, scheduleId: 4004, ownerId: 2, clubId: 2 });
+
+    expect(await bookings.countByOwner({})).toEqual([
+      // В одной записи клуб идёт раньше тренера — тот же порядок, в котором
+      // складывала счётчики сводка.
+      { type: 'club', id: 1, count: 1 },
+      { type: 'trainer', id: 5, count: 1 },
+      { type: 'club', id: 2, count: 1 },
+    ]);
+  });
+
+  it('группировка по публикациям видит клуб и через владельца, и через площадку', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+    await bookings.insert({ ...trainerBooking });
+
+    // ⚠️ У клубной записи клуб стоит владельцем, у тренерской — площадкой.
+    // Счёт по одной колонке потерял бы половину.
+    expect(await bookings.countByOwner({})).toEqual([
+      { type: 'club', id: 1, count: 2 },
+      { type: 'trainer', id: 5, count: 1 },
+    ]);
+  });
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -304,15 +438,26 @@ describe('BookingsRepository — реализация на базе', () => {
   const seedWorld = async (): Promise<void> => {
     await db.truncateAll();
 
-    await db.prisma.sport.create({
-      data: {
-        id: 1,
-        name: 'Плавание',
-        slug: 'plavanie',
-        description: 'Описание',
-        icon: '🏊',
-        imageUrl: '',
-      },
+    // Видов спорта два: группировка по видам на одном ничего не показала бы.
+    await db.prisma.sport.createMany({
+      data: [
+        {
+          id: 1,
+          name: 'Плавание',
+          slug: 'plavanie',
+          description: 'Описание',
+          icon: '🏊',
+          imageUrl: '',
+        },
+        {
+          id: 2,
+          name: 'Бокс',
+          slug: 'boks',
+          description: 'Описание',
+          icon: '🥊',
+          imageUrl: '',
+        },
+      ],
     });
 
     for (const id of [1, 2]) {

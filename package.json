@@ -26,6 +26,7 @@
     "db:reset": "docker compose down -v && docker compose up -d db",
     "db:import": "node scripts/db-import.mjs",
     "db:seed": "node scripts/db-seed-dev.mjs",
+    "db:test:clean": "node scripts/db-test-clean.mjs",
     "test:db": "npm run db:up && node scripts/wait-for-db.mjs && npm run test",
     "app:up": "docker compose --profile app up -d --build",
     "app:down": "docker compose --profile app down",

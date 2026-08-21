@@ -6,9 +6,10 @@
 // на Prisma-версию, а правила и сервис не трогаются.
 
 import { compareByCreatedAtDesc } from '@sporthub/domain';
-import type { Booking, BookingStatus } from '@sporthub/types';
+import type { Booking, BookingStatus, CatalogOwnerType } from '@sporthub/types';
 
-import { sliceToPage } from './crud.repository';
+import { groupByDay, isOnOrAfterDay, ownerIdMatcher, sliceToPage } from './crud.repository';
+import type { DailyCount, OwnerIdFilter } from './crud.repository';
 import type { JsonStorage } from '../storage/json-storage';
 
 export const BOOKINGS_REPOSITORY = Symbol('BOOKINGS_REPOSITORY');
@@ -53,16 +54,81 @@ export interface BookingsFilter {
   dateFrom?: string;
   /** Верхняя граница дня занятия, включительно. */
   dateTo?: string;
+  /** Вид спорта записи. */
+  sportId?: number;
+  /**
+   * Нижняя граница ДНЯ создания записи, включительно, строка `YYYY-MM-DD`.
+   *
+   * Это не то же самое, что `dateFrom`: там день ЗАНЯТИЯ, здесь момент записи.
+   * Периоды сводки («сегодня», «неделя», «месяц») отсчитываются именно от него.
+   */
+  createdFrom?: string;
+  /**
+   * Ограничение по публикациям: запись относится хотя бы к одной из перечисленных.
+   *
+   * Отличается от пары `clubId`/`trainerId` тем, что это ОДНО условие на два набора,
+   * а не два условия подряд. Так отбирает сводка по городу: своего города у записи
+   * нет, и она берётся через уже отобранные клубы и тренеров.
+   */
+  owners?: OwnerIdFilter;
   /** Порядок выдачи. По умолчанию — порядок появления. */
   order?: BookingsOrder;
   offset?: number;
   limit?: number;
 }
 
+/**
+ * Отбор для подсчётов: тот же фильтр без порядка и постраничности.
+ *
+ * Резать и сортировать подсчёту нечего, и это видно прямо в сигнатуре: тип, который
+ * не даёт передать `limit` в `count`, надёжнее комментария о том, что его там не ждут.
+ */
+export type BookingsCountFilter = Omit<BookingsFilter, 'order' | 'offset' | 'limit'>;
+
+/** Записи по одному виду спорта. */
+export interface SportBookingCount {
+  sportId: number;
+  count: number;
+}
+
+/** Записи по одной публикации: клуб или тренер, к которым они относятся. */
+export interface OwnerBookingCount {
+  type: CatalogOwnerType;
+  id: number;
+  count: number;
+}
+
 export interface BookingsRepository {
   findAll(): Promise<Booking[]>;
   findById(id: number): Promise<Booking | null>;
   findMany(filter: BookingsFilter): Promise<Booking[]>;
+  /** Сколько записей подошло под отбор. Считает запрос, а не длина массива. */
+  count(filter: BookingsCountFilter): Promise<number>;
+  /**
+   * График записей по дням создания. Дни идут по возрастанию, пустые пропущены.
+   * Возвращает по строке на день, а не по строке на запись.
+   */
+  countByCreatedDay(filter: BookingsCountFilter): Promise<DailyCount[]>;
+  /**
+   * Записи по видам спорта.
+   *
+   * Порядок — по номеру ПЕРВОЙ подошедшей записи вида спорта, по возрастанию.
+   * Порядок задан явно, потому что потребитель ранжирует выдачу устойчивой
+   * сортировкой по числу записей: при равных числах порядок определяет именно он,
+   * и обе реализации обязаны дать один и тот же.
+   */
+  countBySport(filter: BookingsCountFilter): Promise<SportBookingCount[]>;
+  /**
+   * Записи по публикациям — клубам и тренерам вместе.
+   *
+   * Запись у тренерского занятия в чужом зале относится и к тренеру, и к клубу,
+   * поэтому попадает в обе строки: так же считала сводка, обходя выдачу вручную.
+   *
+   * Порядок — по номеру первой подошедшей записи публикации; при совпадении клуб
+   * идёт раньше тренера. Это тот же порядок, в котором сводка складывала счётчики,
+   * и от него зависит верхушка при равном числе записей.
+   */
+  countByOwner(filter: BookingsCountFilter): Promise<OwnerBookingCount[]>;
   insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking>;
   update(id: number, patch: Partial<Booking>): Promise<Booking>;
   /**
@@ -136,14 +202,21 @@ export class JsonBookingsRepository implements BookingsRepository {
     return bookings.find((booking) => booking.id === id) ?? null;
   }
 
-  async findMany(filter: BookingsFilter): Promise<Booking[]> {
+  /**
+   * Отбор без порядка и среза — один на выдачу и на все подсчёты.
+   *
+   * Один набор условий на пять методов, а не пять его копий: разъехавшись, счётчик
+   * сводки и её же выдача начали бы показывать разные числа на одной странице.
+   */
+  private async select(filter: BookingsCountFilter): Promise<Booking[]> {
     const bookings = await this.storage.read('bookings');
     const statuses =
       filter.status === undefined
         ? null
         : new Set(Array.isArray(filter.status) ? filter.status : [filter.status]);
+    const matchesOwner = ownerIdMatcher(filter.owners);
 
-    const selected = bookings.filter((booking) => {
+    return bookings.filter((booking) => {
       if (filter.userId !== undefined && booking.userId !== filter.userId) return false;
       if (filter.scheduleId !== undefined && booking.scheduleId !== filter.scheduleId) return false;
       if (statuses !== null && !statuses.has(booking.status)) return false;
@@ -155,9 +228,15 @@ export class JsonBookingsRepository implements BookingsRepository {
       // совпадает с хронологическим, поэтому границы сравниваются как есть.
       if (filter.dateFrom !== undefined && booking.date < filter.dateFrom) return false;
       if (filter.dateTo !== undefined && booking.date > filter.dateTo) return false;
+      if (filter.sportId !== undefined && booking.sportId !== filter.sportId) return false;
+      if (!isOnOrAfterDay(booking.createdAt, filter.createdFrom)) return false;
 
-      return true;
+      return matchesOwner(booking);
     });
+  }
+
+  async findMany(filter: BookingsFilter): Promise<Booking[]> {
+    const selected = await this.select(filter);
 
     // Порядок задаётся ЯВНО и до среза: иначе страница зависела бы от того,
     // в каком порядке хранилище отдало строки.
@@ -166,6 +245,72 @@ export class JsonBookingsRepository implements BookingsRepository {
     );
 
     return sliceToPage(selected, filter);
+  }
+
+  async count(filter: BookingsCountFilter): Promise<number> {
+    return (await this.select(filter)).length;
+  }
+
+  async countByCreatedDay(filter: BookingsCountFilter): Promise<DailyCount[]> {
+    // Граница периода уже применена отбором, второй раз её передавать не нужно.
+    return groupByDay(await this.select(filter));
+  }
+
+  async countBySport(filter: BookingsCountFilter): Promise<SportBookingCount[]> {
+    const selected = await this.select(filter);
+    const counts = new Map<number, number>();
+    // Порядок — по номеру ПЕРВОЙ записи вида спорта, а не по месту в массиве:
+    // порядок строк задаёт хранилище, а порядок номеров одинаков у обоих.
+    const firstIds = new Map<number, number>();
+
+    for (const booking of selected) {
+      counts.set(booking.sportId, (counts.get(booking.sportId) ?? 0) + 1);
+      firstIds.set(
+        booking.sportId,
+        Math.min(firstIds.get(booking.sportId) ?? booking.id, booking.id),
+      );
+    }
+
+    return [...counts.entries()]
+      .map(([sportId, count]) => ({ sportId, count }))
+      .sort(
+        (left, right) => (firstIds.get(left.sportId) ?? 0) - (firstIds.get(right.sportId) ?? 0),
+      );
+  }
+
+  async countByOwner(filter: BookingsCountFilter): Promise<OwnerBookingCount[]> {
+    const selected = await this.select(filter);
+    // Ключ склеен из вида и номера: клуб 1 и тренер 1 — разные публикации
+    // с одинаковым номером, и в общем счётчике их путать нельзя.
+    const counts = new Map<string, { type: CatalogOwnerType; id: number; count: number }>();
+    // Первое появление считается по НОМЕРУ записи, а не по месту в массиве:
+    // порядок строк задаёт хранилище, а порядок номеров одинаков у обоих.
+    const firstIds = new Map<string, number>();
+
+    const add = (type: CatalogOwnerType, id: number, bookingId: number): void => {
+      const key = `${type}:${id}`;
+      const current = counts.get(key);
+
+      counts.set(key, { type, id, count: (current?.count ?? 0) + 1 });
+      firstIds.set(key, Math.min(firstIds.get(key) ?? bookingId, bookingId));
+    };
+
+    for (const booking of selected) {
+      // Клуб раньше тренера — тот же порядок, в котором складывала счётчики сводка.
+      if (booking.clubId !== undefined) add('club', booking.clubId, booking.id);
+      if (booking.trainerId !== undefined) add('trainer', booking.trainerId, booking.id);
+    }
+
+    return [...counts.entries()]
+      .sort(([leftKey, left], [rightKey, right]) => {
+        const byFirst = (firstIds.get(leftKey) ?? 0) - (firstIds.get(rightKey) ?? 0);
+
+        if (byFirst !== 0) return byFirst;
+
+        // В одной записи клуб идёт раньше тренера.
+        return left.type === right.type ? 0 : left.type === 'club' ? -1 : 1;
+      })
+      .map(([, value]) => value);
   }
 
   async insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking> {
