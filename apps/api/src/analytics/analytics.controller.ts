@@ -21,7 +21,7 @@
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { DEFAULT_TIME_ZONE } from '@sporthub/types';
-import type { Club, Schedule, Trainer } from '@sporthub/types';
+import type { Trainer } from '@sporthub/types';
 
 import type { BookingsCountFilter, BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
@@ -114,27 +114,30 @@ export class AnalyticsController {
     // Скрытые публикации отсекает ЗАПРОС, а не фильтр после чтения: это вторая линия
     // защиты поверх самих выдач, и тянуть скрытое из хранилища ради его выбрасывания
     // незачем.
+    // Город и вид спорта уходят в запрос — под пару «город и состояние» индекс есть,
+    // вид спорта отбирается соединением по связующей таблице.
+    //
+    // ⚠️ У ТРЕНЕРОВ город в запрос НЕ уходит, и это не забывчивость: правило другое —
+    // «тренер без города показывается во всех городах». Точное совпадение, которое
+    // умеет фильтр публикаций, выбросило бы таких тренеров из сводки. Выражать это
+    // условие в репозитории ради единственного места — заводить абстракцию без
+    // второго потребителя; тренеров в каталоге единицы, и отбор остаётся здесь.
     const [allClubs, allTrainers, roleCounts, platformActivity, sports] = await Promise.all([
-      this.clubs.findAll({ excludeHidden: true }),
-      this.trainers.findAll({ excludeHidden: true }),
+      this.clubs.findAll({
+        excludeHidden: true,
+        ...(city ? { city } : {}),
+        ...(sportId ? { sportId } : {}),
+      }),
+      this.trainers.findAll({ excludeHidden: true, ...(sportId ? { sportId } : {}) }),
       this.users.countByRole(),
       this.logs.countByDate({ fromDate: fromDate ?? undefined }),
       this.sports.findAll(),
     ]);
 
-    let clubs = allClubs;
-    let trainers = allTrainers;
-
-    if (city) {
-      clubs = clubs.filter((club: Club) => club.city === city);
-      // Тренер без города показывается во всех городах.
-      trainers = trainers.filter((trainer: Trainer) => !trainer.city || trainer.city === city);
-    }
-
-    if (sportId) {
-      clubs = clubs.filter((club) => club.sportIds.includes(sportId));
-      trainers = trainers.filter((trainer) => trainer.sportIds.includes(sportId));
-    }
+    const clubs = allClubs;
+    const trainers = city
+      ? allTrainers.filter((trainer: Trainer) => !trainer.city || trainer.city === city)
+      : allTrainers;
 
     // Записи, слоты и отзывы города не знают — берём их через уже отобранные
     // клубы и тренеров. Ограничение появляется ТОЛЬКО при отборе по городу:

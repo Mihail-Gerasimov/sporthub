@@ -30,6 +30,8 @@ describe('Словари журнала не расходятся с валид�
   });
 
   it('запись принимается для каждого действия из общего словаря', async () => {
+    // Отказ запоминается ВМЕСТЕ с кодом и телом ответа: «действие отклонено» без
+    // причины заставляет воспроизводить падение руками, а оно может и не повториться.
     const rejected: string[] = [];
 
     for (const action of LOG_ACTIONS) {
@@ -41,7 +43,9 @@ describe('Словари журнала не расходятся с валид�
         entityId: 3,
       });
 
-      if (response.status !== 201) rejected.push(action);
+      if (response.status !== 201) {
+        rejected.push(`${action}: ${response.status} ${JSON.stringify(response.body)}`);
+      }
     }
 
     expect(rejected).toEqual([]);

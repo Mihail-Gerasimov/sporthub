@@ -108,6 +108,24 @@ export type PublicationStatusFilter = {
   sportId?: number;
   /** Нижняя граница рейтинга включительно. */
   minRating?: number;
+  /** Город публикации — точное совпадение, как в прежнем отборе в памяти. */
+  city?: string;
+  /**
+   * Только скрытые. Обратное к `excludeHidden`, нужно очереди модерации.
+   *
+   * Отдельным полем, а не значением состояния: состояний три, а спрашивают
+   * ровно эти два среза, и называть их своими именами честнее, чем заводить
+   * строковый параметр, который потом придётся сверять со словарём.
+   */
+  onlyHidden?: boolean;
+  /**
+   * Поиск по названию, без учёта регистра.
+   *
+   * ⚠️ Индекса под поиск подстрокой нет — полнотекстовый поиск изменил бы выдачу
+   * и вынесен за границы фазы. Но даже без индекса отбор в запросе лучше отбора
+   * после чтения: до приложения доезжают только подходящие строки, а не вся таблица.
+   */
+  search?: string;
 };
 
 export interface ClubsRepository {
@@ -249,11 +267,18 @@ function selectPublications<T extends Club | Trainer>(
 ): T[] {
   const ids = filter.ids === undefined ? null : new Set(filter.ids);
 
+  const needle = filter.search?.trim().toLowerCase();
+
   return items.filter((item) => {
     if (filter.excludeHidden === true && item.status === 'hidden') return false;
+    if (filter.onlyHidden === true && item.status !== 'hidden') return false;
     if (ids !== null && !ids.has(item.id)) return false;
     if (filter.sportId !== undefined && !item.sportIds.includes(filter.sportId)) return false;
     if (filter.minRating !== undefined && item.rating < filter.minRating) return false;
+    if (filter.city !== undefined && item.city !== filter.city) return false;
+    if (needle !== undefined && needle !== '' && !item.name.toLowerCase().includes(needle)) {
+      return false;
+    }
 
     return true;
   });

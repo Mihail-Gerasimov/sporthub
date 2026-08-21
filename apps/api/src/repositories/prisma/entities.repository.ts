@@ -125,8 +125,21 @@ function buildPublicationWhere(
   const where: Record<string, unknown> = {};
 
   if (filter.excludeHidden === true) where.status = { not: 'hidden' };
+  if (filter.onlyHidden === true) where.status = 'hidden';
   if (filter.ids !== undefined) where.id = { in: filter.ids };
   if (filter.minRating !== undefined) where.rating = { gte: filter.minRating };
+  // Город хранится строкой у самой публикации — под пару «город и состояние»
+  // индекс уже есть.
+  if (filter.city !== undefined) where.city = filter.city;
+
+  // Поиск по названию: `insensitive` разворачивается в `ILIKE`, который знает
+  // про регистр кириллицы. Индекса под подстроку нет — это отдельная работа,
+  // — но отбор всё равно делает база, а не приложение после чтения таблицы.
+  const needle = filter.search?.trim();
+
+  if (needle !== undefined && needle !== '') {
+    where.name = { contains: needle, mode: 'insensitive' };
+  }
   // Вид спорта живёт в связующей таблице — отбор идёт соединением, а не разбором
   // массива в памяти. У связующей таблицы есть индекс по виду спорта.
   if (filter.sportId !== undefined) {

@@ -249,10 +249,16 @@ export class PublicationsController {
 
     const wantsClubs = typeFilter === 'all' || typeFilter === 'club';
     const wantsTrainers = typeFilter === 'all' || typeFilter === 'trainer';
-    // «Только опубликованные» — единственное состояние, которое умеет отсечь запрос.
-    // Публикация без состояния считается опубликованной, и `excludeHidden` означает
-    // ровно это. Обратного условия («только скрытые») у репозитория публикаций нет.
-    const publicationFilter = statusFilter === 'published' ? { excludeHidden: true } : {};
+    // Весь отбор — условие запроса. Раньше обе таблицы читались целиком, а состояние,
+    // город, вид спорта и поиск отсеивались четырьмя проходами по памяти; сюда доезжала
+    // вся платформа ради одной страницы.
+    const publicationFilter = {
+      ...(statusFilter === 'published' ? { excludeHidden: true } : {}),
+      ...(statusFilter === 'hidden' ? { onlyHidden: true } : {}),
+      ...(cityFilter ? { city: cityFilter } : {}),
+      ...(sportId ? { sportId } : {}),
+      ...(search ? { search } : {}),
+    };
 
     // Ненужная половина не читается вовсе: при `type=club` таблица тренеров
     // прежде читалась целиком, чтобы тут же быть выброшенной.
@@ -261,23 +267,16 @@ export class PublicationsController {
       wantsTrainers ? this.trainers.findAll(publicationFilter) : Promise.resolve([]),
     ]);
 
-    let items: PublicationItem[] = [...clubs.map(clubToItem), ...trainers.map(trainerToItem)];
-
-    if (statusFilter === 'hidden') {
-      items = items.filter((item) => item.status === 'hidden');
-    }
-
-    if (cityFilter) {
-      items = items.filter((item) => item.city === cityFilter);
-    }
-
-    if (sportId) {
-      items = items.filter((item) => item.sportIds.includes(sportId));
-    }
-
-    if (search) {
-      items = items.filter((item) => item.name.toLowerCase().includes(search));
-    }
+    // ⚠️ Слияние, порядок и срез ОСТАЮТСЯ здесь, и это не недоделка.
+    //
+    // Клубы и тренеры — разные таблицы с независимыми последовательностями номеров,
+    // и честное объединение с постраничностью в запросе (`UNION ALL` поверх двух
+    // выборок) заметно дороже пользы при нынешнем размере каталога. А порядок
+    // задаёт `comparePublications` и держится на порядке слияния — наивная замена
+    // его на общий компаратор уже ломала `GET /api/publications` однажды.
+    // Отбор уехал в запрос, поэтому материализуется ровно то, что подошло, а не
+    // обе таблицы целиком.
+    const items: PublicationItem[] = [...clubs.map(clubToItem), ...trainers.map(trainerToItem)];
 
     items.sort(comparePublications);
 

@@ -310,6 +310,69 @@ const clubsContract = (createRepository: () => Promise<ClubsRepository>) => {
     expect((await clubs.findAll()).map((club) => club.id)).toEqual([1, 2]);
   });
 
+  // --- Отбор публикаций ---
+  //
+  // Тот же набор проверок идёт на обеих реализациях: на файлах это отбор в памяти,
+  // на базе — условие запроса. Совпадение результатов и есть смысл проверки.
+  // В сиде клуб 1 — опубликованный, «Кроссфит», рейтинг 4.5, виды спорта 1 и 7;
+  // клуб 2 — скрытый, «Скрытый», рейтинг 0, без видов спорта. Оба в Самаре.
+
+  it('отбор по виду спорта идёт по связующей таблице, а не по разбору массива', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ sportId: 7 })).map((club) => club.id)).toEqual([1]);
+    expect(await clubs.findAll({ sportId: 42 })).toEqual([]);
+  });
+
+  it('отбор по нижней границе рейтинга включает саму границу', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ minRating: 4.5 })).map((club) => club.id)).toEqual([1]);
+    expect((await clubs.findAll({ minRating: 0 })).map((club) => club.id)).toEqual([1, 2]);
+    expect(await clubs.findAll({ minRating: 5 })).toEqual([]);
+  });
+
+  it('отбор по городу — точное совпадение', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ city: 'Самара' })).map((club) => club.id)).toEqual([1, 2]);
+    expect(await clubs.findAll({ city: 'Казань' })).toEqual([]);
+  });
+
+  it('поиск по названию не зависит от регистра и ищет подстроку', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ search: 'кросс' })).map((club) => club.id)).toEqual([1]);
+    expect((await clubs.findAll({ search: 'КРОСС' })).map((club) => club.id)).toEqual([1]);
+    expect(await clubs.findAll({ search: 'такого нет' })).toEqual([]);
+  });
+
+  it('onlyHidden — обратное к excludeHidden, не пересекаются', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ onlyHidden: true })).map((club) => club.id)).toEqual([2]);
+    expect((await clubs.findAll({ excludeHidden: true })).map((club) => club.id)).toEqual([1]);
+  });
+
+  it('отбор по номерам: пустой набор даёт пустую выдачу, а не всё подряд', async () => {
+    const clubs = await createRepository();
+
+    expect((await clubs.findAll({ ids: [2] })).map((club) => club.id)).toEqual([2]);
+    expect(await clubs.findAll({ ids: [] })).toEqual([]);
+    expect(await clubs.findAll({ ids: [999] })).toEqual([]);
+  });
+
+  it('условия отбора складываются, а не заменяют друг друга', async () => {
+    const clubs = await createRepository();
+
+    expect(await clubs.findAll({ excludeHidden: true, city: 'Казань' })).toEqual([]);
+    expect(
+      (await clubs.findAll({ excludeHidden: true, city: 'Самара', sportId: 1 })).map(
+        (club) => club.id,
+      ),
+    ).toEqual([1]);
+  });
+
   /**
    * Порядок выдачи не зависит от того, как хранилище разложило строки.
    *
