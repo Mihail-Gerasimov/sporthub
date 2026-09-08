@@ -4,118 +4,138 @@
 // пишется, что места пересчитываются, что уведомления уходят нужным адресатам
 // и что автопереходы по времени идемпотентны.
 //
-// Сервис собирается через контейнер внедрения зависимостей — так же, как в бою.
-// Это и есть доказательство, что слои разъединены: подменяется только источник
-// данных, сам сервис не знает, откуда они берутся.
+// Сервис берётся из поднятого приложения, а не собирается вручную списком
+// провайдеров: так тест идёт тем же путём, что и рабочий сервер, а список
+// зависимостей не протухает молча при появлении новой.
+//
+// ⚠️ Срез данных полнее, чем был у файлового прогона, и это не украшение:
+// у базы есть внешние ключи. Слот ссылается на услугу и владельца, услуга —
+// на вид спорта, тренер — на управляющего пользователя, запись и уведомление —
+// на адресата. Поэтому в срезе есть справочники и трое пользователей, без
+// которых вставка отбивается ещё до проверки самой логики.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { Test } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
-import { AccessService } from '../access/access.service';
-import { LogService } from '../logs/log.service';
-import { NotificationService } from '../notifications/notification.service';
+import type { BookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { NotificationsRepository } from '../repositories/catalog.repository';
 import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
 import type { ScheduleRepository } from '../repositories/entities.repository';
 import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
-import type { BookingsRepository } from '../repositories/bookings.repository';
-import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
-import { SlotContextService } from '../schedule/slot-context.service';
-import { StorageModule } from '../storage/storage.module';
+import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 import { BookingService } from './booking.service';
 
 const SLOT_DATE = '2026-03-20';
 
+/**
+ * Участники среза: атлеты 1 и 3 записываются, пользователь 2 управляет тренером
+ * и потому служит адресатом уведомлений провайдера.
+ */
+const user = (id: number, role: string) => ({
+  id,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  role,
+  status: 'active',
+  name: `Пользователь ${id}`,
+  email: `u${id}@booking-service.test`,
+  phone: '+7 (900) 000-00-00',
+  passwordHash: DEMO_PASSWORD_HASH,
+  favoriteClubIds: [],
+});
+
 describe('BookingService', () => {
-  let dataDirectory: string;
+  let harness: TestHarness;
   let service: BookingService;
   let bookings: BookingsRepository;
   let schedule: ScheduleRepository;
   let notifications: NotificationsRepository;
 
-  const write = async (file: string, data: unknown) => {
-    await writeFile(path.join(dataDirectory, file), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  };
+  beforeAll(async () => {
+    harness = await createTestHarness('booking-service');
 
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-booking-svc-'));
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
-    // Прогон на файловой реализации: она остаётся путём отката до выкатки
-    // на боевой сервер, и её поведение обязано быть проверено.
-    process.env.SPORT_HUB_STORAGE = 'files';
-
-    await write('clubs.json', []);
-    await write('trainers.json', [
-      {
-        id: 5,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        name: 'Пётр',
-        slug: 'petr',
-        managedByUserId: 2,
-      },
-    ]);
-    await write('offerings.json', [
-      {
-        id: 10,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ownerType: 'trainer',
-        ownerId: 5,
-        sportId: 1,
-        price: 1500,
-        cancellationPolicy: 'free_until_24h',
-      },
-    ]);
-    await write('schedule.json', [
-      {
-        id: 100,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        offeringId: 10,
-        sportId: 1,
-        date: SLOT_DATE,
-        startTime: '08:00',
-        endTime: '09:00',
-        capacity: 2,
-        bookedCount: 0,
-        price: 1500,
-      },
-    ]);
-    await write('bookings.json', []);
-    await write('notifications.json', []);
-    await write('logs.json', []);
-    await write('users.json', []);
-    await write('trainer-club-links.json', []);
-    await write('reviews.json', []);
-    await write('provider-client-notes.json', []);
-    for (const dictionary of ['sports', 'cities', 'tags', 'amenities', 'specialties']) {
-      await write(`${dictionary}.json`, []);
-    }
-    await write('work-formats.json', []);
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [StorageModule],
-      providers: [
-        BookingService,
-        SlotContextService,
-        NotificationService,
-        LogService,
-        AccessService,
-      ],
-    }).compile();
-
-    service = moduleRef.get(BookingService);
-    bookings = moduleRef.get(BOOKINGS_REPOSITORY);
-    schedule = moduleRef.get(SCHEDULE_REPOSITORY);
-    notifications = moduleRef.get(NOTIFICATIONS_REPOSITORY);
+    service = harness.app.get(BookingService);
+    bookings = harness.app.get(BOOKINGS_REPOSITORY);
+    schedule = harness.app.get(SCHEDULE_REPOSITORY);
+    notifications = harness.app.get(NOTIFICATIONS_REPOSITORY);
   });
 
-  afterEach(async () => {
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    delete process.env.SPORT_HUB_STORAGE;
-    await rm(dataDirectory, { force: true, recursive: true });
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    // Один перенос на весь срез: разложить его на отдельные записи нельзя —
+    // таблицу не записать в отрыве от тех, на которые она ссылается.
+    // Записи, уведомления и журнал очищаются явно: схема переживает файл,
+    // и без этого следующий тест начинался бы на остатках предыдущего.
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'athlete')],
+      clubs: [],
+      trainers: [
+        {
+          id: 5,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Пётр',
+          slug: 'petr',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          rating: 0,
+          reviewCount: 0,
+          priceFrom: 1500,
+          managedByUserId: 2,
+          sportIds: [1],
+          specialtyIds: [],
+          workFormatIds: [],
+          status: 'published',
+        },
+      ],
+      offerings: [
+        {
+          id: 10,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'trainer',
+          ownerId: 5,
+          sportId: 1,
+          title: 'Персональная',
+          description: 'Описание',
+          format: 'personal',
+          price: 1500,
+          durationMinutes: 60,
+          capacity: 2,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          cancellationPolicy: 'free_until_24h',
+        },
+      ],
+      schedule: [
+        {
+          id: 100,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          offeringId: 10,
+          // Владелец слота у базы — обязательная колонка: без него неизвестно,
+          // чьё это занятие, и уведомлять провайдера будет некого.
+          ownerType: 'trainer',
+          ownerId: 5,
+          sportId: 1,
+          title: 'Занятие',
+          date: SLOT_DATE,
+          startTime: '08:00',
+          endTime: '09:00',
+          durationMinutes: 60,
+          level: 'all_levels',
+          capacity: 2,
+          bookedCount: 0,
+          price: 1500,
+        },
+      ],
+      bookings: [],
+      notifications: [],
+      logs: [],
+    });
   });
 
   describe('создание записи', () => {

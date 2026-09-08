@@ -3,8 +3,9 @@
 // удаление. Правила переходов сюда не входят — они чистые и живут
 // в @sporthub/domain со своими тестами.
 //
-// Набор один и прогоняется ДВАЖДЫ: по файловой реализации и по реализации
-// на базе. Это и есть проверка обещания фазы — контракт репозитория не изменился,
+// Набор прогоняется по единственной реализации — на базе. Раньше он шёл дважды,
+// и совпадение результатов доказывало, что интерфейс не протёк деталями хранилища.
+// Файловая реализация удалена в фазе 34, доказательство своё дело сделало. Это и есть проверка обещания фазы — контракт репозитория не изменился,
 // значит сервис записей можно не трогать.
 //
 // Чего в этом наборе намеренно НЕТ:
@@ -15,18 +16,13 @@
 // - сравнения файла побайтно: у базы файла нет, и «не тронул хранилище» проверяется
 //   числом затронутых строк.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import type { Booking } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from '../storage/json-storage';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
-import { JsonBookingsRepository, type BookingsRepository } from './bookings.repository';
+import type { BookingsRepository } from './bookings.repository';
 import { PrismaBookingsRepository } from './prisma/bookings.repository';
 
 /** Клубная запись: владелец-клуб, зал у неё — он же. */
@@ -394,29 +390,6 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
     ]);
   });
 };
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ПРОГОН НА ФАЙЛОВОЙ РЕАЛИЗАЦИИ
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('BookingsRepository — файловая реализация', () => {
-  let dataDirectory: string;
-
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-bookings-'));
-    await writeFile(path.join(dataDirectory, 'bookings.json'), '[]\n', 'utf8');
-  });
-
-  afterEach(async () => {
-    await rm(dataDirectory, { force: true, recursive: true });
-  });
-
-  bookingsContract(async () => new JsonBookingsRepository(new JsonStorage(dataDirectory)));
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ТОТ ЖЕ НАБОР НА БАЗЕ
-// ═════════════════════════════════════════════════════════════════════════════
 
 describe('BookingsRepository — реализация на базе', () => {
   let db: TestDatabase;

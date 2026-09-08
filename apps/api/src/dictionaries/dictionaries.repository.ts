@@ -2,13 +2,16 @@
 // паттерн «интерфейс + токен внедрения + подменяемая реализация», который
 // дальше повторяется для остальных 11 доменов.
 //
+// Здесь остались только границы. Реализация одна и живёт в `repositories/prisma/`.
+// Файловая версия и заглушка в памяти удалены в фазе 34: заглушка существовала
+// доказательством, что интерфейс не протёк деталями хранилища и подмена на Prisma
+// будет безболезненной. Подмена состоялась, доказательство своё дело сделало —
+// а реализация, которую зовут только тесты, это уже не абстракция, а мёртвый код.
+//
 // Смысл разделения — в фазе базы JSON-реализация заменяется на Prisma-версию
 // правкой одной строки провайдера в модуле, а сервисы и их тесты не трогаются.
 
-import { normalizeMatchKey } from '@sporthub/domain';
 import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub/types';
-
-import type { CollectionKey, JsonStorage } from '../storage/json-storage';
 
 // --- Токены внедрения ---------------------------------------------------------
 
@@ -44,81 +47,4 @@ export interface CitiesRepository {
    * В фазе базы ложится на `prisma.city.upsert` один в один.
    */
   findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City>;
-}
-
-// --- JSON-реализации ----------------------------------------------------------
-
-export class JsonSimpleDictionaryRepository<TItem> implements SimpleDictionaryRepository<TItem> {
-  constructor(
-    private readonly storage: JsonStorage,
-    private readonly collection: CollectionKey,
-  ) {}
-
-  async findAll(): Promise<TItem[]> {
-    return (await this.storage.read(this.collection)) as TItem[];
-  }
-}
-
-export class JsonCitiesRepository implements CitiesRepository {
-  constructor(private readonly storage: JsonStorage) {}
-
-  async findAll(): Promise<City[]> {
-    return this.storage.read('cities');
-  }
-
-  async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
-    const cities = await this.storage.read('cities');
-    const normalized = normalizeMatchKey(data.name);
-    const existing = cities.find((city) => normalizeMatchKey(city.name) === normalized);
-
-    if (existing) {
-      return existing;
-    }
-
-    const city: City = {
-      ...data,
-      id: this.storage.getNextEntityId(cities),
-      createdAt: new Date().toISOString(),
-    };
-
-    await this.storage.write('cities', [...cities, city]);
-
-    return city;
-  }
-}
-
-// --- Реализация в памяти ------------------------------------------------------
-
-/**
- * Заглушка без файловой системы. Нужна не для продакшена, а как доказательство:
- * если контрактный набор тестов проходит и на ней, и на JSON-версии — значит
- * интерфейс не протёк деталями хранилища и подмена на Prisma будет безболезненной.
- */
-export class InMemoryCitiesRepository implements CitiesRepository {
-  constructor(private cities: City[] = []) {}
-
-  async findAll(): Promise<City[]> {
-    return [...this.cities];
-  }
-
-  async findOrCreateByName(data: Omit<City, 'id' | 'createdAt'>): Promise<City> {
-    const normalized = normalizeMatchKey(data.name);
-    const existing = this.cities.find((city) => normalizeMatchKey(city.name) === normalized);
-
-    if (existing) {
-      return existing;
-    }
-
-    const nextId =
-      this.cities.length === 0 ? 1 : Math.max(...this.cities.map((city) => city.id)) + 1;
-    const city: City = {
-      ...data,
-      id: nextId,
-      createdAt: new Date().toISOString(),
-    };
-
-    this.cities = [...this.cities, city];
-
-    return city;
-  }
 }

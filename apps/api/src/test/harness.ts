@@ -5,10 +5,6 @@
 // Пустые файлы создаются для всех коллекций сразу — иначе первый же запрос,
 // который читает соседнюю коллекцию, падает на отсутствующем файле.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
@@ -58,15 +54,6 @@ export type CollectionName = (typeof COLLECTIONS)[number];
 
 export type TestHarness = {
   app: INestApplication;
-  /**
-   * На чём поднято приложение.
-   *
-   * Нужно ровно одному месту — там, где состояние, которое проверяет набор,
-   * ОДНО ХРАНИЛИЩЕ ДОПУСКАЕТ, А ДРУГОЕ ЗАПРЕЩАЕТ. Такие места обязаны быть видны
-   * в коде набора и объяснены рядом, а не спрятаны за молчаливым пропуском.
-   */
-  storage: 'files' | 'database';
-  dataDirectory: string;
   /** Перезаписать коллекцию целиком — тем же форматом, что пишет хранилище. */
   write(name: string, data: unknown): Promise<void>;
   /**
@@ -154,10 +141,8 @@ async function createDatabaseHarness(): Promise<TestHarness> {
 
   return {
     app,
-    storage: 'database',
     // Каталога данных у этой обвязки нет: путь оставлен пустым намеренно, чтобы
     // обращение к нему было видно сразу, а не молча читало чужие файлы.
-    dataDirectory: '',
     write(name, data) {
       return applyWrite({ [name as CollectionName]: data });
     },
@@ -177,73 +162,17 @@ async function createDatabaseHarness(): Promise<TestHarness> {
 }
 
 /**
- * Поднять приложение на своей директории данных.
+ * Поднять приложение на своей схеме базы.
  *
- * ⚠️ Хранилище выбирается переменной `SPORTHUB_TEST_ON_DATABASE`. По умолчанию это
- * файлы: пока файловая реализация жива как путь отката, её поведение обязано быть
- * проверено. Тот же набор на базе — тот же набор, и совпадение результатов и есть
- * доказательство, что переезд ничего не изменил.
+ * Хранилище одно — база. Файловая реализация удалена в фазе 34 (этап Э0a): пока она
+ * была жива как путь отката, тот же набор гонялся на обеих реализациях, и совпадение
+ * результатов доказывало, что переезд ничего не изменил. Доказательство своё дело
+ * сделало, а вторая реализация каждой новой таблицы стоила бы работы впустую.
+ *
+ * Имя `prefix` остаётся в сигнатуре: по нему различаются схемы параллельных прогонов.
  */
-export async function createTestHarness(prefix: string): Promise<TestHarness> {
-  if (process.env.SPORTHUB_TEST_ON_DATABASE === '1') {
-    process.env.SPORT_HUB_STORAGE = 'database';
-    await ensureTestSchema();
+export async function createTestHarness(_prefix: string): Promise<TestHarness> {
+  await ensureTestSchema();
 
-    return createDatabaseHarness();
-  }
-
-  const dataDirectory = await mkdtemp(path.join(tmpdir(), `sporthub-${prefix}-`));
-  process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
-  // ⚠️ Обвязка поднимает приложение на ФАЙЛАХ. Это временно и снимается шагом 33.43:
-  // до тех пор эти прогоны доказывают, что путь отката жив, а проверки на базе
-  // живут отдельными файлами (`schema.test.ts`, `concurrency.test.ts`, контрактные
-  // наборы репозиториев).
-  process.env.SPORT_HUB_STORAGE = 'files';
-
-  const write = async (name: string, data: unknown): Promise<void> => {
-    await writeFile(
-      path.join(dataDirectory, `${name}.json`),
-      `${JSON.stringify(data, null, 2)}\n`,
-      'utf8',
-    );
-  };
-
-  // Пустые коллекции: наборы данных тесты засеивают сами через пакет фикстур.
-  // Копии рабочего каталога `data/` здесь больше нет — она держала тесты
-  // на живых данных, которых после переезда на базу не станет.
-  for (const name of COLLECTIONS) {
-    await write(name, []);
-  }
-
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
-  // Та же настройка, что и у рабочего сервера, включая общий префикс адресов.
-  const app = configureApp(moduleRef.createNestApplication());
-  await app.init();
-
-  const read = async <T>(name: string): Promise<T> => {
-    const { readFile } = await import('node:fs/promises');
-    const raw = await readFile(path.join(dataDirectory, `${name}.json`), 'utf8');
-
-    return JSON.parse(raw) as T;
-  };
-
-  return {
-    app,
-    storage: 'files',
-    dataDirectory,
-    write,
-    async writeMany(collections) {
-      for (const [name, data] of Object.entries(collections)) {
-        await write(name, data);
-      }
-    },
-    read,
-    async close() {
-      await app.close();
-      delete process.env.SPORT_HUB_DATA_DIRECTORY;
-      await rm(dataDirectory, { force: true, recursive: true });
-    },
-  };
+  return createDatabaseHarness();
 }

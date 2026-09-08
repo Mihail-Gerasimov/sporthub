@@ -7,10 +7,6 @@
 // в памяти. Совпадение результатов и есть доказательство, что интерфейс
 // не протёк деталями хранилища.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import { normalizeMatchKey } from '@sporthub/domain';
 import type { City, Tag } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -19,16 +15,10 @@ import {
   PrismaCitiesRepository,
   PrismaSimpleDictionaryRepository,
 } from '../repositories/prisma/dictionaries.repository';
-import { JsonStorage } from '../storage/json-storage';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
-import {
-  InMemoryCitiesRepository,
-  JsonCitiesRepository,
-  JsonSimpleDictionaryRepository,
-  type CitiesRepository,
-} from './dictionaries.repository';
+import { type CitiesRepository } from './dictionaries.repository';
 
 const SEED_CITIES: City[] = [
   {
@@ -46,39 +36,6 @@ const SEED_CITIES: City[] = [
 ];
 
 describe('Репозитории справочников', () => {
-  let dataDirectory: string;
-  let storage: JsonStorage;
-
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-dict-'));
-    storage = new JsonStorage(dataDirectory);
-    await writeFile(
-      path.join(dataDirectory, 'cities.json'),
-      `${JSON.stringify(SEED_CITIES, null, 2)}\n`,
-      'utf8',
-    );
-    await writeFile(
-      path.join(dataDirectory, 'sports.json'),
-      `${JSON.stringify([{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Плавание' }], null, 2)}\n`,
-      'utf8',
-    );
-  });
-
-  afterEach(async () => {
-    await rm(dataDirectory, { force: true, recursive: true });
-  });
-
-  describe('простые справочники (только чтение)', () => {
-    it('отдают всю коллекцию как есть', async () => {
-      const sports = new JsonSimpleDictionaryRepository(storage, 'sports');
-
-      const all = await sports.findAll();
-
-      expect(all).toHaveLength(1);
-      expect(all[0]).toMatchObject({ id: 1, name: 'Плавание' });
-    });
-  });
-
   // Контрактный набор: один и тот же список проверок для любой реализации.
   // Если он проходит на JSON и падает на заглушке (или наоборот) — интерфейс лжёт.
   const citiesContract = (createRepository: () => Promise<CitiesRepository>) => {
@@ -147,15 +104,6 @@ describe('Репозитории справочников', () => {
       expect(await repository.findAll()).toHaveLength(3);
     });
   };
-
-  describe('CitiesRepository — JSON-реализация', () => {
-    citiesContract(async () => new JsonCitiesRepository(storage));
-  });
-
-  describe('CitiesRepository — заглушка в памяти', () => {
-    // Та же проверка на реализации, которая про файлы не знает вовсе.
-    citiesContract(async () => new InMemoryCitiesRepository(structuredClone(SEED_CITIES)));
-  });
 
   describe('CitiesRepository — реализация на базе', () => {
     // Тот же набор на настоящей базе. Это и есть проверка обещания фазы: контракт

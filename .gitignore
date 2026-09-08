@@ -50,25 +50,6 @@ PROJECT_STATE.md
 STACK_OVERVIEW.md
 README.md
 
-# data (seed-справочники и динамические файлы — всё локальное, не коммитится)
-data/amenities.json
-data/bookings.json
-data/cities.json
-data/clubs.json
-data/logs.json
-data/notifications.json
-data/offerings.json
-data/provider-client-notes.json
-data/reviews.json
-data/schedule.json
-data/specialties.json
-data/sports.json
-data/tags.json
-data/trainer-club-links.json
-data/trainers.json
-data/users.json
-data/work-formats.json
-
 # Сгенерированный клиент Prisma — артефакт сборки, а не исходник.
 # Генерация встроена в сборку: иначе образ соберётся на клиенте от прошлой схемы.
 apps/api/src/storage/prisma-client/

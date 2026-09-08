@@ -13,21 +13,13 @@
 // починки данных файлового хранилища (их место — там, где лежат сами кривые данные)
 // и порядок наборов ссылок в базе (у связующих таблиц нет колонки позиции).
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from '../storage/json-storage';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
 import {
-  JsonClubsRepository,
-  JsonScheduleRepository,
-  JsonTrainersRepository,
   normalizeSlugLookupValue,
   type ClubsRepository,
   type ScheduleRepository,
@@ -1021,120 +1013,24 @@ const scheduleContract = (createRepository: () => Promise<ScheduleRepository>) =
 
 // --- Прогон на файловой реализации --------------------------------------------
 
-describe('Репозитории сущностей каталога', () => {
-  let dataDirectory: string;
-  let storage: JsonStorage;
-
-  const writeCollection = async (file: string, data: unknown) => {
-    await writeFile(path.join(dataDirectory, file), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  };
-
-  const seedFiles = async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-entities-'));
-    storage = new JsonStorage(dataDirectory);
-    await writeCollection('clubs.json', SEED_CLUBS);
-    await writeCollection('trainers.json', SEED_TRAINERS);
-    await writeCollection('offerings.json', SEED_OFFERINGS);
-    await writeCollection('schedule.json', SEED_SCHEDULE);
-  };
-
-  beforeEach(seedFiles);
-
-  afterEach(async () => {
-    await rm(dataDirectory, { force: true, recursive: true });
+// Нормализация адреса-ссылки — чистая функция, к хранилищу отношения не имеет.
+// Раньше её проверки жили внутри файлового прогона; файловая реализация удалена
+// в фазе 34, а проверки остались: сама функция никуда не делась и ею пользуется
+// и реализация на базе, и подготовка сида.
+describe('нормализация slug', () => {
+  it('снимает URI-кодирование, регистр и лишние пробелы', () => {
+    expect(normalizeSlugLookupValue('  КроссФит  ')).toBe('кроссфит');
+    expect(normalizeSlugLookupValue(encodeURIComponent('кроссфит'))).toBe('кроссфит');
   });
 
-  describe('нормализация slug', () => {
-    it('снимает URI-кодирование, регистр и лишние пробелы', () => {
-      expect(normalizeSlugLookupValue('  КроссФит  ')).toBe('кроссфит');
-      expect(normalizeSlugLookupValue(encodeURIComponent('кроссфит'))).toBe('кроссфит');
-    });
-
-    it('битую кодировку не роняет, а обрабатывает как есть', () => {
-      expect(normalizeSlugLookupValue('%E0%A4%A')).toBe('%e0%a4%a');
-    });
-
-    it('пустая строка остаётся пустой', () => {
-      expect(normalizeSlugLookupValue('   ')).toBe('');
-    });
+  it('битую кодировку не роняет, а обрабатывает как есть', () => {
+    expect(normalizeSlugLookupValue('%E0%A4%A')).toBe('%e0%a4%a');
   });
 
-  describe('ClubsRepository — файловая реализация', () => {
-    clubsContract(async () => new JsonClubsRepository(storage));
-  });
-
-  describe('TrainersRepository — файловая реализация', () => {
-    trainersContract(async () => new JsonTrainersRepository(storage));
-  });
-
-  describe('ScheduleRepository — файловая реализация', () => {
-    scheduleContract(async () => new JsonScheduleRepository(storage));
-
-    it('порядок выдачи не зависит от того, как строки лежат в файле', async () => {
-      // Рабочий `data/schedule.json` хранит слоты как `9,10,6,4,5,3,2,8,7,1` —
-      // порядок записи, а не номеров. Пока файловая реализация отдавала «как лежит»,
-      // она расходилась с базой на одном и том же вызове, и заметить это можно
-      // было только на проде после переключения хранилища.
-      await writeCollection('schedule.json', [...SEED_SCHEDULE].reverse());
-
-      const schedule = new JsonScheduleRepository(storage);
-      const ids = (await schedule.findMany({ ownerType: 'all' })).map((slot) => slot.id);
-
-      expect(ids).toEqual([1, 2, 3]);
-    });
-  });
-
-  // Починки кривых данных — свойство ФАЙЛОВОГО хранилища, а не контракта. В базе
-  // их места нет: колонки объявлены, владелец слота обязателен, устаревшего
-  // одиночного поля в схеме нет вовсе.
-  describe('починки данных файлового хранилища', () => {
-    it('восстанавливает sportIds из устаревшего одиночного sportId', async () => {
-      await writeCollection('trainers.json', [
-        { id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Пётр', slug: 'petr', sportId: 7 },
-      ]);
-
-      const trainer = await new JsonTrainersRepository(storage).findById(1);
-
-      expect(trainer?.sportIds).toEqual([7]);
-      expect(trainer?.sportId).toBe(7);
-    });
-
-    it('без обоих полей отдаёт пустой массив, а не падает', async () => {
-      await writeCollection('trainers.json', [
-        { id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Пётр', slug: 'petr' },
-      ]);
-
-      expect((await new JsonTrainersRepository(storage).findById(1))?.sportIds).toEqual([]);
-    });
-
-    it('выводит владельца слота из связанной услуги', async () => {
-      await writeCollection('schedule.json', [
-        {
-          id: 1,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          offeringId: 10,
-          bookedCount: 0,
-          capacity: 5,
-        },
-      ]);
-
-      const slot = await new JsonScheduleRepository(storage).findById(1);
-
-      expect(slot?.ownerType).toBe('trainer');
-      expect(slot?.ownerId).toBe(1);
-    });
-
-    it('порядок набора ссылок — порядок записи в файле', async () => {
-      const clubs = new JsonClubsRepository(storage);
-
-      const updated = await clubs.update(1, { sportIds: [8, 2] });
-
-      expect(updated.sportIds).toEqual([8, 2]);
-    });
+  it('пустая строка остаётся пустой', () => {
+    expect(normalizeSlugLookupValue('   ')).toBe('');
   });
 });
-
-// --- Прогон на базе -----------------------------------------------------------
 
 describe('Репозитории сущностей каталога — реализация на базе', () => {
   let db: TestDatabase;

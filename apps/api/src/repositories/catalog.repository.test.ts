@@ -1,6 +1,8 @@
 // Тесты репозиториев связей тренер↔клуб, услуг и уведомлений.
 //
-// Контрактный набор прогоняется на ОБЕИХ реализациях — файловой и на базе. Проверяем
+// Контрактный набор прогоняется на единственной реализации — на базе. Раньше он шёл
+// и по файлам: совпадение результатов доказывало, что интерфейс не протёк деталями
+// хранилища. Файловая реализация удалена в фазе 34. Проверяем
 // то, что обязано пережить смену хранилища: фильтры, порядок выдачи, постраничность,
 // выбор основной услуги и дословные тексты ошибок.
 //
@@ -8,21 +10,13 @@
 // из ответа вставки, а не задаются числом: у базы их выдаёт последовательность,
 // и проверка «идентификатор равен единице» там неверна по построению.
 
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import type { Notification, Offering, TrainerClubLink } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from '../storage/json-storage';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
 import {
-  JsonNotificationsRepository,
-  JsonOfferingsRepository,
-  JsonTrainerClubLinksRepository,
   type NotificationsRepository,
   type OfferingsRepository,
   type TrainerClubLinksRepository,
@@ -40,7 +34,7 @@ type CatalogRepositories = {
   notifications: NotificationsRepository;
 };
 
-// Номера окружения. У файловой реализации это просто числа, у базы — существующие
+// Номера окружения: у базы это существующие
 // строки: услуга ссылается на владельца и вид спорта, уведомление — на пользователя.
 const USER_IDS = [1, 2];
 const SPORT_IDS = [1, 2];
@@ -472,49 +466,6 @@ const catalogContract = (createRepositories: () => Promise<CatalogRepositories>)
     });
   });
 };
-
-// --- Прогон на файловой реализации --------------------------------------------
-
-describe('Репозитории каталога', () => {
-  let dataDirectory: string;
-  let storage: JsonStorage;
-
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-catalog-'));
-    storage = new JsonStorage(dataDirectory);
-    for (const file of ['trainer-club-links.json', 'offerings.json', 'notifications.json']) {
-      await writeFile(path.join(dataDirectory, file), '[]\n', 'utf8');
-    }
-  });
-
-  afterEach(async () => {
-    await rm(dataDirectory, { force: true, recursive: true });
-  });
-
-  describe('файловая реализация', () => {
-    catalogContract(async () => ({
-      links: new JsonTrainerClubLinksRepository(storage),
-      offerings: new JsonOfferingsRepository(storage),
-      notifications: new JsonNotificationsRepository(storage),
-    }));
-  });
-
-  // Свойство файлового хранилища, а не контракта: у базы «не дошло до диска»
-  // выражается нулём затронутых строк, и проверять там нечего.
-  describe('свойства файлового хранилища', () => {
-    it('markAllRead без непрочитанных не трогает файл', async () => {
-      const notifications = new JsonNotificationsRepository(storage);
-      const filePath = path.join(dataDirectory, 'notifications.json');
-      const before = await readFile(filePath, 'utf8');
-
-      const updated = await notifications.markAllRead(1);
-
-      expect(updated).toBe(0);
-      // Как в db.ts: нулевая правка вообще не доходит до диска.
-      expect(await readFile(filePath, 'utf8')).toBe(before);
-    });
-  });
-});
 
 // --- Прогон на базе -----------------------------------------------------------
 

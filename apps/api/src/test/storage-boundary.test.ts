@@ -1,9 +1,16 @@
-// Сторож границы хранилища.
+// Сторож хранилища.
 //
-// Обещание фазы 33 — подменить хранилище правкой одного файла `storage.module.ts`.
-// Обещание держится ровно до тех пор, пока про конкретную реализацию знают только
-// сам слой хранилища и репозитории. Сервис, внедряющий конкретный класс, ломает
-// это молча: код работает, тесты зелёные, а подменить хранилище уже нельзя.
+// Проверяет две вещи, обе — про то, что легко сломать молча.
+//
+// 1. **Выбора реализации в коде нет.** Файловая реализация удалена в фазе 34, и это
+//    решение заказчика, а не уборка: пока реализаций было две, каждая новая таблица
+//    требовала бы вторую реализацию, заведомо идущую в мусор. Вернуть выбор можно
+//    только сознательно — этот тест краснеет на любой попытке.
+// 2. **Данные не появляются рядом с исходниками.** Это не гипотетика: файлы уже
+//    однажды попадали в репозиторий.
+//
+// Границу «клиент базы известен только своему слою» стережёт отдельный тест —
+// `database-boundary.test.ts`; дублировать её здесь нечем.
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -12,9 +19,6 @@ import { describe, expect, it } from 'vitest';
 
 const API_ROOT = process.cwd();
 const SOURCE_ROOT = path.join(API_ROOT, 'src');
-
-/** Слои, которым знать про конкретное хранилище положено. */
-const STORAGE_LAYER = ['src/storage/', 'src/repositories/', 'src/dictionaries/'];
 
 async function collectSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -38,39 +42,37 @@ async function collectSources(directory: string): Promise<string[]> {
   return found;
 }
 
-describe('Граница хранилища', () => {
-  it('конкретное хранилище известно только своему слою', async () => {
+describe('Выбор хранилища', () => {
+  // Сторож против возврата второй реализации. Файловая удалена в фазе 34 (этап Э0a),
+  // и это решение, а не уборка: пока реализаций было две, КАЖДАЯ новая таблица —
+  // сессии, ссылки восстановления пароля — требовала бы вторую реализацию, заведомо
+  // идущую в мусор. Вернуться к выбору хранилища можно только сознательно, а не
+  // случайно: этот тест краснеет на любой попытке.
+  const FORBIDDEN = [
+    { pattern: /SPORT_HUB_STORAGE/, why: 'переключатель хранилища' },
+    { pattern: /SPORT_HUB_DATA_DIRECTORY/, why: 'каталог файловых данных' },
+    { pattern: /from\s+'[^']*json-storage'/, why: 'файловое хранилище' },
+    { pattern: /\bJsonStorage\b/, why: 'файловое хранилище' },
+    { pattern: /\bresolveStorageKind\b|\bStorageKind\b/, why: 'выбор реализации' },
+  ];
+
+  it('в коде не осталось выбора реализации хранилища', async () => {
     const files = await collectSources(SOURCE_ROOT);
     const offenders: string[] = [];
 
     for (const file of files) {
       const relative = file.split(path.sep).join('/');
-
-      if (STORAGE_LAYER.some((layer) => relative.startsWith(layer))) continue;
-      // Сам модуль связывания — то самое единственное место, где выбор реализации записан.
-      if (relative === 'src/storage/storage.module.ts') continue;
-
       const text = await readFile(path.join(API_ROOT, file), 'utf8');
 
-      if (/from\s+'[^']*json-storage'/.test(text)) {
-        offenders.push(relative);
+      for (const { pattern, why } of FORBIDDEN) {
+        if (pattern.test(text)) offenders.push(`${relative} — ${why}`);
       }
     }
 
-    expect(offenders).toEqual([]);
+    expect(offenders, offenders.join('\n')).toEqual([]);
   });
 });
 
-/**
- * Данные не должны появляться рядом с исходниками.
- *
- * ⚠️ Это не выдумка про запас: в репозиторий уже был закоммичен полный набор коллекций
- * прямо в `apps/api/` — шестнадцать файлов с фикстурными данными, попавших туда разовым
- * запуском с относительным путём в `SPORT_HUB_DATA_DIRECTORY`. Заметили их только на
- * ревизии, спустя несколько шагов. Штатные пути таких файлов не создают: без переменной
- * каталог ищется вверх по дереву до `package.json` рядом с `data`, а обвязка тестов
- * подставляет временный каталог. Сторож ловит именно нештатный случай.
- */
 describe('Данные не появляются рядом с исходниками', () => {
   it('в корне пакета бэкенда нет файлов коллекций', async () => {
     const entries = await readdir(API_ROOT, { withFileTypes: true });

@@ -86,31 +86,12 @@ services:
         condition: service_healthy
     environment:
       API_PORT: 3001
-      # Где лежат данные. Рабочее хранилище — база, это и есть умолчание.
-      # Значение `files` поднимает то же приложение на `data/*.json` и остаётся
-      # ПУТЁМ ОТКАТА до выкатки на боевой сервер.
-      #
-      # Объявлено явно и через переменную, хотя умолчание есть и в коде: так откат
-      # оказывается строчкой в `.env` рядом с этим файлом, а не правкой самого файла
-      # на боевом сервере в неудачный момент.
-      # STUB: значение `files` живёт до шага 33.58.
-      SPORT_HUB_STORAGE: ${SPORT_HUB_STORAGE:-database}
-      # Каталог данных задаётся явно: в образе структура каталогов другая,
-      # и поиск «вверх по дереву» до него не доберётся.
-      # STUB: живёт до шага 33.58 вместе с файловым хранилищем — без каталога
-      # путь отката был бы недоступен.
-      SPORT_HUB_DATA_DIRECTORY: /app/data
       DATABASE_URL: postgresql://sporthub:${POSTGRES_PASSWORD:-sporthub}@db:5432/sporthub?schema=public
       DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
       NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
       YANDEX_SUGGEST_API_KEY: ${YANDEX_SUGGEST_API_KEY:-}
     ports:
       - '127.0.0.1:3001:3001'
-    volumes:
-      # Том, а не копия внутрь образа: иначе пересборка стирала бы содержимое
-      # каталога отката молча.
-      # STUB: снимается на шаге 33.58 вместе с файловым хранилищем.
-      - ./data:/app/data
     healthcheck:
       test: ['CMD', 'node', '/app/healthcheck.mjs']
       interval: 10s

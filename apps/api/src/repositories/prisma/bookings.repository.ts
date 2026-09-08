@@ -63,7 +63,10 @@ type TransitionRow = {
 type BookingRow = {
   id: number;
   createdAt: Date;
-  scheduleId: number;
+  // Колонка объявлена как `Int?`: слот у записи МОЖНО убрать, и тогда здесь пусто.
+  // Раньше тип врал обязательностью, из-за чего пустое значение молча снималось
+  // вместе с остальными — см. комментарий в `toBooking`.
+  scheduleId: number | null;
   offeringId: number | null;
   ownerClubId: number | null;
   ownerTrainerId: number | null;
@@ -152,11 +155,19 @@ export class PrismaBookingsRepository implements BookingsRepository {
   private static toBooking(row: BookingRow): Booking {
     const owner = toOwnerRef(row);
 
-    return omitEmptyArrays(
-      omitNulls({
+    // ⚠️ `scheduleId` НЕ проходит через `omitNulls` и передаётся явно ниже.
+    // Тип обязывает поле присутствовать всегда (`scheduleId: EntityId | null`),
+    // и на это опирается код: удаление слота оставляет запись без слота, а сервис
+    // отличает такую запись сравнением `booking.scheduleId === null`. Снятое пустое
+    // значение превращало сравнение в ложь, и отмена такой записи уходила
+    // в поиск слота по `undefined` — то есть в пятисотую вместо честного перехода.
+    return omitEmptyArrays({
+      // Пустой слот обязан дойти как есть, поэтому поле стоит СНАРУЖИ `omitNulls`
+      // и переживает снятие пустых значений. См. предупреждение выше.
+      scheduleId: row.scheduleId,
+      ...omitNulls({
         id: row.id,
         createdAt: toIsoString(row.createdAt),
-        scheduleId: row.scheduleId,
         offeringId: row.offeringId,
         ownerType: owner.ownerType,
         ownerId: owner.ownerId,
@@ -182,7 +193,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
         cancelReason: row.cancelReason,
         completedAt: row.completedAt === null ? null : toIsoString(row.completedAt),
       }),
-    ) as unknown as Booking;
+    }) as unknown as Booking;
   }
 
   /**

@@ -1,9 +1,11 @@
-// Обвязка запуска сидов из командной строки.
+// Обвязка запуска сида из командной строки.
 //
-// Одна на оба сценария — перенос из файлов и сид для разработки, — потому что
-// отличаются они ровно источником данных. Всё остальное совпадает: прочитать
-// настройки, открыть соединение, выполнить, напечатать отчёт, закрыть соединение
-// даже если по дороге упало.
+// Прочитать настройки, открыть соединение, выполнить, напечатать отчёт, закрыть
+// соединение даже если по дороге упало.
+//
+// Раньше сценариев было два: перенос данных из `data/*.json` и сид для разработки.
+// Перенос удалён в фазе 34 вместе с файловым хранилищем — источника больше нет,
+// данные живут в базе, а для чистой установки есть сид.
 //
 // Модуль лежит в исходниках, а не рядом с запускающим файлом, ровно затем, чтобы
 // его проверял компилятор вместе со всем остальным кодом бэкенда.
@@ -11,13 +13,11 @@
 import path from 'node:path';
 
 import { PrismaService, readDatabaseSettings } from '../prisma.service';
-import { resolveDataDirectory } from '../resolve-data-directory';
 import { seedDevData } from './dev-seed';
 import { formatImportReport, importSourceData } from './import-from-files';
-import { readSourceData } from './source-data';
 
-/** Что именно запускаем. */
-export type SeedMode = 'import-from-files' | 'dev';
+/** Что именно запускаем. Сценарий остался один — сид для разработки. */
+export type SeedMode = 'dev';
 
 /**
  * Подхватить `apps/api/.env`.
@@ -42,38 +42,19 @@ export async function runSeedCli(mode: SeedMode): Promise<number> {
   const service = new PrismaService(settings);
 
   try {
-    if (mode === 'dev') {
-      console.log('СИД ДЛЯ РАЗРАБОТКИ');
-      console.log(`База: ${settings.schema}\n`);
+    console.log('СИД ДЛЯ РАЗРАБОТКИ');
+    console.log(`База: ${settings.schema}\n`);
 
-      const report = await seedDevData({ client: service.client });
+    const report = await seedDevData({ client: service.client });
 
-      console.log(formatImportReport(report, { title: 'ЗАПИСАНО', prepared: 'в наборе' }));
-      console.log(
-        '\nВойти можно любой из учётных записей: admin@ / owner@ / trainer@ / athlete@sporthub.local',
-      );
-    } else {
-      const dataDirectory = resolveDataDirectory();
-
-      console.log('ПЕРЕНОС ДАННЫХ ИЗ ФАЙЛОВ В БАЗУ');
-      console.log(`Источник: ${dataDirectory}`);
-      console.log(`База: ${settings.schema}\n`);
-
-      const source = await readSourceData(dataDirectory);
-      const report = await importSourceData({
-        client: service.client,
-        source,
-        // Чистка мусорных текстов включается только здесь: её словарь привязан
-        // к номерам записей именно этих файлов.
-        repairTexts: true,
-      });
-
-      console.log(formatImportReport(report));
-    }
+    console.log(formatImportReport(report, { title: 'ЗАПИСАНО', prepared: 'в наборе' }));
+    console.log(
+      '\nВойти можно любой из учётных записей: admin@ / owner@ / trainer@ / athlete@sporthub.local',
+    );
 
     return 0;
   } catch (error) {
-    console.error('\nПеренос не выполнен. Ничего не записано: вся вставка идёт одной транзакцией.');
+    console.error('\nСид не выполнен. Ничего не записано: вся вставка идёт одной транзакцией.');
     console.error(error instanceof Error ? error.message : String(error));
 
     return 1;

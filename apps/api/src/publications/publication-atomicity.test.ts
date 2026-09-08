@@ -7,16 +7,16 @@
 // основной услуги, а такую публикацию нельзя ни показать, ни забронировать —
 // она просто висит в каталоге битой карточкой, и никто не знает, откуда взялась.
 //
-// ⚠️ Сбой вызывается РАЗНЫМИ способами на разных хранилищах, и иначе не выйдет:
-// у базы есть ограничения целостности, у файлов их нет вовсе. Поэтому базе даются
-// данные, которые проходят вход, но отбиваются проверкой `schedule_time_order`
-// на третьем шаге, а файлам — сбой самой записи на диск (единственный отказ,
-// который у файлового хранилища вообще бывает посреди работы). Проверяемое
-// свойство при этом ОДНО И ТО ЖЕ: после отказа в хранилище пусто.
-
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+// ⚠️ Сбой вызывается ограничением целостности самой базы: слот, у которого конец
+// занятия раньше начала, проходит вход, но отбивается проверкой `schedule_time_order`
+// на третьем шаге публикации — когда клуб и услуга уже вставлены. Проверяемое
+// свойство: после отказа в хранилище пусто.
+//
+// Прежде рядом жил близнец на файловом хранилище: там отказ подавался хуком сбоя
+// записи на диск (`setWriteFailureHookForTests`) — единственным, который у файлов
+// бывает посреди работы. Он снят вместе с самим файловым хранилищем в фазе 34:
+// проверял он ровно то же свойство тем же `expectNothingPublished`, и хука, на
+// котором он держался, в базе нет и быть не может.
 
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -29,11 +29,9 @@ import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
 import type { ClubsRepository, ScheduleRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
 import { SlotContextService } from '../schedule/slot-context.service';
-import { JsonStorage } from '../storage/json-storage';
 import { StorageModule } from '../storage/storage.module';
 import { createTestDatabase, testDatabaseUrl, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
-import { COLLECTIONS } from '../test/harness';
 import { PublicationService } from './publication.service';
 
 /** Владелец публикации: на него ссылается `managedByUserId` клуба. */
@@ -81,7 +79,7 @@ const OFFERING = {
   coordinates: { lat: 0, lng: 0 },
 };
 
-/** Исправный слот: им пользуется файловый прогон, там сбой приходит с диска. */
+/** Исправный слот: от него отличается ровно одним — порядком времени — тот, что базу не проходит. */
 const SLOT = {
   sportId: SPORT.id,
   title: 'Слот',
@@ -138,46 +136,7 @@ describe('Атомарность публикации клуба', () => {
     cleanup = undefined;
   });
 
-  it('на файловом хранилище: сбой записи расписания не оставляет ни клуба, ни услуги', async () => {
-    const dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-atomicity-'));
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
-    process.env.SPORT_HUB_STORAGE = 'files';
-
-    for (const name of COLLECTIONS) {
-      await writeFile(path.join(dataDirectory, `${name}.json`), '[]\n', 'utf8');
-    }
-
-    const moduleRef = await buildModule();
-
-    cleanup = async () => {
-      await moduleRef.close();
-      delete process.env.SPORT_HUB_DATA_DIRECTORY;
-      delete process.env.SPORT_HUB_STORAGE;
-      await rm(dataDirectory, { force: true, recursive: true });
-    };
-
-    const storage = moduleRef.get(JsonStorage);
-
-    // Диск отказывает на записи расписания — то есть после того, как клуб и услуга
-    // уже отданы хранилищу. Хук для этого и заведён в самой реализации.
-    storage.setWriteFailureHookForTests((collection) => {
-      if (collection === 'schedule') throw new Error('Сбой записи на диск');
-    });
-
-    await expect(
-      moduleRef.get(PublicationService).createClub({
-        club: CLUB as never,
-        offering: OFFERING as never,
-        slots: [SLOT as never],
-      }),
-    ).rejects.toThrow('Сбой записи на диск');
-
-    storage.setWriteFailureHookForTests(null);
-
-    await expectNothingPublished(moduleRef);
-  });
-
-  it('на базе: слот, отбитый ограничением, не оставляет ни клуба, ни услуги', async () => {
+  it('слот, отбитый ограничением базы, не оставляет ни клуба, ни услуги', async () => {
     await ensureTestSchema();
 
     const db: TestDatabase = await createTestDatabase();
@@ -185,7 +144,6 @@ describe('Атомарность публикации клуба', () => {
 
     const previousUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = testDatabaseUrl();
-    process.env.SPORT_HUB_STORAGE = 'database';
 
     await db.prisma.sport.create({
       data: {
@@ -214,7 +172,6 @@ describe('Атомарность публикации клуба', () => {
 
     cleanup = async () => {
       await moduleRef.close();
-      delete process.env.SPORT_HUB_STORAGE;
 
       if (previousUrl === undefined) delete process.env.DATABASE_URL;
       else process.env.DATABASE_URL = previousUrl;

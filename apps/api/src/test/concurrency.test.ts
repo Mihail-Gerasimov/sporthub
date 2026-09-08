@@ -490,11 +490,9 @@ describe('Гонка переходов записи через сервис', (
    */
   async function createBookingService(): Promise<BookingService> {
     const previousUrl = process.env.DATABASE_URL;
-    const previousStorage = process.env.SPORT_HUB_STORAGE;
 
     // Приложение читает адрес базы из окружения — направляем его в схему прогона.
     process.env.DATABASE_URL = testDatabaseUrl();
-    process.env.SPORT_HUB_STORAGE = 'database';
 
     const moduleRef = await Test.createTestingModule({
       imports: [StorageModule],
@@ -506,9 +504,6 @@ describe('Гонка переходов записи через сервис', (
 
       if (previousUrl === undefined) delete process.env.DATABASE_URL;
       else process.env.DATABASE_URL = previousUrl;
-
-      if (previousStorage === undefined) delete process.env.SPORT_HUB_STORAGE;
-      else process.env.SPORT_HUB_STORAGE = previousStorage;
     };
 
     return moduleRef.get(BookingService);

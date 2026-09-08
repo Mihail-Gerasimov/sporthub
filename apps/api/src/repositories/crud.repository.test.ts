@@ -1,9 +1,9 @@
 // Тесты простых CRUD-доменов: журнал, отзывы, пользователи, заметки провайдера.
 //
-// Один и тот же контрактный набор прогоняется ДВАЖДЫ — по файловой реализации
-// и по реализации на базе. Совпадение результатов и есть доказательство обещания
-// фазы: интерфейс репозитория не протёк деталями хранилища, поэтому сервисы,
-// маршруты и их тесты можно не трогать.
+// Контрактный набор прогоняется по единственной реализации — на базе. Раньше он шёл
+// дважды, по файлам и по базе, и совпадение результатов было доказательством: интерфейс
+// репозитория не протёк деталями хранилища, поэтому сервисы, маршруты и их тесты можно
+// не трогать. Доказательство своё дело сделало, файловая реализация удалена в фазе 34.
 //
 // Два правила, без которых такой набор врёт:
 //
@@ -20,22 +20,13 @@
 // Сами проверяемые коллекции в обоих мирах стартуют ПУСТЫМИ — иначе длины
 // в проверках означали бы разное.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
 import type { User } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { JsonStorage } from '../storage/json-storage';
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
 import { createTestDatabase, type TestDatabase } from '../test/db-harness';
 import { ensureTestSchema } from '../test/db-setup';
 import {
-  JsonLogsRepository,
-  JsonProviderClientNotesRepository,
-  JsonReviewsRepository,
-  JsonUsersRepository,
   type LogsRepository,
   type ProviderClientNotesRepository,
   type ReviewsRepository,
@@ -470,43 +461,6 @@ const notesContract = (createRepository: () => Promise<ProviderClientNotesReposi
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ПРОГОН НА ФАЙЛОВОЙ РЕАЛИЗАЦИИ
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('Простые CRUD-репозитории — файловая реализация', () => {
-  let dataDirectory: string;
-  let storage: JsonStorage;
-
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-crud-'));
-    storage = new JsonStorage(dataDirectory);
-    for (const file of ['logs.json', 'reviews.json', 'users.json', 'provider-client-notes.json']) {
-      await writeFile(path.join(dataDirectory, file), '[]\n', 'utf8');
-    }
-  });
-
-  afterEach(async () => {
-    await rm(dataDirectory, { force: true, recursive: true });
-  });
-
-  describe('LogsRepository', () => {
-    logsContract(async () => new JsonLogsRepository(storage));
-  });
-
-  describe('ReviewsRepository', () => {
-    reviewsContract(async () => new JsonReviewsRepository(storage));
-  });
-
-  describe('UsersRepository', () => {
-    usersContract(async () => new JsonUsersRepository(storage));
-  });
-
-  describe('ProviderClientNotesRepository', () => {
-    notesContract(async () => new JsonProviderClientNotesRepository(storage));
-  });
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ТОТ ЖЕ НАБОР НА БАЗЕ
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('Простые CRUD-репозитории — реализация на базе', () => {

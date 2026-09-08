@@ -2,79 +2,53 @@
 // приложению. Это первая проверка полного каркаса: маршрут, внедрение
 // зависимостей, интерцептор ответа и обработчик ошибок вместе.
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
-import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { AppModule } from '../app.module';
-import { configureApp } from '../configure-app';
+import { createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Контроллеры справочников', () => {
-  let app: INestApplication;
-  let dataDirectory: string;
+  let harness: TestHarness;
 
   beforeAll(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-dict-http-'));
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
-    // Прогон на файловой реализации: она остаётся путём отката до выкатки
-    // на боевой сервер, и её поведение обязано быть проверено.
-    process.env.SPORT_HUB_STORAGE = 'files';
+    harness = await createTestHarness('dict-http');
 
-    const fixtures: Record<string, unknown[]> = {
+    // В каждом справочнике ровно одна запись: проверка ниже смотрит и на длину
+    // выдачи, и на имя, поэтому лишняя строка сломала бы обе половины сразу.
+    // Все справочники переносятся одним срезом: раздельная запись у базы вычистила
+    // бы соседние таблицы — перенос кладёт срез целиком.
+    await harness.writeMany({
       sports: [
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
           name: 'Плавание',
           slug: 'swim',
+          description: 'Занятия в бассейне',
+          icon: '🏊',
+          imageUrl: '/images/sports/swim.jpg',
+          isPopular: true,
         },
       ],
-      cities: [{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Самара' }],
+      // У города, в отличие от прочих справочников, есть центр карты — колонка
+      // обязательная, поэтому координаты указаны явно.
+      cities: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Самара',
+          coordinates: { lat: 53.1959, lng: 50.1008 },
+        },
+      ],
       tags: [{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Парковка' }],
       amenities: [{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Душ' }],
       'work-formats': [{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Онлайн' }],
       specialties: [{ id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Кроссфит' }],
-    };
-    for (const [name, data] of Object.entries(fixtures)) {
-      await writeFile(
-        path.join(dataDirectory, `${name}.json`),
-        `${JSON.stringify(data, null, 2)}\n`,
-        'utf8',
-      );
-    }
-    for (const name of [
-      'clubs',
-      'trainers',
-      'offerings',
-      'schedule',
-      'bookings',
-      'reviews',
-      'notifications',
-      'logs',
-      'users',
-      'trainer-club-links',
-      'provider-client-notes',
-    ]) {
-      await writeFile(path.join(dataDirectory, `${name}.json`), '[]\n', 'utf8');
-    }
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    app = configureApp(moduleRef.createNestApplication());
-    await app.init();
+    });
   });
 
   afterAll(async () => {
-    await app.close();
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    delete process.env.SPORT_HUB_STORAGE;
-    await rm(dataDirectory, { force: true, recursive: true });
+    await harness.close();
   });
 
   const routes = [
@@ -88,7 +62,7 @@ describe('Контроллеры справочников', () => {
 
   for (const [route, expectedName] of routes) {
     it(`GET ${route} отдаёт справочник в общей форме ответа`, async () => {
-      const response = await request(app.getHttpServer()).get(`/api${route}`);
+      const response = await request(harness.app.getHttpServer()).get(`/api${route}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -98,7 +72,7 @@ describe('Контроллеры справочников', () => {
   }
 
   it('несуществующий маршрут не притворяется успешным', async () => {
-    const response = await request(app.getHttpServer()).get('/api/no-such-dictionary');
+    const response = await request(harness.app.getHttpServer()).get('/api/no-such-dictionary');
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);

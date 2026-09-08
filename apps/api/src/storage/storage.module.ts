@@ -2,40 +2,33 @@
 //
 // Здесь и только здесь токены репозиториев связываются с реализациями. Сервисы,
 // контроллеры и их тесты про хранилище не знают вовсе — это и есть то обещание,
-// ради которого в фазе 32 заводились интерфейсы, а в фазе 33 оно исполняется:
-// переезд на базу — правка этого файла, а не двадцати.
+// ради которого в фазе 32 заводились интерфейсы, а в фазе 33 оно исполнилось:
+// переезд на базу оказался правкой этого файла, а не двадцати.
 //
-// ⚠️ Реализаций две, и файловая остаётся ЖИВОЙ до выкатки на боевой сервер.
-// Это не «оставили на всякий случай»: пока данные не перенесены и не проверены
-// на проде, возврат на файлы — единственный путь отката, и он обязан работать
-// одной переменной окружения, а не откатом ветки.
+// Реализация одна — база. Файловая удалена в фазе 34 (этап Э0a) вместе с выбором
+// хранилища: пока данные не были перенесены и проверены, возврат на файлы оставался
+// путём отката и обязан был работать одной переменной окружения. Данные перенесены,
+// решение заказчика — путь отката закрыть. Цена второй реализации была не в её
+// поддержке, а в том, что КАЖДАЯ новая таблица требовала бы вторую реализацию,
+// заведомо идущую в мусор.
 
 import { Global, Module } from '@nestjs/common';
 
 import {
   AMENITIES_REPOSITORY,
   CITIES_REPOSITORY,
-  JsonCitiesRepository,
-  JsonSimpleDictionaryRepository,
   SPECIALTIES_REPOSITORY,
   SPORTS_REPOSITORY,
   TAGS_REPOSITORY,
   WORK_FORMATS_REPOSITORY,
 } from '../dictionaries/dictionaries.repository';
-import { BOOKINGS_REPOSITORY, JsonBookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import {
-  JsonNotificationsRepository,
-  JsonOfferingsRepository,
-  JsonTrainerClubLinksRepository,
   NOTIFICATIONS_REPOSITORY,
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
 } from '../repositories/catalog.repository';
 import {
-  JsonLogsRepository,
-  JsonProviderClientNotesRepository,
-  JsonReviewsRepository,
-  JsonUsersRepository,
   LOGS_REPOSITORY,
   PROVIDER_CLIENT_NOTES_REPOSITORY,
   REVIEWS_REPOSITORY,
@@ -43,9 +36,6 @@ import {
 } from '../repositories/crud.repository';
 import {
   CLUBS_REPOSITORY,
-  JsonClubsRepository,
-  JsonScheduleRepository,
-  JsonTrainersRepository,
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
@@ -71,152 +61,72 @@ import {
   PrismaScheduleRepository,
   PrismaTrainersRepository,
 } from '../repositories/prisma/entities.repository';
-import { JsonStorage } from './json-storage';
 import { PrismaTransactionRunner } from './prisma-transaction';
 import { DATABASE_SETTINGS, PrismaService, readDatabaseSettings } from './prisma.service';
-import { resolveDataDirectory } from './resolve-data-directory';
 import { STORAGE_HEALTH } from './storage-health';
 import { TRANSACTION_RUNNER } from './transaction-runner';
 
 /**
- * Где лежат данные.
- *
- * `database` — обычный режим. `files` — путь отката и способ прогнать тот же набор
- * проверок на прежней реализации: совпадение результатов и есть доказательство,
- * что интерфейсы репозиториев не протекли деталями хранилища.
+ * Простые справочники отличаются только именем таблицы. Одно объявление на четыре
+ * справочника вместо четырёх одинаковых провайдеров.
  */
-export type StorageKind = 'database' | 'files';
-
-export function resolveStorageKind(env: NodeJS.ProcessEnv = process.env): StorageKind {
-  const value = env.SPORT_HUB_STORAGE;
-
-  if (value === undefined || value === 'database') return 'database';
-  if (value === 'files') return 'files';
-
-  throw new Error(
-    `Неизвестное значение SPORT_HUB_STORAGE: ${value}. Допустимо «database» или «files».`,
-  );
-}
-
-/**
- * ⚠️ Выбор читается при КАЖДОМ создании репозитория, а не один раз при загрузке модуля.
- *
- * Загрузка модуля происходит на импорте — раньше, чем тест успевает выставить
- * переменную окружения. Один раз прочитанное значение навсегда прибило бы весь
- * прогон к одному хранилищу, и прогнать тот же набор на второй реализации стало
- * бы нечем.
- */
-const useDatabase = (): boolean => resolveStorageKind() === 'database';
-
-/**
- * Простые справочники отличаются только именем коллекции — у файлов — и именем
- * таблицы — у базы. Одно объявление на пять справочников вместо десяти провайдеров.
- */
-const simpleDictionary = (
-  collection: Parameters<JsonStorage['read']>[0],
-  table: 'tag' | 'amenity' | 'specialty' | 'workFormat',
-) => ({
-  useFactory: (transactions: PrismaTransactionRunner, storage: JsonStorage) =>
-    useDatabase()
-      ? new PrismaSimpleDictionaryRepository(transactions, table)
-      : new JsonSimpleDictionaryRepository(storage, collection),
-  inject: [PrismaTransactionRunner, JsonStorage],
+const simpleDictionary = (table: 'tag' | 'amenity' | 'specialty' | 'workFormat') => ({
+  useFactory: (transactions: PrismaTransactionRunner) =>
+    new PrismaSimpleDictionaryRepository(transactions, table),
+  inject: [PrismaTransactionRunner],
 });
 
-/** Провайдер репозитория: пара «реализация на базе» и «реализация на файлах». */
-const repository = <TPrisma, TJson>(
-  OnDatabase: new (transactions: PrismaTransactionRunner) => TPrisma,
-  OnFiles: new (storage: JsonStorage) => TJson,
+/** Провайдер репозитория: реализация одна, различается только классом. */
+const repository = <TRepository>(
+  Implementation: new (transactions: PrismaTransactionRunner) => TRepository,
 ) => ({
-  useFactory: (transactions: PrismaTransactionRunner, storage: JsonStorage) =>
-    useDatabase() ? new OnDatabase(transactions) : new OnFiles(storage),
-  inject: [PrismaTransactionRunner, JsonStorage],
+  useFactory: (transactions: PrismaTransactionRunner) => new Implementation(transactions),
+  inject: [PrismaTransactionRunner],
 });
 
 @Global()
 @Module({
   providers: [
-    // Поднимается только выбранное хранилище. Иначе режим отката всё равно
-    // открывал бы соединение с базой и падал бы на её отсутствии — то есть
-    // откат не работал бы ровно тогда, когда он нужен.
-    // Оба хранилища объявлены всегда. Соединение с базой открывается лениво,
-    // при первом обращении к клиенту, поэтому в режиме отката оно не откроется вовсе.
-    {
-      provide: DATABASE_SETTINGS,
-      useFactory: () => (useDatabase() ? readDatabaseSettings() : null),
-    },
+    // Соединение открывается лениво, при первом обращении к клиенту: процесс
+    // поднимается и без живой базы, а недоступность видна честной ошибкой,
+    // а не падением на старте.
+    { provide: DATABASE_SETTINGS, useFactory: () => readDatabaseSettings() },
     PrismaService,
     PrismaTransactionRunner,
-    { provide: JsonStorage, useFactory: () => new JsonStorage(resolveDataDirectory()) },
 
     // --- Транзакции и живость: сервисам достаётся только они ---
-    {
-      provide: TRANSACTION_RUNNER,
-      useFactory: (onDatabase: PrismaTransactionRunner, onFiles: JsonStorage) =>
-        useDatabase() ? onDatabase : onFiles,
-      inject: [PrismaTransactionRunner, JsonStorage],
-    },
-    {
-      provide: STORAGE_HEALTH,
-      useFactory: (onDatabase: PrismaService, onFiles: JsonStorage) =>
-        useDatabase() ? onDatabase : onFiles,
-      inject: [PrismaService, JsonStorage],
-    },
+    { provide: TRANSACTION_RUNNER, useExisting: PrismaTransactionRunner },
+    { provide: STORAGE_HEALTH, useExisting: PrismaService },
 
     // --- Справочники ---
-    {
-      provide: SPORTS_REPOSITORY,
-      useFactory: (transactions: PrismaTransactionRunner, storage: JsonStorage) =>
-        useDatabase()
-          ? new PrismaSportsRepository(transactions)
-          : new JsonSimpleDictionaryRepository(storage, 'sports'),
-      inject: [PrismaTransactionRunner, JsonStorage],
-    },
-    { provide: TAGS_REPOSITORY, ...simpleDictionary('tags', 'tag') },
-    { provide: AMENITIES_REPOSITORY, ...simpleDictionary('amenities', 'amenity') },
-    { provide: WORK_FORMATS_REPOSITORY, ...simpleDictionary('workFormats', 'workFormat') },
-    { provide: SPECIALTIES_REPOSITORY, ...simpleDictionary('specialties', 'specialty') },
-    { provide: CITIES_REPOSITORY, ...repository(PrismaCitiesRepository, JsonCitiesRepository) },
+    { provide: SPORTS_REPOSITORY, ...repository(PrismaSportsRepository) },
+    { provide: TAGS_REPOSITORY, ...simpleDictionary('tag') },
+    { provide: AMENITIES_REPOSITORY, ...simpleDictionary('amenity') },
+    { provide: WORK_FORMATS_REPOSITORY, ...simpleDictionary('workFormat') },
+    { provide: SPECIALTIES_REPOSITORY, ...simpleDictionary('specialty') },
+    { provide: CITIES_REPOSITORY, ...repository(PrismaCitiesRepository) },
 
     // --- Публикации ---
-    { provide: CLUBS_REPOSITORY, ...repository(PrismaClubsRepository, JsonClubsRepository) },
-    {
-      provide: TRAINERS_REPOSITORY,
-      ...repository(PrismaTrainersRepository, JsonTrainersRepository),
-    },
-    {
-      provide: SCHEDULE_REPOSITORY,
-      ...repository(PrismaScheduleRepository, JsonScheduleRepository),
-    },
+    { provide: CLUBS_REPOSITORY, ...repository(PrismaClubsRepository) },
+    { provide: TRAINERS_REPOSITORY, ...repository(PrismaTrainersRepository) },
+    { provide: SCHEDULE_REPOSITORY, ...repository(PrismaScheduleRepository) },
 
     // --- Каталог ---
-    {
-      provide: TRAINER_CLUB_LINKS_REPOSITORY,
-      ...repository(PrismaTrainerClubLinksRepository, JsonTrainerClubLinksRepository),
-    },
-    {
-      provide: OFFERINGS_REPOSITORY,
-      ...repository(PrismaOfferingsRepository, JsonOfferingsRepository),
-    },
-    {
-      provide: NOTIFICATIONS_REPOSITORY,
-      ...repository(PrismaNotificationsRepository, JsonNotificationsRepository),
-    },
+    { provide: TRAINER_CLUB_LINKS_REPOSITORY, ...repository(PrismaTrainerClubLinksRepository) },
+    { provide: OFFERINGS_REPOSITORY, ...repository(PrismaOfferingsRepository) },
+    { provide: NOTIFICATIONS_REPOSITORY, ...repository(PrismaNotificationsRepository) },
 
     // --- Пользователи, отзывы, журнал, заметки ---
-    { provide: LOGS_REPOSITORY, ...repository(PrismaLogsRepository, JsonLogsRepository) },
-    { provide: REVIEWS_REPOSITORY, ...repository(PrismaReviewsRepository, JsonReviewsRepository) },
-    { provide: USERS_REPOSITORY, ...repository(PrismaUsersRepository, JsonUsersRepository) },
+    { provide: LOGS_REPOSITORY, ...repository(PrismaLogsRepository) },
+    { provide: REVIEWS_REPOSITORY, ...repository(PrismaReviewsRepository) },
+    { provide: USERS_REPOSITORY, ...repository(PrismaUsersRepository) },
     {
       provide: PROVIDER_CLIENT_NOTES_REPOSITORY,
-      ...repository(PrismaProviderClientNotesRepository, JsonProviderClientNotesRepository),
+      ...repository(PrismaProviderClientNotesRepository),
     },
 
     // --- Записи ---
-    {
-      provide: BOOKINGS_REPOSITORY,
-      ...repository(PrismaBookingsRepository, JsonBookingsRepository),
-    },
+    { provide: BOOKINGS_REPOSITORY, ...repository(PrismaBookingsRepository) },
   ],
   exports: [
     TRANSACTION_RUNNER,

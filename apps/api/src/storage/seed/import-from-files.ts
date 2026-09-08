@@ -16,7 +16,7 @@
 //    максимального номера существующей записи. Иначе следующая созданная запись
 //    получила бы номер 33, а вместе с ним — три чужих уведомления в ленте.
 //
-// Запуск: `node scripts/db-import.mjs` из корня репозитория.
+// Запуск: `npm run db:seed` из корня репозитория.
 
 import type { PrismaClient } from '../prisma-client/client';
 import { prepareRows, type ChangeLog, type PreparedRows } from './prepare';

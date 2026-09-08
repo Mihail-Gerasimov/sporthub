@@ -2,14 +2,23 @@
 // Проверяем создание с согласованными ссылками, согласование расписания
 // (создать/обновить/удалить за один запрос), перенос дат записей, снятие
 // скрытия при правке и каскадное удаление.
-
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+//
+// Поднимается всё приложение, а не один сервис с хранилищем: отмена записей
+// на удаляемый слот делается сервисом записей, а тот тянет журнал, уведомления
+// и контекст слота. Список провайдеров вручную пришлось бы дописывать
+// при каждой новой зависимости — и он бы протух молча.
+//
+// ⚠️ Перед каждым тестом переносится целый срез, а не отдельные коллекции:
+// у базы есть внешние ключи и счётчики номеров. Справочники нужны потому, что
+// публикация ссылается на вид спорта; пользователи — потому, что на них
+// ссылаются владелец клуба, автор записи, автор отзыва и тот, кто скрыл
+// публикацию. Пустые коллекции в срезе обязательны: они возвращают счётчики
+// номеров к единице, а на номер 1 у первого клуба опирается первая же проверка.
 
 import type { Club, Offering, Trainer } from '@sporthub/types';
-import { Test } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
@@ -19,13 +28,25 @@ import type { ReviewsRepository } from '../repositories/crud.repository';
 import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
 import type { ClubsRepository, ScheduleRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
-import { StorageModule } from '../storage/storage.module';
+import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 import type { PublicationSlotInput } from './publication.service';
 import { PublicationService } from './publication.service';
-import { AppModule } from '../app.module';
+
+/** Пользователь среза: 2 — провайдер-владелец, 1 — атлет, 3 — модератор. */
+const user = (id: number, role: string) => ({
+  id,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  role,
+  status: 'active',
+  name: `Пользователь ${id}`,
+  email: `u${id}@publication-service.test`,
+  phone: '+7 (900) 000-00-00',
+  passwordHash: DEMO_PASSWORD_HASH,
+  favoriteClubIds: [],
+});
 
 describe('PublicationService', () => {
-  let dataDirectory: string;
+  let harness: TestHarness;
   let service: PublicationService;
   let clubs: ClubsRepository;
   let offerings: OfferingsRepository;
@@ -81,54 +102,36 @@ describe('PublicationService', () => {
       ...overrides,
     }) as unknown as PublicationSlotInput;
 
-  beforeEach(async () => {
-    dataDirectory = await mkdtemp(path.join(tmpdir(), 'sporthub-pub-'));
-    process.env.SPORT_HUB_DATA_DIRECTORY = dataDirectory;
-    // Прогон на файловой реализации: она остаётся путём отката до выкатки
-    // на боевой сервер, и её поведение обязано быть проверено.
-    process.env.SPORT_HUB_STORAGE = 'files';
-    for (const file of [
-      'clubs',
-      'trainers',
-      'offerings',
-      'schedule',
-      'bookings',
-      'reviews',
-      'notifications',
-      'logs',
-      'users',
-      'trainer-club-links',
-      'provider-client-notes',
-      'sports',
-      'cities',
-      'tags',
-      'amenities',
-      'specialties',
-      'work-formats',
-    ]) {
-      await writeFile(path.join(dataDirectory, `${file}.json`), '[]\n', 'utf8');
-    }
+  beforeAll(async () => {
+    harness = await createTestHarness('publication-service');
 
-    // Поднимается всё приложение, а не один сервис с хранилищем: отмена записей
-    // на удаляемый слот делается сервисом записей, а тот тянет журнал, уведомления
-    // и контекст слота. Список провайдеров вручную пришлось бы дописывать
-    // при каждой новой зависимости — и он бы протух молча.
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    service = moduleRef.get(PublicationService);
-    clubs = moduleRef.get(CLUBS_REPOSITORY);
-    offerings = moduleRef.get(OFFERINGS_REPOSITORY);
-    schedule = moduleRef.get(SCHEDULE_REPOSITORY);
-    bookings = moduleRef.get(BOOKINGS_REPOSITORY);
-    reviews = moduleRef.get(REVIEWS_REPOSITORY);
+    service = harness.app.get(PublicationService);
+    clubs = harness.app.get(CLUBS_REPOSITORY);
+    offerings = harness.app.get(OFFERINGS_REPOSITORY);
+    schedule = harness.app.get(SCHEDULE_REPOSITORY);
+    bookings = harness.app.get(BOOKINGS_REPOSITORY);
+    reviews = harness.app.get(REVIEWS_REPOSITORY);
   });
 
-  afterEach(async () => {
-    delete process.env.SPORT_HUB_DATA_DIRECTORY;
-    delete process.env.SPORT_HUB_STORAGE;
-    await rm(dataDirectory, { force: true, recursive: true });
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'admin')],
+      clubs: [],
+      trainers: [],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      reviews: [],
+      notifications: [],
+      logs: [],
+      'trainer-club-links': [],
+      'provider-client-notes': [],
+    });
   });
 
   const createClub = () =>
@@ -216,6 +219,10 @@ describe('PublicationService', () => {
     const { club, schedules } = await createClub();
     await bookings.insert({
       scheduleId: schedules[0].id,
+      // Владелец записи у базы обязателен: без него неизвестно, чьё это занятие.
+      // Клуб здесь и есть владелец — тот самый, что был у слота.
+      ownerType: 'club',
+      ownerId: club.id,
       userId: 1,
       sportId: 1,
       date: '2026-04-01',
@@ -275,6 +282,8 @@ describe('PublicationService', () => {
     await bookings.insert({
       scheduleId: schedules[0].id,
       userId: 1,
+      ownerType: 'club',
+      ownerId: club.id,
       clubId: club.id,
       sportId: 1,
       date: '2026-04-01',
@@ -356,12 +365,23 @@ describe('PublicationService', () => {
       expect(all).toHaveLength(1);
       // История атлета цела: запись осталась, но отменена.
       expect(all[0].status).toBe('cancelled_by_provider');
-      // Ссылка на слот обнулена: занятия в расписании больше нет, а запись есть.
-      // Дата, цена и вид спорта лежат в самой записи снимком — показывать её есть чем.
-      expect(all[0].scheduleId).toBeNull();
       // Слот действительно убран: провайдер просил именно этого, и «успех, но слот
       // остался» был бы молчаливым полууспехом.
       expect(await schedule.findByOfferingId(created.offering.id)).toHaveLength(0);
+      // Ссылка на слот обнулена: занятия в расписании больше нет, а запись есть.
+      // Дата, цена и вид спорта лежат в самой записи снимком — показывать её есть чем.
+      //
+      // ⚠️ НА БАЗЕ ЭТА ПРОВЕРКА КРАСНАЯ, И ЭТО НАХОДКА, А НЕ ПОМЕХА. `toBooking`
+      // в `repositories/prisma/bookings.repository.ts` прогоняет `scheduleId` через
+      // `omitNulls`, поэтому пустая ссылка не превращается в `null`, а исчезает
+      // ключом вовсе. Тип объявляет `scheduleId: EntityId | null` обязательным полем,
+      // и на это опирается код: `booking.service.ts` сравнивает `=== null` в четырёх
+      // местах. При `undefined` сравнение не срабатывает, и отмена атлетом записи
+      // с убранным слотом уходит в `schedule.findById(undefined)` — Prisma отвечает
+      // «Invalid findUnique() invocation», то есть пятисоткой. Проверка стоит
+      // последней, чтобы остальные три успели отработать; ожидание не подгоняется
+      // под фактический результат — чинить надо реализацию, а не проверку.
+      expect(all[0].scheduleId).toBeNull();
     });
 
     it('освобождает места удаляемого слота', async () => {

@@ -319,20 +319,7 @@ describe('Маршруты записей', () => {
       // Поэтому проверяются оба обещания, и каждое там, где оно вообще существует:
       // где состояние создаётся — ветка обязана ответить 404;
       // где не создаётся — хранилище обязано ОТКАЗАТЬ, а не принять молча.
-      if (harness.storage === 'database') {
-        await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
-
-        return;
-      }
-
-      await harness.writeMany({ schedule: [], bookings: [booking(7)] });
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'completed' });
-
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Слот расписания не найден');
+      await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
     });
   });
 
