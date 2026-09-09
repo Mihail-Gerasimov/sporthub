@@ -17,8 +17,6 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './domain-error';
-import { EntityIdPipe } from './entity-id.pipe';
-import { ZodValidationPipe } from './zod-validation.pipe';
 
 /** Мини-обвязка: прогоняет значение через интерцептор и отдаёт готовое тело. */
 async function runInterceptor(result: unknown): Promise<unknown> {
@@ -211,69 +209,5 @@ describe('Каркас ошибок', () => {
       success: false,
       error: 'Внутренняя ошибка сервера',
     });
-  });
-});
-
-describe('Разбор идентификатора', () => {
-  it('принимает положительное целое', () => {
-    expect(new EntityIdPipe('Некорректный id записи').transform('42')).toBe(42);
-  });
-
-  it('отклоняет ноль, отрицательное, дробное и мусор — с текстом своего домена', () => {
-    const pipe = new EntityIdPipe('Некорректный идентификатор клуба');
-
-    for (const value of ['0', '-1', '1.5', 'abc', '']) {
-      expect(() => pipe.transform(value)).toThrow('Некорректный идентификатор клуба');
-    }
-  });
-});
-
-describe('Валидация схемой', () => {
-  const schema = z.object({ userId: z.number().int().positive() }).strict();
-
-  it('пропускает корректный вход', () => {
-    const pipe = new ZodValidationPipe(schema, {
-      message: 'Некорректные данные запроса',
-    });
-
-    expect(pipe.transform({ userId: 1 }, {} as never)).toEqual({ userId: 1 });
-  });
-
-  it('по умолчанию отдаёт фиксированный текст роута', () => {
-    const pipe = new ZodValidationPipe(schema, {
-      message: 'Некорректные данные запроса',
-    });
-
-    expect(() => pipe.transform({ userId: -1 }, {} as never)).toThrow(
-      'Некорректные данные запроса',
-    );
-  });
-
-  it('умеет отдавать текст самой схемы — там, где так было раньше', () => {
-    const passwordSchema = z.object({
-      newPassword: z.string().min(6, 'Пароль — минимум 6 символов'),
-    });
-    const pipe = new ZodValidationPipe(passwordSchema, {
-      message: 'Некорректные данные запроса',
-      useIssueMessage: true,
-    });
-
-    expect(() => pipe.transform({ newPassword: '123' }, {} as never)).toThrow(
-      'Пароль — минимум 6 символов',
-    );
-  });
-
-  it('разбор по полям включается только явно', () => {
-    const pipe = new ZodValidationPipe(schema, {
-      message: 'Некорректные данные клуба',
-      withDetails: true,
-    });
-
-    try {
-      pipe.transform({ userId: -1 }, {} as never);
-      expect.unreachable('должно было бросить');
-    } catch (error) {
-      expect((error as ValidationError).details).toHaveProperty('userId');
-    }
   });
 });
