@@ -478,19 +478,30 @@ describe('Маршрут отзывов', () => {
     ]);
   });
 
-  it('отзыв самому себе не уведомляет провайдера, но уведомляет автора', async () => {
+  // ⚠️ Шаг 35.12. Раньше этот набор закреплял отзыв самому себе как ДОПУСТИМЫЙ:
+  // проверялось лишь то, что провайдер не получит уведомления о собственном отзыве.
+  // Решение заказчика 17 запрещает такой отзыв целиком — и не косметикой, а по делу:
+  // без запрета после снятия ролей открывается накрутка рейтинга своей публикации.
+  it('отзыв собственной публикации отклоняется, агрегаты не двигаются', async () => {
+    const before =
+      await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+    const beforeClub = before.find((row) => row.id === 2);
+
     const response = await post(asOwnerAthlete, { clubId: 2, rating: 5, text: 'Сам себе' });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Нельзя оставить отзыв собственной публикации');
+
+    const after =
+      await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+    const afterClub = after.find((row) => row.id === 2);
+
+    expect(afterClub?.reviewCount, 'число отзывов изменилось').toBe(beforeClub?.reviewCount);
+    expect(afterClub?.rating, 'рейтинг изменился').toBe(beforeClub?.rating);
 
     const notifications = await harness.read<{ type: string }[]>('notifications');
 
-    expect(
-      notifications.filter((item) => item.type === 'review_received_by_provider'),
-    ).toHaveLength(0);
-    expect(
-      notifications.filter((item) => item.type === 'review_published_for_athlete'),
-    ).toHaveLength(1);
+    expect(notifications, 'отклонённый отзыв всё равно кого-то уведомил').toHaveLength(0);
   });
 
   it('POST на несуществующего тренера — 404 «Тренер не найден»', async () => {

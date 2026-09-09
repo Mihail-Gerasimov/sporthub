@@ -34,6 +34,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../common/domain-error';
+import { AccessService } from '../access/access.service';
 import { NotificationService } from '../notifications/notification.service';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
@@ -82,6 +83,9 @@ export class ReviewsController {
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     private readonly notifications: NotificationService,
+    // Владение и правило «сам себе» спрашиваются у общего сервиса, а не считаются
+    // здесь: две правды о владении разошлись бы при первой же правке.
+    private readonly access: AccessService,
   ) {}
 
   /**
@@ -149,6 +153,24 @@ export class ReviewsController {
     userId: number,
     target: { clubId?: number; trainerId?: number },
   ): Promise<void> {
+    // ⚠️ Шаг 35.12, точка 7. Отзыв своему лицу запрещён (решение заказчика 17).
+    // Сегодня это держится случайно — правом `write_reviews`, которого нет у ролей
+    // провайдера. Как только роли уйдут, откроется цепочка накрутки: записался
+    // к себе → отметил посещение → написал отзыв. Отметку посещения уже закрыл
+    // шаг 35.11, отзыв закрывается здесь — рвём цепочку в двух местах, а не в одном.
+    const own =
+      (target.clubId !== undefined &&
+        (await this.access.isSelfDealing(userId, { kind: 'club', clubId: target.clubId }))) ||
+      (target.trainerId !== undefined &&
+        (await this.access.isSelfDealing(userId, {
+          kind: 'trainer',
+          trainerId: target.trainerId,
+        })));
+
+    if (own) {
+      throw new ForbiddenError('Нельзя оставить отзыв собственной публикации');
+    }
+
     const visits = await this.bookings.count({
       userId,
       clubId: target.clubId,
