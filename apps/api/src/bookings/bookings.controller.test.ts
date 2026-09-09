@@ -1005,6 +1005,27 @@ describe('Маршруты записей', () => {
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Запись не найдена');
     });
+
+    it('под имперсонизацией в журнале стоит роль администратора, а не владельца клуба', async () => {
+      // Номер исполнителя писался правильно, а роль — константой `club_owner`.
+      // В журнале действие администратора выглядело действием провайдера: пара
+      // «номер + роль» указывала на разных людей, и запись переставала быть следом.
+      const cookie = await asImpersonating(3, 2);
+
+      const response = await request(server())
+        .post('/api/bookings/7/confirm')
+        .set('Cookie', cookie)
+        .send({});
+
+      expect(response.status).toBe(200);
+
+      const logs =
+        await harness.read<{ action: string; actorId: number; actorRole: string }[]>('logs');
+      const confirmed = logs.filter((entry) => entry.action === 'booking_confirm');
+
+      expect(confirmed).toHaveLength(1);
+      expect(confirmed[0]).toMatchObject({ actorId: 3, actorRole: 'admin' });
+    });
   });
 
   describe('POST /api/bookings/:id/reject — отказ', () => {
@@ -1315,6 +1336,22 @@ describe('Маршруты записей', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.data.status).toBe('confirmed');
+    });
+
+    it('в журнале у тренера записана его роль, а не роль владельца клуба', async () => {
+      // Роль исполнителя писалась константой `club_owner` — то есть врала про то,
+      // ради чего роли и разделяли: заявку на своё занятие разбирает тренер.
+      await request(server())
+        .post('/api/bookings/8/confirm')
+        .set('Cookie', await as(6))
+        .send({});
+
+      const logs =
+        await harness.read<{ action: string; actorId: number; actorRole: string }[]>('logs');
+      const confirmed = logs.filter((entry) => entry.action === 'booking_confirm');
+
+      expect(confirmed).toHaveLength(1);
+      expect(confirmed[0]).toMatchObject({ actorId: 6, actorRole: 'trainer' });
     });
 
     it('тренер не подтверждает заявку на занятие чужого клуба', async () => {

@@ -190,11 +190,12 @@ export class ClubsController {
 
     await this.logs.record({
       action: 'publish_create',
-      actorId: userId,
-      // Роль пишется из сессии, а не константой: после разделения прав клуб
-      // публикует представитель услуг, карточку тренера — тренер, и записанная
-      // намертво роль врала бы в журнале ровно про то, ради чего разделение делалось.
-      actorRole: session.user.role,
+      // Исполнитель — тот, кто ВОШЁЛ, а не тот, от чьего лица работают: владелец
+      // публикации и так записан в ней самой, а журналу нужен автор действия.
+      // Роль берётся оттуда же: после разделения прав клуб публикует представитель
+      // услуг, карточку тренера — тренер, а под имперсонизацией — администратор.
+      actorId: session.actor.id,
+      actorRole: session.actor.role,
       entityType: 'club',
       entityId: result.club.id,
       meta: { name: result.club.name, city: result.club.city },
@@ -231,8 +232,8 @@ export class ClubsController {
 
       await this.logs.record({
         action: 'publish_update',
-        actorId: userId,
-        actorRole: session.user.role,
+        actorId: session.actor.id,
+        actorRole: session.actor.role,
         entityType: 'club',
         entityId: clubId,
         meta: { name: result.club.name },
@@ -399,8 +400,8 @@ export class TrainersController {
 
     await this.logs.record({
       action: 'publish_create',
-      actorId: userId,
-      actorRole: session.user.role,
+      actorId: session.actor.id,
+      actorRole: session.actor.role,
       entityType: 'trainer',
       entityId: result.trainer.id,
       meta: { name: result.trainer.name, city: result.trainer.city },
@@ -437,8 +438,8 @@ export class TrainersController {
 
       await this.logs.record({
         action: 'publish_update',
-        actorId: userId,
-        actorRole: session.user.role,
+        actorId: session.actor.id,
+        actorRole: session.actor.role,
         entityType: 'trainer',
         entityId: trainerId,
         meta: { name: result.trainer.name },

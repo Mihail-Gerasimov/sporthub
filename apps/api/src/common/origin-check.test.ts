@@ -68,4 +68,43 @@ describe('Проверка источника запроса', () => {
   it('запрос, набранный в адресной строке, проходит', () => {
     expect(run('POST', { 'sec-fetch-site': 'none' }).passed).toBe(true);
   });
+
+  // ⚠️ Найдено браузерным прогоном чек-листа (шаг 62): запрос с чужим `Origin`,
+  // но БЕЗ признака `Sec-Fetch-Site`, доезжал до обработчика и создавал запись.
+  // Причина — список разрешённых источников пуст по умолчанию, а значит проверка
+  // по `Origin` выключена везде, где его никто не заполнил вручную. Заполнять
+  // второй переменной то, что уже сказано публичным адресом, никто не станет:
+  // забытая настройка — это не настройка, а выключенная защита.
+  describe('запасной путь по Origin, когда браузер не прислал Sec-Fetch-Site', () => {
+    it('чужой источник отбивается по публичному адресу площадки', () => {
+      vi.stubEnv('SPORT_HUB_ALLOWED_ORIGINS', '');
+      vi.stubEnv('SPORT_HUB_PUBLIC_ORIGIN', 'https://athletehub.ru');
+
+      const call = run('POST', { origin: 'https://зло.example' });
+
+      expect(call.passed).toBe(false);
+      expect(call.status).toBe(403);
+
+      vi.unstubAllEnvs();
+    });
+
+    it('свой публичный адрес проходит', () => {
+      vi.stubEnv('SPORT_HUB_ALLOWED_ORIGINS', '');
+      vi.stubEnv('SPORT_HUB_PUBLIC_ORIGIN', 'https://athletehub.ru');
+
+      expect(run('POST', { origin: 'https://athletehub.ru' }).passed).toBe(true);
+
+      vi.unstubAllEnvs();
+    });
+
+    it('явный список старше публичного адреса', () => {
+      vi.stubEnv('SPORT_HUB_ALLOWED_ORIGINS', 'https://admin.athletehub.ru');
+      vi.stubEnv('SPORT_HUB_PUBLIC_ORIGIN', 'https://athletehub.ru');
+
+      expect(run('POST', { origin: 'https://admin.athletehub.ru' }).passed).toBe(true);
+      expect(run('POST', { origin: 'https://athletehub.ru' }).status).toBe(403);
+
+      vi.unstubAllEnvs();
+    });
+  });
 });

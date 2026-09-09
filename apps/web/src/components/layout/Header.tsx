@@ -42,7 +42,11 @@ export function Header() {
 
   const handleLogout = async () => {
     if (isImpersonating) {
-      stopImpersonation();
+      // ⚠️ Ждём сервер: работу от чужого лица заканчивает он — гасит подменённую
+      // сессию и выдаёт новую. Не получилось — со страницы не уходим, подмена
+      // ещё действует и плашка об этом говорит.
+      if (!(await stopImpersonation())) return;
+
       router.push('/service-portal/dashboard');
       // Phase 30.6: симметрично stopImpersonation в ImpersonationBanner —
       // RSC-кэш сегмента инвалидируется, иначе страница висит на старой личности.

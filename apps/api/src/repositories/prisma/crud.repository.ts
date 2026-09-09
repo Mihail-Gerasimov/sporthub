@@ -341,6 +341,21 @@ export class PrismaReviewsRepository implements ReviewsRepository {
       conditions.push(reviewOwnerCondition(filter.owners));
     }
 
+    // Автор и адресат — отдельные условия, а не пара: адресат спрашивается
+    // и без автора (сводка), автор без адресата смысла пока не имеет, но и
+    // запрещать его тут нечем — это отбор, а не правило.
+    if (filter.userId !== undefined) {
+      conditions.push({ userId: filter.userId });
+    }
+
+    if (filter.clubId !== undefined) {
+      conditions.push({ clubId: filter.clubId });
+    }
+
+    if (filter.trainerId !== undefined) {
+      conditions.push({ trainerId: filter.trainerId });
+    }
+
     return this.client.review.count({
       where: conditions.length === 0 ? {} : { AND: conditions },
     });

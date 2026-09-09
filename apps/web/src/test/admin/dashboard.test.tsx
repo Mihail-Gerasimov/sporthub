@@ -4,12 +4,35 @@
  * фильтрация по ролям и статусу, комбинированный поиск,
  * динамическое раскрытие фильтров, статистика, empty state.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardPage } from '@/components/admin/DashboardPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Trainer, User } from '@sporthub/types';
+
+/**
+ * Стенд сессии: маршрут имперсонизации отвечает согласием или отказом,
+ * а личность стор перечитывает через «кто я».
+ */
+function stubSession(me: Record<string, unknown>, accepted = true) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    if (String(input) === '/api/auth/me') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ success: true, data: me }),
+      } as unknown as Response);
+    }
+
+    return Promise.resolve({
+      ok: accepted,
+      status: accepted ? 200 : 403,
+      json: () => Promise.resolve({ success: accepted }),
+    } as unknown as Response);
+  });
+}
 
 // Номера пользователей стенда. Раньше они приезжали константами из стора —
 // фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
@@ -299,13 +322,47 @@ describe('DashboardPage (Step 17.4)', () => {
   // Phase 27 Step 27.15: после клика «Войти как» помимо router.push вызывается
   // router.refresh() — иначе RSC-кэш сегмента отрисует /profile/* со старым
   // userId, пользователю придётся вручную обновлять страницу.
-  it('Step 27.15 — клик «Войти как» вызывает router.push И router.refresh', () => {
+  it('Step 27.15 — клик «Войти как» вызывает router.push И router.refresh', async () => {
+    // ⚠️ Подмену выполняет СЕРВЕР, и уход со страницы ждёт его ответа: иначе
+    // кабинет отрисовался бы под ещё не изменённой сессией.
+    const fetchSpy = stubSession({
+      id: 1,
+      name: 'Алексей Смирнов',
+      email: 'alexey@sporthub.local',
+      role: 'athlete',
+      capabilities: [],
+      impersonating: true,
+      actorName: 'Администратор SportHub',
+    });
+
     renderDashboard();
 
     const buttons = screen.getAllByRole('button', { name: /войти как/i });
     fireEvent.click(buttons[0]);
 
-    expect(mockPush).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/profile/athlete');
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/impersonate/1', { method: 'POST' });
     expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it('отказ сервера не уводит со страницы и говорит об этом', async () => {
+    // Иначе администратор оказывался бы в чужом кабинете, которого сервер
+    // всё равно не отдаст.
+    stubSession({ id: 3, name: 'Админ', email: 'admin@sporthub.local' }, false);
+
+    renderDashboard();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /войти как/i })[0]);
+
+    await waitFor(() => {
+      expect(useToastStore.getState().toasts.at(-1)?.message).toBe(
+        'Не удалось войти от лица пользователя',
+      );
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

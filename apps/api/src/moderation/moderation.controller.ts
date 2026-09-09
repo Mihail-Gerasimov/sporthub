@@ -137,7 +137,7 @@ export class ModerationController {
     await this.logs.record({
       action: action === 'hide' ? 'moderation_hide' : 'moderation_unhide',
       actorId: moderatorId,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: owner,
       entityId,
       meta:

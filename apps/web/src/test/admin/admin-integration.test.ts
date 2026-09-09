@@ -54,9 +54,49 @@ function meResponse(user: AuthSessionUser, role: string) {
   } as unknown as Response;
 }
 
+/** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
+function impersonatedMeResponse(target: AuthSessionUser, role: string, actorName: string) {
+  return {
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        success: true,
+        data: { ...target, role, capabilities: [], impersonating: true, actorName },
+      }),
+  } as unknown as Response;
+}
+
 /** Успешный выход. Отдельная подмена нужна каждому тесту с `logout`. */
 function stubLogout() {
   return vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200 } as Response);
+}
+
+/**
+ * Стенд сессии на весь сценарий.
+ *
+ * Работу от чужого лица начинает и заканчивает сервер, а стор после каждого
+ * такого шага перечитывает «кто я». Поэтому стенду нужен не один ответ, а тот,
+ * который сервер дал бы ПОСЛЕ очередного шага, — его и задаёт `answers`.
+ */
+function stubSession(initial: Response) {
+  let current = initial;
+
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    if (String(input) === '/api/auth/me') return Promise.resolve(current);
+
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true }),
+    } as unknown as Response);
+  });
+
+  return {
+    answers(next: Response) {
+      current = next;
+    },
+  };
 }
 
 describe('Admin integration (Step 17.8)', () => {
@@ -72,7 +112,7 @@ describe('Admin integration (Step 17.8)', () => {
 
   describe('полный admin lifecycle', () => {
     it('вход → имперсонизация athlete → возврат → имперсонизация provider → возврат → выход', async () => {
-      stubLogout();
+      const server = stubSession(meResponse(adminUser, 'admin'));
 
       // 1. Admin входит
       act(() => {
@@ -84,38 +124,46 @@ describe('Admin integration (Step 17.8)', () => {
       expect(useAuthStore.getState().accountType).toBeNull();
 
       // 2. Impersonation: athlete
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      server.answers(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
       });
 
-      expect(useAuthStore.getState().user).toEqual(athleteUser);
+      expect(useAuthStore.getState().user?.id).toBe(ATHLETE_USER_ID);
       expect(useAuthStore.getState().accountType).toBe('athlete');
       expect(useAuthStore.getState().isImpersonating).toBe(true);
       expect(useAuthStore.getState().adminOriginalUser).toEqual(adminUser);
 
       // 3. Возврат в панель
-      act(() => {
-        useAuthStore.getState().stopImpersonation();
+      server.answers(meResponse(adminUser, 'admin'));
+
+      await act(async () => {
+        await useAuthStore.getState().stopImpersonation();
       });
 
-      expect(useAuthStore.getState().user).toEqual(adminUser);
+      expect(useAuthStore.getState().user?.id).toBe(ADMIN_USER_ID);
       expect(useAuthStore.getState().accountType).toBeNull();
       expect(useAuthStore.getState().isImpersonating).toBe(false);
       expect(useAuthStore.getState().isAdmin).toBe(true);
 
       // 4. Impersonation: provider
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, 'provider');
+      server.answers(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
+
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
       });
 
-      expect(useAuthStore.getState().user).toEqual(providerUser);
+      expect(useAuthStore.getState().user?.id).toBe(PROVIDER_USER_ID);
       expect(useAuthStore.getState().accountType).toBe('provider');
       expect(useAuthStore.getState().isImpersonating).toBe(true);
-      expect(useAuthStore.getState().adminOriginalUser).toEqual(adminUser);
+      expect(useAuthStore.getState().adminOriginalUser?.id).toBe(ADMIN_USER_ID);
 
       // 5. Возврат и logout
-      act(() => {
-        useAuthStore.getState().stopImpersonation();
+      server.answers(meResponse(adminUser, 'admin'));
+
+      await act(async () => {
+        await useAuthStore.getState().stopImpersonation();
       });
 
       await act(async () => {
@@ -136,13 +184,15 @@ describe('Admin integration (Step 17.8)', () => {
   // --- selectAthleteActionUserId при impersonation ---
 
   describe('selectAthleteActionUserId при impersonation', () => {
-    it('возвращает userId целевого athlete при impersonation', () => {
+    it('возвращает userId целевого athlete при impersonation', async () => {
+      stubSession(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
       });
 
       const state = useAuthStore.getState();
@@ -162,13 +212,15 @@ describe('Admin integration (Step 17.8)', () => {
       expect(userId).toBeNull();
     });
 
-    it('возвращает null при impersonation как provider', () => {
+    it('возвращает null при impersonation как provider', async () => {
+      stubSession(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, 'provider');
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
       });
 
       const state = useAuthStore.getState();
@@ -181,32 +233,40 @@ describe('Admin integration (Step 17.8)', () => {
   // --- Повторный impersonation без возврата ---
 
   describe('повторный impersonation', () => {
-    it('переключение между пользователями через stop → start сохраняет admin-контекст', () => {
+    it('переключение между пользователями через stop → start сохраняет admin-контекст', async () => {
+      const server = stubSession(meResponse(adminUser, 'admin'));
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
       // Первый impersonation — athlete
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      server.answers(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
       });
 
-      expect(useAuthStore.getState().user).toEqual(athleteUser);
+      expect(useAuthStore.getState().user?.id).toBe(ATHLETE_USER_ID);
 
       // Возврат
-      act(() => {
-        useAuthStore.getState().stopImpersonation();
+      server.answers(meResponse(adminUser, 'admin'));
+
+      await act(async () => {
+        await useAuthStore.getState().stopImpersonation();
       });
 
       // Второй impersonation — provider (без logout между ними)
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, 'provider');
+      server.answers(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
+
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
       });
 
-      expect(useAuthStore.getState().user).toEqual(providerUser);
+      expect(useAuthStore.getState().user?.id).toBe(PROVIDER_USER_ID);
       expect(useAuthStore.getState().accountType).toBe('provider');
       expect(useAuthStore.getState().isAdmin).toBe(true);
-      expect(useAuthStore.getState().adminOriginalUser).toEqual(adminUser);
+      expect(useAuthStore.getState().adminOriginalUser?.id).toBe(ADMIN_USER_ID);
     });
   });
 
@@ -216,12 +276,16 @@ describe('Admin integration (Step 17.8)', () => {
     it('полностью очищает все поля — admin не застревает под чужим аккаунтом', async () => {
       stubLogout();
 
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
-      });
-
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      // Состояние «работаю от чужого лица» задаётся напрямую: здесь проверяется
+      // выход из него, а не то, как оно возникло.
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
       });
 
       // Выход прямо во время имперсонизации
@@ -261,19 +325,15 @@ describe('Admin integration (Step 17.8)', () => {
       expect(state.isImpersonating).toBe(false);
     });
 
-    it('имперсонизация перезагрузку НЕ переживает, и это правильно', async () => {
-      // Сервер о подмене личности не знает: сессия всё это время принадлежит
-      // администратору. Пока подмена жила в localStorage, экран и настоящие права
-      // расходились — интерфейс показывал одного человека, данные приходили
-      // другому. Перезагрузка честно возвращает администратора к себе.
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
-      });
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
-      });
-
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(adminUser, 'admin'));
+    it('имперсонизация перезагрузку ПЕРЕЖИВАЕТ: её помнит сессия', async () => {
+      // Полная перезагрузка во время работы от чужого лица: стор пуст, а сессия
+      // на сервере всё ещё подменённая. Пока стор снимал признак сам, плашка
+      // исчезала, а подмена оставалась — администратор действовал от чужого лица
+      // без единого признака на экране.
+      useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+      );
 
       await act(async () => {
         await useAuthStore.getState().loadSession();
@@ -281,9 +341,10 @@ describe('Admin integration (Step 17.8)', () => {
 
       const state = useAuthStore.getState();
 
-      expect(state.isImpersonating).toBe(false);
-      expect(state.adminOriginalUser).toBeNull();
-      expect(state.user?.id).toBe(ADMIN_USER_ID);
+      expect(state.isImpersonating).toBe(true);
+      expect(state.adminOriginalUser?.name).toBe(adminUser.name);
+      expect(state.user?.id).toBe(ATHLETE_USER_ID);
+      expect(state.accountType).toBe('athlete');
       expect(state.isAdmin).toBe(true);
     });
   });
@@ -291,34 +352,36 @@ describe('Admin integration (Step 17.8)', () => {
   // --- userRoleToAccountType интеграция с impersonation ---
 
   describe('userRoleToAccountType → startImpersonation', () => {
-    it('маппинг роли athlete корректно передаётся в startImpersonation', () => {
-      const accountType = userRoleToAccountType('athlete');
+    it('роль athlete приезжает с сервера и даёт кабинет спортсмена', async () => {
+      // Тип кабинета больше не передаётся в стор снаружи: его определяет роль
+      // из ответа «кто я». Браузер сам себе кабинет не назначает.
+      expect(userRoleToAccountType('athlete')).toBe('athlete');
 
-      expect(accountType).toBe('athlete');
+      stubSession(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, accountType!);
+      await act(async () => {
+        expect(await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID)).toBe('athlete');
       });
 
       expect(useAuthStore.getState().accountType).toBe('athlete');
-      expect(useAuthStore.getState().user).toEqual(athleteUser);
+      expect(useAuthStore.getState().user?.id).toBe(ATHLETE_USER_ID);
     });
 
-    it('маппинг роли club_owner корректно передаётся как provider', () => {
-      const accountType = userRoleToAccountType('club_owner');
+    it('роль club_owner приезжает с сервера и даёт кабинет провайдера', async () => {
+      expect(userRoleToAccountType('club_owner')).toBe('provider');
 
-      expect(accountType).toBe('provider');
+      stubSession(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, accountType!);
+      await act(async () => {
+        expect(await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID)).toBe('provider');
       });
 
       expect(useAuthStore.getState().accountType).toBe('provider');
@@ -387,13 +450,15 @@ describe('Admin integration (Step 17.8)', () => {
     it('admin-поля не «заражают» обычный вход после выхода из admin-сессии', async () => {
       stubLogout();
 
-      // Сначала admin-сессия
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
-      });
-
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      // Сначала admin-сессия с работой от чужого лица
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
       });
 
       // Выход

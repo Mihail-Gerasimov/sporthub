@@ -4,6 +4,10 @@
 // Фаза 34, шаг 34.39: чтение отзывов открыто гостю, а написание — только тому,
 // кто у этого клуба или тренера занимался. Поэтому в наборе появились записи:
 // без них ни один отзыв больше не создаётся.
+//
+// Правило «одна оценка на посещение»: число завершённых записей к адресату —
+// это ПОТОЛОК числа отзывов ему же. До этой правки проверялось только «был хотя бы
+// раз», и один человек с одним посещением двигал публичный рейтинг сколько угодно.
 
 import request from 'supertest';
 import { afterAll, beforeEach, beforeAll, describe, expect, it } from 'vitest';
@@ -87,6 +91,8 @@ describe('Маршрут отзывов', () => {
   let asNewcomer: string; // пользователь 4 — запись есть, но занятие ещё не прошло
   let asOwnerAthlete: string; // пользователь 7 — спортсмен, который сам ведёт клуб 2
   let asProvider: string; // пользователь 2 — роль без права писать отзывы
+  let asOneVisit: string; // пользователь 5 — по одному завершённому занятию у каждого
+  let asTwoVisits: string; // пользователь 6 — по два завершённых занятия у каждого
 
   beforeAll(async () => {
     harness = await createTestHarness('reviews-http');
@@ -101,6 +107,11 @@ describe('Маршрут отзывов', () => {
         user(1, 'athlete', 'Алексей Смирнов'),
         user(2, 'club_owner', 'Марина Крылова'),
         user(4, 'athlete', 'Новичок Без Посещений'),
+        // Двое под правило квоты: у первого по одному посещению каждого адресата,
+        // у второго — по два. Отзывов в наборе у них нет, поэтому вся их квота
+        // цела, и проверка считает ровно то, что тест собирается проверить.
+        user(5, 'athlete', 'Одно Посещение'),
+        user(6, 'athlete', 'Два Посещения'),
         // Спортсмен, который заодно управляет клубом: только так и остаётся
         // достижим отзыв самому себе — провайдерским ролям право писать отзывы
         // не положено вовсе.
@@ -128,11 +139,29 @@ describe('Маршрут отзывов', () => {
       ],
       bookings: [
         // Занятия, которые уже прошли, — право на отзыв.
+        //
+        // ⚠️ У пользователя 1 их по НЕСКОЛЬКУ на адресата, и это не избыточность:
+        // с правилом «одна оценка на посещение» число завершённых записей стало
+        // потолком числа отзывов. В наборе уже лежат его отзывы о клубе 1 и тренере 1,
+        // и одного посещения на адресата хватало бы ровно на них — тогда проверки
+        // пересчёта агрегатов, уведомлений и автора из сессии упирались бы
+        // в исчерпанную квоту вместо того, что они проверяют.
         booking({ id: 1, userId: 1, clubId: 1, status: 'completed' }),
+        booking({ id: 5, userId: 1, clubId: 1, status: 'completed' }),
+        booking({ id: 6, userId: 1, clubId: 1, status: 'completed' }),
         booking({ id: 2, userId: 1, trainerId: 1, status: 'completed' }),
+        booking({ id: 7, userId: 1, trainerId: 1, status: 'completed' }),
         // Запись есть, но занятие впереди — права на отзыв ещё нет.
         booking({ id: 3, userId: 4, clubId: 1, status: 'confirmed' }),
         booking({ id: 4, userId: 7, clubId: 2, status: 'completed' }),
+        // Квота под проверку: одно посещение каждого адресата.
+        booking({ id: 8, userId: 5, clubId: 1, status: 'completed' }),
+        booking({ id: 9, userId: 5, trainerId: 1, status: 'completed' }),
+        // Квота под проверку: два посещения каждого адресата.
+        booking({ id: 10, userId: 6, clubId: 1, status: 'completed' }),
+        booking({ id: 11, userId: 6, clubId: 1, status: 'completed' }),
+        booking({ id: 12, userId: 6, trainerId: 1, status: 'completed' }),
+        booking({ id: 13, userId: 6, trainerId: 1, status: 'completed' }),
       ],
       reviews: [
         {
@@ -155,12 +184,9 @@ describe('Маршрут отзывов', () => {
       notifications: [],
     });
 
-    [asAuthor, asProvider, asNewcomer, asOwnerAthlete] = await Promise.all([
-      harness.as(1),
-      harness.as(2),
-      harness.as(4),
-      harness.as(7),
-    ]);
+    [asAuthor, asProvider, asNewcomer, asOwnerAthlete, asOneVisit, asTwoVisits] = await Promise.all(
+      [harness.as(1), harness.as(2), harness.as(4), harness.as(7), harness.as(5), harness.as(6)],
+    );
   });
 
   afterAll(async () => {
@@ -294,6 +320,110 @@ describe('Маршрут отзывов', () => {
 
       const stored = await harness.read<{ userId: number; text: string }[]>('reviews');
       expect(stored.at(-1)).toMatchObject({ userId: 1, text: 'Чужим именем' });
+    });
+  });
+
+  // Правило «одна оценка на посещение» (шаг 34.39, чек-лист step-41).
+  //
+  // Проверка «был хотя бы раз» отвечала на вопрос «пускать ли вообще», но не на вопрос
+  // «сколько раз». Один человек с одним посещением оставлял отзывы подряд, и каждый
+  // из них пересчитывал публичный рейтинг: накрутка стоила ровно столько запросов,
+  // сколько не лень отправить.
+  describe('Одна оценка на посещение', () => {
+    /** Отзывы одного человека одному адресату — то, что реально легло в хранилище. */
+    const storedFor = async (userId: number, target: { clubId?: number; trainerId?: number }) => {
+      const reviews =
+        await harness.read<{ userId: number; clubId?: number; trainerId?: number }[]>('reviews');
+
+      return reviews.filter(
+        (item) =>
+          item.userId === userId &&
+          item.clubId === target.clubId &&
+          item.trainerId === target.trainerId,
+      );
+    };
+
+    it('одно посещение клуба: первый отзыв проходит, второй отклонён', async () => {
+      await post(asOneVisit, { clubId: 1, rating: 5, text: 'Первый' }).expect(201);
+
+      const second = await post(asOneVisit, { clubId: 1, rating: 1, text: 'Второй' });
+
+      expect(second.status).toBe(409);
+      expect(second.body).toEqual({
+        success: false,
+        error: 'На это посещение отзыв уже оставлен',
+      });
+
+      expect(await storedFor(5, { clubId: 1 })).toHaveLength(1);
+    });
+
+    it('два посещения клуба: два отзыва проходят, третий отклонён', async () => {
+      await post(asTwoVisits, { clubId: 1, rating: 5, text: 'Первый' }).expect(201);
+      await post(asTwoVisits, { clubId: 1, rating: 4, text: 'Второй' }).expect(201);
+
+      const third = await post(asTwoVisits, { clubId: 1, rating: 1, text: 'Третий' });
+
+      expect(third.status).toBe(409);
+      expect(third.body.error).toBe('На это посещение отзыв уже оставлен');
+
+      expect(await storedFor(6, { clubId: 1 })).toHaveLength(2);
+    });
+
+    it('одно посещение у тренера: первый отзыв проходит, второй отклонён', async () => {
+      await post(asOneVisit, { trainerId: 1, rating: 5, text: 'Первый' }).expect(201);
+
+      const second = await post(asOneVisit, { trainerId: 1, rating: 1, text: 'Второй' });
+
+      expect(second.status).toBe(409);
+      expect(second.body.error).toBe('На это посещение отзыв уже оставлен');
+
+      expect(await storedFor(5, { trainerId: 1 })).toHaveLength(1);
+    });
+
+    it('два посещения у тренера: два отзыва проходят, третий отклонён', async () => {
+      await post(asTwoVisits, { trainerId: 1, rating: 5, text: 'Первый' }).expect(201);
+      await post(asTwoVisits, { trainerId: 1, rating: 4, text: 'Второй' }).expect(201);
+
+      const third = await post(asTwoVisits, { trainerId: 1, rating: 1, text: 'Третий' });
+
+      expect(third.status).toBe(409);
+      expect(third.body.error).toBe('На это посещение отзыв уже оставлен');
+
+      expect(await storedFor(6, { trainerId: 1 })).toHaveLength(2);
+    });
+
+    it('квота считается по адресату: отзыв клубу не съедает право на отзыв тренеру', async () => {
+      await post(asOneVisit, { clubId: 1, rating: 5, text: 'Клубу' }).expect(201);
+
+      // Посещение у тренера отдельное — и право на оценку тоже отдельное.
+      await post(asOneVisit, { trainerId: 1, rating: 5, text: 'Тренеру' }).expect(201);
+
+      expect(await storedFor(5, { clubId: 1 })).toHaveLength(1);
+      expect(await storedFor(5, { trainerId: 1 })).toHaveLength(1);
+    });
+
+    it('отклонённый повтор не двигает рейтинг клуба', async () => {
+      await post(asOneVisit, { clubId: 1, rating: 5, text: 'Первый' }).expect(201);
+
+      const before =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+
+      await post(asOneVisit, { clubId: 1, rating: 1, text: 'Второй' }).expect(409);
+
+      const after =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
+
+      // Именно ради этого правило и вводилось: отказ обязан оставить агрегаты
+      // нетронутыми, иначе один человек тянет публичную оценку вниз в одиночку.
+      expect(after).toEqual(before);
+    });
+
+    it('исчерпанная квота у одного не мешает другому оставить свой отзыв', async () => {
+      await post(asOneVisit, { clubId: 1, rating: 5, text: 'Первый' }).expect(201);
+      await post(asOneVisit, { clubId: 1, rating: 1, text: 'Второй' }).expect(409);
+
+      // Квота считается по паре «автор + адресат», а не по адресату целиком.
+      await post(asTwoVisits, { clubId: 1, rating: 4, text: 'От другого' }).expect(201);
     });
   });
 

@@ -189,9 +189,10 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_request',
       // Журнал пишется по НАСТОЯЩЕМУ исполнителю: под имперсонизацией след
-      // администратора теряться не должен.
+      // администратора теряться не должен. Роль — его же: сторона заявки
+      // (`initiatedBy`) живёт в `meta` и ролью исполнителя не является.
       actorId: session.actor.id,
-      actorRole: initiatedBy === 'club' ? 'club_owner' : 'trainer',
+      actorRole: session.actor.role,
       entityType: 'trainer_club_link',
       entityId: link.id,
       meta: { trainerId: link.trainerId, clubId: link.clubId, initiatedBy },
@@ -215,10 +216,17 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_approve',
       actorId: session.actor.id,
-      actorRole: approverIsClub ? 'club_owner' : 'trainer',
+      actorRole: session.actor.role,
       entityType: 'trainer_club_link',
       entityId: linkId,
-      meta: { trainerId: link.trainerId, clubId: link.clubId, initiatedBy: link.initiatedBy },
+      // Сторона подтверждения переехала в `meta`: раньше её изображала роль,
+      // и под имперсонизацией запись врала про исполнителя.
+      meta: {
+        trainerId: link.trainerId,
+        clubId: link.clubId,
+        initiatedBy: link.initiatedBy,
+        approvedBy: approverIsClub ? 'club' : 'trainer',
+      },
     });
 
     return link;
@@ -249,7 +257,7 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_reject',
       actorId: session.actor.id,
-      actorRole: rejectorIsClub ? 'club_owner' : 'trainer',
+      actorRole: session.actor.role,
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: {
@@ -257,6 +265,7 @@ export class TrainerClubLinksController {
         clubId: link.clubId,
         reason: parsed.data.reason,
         initiatedBy: link.initiatedBy,
+        rejectedBy: rejectorIsClub ? 'club' : 'trainer',
       },
     });
 
@@ -276,8 +285,9 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_revoke',
       actorId: session.actor.id,
-      // Роль тренера здесь не пишется намеренно — так было до переноса.
-      actorRole: revokedBy === 'admin' ? 'admin' : 'club_owner',
+      // Кто разорвал связь по сторонам — в `meta` (`revokedBy`), а здесь роль
+      // того, кто действительно вошёл.
+      actorRole: session.actor.role,
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: { trainerId: link.trainerId, clubId: link.clubId, revokedBy, detachedCount },

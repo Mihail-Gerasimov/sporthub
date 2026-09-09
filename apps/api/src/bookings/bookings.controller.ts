@@ -294,8 +294,13 @@ export class BookingsController {
       action: 'booking_create',
       // Исполнитель — тот, кто ВОШЁЛ. Под имперсонизацией запись принадлежит цели,
       // а в журнале обязан остаться след администратора: иначе действие теряет автора.
+      //
+      // ⚠️ Роль берётся ОТТУДА ЖЕ, откуда номер. Пока она была константой, пара
+      // «номер + роль» указывала на разных людей: номер администратора и роль
+      // спортсмена. Роль записи в журнале — это роль исполнителя, а не догадка
+      // о том, кому такое действие обычно положено.
       actorId: session.actor.id,
-      actorRole: 'athlete',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: booking.id,
       meta: {
@@ -352,9 +357,11 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_cancel',
       actorId: session.actor.id,
-      actorRole: 'athlete',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
+      // Сторона отмены остаётся в `meta`: роль говорит, КТО действовал,
+      // а `actor` — с какой стороны сделки пришла отмена.
       meta: { actor: 'athlete', source: 'public_delete' },
     });
 
@@ -391,7 +398,10 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_cancel',
       actorId: session.actor.id,
-      actorRole: isAthlete ? 'athlete' : 'club_owner',
+      // Сторону отмены (`actor` в `meta`) и роль исполнителя путать нельзя:
+      // отменить со стороны провайдера может и представитель услуг, и тренер,
+      // и администратор под чужим лицом.
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
       meta: {
@@ -427,7 +437,7 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_confirm',
       actorId: session.actor.id,
-      actorRole: 'club_owner',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
       meta: { scheduleId: updated.scheduleId, athleteId: updated.userId },
@@ -462,7 +472,7 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_reject',
       actorId: session.actor.id,
-      actorRole: 'club_owner',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
       meta: {
@@ -523,7 +533,7 @@ export class BookingsController {
     await this.logs.record({
       action: outcome === 'completed' ? 'booking_check_in_completed' : 'booking_check_in_no_show',
       actorId: session.actor.id,
-      actorRole: 'club_owner',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
       meta: {

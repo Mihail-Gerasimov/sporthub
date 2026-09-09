@@ -19,8 +19,13 @@
 //   3. Выход ходит на сервер. Очистить стор мало: сессия живёт на сервере,
 //      и украденный идентификатор продолжал бы работать после «выхода».
 //
-// Что стор по-прежнему решает сам: имперсонизацию (перенос её на сервер —
-// отдельный шаг фазы) и мелочи отображения вроде обновления телефона в шапке.
+// То же правило распространено на работу от чужого лица: она тоже живёт в сессии
+// (две личности в одной), и стор её не назначает, а отражает. Начало и конец —
+// маршруты `POST /api/auth/impersonate/:id` и `POST /api/auth/impersonate/stop`,
+// а признак и имя настоящего исполнителя приезжают в ответе «кто я».
+//
+// Что стор по-прежнему решает сам: мелочи отображения вроде обновления телефона
+// в шапке.
 
 import { create } from 'zustand';
 
@@ -45,7 +50,21 @@ export type SessionProfile = AuthSessionUser & {
   role: UserRole;
   capabilities: string[];
   quarantineLiftedAt?: string;
+  /** Работа идёт от чужого лица. Приходит только под ней. */
+  impersonating?: boolean;
+  /** Имя того, кто вошёл на самом деле, — под имперсонизацией это администратор. */
+  actorName?: string;
 };
+
+/**
+ * Кто работает на самом деле, пока идёт работа от чужого лица.
+ *
+ * После полной перезагрузки страницы сервер сообщает только имя — карточка
+ * целиком известна лишь тогда, когда работа началась в этой же вкладке. Поэтому
+ * обязательно здесь одно имя: его достаточно, чтобы показать на экране, кто
+ * действует, а всё остальное необязательно и появляется, когда известно.
+ */
+export type AuthImpersonationActor = { name: string } & Partial<AuthSessionUser>;
 
 /**
  * Спросили ли уже сервер, кто вошёл.
@@ -97,10 +116,24 @@ type AuthState = {
   // --- Админский трек и имперсонизация ---
   isAdmin: boolean;
   isImpersonating: boolean;
-  adminOriginalUser: AuthSessionUser | null;
+  /** Настоящий исполнитель, пока работа идёт от чужого лица. */
+  adminOriginalUser: AuthImpersonationActor | null;
   adminLogin: (user: AuthSessionUser) => void;
-  startImpersonation: (targetUser: AuthSessionUser, targetAccountType: AuthAccountType) => void;
-  stopImpersonation: () => void;
+  /**
+   * Начать работу от лица пользователя.
+   *
+   * Возвращает тип кабинета цели — по нему вызывающий решает, куда переходить, —
+   * или `null`, если сервер не разрешил. Личность после согласия перечитывается
+   * ответом «кто я»: назначать её себе браузер не вправе.
+   */
+  startImpersonation: (targetUserId: number) => Promise<AuthAccountType | null>;
+  /**
+   * Вернуться к себе. `true` — работа от чужого лица закончена.
+   *
+   * Признак снимает только сервер: снять его самому — значит спрятать плашку,
+   * оставив саму подмену живой.
+   */
+  stopImpersonation: () => Promise<boolean>;
 };
 
 export const AUTH_STORE_DEFAULT_STATE = {
@@ -196,6 +229,23 @@ async function fetchSessionProfile(): Promise<SessionProfile | null | undefined>
   }
 }
 
+/**
+ * Сходить на маршрут, меняющий сессию. Наружу — только «принято или нет».
+ *
+ * Тело ответа не разбирается намеренно: что стало с личностью, стор всё равно
+ * узнаёт одним способом — перечитав «кто я». Иначе появился бы второй источник
+ * правды, и они бы разошлись.
+ */
+async function postSessionChange(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: 'POST' });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export const useAuthStore = create<AuthState>()((set, get) => ({
   ...AUTH_STORE_DEFAULT_STATE,
 
@@ -214,7 +264,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       return;
     }
 
-    const { role, capabilities, ...user } = profile;
+    const { role, capabilities, impersonating, actorName, ...user } = profile;
+
+    // ⚠️ Работа от чужого лица приезжает ОТВЕТОМ СЕРВЕРА, а не хранится здесь.
+    // Пока стор ставил признак в `false` сам, плашка исчезала после каждой полной
+    // перезагрузки, хотя сессия оставалась подменённой: администратор продолжал
+    // действовать от чужого лица без единого признака на экране.
+    const isImpersonating = impersonating === true;
+    // Полную карточку администратора знаем, только если работа началась в этой
+    // же вкладке. После перезагрузки от неё остаётся имя — его и хватает.
+    const knownActor = get().adminOriginalUser;
 
     set({
       user,
@@ -222,13 +281,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       capabilities,
       accountType: userRoleToAccountType(role),
       isAuthenticated: true,
-      isAdmin: role === 'admin',
+      // Роль в ответе — роль ТОГО, ОТ ЧЬЕГО ЛИЦА работают. Сама возможность
+      // работать от чужого лица есть только у администратора, поэтому под ней
+      // вошедший — администратор, кем бы он сейчас ни выглядел.
+      isAdmin: role === 'admin' || isImpersonating,
       status: 'ready',
-      // Имперсонизация живёт только в браузере и переживает лишь переходы
-      // внутри приложения: сервер о ней не знает, и полная перезагрузка
-      // страницы честно возвращает администратора к себе.
-      isImpersonating: false,
-      adminOriginalUser: null,
+      isImpersonating,
+      adminOriginalUser: isImpersonating
+        ? (knownActor ?? (actorName === undefined ? null : { name: actorName }))
+        : null,
     });
   },
 
@@ -275,28 +336,34 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     });
   },
 
-  startImpersonation: (targetUser, targetAccountType) => {
-    const state = get();
+  startImpersonation: async (targetUserId) => {
+    const actor = get().user;
 
-    // Имперсонизация — только для администратора.
-    if (!state.isAdmin) return;
+    // Имперсонизация — только для администратора. Проверка здесь не защита
+    // (её делает сервер), а способ не тревожить его заведомо чужой просьбой.
+    if (!get().isAdmin || actor === null) return null;
 
-    set({
-      adminOriginalUser: state.user,
-      user: targetUser,
-      accountType: targetAccountType,
-      isImpersonating: true,
-    });
+    const accepted = await postSessionChange(`/api/auth/impersonate/${targetUserId}`);
+
+    // Отказ не подменяет ничего: экран показывал бы кабинет, которого сервер
+    // всё равно не отдаст.
+    if (!accepted) return null;
+
+    // Карточку администратора запоминаем ДО перечитывания: в ответе «кто я»
+    // от него останется только имя, а здесь он известен целиком.
+    set({ adminOriginalUser: actor });
+    await get().loadSession();
+
+    return get().isImpersonating ? get().accountType : null;
   },
 
-  stopImpersonation: () => {
-    const state = get();
+  stopImpersonation: async () => {
+    await postSessionChange('/api/auth/impersonate/stop');
 
-    set({
-      user: state.adminOriginalUser,
-      accountType: null,
-      isImpersonating: false,
-      adminOriginalUser: null,
-    });
+    // Сессию перечитываем в любом случае. Отказ означает, что представление
+    // браузера о ней разошлось с сервером, — а лечится это тем же самым.
+    await get().loadSession();
+
+    return !get().isImpersonating;
   },
 }));

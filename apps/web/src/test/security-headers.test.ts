@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import nextConfig from '../../next.config';
+import nextConfig, { MAP_HOSTS } from '../../next.config';
 
 describe('Заголовки безопасности', () => {
   it('конфигурация отдаёт заголовки на все пути', async () => {
@@ -49,5 +49,32 @@ describe('Заголовки безопасности', () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).not.toContain('default-src *');
     expect(csp).toContain("object-src 'none'");
+  });
+
+  // ⚠️ Найдено браузерным прогоном чек-листа (шаг 24): карта на главной НЕ
+  // грузилась вовсе. В правилах источников перечислен только адрес самого API
+  // карт, а загрузчик третьей версии тянет свой пакет и стили с отдельного узла
+  // раздачи — браузер их отбивал, и на месте карты оставалась пустота.
+  //
+  // Проверка идёт по общему списку узлов, а не по строке: список объявлен один
+  // раз рядом с самими правилами, и подключение нового узла нельзя забыть
+  // в одном из двух мест.
+  it('правила источников разрешают все узлы, с которых грузятся карты', async () => {
+    const headers = await nextConfig.headers?.();
+    const csp = new Map((headers?.[0]?.headers ?? []).map((h) => [h.key, h.value])).get(
+      'Content-Security-Policy',
+    );
+    const directive = (name: string) =>
+      String(csp)
+        .split('; ')
+        .find((part) => part.startsWith(`${name} `)) ?? '';
+
+    // Пакет загрузчика и его стили лежат на узле раздачи, а не на адресе API.
+    expect(directive('script-src')).toContain(MAP_HOSTS.bundle);
+    expect(directive('style-src')).toContain(MAP_HOSTS.bundle);
+    // Сам API и плитки карты — на своих адресах.
+    expect(directive('script-src')).toContain(MAP_HOSTS.api);
+    expect(directive('connect-src')).toContain(MAP_HOSTS.api);
+    expect(directive('connect-src')).toContain(MAP_HOSTS.tiles);
   });
 });

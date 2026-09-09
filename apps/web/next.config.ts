@@ -25,6 +25,27 @@ const apiOrigin = process.env.SPORT_HUB_API_ORIGIN ?? 'http://localhost:3001';
  * вместе с подключением любой новой внешней службы, иначе она молча не заработает
  * в бою и заработает в разработке.
  */
+/**
+ * Узлы, с которых грузятся карты. Объявлены ОДНИМ списком и отсюда же
+ * подставляются в правила источников: адресов у карты четыре, они разные,
+ * и держать их россыпью по строке правил — значит однажды забыть один.
+ *
+ * ⚠️ `bundle` — не адрес API, а отдельный узел раздачи. Загрузчик третьей версии
+ * тянет с него свой пакет и стили уже ПОСЛЕ того, как сам загружен с `api`.
+ * Пока его тут не было, карта на главной не появлялась вовсе: браузер отбивал
+ * пакет по правилам источников, а в консоли об этом знал только он.
+ */
+export const MAP_HOSTS = {
+  /** Точка входа API карт. */
+  api: 'https://api-maps.yandex.ru',
+  /** Узел раздачи: пакет загрузчика и его стили. */
+  bundle: 'https://yastatic.net',
+  /** Плитки карты. */
+  tiles: 'https://*.maps.yandex.net',
+  /** Поиск координат по адресу. */
+  geocode: 'https://geocode-maps.yandex.ru',
+} as const;
+
 const SECURITY_HEADERS = [
   {
     key: 'Content-Security-Policy',
@@ -32,11 +53,11 @@ const SECURITY_HEADERS = [
       "default-src 'self'",
       // `unsafe-inline` и `unsafe-eval` нужны самому Next для гидратации и картам
       // Яндекса. Убираются вместе с переходом на одноразовые метки скриптов.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api-maps.yandex.ru https://*.maps.yandex.net",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${MAP_HOSTS.api} ${MAP_HOSTS.bundle} ${MAP_HOSTS.tiles}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${MAP_HOSTS.bundle}`,
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://api-maps.yandex.ru https://*.maps.yandex.net https://geocode-maps.yandex.ru",
+      `connect-src 'self' ${MAP_HOSTS.api} ${MAP_HOSTS.bundle} ${MAP_HOSTS.tiles} ${MAP_HOSTS.geocode}`,
       // Ни один сторонний сайт не вправе показать нашу страницу внутри себя.
       "frame-ancestors 'none'",
       "base-uri 'self'",

@@ -3,7 +3,7 @@
  * Покрывают: ImpersonationBanner, Header admin-навигация,
  * AuthModal блокировка, redirect при start/stop impersonation.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
@@ -27,6 +27,28 @@ vi.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
 }));
+
+/**
+ * Стенд сессии: работу от чужого лица начинает и заканчивает сервер, а стор
+ * после каждого такого шага перечитывает «кто я».
+ */
+function stubSession(me: Record<string, unknown>) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    if (String(input) === '/api/auth/me') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ success: true, data: me }),
+      } as unknown as Response);
+    }
+
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true }),
+    } as unknown as Response);
+  });
+}
 
 const ADMIN_USER_ID = 3;
 
@@ -92,6 +114,32 @@ describe('Impersonation flow (Step 17.5)', () => {
 
       expect(screen.getByText(/Алексей Смирнов/)).toBeInTheDocument();
       expect(screen.getByText(/#1/)).toBeInTheDocument();
+      // Настоящий исполнитель тоже на виду: подмену нельзя принять за свой вход.
+      expect(screen.getByText(/Администратор SportHub/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /вернуться в панель/i })).toBeInTheDocument();
+    });
+
+    it('переживает перезагрузку: состояние восстановлено ответом сервера', async () => {
+      // ⚠️ Тот самый дефект: после полной перезагрузки стор пуст, а сессия на
+      // сервере всё ещё подменённая. Плашка обязана вернуться вместе с ней.
+      stubSession({
+        ...athleteUser,
+        role: 'athlete',
+        capabilities: [],
+        impersonating: true,
+        actorName: adminUser.name,
+      });
+
+      const { rerender } = render(<ImpersonationBanner />);
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
+      });
+
+      rerender(<ImpersonationBanner />);
+
+      expect(screen.getByText(/Алексей Смирнов/)).toBeInTheDocument();
+      expect(screen.getByText(/Администратор SportHub/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /вернуться в панель/i })).toBeInTheDocument();
     });
 
@@ -114,7 +162,9 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(banner.className).not.toMatch(/bg-warning\/\d/);
     });
 
-    it('кнопка «Вернуться в панель» вызывает stopImpersonation и redirect', () => {
+    it('кнопка «Вернуться в панель» гасит подмену НА СЕРВЕРЕ и делает redirect', async () => {
+      const fetchSpy = stubSession({ ...adminUser, role: 'admin', capabilities: [] });
+
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
@@ -129,10 +179,16 @@ describe('Impersonation flow (Step 17.5)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /вернуться в панель/i }));
 
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+      });
+
+      // Возврат делает сервер: очистить только стор — значит оставить
+      // подменённую сессию живой.
+      expect(fetchSpy).toHaveBeenCalledWith('/api/auth/impersonate/stop', { method: 'POST' });
       // После stopImpersonation — admin восстановлен
-      expect(useAuthStore.getState().user).toEqual(adminUser);
+      expect(useAuthStore.getState().user?.id).toBe(ADMIN_USER_ID);
       expect(useAuthStore.getState().isImpersonating).toBe(false);
-      expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
       // Phase 27 Step 27.15: refresh вызван после push, иначе RSC-кэш отрисует
       // /service-portal/dashboard под старым cookie (с подменённым userId).
       expect(mockRefresh).toHaveBeenCalled();
@@ -184,7 +240,9 @@ describe('Impersonation flow (Step 17.5)', () => {
   // --- Header «Выйти» при impersonation ---
 
   describe('Header logout при impersonation', () => {
-    it('«Выйти» при impersonation вызывает stopImpersonation, push в панель и refresh', () => {
+    it('«Выйти» при impersonation вызывает stopImpersonation, push в панель и refresh', async () => {
+      stubSession({ ...adminUser, role: 'admin', capabilities: [] });
+
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
@@ -199,14 +257,17 @@ describe('Impersonation flow (Step 17.5)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
+      });
+
       // После stopImpersonation — admin-сессия сохранена
       const state = useAuthStore.getState();
 
-      expect(state.user).toEqual(adminUser);
+      expect(state.user?.id).toBe(ADMIN_USER_ID);
       expect(state.isAdmin).toBe(true);
       expect(state.isImpersonating).toBe(false);
       expect(state.isAuthenticated).toBe(true);
-      expect(mockPush).toHaveBeenCalledWith('/service-portal/dashboard');
       // Phase 30.6: refresh добавлен в impersonation-ветку Header.handleLogout —
       // симметрично ImpersonationBanner.handleStop, инвалидирует RSC-кэш.
       expect(mockRefresh).toHaveBeenCalled();

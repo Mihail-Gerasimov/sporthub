@@ -52,6 +52,37 @@ function meResponse(user: AuthSessionUser, role: string) {
   } as unknown as Response;
 }
 
+/** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
+function impersonatedMeResponse(target: AuthSessionUser, role: string, actorName: string) {
+  return {
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        success: true,
+        data: { ...target, role, capabilities: [], impersonating: true, actorName },
+      }),
+  } as unknown as Response;
+}
+
+/**
+ * Стенд сервера для работы от чужого лица.
+ *
+ * Маршруты имперсонизации отвечают одним «принято», а личность стор всё равно
+ * перечитывает через «кто я» — источник правды один, и подменяется он тоже один.
+ */
+function stubImpersonationServer(me: Response, accepted = true) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    if (String(input) === '/api/auth/me') return Promise.resolve(me);
+
+    return Promise.resolve({
+      ok: accepted,
+      status: accepted ? 200 : 400,
+      json: () => Promise.resolve({ success: accepted }),
+    } as unknown as Response);
+  });
+}
+
 /** Ответ «вошедшего нет». */
 function guestResponse() {
   return { ok: false, status: 401, json: () => Promise.resolve({}) } as unknown as Response;
@@ -88,43 +119,56 @@ describe('Admin auth store (Step 17.2)', () => {
   // --- startImpersonation ---
 
   describe('startImpersonation', () => {
-    it('переключает user и accountType на целевого пользователя', () => {
+    it('начинает работу от чужого лица НА СЕРВЕРЕ, а личность берёт из ответа', async () => {
+      // ⚠️ Раньше подмена жила целиком в браузере: сервер продолжал видеть
+      // администратора, то есть экран и настоящие права расходились.
+      const fetchSpy = stubImpersonationServer(
+        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+      );
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
       });
 
       const state = useAuthStore.getState();
 
-      expect(state.user).toEqual(athleteUser);
+      expect(fetchSpy).toHaveBeenCalledWith(`/api/auth/impersonate/${ATHLETE_USER_ID}`, {
+        method: 'POST',
+      });
+      expect(state.user?.id).toBe(ATHLETE_USER_ID);
       expect(state.accountType).toBe('athlete');
       expect(state.isAdmin).toBe(true);
       expect(state.isImpersonating).toBe(true);
       expect(state.adminOriginalUser).toEqual(adminUser);
     });
 
-    it('работает для provider-пользователя', () => {
+    it('работает для provider-пользователя', async () => {
+      stubImpersonationServer(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, 'provider');
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
       });
 
       const state = useAuthStore.getState();
 
-      expect(state.user).toEqual(providerUser);
+      expect(state.user?.id).toBe(PROVIDER_USER_ID);
       expect(state.accountType).toBe('provider');
       expect(state.isImpersonating).toBe(true);
       expect(state.adminOriginalUser).toEqual(adminUser);
     });
 
-    it('не работает если isAdmin !== true', () => {
+    it('не работает если isAdmin !== true — сервер даже не спрашивается', async () => {
       // Обычный пользователь — не admin
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
       act(() => {
         useAuthStore.getState().login({
           accountType: 'athlete',
@@ -132,15 +176,35 @@ describe('Admin auth store (Step 17.2)', () => {
         });
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(providerUser, 'provider');
+      await act(async () => {
+        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
       });
 
       const state = useAuthStore.getState();
 
       // Состояние не изменилось — impersonation не прошёл
+      expect(fetchSpy).not.toHaveBeenCalled();
       expect(state.user).toEqual(athleteUser);
       expect(state.accountType).toBe('athlete');
+      expect(state.isImpersonating).toBe(false);
+      expect(state.adminOriginalUser).toBeNull();
+    });
+
+    it('отказ сервера не подменяет личность в браузере', async () => {
+      // Иначе экран показывал бы чужой кабинет, которого сервер не отдаст.
+      stubImpersonationServer(meResponse(adminUser, 'admin'), false);
+
+      act(() => {
+        useAuthStore.getState().adminLogin(adminUser);
+      });
+
+      await act(async () => {
+        expect(await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID)).toBeNull();
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.user).toEqual(adminUser);
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
     });
@@ -149,27 +213,57 @@ describe('Admin auth store (Step 17.2)', () => {
   // --- stopImpersonation ---
 
   describe('stopImpersonation', () => {
-    it('восстанавливает admin-сессию из adminOriginalUser', () => {
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
+    it('заканчивает работу от чужого лица НА СЕРВЕРЕ и возвращает администратора', async () => {
+      // Очистить только стор мало: сессия с подменённой личностью осталась бы
+      // жить, и «возврат в панель» ничего бы не вернул.
+      const fetchSpy = stubImpersonationServer(meResponse(adminUser, 'admin'));
+
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
-      });
-
-      act(() => {
-        useAuthStore.getState().stopImpersonation();
+      await act(async () => {
+        expect(await useAuthStore.getState().stopImpersonation()).toBe(true);
       });
 
       const state = useAuthStore.getState();
 
+      expect(fetchSpy).toHaveBeenCalledWith('/api/auth/impersonate/stop', { method: 'POST' });
       expect(state.user).toEqual(adminUser);
       expect(state.accountType).toBeNull();
       expect(state.isAdmin).toBe(true);
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
       expect(state.isAuthenticated).toBe(true);
+    });
+
+    it('недоступный сервер оставляет плашку на месте', async () => {
+      // Признак работы от чужого лица снимает только сервер. Снять его самому —
+      // значит спрятать плашку, оставив саму подмену живой.
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('сеть недоступна'));
+
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
+      });
+
+      await act(async () => {
+        expect(await useAuthStore.getState().stopImpersonation()).toBe(false);
+      });
+
+      expect(useAuthStore.getState().isImpersonating).toBe(true);
+      expect(useAuthStore.getState().user).toEqual(athleteUser);
     });
   });
 
@@ -181,12 +275,14 @@ describe('Admin auth store (Step 17.2)', () => {
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue({ ok: true, status: 200 } as Response);
 
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
-      });
-
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
       });
 
       await act(async () => {
@@ -243,16 +339,42 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.status).toBe('ready');
     });
 
-    it('имперсонизация НЕ переживает перезагрузку — сервер о ней не знает', async () => {
-      // Раньше подменённая личность лежала в localStorage и «переживала»
-      // перезагрузку. Сервер при этом продолжал видеть администратора: экран
-      // и настоящие права расходились. Теперь ответ «кто я» — единственный
-      // источник, и перезагрузка честно возвращает админа к себе.
-      act(() => {
-        useAuthStore.getState().adminLogin(adminUser);
+    it('имперсонизация ПЕРЕЖИВАЕТ перезагрузку: признак и исполнитель — из ответа сервера', async () => {
+      // ⚠️ Найдено прогоном через браузер. Стор ставил признак работы от чужого
+      // лица в `false` жёстко — «сервер о ней не знает». После фазы 34 знает:
+      // обе личности лежат в сессии. Из-за затирания плашка исчезала после любой
+      // полной перезагрузки, а администратор продолжал действовать от чужого лица
+      // без единого признака на экране — то есть хуже, чем если бы её не было.
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+      );
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
       });
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+
+      const state = useAuthStore.getState();
+
+      expect(state.isImpersonating).toBe(true);
+      // На экране — тот, ОТ ЧЬЕГО лица работают.
+      expect(state.user?.id).toBe(ATHLETE_USER_ID);
+      expect(state.accountType).toBe('athlete');
+      // А знать, кто работает на самом деле, нужно для возврата в панель.
+      expect(state.adminOriginalUser?.name).toBe(adminUser.name);
+      expect(state.isAdmin).toBe(true);
+    });
+
+    it('сервер сообщил, что работы от чужого лица нет — признак снимается', async () => {
+      // Обратная сторона: возврат к себе мог случиться в другой вкладке.
+      // Источник правды один — ответ «кто я».
+      useAuthStore.setState({
+        ...AUTH_STORE_DEFAULT_STATE,
+        user: athleteUser,
+        accountType: 'athlete',
+        isAuthenticated: true,
+        isAdmin: true,
+        isImpersonating: true,
+        adminOriginalUser: adminUser,
       });
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(adminUser, 'admin'));

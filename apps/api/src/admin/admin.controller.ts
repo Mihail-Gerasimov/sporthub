@@ -73,8 +73,11 @@ export class AdminController {
 
     await this.logs.record({
       action: 'admin_hard_delete_booking',
+      // Роль — из сессии, как и номер. Здесь это всегда администратор, и именно
+      // поэтому константа была особенно вредна: она выглядела верной и потому
+      // расходилась бы с действительностью молча.
       actorId: session.actor.id,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: 'booking',
       entityId: bookingId,
     });
@@ -94,7 +97,7 @@ export class AdminController {
     await this.logs.record({
       action: 'link_revoke',
       actorId: session.actor.id,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: {
@@ -133,7 +136,7 @@ export class AdminController {
     await this.logs.record({
       action: 'quarantine_admin_lift',
       actorId: session.actor.id,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: 'user',
       entityId: userId,
       meta: { quarantineLiftedAt: updated.quarantineLiftedAt },
@@ -171,7 +174,7 @@ export class AdminController {
     await this.logs.record({
       action: 'admin_password_change',
       actorId: session.actor.id,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: 'user',
       entityId: targetUserId,
       meta: {},
@@ -195,7 +198,7 @@ export class AdminController {
     await this.logs.record({
       action: 'reliability_recompute',
       actorId: session.actor.id,
-      actorRole: 'admin',
+      actorRole: session.actor.role,
       entityType: 'user',
       entityId: userId,
     });

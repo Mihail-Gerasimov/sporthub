@@ -30,6 +30,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  fixtureBookings,
   fixtureCollections,
   fixtureConfirmedLinkCollections,
   fixtureHistoricLinkCollections,
@@ -238,6 +239,18 @@ export const CALLS: Call[] = [
     method: 'post',
     url: '/api/reviews',
     body: { trainerId: 1, rating: 5, text: 'Снимок' },
+    // Свободное посещение под этот вызов.
+    //
+    // В общем срезе у пользователя 1 ровно одно завершённое занятие у тренера 1
+    // и уже оставленный отзыв о нём. С правилом «одна оценка на посещение» его
+    // квота исчерпана, и вызов упирался бы в 409 — то есть сверка проверяла бы
+    // отказ вместо формы успешного ответа, ради которой она и снята. Второе
+    // посещение возвращает вызову ту предпосылку, при которой снимался эталон;
+    // сам ответ от этого не меняется — отзыв всё так же получает номер 3.
+    prepare: (harness: TestHarness) =>
+      harness.writeMany({
+        bookings: [...fixtureBookings, { ...fixtureBookings[1], id: 4 }],
+      }),
   },
   {
     name: 'POST /api/reviews (без адресата)',

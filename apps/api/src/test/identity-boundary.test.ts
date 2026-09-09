@@ -234,3 +234,71 @@ describe('Ключи внешних служб', () => {
     expect(offenders, offenders.join('\n')).toEqual([]);
   });
 });
+
+describe('Журнал аудита', () => {
+  /**
+   * Разобрать файл на тела вызовов `logs.record({ ... })`.
+   *
+   * Именно вызовами, а не поиском по всему тексту: `actorRole` встречается ещё
+   * и в объявлении типа записи журнала, и там это поле, а не значение.
+   */
+  function collectLogRecords(text: string): string[] {
+    const records: string[] = [];
+    const call = /logs\s*\.\s*record\(\{/g;
+    let match = call.exec(text);
+
+    while (match !== null) {
+      let depth = 1;
+      let index = call.lastIndex;
+
+      while (index < text.length && depth > 0) {
+        if (text[index] === '{') depth += 1;
+        else if (text[index] === '}') depth -= 1;
+
+        index += 1;
+      }
+
+      records.push(text.slice(call.lastIndex, index));
+      match = call.exec(text);
+    }
+
+    return records;
+  }
+
+  it('роль исполнителя берётся из сессии, а не пишется литералом', async () => {
+    // ⚠️ Найдено прогоном через браузер: подтверждение записи писало в журнал
+    // `actorRole: 'club_owner'` константой, кем бы исполнитель ни был. Номер при
+    // этом брался верный — из сессии. То есть пара «номер + роль» указывала на
+    // РАЗНЫХ людей: действие администратора выглядело действием владельца клуба,
+    // а действие тренера — тоже его.
+    //
+    // Сторож смотрит на все вызовы записи в журнал сразу: чинить такое поштучно
+    // бессмысленно, литерал вернётся в первом же новом маршруте.
+    const files = await collectSources(SOURCE_ROOT);
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      const relative = file.split(path.sep).join('/');
+      const text = await readFile(path.join(API_ROOT, file), 'utf8');
+
+      for (const record of collectLogRecords(text)) {
+        const role = /\bactorRole\s*:\s*([^\n,]+)/.exec(record);
+
+        if (role === null) {
+          offenders.push(`${relative} — запись в журнал без роли исполнителя`);
+          continue;
+        }
+
+        const value = (role[1] ?? '').trim();
+
+        // Единственный допустимый источник — тот же, что и у номера: настоящий
+        // исполнитель из сессии. Под имперсонизацией это администратор.
+        if (!/\.actor\.role$/.test(value)) {
+          offenders.push(`${relative} — роль исполнителя записана как «${value}»`);
+        }
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});

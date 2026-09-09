@@ -32,7 +32,7 @@ import {
   type ReliabilityResult,
 } from '@sporthub/domain';
 import { cn } from '@/lib/utils';
-import { useAuthStore, userRoleToAccountType, type AuthSessionUser } from '@/stores/useAuthStore';
+import { useAuthStore, userRoleToAccountType } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Trainer, User, UserRole } from '@sporthub/types';
 
@@ -222,26 +222,31 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     return pages;
   }, [safePage, totalPages]);
 
-  /** Обработчик impersonation */
-  function handleImpersonate(user: User) {
-    const targetAccountType = userRoleToAccountType(user.role);
-    if (!targetAccountType) return;
+  /**
+   * Обработчик impersonation.
+   *
+   * ⚠️ Подмену выполняет СЕРВЕР. Раньше она делалась целиком в браузере: стор
+   * подменял себе личность, а сессия оставалась администраторской — экран
+   * показывал чужой кабинет, права оставались своими, а первая же перезагрузка
+   * страницы возвращала всё назад без объяснений.
+   */
+  async function handleImpersonate(user: User) {
+    // У администратора личного кабинета нет — от его лица работать некуда.
+    // Сервер это тоже запрещает; здесь проверка бережёт лишний запрос.
+    if (!userRoleToAccountType(user.role)) return;
 
-    const targetSessionUser: AuthSessionUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      avatarUrl: user.avatarUrl,
-    };
+    const accountType = await startImpersonation(user.id);
 
-    startImpersonation(targetSessionUser, targetAccountType);
+    if (!accountType) {
+      addToast({ message: 'Не удалось войти от лица пользователя', tone: 'error' });
+      return;
+    }
 
     // ⚠️ Записи в журнал отсюда БОЛЬШЕ НЕТ. Маршрут `POST /api/logs` удалён:
     // браузер сам называл исполнителя и сам же решал, что записать, — то есть
     // журнал говорил ровно то, что ему велел клиент. Теперь его ведёт сервер
     // и берёт исполнителя из сессии.
-    const profilePath = targetAccountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
+    const profilePath = accountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
     router.push(profilePath);
     router.refresh();
   }

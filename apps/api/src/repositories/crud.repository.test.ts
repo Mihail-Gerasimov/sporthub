@@ -269,6 +269,25 @@ const reviewsContract = (createRepository: () => Promise<ReviewsRepository>) => 
     expect(await reviews.count({ owners: { clubIds: [], trainerIds: [] } })).toBe(0);
   });
 
+  it('считает отзывы одного автора одному адресату', async () => {
+    const reviews = await createRepository();
+    await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Свой клубу' });
+    await reviews.insert({ userId: 1, trainerId: 2, rating: 4, text: 'Свой тренеру' });
+    await reviews.insert({ userId: 2, clubId: 1, rating: 3, text: 'Чужой тому же клубу' });
+
+    // На этом счёте держится правило «одна оценка на посещение»: столько отзывов
+    // уже оставил ИМЕННО этот человек ИМЕННО этому адресату. Считает запрос —
+    // выгружать отзывы клуба целиком ради одного числа значило бы платить за
+    // проверку размером всей его истории.
+    expect(await reviews.count({ userId: 1, clubId: 1 })).toBe(1);
+    expect(await reviews.count({ userId: 1, trainerId: 2 })).toBe(1);
+    expect(await reviews.count({ userId: 2, clubId: 1 })).toBe(1);
+    // Отзыв тренеру не считается отзывом клубу, и наоборот.
+    expect(await reviews.count({ userId: 1, clubId: 2 })).toBe(0);
+    // Без автора — все отзывы адресата, как и раньше.
+    expect(await reviews.count({ clubId: 1 })).toBe(2);
+  });
+
   it('граница периода у счётчика отзывов — по дню, включительно', async () => {
     const reviews = await createRepository();
     const created = await reviews.insert({ userId: 1, clubId: 1, rating: 5, text: 'Клубный' });
