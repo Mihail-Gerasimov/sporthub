@@ -103,7 +103,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -147,7 +147,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -168,7 +168,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -223,7 +223,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
       });
 
@@ -246,7 +246,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -281,7 +281,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
       });
 

@@ -28,13 +28,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import { Modal } from '@/components/ui/Modal';
 import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
-  isNotificationTypeApplicable,
   type NotificationGroupKey,
 } from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -57,11 +55,14 @@ export interface NotificationsListPageProps {
    */
   userId?: number;
   /**
-   * Phase 26 Step 26.8: тип аккаунта, определяет видимость tab'ов фильтра.
-   * athlete не получает link_* уведомлений (уходят провайдеру), поэтому
-   * tab «Связи» у атлета скрываем — он всегда пустой.
+   * Тип кабинета.
+   *
+   * ⚠️ Шаг 35.28a: компонент им больше НЕ ПОЛЬЗУЕТСЯ. Видимость строк и вкладок
+   * решает адресат уведомления, а не роль человека. Поле оставлено необязательным
+   * ровно до шага 35.34, который снимает `accountType` со страниц-вызывающих;
+   * убрать его здесь раньше значило бы сломать сборку двух страниц кабинета.
    */
-  accountType: 'athlete' | 'provider';
+  accountType?: 'athlete' | 'provider';
 }
 
 type GroupFilter = 'all' | NotificationGroupKey;
@@ -124,7 +125,6 @@ export function getDateBucket(iso: string, now: Date): DateBucket {
 export function NotificationsListPage({
   notifications: initial,
   userId,
-  accountType,
 }: NotificationsListPageProps) {
   // Phase 29 Step 29.2: список читаем из стора. Server-prop `initial` — seed:
   // при mount синхронизируем стор и впоследствии страница работает с ним
@@ -175,38 +175,36 @@ export function NotificationsListPage({
     setSelectedIds(new Set());
   }, [userId]);
 
-  // Phase 27 Step 27.8: auth-guard через useAuthStore. Prop `accountType` — требуемая
-  // роль для текущего подмаршрута (server-page фиксирует её при рендере). Если сессия
-  // не совпадает — показываем AccessDeniedCard, как на 14 остальных подмаршрутах ЛК.
+  // ⚠️ Шаг 35.34. Плашка «Доступ ограничен» убрана: пускать сюда или нет,
+  // решает серверный лейаут, и решает ДО похода за данными. Здесь остался
+  // только вопрос «известен ли человек» — до ответа «кто я» рисовать нечем.
   const sessionUser = useAuthStore((state) => state.user);
-  const sessionAccountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Phase 26 Step 26.8: видимые группы зависят от типа аккаунта.
-  // Phase 29 Step 29.4: 'reviews' добавлено для обеих ролей — атлет получает
-  // confirmation своего отзыва, провайдер — входящие отзывы клиентов.
-  const visibleGroupKeys: readonly NotificationGroupKey[] =
-    accountType === 'athlete' ? (['booking', 'reviews'] as const) : NOTIFICATION_GROUP_KEYS;
+  // ⚠️ Шаг 35.28a. Вкладки — это ТЕМЫ уведомлений («записи», «связи», «отзывы»),
+  // а не роли получателей, и показываются все три. Прежде вкладку «Связи» прятали
+  // у атлета: у роли атлета связей не бывало. Ролей нет, у человека с клубом связи
+  // есть, и спрятанная вкладка означала бы строки, которые видно в «Все»
+  // и невозможно отфильтровать.
+  const visibleGroupKeys: readonly NotificationGroupKey[] = NOTIFICATION_GROUP_KEYS;
 
-  // Защита от stale activeGroup: если active-tab стал невидимым (смена accountType на лету),
-  // сбрасываем на 'all'. Для MVP accountType стабилен в пределах монтирования — скорее edge-case.
+  // Защита от stale activeGroup: если active-tab стал невидимым, сбрасываем на 'all'.
   useEffect(() => {
     if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
       setActiveGroup('all');
     }
   }, [activeGroup, visibleGroupKeys]);
 
-  // Phase 27 Step 27.3: hasUnread — только по применимым к accountType типам,
-  // иначе athlete увидит кнопку «Отметить всё» из-за неправильных записей в базе.
-  const hasUnread = notifications.some(
-    (notification) =>
-      notification.readAt === undefined &&
-      isNotificationTypeApplicable(notification.type, accountType),
-  );
+  // ⚠️ Шаг 35.28a. Отбора по формуле «тип → роль» здесь больше нет — ни здесь,
+  // ни в счётчиках вкладок, ни в самом списке. Видимость строки решает её АДРЕСАТ,
+  // и решает это сервер, отбирая ящик запросом: браузер показывает ровно то,
+  // что ему прислали. Пока правил было два, они расходились молча — «в колокольчике
+  // 3, а в списке 0», — и лечить это пересчётом на клиенте нельзя: сервер продолжит
+  // слать своё число, и оно вернётся первым же опросом счётчика.
+  const hasUnread = notifications.some((notification) => notification.readAt === undefined);
 
   // Счётчики групп считаются от оригинального списка, без учёта текущих фильтров.
-  // Phase 27 Step 27.3: не считаем чужие типы — athlete не должен видеть в «Все»
-  // число, включающее link_* уведомления (даже если они ошибочно в базе).
+  // Считается ВСЁ, что прислал сервер: он уже отобрал ящик, и второй раз решать
+  // «наше ли это уведомление» браузеру нечем и незачем.
   const groupCounts = useMemo<Record<GroupFilter, number>>(() => {
     const counts: Record<GroupFilter, number> = {
       all: 0,
@@ -215,20 +213,16 @@ export function NotificationsListPage({
       reviews: 0,
     };
     for (const n of notifications) {
-      if (!isNotificationTypeApplicable(n.type, accountType)) continue;
       counts.all += 1;
       const g = NOTIFICATION_TYPE_GROUP[n.type];
       if (g) counts[g] += 1;
     }
     return counts;
-  }, [notifications, accountType]);
+  }, [notifications]);
 
-  // Фильтр: сначала по accountType (защита от чужих типов), затем по группе, затем unread-тогглу.
+  // Фильтр — только то, что человек выбрал сам: группа и тоггл непрочитанных.
   const filtered = useMemo(() => {
     return notifications.filter((n) => {
-      if (!isNotificationTypeApplicable(n.type, accountType)) {
-        return false;
-      }
       if (activeGroup !== 'all' && NOTIFICATION_TYPE_GROUP[n.type] !== activeGroup) {
         return false;
       }
@@ -237,7 +231,7 @@ export function NotificationsListPage({
       }
       return true;
     });
-  }, [notifications, activeGroup, showOnlyUnread, accountType]);
+  }, [notifications, activeGroup, showOnlyUnread]);
 
   // Группировка по дате. Сортируем в пределах bucket'а от новых к старым.
   const buckets = useMemo(() => {
@@ -372,11 +366,10 @@ export function NotificationsListPage({
     }
   }, [markingAll, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
 
-  // Phase 27 Step 27.8: гость или несоответствие роли — AccessDeniedCard.
   // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти
   // rules-of-hooks (нельзя менять количество хуков между рендерами).
-  if (!isAuthenticated || sessionAccountType !== accountType || !sessionUser) {
-    return <AccessDeniedCard requiredRole={accountType} />;
+  if (!sessionUser) {
+    return null;
   }
 
   return (

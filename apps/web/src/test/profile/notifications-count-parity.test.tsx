@@ -175,8 +175,8 @@ describe('Уведомления: колокольчик и лента счит�
   });
 
   describe.each<{ title: string; accountType: AuthAccountType }>([
-    { title: 'кабинет лица услуг', accountType: 'provider' },
-    { title: 'личный кабинет', accountType: 'athlete' },
+    { title: 'кабинет лица услуг', accountKind: 'person' },
+    { title: 'личный кабинет', accountKind: 'person' },
   ])('смешанная лента, $title', ({ accountType }) => {
     it('в колокольчике столько же, сколько непрочитанных строк в ленте', async () => {
       await openCabinet(accountType, MIXED_FEED);

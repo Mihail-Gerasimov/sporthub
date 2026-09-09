@@ -45,7 +45,7 @@ describe('NotificationsListPage', () => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: { id: 1, name: 'Test Athlete', email: 'test-athlete@sporthub.local' },
-      accountType: 'athlete',
+      accountKind: 'person',
       isAuthenticated: true,
     });
   });

@@ -36,7 +36,12 @@ import { isSlotUpcoming } from '@/lib/slot-time';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { APP_LIMITS } from '@sporthub/types';
-import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
+import {
+  BOOKING_REQUIRES_LOGIN,
+  REVIEW_REQUIRES_LOGIN,
+  REVIEW_REQUIRES_LOGIN_HINT,
+} from '@/lib/auth-prompts';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import type {
   Amenity,
   Club,
@@ -223,10 +228,11 @@ export function ClubDetailPageClient({
   trainers,
   reliability,
 }: ClubDetailPageClientProps) {
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const sessionUser = useAuthStore((state) => state.user);
-  const athleteActionUserId = useAuthStore(selectAthleteActionUserId);
+  // ⚠️ Шаг 35.34. Кто записывается и пишет отзывы — любой вошедший человек,
+  // а не «тип учётной записи — спортсмен». Владелец клуба ходит на йогу
+  // в чужой зал, и права оставить там отзыв его лицо услуг не отнимает.
+  const actorUserId = useAuthStore(selectBookingActorUserId);
   const addToast = useToastStore((state) => state.addToast);
 
   const [reviewItems, setReviewItems] = useState<ReviewWithAuthor[]>(() =>
@@ -277,7 +283,7 @@ export function ClubDetailPageClient({
     );
   }, [schedule, sports, trainers]);
 
-  const isAthlete = isAuthenticated && accountType === 'athlete' && athleteActionUserId !== null;
+  const canAct = actorUserId !== null;
 
   /* Объединённый список тегов и удобств для AmenityRow (через ChipMarquee). */
   const amenityItems = useMemo(() => {
@@ -292,14 +298,14 @@ export function ClubDetailPageClient({
   }
 
   function handleGuestSlotAction() {
-    showActionNotice('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен');
+    showActionNotice(BOOKING_REQUIRES_LOGIN);
   }
 
   async function handleReviewSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!isAthlete || athleteActionUserId === null) {
-      showActionNotice('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен');
+    if (!canAct || actorUserId === null) {
+      showActionNotice(REVIEW_REQUIRES_LOGIN);
       return;
     }
 
@@ -664,7 +670,7 @@ export function ClubDetailPageClient({
           {weekSlots.length > 0 ? (
             <DetailScheduleWeek
               slots={weekSlots}
-              isAthlete={isAthlete}
+              canAct={canAct}
               onGuestSlotAction={handleGuestSlotAction}
             />
           ) : (
@@ -790,12 +796,12 @@ export function ClubDetailPageClient({
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="font-body text-xs leading-relaxed text-muted">
-                    {isAthlete
+                    {canAct
                       ? // ⚠️ Отзыв принимается только после посещения (фаза 34, решение
                         // заказчика от 08.09.2026). Раньше оценку мог поставить кто угодно
                         // кому угодно, и она сразу двигала публичный рейтинг.
                         `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}. Оставить его можно после посещения занятия.`
-                      : 'Для отправки нужен вход или регистрация как спортсмен.'}
+                      : REVIEW_REQUIRES_LOGIN_HINT}
                   </p>
                   <Button type="submit" aria-label="Отправить отзыв" loading={isSubmittingReview}>
                     Отправить отзыв

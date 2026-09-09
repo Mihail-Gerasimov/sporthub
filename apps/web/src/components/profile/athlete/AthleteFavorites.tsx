@@ -8,8 +8,7 @@ import { useMemo } from 'react';
 
 import { AthleteFavoritesSection } from '@/components/profile/AthleteFavoritesSection';
 import { getAthleteFavorites } from '@/components/profile/athlete-favorites';
-import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Review, Specialty, Trainer, User } from '@sporthub/types';
 
 type AthleteFavoritesProps = {
@@ -30,9 +29,9 @@ export function AthleteFavorites({
   specialties = [],
 }: AthleteFavoritesProps) {
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
+  // ⚠️ Шаг 35.34. Номер берётся у вошедшего человека, а не у «типа учётной
+  // записи — спортсмен»: типа больше нет, а записи и отзывы есть у всех.
+  const athleteUserId = useAuthStore(selectBookingActorUserId);
 
   const athleteBookings = useMemo(
     () =>
@@ -59,8 +58,12 @@ export function AthleteFavorites({
     [athleteUserId, athleteBookings, clubs, athleteReviews, trainers, users],
   );
 
-  if (!isAuthenticated || accountType !== 'athlete' || !user) {
-    return <AccessDeniedCard requiredRole="athlete" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   return (

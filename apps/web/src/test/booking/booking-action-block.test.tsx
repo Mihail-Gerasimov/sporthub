@@ -69,7 +69,7 @@ describe('BookingActionBlock', () => {
     renderActionBlock();
 
     expect(screen.getByTestId('booking-action-block')).toBeInTheDocument();
-    expect(screen.getByText('Чтобы записаться, войдите как спортсмен')).toBeInTheDocument();
+    expect(screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти / Зарегистрироваться' }));
 
@@ -77,9 +77,18 @@ describe('BookingActionBlock', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('для provider-session показывает запрет на booking и CTA на смену аккаунта', () => {
-    useAuthStore.getState().login({
-      accountType: 'provider',
+  it('владелец клуба записывается на общих основаниях — он такой же человек', async () => {
+    // ⚠️ Шаг 35.34. Прежде здесь ожидался запрет «текущий аккаунт не может
+    // записываться» и кнопка «Сменить аккаунт»: тип учётной записи был
+    // провайдерский. Аккаунт у человека один, менять не на что, а на йогу
+    // в чужой зал ходит и владелец собственного.
+    fetchMock.mockResolvedValueOnce(createJsonResponse({ success: true, data: [] }));
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
       user: {
         id: PROVIDER_USER_ID,
         name: 'Марина Крылова',
@@ -89,14 +98,11 @@ describe('BookingActionBlock', () => {
 
     renderActionBlock();
 
-    expect(
-      screen.getByText('Текущий аккаунт не может записываться на занятия'),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Подтвердить запись' })).toBeEnabled();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Сменить аккаунт' }));
-
-    expect(useUIStore.getState().isAuthModalOpen).toBe(true);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Сменить аккаунт' })).not.toBeInTheDocument();
   });
 
   it('для полного slot показывает состояние «мест нет» и блокирует primary action', async () => {
@@ -108,7 +114,6 @@ describe('BookingActionBlock', () => {
     );
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -158,7 +163,6 @@ describe('BookingActionBlock', () => {
     );
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -197,7 +201,6 @@ describe('BookingActionBlock', () => {
     );
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -247,7 +250,6 @@ describe('BookingActionBlock', () => {
       );
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -314,7 +316,6 @@ describe('BookingActionBlock', () => {
       );
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',

@@ -51,64 +51,31 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     expect(screen.getByTestId('notification-preferences-group-reviews')).toBeInTheDocument();
   });
 
-  it('Phase 26 Step 26.8: для athlete группа `links` скрыта, booking+reviews видны', () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+  // ⚠️ Шаг 35.28a. Здесь было два теста, закреплявших прежнюю модель: у атлета
+  // прятались «провайдерские» переключатели, у провайдера — «атлетские».
+  // Модель «тип → роль» удалена вместе с ролями: настройки принадлежат ЧЕЛОВЕКУ,
+  // а человек с клубом и сам ходит на занятия. Спрятанный переключатель означал бы
+  // уведомление, которое приходит и которое нечем выключить.
+  it('переключатели показываются целиком — и «свои», и «провайдерские»', () => {
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
 
-    expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
-    expect(screen.getByTestId('notification-preferences-group-reviews')).toBeInTheDocument();
-    expect(screen.queryByTestId('notification-preferences-group-links')).not.toBeInTheDocument();
-  });
-
-  // Phase 27 Step 27.3: внутри группы «Записи» у athlete не должно быть
-  // provider-specific чекбоксов (booking_requested / ..._to_provider / booking_auto_expired_to_provider).
-  it('у athlete в группе Записи нет provider-specific чекбоксов', () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
-
-    expect(
-      screen.queryByTestId('notification-preferences-toggle-booking_requested'),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId(
-        'notification-preferences-toggle-booking_cancelled_by_athlete_to_provider',
-      ),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId('notification-preferences-toggle-booking_auto_expired_to_provider'),
-    ).not.toBeInTheDocument();
-
-    // Athlete-специфичный тип должен остаться.
-    expect(
-      screen.getByTestId('notification-preferences-toggle-booking_confirmed'),
-    ).toBeInTheDocument();
-  });
-
-  it('у provider в группе Записи есть provider-specific чекбоксы, но нет athlete-only', () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="provider"
-        notificationPreferences={{}}
-      />,
-    );
-
+    // Обе оси группы «Записи» на месте: заявка провайдеру и подтверждение атлету.
     expect(
       screen.getByTestId('notification-preferences-toggle-booking_requested'),
     ).toBeInTheDocument();
     expect(
-      screen.queryByTestId('notification-preferences-toggle-booking_confirmed'),
-    ).not.toBeInTheDocument();
+      screen.getByTestId('notification-preferences-toggle-booking_confirmed'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(
+        'notification-preferences-toggle-booking_cancelled_by_athlete_to_provider',
+      ),
+    ).toBeInTheDocument();
+
+    // И все три группы: прятать «Связи» больше не от чего.
+    expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-preferences-group-links')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-preferences-group-reviews')).toBeInTheDocument();
   });
 
   it('REQUIRED-типы имеют disabled input (нельзя отключить)', () => {

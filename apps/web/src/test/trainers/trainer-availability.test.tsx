@@ -41,7 +41,9 @@ beforeEach(() => {
   pushMock.mockClear();
   useAuthStore.setState({
     user: null,
-    accountType: null,
+    accountKind: null,
+    faces: [],
+    activeFaceKey: null,
     isAuthenticated: false,
     isAdmin: false,
     isImpersonating: false,
@@ -84,7 +86,9 @@ describe('TrainerAvailability', () => {
   it('клик «К записи» как athlete → router.push("/booking/{id}")', () => {
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
     });
     render(<TrainerAvailability dateLabel="4 мая" slots={[makeSlot({ id: 42 })]} />);
     fireEvent.click(screen.getByRole('button', { name: /к записи/i }));

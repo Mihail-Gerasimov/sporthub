@@ -26,7 +26,7 @@ import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-boo
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { ROLE_LABELS, computeAthleteReliability, type ReliabilityResult } from '@sporthub/domain';
 import { cn } from '@/lib/utils';
-import { useAuthStore, userRoleToAccountType } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Trainer, User, UserRole } from '@sporthub/types';
 
@@ -223,13 +223,19 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
    * страницы возвращала всё назад без объяснений.
    */
   async function handleImpersonate(user: User) {
-    // У администратора личного кабинета нет — от его лица работать некуда.
+    // У администратора кабинета нет ни одного — от его лица работать некуда.
     // Сервер это тоже запрещает; здесь проверка бережёт лишний запрос.
-    if (!userRoleToAccountType(user.role)) return;
+    //
+    // ⚠️ Шаг 35.34: признак — вид учётной записи, а не роль. У старых записей
+    // поля может не быть — тогда решает сервер, и запрос уходит.
+    if (user.accountKind === 'admin') return;
 
-    const accountType = await startImpersonation(user.id);
+    // ⚠️ Куда идти, говорит сессия цели: есть лица услуг — кабинет лица, нет —
+    // личный кабинет. Раньше здесь по типу учётной записи собирался адрес
+    // прямо в этом файле, и адрес кабинета жил в двух местах сразу.
+    const cabinetHref = await startImpersonation(user.id);
 
-    if (!accountType) {
+    if (cabinetHref === null) {
       addToast({ message: 'Не удалось войти от лица пользователя', tone: 'error' });
       return;
     }
@@ -238,8 +244,7 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     // браузер сам называл исполнителя и сам же решал, что записать, — то есть
     // журнал говорил ровно то, что ему велел клиент. Теперь его ведёт сервер
     // и берёт исполнителя из сессии.
-    const profilePath = accountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
-    router.push(profilePath);
+    router.push(cabinetHref);
     router.refresh();
   }
 

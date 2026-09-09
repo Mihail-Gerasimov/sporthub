@@ -2,7 +2,13 @@
  * Тесты admin-расширения auth store (Step 17.2).
  * Покрывают: adminLogin, startImpersonation, stopImpersonation,
  * выход при имперсонизации, восстановление личности с сервера,
- * userRoleToAccountType.
+ * адрес кабинета цели.
+ *
+ * ⚠️ Фаза 35, шаг 35.34. Блок про `userRoleToAccountType` снят целиком: функции
+ * нет, потому что нет и типа кабинета. Её работу — «куда вести администратора,
+ * начавшего работу от чужого лица» — теперь делает состав сессии цели: есть
+ * лица услуг → кабинет лица, нет → личный кабинет. Проверяется это ниже, в
+ * `startImpersonation`, и проверяется по РЕЗУЛЬТАТУ, а не по имени роли.
  *
  * Phase 34 Step 34.48: личность больше не хранится в localStorage — она
  * приходит ответом `GET /api/auth/me`. Прежний тест «поля переживают
@@ -15,9 +21,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTH_STORE_DEFAULT_STATE,
   useAuthStore,
-  userRoleToAccountType,
   type AuthSessionUser,
 } from '@/stores/useAuthStore';
+import type { ServiceFace } from '@/lib/service-faces';
 
 const ADMIN_USER_ID = 3;
 const ATHLETE_USER_ID = 1;
@@ -43,24 +49,50 @@ const providerUser: AuthSessionUser = {
   phone: '+7 (927) 000-20-20',
 };
 
-/** Ответ «кто я» с ролью и правами — ровно та форма, что приходит с сервера. */
-function meResponse(user: AuthSessionUser, role: string) {
-  return {
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve({ success: true, data: { ...user, role, capabilities: [] } }),
-  } as unknown as Response;
-}
+/** Клуб владелицы: на нём видно, что кабинет цели считается от ЛИЦА, а не от роли. */
+const PROVIDER_FACE: ServiceFace = { kind: 'club', id: 3, name: 'CrossFit Garage' };
 
-/** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
-function impersonatedMeResponse(target: AuthSessionUser, role: string, actorName: string) {
+/** Ответ «кто я» — ровно та форма, что приходит с сервера. */
+function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = []) {
   return {
     ok: true,
     status: 200,
     json: () =>
       Promise.resolve({
         success: true,
-        data: { ...target, role, capabilities: [], impersonating: true, actorName },
+        data: {
+          ...user,
+          role,
+          accountKind: role === 'admin' ? 'admin' : 'person',
+          faces,
+          capabilities: [],
+        },
+      }),
+  } as unknown as Response;
+}
+
+/** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
+function impersonatedMeResponse(
+  target: AuthSessionUser,
+  role: string,
+  actorName: string,
+  faces: ServiceFace[] = [],
+) {
+  return {
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        success: true,
+        data: {
+          ...target,
+          role,
+          accountKind: 'person',
+          faces,
+          capabilities: [],
+          impersonating: true,
+          actorName,
+        },
       }),
   } as unknown as Response;
 }
@@ -100,7 +132,7 @@ describe('Admin auth store (Step 17.2)', () => {
   // --- adminLogin ---
 
   describe('adminLogin', () => {
-    it('устанавливает admin-сессию с isAdmin=true и accountType=null', () => {
+    it('устанавливает admin-сессию: isAdmin, вид записи «служебная», лиц нет', () => {
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
@@ -110,7 +142,8 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.user).toEqual(adminUser);
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(true);
-      expect(state.accountType).toBeNull();
+      expect(state.accountKind).toBe('admin');
+      expect(state.faces).toEqual([]);
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
     });
@@ -140,29 +173,50 @@ describe('Admin auth store (Step 17.2)', () => {
         method: 'POST',
       });
       expect(state.user?.id).toBe(ATHLETE_USER_ID);
-      expect(state.accountType).toBe('athlete');
+      expect(state.faces).toEqual([]);
       expect(state.isAdmin).toBe(true);
       expect(state.isImpersonating).toBe(true);
       expect(state.adminOriginalUser).toEqual(adminUser);
     });
 
-    it('работает для provider-пользователя', async () => {
-      stubImpersonationServer(impersonatedMeResponse(providerUser, 'club_owner', adminUser.name));
+    it('у цели с лицом услуг уводит в кабинет ЛИЦА, у цели без лиц — в личный', async () => {
+      // ⚠️ Шаг 35.34. Прежде адрес собирался из типа учётной записи прямо
+      // в админской странице, и адрес кабинета жил в двух местах сразу.
+      // Теперь его называет сам стор — по составу сессии цели.
+      stubImpersonationServer(
+        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
+      );
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
       await act(async () => {
-        await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID);
+        expect(await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID)).toBe(
+          '/profile/provider',
+        );
       });
 
       const state = useAuthStore.getState();
 
       expect(state.user?.id).toBe(PROVIDER_USER_ID);
-      expect(state.accountType).toBe('provider');
+      expect(state.faces).toEqual([PROVIDER_FACE]);
       expect(state.isImpersonating).toBe(true);
       expect(state.adminOriginalUser).toEqual(adminUser);
+    });
+
+    it('цель без лиц услуг уводит в личный кабинет', async () => {
+      stubImpersonationServer(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+
+      act(() => {
+        useAuthStore.getState().adminLogin(adminUser);
+      });
+
+      await act(async () => {
+        expect(await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID)).toBe(
+          '/profile/athlete',
+        );
+      });
     });
 
     it('не работает если isAdmin !== true — сервер даже не спрашивается', async () => {
@@ -170,10 +224,7 @@ describe('Admin auth store (Step 17.2)', () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
       act(() => {
-        useAuthStore.getState().login({
-          accountType: 'athlete',
-          user: athleteUser,
-        });
+        useAuthStore.getState().login({ user: athleteUser });
       });
 
       await act(async () => {
@@ -185,7 +236,7 @@ describe('Admin auth store (Step 17.2)', () => {
       // Состояние не изменилось — impersonation не прошёл
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(state.user).toEqual(athleteUser);
-      expect(state.accountType).toBe('athlete');
+      expect(state.accountKind).toBe('person');
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
     });
@@ -221,7 +272,7 @@ describe('Admin auth store (Step 17.2)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -236,7 +287,7 @@ describe('Admin auth store (Step 17.2)', () => {
 
       expect(fetchSpy).toHaveBeenCalledWith('/api/auth/impersonate/stop', { method: 'POST' });
       expect(state.user).toEqual(adminUser);
-      expect(state.accountType).toBeNull();
+      expect(state.accountKind).toBe('admin');
       expect(state.isAdmin).toBe(true);
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
@@ -251,7 +302,7 @@ describe('Admin auth store (Step 17.2)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -278,7 +329,7 @@ describe('Admin auth store (Step 17.2)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -293,7 +344,8 @@ describe('Admin auth store (Step 17.2)', () => {
 
       expect(fetchSpy).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
       expect(state.user).toBeNull();
-      expect(state.accountType).toBeNull();
+      expect(state.accountKind).toBeNull();
+      expect(state.faces).toEqual([]);
       expect(state.isAuthenticated).toBe(false);
       expect(state.isAdmin).toBe(false);
       expect(state.isImpersonating).toBe(false);
@@ -334,7 +386,7 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(true);
       expect(state.role).toBe('admin');
-      expect(state.accountType).toBeNull();
+      expect(state.accountKind).toBe('admin');
       expect(state.user?.id).toBe(ADMIN_USER_ID);
       expect(state.status).toBe('ready');
     });
@@ -358,7 +410,7 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.isImpersonating).toBe(true);
       // На экране — тот, ОТ ЧЬЕГО лица работают.
       expect(state.user?.id).toBe(ATHLETE_USER_ID);
-      expect(state.accountType).toBe('athlete');
+      expect(state.accountKind).toBe('person');
       // А знать, кто работает на самом деле, нужно для возврата в панель.
       expect(state.adminOriginalUser?.name).toBe(adminUser.name);
       expect(state.isAdmin).toBe(true);
@@ -370,7 +422,7 @@ describe('Admin auth store (Step 17.2)', () => {
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAuthenticated: true,
         isAdmin: true,
         isImpersonating: true,
@@ -429,35 +481,21 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.status).toBe('ready');
     });
 
-    it('роль из ответа определяет кабинет: club_owner → provider', async () => {
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(providerUser, 'club_owner'));
+    it('кабинет определяют ЛИЦА из ответа, а не роль', async () => {
+      // ⚠️ Прежде здесь проверялось «роль club_owner → кабинет провайдера».
+      // Роль и владение расходятся уже сейчас (раздел 4.6 плана фазы), поэтому
+      // ответ считается по лицам: они и есть факт, а роль — надпись.
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        meResponse(providerUser, 'club_owner', [PROVIDER_FACE]),
+      );
 
       await act(async () => {
         await useAuthStore.getState().loadSession();
       });
 
-      expect(useAuthStore.getState().accountType).toBe('provider');
+      expect(useAuthStore.getState().faces).toEqual([PROVIDER_FACE]);
+      expect(useAuthStore.getState().activeFaceKey).toBe('club:3');
       expect(useAuthStore.getState().isAdmin).toBe(false);
-    });
-  });
-
-  // --- userRoleToAccountType ---
-
-  describe('userRoleToAccountType', () => {
-    it('маппит athlete → athlete', () => {
-      expect(userRoleToAccountType('athlete')).toBe('athlete');
-    });
-
-    it('маппит club_owner → provider', () => {
-      expect(userRoleToAccountType('club_owner')).toBe('provider');
-    });
-
-    it('маппит trainer → provider', () => {
-      expect(userRoleToAccountType('trainer')).toBe('provider');
-    });
-
-    it('маппит admin → null', () => {
-      expect(userRoleToAccountType('admin')).toBeNull();
     });
   });
 
@@ -466,16 +504,13 @@ describe('Admin auth store (Step 17.2)', () => {
   describe('regression: обычный auth flow', () => {
     it('login по-прежнему работает и не затрагивает admin-поля', () => {
       act(() => {
-        useAuthStore.getState().login({
-          accountType: 'athlete',
-          user: athleteUser,
-        });
+        useAuthStore.getState().login({ user: athleteUser });
       });
 
       const state = useAuthStore.getState();
 
       expect(state.user).toEqual(athleteUser);
-      expect(state.accountType).toBe('athlete');
+      expect(state.accountKind).toBe('person');
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(false);
       expect(state.isImpersonating).toBe(false);
@@ -484,16 +519,13 @@ describe('Admin auth store (Step 17.2)', () => {
 
     it('register по-прежнему работает и не затрагивает admin-поля', () => {
       act(() => {
-        useAuthStore.getState().register({
-          accountType: 'provider',
-          user: providerUser,
-        });
+        useAuthStore.getState().register({ user: providerUser });
       });
 
       const state = useAuthStore.getState();
 
       expect(state.user).toEqual(providerUser);
-      expect(state.accountType).toBe('provider');
+      expect(state.accountKind).toBe('person');
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(false);
     });

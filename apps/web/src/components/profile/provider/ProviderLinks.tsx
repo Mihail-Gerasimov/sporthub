@@ -14,7 +14,6 @@ import { Badge, Button, Card, Modal } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Club, Offering, Trainer, TrainerClubLink } from '@sporthub/types';
 
 type LinkTab = 'pending' | 'confirmed' | 'history';
@@ -45,8 +44,6 @@ export function ProviderLinks({
   offerings = [],
 }: ProviderLinksProps) {
   const user = useAuthStore((s) => s.user);
-  const accountType = useAuthStore((s) => s.accountType);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
 
@@ -234,8 +231,12 @@ export function ProviderLinks({
     return foreignClubs.filter((c) => !activeForTrainer.has(c.id));
   }, [clubs, myClubIdSet, requestTrainerId, links]);
 
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard requiredRole="provider" testId="provider-links-access-denied" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   const isEmpty = providerClubs.length === 0 && providerTrainers.length === 0;

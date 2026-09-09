@@ -20,14 +20,11 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderPublications } from '@/components/profile/provider/ProviderPublications';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import { capabilitiesOf } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
-// Этап Э8a фазы 34: раздел показывает только свой вид публикаций, и решают это
-// права вошедшего. Берутся они из общего словаря — копия строк здесь разъехалась
-// бы с ним молча.
-const CLUB_OWNER = capabilitiesOf('club_owner');
-const TRAINER = capabilitiesOf('trainer');
+// ⚠️ Фаза 35, шаг 35.34. Прав вошедшего в разделе больше нет: `manage_own_clubs`
+// и `manage_own_trainer_profile` исчезли вместе с ролями. Раздел показывает то,
+// чем человек ВЛАДЕЕТ, — списки клубов и карточек и есть это владение.
 
 const providerClub: Club = {
   id: 1,
@@ -73,7 +70,7 @@ function loginAsProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: { id: 2, name: 'Марина', email: 'marina@studio.local' },
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -96,54 +93,44 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
 
-  it('представителю услуг показываются кнопки правки только по его клубам', () => {
+  it('правка предлагается по ВСЕМ своим лицам — и по клубу, и по карточке', () => {
+    // ⚠️ Шаг 35.34. Прежде здесь ожидалась ровно ОДНА кнопка: право роли
+    // отменяло второе владение, и владелец клуба своей карточки тренера
+    // не видел (дефект 4.6 № 1 в интерфейсном виде). Оба лица принадлежат
+    // одному человеку — оба и показываются.
     loginAsProvider();
-    render(
-      <ProviderPublications
-        clubs={[providerClub]}
-        trainers={[providerTrainer]}
-        capabilities={CLUB_OWNER}
-      />,
-    );
+    render(<ProviderPublications clubs={[providerClub]} trainers={[providerTrainer]} />);
 
-    // Карточка тренера принадлежит тому же человеку по старым данным, но вести
-    // её представителю услуг больше нечем — и предлагать ему это незачем.
-    expect(screen.getAllByRole('button', { name: 'Редактировать' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Удалить' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Редактировать' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Удалить' })).toHaveLength(2);
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
-    expect(screen.queryByText('Марина Соколова')).not.toBeInTheDocument();
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
     // Плашки «Редактирование через корневой кабинет» быть не должно
     expect(screen.queryByText(/корневой кабинет/i)).not.toBeInTheDocument();
   });
 
-  it('тренеру показывается его карточка, а клуб — нет', () => {
+  it('чужие публикации в разделе не показываются', () => {
+    // Контроль к проверке выше: показывается ВЛАДЕНИЕ, а не всё подряд.
     loginAsProvider();
     render(
       <ProviderPublications
-        clubs={[providerClub]}
-        trainers={[providerTrainer]}
-        capabilities={TRAINER}
+        clubs={[{ ...providerClub, id: 99, name: 'Чужой клуб', managedByUserId: 777 }]}
+        trainers={[]}
       />,
     );
 
-    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
-    expect(screen.queryByText('Volna Aquatic Club')).not.toBeInTheDocument();
+    expect(screen.queryByText('Чужой клуб')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Редактировать' })).not.toBeInTheDocument();
   });
 
-  it('действия публикации предлагаются по правам роли', () => {
+  it('завести лицо услуг может любой вошедший — обе кнопки на месте', () => {
+    // ⚠️ Прежде кнопку прятало право роли, и завести себе карточку тренера
+    // владелец клуба не мог вовсе. Решение заказчика 1: лицо заводит любой.
     loginAsProvider();
-    const clubOwner = render(
-      <ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />,
-    );
+    render(<ProviderPublications clubs={[]} trainers={[]} />);
 
     expect(screen.getByRole('button', { name: 'Опубликовать клуб' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Опубликовать тренера' })).not.toBeInTheDocument();
-
-    clubOwner.unmount();
-    render(<ProviderPublications clubs={[]} trainers={[providerTrainer]} capabilities={TRAINER} />);
-
     expect(screen.getByRole('button', { name: 'Опубликовать тренера' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Опубликовать клуб' })).not.toBeInTheDocument();
   });
 
   it('клик «Редактировать» на клубе шлёт GET /api/clubs/1 и открывает модалку', async () => {
@@ -178,7 +165,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     );
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />);
+    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
 
@@ -197,7 +184,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: true }, 200));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />);
+    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => {
@@ -206,7 +193,9 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     await waitFor(() => {
       expect(refreshMock).toHaveBeenCalled();
     });
-    expect(screen.getByRole('status')).toHaveTextContent(/Публикация удалена/i);
+    // ⚠️ Шаг 35.24a: сообщение обязано говорить, что произошло на самом деле.
+    // «Удалена» врало бы: лицо спрятано, а отзывы и записи людей на месте.
+    expect(screen.getByRole('status')).toHaveTextContent(/Публикация убрана из каталога/i);
 
     confirmMock.mockRestore();
   });
@@ -215,7 +204,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />);
+    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -227,7 +216,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: false, error: 'Нет прав' }, 403));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />);
+    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => {
@@ -245,7 +234,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: false, error: 'Не найдено' }, 404));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} capabilities={CLUB_OWNER} />);
+    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
 
     await waitFor(() => {

@@ -27,9 +27,18 @@
 // Что стор по-прежнему решает сам: мелочи отображения вроде обновления телефона
 // в шапке.
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 
-import type { AuthAccountType, UserRole } from '@sporthub/types';
+import {
+  faceCabinet,
+  faceKey,
+  findFace,
+  PERSONAL_CABINET,
+  type CabinetTarget,
+  type ServiceFace,
+} from '@/lib/service-faces';
+import type { AccountKind, UserRole } from '@sporthub/types';
 
 export type AuthSessionUser = {
   id?: number;
@@ -41,13 +50,20 @@ export type AuthSessionUser = {
 };
 
 /**
- * Ответ «кто я». Повторяет форму, которую отдаёт бэкенд, — включая роль
- * и список прав: по ним интерфейс решает, какой кабинет открывать и какие
- * действия рисовать, а не угадывает это по адресу страницы.
+ * Ответ «кто я». Повторяет форму, которую отдаёт бэкенд.
+ *
+ * ⚠️ Фаза 35: кабинет выбирается по ЛИЦАМ услуг, а не по типу учётной записи.
+ * Тип отвечал на вопрос «кем человек является», а человек не является кем-то
+ * одним: он и на йогу ходит, и свой зал держит. `faces` — список фактов
+ * («вот этими лицами он управляет»), и по нему кабинеты считаются без догадок.
  */
 export type SessionProfile = AuthSessionUser & {
   id: number;
   role: UserRole;
+  /** Вид учётной записи: человек или служебная запись. */
+  accountKind?: AccountKind;
+  /** Лица услуг человека: карточка тренера и клубы. */
+  faces?: ServiceFace[];
   capabilities: string[];
   /** Работа идёт от чужого лица. Приходит только под ней. */
   impersonating?: boolean;
@@ -74,21 +90,34 @@ export type AuthImpersonationActor = { name: string } & Partial<AuthSessionUser>
  */
 export type AuthSessionStatus = 'unknown' | 'ready';
 
-export type PersonalCabinetConfig = {
-  accountType: AuthAccountType;
-  profilePath: '/profile/provider' | '/profile/athlete';
-  title: string;
-};
-
+/**
+ * Что кладут в стор формы входа и регистрации.
+ *
+ * ⚠️ Тип учётной записи отсюда ушёл (шаг 35.35): регистрация заводит человека,
+ * выбирать нечего. Лица услуг формы не знают и знать не могут — их привозит
+ * ответ «кто я», за которым формы идут сразу после успеха.
+ */
 type AuthSessionPayload = {
-  accountType: AuthAccountType;
   user: AuthSessionUser;
 };
 
 type AuthState = {
   user: AuthSessionUser | null;
-  accountType: AuthAccountType | null;
   isAuthenticated: boolean;
+  /**
+   * Вид учётной записи: `person` — человек, `admin` — служебная запись.
+   * `null` — гость либо ответ «кто я» ещё не пришёл.
+   */
+  accountKind: AccountKind | null;
+  /** Лица услуг вошедшего. Пустой список — человек без своих клубов и карточки. */
+  faces: ServiceFace[];
+  /**
+   * Ключ лица, в контексте которого открыт кабинет. `null` — кабинет человека.
+   *
+   * Хранится ключом, а не объектом: список лиц перечитывается ответом «кто я»,
+   * и ссылка на прежний объект указывала бы на лицо, которого может уже не быть.
+   */
+  activeFaceKey: string | null;
   /** Роль из сессии. `null` — гость либо ответ ещё не пришёл. */
   role: UserRole | null;
   /** Права роли из сессии: интерфейс рисует действия по списку, а не по догадке. */
@@ -111,6 +140,14 @@ type AuthState = {
    * и признак входа не трогаются. Если пользователя нет — ничего не делает.
    */
   updateUser: (patch: Partial<AuthSessionUser>) => void;
+  /**
+   * Сменить лицо, в контексте которого открыт кабинет.
+   *
+   * Чужое лицо не назначается: ключа, которого нет в списке лиц, стор не примет.
+   * Это не защита (её делает сервер), а способ не рисовать кабинет, данных
+   * для которого всё равно не отдадут.
+   */
+  setActiveFace: (key: string) => void;
 
   // --- Админский трек и имперсонизация ---
   isAdmin: boolean;
@@ -121,11 +158,11 @@ type AuthState = {
   /**
    * Начать работу от лица пользователя.
    *
-   * Возвращает тип кабинета цели — по нему вызывающий решает, куда переходить, —
-   * или `null`, если сервер не разрешил. Личность после согласия перечитывается
-   * ответом «кто я»: назначать её себе браузер не вправе.
+   * Возвращает АДРЕС кабинета цели — по нему вызывающий решает, куда
+   * переходить, — или `null`, если сервер не разрешил. Личность после согласия
+   * перечитывается ответом «кто я»: назначать её себе браузер не вправе.
    */
-  startImpersonation: (targetUserId: number) => Promise<AuthAccountType | null>;
+  startImpersonation: (targetUserId: number) => Promise<string | null>;
   /**
    * Вернуться к себе. `true` — работа от чужого лица закончена.
    *
@@ -137,8 +174,10 @@ type AuthState = {
 
 export const AUTH_STORE_DEFAULT_STATE = {
   user: null,
-  accountType: null,
   isAuthenticated: false,
+  accountKind: null,
+  faces: [],
+  activeFaceKey: null,
   role: null,
   capabilities: [],
   status: 'unknown',
@@ -148,8 +187,10 @@ export const AUTH_STORE_DEFAULT_STATE = {
 } satisfies Pick<
   AuthState,
   | 'user'
-  | 'accountType'
   | 'isAuthenticated'
+  | 'accountKind'
+  | 'faces'
+  | 'activeFaceKey'
   | 'role'
   | 'capabilities'
   | 'status'
@@ -158,48 +199,87 @@ export const AUTH_STORE_DEFAULT_STATE = {
   | 'adminOriginalUser'
 >;
 
+/**
+ * Что известно сразу после успешной формы входа или регистрации.
+ *
+ * ⚠️ Лиц услуг здесь нет и быть не может: ответ формы их не привозит. Формы
+ * следом спрашивают «кто я» — до этого момента человек считается человеком
+ * без лиц, и это честнее, чем угадать.
+ */
 function createAuthenticatedState(payload: AuthSessionPayload) {
   return {
     user: payload.user,
-    accountType: payload.accountType,
+    accountKind: 'person',
     isAuthenticated: true,
-  } satisfies Pick<AuthState, 'user' | 'accountType' | 'isAuthenticated'>;
+  } satisfies Pick<AuthState, 'user' | 'accountKind' | 'isAuthenticated'>;
+}
+
+/** Срез стора, которого хватает, чтобы посчитать лица и кабинеты. */
+type FacesSlice = Pick<AuthState, 'accountKind' | 'faces' | 'activeFaceKey'>;
+
+/**
+ * Может ли вошедший записываться, писать отзывы и складывать в избранное.
+ *
+ * ⚠️ Шаг 35.34. Раньше на каждой точке записи стояло «тип кабинета — спортсмен»,
+ * и это была ошибка модели: владелец зала на йогу записаться не мог, хотя он
+ * такой же человек. Правило осталось ровно одно — «вошёл и не служебная запись»
+ * (решение 5.2), — и объявлено оно ровно здесь, в одном экземпляре на пять
+ * прежних.
+ */
+export function selectCanBook(state: Pick<AuthState, 'isAuthenticated' | 'accountKind'>) {
+  return state.isAuthenticated && state.accountKind !== 'admin';
+}
+
+/** Номер того, кто действует. `null` — записываться некому. */
+export function selectBookingActorUserId(
+  state: Pick<AuthState, 'isAuthenticated' | 'accountKind' | 'user'>,
+) {
+  return selectCanBook(state) ? (state.user?.id ?? null) : null;
+}
+
+/** Лицо, в контексте которого открыт кабинет. `null` — кабинет человека. */
+export function selectActiveFace(state: FacesSlice): ServiceFace | null {
+  return findFace(state.faces, state.activeFaceKey);
 }
 
 /**
- * Роль из базы → тип кабинета на фронте.
- * `athlete` → 'athlete', `club_owner`/`trainer` → 'provider', `admin` → null:
- * у администратора личного кабинета нет, у него сервисная панель.
+ * Кабинет «по умолчанию» — тот, в который ведёт аватар в шапке.
+ *
+ * У кого есть лица услуг, тому нужен кабинет текущего лица: за ним записи,
+ * публикации и деньги. У кого лиц нет — свой личный. У служебной записи
+ * кабинета нет ни одного, и ссылки в шапке тоже (`null`).
  */
-export function userRoleToAccountType(role: UserRole): AuthAccountType | null {
-  if (role === 'athlete') return 'athlete';
-  if (role === 'club_owner' || role === 'trainer') return 'provider';
-  return null;
+export function selectPrimaryCabinet(state: FacesSlice): CabinetTarget | null {
+  if (state.accountKind === 'admin') return null;
+
+  const active = selectActiveFace(state);
+
+  return active === null ? PERSONAL_CABINET : faceCabinet(active);
 }
 
-export const PERSONAL_CABINET_CONFIG: Record<AuthAccountType, PersonalCabinetConfig> = {
-  provider: {
-    accountType: 'provider',
-    profilePath: '/profile/provider',
-    title: 'Кабинет представителя спортивных услуг',
-  },
-  athlete: {
-    accountType: 'athlete',
-    profilePath: '/profile/athlete',
-    title: 'Кабинет спортсмена',
-  },
-};
+/**
+ * Лица и кабинеты одним куском — для компонентов.
+ *
+ * ⚠️ Обёртка не «для красоты». Селектор, собирающий объект, отдавал бы zustand
+ * новую ссылку на каждый вызов, и React 19 срывался бы в бесконечную
+ * перерисовку. Поэтому из стора берутся только сами поля, а объекты собираются
+ * памятью компонента.
+ */
+export function useAuthFaces() {
+  const accountKind = useAuthStore((state) => state.accountKind);
+  const faces = useAuthStore((state) => state.faces);
+  const activeFaceKey = useAuthStore((state) => state.activeFaceKey);
 
-export function selectAuthAccountType(state: Pick<AuthState, 'accountType'>) {
-  return state.accountType;
-}
+  return useMemo(() => {
+    const slice: FacesSlice = { accountKind, faces, activeFaceKey };
 
-export function selectAthleteActionUserId(state: Pick<AuthState, 'accountType' | 'user'>) {
-  return state.accountType === 'athlete' ? (state.user?.id ?? null) : null;
-}
-
-export function getPersonalCabinetConfig(accountType: AuthAccountType | null) {
-  return accountType ? PERSONAL_CABINET_CONFIG[accountType] : null;
+    return {
+      accountKind,
+      faces,
+      activeFace: selectActiveFace(slice),
+      primaryCabinet: selectPrimaryCabinet(slice),
+    };
+  }, [accountKind, faces, activeFaceKey]);
 }
 
 /**
@@ -263,7 +343,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       return;
     }
 
-    const { role, capabilities, impersonating, actorName, ...user } = profile;
+    const { role, accountKind, faces, capabilities, impersonating, actorName, ...user } = profile;
+    const sessionFaces = faces ?? [];
 
     // ⚠️ Работа от чужого лица приезжает ОТВЕТОМ СЕРВЕРА, а не хранится здесь.
     // Пока стор ставил признак в `false` сам, плашка исчезала после каждой полной
@@ -274,16 +355,25 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     // же вкладке. После перезагрузки от неё остаётся имя — его и хватает.
     const knownActor = get().adminOriginalUser;
 
+    // Лицо кабинета переживает перечитывание сессии: страницы спрашивают «кто я»
+    // повторно, и сброс возвращал бы человека на первое лицо посреди работы.
+    // Но ключ лица, которого в ответе больше нет, не сохраняется — кабинет
+    // рисовался бы для лица, данных по которому уже не отдадут. Умолчание —
+    // первое лицо: у большинства оно единственное, и выбирать там нечего.
+    const activeFace = findFace(sessionFaces, get().activeFaceKey) ?? sessionFaces[0] ?? null;
+
     set({
       user,
       role,
       capabilities,
-      accountType: userRoleToAccountType(role),
+      accountKind: accountKind ?? 'person',
+      faces: sessionFaces,
+      activeFaceKey: activeFace === null ? null : faceKey(activeFace),
       isAuthenticated: true,
-      // Роль в ответе — роль ТОГО, ОТ ЧЬЕГО ЛИЦА работают. Сама возможность
-      // работать от чужого лица есть только у администратора, поэтому под ней
-      // вошедший — администратор, кем бы он сейчас ни выглядел.
-      isAdmin: role === 'admin' || isImpersonating,
+      // Вид учётной записи в ответе — вид ТОГО, ОТ ЧЬЕГО ЛИЦА работают. Сама
+      // возможность работать от чужого лица есть только у администратора,
+      // поэтому под ней вошедший — администратор, кем бы он сейчас ни выглядел.
+      isAdmin: accountKind === 'admin' || role === 'admin' || isImpersonating,
       status: 'ready',
       isImpersonating,
       adminOriginalUser: isImpersonating
@@ -320,6 +410,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ user: { ...current, ...patch } });
   },
 
+  setActiveFace: (key) => {
+    if (findFace(get().faces, key) === null) return;
+
+    set({ activeFaceKey: key });
+  },
+
   // --- Админский трек ---
 
   adminLogin: (user) => {
@@ -328,7 +424,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       isAuthenticated: true,
       isAdmin: true,
       role: 'admin',
-      accountType: null,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
       status: 'ready',
       isImpersonating: false,
       adminOriginalUser: null,
@@ -353,7 +451,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ adminOriginalUser: actor });
     await get().loadSession();
 
-    return get().isImpersonating ? get().accountType : null;
+    // Куда идти, решает состав сессии цели: есть лица — кабинет лица, нет —
+    // личный кабинет. Прежде здесь возвращался тип учётной записи, которого
+    // больше не существует.
+    return get().isImpersonating ? (selectPrimaryCabinet(get())?.href ?? null) : null;
   },
 
   stopImpersonation: async () => {

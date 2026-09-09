@@ -66,7 +66,7 @@ describe('Текущая неделя detail-страниц (Step 33.11)', () =>
           makeSlot({ id: 2, date: '2026-08-23' }),
           makeSlot({ id: 3, date: '2026-08-23' }),
         ]}
-        isAthlete
+        canAct
         onGuestSlotAction={() => {}}
       />,
     );

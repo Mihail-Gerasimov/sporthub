@@ -15,7 +15,6 @@ import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
 import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
 import { cn, findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
@@ -68,8 +67,6 @@ export function ProviderStats({
   sports = [],
 }: ProviderStatsProps) {
   const user = useAuthStore((s) => s.user);
-  const accountType = useAuthStore((s) => s.accountType);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const providerUserId = user?.id ?? null;
 
@@ -242,8 +239,12 @@ export function ProviderStats({
       }));
   }, [filteredBookings]);
 
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard requiredRole="provider" testId="provider-stats-access-denied" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   const isProviderEmpty = providerClubs.length === 0 && providerTrainers.length === 0;

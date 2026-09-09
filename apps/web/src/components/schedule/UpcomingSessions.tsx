@@ -15,7 +15,8 @@ import { useRouter } from 'next/navigation';
 
 import { ClubAvailability } from '@/components/schedule/ClubAvailability';
 import { TrainerAvailability } from '@/components/trainers';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { BOOKING_REQUIRES_LOGIN } from '@/lib/auth-prompts';
+import { selectCanBook, useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { useToastStore } from '@/stores/useToastStore';
 
@@ -36,25 +37,21 @@ export function UpcomingSessions({
   trainerSlots,
 }: UpcomingSessionsProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
+  const canBook = useAuthStore(selectCanBook);
   const router = useRouter();
   const addToast = useToastStore((state) => state.addToast);
 
-  /* Auth-guard на CTA «К записи» в клубном режиме — athlete → /booking,
-   * иначе toast. Пробрасывается в ClubAvailability как onSelect. */
+  /* Auth-guard на CTA «К записи» в клубном режиме: вошедший человек → /booking,
+   * гость → toast. Пробрасывается в ClubAvailability как onSelect. */
   const handleSessionClick = useCallback(
     (scheduleId: number) => {
-      if (isAuthenticated && accountType === 'athlete') {
+      if (canBook) {
         router.push(`/booking/${scheduleId}`);
       } else {
-        addToast({
-          message: 'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
-          tone: 'info',
-        });
+        addToast({ message: BOOKING_REQUIRES_LOGIN, tone: 'info' });
       }
     },
-    [accountType, addToast, isAuthenticated, router],
+    [addToast, canBook, router],
   );
 
   if (discoveryMode === 'trainers') {

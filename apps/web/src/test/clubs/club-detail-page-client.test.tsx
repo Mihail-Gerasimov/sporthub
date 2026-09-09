@@ -180,7 +180,7 @@ describe('ClubDetailPageClient', () => {
     expect(screen.getByTestId('club-trainer-card-1')).toBeInTheDocument();
   });
 
-  it('для гостя показывает временные auth-подсказки вместо athlete-only действий', async () => {
+  it('для гостя показывает auth-подсказки вместо действий вошедшего', async () => {
     render(
       <ClubDetailPageClient
         amenities={amenities}
@@ -197,14 +197,12 @@ describe('ClubDetailPageClient', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Записаться на Утреннее плавание' }));
 
-    expect(
-      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
 
     expect(
-      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь'),
     ).toBeInTheDocument();
 
     // Phase 24: toast auto-dismiss через 4000 мс (ранее ActionNotice истекал на 3200).
@@ -213,17 +211,22 @@ describe('ClubDetailPageClient', () => {
     });
 
     expect(
-      screen.queryByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+      screen.queryByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь'),
     ).not.toBeInTheDocument();
   });
 
-  it('для provider блокирует athlete-only действия', () => {
+  it('служебная запись записываться не может — базового набора человека у неё нет', () => {
+    // ⚠️ Шаг 35.34. Прежде здесь стоял «provider»: типом учётной записи отнимали
+    // право записаться у владельца клуба. Он такой же человек и на йогу ходит;
+    // единственный, кому записываться нечем, — служебная запись (решение 5.2).
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'provider',
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
       user: {
-        name: 'Марина Крылова',
-        email: 'marina@studio.local',
+        name: 'Администратор',
+        email: 'admin@sporthub.local',
       },
     });
 
@@ -243,9 +246,7 @@ describe('ClubDetailPageClient', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Записаться на Утреннее плавание' }));
 
-    expect(
-      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь')).toBeInTheDocument();
   });
 
   it('для athlete даёт перейти к записи и отправить отзыв через fake API', async () => {
@@ -272,7 +273,9 @@ describe('ClubDetailPageClient', () => {
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: 1,
         name: 'Алексей Смирнов',

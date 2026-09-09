@@ -40,7 +40,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
-      accountType: 'athlete',
+      accountKind: 'person',
       isAuthenticated: true,
     });
 
@@ -59,7 +59,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
         name: 'Марина Крылова',
         email: 'marina@studio.local',
       },
-      accountType: 'provider',
+      accountKind: 'person',
       isAuthenticated: true,
     });
 

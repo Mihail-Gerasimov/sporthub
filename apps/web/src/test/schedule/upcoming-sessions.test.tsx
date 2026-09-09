@@ -71,7 +71,9 @@ describe('UpcomingSessions', () => {
     });
     useAuthStore.setState({
       isAuthenticated: false,
-      accountType: null,
+      accountKind: null,
+      faces: [],
+      activeFaceKey: null,
       user: null,
     });
   });
@@ -146,8 +148,6 @@ describe('UpcomingSessions', () => {
     });
     fireEvent.click(button);
 
-    expect(
-      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь')).toBeInTheDocument();
   });
 });

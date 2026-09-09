@@ -148,7 +148,7 @@ function authenticateProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }

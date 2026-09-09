@@ -200,15 +200,15 @@ describe('TrainerDetailPageClient', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Записаться на Утреннее плавание' }));
 
-    expect(
-      screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь как спортсмен'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Чтобы записаться, войдите или зарегистрируйтесь')).toBeInTheDocument();
   });
 
   it('для athlete показывает ссылку «Записаться» на booking', () => {
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: 1,
         name: 'Алексей Смирнов',
@@ -237,7 +237,7 @@ describe('TrainerDetailPageClient', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отправить отзыв' }));
 
     expect(
-      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь как спортсмен'),
+      screen.getByText('Чтобы оставить отзыв, войдите или зарегистрируйтесь'),
     ).toBeInTheDocument();
   });
 
@@ -265,7 +265,9 @@ describe('TrainerDetailPageClient', () => {
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: 1,
         name: 'Алексей Смирнов',
@@ -304,7 +306,9 @@ describe('TrainerDetailPageClient', () => {
   it('показывает ошибки валидации при пустой форме', () => {
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: { id: 1, name: 'Тест', email: 'test@test.local' },
     });
 

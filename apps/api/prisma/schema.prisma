@@ -946,6 +946,9 @@ model ProviderClientNote {
 
   /// Заметки провайдера по клиенту.
   @@index([providerUserId, clientUserId, createdAt(sort: Desc)])
+  /// Лента заметок лица: отбор по лицу и клиенту, свежие сверху.
+  @@index([faceClubId, clientUserId, createdAt(sort: Desc)])
+  @@index([faceTrainerId, clientUserId, createdAt(sort: Desc)])
   @@index([bookingId])
   @@map("provider_client_notes")
 }

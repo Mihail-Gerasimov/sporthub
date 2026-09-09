@@ -29,27 +29,31 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
-// ⚠️ Сессию подменяем целиком, а не заголовок cookie: `requireRole` спрашивает
-// бэкенд «кто я», а этот набор проверяет НЕ вход, а адреса, по которым страница
-// сходила за данными. Настоящую проверку входа держат тесты бэкенда и отдельный
-// набор про серверные guard'ы.
+// ⚠️ Сессию подменяем целиком, а не заголовок cookie: проверки страницы ходят
+// на бэкенд с вопросом «кто я», а этот набор проверяет НЕ вход, а адреса,
+// по которым страница сходила за данными. Настоящую проверку входа держат тесты
+// бэкенда и отдельный набор про серверные guard'ы.
+//
+// ⚠️ Фаза 35, шаг 35.34. У сессии появились `accountKind` и `faces`, и второе
+// здесь обязательно: кабинет лица пускает по наличию лица, а не по имени роли.
+// Без этого поля лейаут падал бы на пустом месте — и падал бы молча, потому что
+// адреса запросов при этом остаются «правильными».
+const sessionUser = () => ({
+  id: Number(signedInUserId ?? 2),
+  name: 'Тест',
+  email: 't@test.local',
+  role: 'club_owner' as const,
+  accountKind: 'person' as const,
+  capabilities: [],
+  faces: [{ kind: 'club' as const, id: 1, name: 'Volna Aquatic Club' }],
+});
+
 vi.mock('@/lib/session', () => ({
-  readSession: async () =>
-    signedInUserId === undefined
-      ? null
-      : { id: Number(signedInUserId), name: 'Тест', email: 't@test.local', role: 'club_owner' },
-  requireSession: async () => ({
-    id: Number(signedInUserId ?? 2),
-    name: 'Тест',
-    email: 't@test.local',
-    role: 'club_owner',
-  }),
-  requireRole: async () => ({
-    id: Number(signedInUserId ?? 2),
-    name: 'Тест',
-    email: 't@test.local',
-    role: 'club_owner',
-  }),
+  readSession: async () => (signedInUserId === undefined ? null : sessionUser()),
+  requireSession: async () => sessionUser(),
+  requirePerson: async () => sessionUser(),
+  requireOwner: async () => sessionUser(),
+  requireAdmin: async () => sessionUser(),
 }));
 
 /** Запросы записей, которые сделала страница. */

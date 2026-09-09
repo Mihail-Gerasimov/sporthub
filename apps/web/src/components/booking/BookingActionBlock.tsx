@@ -12,7 +12,8 @@ import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Card } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
-import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
+import { BOOKING_REQUIRES_LOGIN } from '@/lib/auth-prompts';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -52,16 +53,17 @@ export function BookingActionBlock({
   const router = useRouter();
   const openAuthModal = useUIStore((state) => state.openAuthModal);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
   const user = useAuthStore((state) => state.user);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
+  // ⚠️ Шаг 35.34. Записывается человек, а не «тип учётной записи». `null` —
+  // гость либо служебная запись: у неё базового набора человека нет.
+  const actorUserId = useAuthStore(selectBookingActorUserId);
   const addToast = useToastStore((state) => state.addToast);
   const [existingBookingId, setExistingBookingId] = useState<number | null>(null);
   const [isCheckingBookingState, setIsCheckingBookingState] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || accountType !== 'athlete' || !athleteUserId) {
+    if (actorUserId === null) {
       setExistingBookingId(null);
       setIsCheckingBookingState(false);
       return undefined;
@@ -88,7 +90,7 @@ export function BookingActionBlock({
 
         // Phase 27 Step 27.1: ищем только active-запись (pending/confirmed) на этом слоте.
         // Финальные статусы (cancelled_*, rejected_by_provider, completed, no_show, unmarked)
-        // не блокируют повторную запись — атлет может записаться заново после отмены.
+        // не блокируют повторную запись — записаться заново можно после отмены.
         const duplicateBooking =
           result.data?.find(
             (booking) =>
@@ -114,14 +116,14 @@ export function BookingActionBlock({
     return () => {
       isCancelled = true;
     };
-  }, [accountType, athleteUserId, isAuthenticated, scheduleId]);
+  }, [actorUserId, scheduleId]);
 
-  const isAthlete = isAuthenticated && accountType === 'athlete' && athleteUserId !== null;
+  const canBook = actorUserId !== null;
   const hasExistingBooking = existingBookingId !== null;
   const isFull = availableSpots <= 0;
 
   async function handleConfirmBooking() {
-    if (!athleteUserId) {
+    if (actorUserId === null) {
       openAuthModal();
       return;
     }
@@ -166,14 +168,6 @@ export function BookingActionBlock({
       );
     }
 
-    if (accountType !== 'athlete') {
-      return (
-        <Button fullWidth variant="outline" onClick={openAuthModal}>
-          Сменить аккаунт
-        </Button>
-      );
-    }
-
     if (hasExistingBooking) {
       return (
         <Link
@@ -211,18 +205,8 @@ export function BookingActionBlock({
       return {
         badgeTone: 'danger' as const,
         badgeLabel: 'Нужна авторизация',
-        title: 'Чтобы записаться, войдите как спортсмен',
-        description: 'Запись в этом MVP-сценарии доступна только авторизованному athlete-аккаунту.',
-      };
-    }
-
-    if (accountType !== 'athlete') {
-      return {
-        badgeTone: 'warning' as const,
-        badgeLabel: 'Сессия провайдера',
-        title: 'Текущий аккаунт не может записываться на занятия',
-        description:
-          'Для booking-flow нужен athlete-аккаунт. Переключите тип входа через auth-модалку.',
+        title: BOOKING_REQUIRES_LOGIN,
+        description: 'Запись доступна вошедшему человеку — учётная запись у всех одна.',
       };
     }
 
@@ -232,7 +216,7 @@ export function BookingActionBlock({
         badgeLabel: 'Слот подтверждён',
         title: 'Вы уже записаны на этот слот',
         description:
-          'Повторное бронирование не требуется. Запись уже сохранена и отразится в кабинете спортсмена.',
+          'Повторное бронирование не требуется. Запись уже сохранена и отразится в личном кабинете.',
       };
     }
 
@@ -294,12 +278,10 @@ export function BookingActionBlock({
               Кто записывается
             </p>
             <p className="mt-2 text-base font-semibold text-ink">
-              {isAthlete ? (user?.name ?? 'Athlete-аккаунт') : 'Гость'}
+              {canBook ? (user?.name ?? 'Без имени') : 'Гость'}
             </p>
             <p className="mt-1 text-sm text-muted">
-              {isAthlete
-                ? (user?.email ?? 'email не указан')
-                : 'Авторизация нужна для booking-flow'}
+              {canBook ? (user?.email ?? 'email не указан') : 'Авторизация нужна для booking-flow'}
             </p>
           </div>
 

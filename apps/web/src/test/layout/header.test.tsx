@@ -1,6 +1,12 @@
 // Шапка. Phase 34 Step 34.48: личность приходит ответом «кто я», а выход ходит
 // на сервер — поэтому прежняя проверка «после rehydrate из localStorage шапка
-// видит тип аккаунта» заменена на «после ответа сервера шапка видит тип аккаунта».
+// видит тип аккаунта» заменена на «после ответа сервера шапка видит личность».
+//
+// ⚠️ Фаза 35, шаг 35.36 (ловушка 7.11). Адрес кабинета брался из типа учётной
+// записи. Типа не стало — и ссылка исчезла бы у ВСЕХ молча: шапка просто
+// перестала бы её рисовать, без ошибки и без красного теста. Поэтому здесь
+// проверяются оба случая модели: человек без лиц услуг (ведёт в личный кабинет)
+// и человек с лицом (ведёт в кабинет лица, подписан именем лица).
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,20 +47,21 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('href', '/#availability');
   });
 
-  it('после авторизации показывает имя, человекочитаемый тип аккаунта и ссылку в кабинет', () => {
-    useAuthStore.getState().register({
-      accountType: 'provider',
-      user: {
-        name: 'Марина Крылова',
-        email: 'marina@studio.local',
-      },
+  it('у человека с лицом услуг ссылка ведёт в кабинет ЛИЦА и подписана его именем', () => {
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { name: 'Марина Крылова', email: 'marina@studio.local' },
+      isAuthenticated: true,
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
+      status: 'ready',
     });
 
     render(<Header />);
 
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
-    expect(screen.getByText('Представитель спортивных услуг')).toBeInTheDocument();
-    // Provider avatar теперь ведёт в кабинет провайдера
+    expect(screen.getByText('CrossFit Garage')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
       'href',
       '/profile/provider',
@@ -62,9 +69,8 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 
-  it('для спортсмена делает иконку аккаунта ссылкой в личный кабинет', () => {
+  it('у человека без лиц услуг ссылка ведёт в личный кабинет и не пропадает', () => {
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
@@ -86,7 +92,6 @@ describe('Header', () => {
       .mockResolvedValue({ ok: true, status: 200 } as Response);
 
     useAuthStore.getState().login({
-      accountType: 'athlete',
       user: {
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
@@ -107,7 +112,7 @@ describe('Header', () => {
     expect(screen.queryByText('Спортсмен')).not.toBeInTheDocument();
   });
 
-  it('после ответа «кто я» шапка видит правильный тип аккаунта', async () => {
+  it('после ответа «кто я» шапка видит лицо услуг', async () => {
     // Полная перезагрузка страницы: стор пуст, личность приезжает с сервера.
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
@@ -120,6 +125,8 @@ describe('Header', () => {
             name: 'Марина Крылова',
             email: 'marina@studio.local',
             role: 'club_owner',
+            accountKind: 'person',
+            faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
             capabilities: [],
           },
         }),
@@ -132,6 +139,6 @@ describe('Header', () => {
     render(<Header />);
 
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
-    expect(screen.getByText('Представитель спортивных услуг')).toBeInTheDocument();
+    expect(screen.getByText('CrossFit Garage')).toBeInTheDocument();
   });
 });

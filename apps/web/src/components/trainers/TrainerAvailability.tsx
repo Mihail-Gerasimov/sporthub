@@ -24,7 +24,8 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { CardSlider, SlotCard } from '@/components/ui';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { BOOKING_REQUIRES_LOGIN } from '@/lib/auth-prompts';
+import { selectCanBook, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 
 import type { TrainerAvailabilityItem } from '@/components/trainers/trainer-preview';
@@ -52,24 +53,20 @@ function mapTrainerToSlot(slot: TrainerAvailabilityItem) {
 }
 
 export function TrainerAvailability({ dateLabel, slots }: TrainerAvailabilityProps) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
+  const canBook = useAuthStore(selectCanBook);
   const router = useRouter();
   const addToast = useToastStore((state) => state.addToast);
 
-  /* Auth-guard на CTA «К записи» — athlete → /booking, иначе toast. */
+  /* Auth-guard на CTA «К записи»: вошедший человек → /booking, гость → toast. */
   const handleSlotSelect = useCallback(
     (slotId: TrainerAvailabilityItem['id']) => {
-      if (isAuthenticated && accountType === 'athlete') {
+      if (canBook) {
         router.push(`/booking/${slotId}`);
       } else {
-        addToast({
-          message: 'Чтобы записаться, войдите или зарегистрируйтесь как спортсмен',
-          tone: 'info',
-        });
+        addToast({ message: BOOKING_REQUIRES_LOGIN, tone: 'info' });
       }
     },
-    [accountType, addToast, isAuthenticated, router],
+    [addToast, canBook, router],
   );
 
   /* tools — кастомный блок справа от title (Phase 28.12). Стрелки

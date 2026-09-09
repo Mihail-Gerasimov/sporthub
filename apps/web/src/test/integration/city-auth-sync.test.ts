@@ -45,7 +45,6 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
 
     act(() => {
       useAuthStore.getState().login({
-        accountType: 'athlete',
         user: { name: 'Иван', email: 'ivan@test.ru', city: 'Москва' },
       });
     });
@@ -58,7 +57,6 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
 
     act(() => {
       useAuthStore.getState().login({
-        accountType: 'athlete',
         user: { name: 'Иван', email: 'ivan@test.ru' },
       });
     });
@@ -73,7 +71,6 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
     // Сначала логин с городом
     act(() => {
       useAuthStore.getState().login({
-        accountType: 'athlete',
         user: { name: 'Иван', email: 'ivan@test.ru', city: 'Казань' },
       });
     });
@@ -141,7 +138,7 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
       isAuthenticated: true,
       isAdmin: true,
       isImpersonating: true,
-      accountType: 'provider',
+      accountKind: 'person',
       user: { id: 2, name: 'Марина', email: 'marina@test.ru', city: 'Москва' },
       adminOriginalUser: { name: 'Admin' },
     });
@@ -162,7 +159,7 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
     useAuthStore.setState({
       isAuthenticated: true,
       user: { name: 'Иван', email: 'ivan@test.ru', city: 'Казань' },
-      accountType: 'athlete',
+      accountKind: 'person',
     });
 
     renderHook(() => useSyncCityFromAuth());

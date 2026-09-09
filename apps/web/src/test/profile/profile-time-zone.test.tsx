@@ -156,7 +156,7 @@ function authenticateAthlete() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: athleteUser,
-    accountType: 'athlete',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -165,7 +165,7 @@ function authenticateProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }

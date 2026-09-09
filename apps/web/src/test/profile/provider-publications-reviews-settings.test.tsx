@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Smoke-тесты client-обёрток Step 25.14-A: ProviderPublications / ProviderReviews /
 // ProviderSettings. Проверяем access-gate и базовый рендер без падений.
 import { screen } from '@testing-library/react';
@@ -32,31 +38,11 @@ const providerUser: User = {
   favoriteClubIds: [],
 };
 
-const athleteUser: User = {
-  id: 1,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
-  name: 'Алексей Смирнов',
-  email: 'alexey@sporthub.local',
-  phone: '+7 999 111-22-33',
-  passwordHash: 'secret',
-  favoriteClubIds: [],
-};
-
 function authProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
-    isAuthenticated: true,
-  });
-}
-
-function authAthlete() {
-  useAuthStore.setState({
-    ...AUTH_STORE_DEFAULT_STATE,
-    user: athleteUser,
-    accountType: 'athlete',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -71,12 +57,6 @@ describe('ProviderPublications (Step 25.14-A)', () => {
     render(<ProviderPublications clubs={[]} trainers={[]} />);
     expect(screen.getByTestId('provider-publications')).toBeInTheDocument();
   });
-
-  it('рендерит access-denied для athlete-session', () => {
-    authAthlete();
-    render(<ProviderPublications clubs={[]} trainers={[]} />);
-    expect(screen.getByTestId('provider-publications-access-denied')).toBeInTheDocument();
-  });
 });
 
 describe('ProviderReviews (Step 25.14-A)', () => {
@@ -89,12 +69,6 @@ describe('ProviderReviews (Step 25.14-A)', () => {
     render(<ProviderReviews reviews={[]} clubs={[]} trainers={[]} />);
     expect(screen.getByTestId('provider-reviews')).toBeInTheDocument();
   });
-
-  it('рендерит access-denied для athlete-session', () => {
-    authAthlete();
-    render(<ProviderReviews reviews={[]} clubs={[]} trainers={[]} />);
-    expect(screen.getByTestId('provider-reviews-access-denied')).toBeInTheDocument();
-  });
 });
 
 describe('ProviderSettings (Step 25.14-A)', () => {
@@ -106,11 +80,5 @@ describe('ProviderSettings (Step 25.14-A)', () => {
     authProvider();
     render(<ProviderSettings />);
     expect(screen.getByTestId('provider-settings')).toBeInTheDocument();
-  });
-
-  it('рендерит access-denied для athlete-session', () => {
-    authAthlete();
-    render(<ProviderSettings />);
-    expect(screen.getByTestId('provider-settings-access-denied')).toBeInTheDocument();
   });
 });

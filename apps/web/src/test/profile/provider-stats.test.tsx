@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Тесты ProviderStats (Step 25.11): метрики per-entity и drill-down per-offering,
 // window toggle (12m ↔ all), heatmap, completion/cancel/no_show rates, empty и
 // access-denied. ResponsiveContainer из recharts стабает в jsdom — мокаем ResizeObserver.
@@ -216,7 +222,7 @@ function authenticateProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -417,27 +423,5 @@ describe('ProviderStats (Step 25.11)', () => {
     );
 
     expect(screen.getByTestId('provider-stats-empty')).toBeInTheDocument();
-  });
-
-  it('access-denied: athlete session видит отказ', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: athleteUser,
-      accountType: 'athlete',
-      isAuthenticated: true,
-    });
-
-    render(
-      <ProviderStats
-        bookings={[]}
-        clubs={[]}
-        trainers={[]}
-        offerings={[]}
-        schedule={[]}
-        sports={sports}
-      />,
-    );
-
-    expect(screen.getByTestId('provider-stats-access-denied')).toBeInTheDocument();
   });
 });

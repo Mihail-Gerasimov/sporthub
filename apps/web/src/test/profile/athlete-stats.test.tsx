@@ -67,7 +67,7 @@ function authenticateAthlete() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: athleteUser,
-    accountType: 'athlete',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }

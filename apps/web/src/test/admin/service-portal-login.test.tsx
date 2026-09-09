@@ -29,7 +29,13 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-/** Ответы сервера: вход и следом «кто я» с ролью. */
+/**
+ * Ответы сервера: вход и следом «кто я».
+ *
+ * ⚠️ Шаг 35.34. Признак служебной записи — `accountKind`, а не роль: ролей
+ * больше нет. Поле `role` в ответе оставлено до отдельного шага, снимающего
+ * колонку, и на решение формы уже не влияет.
+ */
 function stubServer(role: string, loginOk = true) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
     const url = String(input);
@@ -54,6 +60,8 @@ function stubServer(role: string, loginOk = true) {
               name: 'Администратор SportHub',
               email: 'admin@sporthub.local',
               role,
+              accountKind: role === 'admin' ? 'admin' : 'person',
+              faces: [],
               capabilities: [],
             },
           }),
@@ -114,9 +122,14 @@ describe('Service Portal Login (Step 17.3)', () => {
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
 
       expect(url).toBe('/api/auth/login');
+      // ⚠️ Шаг 35.35. Служебность входа названа ЯВНО. Прежде её выражало
+      // ОТСУТСТВИЕ поля `accountType`, то есть признак, который ломается
+      // молча: уберёт кто-нибудь лишнее поле из тела — и служебный вход
+      // станет обычным, а тест этого не заметит.
       expect(JSON.parse(String(init.body))).toEqual({
         email: 'admin@sporthub.local',
         password: 'admin-sporthub-2026',
+        portal: 'service',
       });
 
       const state = useAuthStore.getState();
@@ -124,7 +137,7 @@ describe('Service Portal Login (Step 17.3)', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(true);
       expect(state.user?.id).toBe(ADMIN_USER_ID);
-      expect(state.accountType).toBeNull();
+      expect(state.accountKind).toBe('admin');
       // Phase 30.1 (final): refresh НЕ вызывается — он отменял push в dev-mode.
       expect(mockRefresh).not.toHaveBeenCalled();
     });
@@ -143,8 +156,8 @@ describe('Service Portal Login (Step 17.3)', () => {
       expect(mockPush).not.toHaveBeenCalled();
     });
 
-    it('верный пароль обычного пользователя не даёт доступа к панели', async () => {
-      // Роль решает сервер, а не форма: вход прошёл, но кабинет не тот.
+    it('верный пароль обычного человека не даёт доступа к панели', async () => {
+      // Вид учётной записи решает сервер, а не форма: вход прошёл, но панель не для него.
       stubServer('athlete');
 
       render(<ServicePortalLoginForm />);
@@ -187,7 +200,7 @@ describe('Service Portal Login (Step 17.3)', () => {
         ...AUTH_STORE_DEFAULT_STATE,
         user: { name: 'Тест', email: 'test@test.local' },
         isAuthenticated: true,
-        accountType: 'athlete',
+        accountKind: 'person',
         isAdmin: false,
         status: 'ready',
       });

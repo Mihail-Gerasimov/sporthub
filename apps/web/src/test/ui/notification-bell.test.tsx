@@ -81,12 +81,32 @@ describe('NotificationBell', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('для athlete рендерит кнопку-колокольчик с badge непрочитанных', async () => {
+  it('у служебной записи колокольчика нет: уведомляться ей не о чем', () => {
+    // ⚠️ Ловушка 7.11. Условие показа было «есть тип учётной записи», и с уходом
+    // типа колокольчик исчез бы у ВСЕХ молча. Отказ теперь ровно один — админ.
+    mockFetchByRoute();
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
+      user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
+    });
+
+    const { container } = render(<NotificationBell />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('у человека без лиц услуг колокольчик на месте (ловушка 7.11)', async () => {
     mockFetchByRoute({ unreadCount: 3 });
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -107,7 +127,9 @@ describe('NotificationBell', () => {
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -145,7 +167,9 @@ describe('NotificationBell', () => {
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
@@ -170,12 +194,14 @@ describe('NotificationBell', () => {
     );
   });
 
-  it('для provider ссылка «Все уведомления» ведёт в кабинет провайдера', async () => {
+  it('у человека с лицом услуг ссылка «Все уведомления» ведёт в кабинет лица', async () => {
     mockFetchByRoute({ unreadCount: 0, items: [] });
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'provider',
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
       user: {
         id: PROVIDER_USER_ID,
         name: 'Марина Крылова',
@@ -216,7 +242,9 @@ describe('NotificationBell', () => {
 
     useAuthStore.setState({
       isAuthenticated: true,
-      accountType: 'athlete',
+      accountKind: 'person',
+      faces: [],
+      activeFaceKey: null,
       user: {
         id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',

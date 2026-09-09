@@ -38,12 +38,8 @@ import {
   getMonthKey,
   shiftMonthKey,
 } from '@/lib/month-keys';
-import {
-  getPersonalCabinetConfig,
-  selectAthleteActionUserId,
-  useAuthStore,
-} from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { PERSONAL_CABINET_TITLE } from '@/lib/service-faces';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Review, Schedule, Sport, Trainer } from '@sporthub/types';
 import { findBookingSlot } from '@/lib/utils';
 
@@ -80,10 +76,9 @@ export function AthleteStats({
   schedule = [],
 }: AthleteStatsProps) {
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
-  const cabinetConfig = getPersonalCabinetConfig(accountType);
+  // ⚠️ Шаг 35.34. Номер берётся у вошедшего человека, а не у «типа учётной
+  // записи — спортсмен»: типа больше нет, а записи и отзывы есть у всех.
+  const athleteUserId = useAuthStore(selectBookingActorUserId);
 
   const [windowSetting, setWindowSetting] = useState<StatsWindow>(12);
 
@@ -318,8 +313,12 @@ export function AthleteStats({
 
   const hasAnyBookings = athleteBookings.length > 0;
 
-  if (!isAuthenticated || accountType !== 'athlete' || !user) {
-    return <AccessDeniedCard requiredRole="athlete" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
@@ -330,7 +329,7 @@ export function AthleteStats({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="outline">{cabinetConfig?.title ?? 'Кабинет спортсмена'}</Badge>
+              <Badge tone="outline">{PERSONAL_CABINET_TITLE}</Badge>
             </div>
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
               Статистика и достижения

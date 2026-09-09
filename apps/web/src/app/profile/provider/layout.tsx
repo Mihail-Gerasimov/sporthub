@@ -30,13 +30,7 @@ export default async function ProviderProfileLayout({ children }: { children: Re
   const { bookings, clubs, trainers } = await loadProviderScope();
 
   return (
-    <ProfileLayoutShell
-      variant="provider"
-      clubs={clubs}
-      trainers={trainers}
-      bookings={bookings}
-      capabilities={session.capabilities}
-    >
+    <ProfileLayoutShell variant="provider" clubs={clubs} trainers={trainers} bookings={bookings}>
       {children}
     </ProfileLayoutShell>
   );

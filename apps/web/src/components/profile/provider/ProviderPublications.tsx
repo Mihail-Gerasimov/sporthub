@@ -9,14 +9,13 @@
 import { useRouter } from 'next/navigation';
 import { startTransition, useMemo, useRef, useState } from 'react';
 
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
-import { hasCapability, type ClubFormState, type TrainerFormState } from '@sporthub/domain';
+import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
@@ -36,15 +35,6 @@ import type {
 type ProviderPublicationsProps = {
   clubs?: Club[];
   trainers?: Trainer[];
-  /**
-   * Права вошедшего — списком строк с бэкенда (этап Э8a).
-   *
-   * Разделом распоряжаются они, а не роль: представитель услуг ведёт клубы,
-   * тренер — свою карточку. Кнопка, которую всё равно отобьёт сервер, здесь
-   * не показывается — не ради безопасности (её держит бэкенд), а чтобы кабинет
-   * не предлагал того, чего человеку не разрешено.
-   */
-  capabilities?: readonly string[];
   sports?: Sport[];
   tags?: Tag[];
   amenities?: Amenity[];
@@ -89,7 +79,6 @@ type TrainerClubLinksResponse = {
 export function ProviderPublications({
   clubs = [],
   trainers = [],
-  capabilities = [],
   sports = [],
   tags = [],
   amenities = [],
@@ -97,8 +86,6 @@ export function ProviderPublications({
   workFormats = [],
 }: ProviderPublicationsProps) {
   const user = useAuthStore((s) => s.user);
-  const accountType = useAuthStore((s) => s.accountType);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addToast = useToastStore((state) => state.addToast);
   const router = useRouter();
 
@@ -135,11 +122,6 @@ export function ProviderPublications({
     () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
     [trainers, providerUserId],
   );
-
-  // Кнопки заведения показываются всем: лицо услуг заводит любой вошедший
-  // (решение заказчика 1). Ограничение придёт с финансовой моделью.
-  const mayManageClubs = true;
-  const mayManageTrainerProfile = true;
 
   // Для trainer-модалки показываем все клубы провайдера + (в edit-режиме) текущий affiliated клуб,
   // даже если он чужой — иначе селект не сможет показать текущее значение.
@@ -204,12 +186,18 @@ export function ProviderPublications({
       const response = await fetch(endpoint, { method: 'DELETE' });
       const result = await response.json();
       if (result.success) {
-        addToast({ message: 'Публикация удалена', tone: 'success' });
+        // ⚠️ Шаг 35.24a: «удаление» владельцем ПРЯЧЕТ лицо, а не стирает его.
+        // Отзывы, прошедшие записи и связи с тренерами остаются на месте —
+        // это чужая история, и текст обязан говорить правду о том, что произошло.
+        addToast({ message: 'Публикация убрана из каталога', tone: 'success' });
         startTransition(() => {
           router.refresh();
         });
       } else {
-        addToast({ message: result.error ?? 'Не удалось удалить публикацию', tone: 'error' });
+        // Причину отказа отдаёт сервер: «на занятия записаны люди — сначала
+        // отмените записи». Подменять её общей фразой значит спрятать
+        // единственную подсказку, что делать дальше.
+        addToast({ message: result.error ?? 'Не удалось убрать публикацию', tone: 'error' });
       }
     } catch {
       addToast({ message: 'Ошибка при удалении публикации', tone: 'error' });
@@ -311,10 +299,12 @@ export function ProviderPublications({
   }
 
   // --- Early-return (после всех hooks) ---
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return (
-      <AccessDeniedCard requiredRole="provider" testId="provider-publications-access-denied" />
-    );
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   return (
@@ -326,15 +316,18 @@ export function ProviderPublications({
         onDelete={handleDeletePublication}
       />
 
+      {/*
+        ⚠️ Шаг 35.34. Кнопки заведения показываются всем: лицо услуг заводит любой
+        вошедший (решение заказчика 1). Прежде их прятало право роли, и завести
+        себе карточку тренера владелец клуба не мог вовсе. Ограничение на
+        заведение (модерация, оплата) — вопрос будущей фазы, и это будет условие
+        на один маршрут, а не новая роль.
+      */}
       <Card className="flex flex-wrap gap-3 p-4 sm:p-6">
-        {mayManageClubs ? (
-          <Button onClick={handleOpenCreateClubModal}>Опубликовать клуб</Button>
-        ) : null}
-        {mayManageTrainerProfile ? (
-          <Button variant="outline" onClick={handleOpenCreateTrainerModal}>
-            Опубликовать тренера
-          </Button>
-        ) : null}
+        <Button onClick={handleOpenCreateClubModal}>Опубликовать клуб</Button>
+        <Button variant="outline" onClick={handleOpenCreateTrainerModal}>
+          Опубликовать тренера
+        </Button>
       </Card>
 
       {/* Publish-модалки */}

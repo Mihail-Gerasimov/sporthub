@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Тесты ProviderLinks (Step 25.12): две стороны связи тренер↔клуб.
 // Club-side: приём/отказ/revoke pending + invite тренера через search.
 // Trainer-side: мои pending/confirmed/history + revoke own + request-link modal.
@@ -32,17 +38,6 @@ const providerUser: User = {
   name: 'Ирина Провайдер',
   email: 'provider@studio.local',
   phone: '+7 999 222-33-44',
-  passwordHash: 'secret',
-  favoriteClubIds: [],
-};
-
-const athleteUser: User = {
-  id: 1,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
-  name: 'Алексей Смирнов',
-  email: 'alexey@sporthub.local',
-  phone: '+7 999 111-22-33',
   passwordHash: 'secret',
   favoriteClubIds: [],
 };
@@ -111,7 +106,7 @@ function authenticateProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -460,18 +455,5 @@ describe('ProviderLinks (Step 25.12)', () => {
 
     const modal = screen.getByTestId('provider-links-revoke-warning-modal');
     expect(modal.textContent).toMatch(/3/);
-  });
-
-  it('access-denied: athlete session видит отказ', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: athleteUser,
-      accountType: 'athlete',
-      isAuthenticated: true,
-    });
-
-    render(<ProviderLinks clubs={[]} trainers={[]} links={[]} offerings={[]} />);
-
-    expect(screen.getByTestId('provider-links-access-denied')).toBeInTheDocument();
   });
 });

@@ -17,12 +17,8 @@ import {
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
 import { computeAthleteReliability } from '@sporthub/domain';
-import {
-  getPersonalCabinetConfig,
-  selectAthleteActionUserId,
-  useAuthStore,
-} from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { PERSONAL_CABINET_TITLE } from '@/lib/service-faces';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 import { findBookingSlot } from '@/lib/utils';
 
@@ -71,10 +67,9 @@ export function AthleteDashboard({
   trainers = [],
 }: AthleteDashboardProps) {
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
-  const cabinetConfig = getPersonalCabinetConfig(accountType);
+  // ⚠️ Шаг 35.34. Номер берётся у вошедшего человека, а не у «типа учётной
+  // записи — спортсмен»: типа больше нет, а записи и отзывы есть у всех.
+  const athleteUserId = useAuthStore(selectBookingActorUserId);
 
   const athleteBookings = useMemo(
     () =>
@@ -146,8 +141,12 @@ export function AthleteDashboard({
   const upcomingCount = activeFutureBookings.length;
   const isNewUser = reliability?.isNewUser ?? true;
 
-  if (!isAuthenticated || accountType !== 'athlete' || !user) {
-    return <AccessDeniedCard requiredRole="athlete" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   return (
@@ -157,7 +156,7 @@ export function AthleteDashboard({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="outline">{cabinetConfig?.title ?? 'Кабинет спортсмена'}</Badge>
+              <Badge tone="outline">{PERSONAL_CABINET_TITLE}</Badge>
             </div>
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
               {isNewUser ? 'Сделайте первую запись' : 'Обзор'}

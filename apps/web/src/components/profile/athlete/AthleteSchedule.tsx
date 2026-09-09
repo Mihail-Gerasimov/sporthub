@@ -9,7 +9,6 @@ import { startTransition, useMemo, useState } from 'react';
 
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
 import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { Badge, Button, Card, Modal } from '@/components/ui';
 import {
   DISCIPLINE_CONFIG,
@@ -18,7 +17,7 @@ import {
   shiftDateKey,
 } from '@sporthub/domain';
 import { cn, findBookingSlot, formatDate } from '@/lib/utils';
-import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
+import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, Club, Schedule, Sport, Trainer } from '@sporthub/types';
 import { ATHLETE_BOOKING_STATUS_LABELS } from '@/components/profile/booking-status-labels';
@@ -118,12 +117,11 @@ export function AthleteSchedule({
   clubs = [],
   trainers = [],
 }: AthleteScheduleProps) {
-  // Phase 27 Step 27.8: auth-guard через useAuthStore — паттерн как в AthleteDashboard:160.
-  // Без этого гость видел пустой UI с фильтрами вместо AccessDeniedCard.
+  // Номер человека нужен, чтобы отобрать его записи; до ответа «кто я» его нет.
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
+  // ⚠️ Шаг 35.34. Номер берётся у вошедшего человека, а не у «типа учётной
+  // записи — спортсмен»: типа больше нет, а записи и отзывы есть у всех.
+  const athleteUserId = useAuthStore(selectBookingActorUserId);
   const [filter, setFilter] = useState<ScheduleFilter>('all');
   const [openedBookingId, setOpenedBookingId] = useState<number | null>(null);
 
@@ -212,9 +210,12 @@ export function AthleteSchedule({
     };
   }, [opened, scheduleById, clubById]);
 
-  // Phase 27 Step 27.8: гость или чужая роль — AccessDeniedCard, как на 14 остальных подмаршрутах.
-  if (!isAuthenticated || accountType !== 'athlete' || !user) {
-    return <AccessDeniedCard requiredRole="athlete" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   return (

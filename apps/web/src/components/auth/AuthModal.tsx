@@ -4,11 +4,10 @@ import { useId, useState } from 'react';
 import { z } from 'zod';
 
 import { PASSWORD_RESET_TTL_MINUTES } from '@sporthub/domain';
-import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@sporthub/types';
+import { DEFAULT_CITY } from '@sporthub/types';
 import { formatPhone } from '@/lib/utils';
-import type { AuthAccountType } from '@sporthub/types';
 
-import { Button, Chip, Input, Modal } from '@/components/ui';
+import { Button, Input, Modal } from '@/components/ui';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -70,32 +69,6 @@ const registerFormSchema = z.object({
   }),
   password: z.string().min(6, 'Пароль должен быть не короче 6 символов.'),
 });
-
-type AccountTypeSelectorProps = {
-  selectedAccountType: AuthAccountType | null;
-  onSelect: (value: AuthAccountType) => void;
-};
-
-function AccountTypeSelector({ onSelect, selectedAccountType }: AccountTypeSelectorProps) {
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-semibold text-ink">Тип аккаунта</p>
-      <div className="flex flex-wrap gap-2">
-        {AUTH_ACCOUNT_TYPE_OPTIONS.map((option) => (
-          <Chip
-            key={option.value}
-            active={selectedAccountType === option.value}
-            onClick={() => {
-              onSelect(option.value);
-            }}
-          >
-            {option.label}
-          </Chip>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function getLoginValidationErrors(form: LoginFormState): LoginFormErrors {
   const validationResult = loginFormSchema.safeParse(form);
@@ -360,10 +333,12 @@ export function AuthModal() {
   const closeAuthModal = useUIStore((state) => state.closeAuthModal);
   const login = useAuthStore((state) => state.login);
   const register = useAuthStore((state) => state.register);
+  // ⚠️ Шаг 35.35. Лица услуг привозит только ответ «кто я»: у ответа входа их
+  // нет. Без этого запроса шапка после входа вела бы владельца клуба в личный
+  // кабинет, а не в кабинет его лица, — и чинилось бы это перезагрузкой страницы.
+  const loadSession = useAuthStore((state) => state.loadSession);
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
   const [view, setView] = useState<AuthView>('tabs');
-  const [loginAccountType, setLoginAccountType] = useState<AuthAccountType | null>(null);
-  const [registerAccountType, setRegisterAccountType] = useState<AuthAccountType | null>(null);
   const [loginForm, setLoginForm] = useState<LoginFormState>(DEFAULT_LOGIN_FORM);
   const [loginErrors, setLoginErrors] = useState<LoginFormErrors>(DEFAULT_LOGIN_ERRORS);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
@@ -379,8 +354,6 @@ export function AuthModal() {
   function resetModalState() {
     setActiveTab('login');
     setView('tabs');
-    setLoginAccountType(null);
-    setRegisterAccountType(null);
     setLoginForm(DEFAULT_LOGIN_FORM);
     setLoginErrors(DEFAULT_LOGIN_ERRORS);
     setIsLoginSubmitting(false);
@@ -404,7 +377,7 @@ export function AuthModal() {
   async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!loginAccountType || isLoginSubmitting) {
+    if (isLoginSubmitting) {
       return;
     }
 
@@ -426,10 +399,12 @@ export function AuthModal() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
+        // ⚠️ Тип учётной записи в теле больше не передаётся (шаг 35.35): его
+        // не существует. Служебный вход отличается явным признаком
+        // `portal: 'service'` — здесь его нет, значит вход обычный, людской.
         body: JSON.stringify({
           email: normalizedLoginForm.email,
           password: normalizedLoginForm.password,
-          accountType: loginAccountType,
         }),
       });
       const json = await response.json();
@@ -440,10 +415,9 @@ export function AuthModal() {
         return;
       }
 
-      login({
-        accountType: loginAccountType,
-        user: json.data,
-      });
+      login({ user: json.data });
+      // Лица услуг и вид учётной записи знает только сессия — спрашиваем её.
+      await loadSession();
       handleCloseModal();
     } catch {
       setLoginErrors({ email: 'Сетевая ошибка, попробуй позже' });
@@ -456,7 +430,7 @@ export function AuthModal() {
   async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!registerAccountType || isRegisterSubmitting) {
+    if (isRegisterSubmitting) {
       return;
     }
 
@@ -488,7 +462,6 @@ export function AuthModal() {
           email: normalizedRegisterForm.email,
           phone: formattedPhone,
           password: normalizedRegisterForm.password,
-          accountType: registerAccountType,
           city: DEFAULT_CITY,
         }),
       });
@@ -505,10 +478,10 @@ export function AuthModal() {
         return;
       }
 
-      register({
-        accountType: registerAccountType,
-        user: json.data,
-      });
+      register({ user: json.data });
+      // Регистрация заводит человека без лиц услуг, но признак вида учётной
+      // записи всё равно берём у сессии, а не назначаем сами.
+      await loadSession();
       handleCloseModal();
     } catch {
       setRegisterErrors({ email: 'Сетевая ошибка, попробуй позже' });
@@ -521,7 +494,7 @@ export function AuthModal() {
       open={isAuthModalOpen}
       onClose={handleCloseModal}
       title="Войти или создать профиль"
-      description="Выбери сценарий, тип аккаунта и продолжи работу с SportHub. Логика авторизации будет расширяться на следующих шагах."
+      description="Выбери сценарий и продолжи работу с SportHub. Клуб или карточку тренера можно завести позже — учётная запись у всех одна."
     >
       <div className="space-y-6">
         {view === 'forgot' ? (
@@ -582,11 +555,6 @@ export function AuthModal() {
                 className="space-y-5"
                 onSubmit={handleLoginSubmit}
               >
-                <AccountTypeSelector
-                  selectedAccountType={loginAccountType}
-                  onSelect={setLoginAccountType}
-                />
-
                 <div className="grid gap-4">
                   <Input
                     label="Email"
@@ -634,12 +602,7 @@ export function AuthModal() {
                   />
                 </div>
 
-                <Button
-                  fullWidth
-                  type="submit"
-                  loading={isLoginSubmitting}
-                  disabled={!loginAccountType}
-                >
+                <Button fullWidth type="submit" loading={isLoginSubmitting}>
                   Продолжить вход
                 </Button>
 
@@ -662,11 +625,6 @@ export function AuthModal() {
                 className="space-y-5"
                 onSubmit={handleRegisterSubmit}
               >
-                <AccountTypeSelector
-                  selectedAccountType={registerAccountType}
-                  onSelect={setRegisterAccountType}
-                />
-
                 <div className="grid gap-4">
                   <Input
                     label="Имя"
@@ -748,12 +706,7 @@ export function AuthModal() {
                   />
                 </div>
 
-                <Button
-                  fullWidth
-                  type="submit"
-                  loading={isRegisterSubmitting}
-                  disabled={!registerAccountType}
-                >
+                <Button fullWidth type="submit" loading={isRegisterSubmitting}>
                   Создать аккаунт
                 </Button>
               </form>

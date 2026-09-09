@@ -11,7 +11,6 @@ import {
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import type { Club, Review, Trainer } from '@sporthub/types';
 
 type ProviderReviewsProps = {
@@ -22,8 +21,6 @@ type ProviderReviewsProps = {
 
 export function ProviderReviews({ reviews = [], clubs = [], trainers = [] }: ProviderReviewsProps) {
   const user = useAuthStore((s) => s.user);
-  const accountType = useAuthStore((s) => s.accountType);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const providerUserId = user?.id ?? null;
 
@@ -34,8 +31,12 @@ export function ProviderReviews({ reviews = [], clubs = [], trainers = [] }: Pro
     return getProviderReviews(reviews, providerClubIds, providerTrainerIds);
   }, [reviews, clubs, trainers, providerUserId]);
 
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard requiredRole="provider" testId="provider-reviews-access-denied" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   return (

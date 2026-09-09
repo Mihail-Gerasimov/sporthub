@@ -15,8 +15,12 @@
  * - Slot-row: sportName eyebrow + title Bowlby + sub (готовая строка
  *   приходит снаружи: на club «время, тренер»; на trainer «время, зал»)
  *   + chips (свободные места + зал) + price + CTA «Записаться».
- * - CTA: атлет → <Link> на /booking/[id], не-атлет → <button> вызывает
- *   `onGuestSlotAction` (toast «войдите как спортсмен»).
+ * - CTA: вошедший человек → <Link> на /booking/[id], гость → <button> вызывает
+ *   `onGuestSlotAction` (toast «войдите или зарегистрируйтесь»).
+ *
+ * ⚠️ Фаза 35, шаг 35.34: прежний признак назывался `isAthlete` и означал тип
+ * учётной записи. Типа больше нет — записываться может любой вошедший человек,
+ * и признак называет теперь именно это.
  */
 
 import Link from 'next/link';
@@ -40,18 +44,15 @@ export type DetailScheduleSlot = {
 
 type DetailScheduleWeekProps = {
   slots: DetailScheduleSlot[];
-  isAthlete: boolean;
-  /** Callback не-атлета: показ toast / auth-prompt. Логика — выше по дереву. */
+  /** Может ли зритель записаться: вошёл и не служебная запись. */
+  canAct: boolean;
+  /** Callback гостя: показ toast / auth-prompt. Логика — выше по дереву. */
   onGuestSlotAction: () => void;
 };
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
 
-export function DetailScheduleWeek({
-  slots,
-  isAthlete,
-  onGuestSlotAction,
-}: DetailScheduleWeekProps) {
+export function DetailScheduleWeek({ slots, canAct, onGuestSlotAction }: DetailScheduleWeekProps) {
   /* Понедельник текущей ISO-недели + массив 7 дат [Пн..Вс] в формате `YYYY-MM-DD`.
    *
    * Неделя считается по календарю зала — тому же, в котором лежит `slot.date`.
@@ -149,7 +150,7 @@ export function DetailScheduleWeek({
                 <span className="font-display text-sm tabular-nums text-ink">
                   {slot.priceLabel}
                 </span>
-                {isAthlete ? (
+                {canAct ? (
                   <Link
                     href={`/booking/${slot.id}`}
                     aria-label={`Записаться на ${slot.title}`}

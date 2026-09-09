@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Phase 25 Step 25.16: smoke-тесты ProviderFinance placeholder.
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -19,14 +25,6 @@ const providerUser: User = {
   favoriteClubIds: [],
 };
 
-const athleteUser: User = {
-  ...providerUser,
-  id: 1,
-  role: 'athlete',
-  name: 'Алексей Смирнов',
-  email: 'alex@test',
-};
-
 describe('ProviderFinance (Step 25.16)', () => {
   beforeEach(() => {
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
@@ -36,7 +34,7 @@ describe('ProviderFinance (Step 25.16)', () => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: providerUser,
-      accountType: 'provider',
+      accountKind: 'person',
       isAuthenticated: true,
     });
     render(<ProviderFinance />);
@@ -45,17 +43,5 @@ describe('ProviderFinance (Step 25.16)', () => {
     expect(screen.getByTestId('provider-finance-transactions')).toBeInTheDocument();
     expect(screen.getByTestId('provider-finance-payouts')).toBeInTheDocument();
     expect(screen.getByTestId('provider-finance-requisites')).toBeInTheDocument();
-  });
-
-  it('access-denied для athlete-session', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: athleteUser,
-      accountType: 'athlete',
-      isAuthenticated: true,
-    });
-    render(<ProviderFinance />);
-
-    expect(screen.getByTestId('provider-finance-access-denied')).toBeInTheDocument();
   });
 });

@@ -57,7 +57,7 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
     useAuthStore.setState({
       isAuthenticated: true,
       user: { ...baseUser, city: 'Самара' },
-      accountType: 'athlete',
+      accountKind: 'person',
       isAdmin: false,
       isImpersonating: false,
     });
@@ -84,7 +84,7 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
       useAuthStore.setState({
         isAuthenticated: true,
         user: { ...baseUser, city: 'Москва' },
-        accountType: 'provider',
+        accountKind: 'person',
         isAdmin: false,
         isImpersonating: false,
       });
@@ -99,7 +99,7 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
     it('показывает «не указан» если город отсутствует', () => {
       useAuthStore.setState({
         user: { ...baseUser, city: undefined },
-        accountType: 'provider',
+        accountKind: 'person',
       });
 
       render(<ProviderDashboard clubs={[providerClub]} />);

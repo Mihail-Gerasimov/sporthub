@@ -2,13 +2,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  NOTIFICATION_TYPE_AUDIENCE,
   canDisableNotificationType,
-  isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   REQUIRED_NOTIFICATION_TYPES,
 } from '@sporthub/domain';
-import type { NotificationType, User } from '@sporthub/types';
+import type { User } from '@sporthub/types';
 
 describe('notification-types (Step 25.14)', () => {
   it('canDisableNotificationType: required типы нельзя отключить', () => {
@@ -28,48 +26,12 @@ describe('notification-types (Step 25.14)', () => {
     expect(isNotificationTypeEnabled(user, 'booking_cancelled_by_provider')).toBe(true);
   });
 
-  // Phase 27 Step 27.3: адресация типов по accountType.
-  describe('isNotificationTypeApplicable (Phase 27)', () => {
-    it('все booking_* → athlete; link_*, *_to_provider, booking_requested → provider', () => {
-      const athleteTypes: NotificationType[] = [
-        'booking_confirmed',
-        'booking_rejected',
-        'booking_cancelled_by_athlete',
-        'booking_cancelled_by_provider',
-        'booking_completed',
-        'booking_no_show',
-        'booking_auto_expired',
-      ];
-      const providerTypes: NotificationType[] = [
-        'booking_requested',
-        'booking_cancelled_by_athlete_to_provider',
-        'booking_auto_expired_to_provider',
-        'link_requested',
-        'link_approved',
-        'link_rejected',
-        'link_revoked',
-      ];
-
-      for (const type of athleteTypes) {
-        expect(isNotificationTypeApplicable(type, 'athlete')).toBe(true);
-        expect(isNotificationTypeApplicable(type, 'provider')).toBe(false);
-      }
-      for (const type of providerTypes) {
-        expect(isNotificationTypeApplicable(type, 'provider')).toBe(true);
-        expect(isNotificationTypeApplicable(type, 'athlete')).toBe(false);
-      }
-    });
-
-    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 16 типов без пересечений', () => {
-      // Было 19: Phase 29 Step 29.4 добавила 2 review-типа. Фаза 35, этап Э0a убрала
-      // три типа отменённых санкций за неявки → осталось 16.
-      const keys = Object.keys(NOTIFICATION_TYPE_AUDIENCE) as NotificationType[];
-      expect(keys).toHaveLength(16);
-      for (const key of keys) {
-        expect(['athlete', 'provider']).toContain(NOTIFICATION_TYPE_AUDIENCE[key]);
-      }
-    });
-  });
+  // ⚠️ Шаг 35.28a. Здесь проверялась модель видимости «тип уведомления → роль»
+  // (`NOTIFICATION_TYPE_AUDIENCE`, `isNotificationTypeApplicable`). Она удалена
+  // вместе с ролями: видимость строки решает её АДРЕСАТ — лицо услуг или человек, —
+  // и решает это сервер, отбирая ящик запросом. Проверка переехала туда, где
+  // расхождение и вылезало: `notifications-count-parity.test.tsx` сверяет число
+  // в колокольчике с числом строк в ленте.
 
   it('isNotificationTypeEnabled: default true для пользователя без prefs; false если явно отключено', () => {
     expect(isNotificationTypeEnabled(null, 'booking_rejected')).toBe(true);

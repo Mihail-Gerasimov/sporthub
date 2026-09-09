@@ -17,28 +17,25 @@ import { requireSession } from '@/lib/session';
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderPublicationsRoute() {
-  // Права вошедшего нужны самой странице, а не только навигации: этап Э8a убрал
-  // отсюда действия чужого вида — представителю услуг нечего публиковать тренером,
-  // тренеру нечего публиковать клубом. Лейаут свои права вниз не передаёт (страницы
-  // ему не дети по данным), поэтому спрашиваем «кто я» здесь — как это уже делают
-  // страницы уведомлений и расписания.
-  const [session, clubs, trainers, sports, tags, amenities, specialties, workFormats] =
-    await Promise.all([
-      requireSession(),
-      getClubs(),
-      getTrainers(),
-      getSports(),
-      getTags(),
-      getAmenities(),
-      getSpecialties(),
-      getWorkFormats(),
-    ]);
+  // ⚠️ Шаг 35.34. Права вошедшего странице больше не нужны: раздел показывает
+  // то, чем человек ВЛАДЕЕТ, а владение видно из самого каталога. Проверка входа
+  // остаётся — и остаётся ДО похода за данными, иначе гость получил бы каталог
+  // в потоке ответа.
+  const [, clubs, trainers, sports, tags, amenities, specialties, workFormats] = await Promise.all([
+    requireSession(),
+    getClubs(),
+    getTrainers(),
+    getSports(),
+    getTags(),
+    getAmenities(),
+    getSpecialties(),
+    getWorkFormats(),
+  ]);
 
   return (
     <ProviderPublications
       clubs={clubs}
       trainers={trainers}
-      capabilities={session.capabilities}
       sports={sports}
       tags={tags}
       amenities={amenities}

@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Тесты ProviderClients (Step 25.10-B): агрегация уникальных клиентов из bookings
 // провайдера, per-offering фильтр, reliability-фильтр, drawer с историей записей
 // и CRM-заметкой (POST создаёт, DELETE удаляет).
@@ -191,7 +197,7 @@ function authenticateProvider() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: providerUser,
-    accountType: 'provider',
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -451,28 +457,5 @@ describe('ProviderClients (Step 25.10-B)', () => {
     expect(call[0]).toBe('/api/provider-client-notes/42');
     // Тела у удаления больше нет вовсе: владельца заметки проверяет сервер.
     expect(call[1]).toEqual({ method: 'DELETE' });
-  });
-
-  it('рендерит access-denied, если пользователь — атлет', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: athleteUser,
-      accountType: 'athlete',
-      isAuthenticated: true,
-    });
-
-    render(
-      <ProviderClients
-        bookings={[]}
-        clubs={[]}
-        trainers={[]}
-        offerings={[]}
-        schedule={[]}
-        users={[]}
-        notes={[]}
-      />,
-    );
-
-    expect(screen.getByTestId('provider-clients-access-denied')).toBeInTheDocument();
   });
 });

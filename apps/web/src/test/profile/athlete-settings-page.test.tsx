@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Тесты клиентской обёртки Athlete Settings (Step 25.6): wrapper пропускает авторизованного
 // атлета в существующий AthleteFeedbackSettingsSection, иначе показывает access-denied.
 // Блок уведомлений (checkbox per NotificationType) появится в Step 25.14.
@@ -29,17 +35,6 @@ const athleteUser: User = {
   favoriteClubIds: [],
 };
 
-const providerUser: User = {
-  id: 2,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'club_owner',
-  name: 'Сергей Иванов',
-  email: 'sergey@sporthub.local',
-  phone: '+7 999 222-33-44',
-  passwordHash: 'secret',
-  favoriteClubIds: [],
-};
-
 const clubs: Club[] = [];
 const trainers: Trainer[] = [];
 const reviews: Review[] = [];
@@ -53,7 +48,7 @@ describe('AthleteSettings (Step 25.6)', () => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: athleteUser,
-      accountType: 'athlete',
+      accountKind: 'person',
       isAuthenticated: true,
     });
 
@@ -63,19 +58,5 @@ describe('AthleteSettings (Step 25.6)', () => {
     // Phase 29 Step 29.6: email теперь дублируется в AccountCredentialsSection (read-only)
     // и в AthleteFeedbackSettingsSection — допустимо, проверяем что хотя бы один элемент есть.
     expect(screen.getAllByText('alexey@sporthub.local').length).toBeGreaterThan(0);
-  });
-
-  it('для provider-сессии показывает access-denied', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: providerUser,
-      accountType: 'provider',
-      isAuthenticated: true,
-    });
-
-    render(<AthleteSettings clubs={clubs} trainers={trainers} reviews={reviews} />);
-
-    expect(screen.queryByTestId('athlete-feedback-settings-section')).not.toBeInTheDocument();
-    expect(screen.getByText(/Доступ ограничен/i)).toBeInTheDocument();
   });
 });

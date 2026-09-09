@@ -2,8 +2,13 @@
  * Phase 24 Step 24.7: NotificationBell — кнопка-колокольчик в Header'е.
  * Показывает счётчик непрочитанных и по клику открывает dropdown
  * с последними 5 уведомлениями. Список грузится лениво по клику
- * (fetch GET /api/notifications?limit=5). Видим только
- * аутентифицированным пользователям с accountType (athlete/provider).
+ * (fetch GET /api/notifications?limit=5).
+ *
+ * ⚠️ Фаза 35, шаг 35.36 (ловушка 7.11). Колокольчик показывался тому, у кого
+ * есть тип учётной записи. Типа не стало — и колокольчик исчез бы у ВСЕХ,
+ * причём молча: компонент просто вернул бы `null`, без ошибки и без красного
+ * теста. Теперь условие честное: уведомления есть у всякого вошедшего, кроме
+ * служебной записи (у неё нет ни записей, ни отзывов — уведомляться не о чем).
  *
  * Phase 34 Step 34.49: номер пользователя из запросов ушёл — и из строки адреса,
  * и из тела. Лента и пометка прочитанным идут по сессии; чужое уведомление
@@ -23,8 +28,9 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { PERSONAL_CABINET_PATH } from '@/lib/service-faces';
 import type { Notification } from '@sporthub/types';
 import { useUnreadCountPolling } from '@/hooks/useUnreadCountPolling';
 
@@ -46,7 +52,7 @@ function formatNotificationDate(iso: string): string {
 
 export function NotificationBell() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
+  const { accountKind, primaryCabinet } = useAuthFaces();
 
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -102,10 +108,9 @@ export function NotificationBell() {
     };
   }, [isOpen]);
 
-  const allNotificationsHref =
-    accountType === 'provider'
-      ? '/profile/provider/notifications'
-      : '/profile/athlete/notifications';
+  // Раздел уведомлений — в том же кабинете, куда ведёт аватар: у человека
+  // с лицами услуг это кабинет текущего лица, у остальных — личный.
+  const allNotificationsHref = `${primaryCabinet?.href ?? PERSONAL_CABINET_PATH}/notifications`;
 
   // Phase 27 Step 27.6: клик по карточке уведомления = mark-as-read + переход на
   // полную страницу уведомлений. Хук объявлен ДО early-return, чтобы порядок
@@ -154,7 +159,7 @@ export function NotificationBell() {
     [refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
   );
 
-  if (!isAuthenticated || !accountType) {
+  if (!isAuthenticated || accountKind === 'admin') {
     return null;
   }
 

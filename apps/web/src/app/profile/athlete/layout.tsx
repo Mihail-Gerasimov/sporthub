@@ -10,12 +10,16 @@
 import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
-import { requireSession } from '@/lib/session';
+import { requirePerson } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AthleteProfileLayout({ children }: { children: ReactNode }) {
-  await requireSession();
+  // ⚠️ Шаг 35.34. Пускает не роль, а сам факт входа: записи, отзывы и избранное
+  // есть у любого человека — и у того, кто держит клуб, тоже. Отказ остаётся
+  // ровно один: служебная запись, у которой базового набора человека нет
+  // (решение 5.2). Проверка стоит ДО отрисовки, а не плашкой поверх неё.
+  await requirePerson();
 
   return <ProfileLayoutShell variant="athlete">{children}</ProfileLayoutShell>;
 }

@@ -12,16 +12,16 @@ vi.mock('next/navigation', () => ({
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
-import type { AuthAccountType, Notification } from '@sporthub/types';
+import type { Notification } from '@sporthub/types';
 
-// Phase 27 Step 27.8: helper для настройки auth-сессии под нужную роль.
-// NotificationsListPage теперь делает guard, сравнивая sessionAccountType с prop
-// accountType. Без этого все тесты получают AccessDeniedCard.
-function authenticateAs(accountType: AuthAccountType) {
+// ⚠️ Фаза 35: типов кабинета больше нет, и лента их не спрашивает — видимость
+// строки решает её адресат. Обвязка осталась только ради входа: без вошедшего
+// страница уводит на главную.
+function authenticateAs() {
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: { id: 1, name: 'Test User', email: 'test@sporthub.local' },
-    accountType,
+    accountKind: 'person',
     isAuthenticated: true,
   });
 }
@@ -30,9 +30,8 @@ function authenticateAs(accountType: AuthAccountType) {
 // 2026-04-22 = среда → понедельник текущей недели = 2026-04-20.
 const NOW = new Date('2026-04-22T12:00:00.000Z');
 
-// Phase 27 Step 27.3: фикстуры для provider — только provider-адресованные типы.
-// Раньше в фикстурах смешивались athlete-типы (booking_confirmed, review_published_for_athlete),
-// теперь NotificationsListPage фильтрует их по accountType → все фикстуры — provider-типы.
+// ⚠️ Фаза 35: фикстуры больше не подбираются «под тип кабинета». Лента показывает
+// то, что адресовано этому ящику, а тип строки на видимость не влияет.
 const fixtures: Notification[] = [
   // Сегодня (2 штуки) — booking-ось провайдера + link, оба непрочитанные
   {
@@ -100,7 +99,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
     // По умолчанию — provider (4 из 6 тестов). Athlete-тесты переопределят ниже.
-    authenticateAs('provider');
+    authenticateAs();
   });
 
   afterEach(() => {
@@ -137,7 +136,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   // Phase 27 Step 27.3: подтверждение публикации отзыва приходит только атлету,
   // поэтому фильтр группы «Отзывы» проверяем в athlete-виде с локальными fixtures.
   it('выбор фильтра «Отзывы» оставляет только отзывное уведомление (athlete)', async () => {
-    authenticateAs('athlete');
+    authenticateAs();
 
     render(
       <NotificationsListPage notifications={athleteFixtures} userId={1} accountType="athlete" />,
@@ -162,15 +161,18 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     expect(screen.getByTestId('notification-item-1')).toBeInTheDocument();
   });
 
-  it('Phase 26 Step 26.8: для athlete tab `links` скрыт, booking+reviews+all видны', () => {
-    authenticateAs('athlete');
+  // ⚠️ Шаг 35.28a. Прежде вкладка «Связи» пряталась у атлета: у роли атлета связей
+  // не бывало. Ролей нет — у человека с клубом связи есть, — и вкладка обязана быть:
+  // иначе её строки видно в «Все» и невозможно отфильтровать.
+  it('вкладки — темы, а не роли: видны все три', () => {
+    authenticateAs();
 
-    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
 
     expect(screen.getByTestId('notifications-filter-group-all')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-reviews')).toBeInTheDocument();
-    expect(screen.queryByTestId('notifications-filter-group-links')).not.toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-links')).toBeInTheDocument();
   });
 
   it('рендерит date-buckets (today / yesterday / thisWeek / earlier) и распределяет уведомления', () => {

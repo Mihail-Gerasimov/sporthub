@@ -3,16 +3,16 @@
 /* Auth-гейт для страницы записи: показывает предупреждение неавторизованным */
 
 import { Badge, Card } from '@/components/ui';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { selectCanBook, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 export function BookingAuthGate() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accountType = useAuthStore((state) => state.accountType);
   const openAuthModal = useUIStore((state) => state.openAuthModal);
-  const isAthlete = isAuthenticated && accountType === 'athlete';
+  // ⚠️ Шаг 35.34. Записываться может любой вошедший человек: типа учётной
+  // записи больше нет, а владелец зала ходит на йогу как все.
+  const canBook = useAuthStore(selectCanBook);
 
-  if (isAthlete) {
+  if (canBook) {
     return null;
   }
 
@@ -24,7 +24,7 @@ export function BookingAuthGate() {
             <Badge tone="danger">Требуется авторизация</Badge>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-ink">
-            Чтобы записаться на занятие, войдите или зарегистрируйтесь как спортсмен.
+            Чтобы записаться на занятие, войдите или зарегистрируйтесь.
           </p>
         </div>
 

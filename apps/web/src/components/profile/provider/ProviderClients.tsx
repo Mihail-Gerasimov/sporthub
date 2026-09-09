@@ -20,7 +20,6 @@ import {
 } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
 import { APP_LIMITS } from '@sporthub/types';
 import type {
   Booking,
@@ -78,8 +77,6 @@ export function ProviderClients({
   notes = [],
 }: ProviderClientsProps) {
   const user = useAuthStore((s) => s.user);
-  const accountType = useAuthStore((s) => s.accountType);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
 
@@ -341,8 +338,12 @@ export function ProviderClients({
     }
   }
 
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard requiredRole="provider" testId="provider-clients-access-denied" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   const isProviderEmpty = providerClubs.length === 0 && providerTrainers.length === 0;

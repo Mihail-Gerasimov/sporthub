@@ -4,17 +4,15 @@
 // Адаптив:
 // - sm (480-): logo-mark + cluster справа (bell + avatar + кнопка Выйти иконкой), nav и user-info скрыты.
 // - md (768): добавляется logo-tag (без eyebrow), nav-pill из 3 пунктов, кнопка Выйти иконкой.
-// - lg (1024+): добавляется logo-eyebrow «SPORTHUB» и user-info (имя + роль), кнопка Выйти текстом.
+// - lg (1024+): добавляется logo-eyebrow «SPORTHUB» и user-info (имя + кабинет), кнопка Выйти текстом.
 // - xxl (1440+): контейнер достигает потолка max-w-[1440px], пустые поля по бокам выше 1440.
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { AUTH_ACCOUNT_TYPE_LABELS } from '@sporthub/types';
 import { NotificationBell } from '@/components/layout/NotificationBell';
-import { getPersonalCabinetConfig } from '@/stores/useAuthStore';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 const navigationItems = [
@@ -27,15 +25,18 @@ export function Header() {
   const openAuthModal = useUIStore((state) => state.openAuthModal);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isImpersonating = useAuthStore((state) => state.isImpersonating);
   const logout = useAuthStore((state) => state.logout);
   const stopImpersonation = useAuthStore((state) => state.stopImpersonation);
   const router = useRouter();
   const accountInitial = user?.name.trim().charAt(0).toUpperCase() || 'S';
-  const cabinetConfig = getPersonalCabinetConfig(accountType);
-  const cabinetHref = cabinetConfig?.profilePath ?? null;
+  // ⚠️ Шаг 35.36 (ловушка 7.11). Раньше адрес кабинета брался из типа учётной
+  // записи. Типа больше нет — и ссылка исчезла бы у ВСЕХ, молча: компонент
+  // просто перестал бы её рисовать. Теперь кабинет считается от лиц услуг:
+  // есть лица — кабинет текущего лица, нет — личный кабинет человека.
+  const { primaryCabinet } = useAuthFaces();
+  const cabinetHref = primaryCabinet?.href ?? null;
 
   // Admin без impersonation → ссылка на «Панель управления» вместо личного кабинета.
   const isAdminDirect = isAdmin && !isImpersonating;
@@ -119,9 +120,11 @@ export function Header() {
                   <p className="font-body text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--ui-lime)]">
                     Администратор
                   </p>
-                ) : accountType ? (
+                ) : primaryCabinet !== null ? (
+                  // Вместо бейджа роли — подпись кабинета, в который ведёт
+                  // аватар: у человека с лицами услуг это имя текущего лица.
                   <p className="font-body text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--ui-lime)]">
-                    {AUTH_ACCOUNT_TYPE_LABELS[accountType]}
+                    {primaryCabinet.title}
                   </p>
                 ) : null}
               </div>

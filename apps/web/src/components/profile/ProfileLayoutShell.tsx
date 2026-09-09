@@ -5,9 +5,10 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Trainer } from '@sporthub/types';
 
+import { FaceSwitcher } from './FaceSwitcher';
 import { ProfileBreadcrumb } from './ProfileBreadcrumb';
 import { getAthleteNavItems, getProviderNavItems, type ProfileNavItem } from './profile-nav-items';
 import { ProfileMobileNav } from './ProfileMobileNav';
@@ -21,15 +22,6 @@ interface ProfileLayoutShellProps {
   clubs?: Club[];
   trainers?: Trainer[];
   bookings?: Booking[];
-  /**
-   * Права вошедшего — списком строк, как их отдаёт бэкенд.
-   *
-   * Приходят СВЕРХУ, из серверного лейаута: он и так спрашивает «кто я», чтобы
-   * решить, пускать ли сюда. Считать права здесь по роли из браузерного стора
-   * значило бы завести на площадке второй словарь прав — тот, который разъедется
-   * с настоящим молча.
-   */
-  capabilities?: readonly string[];
   children: ReactNode;
 }
 
@@ -38,24 +30,27 @@ export function ProfileLayoutShell({
   clubs = [],
   trainers = [],
   bookings = [],
-  capabilities = [],
   children,
 }: ProfileLayoutShellProps) {
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
+  // ⚠️ Шаг 35.34. Разделы строятся от ЛИЦ, а не от типа учётной записи.
+  // Пускать сюда или нет, решил серверный лейаут — и решил до похода
+  // за данными. Здесь остаётся только вопрос «какие разделы показать».
+  const { faces } = useAuthFaces();
 
   const items = useMemo<ProfileNavItem[]>(() => {
     if (!user || user.id === undefined) {
       return [];
     }
 
+    // Личный кабинет: набор разделов один и тот же у всех — записи, отзывы,
+    // избранное есть у любого человека, и лица услуг тут ни при чём.
     if (variant === 'athlete') {
-      // На athlete layout показываем nav только авторизованному атлету.
-      return accountType === 'athlete' ? getAthleteNavItems() : [];
+      return getAthleteNavItems();
     }
 
-    // Provider layout: смотрим, какие сущности управляются текущим провайдером.
-    if (accountType !== 'provider') {
+    // Кабинет лица: разделы появляются от того, чем человек управляет.
+    if (faces.length === 0) {
       return [];
     }
 
@@ -84,15 +79,15 @@ export function ProfileLayoutShell({
       providerClubs,
       providerTrainers,
       hasProviderBookings,
-      capabilities,
     });
-  }, [user, accountType, variant, clubs, trainers, bookings, capabilities]);
+  }, [user, faces, variant, clubs, trainers, bookings]);
 
   const ariaLabel =
     variant === 'athlete' ? 'Разделы кабинета атлета' : 'Разделы кабинета провайдера';
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-4 md:py-6">
+      {variant === 'provider' ? <FaceSwitcher className="mb-4" /> : null}
       <ProfileMobileNav items={items} ariaLabel={ariaLabel} className="mb-4" />
       <div className="md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:items-start md:gap-6">
         <ProfileSidebar

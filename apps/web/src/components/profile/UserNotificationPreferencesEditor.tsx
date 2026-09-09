@@ -14,7 +14,6 @@ import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
   canDisableNotificationType,
-  isNotificationTypeApplicable,
   isNotificationTypeEnabled,
   type NotificationGroupKey,
 } from '@sporthub/domain';
@@ -41,22 +40,21 @@ interface Props {
   /** Текущие preferences (опционально). Undefined → все типы включены по умолчанию. */
   notificationPreferences?: Partial<Record<NotificationType, boolean>>;
   /**
-   * Phase 26 Step 26.8: тип аккаунта, определяет видимость групп.
-   * athlete не получает link_* уведомлений (все уходят провайдеру через
-   * managedByUserId), поэтому группу `links` у атлета не рендерим вовсе.
+   * Тип кабинета.
+   *
+   * ⚠️ Шаг 35.28a: редактор им больше НЕ ПОЛЬЗУЕТСЯ. Настройки принадлежат
+   * человеку, а не роли: у человека с клубом бывают и записи, и связи, и отзывы,
+   * и прятать половину переключателей по роли больше не от чего. Поле оставлено
+   * необязательным до шага 35.34, снимающего `accountType` с вызывающих.
    */
-  accountType: 'athlete' | 'provider';
+  accountType?: 'athlete' | 'provider';
 }
 
-export function UserNotificationPreferencesEditor({
-  userId,
-  notificationPreferences,
-  accountType,
-}: Props) {
-  // Phase 29 Step 29.4: 'reviews' видим обеим ролям (athlete получает
-  // confirmation своего отзыва, provider — входящие отзывы клиентов).
-  const visibleGroups: readonly NotificationGroupKey[] =
-    accountType === 'athlete' ? (['booking', 'reviews'] as const) : NOTIFICATION_GROUP_KEYS;
+export function UserNotificationPreferencesEditor({ userId, notificationPreferences }: Props) {
+  // ⚠️ Шаг 35.28a. Группы показываются все: какие уведомления человеку приходят,
+  // решает его владение лицами, а не роль. Прежде группа «Связи» пряталась у атлета,
+  // и человек с клубом не мог настроить то, что ему приходит.
+  const visibleGroups: readonly NotificationGroupKey[] = NOTIFICATION_GROUP_KEYS;
   // Локальный draft preferences — инициализируется фактическим состоянием user.
   // Для отсутствующих ключей isNotificationTypeEnabled вернёт true по дефолту.
   const [prefs, setPrefs] = useState<Partial<Record<NotificationType, boolean>>>(() => {
@@ -181,7 +179,8 @@ export function UserNotificationPreferencesEditor({
           </h3>
           <ul className="flex flex-col gap-2">
             {typesByGroup[group]
-              .filter((type) => isNotificationTypeApplicable(type, accountType))
+              // Отбора по роли здесь больше нет: настройка принадлежит человеку,
+              // и все типы своей группы показываются целиком (шаг 35.28a).
               .map((type) => {
                 const isRequired = !canDisableNotificationType(type);
                 const label = getNotificationCopy(type).title;

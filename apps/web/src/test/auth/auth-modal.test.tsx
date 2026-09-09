@@ -1,5 +1,11 @@
 // Phase 26 Step 26.7: AuthModal теперь шлёт fetch к /api/auth/login и
 // /api/auth/register. Тесты используют fetchMock, старые fake-timers убраны.
+//
+// ⚠️ Фаза 35, шаг 35.35. Выбор типа учётной записи из модалки убран целиком:
+// регистрация заводит ЧЕЛОВЕКА, и выбирать нечего. Прежний набор проверял ровно
+// обратное — «кнопка заблокирована, пока тип не выбран», — то есть закреплял
+// модель, которой больше нет. Здесь то же место проверено с новой стороны:
+// выбора нет в разметке вовсе, кнопка активна сразу, в теле запроса типа нет.
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -52,12 +58,28 @@ describe('AuthModal', () => {
    * и без разделения по адресу этот вопрос получал бы ответ входа — тест был бы
    * зелёным не потому, что вход сработал.
    */
-  function stubAuthApi(response: Response) {
-    fetchMock.mockImplementation((input: RequestInfo | URL) =>
-      String(input) === '/api/auth/me'
-        ? Promise.resolve(jsonResponse({ success: false, error: 'Требуется вход' }, 401))
-        : Promise.resolve(response.clone()),
-    );
+  function stubAuthApi(response: Response, sessionProfile?: Record<string, unknown>) {
+    // ⚠️ Стенд следит за тем, ЕСТЬ ЛИ УЖЕ СЕССИЯ, а не отвечает одинаково всегда.
+    // Так и в жизни: до успешного входа «кто я» отвечает «никто», после —
+    // привозит профиль вместе с лицами услуг. Модалка спрашивает его сразу
+    // после входа (шаг 35.35) — иначе шапка не узнала бы про лица до перезагрузки.
+    let signedIn = false;
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/me') {
+        return Promise.resolve(
+          signedIn && sessionProfile !== undefined
+            ? jsonResponse({ success: true, data: sessionProfile }, 200)
+            : jsonResponse({ success: false, error: 'Требуется вход' }, 401),
+        );
+      }
+
+      const answer = response.clone();
+
+      if (answer.ok) signedIn = true;
+
+      return Promise.resolve(answer);
+    });
   }
 
   it('открывается из Header и закрывается по кнопке и overlay', () => {
@@ -86,7 +108,7 @@ describe('AuthModal', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('переключает табы и требует выбор типа аккаунта в каждом сценарии', () => {
+  it('переключает табы; кнопка активна сразу — выбирать больше нечего', () => {
     useUIStore.setState({
       isAuthModalOpen: true,
     });
@@ -94,10 +116,6 @@ describe('AuthModal', () => {
     render(<AuthModal />);
 
     expect(screen.getByRole('tab', { name: 'Вход' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('button', { name: 'Продолжить вход' })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
-
     expect(screen.getByRole('button', { name: 'Продолжить вход' })).not.toBeDisabled();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
@@ -107,14 +125,39 @@ describe('AuthModal', () => {
       'true',
     );
     expect(screen.getByLabelText('Имя')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Создать аккаунт' })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Представитель спортивных услуг' }));
-
     expect(screen.getByRole('button', { name: 'Создать аккаунт' })).not.toBeDisabled();
   });
 
-  it('не запускает вход без выбранного типа аккаунта', () => {
+  it('выбора типа учётной записи нет в разметке ни на входе, ни на регистрации', () => {
+    // ⚠️ Не «скрыт стилями», а отсутствует: учётная запись у всех одна, и лицо
+    // услуг заводится потом отдельным действием, а не галочкой при регистрации.
+    useUIStore.setState({ isAuthModalOpen: true });
+
+    render(<AuthModal />);
+
+    expect(screen.queryByText('Тип аккаунта')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Спортсмен' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Представитель спортивных услуг' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
+
+    expect(screen.queryByText('Тип аккаунта')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Спортсмен' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Представитель спортивных услуг' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('вход уходит на сервер без всякого выбора типа', async () => {
+    stubAuthApi(
+      jsonResponse(
+        { success: true, data: { id: 5, name: 'Тренер', email: 'coach@sporthub.local' } },
+        200,
+      ),
+    );
+
     useUIStore.setState({
       isAuthModalOpen: true,
     });
@@ -130,13 +173,16 @@ describe('AuthModal', () => {
 
     const submitButton = screen.getByRole('button', { name: 'Продолжить вход' });
 
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).not.toBeDisabled();
 
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('показывает ошибки валидации email и пароля в сценарии входа', () => {
@@ -146,7 +192,6 @@ describe('AuthModal', () => {
 
     render(<AuthModal />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'invalid-email' },
     });
@@ -176,6 +221,16 @@ describe('AuthModal', () => {
         },
         200,
       ),
+      // Лица услуг привозит только «кто я»: у ответа входа их нет.
+      {
+        id: 2,
+        name: 'Марина Крылова',
+        email: 'marina@studio.local',
+        role: 'club_owner',
+        accountKind: 'person',
+        faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+        capabilities: [],
+      },
     );
 
     render(
@@ -185,7 +240,6 @@ describe('AuthModal', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Представитель спортивных услуг' }));
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'marina@studio.local' },
     });
@@ -200,7 +254,10 @@ describe('AuthModal', () => {
     await waitFor(() => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
     });
-    expect(useAuthStore.getState().accountType).toBe('provider');
+    expect(useAuthStore.getState().accountKind).toBe('person');
+    expect(useAuthStore.getState().faces).toEqual([
+      { kind: 'club', id: 3, name: 'CrossFit Garage' },
+    ]);
     expect(useAuthStore.getState().user?.email).toBe('marina@studio.local');
     expect(
       screen.queryByRole('dialog', { name: 'Войти или создать профиль' }),
@@ -216,14 +273,15 @@ describe('AuthModal', () => {
     // украшением — вход открывался знанием чужого адреса.
     const loginCall = fetchMock.mock.calls.find(([url]) => url === '/api/auth/login');
 
+    // ⚠️ Типа учётной записи в теле нет: его не существует. Признак служебного
+    // входа (`portal: 'service'`) — тоже: он есть только у формы сервисной панели.
     expect(JSON.parse(String((loginCall?.[1] as RequestInit).body))).toEqual({
       email: 'marina@studio.local',
       password: '123456',
-      accountType: 'provider',
     });
   });
 
-  it('для спортсмена получает user.id из server response', async () => {
+  it('человек без лиц услуг получает user.id из ответа сервера', async () => {
     stubAuthApi(
       jsonResponse(
         {
@@ -238,6 +296,15 @@ describe('AuthModal', () => {
         },
         200,
       ),
+      {
+        id: 1,
+        name: 'Алексей Смирнов',
+        email: 'alexey@sporthub.local',
+        role: 'athlete',
+        accountKind: 'person',
+        faces: [],
+        capabilities: [],
+      },
     );
 
     render(
@@ -247,7 +314,6 @@ describe('AuthModal', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'alexey@sporthub.local' },
     });
@@ -260,8 +326,9 @@ describe('AuthModal', () => {
     });
 
     await waitFor(() => {
-      expect(useAuthStore.getState().accountType).toBe('athlete');
+      expect(useAuthStore.getState().accountKind).toBe('person');
     });
+    expect(useAuthStore.getState().faces).toEqual([]);
     expect(useAuthStore.getState().user?.id).toBe(1);
   });
 
@@ -271,7 +338,6 @@ describe('AuthModal', () => {
     useUIStore.setState({ isAuthModalOpen: true });
     render(<AuthModal />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'nope@nowhere.local' },
     });
@@ -290,7 +356,14 @@ describe('AuthModal', () => {
     expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
   });
 
-  it('не запускает регистрацию без выбранного типа аккаунта', () => {
+  it('регистрация уходит на сервер без выбора типа и без него же в теле', async () => {
+    stubAuthApi(
+      jsonResponse(
+        { success: true, data: { id: 9, name: 'Анна Петрова', email: 'anna@sporthub.local' } },
+        201,
+      ),
+    );
+
     useUIStore.setState({
       isAuthModalOpen: true,
     });
@@ -313,13 +386,20 @@ describe('AuthModal', () => {
 
     const submitButton = screen.getByRole('button', { name: 'Создать аккаунт' });
 
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).not.toBeDisabled();
 
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(screen.getByRole('dialog', { name: 'Войти или создать профиль' })).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    const registerCall = fetchMock.mock.calls.find(([url]) => url === '/api/auth/register');
+    const body = JSON.parse(String((registerCall?.[1] as RequestInit).body)) as Record<
+      string,
+      unknown
+    >;
+
+    expect(body).not.toHaveProperty('accountType');
+    expect(body).toMatchObject({ name: 'Анна Петрова', email: 'anna@sporthub.local' });
   });
 
   it('показывает маску телефона и ошибки валидации в сценарии регистрации', () => {
@@ -330,7 +410,6 @@ describe('AuthModal', () => {
     render(<AuthModal />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
 
     const phoneInput = screen.getByLabelText('Телефон');
 
@@ -359,7 +438,7 @@ describe('AuthModal', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('выполняет register-fetch, закрывает модалку и сохраняет accountType', async () => {
+  it('выполняет register-fetch, закрывает модалку и заводит человека', async () => {
     stubAuthApi(
       jsonResponse(
         {
@@ -374,6 +453,15 @@ describe('AuthModal', () => {
         },
         201,
       ),
+      {
+        id: 8,
+        name: 'Марина Крылова',
+        email: 'marina-new@studio.local',
+        role: 'athlete',
+        accountKind: 'person',
+        faces: [],
+        capabilities: [],
+      },
     );
 
     render(
@@ -384,7 +472,6 @@ describe('AuthModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Представитель спортивных услуг' }));
     fireEvent.change(screen.getByLabelText('Имя'), {
       target: { value: 'Марина Крылова' },
     });
@@ -405,7 +492,9 @@ describe('AuthModal', () => {
     await waitFor(() => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
     });
-    expect(useAuthStore.getState().accountType).toBe('provider');
+    // Регистрация заводит человека — лиц услуг у него ещё нет ни одного.
+    expect(useAuthStore.getState().accountKind).toBe('person');
+    expect(useAuthStore.getState().faces).toEqual([]);
     expect(useAuthStore.getState().user).toMatchObject({
       id: 8,
       name: 'Марина Крылова',
@@ -428,7 +517,6 @@ describe('AuthModal', () => {
     render(<AuthModal />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Регистрация' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Спортсмен' }));
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дубликат' } });
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'alexey@sporthub.local' },

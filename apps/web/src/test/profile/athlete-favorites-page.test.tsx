@@ -1,3 +1,9 @@
+// ⚠️ Фаза 35, шаг 35.34. Проверка «чужому — плашка «Доступ ограничен»» снята
+// не потому, что стала не нужна, а потому, что она никогда не была защитой:
+// плашка рисовалась ПОВЕРХ уже отданных данных. Настоящая проверка стоит
+// в серверном лейауте, ДО похода за данными, и проверяется она набором
+// `src/test/security/protected-layouts.test.ts` — там же, где проверяется
+// и то, что уведённому данные не запрашивались вообще.
 // Тесты клиентской обёртки Athlete Favorites (Step 25.6): wrapper передаёт авторизованный
 // userId через useAuthStore → getAthleteFavorites, рендерит существующий AthleteFavoritesSection
 // без модификаций. Server page /profile/athlete/favorites — тривиальный fetcher; покрыт через обёртку.
@@ -27,17 +33,6 @@ const athleteUser: User = {
   phone: '+7 999 111-22-33',
   passwordHash: 'secret',
   favoriteClubIds: [1],
-};
-
-const providerUser: User = {
-  id: 2,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'club_owner',
-  name: 'Сергей Иванов',
-  email: 'sergey@sporthub.local',
-  phone: '+7 999 222-33-44',
-  passwordHash: 'secret',
-  favoriteClubIds: [],
 };
 
 const clubs: Club[] = [
@@ -80,7 +75,7 @@ describe('AthleteFavorites (Step 25.6)', () => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: athleteUser,
-      accountType: 'athlete',
+      accountKind: 'person',
       isAuthenticated: true,
     });
 
@@ -96,27 +91,5 @@ describe('AthleteFavorites (Step 25.6)', () => {
 
     expect(screen.getByTestId('athlete-favorites-section')).toBeInTheDocument();
     expect(screen.getByText('Aqua Pro')).toBeInTheDocument();
-  });
-
-  it('для provider-сессии показывает access-denied вместо секции', () => {
-    useAuthStore.setState({
-      ...AUTH_STORE_DEFAULT_STATE,
-      user: providerUser,
-      accountType: 'provider',
-      isAuthenticated: true,
-    });
-
-    render(
-      <AthleteFavorites
-        clubs={clubs}
-        reviews={reviews}
-        bookings={[]}
-        trainers={[]}
-        users={[providerUser]}
-      />,
-    );
-
-    expect(screen.queryByTestId('athlete-favorites-section')).not.toBeInTheDocument();
-    expect(screen.getByText(/Доступ ограничен/i)).toBeInTheDocument();
   });
 });

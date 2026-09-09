@@ -17,8 +17,8 @@ interface Props {
 export function ProfileBreadcrumb({ items, variant }: Props) {
   const pathname = usePathname();
 
-  // Пустые items = гость или wrong-role на подмаршруте. Sidebar тоже пустой,
-  // страница сама покажет AccessDeniedCard — breadcrumb тут лишний.
+  // Пустые items = ответ «кто я» ещё в пути либо лиц услуг нет вовсе. Sidebar
+  // тоже пустой, вести отсюда некуда — breadcrumb лишний.
   if (items.length === 0) {
     return null;
   }
