@@ -413,6 +413,227 @@ describe('Маршруты записей', () => {
     });
   });
 
+  // Срезы кабинета провайдера (шаг 34.58).
+  //
+  // Кабинету нужны два разных набора записей, и ни одного из них не существовало:
+  // обе страницы добывали их из `?scope=all`, то есть забирали площадку целиком
+  // и отбирали своё уже у себя. После того как полный срез ушёл под право
+  // администратора, кабинет перестал открываться вовсе — 403 на каждой странице.
+  //
+  // - `?scope=owner` — записи ПУБЛИКАЦИЙ провайдера. Раньше страница спрашивала их
+  //   веером: по запросу на каждый свой клуб и каждого тренера, и в каждом стоял
+  //   `scope=all`.
+  // - `?scope=clients` — история ЛЮДЕЙ, которые к этим публикациям записывались.
+  //   Она нужна бейджу надёжности: он считается по всей истории атлета, а не по
+  //   той её части, что пришлась на этого провайдера. Отобрать её по одному
+  //   человеку за запрос нельзя — клиентов бывают сотни.
+  //
+  // В обоих режимах личность берётся из сессии, публикации — по индексу владельца,
+  // а сужение уходит условием в запрос.
+  describe('GET /api/bookings — срезы кабинета провайдера', () => {
+    beforeEach(async () => {
+      // Второй провайдер обязателен: без него «не отдаёт чужих клиентов» проверялось
+      // бы на пустом месте — чужих клиентов в срезе просто не существовало бы.
+      await harness.writeMany({
+        clubs: [
+          {
+            id: 3,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            name: 'Чужой клуб',
+            slug: 'chuzhoy',
+            description: 'Описание',
+            shortDescription: 'Кратко',
+            city: 'Самара',
+            address: 'ул. Мира, 2',
+            phone: '+7 900 000-00-01',
+            coordinates: { lat: 53.3, lng: 50.2 },
+            sportIds: [3],
+            tagIds: [],
+            amenityIds: [],
+            imageUrls: [],
+            rating: 4,
+            reviewCount: 0,
+            priceFrom: 500,
+            distanceKm: 1,
+            managedByUserId: 5,
+            status: 'published',
+          },
+        ],
+        schedule: [
+          slot(1, slotAt(24), { bookedCount: 1 }),
+          slot(2, slotAt(48), {
+            bookedCount: 2,
+            ownerType: 'club',
+            ownerId: 3,
+            trainerId: undefined,
+          }),
+        ],
+        bookings: [
+          // Атлет 1 записывался к тренеру провайдера 2 — он его клиент.
+          booking(7, { userId: 1, scheduleId: 1, status: 'completed' }),
+          // Атлет 4 ходил ТОЛЬКО в чужой клуб 3 — контрольная группа.
+          booking(8, {
+            userId: 4,
+            scheduleId: 2,
+            status: 'completed',
+            ownerType: 'club',
+            ownerId: 3,
+            clubId: 3,
+            trainerId: undefined,
+          }),
+          // История атлета 1 у чужого провайдера: она и есть то, ради чего режим
+          // заведён, — бейдж надёжности обязан её видеть.
+          booking(9, {
+            userId: 1,
+            scheduleId: 2,
+            status: 'no_show',
+            ownerType: 'club',
+            ownerId: 3,
+            clubId: 3,
+            trainerId: undefined,
+          }),
+        ],
+      });
+    });
+
+    describe('?scope=owner — записи публикаций провайдера', () => {
+      it('провайдер получает записи своих публикаций и ни одной чужой', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=owner')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(200);
+        // Запись 7 — на занятие тренера 1, которым управляет провайдер 2.
+        // Записи 8 и 9 — на чужой клуб 3, и в срез они не попадают.
+        expect(ids(response.body)).toEqual([7]);
+      });
+
+      it('у каждого провайдера свои публикации', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=owner')
+          .set('Cookie', await as(5));
+
+        expect(ids(response.body)).toEqual([8, 9]);
+      });
+
+      it('провайдер без публикаций получает пустой срез, а не всю площадку', async () => {
+        // ⚠️ Диверсия наоборот: если сужение по владениям потерять, здесь окажутся
+        // все три записи, а пустой набор публикаций прочитается как «фильтра нет».
+        const response = await request(server())
+          .get('/api/bookings?scope=owner')
+          .set('Cookie', await as(6));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([]);
+      });
+
+      it('срез сужается набором статусов', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=owner&status=no_show')
+          .set('Cookie', await as(5));
+
+        expect(ids(response.body)).toEqual([9]);
+      });
+
+      it('гостю срез публикаций не отдаётся', async () => {
+        const response = await request(server()).get('/api/bookings?scope=owner');
+
+        expect(response.status).toBe(401);
+      });
+
+      it('спортсмену срез публикаций закрыт', async () => {
+        // Разбор заявок — работа провайдера, и право у среза то же самое.
+        const response = await request(server())
+          .get('/api/bookings?scope=owner')
+          .set('Cookie', await as(1));
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+      });
+    });
+
+    describe('?scope=clients — история клиентов провайдера', () => {
+      it('провайдер получает всю историю своих клиентов', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(200);
+        // 7 — запись к самому провайдеру, 9 — та же голова у чужого провайдера.
+        expect(ids(response.body)).toEqual([7, 9]);
+      });
+
+      it('чужие клиенты в срез не попадают', async () => {
+        // ⚠️ Контрольная группа и одновременно диверсия: снять сужение по клиентам —
+        // и здесь окажется запись 8, то есть история человека, который к провайдеру
+        // не приходил ни разу.
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(2));
+
+        expect(ids(response.body)).not.toContain(8);
+      });
+
+      it('у каждого провайдера свои клиенты', async () => {
+        // Клуб 3 ведёт провайдер 5, и его клиенты — оба атлета: у одного запись 8,
+        // у другого 9. Значит срез считается от публикаций СПРАШИВАЮЩЕГО, а не отдаёт
+        // всем одно и то же.
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(5));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([7, 8, 9]);
+      });
+
+      it('провайдер без публикаций получает пустой срез, а не всё подряд', async () => {
+        // Пользователь 6 — тренер по роли, но не управляет ни одной публикацией.
+        // Пустой набор владений означает «клиентов нет», а не «отбора нет».
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(6));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([]);
+      });
+
+      it('срез сужается набором статусов', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=clients&status=completed')
+          .set('Cookie', await as(2));
+
+        expect(ids(response.body)).toEqual([7]);
+      });
+
+      it('гостю срез клиентов не отдаётся', async () => {
+        const response = await request(server()).get('/api/bookings?scope=clients');
+
+        expect(response.status).toBe(401);
+      });
+
+      it('спортсмену срез клиентов закрыт', async () => {
+        // У атлета нет клиентов — ему нечего тут спрашивать, и право это говорит
+        // прямо, вместо того чтобы отдавать пустой список и делать вид, что всё в порядке.
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(1));
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+      });
+
+      it('администратору срез клиентов закрыт — у него свой полный', async () => {
+        // Право `manage_own_clients` админу не выдано намеренно: своих клиентов
+        // у него нет, а разбирать площадку он ходит через `?scope=all`.
+        const response = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', await as(3));
+
+        expect(response.status).toBe(403);
+      });
+    });
+  });
+
   describe('GET /api/bookings/:id — административное чтение', () => {
     beforeEach(async () => {
       await harness.write('schedule', [slot(1, slotAt(24), { bookedCount: 1 })]);

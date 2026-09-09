@@ -88,20 +88,18 @@ describe('Запросы серверных страниц кабинетов', 
   });
 
   describe('кабинет провайдера', () => {
-    it('спрашивает записи каждой своей публикации и ни одной чужой', async () => {
-      // Провайдер 2 управляет клубами 1 и 2 и тренерами 1, 3, 5.
+    it('спрашивает записи своих публикаций одним запросом и ни одной чужой', async () => {
       signedInUserId = '2';
       const { default: ProviderStatsRoute } = await import('@/app/profile/provider/stats/page');
 
       await ProviderStatsRoute();
 
-      expect(bookingCalls(stub).sort()).toEqual([
-        '/bookings?scope=all&clubId=1',
-        '/bookings?scope=all&clubId=2',
-        '/bookings?scope=all&trainerId=1',
-        '/bookings?scope=all&trainerId=3',
-        '/bookings?scope=all&trainerId=5',
-      ]);
+      // ⚠️ Раньше здесь стоял веер: по запросу на каждую свою публикацию, и в каждом
+      // `scope=all`. Публикации перечислял сам фронт, то есть их номера ехали
+      // на бэкенд снаружи, а полный срез площадки после закрытия правом
+      // администратора стал отвечать отказом — кабинет перестал открываться.
+      // Теперь публикации находит бэкенд по владельцу сессии, и запрос ровно один.
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner']);
     });
 
     it('у гостя записей не спрашивает вовсе', async () => {
@@ -120,13 +118,7 @@ describe('Запросы серверных страниц кабинетов', 
 
       // Макет решает по записям, показывать ли раздел «Записи», — и ему нужен
       // ровно тот же срез, что и странице. Отсюда общий загрузчик.
-      expect(bookingCalls(stub).sort()).toEqual([
-        '/bookings?scope=all&clubId=1',
-        '/bookings?scope=all&clubId=2',
-        '/bookings?scope=all&trainerId=1',
-        '/bookings?scope=all&trainerId=3',
-        '/bookings?scope=all&trainerId=5',
-      ]);
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner']);
     });
 
     it('ни макет, ни страницы не ходят за записями мимо общего загрузчика', async () => {
@@ -175,20 +167,77 @@ describe('Запросы серверных страниц кабинетов', 
       expect(notificationCalls.some((url) => url.includes('scope=all'))).toBe(false);
     });
 
-    it('раздел клиентов дополнительно берёт историю клиентов — но не весь срез', async () => {
+    it('ни одна страница кабинета не просит полного среза площадки', async () => {
+      // ⚠️ Сторож всего разбора: `?scope=all` закрыт правом администратора, и любая
+      // его форма на странице провайдера — это 403 и упавшая страница, а не «просто
+      // лишние данные». Проверяются все четыре страницы кабинета и макет.
+      signedInUserId = '2';
+      const routes = [
+        '@/app/profile/provider/layout',
+        '@/app/profile/provider/dashboard/page',
+        '@/app/profile/provider/stats/page',
+        '@/app/profile/provider/bookings/page',
+        '@/app/profile/provider/clients/page',
+      ];
+
+      for (const route of routes) {
+        vi.resetModules();
+        stub.restore();
+        stub = installApiStub(createFixtureRoutes());
+
+        const { default: Route } = await import(route);
+
+        await Route({ children: null });
+
+        expect({ route, all: stub.calls.filter((call) => call.includes('scope=all')) }).toEqual({
+          route,
+          all: [],
+        });
+      }
+    });
+
+    it('раздел клиентов берёт историю СВОИХ клиентов, а не срез площадки', async () => {
       signedInUserId = '2';
       const { default: ProviderClientsRoute } = await import('@/app/profile/provider/clients/page');
 
       await ProviderClientsRoute();
 
       // Бейдж надёжности клиента считается по всей его истории, поэтому к записям
-      // публикаций добавляется срез по трём статусам из восьми — тем, которые
-      // читает расчёт. Полного среза площадки среди запросов быть не должно.
+      // публикаций добавляется история тех же людей — срез `scope=clients` по трём
+      // статусам из восьми, тем, которые читает расчёт.
       const calls = bookingCalls(stub);
       expect(calls).toContain(
-        '/bookings?scope=all&status=completed%2Cno_show%2Ccancelled_by_athlete',
+        '/bookings?scope=clients&status=completed%2Cno_show%2Ccancelled_by_athlete',
       );
+      // ⚠️ Срез всей площадки закрыт правом администратора: провайдер получил бы
+      // на него отказ, и страница упала бы целиком. Ни в каком виде его тут быть
+      // не должно — ни голым, ни с параметрами.
+      expect(calls.filter((call) => call.includes('scope=all&status'))).toEqual([]);
       expect(calls).not.toContain('/bookings?scope=all');
+    });
+
+    it('раздел записей берёт тот же срез клиентов, что и раздел клиентов', async () => {
+      signedInUserId = '2';
+      const { default: ProviderBookingsRoute } =
+        await import('@/app/profile/provider/bookings/page');
+
+      await ProviderBookingsRoute();
+
+      const calls = bookingCalls(stub);
+      expect(calls).toContain(
+        '/bookings?scope=clients&status=completed%2Cno_show%2Ccancelled_by_athlete',
+      );
+      expect(calls.filter((call) => call.includes('scope=all&status'))).toEqual([]);
+    });
+
+    it('у гостя истории клиентов не спрашивает вовсе', async () => {
+      // Кто такой «этот провайдер», знает только сессия: без неё спрашивать нечего,
+      // и запрос не должен уходить «на всякий случай».
+      const { default: ProviderClientsRoute } = await import('@/app/profile/provider/clients/page');
+
+      await ProviderClientsRoute();
+
+      expect(bookingCalls(stub)).toEqual([]);
     });
   });
 });

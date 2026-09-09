@@ -8,10 +8,13 @@
 // иначе вырезалось бы несуществующее поле, а хеш уходил бы наружу.
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { roleCan } from '@sporthub/domain';
 import type { CatalogOwnerType, Offering, User } from '@sporthub/types';
 
-import { Public, Requires } from '../auth/access.decorators';
-import { ValidationError } from '../common/domain-error';
+import { AccessService } from '../access/access.service';
+import { CurrentUser, Public } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
+import { ForbiddenError, ValidationError } from '../common/domain-error';
 import type { OfferingsRepository } from '../repositories/catalog.repository';
 import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
@@ -69,13 +72,47 @@ export class OfferingsController {
 // кто попросит: ни сессии, ни роли он не спрашивал. Публичные страницы тоже
 // им пользовались — им нужно было подписать автора отзыва, — и это чинится
 // отдельно: имя автора приезжает прямо в ответе отзывов (шаг 34.31).
-@Requires('manage_any_user')
 @Controller('users')
 export class UsersController {
-  constructor(@Inject(USERS_REPOSITORY) private readonly users: UsersRepository) {}
+  constructor(
+    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    private readonly access: AccessService,
+  ) {}
 
+  /**
+   * Люди площадки.
+   *
+   * Ширина выдачи зависит от того, кто спрашивает, и это не удобство, а суть:
+   *
+   * - `?scope=clients` — только СВОИ клиенты, право `manage_own_clients`. Кабинету
+   *   провайдера нужны имена тех, кто к нему записывался, и ничего сверх;
+   * - без признака — весь список, право `manage_any_user`. Он отдаёт почты
+   *   и телефоны всех зарегистрированных, и до фазы 34 делал это анонимно.
+   *
+   * ⚠️ Режим клиентов появился не «заодно». Закрыв маршрут целиком, фаза уронила
+   * кабинет провайдера: страницы заявок и клиентов отвечали пятисоткой, потому что
+   * подписывали атлета именем. Нашлось на поднятом приложении — тесты этого не ловили.
+   */
   @Get()
-  async findAll(): Promise<SafeUser[]> {
+  async findMany(
+    @CurrentUser() session: SessionContext,
+    @Query('scope') scope?: string,
+  ): Promise<SafeUser[]> {
+    if (scope === 'clients') {
+      if (!roleCan(session.user.role, 'manage_own_clients')) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
+
+      const owners = await this.access.getManagedPublicationIds(session.user.id);
+      const clients = await this.users.findClientsOf(owners);
+
+      return clients.map(stripPasswordHash);
+    }
+
+    if (!roleCan(session.user.role, 'manage_any_user')) {
+      throw new ForbiddenError('Недостаточно прав');
+    }
+
     const users = await this.users.findAll();
 
     return users.map(stripPasswordHash);

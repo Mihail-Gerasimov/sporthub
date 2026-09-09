@@ -303,16 +303,26 @@ export const getBookings = (): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ scope: 'all' })}`);
 
 /**
- * Записи с отбором.
+ * Записи ОДНОГО атлета с дополнительным отбором.
  *
- * Без указания атлета маршрут требует явного признака полного среза — иначе он
- * отвечает отказом. Это защита от забытого параметра: запрос без единого условия
- * не должен случайно превращаться в выдачу всей площадки.
+ * ⚠️ Атлет обязателен, и это главное свойство вызова. Раньше он был необязательным,
+ * а пропуск молча подставлял `scope=all` — полный срез площадки. Пока тот режим
+ * отдавался всем, забытый параметр выглядел как работающий код; после того как срез
+ * ушёл под право администратора, каждое такое место превратилось в 403 и упавшую
+ * страницу. Обязательность закрывает саму возможность повторить это: срез площадки
+ * теперь просят только там, где написали его имя, — в `getBookings`.
+ *
+ * Номер атлета едет параметром, но чужие записи им не получить: маршрут его
+ * игнорирует и отбирает по владельцу сессии. Здесь он остаётся как утверждение
+ * вызывающего «мне нужны записи именно этого человека», и оно обязано совпадать
+ * с тем, кто вошёл.
  */
-export const getBookingsWhere = (options: GetBookingsOptions = {}): Promise<Booking[]> =>
+export const getBookingsWhere = (
+  options: GetBookingsOptions & { userId: EntityId },
+): Promise<Booking[]> =>
   apiGet<Booking[]>(
     `/bookings${query({
-      ...(options.userId === undefined ? { scope: 'all' } : { userId: options.userId }),
+      userId: options.userId,
       clubId: options.clubId,
       trainerId: options.trainerId,
       scheduleId: options.scheduleId,
@@ -328,29 +338,60 @@ export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ userId })}`);
 
 /**
- * Записи нескольких владельцев одним набором.
+ * Записи КЛИЕНТОВ текущего провайдера — вся история людей, ходивших к его публикациям.
  *
- * Маршрут принимает ОДНОГО владельца за запрос, а у провайдера их бывает несколько —
- * поэтому запросы идут веером и сливаются здесь. Число запросов равно числу публикаций
- * провайдера (в кабинете это единицы), а не числу записей площадки, поэтому размен
- * в нужную сторону: раньше был один запрос на всю платформу.
+ * ⚠️ Это не то же самое, что записи публикаций провайдера (`getBookingsForOwners`).
+ * Там записи на ЕГО занятия, здесь — история тех же людей целиком, включая занятия
+ * у других провайдеров: бейдж надёжности рядом с клиентом считается по всей истории,
+ * иначе прогулявший десять занятий у соседей выглядел бы у нас безупречным.
  *
- * Слияние идёт по номеру: клуб-владелец и клуб-площадка могут вернуть одну и ту же
- * запись дважды, и без склейки страница показала бы дубль.
+ * Кто такой «текущий провайдер», решает сессия; публикации бэкенд находит сам.
+ * Поэтому у вызова нет ни одного параметра личности — подставить чужого нечем.
+ * Раньше эту историю добирал `?scope=all`, то есть срез всей площадки; с закрытием
+ * того режима правом администратора он стал ещё и отказом для провайдера.
  */
-export async function getBookingsForOwners(
-  owners: { clubIds?: readonly EntityId[]; trainerIds?: readonly EntityId[] },
+export const getClientBookings = (
+  options: Pick<GetBookingsOptions, 'status' | 'dateFrom' | 'dateTo'> = {},
+): Promise<Booking[]> =>
+  apiGet<Booking[]>(
+    `/bookings${query({
+      scope: 'clients',
+      status: options.status === undefined ? undefined : options.status.join(','),
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo,
+    })}`,
+  );
+
+/**
+ * Записи ПУБЛИКАЦИЙ текущего провайдера — своих клубов и своих тренеров.
+ *
+ * ⚠️ Раньше на этом месте стоял веер: по запросу на каждую публикацию, и в каждом —
+ * `?scope=all`, потому что без указания атлета маршрут иначе не отвечал. Публикации
+ * при этом перечислял сам фронт, то есть номера ехали на бэкенд снаружи. С закрытием
+ * полного среза правом администратора весь веер стал отвечать отказом, и кабинет
+ * провайдера перестал открываться целиком.
+ *
+ * Теперь публикации находит бэкенд по владельцу сессии, а все они укладываются
+ * в ОДНО условие запроса — отсюда один поход вместо N и невозможность спросить
+ * чужой клуб: назвать его снаружи нечем.
+ *
+ * Склейка по номеру больше не нужна: одна запись у клуба-владельца и клуба-площадки
+ * приезжала дважды именно потому, что запросов было два.
+ */
+export const getOwnPublicationBookings = (
   options: Omit<GetBookingsOptions, 'clubId' | 'trainerId' | 'userId'> = {},
-): Promise<Booking[]> {
-  const requests = [
-    ...(owners.clubIds ?? []).map((clubId) => getBookingsWhere({ ...options, clubId })),
-    ...(owners.trainerIds ?? []).map((trainerId) => getBookingsWhere({ ...options, trainerId })),
-  ];
-
-  if (requests.length === 0) return [];
-
-  return mergeBookingsById(...(await Promise.all(requests)));
-}
+): Promise<Booking[]> =>
+  apiGet<Booking[]>(
+    `/bookings${query({
+      scope: 'owner',
+      scheduleId: options.scheduleId,
+      status: options.status === undefined ? undefined : options.status.join(','),
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo,
+      offset: options.offset,
+      limit: options.limit,
+    })}`,
+  );
 
 /**
  * Слияние нескольких наборов записей в один, без повторов.
@@ -372,6 +413,15 @@ export function mergeBookingsById(...chunks: Booking[][]): Booking[] {
 // --- Прочие коллекции -----------------------------------------------------------
 
 export const getReviews = (): Promise<Review[]> => apiGet<Review[]>('/reviews');
+
+/**
+ * Люди площадки. Без признака — весь список, и он под правом администратора.
+ *
+ * ⚠️ Кабинету провайдера нужен режим `clients`: только те, кто к нему записывался.
+ * Полный список ему не положен, а до фазы 34 страница брала именно его — ради
+ * одного имени рядом с заявкой.
+ */
+export const getClientUsers = (): Promise<User[]> => apiGet<User[]>('/users?scope=clients');
 
 export const getUsers = (): Promise<User[]> => apiGet<User[]>('/users');
 
@@ -417,5 +467,15 @@ export async function getNotifications(
   return payload.items;
 }
 
+/**
+ * CRM-заметки ТЕКУЩЕГО провайдера обо всех его клиентах.
+ *
+ * ⚠️ Раньше вызов шёл с `?scope=all`, и это был режим «все заметки всех провайдеров
+ * обо всех клиентах» — самые чувствительные данные площадки, открытые кому угодно.
+ * Режим убран в шаге 34.25 совсем, а не закрыт правом: умолчание маршрута отдаёт
+ * ровно то, ради чего его звали, — свои заметки, найденные по владельцу сессии.
+ * Параметр маршрут молча игнорирует, поэтому он и дожил до сих пор незамеченным;
+ * убран здесь, чтобы вызов не выглядел просьбой о том, чего больше нет.
+ */
 export const getAllProviderClientNotes = (): Promise<ProviderClientNote[]> =>
-  apiGet<ProviderClientNote[]>(`/provider-client-notes${query({ scope: 'all' })}`);
+  apiGet<ProviderClientNote[]>('/provider-client-notes');

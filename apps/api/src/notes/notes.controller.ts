@@ -16,6 +16,7 @@ import type { ProviderClientNote } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
 
+import { AccessService } from '../access/access.service';
 import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
@@ -24,8 +25,6 @@ import type { ProviderClientNotesRepository } from '../repositories/crud.reposit
 import { PROVIDER_CLIENT_NOTES_REPOSITORY } from '../repositories/crud.repository';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
-import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
-import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 
 // ⚠️ Ни `providerUserId`, ни `userId` в схемах тела больше нет и быть не должно:
 // автор заметки — это личность, а личность приходит из сессии. Поле, возвращённое
@@ -65,8 +64,7 @@ export class ProviderClientNotesController {
     @Inject(PROVIDER_CLIENT_NOTES_REPOSITORY)
     private readonly notes: ProviderClientNotesRepository,
     @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
-    @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
-    @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
+    private readonly access: AccessService,
   ) {}
 
   /**
@@ -122,16 +120,14 @@ export class ProviderClientNotesController {
     // платформы, все клубы и все тренеры. Теперь два точечных запроса: публикации
     // провайдера (по индексу владельца) и СЧЁТ записей клиента на них. Считает
     // база, а не длина массива, и ни одна строка записей не доезжает до приложения.
-    const [clubs, trainers] = await Promise.all([
-      this.clubs.findAll({ managedByUserId: providerUserId }),
-      this.trainers.findAll({ managedByUserId: providerUserId }),
-    ]);
+    //
+    // Владения спрашиваются у `AccessService`, а не собираются здесь: тот же вопрос
+    // задаёт срез записей клиентов (`GET /api/bookings?scope=clients`), и понимать
+    // владение они обязаны ОДИНАКОВО — иначе заметку можно будет завести о человеке,
+    // которого второй маршрут клиентом не считает.
+    const owners = await this.access.getManagedPublicationIds(providerUserId);
 
     // Без владений клиентов быть не может — второй запрос не нужен вовсе.
-    const owners = {
-      clubIds: clubs.map((club) => club.id),
-      trainerIds: trainers.map((trainer) => trainer.id),
-    };
     const isClient =
       owners.clubIds.length + owners.trainerIds.length > 0 &&
       (await this.bookings.count({ userId: clientUserId, owners })) > 0;

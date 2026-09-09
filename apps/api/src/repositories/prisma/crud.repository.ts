@@ -48,6 +48,7 @@ import type {
 import { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
+import { PrismaBookingsRepository } from './bookings.repository';
 import { fromDateKey, fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 import { ConflictError } from '../../common/domain-error';
@@ -445,6 +446,20 @@ export class PrismaUsersRepository implements UsersRepository {
 
   async findAll(): Promise<User[]> {
     const rows = await this.client.user.findMany({
+      include: USER_RELATIONS,
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => PrismaUsersRepository.toUser(row as UserRow));
+  }
+
+  async findClientsOf(owners: OwnerIdFilter): Promise<User[]> {
+    // ⚠️ Отбор делает база: «у этого человека есть хоть одна запись к моим
+    // публикациям». Набор клиентов не материализуется ни списком номеров,
+    // ни фильтром после чтения — иначе страница провайдера дорожала бы вместе
+    // со всей площадкой, а не со своей выдачей.
+    const rows = await this.client.user.findMany({
+      where: { bookings: { some: PrismaBookingsRepository.ownerCondition(owners) } },
       include: USER_RELATIONS,
       orderBy: { id: 'asc' },
     });

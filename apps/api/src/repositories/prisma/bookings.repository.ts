@@ -245,6 +245,17 @@ export class PrismaBookingsRepository implements BookingsRepository {
       conditions.push(PrismaBookingsRepository.ownerCondition(filter.owners));
     }
 
+    if (filter.clientsOf !== undefined) {
+      // «Записи людей, которые ходили к этим публикациям» — связью, а не списком
+      // номеров. Prisma разворачивает такое условие в подзапрос, то есть весь отбор
+      // остаётся в базе: набор клиентов не доезжает до приложения и не может стать
+      // ни массивом в памяти, ни фильтром после чтения. Публикации внутри условия
+      // разбираются теми же четырьмя колонками, что и в `owners`.
+      conditions.push({
+        user: { bookings: { some: PrismaBookingsRepository.ownerCondition(filter.clientsOf) } },
+      });
+    }
+
     const date: Record<string, Date> = {};
 
     if (filter.dateFrom !== undefined) date.gte = fromDateKey(filter.dateFrom);
@@ -262,7 +273,7 @@ export class PrismaBookingsRepository implements BookingsRepository {
    * владелец ЛИБО ведущий. Пустой набор даёт `IN ()`, то есть условие, которому
    * не отвечает ни одна строка: «в городе никого» — это не «фильтра нет».
    */
-  private static ownerCondition(owners: OwnerIdFilter): Record<string, unknown> {
+  static ownerCondition(owners: OwnerIdFilter): Record<string, unknown> {
     return {
       OR: [
         { ownerClubId: { in: owners.clubIds } },
@@ -324,17 +335,38 @@ export class PrismaBookingsRepository implements BookingsRepository {
     }
 
     if (filter.owners !== undefined) {
-      const { clubIds, trainerIds } = filter.owners;
+      parts.push(PrismaBookingsRepository.ownerSqlCondition(filter.owners));
+    }
 
+    if (filter.clientsOf !== undefined) {
+      // Тот же смысл, что и у ветки `clientsOf` в построителе: сначала база находит
+      // людей, ходивших к этим публикациям, и только потом отбирает их записи.
+      // Подзапрос, а не два обращения подряд: список номеров клиентов не должен
+      // существовать в приложении даже на мгновение — иначе у провайдера с сотнями
+      // клиентов он поедет по проводу вместо условия.
       parts.push(
-        Prisma.sql`(${inValues(Prisma.sql`owner_club_id`, clubIds)}
-                 OR ${inValues(Prisma.sql`venue_club_id`, clubIds)}
-                 OR ${inValues(Prisma.sql`owner_trainer_id`, trainerIds)}
-                 OR ${inValues(Prisma.sql`conducted_by_trainer_id`, trainerIds)})`,
+        Prisma.sql`user_id IN (SELECT user_id FROM bookings
+                                WHERE ${PrismaBookingsRepository.ownerSqlCondition(filter.clientsOf)})`,
       );
     }
 
     return parts.length === 0 ? Prisma.sql`TRUE` : Prisma.join(parts, ' AND ');
+  }
+
+  /**
+   * «Запись относится к одной из перечисленных публикаций» — выражением SQL.
+   *
+   * Близнец `ownerCondition` для сырых запросов. Вынесено отдельно, потому что
+   * потребителей у выражения стало два (`owners` и подзапрос `clientsOf`), а разойтись
+   * им нельзя: обе ветки обязаны понимать владельца и площадку одинаково.
+   */
+  private static ownerSqlCondition(owners: OwnerIdFilter): Prisma.Sql {
+    const { clubIds, trainerIds } = owners;
+
+    return Prisma.sql`(${inValues(Prisma.sql`owner_club_id`, clubIds)}
+                    OR ${inValues(Prisma.sql`venue_club_id`, clubIds)}
+                    OR ${inValues(Prisma.sql`owner_trainer_id`, trainerIds)}
+                    OR ${inValues(Prisma.sql`conducted_by_trainer_id`, trainerIds)})`;
   }
 
   /** Порядок выдачи — всегда явный, иначе страница зависела бы от плана запроса. */

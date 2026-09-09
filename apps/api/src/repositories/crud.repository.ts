@@ -131,6 +131,15 @@ export interface ReviewsRepository {
 
 export interface UsersRepository {
   findAll(): Promise<User[]>;
+  /**
+   * Люди, записывавшиеся к названным публикациям.
+   *
+   * ⚠️ Отбор делает ЗАПРОС, а не код после чтения. Провайдеру нужны имена своих
+   * клиентов — но список всех пользователей площадки ему не положен, а поднимать
+   * его целиком ради десятка имён нельзя и по цене: с ростом площадки такая
+   * страница дорожала бы вместе со всей базой, а не со своей выдачей.
+   */
+  findClientsOf(owners: OwnerIdFilter): Promise<User[]>;
   findById(id: number): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   /**

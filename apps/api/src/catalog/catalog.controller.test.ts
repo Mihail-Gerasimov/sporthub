@@ -3,9 +3,9 @@
 // в хранилище, и утечка хеша здесь была бы дороже всего остального в фазе.
 
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+import { fixtureCollections, fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from '../test/harness';
 
@@ -200,5 +200,63 @@ describe('Маршруты услуг и пользователей', () => {
       expect(JSON.stringify(response.body)).not.toContain('очень-секретный-хеш');
       expect(JSON.stringify(response.body)).not.toContain('$argon2');
     });
+  });
+});
+
+describe('Клиенты провайдера', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('users-clients');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany(fixtureCollections);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('провайдер получает только своих клиентов', async () => {
+    // ⚠️ Ради этого режим и заведён. Закрыв маршрут целиком, фаза уронила кабинет
+    // провайдера: страницы заявок и клиентов подписывают атлета именем и падали
+    // пятисоткой. Нашлось на поднятом приложении — тесты этого не ловили.
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/users?scope=clients')
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(200);
+
+    // Контрольная группа: в ответе нет тех, кто к этому провайдеру не ходил.
+    const all = await request(harness.app.getHttpServer())
+      .get('/api/users')
+      .set('Cookie', await harness.as(3));
+
+    expect(response.body.data.length).toBeLessThan(all.body.data.length);
+  });
+
+  it('спортсмену чужие клиенты не отдаются', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/users?scope=clients')
+      .set('Cookie', await harness.as(1));
+
+    expect(response.status).toBe(403);
+  });
+
+  it('полный список провайдеру по-прежнему закрыт', async () => {
+    // Режим клиентов не открывает соседнюю дверь: почты и телефоны всей площадки
+    // остаются под правом администратора.
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/users')
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(403);
+  });
+
+  it('гостю не отдаётся ничего', async () => {
+    expect(
+      (await request(harness.app.getHttpServer()).get('/api/users?scope=clients')).status,
+    ).toBe(401);
   });
 });

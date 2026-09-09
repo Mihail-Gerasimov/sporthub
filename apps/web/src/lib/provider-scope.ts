@@ -16,6 +16,13 @@
 // продолжают отбирать своё сами, поэтому выдача обязана быть надмножеством того, что
 // они оставят: бэкенд считает записью клуба и ту, где клуб — площадка, и это ровно
 // то же правило, по которому разбирает запись `getBookingClubId`.
+//
+// ⚠️ Оба среза берутся ИМЕНОВАННЫМИ режимами маршрута (`?scope=owner` и
+// `?scope=clients`), а не полным срезом площадки. До шага 34.58 здесь стоял именно
+// он — в обоих местах: свои записи спрашивались веером `?scope=all&clubId=…`,
+// история клиентов — одним `?scope=all`. Пока полный срез отдавался всем, это
+// работало; после того как он ушёл под право администратора, кабинет провайдера
+// стал отвечать отказом на каждой странице.
 
 import 'server-only';
 
@@ -25,9 +32,9 @@ import { getProviderClubs, getProviderTrainers } from '@/components/profile/prov
 import { readSession } from '@/lib/session';
 import { ATHLETE_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
-  getBookingsForOwners,
-  getBookingsWhere,
+  getClientBookings,
   getClubs,
+  getOwnPublicationBookings,
   getTrainers,
   mergeBookingsById,
 } from '@/lib/server-api';
@@ -70,12 +77,12 @@ export const loadProviderScope = cache(async (): Promise<ProviderScope> => {
     };
   }
 
+  // Номера публикаций остаются В СРЕЗЕ: по ним страницы делят записи на «клубные»
+  // и «тренерские» и рисуют фильтры. А вот в ЗАПРОС они больше не едут — публикации
+  // провайдера бэкенд находит сам по владельцу сессии.
   const providerClubIds = getProviderClubs(clubs, userId).map((club) => club.id);
   const providerTrainerIds = getProviderTrainers(trainers, userId).map((trainer) => trainer.id);
-  const bookings = await getBookingsForOwners({
-    clubIds: providerClubIds,
-    trainerIds: providerTrainerIds,
-  });
+  const bookings = await getOwnPublicationBookings();
 
   return { userId, clubs, trainers, providerClubIds, providerTrainerIds, bookings };
 });
@@ -88,17 +95,25 @@ export const loadProviderScope = cache(async (): Promise<ProviderScope> => {
  * человека, а не по той её части, что пришлась на этого провайдера. Иначе клиент,
  * пропустивший десять занятий у других, выглядел бы у нас безупречным.
  *
- * Сузить такую историю до нужных людей нечем: маршрут отбирает по одному атлету
- * за запрос, а клиентов у клуба бывают сотни — вместо одного запроса вышли бы сотни.
- * Поэтому здесь остаётся срез по площадке, но суженный до трёх статусов из восьми —
- * ровно тех, которые читает расчёт надёжности атлета.
+ * Сузить такую историю по одному человеку за запрос нечем: клиентов у клуба бывают
+ * сотни, и вместо одного запроса вышли бы сотни. Поэтому у бэкенда есть свой срез —
+ * `?scope=clients`: он сам находит публикации спрашивающего и отдаёт историю тех,
+ * кто к ним записывался, одним условием запроса.
+ *
+ * ⚠️ До шага 34.58 здесь стоял срез ВСЕЙ площадки (`?scope=all`). Он и правда
+ * содержал нужное — вместе с записями всех посторонних людей; а после того, как
+ * этот режим ушёл под право администратора, оба раздела перестали открываться
+ * вовсе: страница получала отказ и падала целиком. Новый срез отдаёт ровно
+ * недостающее и никому, кроме самого провайдера, ничего не показывает.
+ *
+ * Статусы сужены до трёх из восьми — ровно тех, которые читает расчёт надёжности.
  */
 export const loadProviderScopeWithClientHistory = cache(async (): Promise<ProviderScope> => {
   const scope = await loadProviderScope();
 
   if (scope.userId === null) return scope;
 
-  const clientHistory = await getBookingsWhere({ status: ATHLETE_RELIABILITY_STATUSES });
+  const clientHistory = await getClientBookings({ status: ATHLETE_RELIABILITY_STATUSES });
 
   return { ...scope, bookings: mergeBookingsById(scope.bookings, clientHistory) };
 });

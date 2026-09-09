@@ -21,7 +21,7 @@ import type { Booking, Club, Trainer } from '@sporthub/types';
 
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
-import type { UsersRepository } from '../repositories/crud.repository';
+import type { OwnerIdFilter, UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
 @Injectable()
@@ -57,6 +57,34 @@ export class AccessService {
     }
 
     return false;
+  }
+
+  /**
+   * Номера публикаций, которыми управляет пользователь, — клубы и тренеры вместе.
+   *
+   * Один ответ на вопрос «что вообще принадлежит этому провайдеру», а не по паре
+   * запросов в каждом маршруте, которому это понадобилось. Потребителей уже двое —
+   * разбор «клиент ли мне этот человек» в заметках и срез записей клиентов, — и оба
+   * обязаны понимать владение одинаково: разойдясь, они начнут считать клиентом
+   * разных людей.
+   *
+   * Отбор идёт по индексам `clubs_managed_by_user_id_idx` и
+   * `trainers_managed_by_user_id_idx`; скрытые публикации НЕ отбрасываются —
+   * записи на них остаются записями провайдера, и терять их кабинет не должен.
+   *
+   * Пустые наборы означают ровно «публикаций нет»: фильтры записей понимают это
+   * как «не подходит никто», а не как «отбора нет».
+   */
+  async getManagedPublicationIds(userId: number): Promise<OwnerIdFilter> {
+    const [clubs, trainers] = await Promise.all([
+      this.clubs.findAll({ managedByUserId: userId }),
+      this.trainers.findAll({ managedByUserId: userId }),
+    ]);
+
+    return {
+      clubIds: clubs.map((club) => club.id),
+      trainerIds: trainers.map((trainer) => trainer.id),
+    };
   }
 
   async isManagerOfClub(clubId: number, userId: number): Promise<boolean> {

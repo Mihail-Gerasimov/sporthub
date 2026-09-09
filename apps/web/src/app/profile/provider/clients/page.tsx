@@ -5,7 +5,12 @@
 // надёжности рядом с именем обязан отражать всю историю человека.
 import { ProviderClients } from '@/components/profile/provider/ProviderClients';
 import { loadProviderScopeWithClientHistory } from '@/lib/provider-scope';
-import { getAllProviderClientNotes, getOfferings, getSchedule, getUsers } from '@/lib/server-api';
+import {
+  getAllProviderClientNotes,
+  getOfferings,
+  getSchedule,
+  getClientUsers,
+} from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +19,7 @@ export default async function ProviderClientsRoute() {
     loadProviderScopeWithClientHistory(),
     getOfferings(),
     getSchedule({ ownerType: 'all' }),
-    getUsers(),
+    getClientUsers(),
     getAllProviderClientNotes(),
   ]);
 

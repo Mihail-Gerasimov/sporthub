@@ -319,6 +319,43 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
     expect(await bookings.count({ owners: { clubIds: [], trainerIds: [] } })).toBe(0);
   });
 
+  it('срез клиентов берёт всю историю людей, ходивших к публикациям', async () => {
+    const bookings = await createRepository();
+    // Атлет 1 ходил только в клуб 1. Атлет 2 — на тренерское занятие в зале
+    // клуба 1 и в клуб 2, то есть у него история сразу у двух провайдеров.
+    const own = await bookings.insert({ ...base });
+    const venue = await bookings.insert({ ...trainerBooking });
+    const other = await bookings.insert({
+      ...base,
+      scheduleId: 4004,
+      userId: 2,
+      ownerId: 2,
+      clubId: 2,
+    });
+
+    // Клиенты клуба 2 — только атлет 2, и приезжает ВСЯ его история, включая
+    // занятие у чужого провайдера: бейдж надёжности считается по ней целиком.
+    expect(
+      (await bookings.findMany({ clientsOf: { clubIds: [2], trainerIds: [] } })).map(
+        (item) => item.id,
+      ),
+    ).toEqual([venue.id, other.id]);
+
+    // ⚠️ Контрольная группа. Атлет 1 к клубу 2 не ходил, и его запись в срез
+    // не попадает: без сужения по клиентам здесь оказалась бы вся таблица.
+    expect(
+      await bookings.findMany({ clientsOf: { clubIds: [2], trainerIds: [] } }),
+    ).not.toContainEqual(expect.objectContaining({ id: own.id }));
+
+    // Клуб 1 — владелец записи атлета 1 и площадка занятия атлета 2: клиентами
+    // оказываются оба, и срез покрывает все три записи.
+    expect(await bookings.count({ clientsOf: { clubIds: [1], trainerIds: [] } })).toBe(3);
+    // Тренер отбирается так же, как и клуб: владелец либо ведущий.
+    expect(await bookings.count({ clientsOf: { clubIds: [], trainerIds: [5] } })).toBe(2);
+    // ⚠️ Пустые наборы — «публикаций нет, значит и клиентов нет», а не «фильтра нет».
+    expect(await bookings.count({ clientsOf: { clubIds: [], trainerIds: [] } })).toBe(0);
+  });
+
   it('график по дням сворачивает записи в строку на день', async () => {
     const bookings = await createRepository();
     const created = await bookings.insert({ ...base });
@@ -351,6 +388,11 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
       { status: ['pending' as const, 'confirmed' as const] },
       { sportId: 2 },
       { owners: { clubIds: [1], trainerIds: [5] } },
+      // ⚠️ Публикация выбрана так, чтобы условие РЕЗАЛО: клиент тренера 5 — один
+      // человек из двух, и его записей одна из трёх. Взяв клуб 1, к которому ходили
+      // оба, сторож смотрел бы на отбор, ничего не отбрасывающий, — и пропустил бы
+      // расхождение двух видов условия, потому что обе стороны вернули бы всё.
+      { clientsOf: { clubIds: [], trainerIds: [5] } },
       { userId: 1, dateFrom: '2026-03-01', dateTo: '2026-12-31', sportId: 1 },
     ];
 

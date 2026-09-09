@@ -5,7 +5,7 @@
 // надёжности атлета, а он считается по всей его истории, не только по нашей части.
 import { ProviderBookingsInbox } from '@/components/profile/provider/ProviderBookingsInbox';
 import { loadProviderScopeWithClientHistory } from '@/lib/provider-scope';
-import { getOfferings, getSchedule, getSports, getUsers } from '@/lib/server-api';
+import { getOfferings, getSchedule, getSports, getClientUsers } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ export default async function ProviderBookingsRoute() {
     getOfferings(),
     getSchedule({ ownerType: 'all' }),
     getSports(),
-    getUsers(),
+    getClientUsers(),
   ]);
 
   return (
