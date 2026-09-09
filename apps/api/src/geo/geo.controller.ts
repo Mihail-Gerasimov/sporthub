@@ -2,9 +2,16 @@
 //
 // Ключи живут на сервере и наружу не уходят — ради этого прокси и существует.
 //
-// ⚠️ Запрос координат идёт без ограничения по времени: недоступность внешней
-// службы вешает запрос до её собственного тайм-аута. У подсказок ограничение
-// есть — пять секунд. Разница перенесена как есть и записана в долги.
+// Шаг 34.54 выровнял оба маршрута по трём вещам:
+//
+// 1. **Свой тайм-аут.** Раньше поиск координат уходил наружу без ограничения по
+//    времени: недоступная служба держала соединение бэкенда столько, сколько ей
+//    вздумается, и десяток таких запросов занимал пул соединений целиком. Теперь
+//    срок общий для обоих маршрутов и один на файл.
+// 2. **Верхняя граница строк.** `min(1)` без `max()` пропускал внутрь мегабайт
+//    текста (тело ограничено 256 КБ) — и он уходил в платный внешний запрос.
+// 3. **Ограничение частоты.** Маршруты открыты гостю и тратят платную квоту, то
+//    есть без предела становятся способом выесть чужой ключ.
 
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import type { SuggestItem, SuggestItemType } from '@sporthub/types';
@@ -12,14 +19,28 @@ import { z } from 'zod';
 
 import { Public } from '../auth/access.decorators';
 import { ExternalServiceError, NotFoundError, ValidationError } from '../common/domain-error';
+import { RateLimit } from '../common/rate-limit';
+
+/**
+ * Верхние границы строк. Числа взяты с запасом к живому вводу: самый длинный
+ * почтовый адрес России короче сотни знаков, а поле поиска — тем более. Смысл
+ * границы не в точности, а в том, чтобы в платный внешний запрос не уходил
+ * мусор произвольной длины.
+ */
+const MAX_CITY_LENGTH = 100;
+const MAX_ADDRESS_LENGTH = 300;
+const MAX_QUERY_LENGTH = 300;
 
 const geocodeSchema = z.object({
-  city: z.string().min(1, 'Город обязателен'),
-  address: z.string().min(1, 'Адрес обязателен'),
+  city: z.string().min(1, 'Город обязателен').max(MAX_CITY_LENGTH, 'Город слишком длинный'),
+  address: z.string().min(1, 'Адрес обязателен').max(MAX_ADDRESS_LENGTH, 'Адрес слишком длинный'),
 });
 
 const suggestSchema = z.object({
-  text: z.string().min(1, 'Текст для поиска обязателен'),
+  text: z
+    .string()
+    .min(1, 'Текст для поиска обязателен')
+    .max(MAX_QUERY_LENGTH, 'Текст для поиска слишком длинный'),
   types: z.enum(['locality', 'street', 'house', 'geo']).optional(),
   boundedBy: z
     .tuple([z.tuple([z.number(), z.number()]), z.tuple([z.number(), z.number()])])
@@ -30,7 +51,25 @@ const suggestSchema = z.object({
 const GEOCODER_BASE_URL = 'https://geocode-maps.yandex.ru/1.x/';
 const SUGGEST_BASE_URL = 'https://suggest-maps.yandex.ru/v1/suggest';
 const DEFAULT_RESULTS = 7;
-const FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * Сколько ждать внешнюю службу. Пять секунд — больше, чем нужно живому запросу,
+ * и меньше, чем терпит человек перед формой.
+ *
+ * Значение читается из окружения на каждый запрос: срок ожидания — настройка
+ * выкатки (за медленным каналом его поднимают), и ради неё не должно быть
+ * пересборки. Цена чтения переменной рядом с сетевым запросом неразличима.
+ */
+const DEFAULT_FETCH_TIMEOUT_MS = 5000;
+
+function fetchTimeoutMs(): number {
+  const parsed = Number(process.env.SPORT_HUB_GEO_TIMEOUT_MS);
+
+  // Мусор и ноль трактуются как «не задано»: ноль означал бы обрыв любого запроса.
+  if (!Number.isInteger(parsed) || parsed < 1) return DEFAULT_FETCH_TIMEOUT_MS;
+
+  return parsed;
+}
 
 /** Страны, которые в выдачу подсказок не попадают: сервис работает по России. */
 const FOREIGN_MARKERS = [
@@ -98,14 +137,16 @@ function mapSuggestType(tags: string[] | undefined): SuggestItemType {
 
 @Controller()
 export class GeoController {
-  // Открыто гостю: по координатам рисуется карта на публичных страницах — главной
-  // и карточке клуба, — а подсказки адреса нужны в поиске по городу, куда заходят
-  // без входа.
+  // ⚠️ Маршрут остаётся ОТКРЫТЫМ сознательно, и это решение, а не забытая пометка.
+  // По координатам рисуется карта на публичных страницах — главной и карточке клуба,
+  // а адрес в форме публикации набирают до того, как форма отправлена. Закрыть его
+  // сессией значило бы убрать карту у гостя.
   //
-  // STUB: временно. Оба маршрута тратят платную внешнюю квоту, и открытыми их
-  // держать нельзя: гость может выкачивать чужой ключ запросами. На шаге 34.54 они
-  // закрываются и ограничиваются частотой обращений.
+  // Плата за открытость — предел частоты: квота внешнего ключа стоит денег, и без
+  // предела маршрут был бы способом её выесть. Счёт идёт по адресу обращения
+  // (`common/rate-limit.ts`), для каждого маршрута отдельный.
   @Public()
+  @RateLimit('geo')
   @Post('geocode')
   @HttpCode(HttpStatus.OK)
   async geocode(
@@ -130,12 +171,28 @@ export class GeoController {
       response?: { GeoObjectCollection?: { featureMember?: unknown[] } };
     };
 
+    // Отмена по времени: без неё недоступная служба держала бы соединение бэкенда
+    // до своего собственного тайм-аута, которого может не быть вовсе.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), fetchTimeoutMs());
+
     try {
       // Заголовок обязателен: ключ ограничен по источнику запроса.
-      const response = await fetch(url, { headers: { Referer: 'http://localhost' } });
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { Referer: 'http://localhost' },
+      });
       payload = (await response.json()) as typeof payload;
-    } catch {
+    } catch (error) {
+      // Обрыв по времени отличается от отказа службы и кодом: 504 говорит
+      // «не дождались», 500 — «ответила ошибкой». Мониторинг различает их.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new ExternalServiceError('Таймаут запроса к геокодеру', 504);
+      }
+
       throw new ExternalServiceError('Ошибка при геокодировании адреса', 500);
+    } finally {
+      clearTimeout(timeout);
     }
 
     const found = payload?.response?.GeoObjectCollection?.featureMember ?? [];
@@ -157,9 +214,10 @@ export class GeoController {
     };
   }
 
-  // Открыто по той же причине и с той же оговоркой.
-  // STUB: временно, до шага 34.54 — закрытие и ограничение частоты.
+  // Открыт по той же причине и на тех же условиях, что и поиск координат:
+  // подсказки нужны в поиске по городу, куда заходят без входа.
   @Public()
+  @RateLimit('geo')
   @Post('suggest')
   @HttpCode(HttpStatus.OK)
   async suggest(@Body() rawBody: unknown): Promise<{ suggestions: SuggestItem[] }> {
@@ -193,7 +251,7 @@ export class GeoController {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), fetchTimeoutMs());
 
     let response: Response;
 

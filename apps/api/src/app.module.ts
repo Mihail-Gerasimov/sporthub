@@ -4,8 +4,10 @@
 
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AccessService } from './access/access.service';
+import { LoginAttemptsService } from './auth/login-attempts.service';
 import { SessionGuard } from './auth/session.guard';
 import { SessionService } from './auth/session.service';
 import { BookingService } from './bookings/booking.service';
@@ -36,10 +38,17 @@ import { LogService } from './logs/log.service';
 import { NotificationService } from './notifications/notification.service';
 import { PublicationService } from './publications/publication.service';
 import { SlotContextService } from './schedule/slot-context.service';
+import { readRateLimits } from './common/rate-limit';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
-  imports: [StorageModule],
+  imports: [
+    StorageModule,
+    // Ограничитель частоты: пределы читаются из окружения при сборке приложения,
+    // а вешаются на маршруты декоратором `@RateLimit` — глобальным guard'ом он
+    // не ставится намеренно, иначе предел молча получил бы каждый маршрут.
+    ThrottlerModule.forRootAsync({ useFactory: () => readRateLimits() }),
+  ],
   controllers: [
     HealthController,
     ...DICTIONARY_CONTROLLERS,
@@ -78,6 +87,7 @@ import { StorageModule } from './storage/storage.module';
     CatalogQueryService,
     LinkService,
     SessionService,
+    LoginAttemptsService,
   ],
 })
 export class AppModule {}

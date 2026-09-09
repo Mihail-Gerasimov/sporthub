@@ -13,13 +13,16 @@
  * — badge тоны: type-{trainer|club} (lime-fill), status-published (lime-soft),
  *   status-hidden (muted-outline), status-pending (gold через `--ui-gold`);
  * — pagination: PAGE_SIZE 20 → 15, pager отображается ВСЕГДА (numbered + ‹ ›).
+ *
+ * Phase 34 Step 34.49: поле `moderatorId` из тела действий ушло. Кто скрыл
+ * публикацию, сервер знает из сессии; до этого модератора называл браузер —
+ * и в журнале оставался тот, кого он назвал.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { City } from '@sporthub/types';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/useAuthStore';
 
 import { HideReasonModal } from './HideReasonModal';
 
@@ -90,7 +93,6 @@ const ICON_CHEV_RIGHT = (
 );
 
 export function ModerationPage({ sports }: ModerationPageProps) {
-  const user = useAuthStore((s) => s.user);
 
   const [cities, setCities] = useState<City[]>([]);
 
@@ -153,7 +155,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   }, [statusFilter, typeFilter, cityFilter, sportFilter, search]);
 
   const handleHide = async (reason: string) => {
-    if (!hideTarget || !user) return;
+    if (!hideTarget) return;
     setActionLoading(true);
     try {
       await fetch('/api/moderation', {
@@ -163,7 +165,6 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           action: 'hide',
           entityType: hideTarget.type,
           entityId: hideTarget.id,
-          moderatorId: user.id,
           reason,
         }),
       });
@@ -175,7 +176,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   };
 
   const handleUnhide = async (item: PublicationItem) => {
-    if (!user || !confirm(`Показать публикацию «${item.name}»?`)) return;
+    if (!confirm(`Показать публикацию «${item.name}»?`)) return;
     setActionLoading(true);
     try {
       await fetch('/api/moderation', {
@@ -185,7 +186,6 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           action: 'unhide',
           entityType: item.type,
           entityId: item.id,
-          moderatorId: user.id,
         }),
       });
       fetchData();

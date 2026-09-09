@@ -14,6 +14,11 @@
 //
 // Проверка типа кабинета осталась, но переехала ПОСЛЕ пароля: это удобство
 // интерфейса, а не защита, и до предъявления пароля она ничего не должна сообщать.
+//
+// Шаг 34.51a добавил к входу нарастающую блокировку неудачных попыток, а к
+// регистрации — предел частоты обращений. Оба счёта живут в своих модулях
+// (`login-attempts.service.ts` и `common/rate-limit.ts`): контроллер только
+// спрашивает разрешение и сообщает исход попытки.
 
 import {
   Body,
@@ -43,7 +48,9 @@ import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
+import { RateLimit } from '../common/rate-limit';
 import { CurrentUser, Public, Requires } from './access.decorators';
+import { LoginAttemptsService } from './login-attempts.service';
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from './session-cookie';
 import { SessionService, type SessionContext } from './session.service';
 
@@ -118,6 +125,7 @@ export class AuthController {
   constructor(
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
     private readonly sessions: SessionService,
+    private readonly loginAttempts: LoginAttemptsService,
   ) {}
 
   /**
@@ -153,6 +161,14 @@ export class AuthController {
     }
 
     const { email, accountType, password } = parsed.data;
+    const attemptKeys = { email, ip: request.ip };
+
+    // Проверка блокировки стоит ДО обращения к базе и до сверки пароля: подбор
+    // не должен ни ходить в базу, ни заставлять сервер считать argon2 (19 МБ
+    // памяти на каждый расчёт). Отказ одинаков для существующей и несуществующей
+    // почты, поэтому перечислителем аккаунтов он не становится.
+    this.loginAttempts.assertAllowed(attemptKeys);
+
     // Запрос по уникальному индексу почты, а не перебор таблицы: цена входа
     // не должна расти вместе с числом зарегистрированных.
     const user = await this.users.findByEmail(email);
@@ -161,8 +177,14 @@ export class AuthController {
     const passwordMatches = await verifyPassword(user?.passwordHash ?? DUMMY_HASH, password);
 
     if (!user || user.status !== 'active' || !passwordMatches) {
+      this.loginAttempts.registerFailure(attemptKeys);
+
       throw new UnauthorizedError(LOGIN_FAILED);
     }
+
+    // Пароль верен — счёт обнуляется ЗДЕСЬ, до проверок роли и типа кабинета:
+    // отказы ниже получает тот, кто пароль уже предъявил, и подбором они не являются.
+    this.loginAttempts.registerSuccess(attemptKeys);
 
     // Обе проверки ниже — подсказки интерфейсу, а не защита: они говорят уже тому,
     // кто предъявил верный пароль, и потому стоят ПОСЛЕ сверки.
@@ -346,7 +368,11 @@ export class AuthController {
     setSessionCookie(response, token, new Date(session.expiresAt));
   }
 
+  // Регистрация открыта по назначению, но считается по адресу обращения: каждая
+  // заводит запись в базе и считает argon2, то есть без предела маршрут становится
+  // способом и засорить таблицу пользователей, и выесть память процесса.
   @Public()
+  @RateLimit('register')
   @Post('register')
   async register(
     @Body() rawBody: unknown,

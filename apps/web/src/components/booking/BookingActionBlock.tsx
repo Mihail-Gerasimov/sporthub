@@ -85,7 +85,10 @@ export function BookingActionBlock({
       setIsCheckingBookingState(true);
 
       try {
-        const response = await fetch(`/api/bookings?userId=${athleteUserId}`);
+        // ⚠️ Без `?userId=`: маршрут отдаёт записи ТОГО, КТО СПРАШИВАЕТ,
+        // и номер берёт из сессии. Прежний параметр был предъявлением личности —
+        // подставив чужой, можно было прочитать чужие записи.
+        const response = await fetch('/api/bookings');
         const result = (await response.json()) as BookingListResponse;
 
         if (!response.ok || !result.success) {
@@ -149,10 +152,9 @@ export function BookingActionBlock({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          scheduleId,
-          userId: athleteUserId,
-        }),
+        // Записывается тот, чья сессия: номер в теле сервер игнорирует,
+        // и слать его — значит делать вид, что решение за клиентом.
+        body: JSON.stringify({ scheduleId }),
       });
       const result = (await response.json()) as BookingCreateResponse;
 

@@ -19,3 +19,4 @@ export * from './time';
 export * from './link-status';
 export * from './role-labels';
 export * from './session-policy';
+export * from './password-reset-policy';

@@ -24,7 +24,6 @@ import { roleLabel as formatRoleLabel } from '@sporthub/domain';
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
 import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, EntityId, LogAction, LogEntityType, LogEntry } from '@sporthub/types';
 
@@ -232,17 +231,15 @@ export function LogsPage() {
   // BookingStatusHistoryDrawer с полной FSM-историей.
   const [drawerBooking, setDrawerBooking] = useState<Booking | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const adminUserId = useAuthStore((state) => state.user?.id ?? null);
   const addToast = useToastStore((state) => state.addToast);
 
   const handleOpenBookingDrawer = useCallback(
     async (bookingId: EntityId) => {
-      if (adminUserId === null) {
-        addToast({ message: 'Недостаточно прав для открытия истории', tone: 'error' });
-        return;
-      }
       try {
-        const response = await fetch(`/api/bookings/${bookingId}?userId=${adminUserId}`);
+        // ⚠️ Прежнего `?userId=` здесь нет. Он был не отбором, а предъявлением
+        // личности: браузер сообщал серверу, кем себя считает. Права на чтение
+        // записи сервер проверяет по сессии — и отвечает отказом, если их нет.
+        const response = await fetch(`/api/bookings/${bookingId}`);
         const body = (await response.json()) as {
           success: boolean;
           data?: Booking;
@@ -258,7 +255,7 @@ export function LogsPage() {
         addToast({ message: 'Не удалось загрузить запись', tone: 'error' });
       }
     },
-    [adminUserId, addToast],
+    [addToast],
   );
 
   /** Загружает логи из API с текущими фильтрами */

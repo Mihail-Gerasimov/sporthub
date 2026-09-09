@@ -13,31 +13,19 @@ export function ImpersonationBanner() {
   const router = useRouter();
   const isImpersonating = useAuthStore((s) => s.isImpersonating);
   const user = useAuthStore((s) => s.user);
-  const adminOriginalUser = useAuthStore((s) => s.adminOriginalUser);
   const stopImpersonation = useAuthStore((s) => s.stopImpersonation);
 
   if (!isImpersonating) return null;
 
   function handleReturn() {
-    // Логируем завершение impersonation ПЕРЕД stopImpersonation (fire-and-forget)
-    // actorId = adminOriginalUser (настоящий админ), entityId = target user
-    fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'admin_impersonate_stop',
-        actorId: adminOriginalUser?.id ?? 0,
-        actorRole: 'admin',
-        entityType: 'user',
-        entityId: user?.id ?? 0,
-      }),
-    }).catch(() => {});
-
+    // ⚠️ Записи в журнал отсюда БОЛЬШЕ НЕТ. Маршрут `POST /api/logs` удалён:
+    // браузер называл исполнителя сам, то есть след в журнале был ровно таким,
+    // каким его захотел клиент. Событие пишет сервер и берёт исполнителя
+    // из сессии.
     stopImpersonation();
     router.push('/service-portal/dashboard');
-    // Phase 27 Step 27.15: invalidate RSC-кэш — без refresh админ может увидеть
-    // /service-portal/dashboard под старым cookie (с подменённым userId), пока
-    // Next.js Router не перетянет страницу с новым.
+    // Phase 27 Step 27.15: инвалидация RSC-кэша — без обновления админ увидел бы
+    // сводку, отрисованную ещё под подменённой личностью.
     router.refresh();
   }
 

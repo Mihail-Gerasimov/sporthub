@@ -70,6 +70,27 @@ const RACE_USER_IDS = (__ENV.RACE_USER_IDS || '1,6,7,8')
   .map((value) => Number(value.trim()))
   .filter((value) => Number.isInteger(value) && value > 0);
 
+/**
+ * Профиль входа (фаза 34).
+ *
+ * ⚠️ Меряется отдельно, а не внутри обычной нагрузки, и вот почему. Проверка пароля
+ * argon2id берёт 19 МБ памяти НА КАЖДУЮ параллельную проверку — это защита, и ослаблять
+ * её нельзя. Значит всплеск входов упирается не в процессор, а в память, и упирается
+ * иначе, чем всё остальное: смешав вход с каталогом, мы получили бы среднее по больнице
+ * и не увидели бы момент, когда очередь проверок начинает расти.
+ *
+ * Ожидаемое поведение: пропускная способность ограничена очередью проверок паролей,
+ * лишние ждут, память не растёт бесконечно, отказов нет.
+ */
+const loginScenario = {
+  login: {
+    executor: 'constant-vus',
+    vus: Math.max(1, Number(__ENV.LOGIN_VUS || 20)),
+    duration: __ENV.LOGIN_DURATION || '30s',
+    exec: 'login',
+  },
+};
+
 const raceScenario = {
   // Проверка не скорости, а корректности: все участники бьются за одно место.
   race: {
@@ -91,9 +112,11 @@ const raceScenario = {
 const scenarios =
   ONLY === 'race'
     ? raceScenario
-    : ONLY === 'profiles'
-      ? profileScenarios
-      : { ...profileScenarios, ...raceScenario };
+    : ONLY === 'login'
+      ? loginScenario
+      : ONLY === 'profiles'
+        ? profileScenarios
+        : { ...profileScenarios, ...raceScenario };
 
 export const options = {
   scenarios,
@@ -199,5 +222,29 @@ export function race() {
   check(response, {
     'ответ либо успешный, либо «мест нет»': () =>
       response.status < 400 || text.includes('Свободных мест нет'),
+  });
+}
+
+/**
+ * Вход: сверка пароля argon2id под нагрузкой.
+ *
+ * Пароль намеренно ВЕРНЫЙ: неверный отбивался бы ограничением частоты после пятой
+ * попытки, и замер превратился бы в проверку блокировки, а не хеширования.
+ *
+ * Гоняется отдельно: `k6 run -e ONLY=login load/k6-scenarios.js`
+ */
+export function login() {
+  const email = __ENV.LOGIN_EMAIL || 'athlete@sporthub.local';
+  const password = __ENV.LOGIN_PASSWORD || 'sporthub123';
+
+  const response = http.post(
+    `${API}/api/auth/login`,
+    JSON.stringify({ email, accountType: 'athlete', password }),
+    { headers: { 'Content-Type': 'application/json' }, tags: { profile: 'login' } },
+  );
+
+  check(response, {
+    'вход отвечает успехом': (r) => r.status === 200,
+    'сессия выдана': (r) => String(r.headers['Set-Cookie'] || '').includes('sh-session'),
   });
 }
