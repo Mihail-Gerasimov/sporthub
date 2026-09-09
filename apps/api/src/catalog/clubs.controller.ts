@@ -3,6 +3,11 @@
 // Самая большая группа маршрутов: публичная выдача с фильтрами и сортировкой
 // по надёжности, детальная карточка, публикация, правка и удаление.
 //
+// Доступ: публична только ЧАСТЬ маршрутов — три чтения у клубов и три у тренеров.
+// Публикация, правка и удаление остаются закрытыми: это действия владельца, и
+// исполнителя для них берут из сессии (шаги 34.22 и 34.38). Поэтому пометки стоят
+// на методах, а не на классе.
+//
 // ⚠️ Правка клуба и тренера подменяет текст ошибки: любое «не найдено» изнутри
 // (сама сущность, основная услуга, слот) выходит наружу как общее «Клуб не найден».
 // Это вводит в заблуждение, но покрыто тестами и потому сохранено дословно.
@@ -13,11 +18,19 @@ import {
   computeTrainerReliability,
   publishClubSchema,
   publishTrainerSchema,
+  roleCan,
 } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
+import { CurrentUser, Public } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
-import { DomainError, NotFoundError, ValidationError } from '../common/domain-error';
+import {
+  DomainError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/domain-error';
 import { CatalogQueryService } from './catalog-query.service';
 import { LogService } from '../logs/log.service';
 import { PublicationService } from '../publications/publication.service';
@@ -53,6 +66,10 @@ export class ClubsController {
     private readonly logs: LogService,
   ) {}
 
+  // Открыто гостю: список клубов с фильтрами — это сама витрина площадки.
+  // Человек должен найти свой клуб и решить, стоит ли ради него заводить учётку;
+  // требование входа означало бы «сначала зарегистрируйся, потом посмотри, что тут есть».
+  @Public()
   @Get()
   async findMany(
     @Query('sportId') sportId?: string,
@@ -122,6 +139,9 @@ export class ClubsController {
    * и числовой идентификатор — разные способы адресации, и смешивать их в одном
    * параметре значит гадать по виду значения.
    */
+  // Открыто гостю: по адресу-ссылке клуба приходят из поиска и по ссылке из
+  // мессенджера — на такой переход входа быть не может.
+  @Public()
   @Get('by-slug/:slug')
   async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
     const club = await this.query.findClubBySlug(slug);
@@ -133,6 +153,10 @@ export class ClubsController {
     return this.query.getClubDetail(club.id);
   }
 
+  // Открыто гостю: карточка клуба — расписание, услуги, отзывы, адрес на карте.
+  // Это то, ради чего на площадку заходят, и закрывать её от незарегистрированного
+  // значит закрывать площадку.
+  @Public()
   @Get(':id')
   async findOne(@Param('id') rawId: string): Promise<unknown> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
@@ -146,7 +170,7 @@ export class ClubsController {
   }
 
   @Post()
-  async create(@Body() rawBody: unknown): Promise<unknown> {
+  async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishClubSchema.safeParse(rawBody);
 
     if (!parsed.success) {
@@ -156,8 +180,10 @@ export class ClubsController {
       );
     }
 
-    const { userId, ...form } = parsed.data;
-    await this.query.requireUser(userId);
+    // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
+    // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    const { userId: _ignoredUserId, ...form } = parsed.data;
+    const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);
 
     const result = await this.publications.createClubFromForm(form, userId);
@@ -175,7 +201,11 @@ export class ClubsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<unknown> {
+  async update(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<unknown> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
     const parsed = publishClubSchema.safeParse(rawBody);
 
@@ -186,8 +216,10 @@ export class ClubsController {
       );
     }
 
-    const { userId, ...form } = parsed.data;
-    await this.query.requireUser(userId);
+    // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
+    // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    const { userId: _ignoredUserId, ...form } = parsed.data;
+    const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);
 
     try {
@@ -215,16 +247,26 @@ export class ClubsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') rawId: string): Promise<EmptyResult> {
+  async remove(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<EmptyResult> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
     const club = await this.query.findClub(clubId);
 
-    await this.publications.deleteClub(clubId);
+    // ⚠️ До фазы 34 маршрут не читал тело вовсе и не спрашивал, кто удаляет:
+    // снести чужую публикацию вместе со всеми записями мог кто угодно. А в журнал
+    // при этом писался владелец сущности — в аудите удаление выглядело его действием.
+    //
+    // Владельца сверяет сервис: выдача каталога поле владельца наружу не отдаёт,
+    // и проверка по ней отказывала бы всегда. Администратору владелец не важен —
+    // ему это разрешает право модерации.
+    await this.publications.deleteClub(clubId, ownerCheckFor(session));
 
     await this.logs.record({
       action: 'publish_delete',
-      actorId: club?.managedByUserId ?? 0,
-      actorRole: 'club_owner',
+      actorId: session.actor.id,
+      actorRole: session.actor.role,
       entityType: 'club',
       entityId: clubId,
       meta: { name: club?.name ?? 'unknown' },
@@ -242,6 +284,9 @@ export class TrainersController {
     private readonly logs: LogService,
   ) {}
 
+  // Открыто гостю: та же витрина, только тренеры. Подбор тренера идёт до входа,
+  // а не после.
+  @Public()
   @Get()
   async findMany(
     @Query('affiliatedClubId') affiliatedClubId?: string,
@@ -302,6 +347,8 @@ export class TrainersController {
     );
   }
 
+  // Открыто гостю: адрес-ссылка тренера — та же ссылка из поиска и переписки.
+  @Public()
   @Get('by-slug/:slug')
   async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
     const trainer = await this.query.findTrainerBySlug(slug);
@@ -313,6 +360,9 @@ export class TrainersController {
     return this.query.getTrainerDetail(trainer.id);
   }
 
+  // Открыто гостю: карточка тренера — специализации, цены, свободные слоты.
+  // Гость выбирает, к кому идти, и только потом заводит учётку ради записи.
+  @Public()
   @Get(':id')
   async findOne(@Param('id') rawId: string): Promise<unknown> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
@@ -326,7 +376,7 @@ export class TrainersController {
   }
 
   @Post()
-  async create(@Body() rawBody: unknown): Promise<unknown> {
+  async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishTrainerSchema.safeParse(rawBody);
 
     if (!parsed.success) {
@@ -336,8 +386,10 @@ export class TrainersController {
       );
     }
 
-    const { userId, ...form } = parsed.data;
-    await this.query.requireUser(userId);
+    // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
+    // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    const { userId: _ignoredUserId, ...form } = parsed.data;
+    const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);
 
     const result = await this.publications.createTrainerFromForm(form, userId);
@@ -355,7 +407,11 @@ export class TrainersController {
   }
 
   @Patch(':id')
-  async update(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<unknown> {
+  async update(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<unknown> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
     const parsed = publishTrainerSchema.safeParse(rawBody);
 
@@ -366,8 +422,10 @@ export class TrainersController {
       );
     }
 
-    const { userId, ...form } = parsed.data;
-    await this.query.requireUser(userId);
+    // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
+    // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    const { userId: _ignoredUserId, ...form } = parsed.data;
+    const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);
 
     try {
@@ -393,16 +451,20 @@ export class TrainersController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') rawId: string): Promise<EmptyResult> {
+  async remove(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<EmptyResult> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
     const trainer = await this.query.findTrainer(trainerId);
 
-    await this.publications.deleteTrainer(trainerId);
+    // Та же дыра, что и у клуба: удаляли без спроса, а в журнал шёл владелец.
+    await this.publications.deleteTrainer(trainerId, ownerCheckFor(session));
 
     await this.logs.record({
       action: 'publish_delete',
-      actorId: trainer?.managedByUserId ?? 0,
-      actorRole: 'club_owner',
+      actorId: session.actor.id,
+      actorRole: session.actor.role,
       entityType: 'trainer',
       entityId: trainerId,
       meta: { name: trainer?.name ?? 'unknown' },
@@ -410,6 +472,17 @@ export class TrainersController {
 
     return EMPTY_RESULT;
   }
+}
+
+/**
+ * Кого сервис должен сверить с владельцем публикации.
+ *
+ * Для администратора — никого: право модерации разрешает трогать чужие публикации,
+ * и требовать от него ещё и владения значило бы запретить модерацию как таковую.
+ * Для всех остальных — их самих.
+ */
+function ownerCheckFor(session: SessionContext): number | undefined {
+  return roleCan(session.user.role, 'moderate_publications') ? undefined : session.user.id;
 }
 
 export { DomainError };

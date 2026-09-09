@@ -1,8 +1,15 @@
 // Тесты маршрутов записей.
 //
-// Два маршрута здесь до сих пор не проверялись ничем: административное чтение
-// записи и отметка исхода занятия. Второй — самый разветвлённый в проекте:
-// у него два разных отказа по времени, и оба легко сломать незаметно.
+// Набор переписан вместе с переводом маршрутов на сессию (шаг 34.21). Главное,
+// что здесь проверяется теперь и не могло проверяться раньше:
+//
+// - анонимный вызов любого из восьми маршрутов даёт 401;
+// - действовать от чужого имени нечем — `userId` в теле и в строке запроса
+//   не влияет ни на что, запись создаётся на владельца сессии;
+// - чужую запись нельзя ни отменить, ни подтвердить, ни отметить;
+// - полный срез платформы (`?scope=all`) закрыт правом администратора;
+// - под имперсонизацией в журнале остаётся тот, кто ВОШЁЛ, а сама запись
+//   принадлежит тому, от чьего лица работали.
 //
 // Слоты строятся относительно текущего момента: слот, закончившийся час назад,
 // идущий прямо сейчас и закончившийся трое суток назад. Так тест проверяет ту же
@@ -20,12 +27,20 @@
 //
 // Подделываются ТОЛЬКО часы (`toFake: ['Date']`): таймеры соединений с базой
 // и ожидания запросов остаются настоящими, иначе прогон повис бы.
+//
+// ⚠️ Cookie берётся ПОСЛЕ последней записи данных: каждая запись пересобирает базу
+// целиком, а сессии — обычная таблица той же схемы. Выданная раньше cookie умрёт
+// вместе с засевом, и тест получит 401 без единого намёка на причину.
 
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
+import { SESSION_COOKIE_NAME } from '../auth/session-cookie';
+import { SessionService } from '../auth/session.service';
+import type { UsersRepository } from '../repositories/crud.repository';
+import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 /** Дата и время слота, сдвинутые относительно текущего момента. */
@@ -93,6 +108,9 @@ const booking = (id: number, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** Номера записей из ответа — по ним читаются все проверки выдачи. */
+const ids = (body: { data: { id: number }[] }) => body.data.map((item) => item.id);
+
 describe('Маршруты записей', () => {
   let harness: TestHarness;
 
@@ -109,9 +127,19 @@ describe('Маршруты записей', () => {
   beforeEach(async () => {
     // Один перенос на весь срез: слот ссылается на услугу и тренера, тренер —
     // на справочник видов спорта и управляющего пользователя.
+    //
+    // Пользователь 5 — представитель услуг, который не управляет НИЧЕМ. Он нужен
+    // именно как «чужой провайдер»: до перевода на сессию эту роль играл атлет,
+    // и проверка «чужой не может» проходила бы даже без единой проверки владения.
     await harness.writeMany({
       ...fixtureDictionaryCollections,
-      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'admin'), user(4, 'athlete')],
+      users: [
+        user(1, 'athlete'),
+        user(2, 'club_owner'),
+        user(3, 'admin'),
+        user(4, 'athlete'),
+        user(5, 'club_owner'),
+      ],
       trainers: [
         {
           id: 1,
@@ -185,165 +213,335 @@ describe('Маршруты записей', () => {
 
   const server = () => harness.app.getHttpServer();
 
+  /** От чьего лица идёт запрос. Способ переноса личности знает обвязка. */
+  const as = (userId: number) => harness.as(userId);
+
+  /**
+   * Cookie администратора, работающего ОТ ЛИЦА другого пользователя.
+   *
+   * Обвязка такого не умеет намеренно: имперсонизация — не «войти за кого-то»,
+   * а две личности в одной сессии, и нужна она ровно одному набору проверок —
+   * тому, что след в журнале остаётся за настоящим исполнителем.
+   */
+  const asImpersonating = async (adminId: number, targetUserId: number): Promise<string> => {
+    const users = harness.app.get<UsersRepository>(USERS_REPOSITORY);
+    const admin = await users.findById(adminId);
+
+    if (admin === null) {
+      throw new Error(`Обвязка не может войти за администратора ${adminId}: его нет в базе`);
+    }
+
+    const { token } = await harness.app.get(SessionService).issue({
+      user: admin,
+      now: new Date(),
+      impersonatedUserId: targetUserId,
+    });
+
+    return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`;
+  };
+
+  describe('GET /api/bookings — выдача', () => {
+    beforeEach(async () => {
+      await harness.write('schedule', [slot(1, slotAt(24), { bookedCount: 3 })]);
+      await harness.write('bookings', [
+        booking(7, { date: '2026-03-10', status: 'pending' }),
+        booking(8, { userId: 4, date: '2026-03-20', status: 'confirmed' }),
+        booking(9, {
+          date: '2026-03-30',
+          status: 'completed',
+          ownerType: 'club',
+          ownerId: 2,
+          clubId: 2,
+          trainerId: undefined,
+        }),
+      ]);
+    });
+
+    it('гостю выдача не отдаётся', async () => {
+      const response = await request(server()).get('/api/bookings');
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ success: false, error: 'Требуется вход' });
+    });
+
+    it('атлет получает только свои записи', async () => {
+      const response = await request(server())
+        .get('/api/bookings')
+        .set('Cookie', await as(1));
+
+      expect(response.status).toBe(200);
+      // Порядок «моих записей» — по дню занятия.
+      expect(ids(response.body)).toEqual([7, 9]);
+    });
+
+    it('чужой userId в строке запроса не меняет ничего', async () => {
+      // Раньше этот параметр И БЫЛ ответом на вопрос «чьи записи отдать»:
+      // подставил чужой номер — получил чужие записи. Теперь он игнорируется,
+      // как любой неизвестный параметр.
+      const response = await request(server())
+        .get('/api/bookings?userId=4')
+        .set('Cookie', await as(1));
+
+      expect(response.status).toBe(200);
+      expect(ids(response.body)).toEqual([7, 9]);
+    });
+
+    it('полный срез платформы обычному пользователю закрыт', async () => {
+      const response = await request(server())
+        .get('/api/bookings?scope=all')
+        .set('Cookie', await as(1));
+
+      expect(response.status).toBe(403);
+      expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+    });
+
+    it('полный срез платформы закрыт и провайдеру', async () => {
+      const response = await request(server())
+        .get('/api/bookings?scope=all')
+        .set('Cookie', await as(2));
+
+      expect(response.status).toBe(403);
+    });
+
+    it('полный срез платформы гостю закрыт', async () => {
+      const response = await request(server()).get('/api/bookings?scope=all');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('администратор получает полный срез', async () => {
+      const response = await request(server())
+        .get('/api/bookings?scope=all')
+        .set('Cookie', await as(3));
+
+      expect(response.status).toBe(200);
+      // Полный срез сохраняет порядок появления — на нём стоит эталон контрактов.
+      expect(ids(response.body)).toEqual([7, 8, 9]);
+    });
+
+    // Сужение выдачи (шаг 33.27a). До него 14 страниц фронта тянули полный срез
+    // записей платформы, чтобы показать записи одного человека или одного клуба.
+    // Все параметры ниже — необязательные: без них маршрут отвечает как прежде.
+    describe('сужение выдачи', () => {
+      it('полный срез сужается по клубу', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&clubId=2')
+          .set('Cookie', await as(3));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([9]);
+      });
+
+      it('полный срез сужается по тренеру', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&trainerId=1')
+          .set('Cookie', await as(3));
+
+        expect(ids(response.body)).toEqual([7, 8]);
+      });
+
+      it('полный срез сужается по периоду дня занятия', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&dateFrom=2026-03-20&dateTo=2026-03-30')
+          .set('Cookie', await as(3));
+
+        expect(ids(response.body)).toEqual([8, 9]);
+      });
+
+      it('полный срез сужается по набору статусов через запятую', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&status=pending,confirmed')
+          .set('Cookie', await as(3));
+
+        expect(ids(response.body)).toEqual([7, 8]);
+      });
+
+      it('постраничность режет полный срез', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&offset=1&limit=1')
+          .set('Cookie', await as(3));
+
+        expect(ids(response.body)).toEqual([8]);
+      });
+
+      it('выдумка в наборе статусов — 400 с прежним текстом', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=all&status=выдумка')
+          .set('Cookie', await as(3));
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Некорректные параметры запроса');
+      });
+
+      it('неизвестный параметр по-прежнему игнорируется, а не отвергается', async () => {
+        // Прежний маршрут лишние параметры молча пропускал; превращать их в отказ
+        // значило бы сломать уже работающие ссылки.
+        const response = await request(server())
+          .get('/api/bookings?scope=all&неведомое=1')
+          .set('Cookie', await as(3));
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(3);
+      });
+
+      it('свои записи сужаются теми же параметрами', async () => {
+        const response = await request(server())
+          .get('/api/bookings?dateFrom=2026-03-30')
+          .set('Cookie', await as(1));
+
+        expect(ids(response.body)).toEqual([9]);
+      });
+
+      it('сужение по клубу не показывает чужие записи', async () => {
+        // Отбор сужает СВОИ записи, а не открывает доступ к чужим: у пользователя 4
+        // в клубе 2 записей нет, и параметр клуба ничего ему не добавляет.
+        const response = await request(server())
+          .get('/api/bookings?clubId=2')
+          .set('Cookie', await as(4));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([]);
+      });
+    });
+  });
+
   describe('GET /api/bookings/:id — административное чтение', () => {
     beforeEach(async () => {
-      await harness.write('schedule', [slot(1, slotAt(24))]);
+      await harness.write('schedule', [slot(1, slotAt(24), { bookedCount: 1 })]);
       await harness.write('bookings', [booking(7)]);
     });
 
     it('администратор получает запись целиком', async () => {
-      const response = await request(server()).get('/api/bookings/7?userId=3');
+      const response = await request(server())
+        .get('/api/bookings/7')
+        .set('Cookie', await as(3));
 
       expect(response.status).toBe(200);
       expect(response.body.data.id).toBe(7);
     });
 
-    it('обычному пользователю отказано', async () => {
-      const response = await request(server()).get('/api/bookings/7?userId=1');
+    it('владельцу записи отказано: маршрут служебный', async () => {
+      const response = await request(server())
+        .get('/api/bookings/7')
+        .set('Cookie', await as(1));
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Недостаточно прав');
     });
 
-    it('без идентификатора запрашивающего — отказ по данным', async () => {
+    it('провайдеру отказано', async () => {
+      const response = await request(server())
+        .get('/api/bookings/7')
+        .set('Cookie', await as(2));
+
+      expect(response.status).toBe(403);
+    });
+
+    it('гостю отказано до всякого разбора', async () => {
       const response = await request(server()).get('/api/bookings/7');
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Некорректный userId');
+      expect(response.status).toBe(401);
+    });
+
+    it('подстановка номера администратора в строку запроса не помогает', async () => {
+      // Прежний маршрут спрашивал «а этот номер принадлежит админу?» у номера,
+      // присланного самим клиентом. Теперь номер оттуда не читается вовсе.
+      const response = await request(server())
+        .get('/api/bookings/7?userId=3')
+        .set('Cookie', await as(1));
+
+      expect(response.status).toBe(403);
     });
 
     it('нечисловой идентификатор записи — отказ по данным', async () => {
-      const response = await request(server()).get('/api/bookings/abc?userId=3');
+      const response = await request(server())
+        .get('/api/bookings/abc')
+        .set('Cookie', await as(3));
 
       expect(response.status).toBe(400);
     });
 
     it('несуществующая запись — не найдено', async () => {
-      const response = await request(server()).get('/api/bookings/999?userId=3');
+      const response = await request(server())
+        .get('/api/bookings/999')
+        .set('Cookie', await as(3));
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Запись не найдена');
     });
   });
 
-  describe('POST /api/bookings/:id/check-in — отметка исхода', () => {
-    it('после окончания занятия провайдер отмечает проведение', async () => {
-      // Занятие закончилось час назад — отметка внутри окна.
-      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'completed' });
-
-      expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('completed');
-    });
-
-    it('неявка отмечается тем же маршрутом', async () => {
-      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'no_show' });
-
-      expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('no_show');
-    });
-
-    it('до окончания занятия отметка запрещена', async () => {
-      // Занятие идёт прямо сейчас: началось полчаса назад, кончится через полчаса.
-      await harness.write('schedule', [slot(1, slotAt(-0.5), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'completed' });
-
-      expect(response.status).toBe(409);
-      expect(response.body.error).toContain('после окончания слота');
-    });
-
-    it('через 48 часов окно закрывается', async () => {
-      // Занятие закончилось трое суток назад — окно давно закрыто.
-      await harness.write('schedule', [slot(1, slotAt(-72), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'completed' });
-
-      expect(response.status).toBe(409);
-      expect(response.body.error).toContain('48 часов');
-    });
-
-    it('чужой провайдер отметить не может', async () => {
-      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 4, outcome: 'completed' });
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Недостаточно прав для check-in');
-    });
-
-    it('неизвестный исход отклоняется', async () => {
-      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
-      await harness.write('bookings', [booking(7)]);
-
-      const response = await request(server())
-        .post('/api/bookings/7/check-in')
-        .send({ userId: 2, outcome: 'пришёл' });
-
-      expect(response.status).toBe(400);
-    });
-
-    it('несуществующая запись — не найдено', async () => {
-      await harness.write('schedule', [slot(1, slotAt(-2))]);
-
-      const response = await request(server())
-        .post('/api/bookings/999/check-in')
-        .send({ userId: 2, outcome: 'completed' });
-
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Запись не найдена');
-    });
-
-    it('исчезнувший слот — не найдено; в базе такое состояние запрещено', async () => {
-      // ⚠️ Единственное место набора, где хранилища расходятся не в мелочи.
-      // Состояние «запись есть, а слота нет» файлы допускают, а база — нет: у записи
-      // внешний ключ на слот, а удаление слота с записями запрещено (Restrict).
-      // Поэтому проверяются оба обещания, и каждое там, где оно вообще существует:
-      // где состояние создаётся — ветка обязана ответить 404;
-      // где не создаётся — хранилище обязано ОТКАЗАТЬ, а не принять молча.
-      await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
-    });
-  });
-
-  describe('POST /api/bookings — отказы до создания', () => {
+  describe('POST /api/bookings — создание', () => {
     beforeEach(async () => {
       await harness.write('schedule', [slot(1, slotAt(48))]);
     });
 
-    it('несуществующий пользователь — не найдено', async () => {
+    it('гость записаться не может', async () => {
+      const response = await request(server()).post('/api/bookings').send({ scheduleId: 1 });
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ success: false, error: 'Требуется вход' });
+    });
+
+    it('запись создаётся на владельца сессии', async () => {
       const response = await request(server())
         .post('/api/bookings')
-        .send({ scheduleId: 1, userId: 99 });
+        .set('Cookie', await as(1))
+        .send({ scheduleId: 1 });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Пользователь не найден');
+      expect(response.status).toBe(201);
+      expect(response.body.data.userId).toBe(1);
+    });
+
+    it('чужой userId в теле не влияет ни на что', async () => {
+      // Ключевая проверка шага: раньше именно это поле и решало, на кого записывать.
+      const response = await request(server())
+        .post('/api/bookings')
+        .set('Cookie', await as(1))
+        .send({ scheduleId: 1, userId: 4 });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.userId).toBe(1);
     });
 
     it('провайдер записаться не может', async () => {
       const response = await request(server())
         .post('/api/bookings')
-        .send({ scheduleId: 1, userId: 2 });
+        .set('Cookie', await as(2))
+        .send({ scheduleId: 1 });
 
       expect(response.status).toBe(403);
       expect(response.body).toEqual({ success: false, error: 'Запись доступна только спортсмену' });
+    });
+
+    it('администратор записаться не может: права записи у него нет', async () => {
+      const response = await request(server())
+        .post('/api/bookings')
+        .set('Cookie', await as(3))
+        .send({ scheduleId: 1 });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Запись доступна только спортсмену');
+    });
+
+    it('под имперсонизацией запись достаётся цели, а в журнале остаётся администратор', async () => {
+      const cookie = await asImpersonating(3, 1);
+
+      const response = await request(server())
+        .post('/api/bookings')
+        .set('Cookie', cookie)
+        .send({ scheduleId: 1 });
+
+      expect(response.status).toBe(201);
+      // Действуют от лица атлета — запись его.
+      expect(response.body.data.userId).toBe(1);
+
+      const logs = await harness.read<{ action: string; actorId: number }[]>('logs');
+      const created = logs.filter((entry) => entry.action === 'booking_create');
+
+      expect(created).toHaveLength(1);
+      // А след действия — за тем, кто на самом деле вошёл.
+      expect(created[0]?.actorId).toBe(3);
     });
 
     it('три неявки подряд закрывают запись карантином', async () => {
@@ -360,7 +558,8 @@ describe('Маршруты записей', () => {
 
       const response = await request(server())
         .post('/api/bookings')
-        .send({ scheduleId: 1, userId: 1 });
+        .set('Cookie', await as(1))
+        .send({ scheduleId: 1 });
 
       expect(response.status).toBe(403);
       // ⚠️ Единственный маршрут, где вместо текста ошибки уходит машинный код
@@ -392,7 +591,8 @@ describe('Маршруты записей', () => {
 
       const response = await request(server())
         .post('/api/bookings')
-        .send({ scheduleId: 1, userId: 1 });
+        .set('Cookie', await as(1))
+        .send({ scheduleId: 1 });
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Публикация скрыта, запись невозможна');
@@ -403,103 +603,347 @@ describe('Маршруты записей', () => {
 
       const response = await request(server())
         .post('/api/bookings')
-        .send({ scheduleId: 1, userId: 1 });
+        .set('Cookie', await as(1))
+        .send({ scheduleId: 1 });
 
       expect(response.status).toBe(409);
       expect(response.body).toEqual({ success: false, error: 'Свободных мест нет' });
     });
 
-    it('без userId выдача записей не отдаётся', async () => {
-      const response = await request(server()).get('/api/bookings');
+    it('без слота — отказ по данным', async () => {
+      const response = await request(server())
+        .post('/api/bookings')
+        .set('Cookie', await as(1))
+        .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Некорректные параметры запроса');
+      expect(response.body.error).toBe('Некорректные данные записи');
+    });
+  });
+
+  describe('DELETE /api/bookings/:id — отмена атлетом', () => {
+    beforeEach(async () => {
+      await harness.write('schedule', [slot(1, slotAt(48), { bookedCount: 2 })]);
+      await harness.write('bookings', [booking(7), booking(8, { userId: 4 })]);
     });
 
-    it('scope=all отдаёт полный срез без указания пользователя', async () => {
-      await harness.write('bookings', [booking(7), booking(8, { userId: 4 })]);
+    it('гость отменить не может', async () => {
+      const response = await request(server()).delete('/api/bookings/7');
 
-      const response = await request(server()).get('/api/bookings?scope=all');
+      expect(response.status).toBe(401);
+    });
+
+    it('владелец отменяет свою запись', async () => {
+      const response = await request(server())
+        .delete('/api/bookings/7')
+        .set('Cookie', await as(1));
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(2);
+
+      const stored = await harness.read<{ id: number; status: string }[]>('bookings');
+
+      expect(stored.find((item) => item.id === 7)?.status).toBe('cancelled_by_athlete');
     });
 
-    // Сужение выдачи (шаг 33.27a). До него 14 страниц фронта тянули полный срез
-    // записей платформы, чтобы показать записи одного человека или одного клуба.
-    // Все параметры ниже — необязательные: без них маршрут отвечает как прежде.
-    describe('сужение выдачи', () => {
-      beforeEach(async () => {
-        await harness.write('bookings', [
-          booking(7, { date: '2026-03-10', status: 'pending' }),
-          booking(8, { userId: 4, date: '2026-03-20', status: 'confirmed' }),
-          booking(9, {
-            date: '2026-03-30',
-            status: 'completed',
-            ownerType: 'club',
-            ownerId: 2,
-            clubId: 2,
-            trainerId: undefined,
-          }),
-        ]);
-      });
+    it('чужую запись отменить нельзя', async () => {
+      const response = await request(server())
+        .delete('/api/bookings/7')
+        .set('Cookie', await as(4));
 
-      it('полный срез сужается по клубу', async () => {
-        const response = await request(server()).get('/api/bookings?scope=all&clubId=2');
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для отмены записи');
+    });
 
-        expect(response.status).toBe(200);
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([9]);
-      });
+    it('подстановка чужого userId в тело не отменяет чужую запись', async () => {
+      const response = await request(server())
+        .delete('/api/bookings/7')
+        .set('Cookie', await as(4))
+        .send({ userId: 1 });
 
-      it('полный срез сужается по тренеру', async () => {
-        const response = await request(server()).get('/api/bookings?scope=all&trainerId=1');
+      expect(response.status).toBe(403);
 
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([7, 8]);
-      });
+      const stored = await harness.read<{ id: number; status: string }[]>('bookings');
 
-      it('полный срез сужается по периоду дня занятия', async () => {
-        const response = await request(server()).get(
-          '/api/bookings?scope=all&dateFrom=2026-03-20&dateTo=2026-03-30',
-        );
+      expect(stored.find((item) => item.id === 7)?.status).toBe('confirmed');
+    });
+  });
 
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([8, 9]);
-      });
+  describe('POST /api/bookings/:id/cancel — универсальная отмена', () => {
+    beforeEach(async () => {
+      await harness.write('schedule', [slot(1, slotAt(48), { bookedCount: 2 })]);
+      await harness.write('bookings', [booking(7), booking(8, { userId: 4 })]);
+    });
 
-      it('полный срез сужается по набору статусов через запятую', async () => {
-        const response = await request(server()).get(
-          '/api/bookings?scope=all&status=pending,confirmed',
-        );
+    it('гость отменить не может', async () => {
+      const response = await request(server()).post('/api/bookings/7/cancel').send({});
 
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([7, 8]);
-      });
+      expect(response.status).toBe(401);
+    });
 
-      it('постраничность режет полный срез', async () => {
-        const response = await request(server()).get('/api/bookings?scope=all&offset=1&limit=1');
+    it('атлет отменяет свою запись', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/cancel')
+        .set('Cookie', await as(1))
+        .send({});
 
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([8]);
-      });
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('cancelled_by_athlete');
+    });
 
-      it('выдумка в наборе статусов — 400 с прежним текстом', async () => {
-        const response = await request(server()).get('/api/bookings?scope=all&status=выдумка');
+    it('провайдер занятия отменяет запись со своей стороны', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/cancel')
+        .set('Cookie', await as(2))
+        .send({});
 
-        expect(response.status).toBe(400);
-        expect(response.body.error).toBe('Некорректные параметры запроса');
-      });
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('cancelled_by_provider');
+    });
 
-      it('неизвестный параметр по-прежнему игнорируется, а не отвергается', async () => {
-        // Прежний маршрут лишние параметры молча пропускал; превращать их в отказ
-        // значило бы сломать уже работающие ссылки.
-        const response = await request(server()).get('/api/bookings?scope=all&неведомое=1');
+    it('чужой атлет отменить не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/cancel')
+        .set('Cookie', await as(4))
+        .send({ userId: 1 });
 
-        expect(response.status).toBe(200);
-        expect(response.body.data).toHaveLength(3);
-      });
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для отмены записи');
+    });
 
-      it('записи атлета сужаются теми же параметрами', async () => {
-        const response = await request(server()).get('/api/bookings?userId=1&dateFrom=2026-03-30');
+    it('посторонний провайдер отменить не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/cancel')
+        .set('Cookie', await as(5))
+        .send({ userId: 2 });
 
-        expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([9]);
-      });
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для отмены записи');
+    });
+  });
+
+  describe('POST /api/bookings/:id/confirm — подтверждение', () => {
+    beforeEach(async () => {
+      await harness.write('schedule', [slot(1, slotAt(24), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7, { status: 'pending' })]);
+    });
+
+    it('гость подтвердить не может', async () => {
+      const response = await request(server()).post('/api/bookings/7/confirm').send({});
+
+      expect(response.status).toBe(401);
+    });
+
+    it('провайдер занятия подтверждает заявку', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/confirm')
+        .set('Cookie', await as(2))
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('confirmed');
+    });
+
+    it('посторонний провайдер подтвердить не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/confirm')
+        .set('Cookie', await as(5))
+        .send({ userId: 2 });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
+    });
+
+    it('сам атлет свою заявку подтвердить не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/confirm')
+        .set('Cookie', await as(1))
+        .send({});
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
+    });
+
+    it('несуществующая запись — не найдено', async () => {
+      const response = await request(server())
+        .post('/api/bookings/999/confirm')
+        .set('Cookie', await as(2))
+        .send({});
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Запись не найдена');
+    });
+  });
+
+  describe('POST /api/bookings/:id/reject — отказ', () => {
+    beforeEach(async () => {
+      await harness.write('schedule', [slot(1, slotAt(24), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7, { status: 'pending' })]);
+    });
+
+    it('гость отказать не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/reject')
+        .send({ reason: 'Нет мест' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('провайдер занятия отклоняет заявку с причиной', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/reject')
+        .set('Cookie', await as(2))
+        .send({ reason: 'Нет мест' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('rejected_by_provider');
+    });
+
+    it('причина необязательна', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/reject')
+        .set('Cookie', await as(2))
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('rejected_by_provider');
+    });
+
+    it('посторонний провайдер отклонить не может', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/reject')
+        .set('Cookie', await as(5))
+        .send({ userId: 2, reason: 'Чужая заявка' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для отклонения записи');
+    });
+  });
+
+  describe('POST /api/bookings/:id/check-in — отметка исхода', () => {
+    it('гость отметить не может', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('после окончания занятия провайдер отмечает проведение', async () => {
+      // Занятие закончилось час назад — отметка внутри окна.
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('completed');
+    });
+
+    it('неявка отмечается тем же маршрутом', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'no_show' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('no_show');
+    });
+
+    it('до окончания занятия отметка запрещена', async () => {
+      // Занятие идёт прямо сейчас: началось полчаса назад, кончится через полчаса.
+      await harness.write('schedule', [slot(1, slotAt(-0.5), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toContain('после окончания слота');
+    });
+
+    it('через 48 часов окно закрывается', async () => {
+      // Занятие закончилось трое суток назад — окно давно закрыто.
+      await harness.write('schedule', [slot(1, slotAt(-72), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toContain('48 часов');
+    });
+
+    it('чужой провайдер отметить не может', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(5))
+        .send({ userId: 2, outcome: 'completed' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для check-in');
+    });
+
+    it('сам атлет отметить себе проведение не может', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(1))
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для check-in');
+    });
+
+    it('неизвестный исход отклоняется', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
+      await harness.write('bookings', [booking(7)]);
+
+      const response = await request(server())
+        .post('/api/bookings/7/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'пришёл' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('несуществующая запись — не найдено', async () => {
+      await harness.write('schedule', [slot(1, slotAt(-2))]);
+
+      const response = await request(server())
+        .post('/api/bookings/999/check-in')
+        .set('Cookie', await as(2))
+        .send({ outcome: 'completed' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Запись не найдена');
+    });
+
+    it('исчезнувший слот — не найдено; в базе такое состояние запрещено', async () => {
+      // ⚠️ Единственное место набора, где хранилища расходятся не в мелочи.
+      // Состояние «запись есть, а слота нет» файлы допускают, а база — нет: у записи
+      // внешний ключ на слот, а удаление слота с записями запрещено (Restrict).
+      // Поэтому проверяются оба обещания, и каждое там, где оно вообще существует:
+      // где состояние создаётся — ветка обязана ответить 404;
+      // где не создаётся — хранилище обязано ОТКАЗАТЬ, а не принять молча.
+      await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
     });
   });
 });

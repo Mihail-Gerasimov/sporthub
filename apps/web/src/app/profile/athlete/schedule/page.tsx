@@ -1,5 +1,5 @@
 // Server page расписания атлета (Step 25.4): единый список всех bookings с FSM-группами.
-import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
+import { readSession } from '@/lib/session';
 import { getBookingsByUser, getClubs, getSchedule, getSports, getTrainers } from '@/lib/server-api';
 import { AthleteSchedule } from '@/components/profile/athlete/AthleteSchedule';
 
@@ -9,7 +9,7 @@ export default async function AthleteScheduleRoute() {
   // Кто смотрит — известно из cookie входа: клиентская часть всё равно отберёт
   // записи по этому же атлету, поэтому спрашивать чужие незачем. У гостя записей
   // нет вовсе — раздел покажет отказ в доступе.
-  const athleteUserId = await getAuthUserIdFromCookies();
+  const athleteUserId = (await readSession())?.id ?? null;
 
   const [bookings, clubs, schedule, sports, trainers] = await Promise.all([
     athleteUserId === null ? [] : getBookingsByUser(athleteUserId),

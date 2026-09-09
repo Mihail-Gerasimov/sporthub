@@ -1,11 +1,13 @@
 // Контроллеры записей на тренировки.
 //
-// Семь маршрутов: чтение, создание, отмена, подтверждение, отказ, отметка исхода
-// и физическое удаление администратором. Вся логика — в сервисе; здесь только
-// разбор запроса, проверка прав и вызов.
+// Восемь маршрутов: выдача, создание, чтение записи целиком, отмена атлетом,
+// универсальная отмена, подтверждение, отказ и отметка исхода. Вся логика — в
+// сервисе; здесь только разбор запроса, проверка прав и вызов.
 //
-// ⚠️ Личность приходит параметром от клиента, как и раньше. Это дыра, перенесённая
-// сознательно: контракты обязаны совпасть, настоящая авторизация — отдельная фаза.
+// Личность вызывающего приходит ТОЛЬКО из сессии. До фазы 34 её присылал сам
+// клиент — номером в теле или в строке запроса, — то есть действовать от чужого
+// имени мог кто угодно. Теперь этот номер не читается вовсе: схемы разбора его
+// не знают, а прежний клиент, который его ещё шлёт, не влияет ни на что.
 
 import {
   Body,
@@ -18,7 +20,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { DISCIPLINE_CONFIG, getSlotEndAt, isAthleteInQuarantine } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotEndAt, isAthleteInQuarantine, roleCan } from '@sporthub/domain';
 import type { Booking, BookingStatus } from '@sporthub/types';
 import { BOOKING_STATUSES } from '@sporthub/types';
 import { z } from 'zod';
@@ -32,6 +34,8 @@ import {
   ValidationError,
 } from '../common/domain-error';
 import { AccessService } from '../access/access.service';
+import { CurrentUser, Requires } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
 import { SlotContextService } from '../schedule/slot-context.service';
@@ -40,15 +44,18 @@ import { BookingsGateway } from './bookings.gateway';
 
 const positiveId = z.number().int().positive();
 
-const createSchema = z.object({ scheduleId: positiveId, userId: positiveId }).strict();
-const actorSchema = z.object({ userId: positiveId }).strict();
-const rejectSchema = z
-  .object({ userId: positiveId, reason: z.string().trim().min(1).optional() })
-  .strict();
-const checkInSchema = z
-  .object({ userId: positiveId, outcome: z.enum(['completed', 'no_show']) })
-  .strict();
-const adminSchema = z.object({ adminUserId: positiveId }).strict();
+/**
+ * Тела запросов. Ни одно из них больше не содержит личность вызывающего.
+ *
+ * ⚠️ Строгость (`.strict()`) снята сознательно. Прежний клиент шлёт вместе с делом
+ * ещё и `userId`, и строгая схема отвечала бы ему 400 — а нужно ровно обратное:
+ * лишнее поле обязано молча отбрасываться, чтобы подстановка чужого номера
+ * не значила НИЧЕГО. Отказ вместо тишины превратил бы закрытую дыру в поломку
+ * работающих экранов.
+ */
+const createSchema = z.object({ scheduleId: positiveId });
+const rejectSchema = z.object({ reason: z.string().trim().min(1).optional() });
+const checkInSchema = z.object({ outcome: z.enum(['completed', 'no_show']) });
 
 /** День занятия в параметрах отбора — та же строка `YYYY-MM-DD`, что и в записи. */
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -56,17 +63,16 @@ const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 /**
  * Параметры выдачи записей.
  *
- * ⚠️ Все поля, кроме прежних `userId` и `scope`, НЕОБЯЗАТЕЛЬНЫЕ и добавлены этим
- * шагом: без них 14 страниц фронта тянули полный срез записей платформы, чтобы
- * показать записи одного человека или одного клуба. Необязательность здесь —
- * не вежливость, а условие: старый клиент обязан пережить выкатку, а `?scope=all`
- * обязан отвечать ровно тем же, чем отвечал.
+ * Все поля, кроме `scope`, НЕОБЯЗАТЕЛЬНЫЕ: без них 14 страниц фронта тянули полный
+ * срез записей платформы, чтобы показать записи одного человека или одного клуба.
+ * Необязательность здесь — не вежливость, а условие: старый клиент обязан пережить
+ * выкатку.
  *
- * Схема НЕ строгая: неизвестные параметры прежний маршрут молча игнорировал,
- * и превращать их в отказ значило бы сломать уже работающие ссылки.
+ * ⚠️ Прежнего `userId` в схеме НЕТ: чьи записи отдавать, решает сессия, а не строка
+ * запроса. Схема НЕ строгая, поэтому оставшийся у старого клиента `?userId=…`
+ * просто игнорируется — как игнорировался любой неизвестный параметр.
  */
 const listQuerySchema = z.object({
-  userId: z.coerce.number().int().positive().optional(),
   scope: z.string().optional(),
   clubId: z.coerce.number().int().positive().optional(),
   trainerId: z.coerce.number().int().positive().optional(),
@@ -123,33 +129,42 @@ export class BookingsController {
   /**
    * Выдача записей. Перед чтением отрабатывают автопереходы по времени.
    *
-   * Два режима, как и раньше: записи одного атлета и полный срез по `?scope=all`
-   * для страниц провайдера и админского раздела. Что изменилось — оба режима
-   * теперь принимают отбор по клубу, тренеру, периоду и набору статусов плюс
+   * Обычный режим отдаёт записи ТОГО, КТО СПРАШИВАЕТ, — номер берётся из сессии,
+   * и попросить чужие больше нечем. Полный срез платформы остаётся за `?scope=all`,
+   * но уходит под право `use_admin_tools`: до этого шага он отдавал кому угодно
+   * чужие записи вместе с ценами, телефонами клубов и историей статусов.
+   *
+   * Оба режима принимают отбор по клубу, тренеру, периоду и набору статусов плюс
    * постраничность, и всё это уходит в запрос к хранилищу, а не режется в памяти.
    */
   @Get()
-  async findMany(@Query() rawQuery: Record<string, string>): Promise<Booking[]> {
+  async findMany(
+    @Query() rawQuery: Record<string, string>,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Booking[]> {
     const parsed = listQuerySchema.safeParse(rawQuery);
 
     if (!parsed.success) {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
-    const { clubId, dateFrom, dateTo, limit, offset, scope, status, trainerId, userId } =
-      parsed.data;
+    const { clubId, dateFrom, dateTo, limit, offset, scope, status, trainerId } = parsed.data;
+    const wantsPlatformWide = scope === 'all';
 
-    // Полный срез — только по явному запросу. Во всех остальных случаях атлет
-    // обязателен: иначе один забытый параметр отдал бы записи всей платформы.
-    if (scope !== 'all' && userId === undefined) {
-      throw new ValidationError('Некорректные параметры запроса');
+    // ⚠️ Право спрашивается здесь, а не декоратором `@Requires`, и это вынужденно:
+    // режим включается параметром запроса, а декоратор закрывает маршрут целиком.
+    // Закрыть им весь маршрут значило бы отобрать у человека его же записи.
+    if (wantsPlatformWide && !roleCan(session.user.role, 'use_admin_tools')) {
+      throw new ForbiddenError('Недостаточно прав');
     }
 
     // Автопереходы прогоняются в обоих режимах — иначе выдача покажет протухшие статусы.
     await this.bookings.runLazyTransitions();
 
     return this.gateway.findMany({
-      ...(userId === undefined ? {} : { userId }),
+      // Полный срез не сужается по человеку; во всех остальных случаях сужение
+      // по владельцу сессии обязательно и снять его снаружи нечем.
+      ...(wantsPlatformWide ? {} : { userId: session.user.id }),
       ...(clubId === undefined ? {} : { clubId }),
       ...(trainerId === undefined ? {} : { trainerId }),
       ...(dateFrom === undefined ? {} : { dateFrom }),
@@ -157,25 +172,26 @@ export class BookingsController {
       ...(status === undefined ? {} : { status: status as BookingStatus[] }),
       ...(offset === undefined ? {} : { offset }),
       ...(limit === undefined ? {} : { limit }),
-      // ⚠️ Порядок «мои записи» раньше наводился сортировкой уже ПОСЛЕ чтения всей
+      // ⚠️ Порядок «моих записей» раньше наводился сортировкой уже ПОСЛЕ чтения всей
       // выдачи. С постраничностью так нельзя: порядок решает, какие строки вообще
       // попадут на страницу, — поэтому он уходит в запрос. Полный срез сохраняет
       // прежний порядок появления, на нём стоит эталон контрактов.
-      order: userId === undefined ? 'id' : 'slotDate',
+      order: wantsPlatformWide ? 'id' : 'slotDate',
     });
   }
 
   @Post()
-  async create(@Body() rawBody: unknown): Promise<Booking> {
-    const { scheduleId, userId } = parseBody(createSchema, rawBody, 'Некорректные данные записи');
+  async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<Booking> {
+    const { scheduleId } = parseBody(createSchema, rawBody, 'Некорректные данные записи');
+    // Записывается тот, ОТ ЧЬЕГО ЛИЦА действуют: под имперсонизацией запись
+    // принадлежит цели, а не администратору. Отдельного чтения пользователя больше
+    // нет — guard уже загрузил его, проверив сессию.
+    const user = session.user;
+    const userId = user.id;
 
-    const user = await this.gateway.findUser(userId);
-
-    if (!user) {
-      throw new NotFoundError('Пользователь не найден');
-    }
-
-    if (user.role !== 'athlete') {
+    // Роль по имени больше не проверяется — спрашиваем ПРАВО. Текст ответа оставлен
+    // дословно: он закреплён сторожем текстов и разбирается фронтом.
+    if (!roleCan(user.role, 'book_sessions')) {
       throw new ForbiddenError('Запись доступна только спортсмену');
     }
 
@@ -209,7 +225,9 @@ export class BookingsController {
 
     await this.logs.record({
       action: 'booking_create',
-      actorId: booking.userId,
+      // Исполнитель — тот, кто ВОШЁЛ. Под имперсонизацией запись принадлежит цели,
+      // а в журнале обязан остаться след администратора: иначе действие теряет автора.
+      actorId: session.actor.id,
       actorRole: 'athlete',
       entityType: 'booking',
       entityId: booking.id,
@@ -237,40 +255,36 @@ export class BookingsController {
     return booking;
   }
 
-  /** Полная запись с историей. Доступно только администратору. */
+  /**
+   * Полная запись с историей — служебное чтение админского раздела.
+   *
+   * Прежде маршрут спрашивал «а этот номер принадлежит администратору?» у номера,
+   * присланного самим клиентом. Теперь право проверяет guard, и подставлять нечего.
+   */
+  @Requires('use_admin_tools')
   @Get(':id')
-  async findOne(@Param('id') rawId: string, @Query('userId') rawUserId?: string): Promise<Booking> {
+  async findOne(@Param('id') rawId: string): Promise<Booking> {
     const bookingId = parseBookingId(rawId);
-    const userId = Number(rawUserId);
 
-    if (!rawUserId || !Number.isInteger(userId) || userId <= 0) {
-      throw new ValidationError('Некорректный userId');
-    }
-
-    if (!(await this.access.isAdmin(userId))) {
-      throw new ForbiddenError('Недостаточно прав');
-    }
-
-    const booking = await this.gateway.findById(bookingId);
-
-    if (!booking) {
-      throw new NotFoundError('Запись не найдена');
-    }
-
-    return booking;
+    return this.requireBooking(bookingId);
   }
 
   /** Отмена атлетом. Оставлена для совместимости с прежним фронтом. */
   @Delete(':id')
-  async cancel(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<EmptyResult> {
+  async cancel(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<EmptyResult> {
     const bookingId = parseBookingId(rawId);
-    const { userId } = parseBody(actorSchema, rawBody, 'Некорректные данные запроса');
+    const userId = session.user.id;
 
+    // Владение проверяет сервис — чужую запись он не отменит. Изменился только
+    // источник номера: сессия вместо тела запроса.
     await this.bookings.cancelByAthlete({ bookingId, userId });
 
     await this.logs.record({
       action: 'booking_cancel',
-      actorId: userId,
+      actorId: session.actor.id,
       actorRole: 'athlete',
       entityType: 'booking',
       entityId: bookingId,
@@ -280,17 +294,22 @@ export class BookingsController {
     return EMPTY_RESULT;
   }
 
-  /** Универсальная отмена: актор определяется по тому, кто запросил. */
+  /** Универсальная отмена: актор определяется по тому, кто вошёл. */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancelByActor(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<Booking> {
+  async cancelByActor(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Booking> {
     const bookingId = parseBookingId(rawId);
-    const { userId } = parseBody(actorSchema, rawBody, 'Некорректные данные запроса');
+    const userId = session.user.id;
     const booking = await this.requireBooking(bookingId);
 
     const isAthlete = booking.userId === userId;
     const isProvider = !isAthlete && (await this.access.isProviderOfBooking(booking, userId));
 
+    // Проверка владения остаётся прежней: посторонний не отменит ни как атлет,
+    // ни как провайдер, потому что не является ни тем, ни другим для этой записи.
     if (!isAthlete && !isProvider) {
       throw new ForbiddenError('Недостаточно прав для отмены записи');
     }
@@ -304,7 +323,7 @@ export class BookingsController {
 
     await this.logs.record({
       action: 'booking_cancel',
-      actorId: userId,
+      actorId: session.actor.id,
       actorRole: isAthlete ? 'athlete' : 'club_owner',
       entityType: 'booking',
       entityId: bookingId,
@@ -320,9 +339,12 @@ export class BookingsController {
 
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
-  async confirm(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<Booking> {
+  async confirm(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Booking> {
     const bookingId = parseBookingId(rawId);
-    const { userId } = parseBody(actorSchema, rawBody, 'Некорректные данные запроса');
+    const userId = session.user.id;
     const booking = await this.requireBooking(bookingId);
 
     await this.requireProvider(booking, userId, 'Недостаточно прав для подтверждения записи');
@@ -336,7 +358,7 @@ export class BookingsController {
 
     await this.logs.record({
       action: 'booking_confirm',
-      actorId: userId,
+      actorId: session.actor.id,
       actorRole: 'club_owner',
       entityType: 'booking',
       entityId: bookingId,
@@ -348,9 +370,14 @@ export class BookingsController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  async reject(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<Booking> {
+  async reject(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Booking> {
     const bookingId = parseBookingId(rawId);
-    const { userId, reason } = parseBody(rejectSchema, rawBody, 'Некорректные данные запроса');
+    const { reason } = parseBody(rejectSchema, rawBody, 'Некорректные данные запроса');
+    const userId = session.user.id;
     const booking = await this.requireBooking(bookingId);
 
     await this.requireProvider(booking, userId, 'Недостаточно прав для отклонения записи');
@@ -365,7 +392,7 @@ export class BookingsController {
 
     await this.logs.record({
       action: 'booking_reject',
-      actorId: userId,
+      actorId: session.actor.id,
       actorRole: 'club_owner',
       entityType: 'booking',
       entityId: bookingId,
@@ -382,9 +409,14 @@ export class BookingsController {
   /** Отметка исхода. Доступна только после конца занятия и в течение 48 часов. */
   @Post(':id/check-in')
   @HttpCode(HttpStatus.OK)
-  async checkIn(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<Booking> {
+  async checkIn(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Booking> {
     const bookingId = parseBookingId(rawId);
-    const { userId, outcome } = parseBody(checkInSchema, rawBody, 'Некорректные данные запроса');
+    const { outcome } = parseBody(checkInSchema, rawBody, 'Некорректные данные запроса');
+    const userId = session.user.id;
     const booking = await this.requireBooking(bookingId);
 
     await this.requireProvider(booking, userId, 'Недостаточно прав для check-in');
@@ -420,7 +452,7 @@ export class BookingsController {
 
     await this.logs.record({
       action: outcome === 'completed' ? 'booking_check_in_completed' : 'booking_check_in_no_show',
-      actorId: userId,
+      actorId: session.actor.id,
       actorRole: 'club_owner',
       entityType: 'booking',
       entityId: bookingId,

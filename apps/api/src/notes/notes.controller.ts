@@ -3,13 +3,21 @@
 // Заметку можно завести только про своего клиента: у человека должна быть хотя
 // бы одна запись на клуб или тренера этого провайдера. Правит и удаляет заметку
 // только её автор.
+//
+// Phase 34 Step 34.25: провайдер берётся ИЗ СЕССИИ и больше ниоткуда. До этого
+// номер приезжал в теле и в строке запроса — и проверки владения, которые здесь
+// были и остаются, сверяли ровно то, что клиент сам про себя сообщил. Дыра была
+// самой тяжёлой на платформе: `?scope=all` отдавал анонимному гостю ВСЕ заметки
+// всех провайдеров обо всех клиентах, а без него хватало подставить чужой номер
+// в строку запроса, чтобы прочитать чужую переписку о людях.
 
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import type { ProviderClientNote } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
 
-import { AccessService } from '../access/access.service';
+import { CurrentUser, Requires } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
 import type { ProviderClientNotesRepository } from '../repositories/crud.repository';
@@ -19,9 +27,11 @@ import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 
+// ⚠️ Ни `providerUserId`, ни `userId` в схемах тела больше нет и быть не должно:
+// автор заметки — это личность, а личность приходит из сессии. Поле, возвращённое
+// сюда «для удобства фронта», вернёт и дыру целиком.
 const createSchema = z
   .object({
-    providerUserId: z.number().int().positive(),
     clientUserId: z.number().int().positive(),
     note: z.string().trim().min(1).max(APP_LIMITS.providerNoteMaxLength),
     bookingId: z.number().int().positive().optional(),
@@ -30,13 +40,10 @@ const createSchema = z
 
 const patchSchema = z
   .object({
-    userId: z.number().int().positive(),
     note: z.string().trim().min(1).max(APP_LIMITS.providerNoteMaxLength).optional(),
     bookingId: z.number().int().positive().nullable().optional(),
   })
   .strict();
-
-const deleteSchema = z.object({ userId: z.number().int().positive() }).strict();
 
 function parseNoteId(raw: string): number {
   const parsed = Number(raw);
@@ -48,6 +55,10 @@ function parseNoteId(raw: string): number {
   return parsed;
 }
 
+// Весь раздел — работа провайдера со своими клиентами, и право у всех четырёх
+// маршрутов одно. Пометка стоит на классе, а не на каждом методе: маршрут,
+// добавленный сюда завтра, окажется под тем же правом сам.
+@Requires('manage_own_clients')
 @Controller('provider-client-notes')
 export class ProviderClientNotesController {
   constructor(
@@ -56,44 +67,54 @@ export class ProviderClientNotesController {
     @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
-    private readonly access: AccessService,
   ) {}
 
+  /**
+   * Заметки ТЕКУЩЕГО провайдера. Отбор по клиенту — необязательное сужение.
+   *
+   * Режим `?scope=all` убран совсем, а не закрыт правом администратора. Причины
+   * две. Первая: после переноса личности в сессию умолчание отдаёт ровно то, ради
+   * чего единственный потребитель (сводка клиентов в кабинете провайдера) звал
+   * `scope=all`, — СВОИ заметки; закрывать правом было бы нечего. Вторая: срез
+   * «все приватные заметки всех провайдеров» — это новая возможность, а не
+   * сохранение старой, и заводить её без спроса, да ещё на самых чувствительных
+   * данных площадки, не стоит. Понадобится админский разбор жалобы — маршрут
+   * заведётся отдельно и под своим правом.
+   *
+   * Неизвестные параметры строки запроса (включая пришедший от старого клиента
+   * `scope=all`) молча игнорируются: старая страница переживает выкатку и получает
+   * свои заметки, а не отказ.
+   */
   @Get()
   async findMany(
-    @Query('providerUserId') rawProviderUserId?: string,
+    @CurrentUser() session: SessionContext,
     @Query('clientUserId') rawClientUserId?: string,
-    @Query('scope') scope?: string,
   ): Promise<ProviderClientNote[]> {
-    // Страница клиентов провайдера отбирает заметки уже у себя, поэтому ей
-    // нужен полный срез. Умолчание прежнее — только заметки одного провайдера.
-    if (scope === 'all') {
-      return this.notes.findAll();
-    }
-
-    if (rawProviderUserId === undefined || !/^\d+$/.test(rawProviderUserId)) {
-      throw new ValidationError('Некорректные параметры запроса');
-    }
-
     if (rawClientUserId !== undefined && !/^\d+$/.test(rawClientUserId)) {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
     return this.notes.findMany({
-      providerUserId: Number(rawProviderUserId),
+      providerUserId: session.user.id,
       clientUserId: rawClientUserId === undefined ? undefined : Number(rawClientUserId),
     });
   }
 
   @Post()
-  async create(@Body() rawBody: unknown): Promise<ProviderClientNote> {
+  async create(
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<ProviderClientNote> {
     const parsed = createSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       throw new ValidationError('Некорректные данные запроса');
     }
 
-    const { providerUserId, clientUserId, note, bookingId } = parsed.data;
+    const { clientUserId, note, bookingId } = parsed.data;
+    // Автор заметки — тот, от чьего лица работают: под имперсонизацией админ ведёт
+    // клиентов провайдера, и заметка обязана остаться заметкой провайдера.
+    const providerUserId = session.user.id;
 
     // Клиент — тот, у кого есть хотя бы одна запись на публикацию провайдера.
     //
@@ -123,7 +144,11 @@ export class ProviderClientNotesController {
   }
 
   @Patch(':id')
-  async update(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<ProviderClientNote> {
+  async update(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<ProviderClientNote> {
     const noteId = parseNoteId(rawId);
     const parsed = patchSchema.safeParse(rawBody);
 
@@ -131,7 +156,7 @@ export class ProviderClientNotesController {
       throw new ValidationError('Некорректные данные запроса');
     }
 
-    const existing = await this.requireOwn(noteId, parsed.data.userId, 'редактирования');
+    await this.requireOwn(noteId, session.user.id, 'редактирования');
 
     // `null` в поле записи снимает привязку, отсутствие поля её не трогает.
     const patch: { note?: string; bookingId?: number } = {};
@@ -144,21 +169,19 @@ export class ProviderClientNotesController {
       patch.bookingId = parsed.data.bookingId ?? undefined;
     }
 
-    void existing;
-
     return this.notes.update(noteId, patch);
   }
 
+  // Тело здесь не читается вовсе: единственным, что в нём было, оставался номер
+  // автора, а он теперь берётся из сессии.
   @Delete(':id')
-  async remove(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<EmptyResult> {
+  async remove(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<EmptyResult> {
     const noteId = parseNoteId(rawId);
-    const parsed = deleteSchema.safeParse(rawBody);
 
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные запроса');
-    }
-
-    await this.requireOwn(noteId, parsed.data.userId, 'удаления');
+    await this.requireOwn(noteId, session.user.id, 'удаления');
     await this.notes.remove(noteId);
 
     return EMPTY_RESULT;

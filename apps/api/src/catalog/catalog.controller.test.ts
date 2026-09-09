@@ -101,6 +101,18 @@ describe('Маршруты услуг и пользователей', () => {
           passwordHash: SECRET_HASH,
           favoriteClubIds: [],
         },
+        // Администратор нужен самому набору: список пользователей после фазы 34
+        // отдаётся только под его правом.
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'admin',
+          name: 'Админ',
+          email: 'admin@test.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: SECRET_HASH,
+          favoriteClubIds: [],
+        },
       ],
     });
   });
@@ -148,16 +160,39 @@ describe('Маршруты услуг и пользователей', () => {
   });
 
   describe('GET /users', () => {
-    it('отдаёт пользователей', async () => {
-      const response = await request(harness.app.getHttpServer()).get('/api/users');
+    it('отдаёт пользователей администратору', async () => {
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/users')
+        .set('Cookie', await harness.as(2));
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data).toHaveLength(2);
       expect(response.body.data[0].email).toBe('ivan@test.local');
     });
 
-    it('⚠️ ни пароль, ни его хеш не уходят наружу ни в каком виде', async () => {
+    it('⚠️ гостю почты и телефоны платформы не отдаются вовсе', async () => {
+      // Главная дыра, найденная аудитом: до фазы 34 маршрут отдавал почты
+      // и телефоны ВСЕХ зарегистрированных любому, кто попросит.
       const response = await request(harness.app.getHttpServer()).get('/api/users');
+
+      expect(response.status).toBe(401);
+      expect(JSON.stringify(response.body)).not.toContain('ivan@test.local');
+    });
+
+    it('⚠️ обычному пользователю список тоже не отдаётся', async () => {
+      // Вошёл — не значит «вправе видеть всех». Спортсмену список не положен.
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/users')
+        .set('Cookie', await harness.as(1));
+
+      expect(response.status).toBe(403);
+      expect(JSON.stringify(response.body)).not.toContain('ivan@test.local');
+    });
+
+    it('⚠️ ни пароль, ни его хеш не уходят наружу ни в каком виде', async () => {
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/users')
+        .set('Cookie', await harness.as(2));
 
       expect(response.body.data[0]).not.toHaveProperty('password');
       expect(response.body.data[0]).not.toHaveProperty('passwordHash');

@@ -278,22 +278,43 @@ export class PublicationService {
 
   // --- Удаление ---------------------------------------------------------------
 
-  async deleteClub(clubId: number): Promise<void> {
+  /**
+   * Удалить клуб вместе с услугами, слотами, записями и отзывами.
+   *
+   * ⚠️ Фаза 34: появилась проверка владельца. До неё удалить публикацию мог кто
+   * угодно — маршрут даже не читал тело запроса, — и вместе с ней исчезали все
+   * записи людей на занятия. Проверка стоит ЗДЕСЬ, а не в контроллере, по той же
+   * причине, что и у правки: владелец известен репозиторию, а выдача каталога
+   * это поле наружу не отдаёт вовсе.
+   *
+   * `actorUserId` не задан — значит удаляет администратор: право модерации
+   * проверено раньше, и владелец ему не важен.
+   */
+  async deleteClub(clubId: number, actorUserId?: number): Promise<void> {
     const club = await this.clubs.findById(clubId);
 
     if (!club) {
       throw new NotFoundError(`Клуб с id ${clubId} не найден`);
     }
 
+    if (actorUserId !== undefined) {
+      this.ensureManagedBy(club.managedByUserId, actorUserId, 'клуба', clubId);
+    }
+
     await this.cascadeDelete({ ownerType: 'club', ownerId: clubId });
     await this.clubs.remove(clubId);
   }
 
-  async deleteTrainer(trainerId: number): Promise<void> {
+  /** Удалить карточку тренера. Правило владения — то же, что у клуба. */
+  async deleteTrainer(trainerId: number, actorUserId?: number): Promise<void> {
     const trainer = await this.trainers.findById(trainerId);
 
     if (!trainer) {
       throw new NotFoundError(`Тренер с id ${trainerId} не найден`);
+    }
+
+    if (actorUserId !== undefined) {
+      this.ensureManagedBy(trainer.managedByUserId, actorUserId, 'тренера', trainerId);
     }
 
     await this.cascadeDelete({ ownerType: 'trainer', ownerId: trainerId });

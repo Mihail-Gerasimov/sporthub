@@ -16,15 +16,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 
-/** Кто вошёл. Серверная страница узнаёт это только из cookie. */
+/** Кто вошёл. Серверная страница узнаёт это только из сессии. */
 let signedInUserId: string | undefined;
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) =>
-      name === 'sh-auth-user-id' && signedInUserId !== undefined
-        ? { name, value: signedInUserId }
+      name === 'sh-session' && signedInUserId !== undefined
+        ? { name, value: `session-${signedInUserId}` }
         : undefined,
+    toString: () => (signedInUserId === undefined ? '' : `sh-session=session-${signedInUserId}`),
+  }),
+}));
+
+// ⚠️ Сессию подменяем целиком, а не заголовок cookie: `requireRole` спрашивает
+// бэкенд «кто я», а этот набор проверяет НЕ вход, а адреса, по которым страница
+// сходила за данными. Настоящую проверку входа держат тесты бэкенда и отдельный
+// набор про серверные guard'ы.
+vi.mock('@/lib/session', () => ({
+  readSession: async () =>
+    signedInUserId === undefined
+      ? null
+      : { id: Number(signedInUserId), name: 'Тест', email: 't@test.local', role: 'club_owner' },
+  requireSession: async () => ({
+    id: Number(signedInUserId ?? 2),
+    name: 'Тест',
+    email: 't@test.local',
+    role: 'club_owner',
+  }),
+  requireRole: async () => ({
+    id: Number(signedInUserId ?? 2),
+    name: 'Тест',
+    email: 't@test.local',
+    role: 'club_owner',
   }),
 }));
 

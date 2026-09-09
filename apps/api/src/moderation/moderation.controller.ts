@@ -6,11 +6,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Club, Trainer } from '@sporthub/types';
 
+import { CurrentUser, Requires } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
-import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import { NotFoundError, ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
-import type { UsersRepository } from '../repositories/crud.repository';
-import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 
@@ -87,18 +87,23 @@ export class ModerationController {
   constructor(
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
-    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
     private readonly logs: LogService,
   ) {}
 
+  // Право проверяет guard: модерация закрыта для всех, кроме тех, кому она положена.
+  // Прежняя проверка «а действительно ли этот номер принадлежит админу» больше
+  // не нужна — номер не приходит снаружи вовсе.
+  @Requires('moderate_publications')
   @Post()
   @HttpCode(HttpStatus.OK)
-  async moderate(@Body() rawBody: unknown): Promise<Club | Trainer> {
+  async moderate(
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Club | Trainer> {
     const body = (rawBody ?? {}) as Record<string, unknown>;
     const action = body.action;
     const entityType = body.entityType;
     const entityId = body.entityId;
-    const moderatorId = body.moderatorId;
     const reason = body.reason;
 
     // Проверки идут по одной, каждая со своим текстом — форма проверки
@@ -115,20 +120,14 @@ export class ModerationController {
       throw new ValidationError('Некорректный entityId');
     }
 
-    if (typeof moderatorId !== 'number' || !moderatorId) {
-      throw new ValidationError('Некорректный moderatorId');
-    }
-
     if (action === 'hide' && (typeof reason !== 'string' || !reason.trim())) {
       throw new ValidationError('Причина скрытия обязательна');
     }
 
-    const moderator = await this.users.findById(moderatorId);
-
-    if (!moderator || moderator.role !== 'admin') {
-      throw new ForbiddenError('Только администратор может модерировать публикации');
-    }
-
+    // Скрывший записывается по НАСТОЯЩЕМУ исполнителю: под имперсонизацией
+    // в карточке публикации должен остаться след администратора, а не того,
+    // от чьего лица он работал.
+    const moderatorId = session.actor.id;
     const owner = entityType as CatalogOwnerType;
     const entity =
       action === 'hide'
@@ -222,6 +221,9 @@ export class ModerationController {
  * держится на порядке слияния (сначала клубы, потом тренеры). Наивная замена его
  * на общий компаратор уже ломала `GET /api/publications` однажды.
  */
+// Сводный список публикаций для раздела модерации: включает СКРЫТЫЕ, причину
+// скрытия и номер владельца. До фазы 34 отдавался анонимно.
+@Requires('moderate_publications')
 @Controller('publications')
 export class PublicationsController {
   constructor(

@@ -22,7 +22,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
+import { readSession } from '@/lib/session';
 import { ATHLETE_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
   getBookingsForOwners,
@@ -54,7 +54,7 @@ export type ProviderScope = {
  */
 export const loadProviderScope = cache(async (): Promise<ProviderScope> => {
   const [userId, clubs, trainers] = await Promise.all([
-    getAuthUserIdFromCookies(),
+    readSession().then((session) => session?.id ?? null),
     getClubs(),
     getTrainers(),
   ]);

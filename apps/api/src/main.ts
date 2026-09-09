@@ -5,6 +5,7 @@ import 'reflect-metadata';
 import path from 'node:path';
 
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
 import { configureApp } from './configure-app';
@@ -25,7 +26,9 @@ function loadEnvironment(): void {
 async function bootstrap(): Promise<void> {
   loadEnvironment();
 
-  const app = configureApp(await NestFactory.create(AppModule));
+  const app = configureApp(
+    await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true }),
+  );
   const port = Number(process.env.API_PORT ?? 3001);
 
   await app.listen(port);

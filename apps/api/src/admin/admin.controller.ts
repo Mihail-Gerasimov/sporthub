@@ -22,21 +22,18 @@ import { z } from 'zod';
 import { AccessService } from '../access/access.service';
 import { BookingService } from '../bookings/booking.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
-import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import { NotFoundError, ValidationError } from '../common/domain-error';
 import { hashPassword } from '../common/password';
+import { CurrentUser, Requires } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { LinkService } from '../links/link.service';
 import { LogService } from '../logs/log.service';
 import { NotificationService } from '../notifications/notification.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
-const adminSchema = z.object({ adminUserId: z.number().int().positive() }).strict();
-
 const passwordSchema = z
-  .object({
-    adminUserId: z.number().int().positive(),
-    newPassword: z.string().min(6, 'Пароль — минимум 6 символов'),
-  })
+  .object({ newPassword: z.string().min(6, 'Пароль — минимум 6 символов') })
   .strict();
 
 function parseId(raw: string, message: string): number {
@@ -49,6 +46,10 @@ function parseId(raw: string, message: string): number {
   return parsed;
 }
 
+// Весь раздел — служебные действия платформы, и право у них одно на всех.
+// Пометка стоит на классе, а не на каждом методе: маршрут, добавленный сюда завтра,
+// окажется под тем же правом сам.
+@Requires('use_admin_tools')
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -63,17 +64,16 @@ export class AdminController {
   @Delete('bookings/:id')
   async hardDeleteBooking(
     @Param('id') rawId: string,
-    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
   ): Promise<EmptyResult> {
     const bookingId = parseId(rawId, 'Некорректный id записи');
-    const adminUserId = await this.requireAdmin(rawBody);
 
     // Удаление и освобождение места делает сервис записей — одной операцией.
     await this.bookingService.hardDelete(bookingId);
 
     await this.logs.record({
       action: 'admin_hard_delete_booking',
-      actorId: adminUserId,
+      actorId: session.actor.id,
       actorRole: 'admin',
       entityType: 'booking',
       entityId: bookingId,
@@ -86,15 +86,14 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async forceRevokeLink(
     @Param('id') rawId: string,
-    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
   ): Promise<TrainerClubLink> {
     const linkId = parseId(rawId, 'Некорректный id связи');
-    const adminUserId = await this.requireAdmin(rawBody);
-    const { link, detachedCount } = await this.links.forceRevoke(linkId, adminUserId);
+    const { link, detachedCount } = await this.links.forceRevoke(linkId, session.actor.id);
 
     await this.logs.record({
       action: 'link_revoke',
-      actorId: adminUserId,
+      actorId: session.actor.id,
       actorRole: 'admin',
       entityType: 'trainer_club_link',
       entityId: linkId,
@@ -114,10 +113,9 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async liftQuarantine(
     @Param('id') rawId: string,
-    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
   ): Promise<{ quarantineLiftedAt: string | undefined }> {
     const userId = parseId(rawId, 'Некорректный id пользователя');
-    const adminUserId = await this.requireAdmin(rawBody);
     const user = await this.users.findById(userId);
 
     if (!user) {
@@ -134,7 +132,7 @@ export class AdminController {
 
     await this.logs.record({
       action: 'quarantine_admin_lift',
-      actorId: adminUserId,
+      actorId: session.actor.id,
       actorRole: 'admin',
       entityType: 'user',
       entityId: userId,
@@ -146,15 +144,17 @@ export class AdminController {
 
   @Post('users/:id/password')
   @HttpCode(HttpStatus.OK)
-  async changePassword(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<EmptyResult> {
+  async changePassword(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<EmptyResult> {
     const targetUserId = parseId(rawId, 'Некорректный id пользователя');
     const parsed = passwordSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       throw new ValidationError(parsed.error.issues[0]?.message ?? 'Некорректные данные запроса');
     }
-
-    await this.assertAdmin(parsed.data.adminUserId);
 
     if (!(await this.users.findById(targetUserId))) {
       throw new NotFoundError('Пользователь не найден');
@@ -170,7 +170,7 @@ export class AdminController {
     // Ни пароль, ни его хеш в журнал не попадают — только факт смены.
     await this.logs.record({
       action: 'admin_password_change',
-      actorId: parsed.data.adminUserId,
+      actorId: session.actor.id,
       actorRole: 'admin',
       entityType: 'user',
       entityId: targetUserId,
@@ -184,10 +184,9 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async recomputeReliability(
     @Param('id') rawId: string,
-    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
   ): Promise<EmptyResult> {
     const userId = parseId(rawId, 'Некорректный id пользователя');
-    const adminUserId = await this.requireAdmin(rawBody);
 
     if (!(await this.users.findById(userId))) {
       throw new NotFoundError('Пользователь не найден');
@@ -195,33 +194,13 @@ export class AdminController {
 
     await this.logs.record({
       action: 'reliability_recompute',
-      actorId: adminUserId,
+      actorId: session.actor.id,
       actorRole: 'admin',
       entityType: 'user',
       entityId: userId,
     });
 
     return EMPTY_RESULT;
-  }
-
-  // --- Внутреннее ---------------------------------------------------------------
-
-  private async requireAdmin(rawBody: unknown): Promise<number> {
-    const parsed = adminSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные запроса');
-    }
-
-    await this.assertAdmin(parsed.data.adminUserId);
-
-    return parsed.data.adminUserId;
-  }
-
-  private async assertAdmin(adminUserId: number): Promise<void> {
-    if (!(await this.access.isAdmin(adminUserId))) {
-      throw new ForbiddenError('Действие доступно только администратору');
-    }
   }
 }
 

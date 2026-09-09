@@ -7,23 +7,35 @@
 //
 // Уведомления идут обеим сторонам: провайдеру о полученном отзыве (кроме случая,
 // когда провайдер оценивает сам себя) и автору о публикации отзыва.
+//
+// Фаза 34, шаг 34.39 — решение заказчика от 08.09.2026: отзыв принимается только
+// от того, кто у этого клуба или тренера ЗАНИМАЛСЯ. До этого шага маршрут не
+// проверял ничего, кроме существования адресата, и даже не знал про записи: любой
+// желающий ставил оценку любой публикации, а она тут же пересчитывала публичный
+// рейтинг. Автор берётся из сессии, посещение — из его же записей.
 
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
+import { COMPLETED_BOOKING_STATUSES } from '@sporthub/domain';
 import type { Review } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
 
-import { NotFoundError, ValidationError } from '../common/domain-error';
+import { CurrentUser, Public, Requires } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
+import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
 import { NotificationService } from '../notifications/notification.service';
-import type { ReviewsRepository, UsersRepository } from '../repositories/crud.repository';
-import { REVIEWS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repository';
+import type { BookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
+import type { ReviewsRepository } from '../repositories/crud.repository';
+import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 import type { TransactionRunner } from '../storage/transaction-runner';
 import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 
 const createReviewSchema = z.object({
-  userId: z.number().int().positive(),
+  // Номера автора здесь нет и быть не может: он приходит из сессии. Схема
+  // не строгая — старый клиент ещё шлёт своё поле, и оно молча отбрасывается.
   clubId: z.number().int().positive().optional(),
   trainerId: z.number().int().positive().optional(),
   rating: z.number().int().min(1).max(5),
@@ -53,7 +65,8 @@ function optionalId(raw: string | undefined): number | undefined {
 export class ReviewsController {
   constructor(
     @Inject(REVIEWS_REPOSITORY) private readonly reviews: ReviewsRepository,
-    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    // Записи автора — единственный источник ответа на вопрос «а он тут был?».
+    @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
@@ -91,6 +104,45 @@ export class ReviewsController {
     }
   }
 
+  /**
+   * Проверка посещения: у автора обязана быть ЗАВЕРШЁННАЯ запись к этому адресату.
+   *
+   * Считает база — `count` по отбору, а не длина прочитанного среза записей: под
+   * отбор «мои записи к этому клубу» есть индексы, и чтение всей истории атлета ради
+   * одного «да/нет» было бы тем же перебором в памяти, от которого уходили в 33.48.
+   *
+   * Набор завершённых состояний берётся из словаря домена, а не выписывается здесь
+   * литералом: он уже объявлен один раз (`completed` — с отметкой провайдера,
+   * `no_show` — неявка, `unmarked` — отметку не поставили в срок) и должен остаться
+   * одним. Занятие в этих состояниях уже прошло — а значит, автору есть что оценивать;
+   * запись, которая ещё только предстоит (`pending`, `confirmed`), права на отзыв
+   * не даёт.
+   *
+   * Клуб у записи считается по обеим ссылкам — владелец и площадка: тренерское
+   * занятие в чужом зале посещено и у тренера, и у клуба.
+   */
+  private async assertVisited(
+    userId: number,
+    target: { clubId?: number; trainerId?: number },
+  ): Promise<void> {
+    const visits = await this.bookings.count({
+      userId,
+      clubId: target.clubId,
+      trainerId: target.trainerId,
+      status: [...COMPLETED_BOOKING_STATUSES],
+    });
+
+    if (visits === 0) {
+      throw new ForbiddenError('Оставить отзыв можно только после посещения занятия');
+    }
+  }
+
+  // Открыто гостю: чтение отзывов — половина решения «идти сюда или нет».
+  // Оценки и тексты видны на карточках клубов и тренеров, то есть до всякого входа.
+  //
+  // Пометка стоит на методе, а не на классе: создание отзыва рядом — действие
+  // от своего имени, и публичным оно не станет (шаги 34.21 и 34.39).
+  @Public()
   @Get()
   async findMany(
     @Query('clubId') rawClubId?: string,
@@ -112,15 +164,27 @@ export class ReviewsController {
     return this.reviews.findMany({ clubId, trainerId, order: 'newest' });
   }
 
+  /**
+   * Отзыв о клубе или тренере.
+   *
+   * Право `write_reviews` есть только у спортсмена: оценка — действие клиента
+   * площадки. Одного права мало — нужно ещё и посещение, иначе накрутка рейтинга
+   * стоит ровно один запрос.
+   */
+  @Requires('write_reviews')
   @Post()
-  async create(@Body() rawBody: unknown): Promise<Review> {
+  async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<Review> {
     const parsed = createReviewSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       throw new ValidationError('Некорректные данные отзыва');
     }
 
-    const { clubId, rating, text, trainerId, userId } = parsed.data;
+    const { clubId, rating, text, trainerId } = parsed.data;
+    // Автор — тот, от чьего лица действуют. Под имперсонизацией отзыв остаётся
+    // отзывом пользователя, а не администратора.
+    const user = session.user;
+    const userId = user.id;
 
     if (clubId === undefined && trainerId === undefined) {
       throw new ValidationError('Нужно указать clubId или trainerId');
@@ -130,15 +194,10 @@ export class ReviewsController {
       throw new ValidationError('Нужно указать либо clubId, либо trainerId');
     }
 
-    const [club, trainer, user] = await Promise.all([
+    const [club, trainer] = await Promise.all([
       clubId === undefined ? Promise.resolve(null) : this.clubs.findById(clubId),
       trainerId === undefined ? Promise.resolve(null) : this.trainers.findById(trainerId),
-      this.users.findById(userId),
     ]);
-
-    if (!user) {
-      throw new NotFoundError('Пользователь не найден');
-    }
 
     if (clubId !== undefined && !club) {
       throw new NotFoundError('Клуб не найден');
@@ -147,6 +206,8 @@ export class ReviewsController {
     if (trainerId !== undefined && !trainer) {
       throw new NotFoundError('Тренер не найден');
     }
+
+    await this.assertVisited(userId, { clubId, trainerId });
 
     // Вставка и пересчёт агрегатов — одна транзакция. Порознь они дают карточку
     // с отзывом, но со старым рейтингом: расхождение видно сразу, а починить его

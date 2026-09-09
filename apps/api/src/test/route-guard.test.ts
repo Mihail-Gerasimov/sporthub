@@ -1,0 +1,159 @@
+// Сторож доступа: у каждого маршрута есть решение, а не умолчание.
+//
+// Приём тот же, что у сторожа утечки паролей: таблица маршрутов берётся у САМОГО
+// приложения, а не выписывается руками. Новый маршрут попадает под проверку
+// автоматически — забыть добавить его сюда невозможно.
+//
+// Правило простое: анонимный вызов любого маршрута обязан дать 401, кроме тех,
+// что перечислены публичными ниже. Список публичных — это и есть место, где
+// решение принимается сознательно: чтобы открыть маршрут, его придётся дописать
+// сюда руками и объяснить, зачем.
+//
+// ⚠️ Почему сторож нужен, хотя есть глобальный guard. Guard легко обойти случайно:
+// достаточно поставить `@Public()` «чтобы заработало» и забыть снять. Сторож ловит
+// именно это — расхождение между тем, что открыто, и тем, что решили открыть.
+
+import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { fixtureCollections } from '@sporthub/fixtures';
+
+import { createTestHarness, type TestHarness } from './harness';
+
+type RouteRecord = { method: 'get' | 'post' | 'patch' | 'delete'; path: string };
+
+/**
+ * Маршруты, открытые для гостя. Каждый — с причиной.
+ *
+ * Ключ — «метод путь» ровно в том виде, в каком маршрут зарегистрирован.
+ */
+const PUBLIC_ROUTES: Record<string, string> = {
+  'get /api/health': 'Проверка живости: её спрашивает контейнер, у него сессии нет.',
+
+  'get /api/sports': 'Справочники — витрина площадки, гость обязан видеть каталог.',
+  'get /api/cities': 'Справочники — витрина площадки.',
+  'get /api/tags': 'Справочники — витрина площадки.',
+  'get /api/amenities': 'Справочники — витрина площадки.',
+  'get /api/work-formats': 'Справочники — витрина площадки.',
+  'get /api/specialties': 'Справочники — витрина площадки.',
+
+  'get /api/offerings': 'Услуги показываются в карточках клубов и тренеров.',
+  'get /api/clubs': 'Каталог клубов — главная страница сайта.',
+  'get /api/clubs/by-slug/:slug': 'Карточка клуба по адресу-ссылке.',
+  'get /api/clubs/:id': 'Карточка клуба.',
+  'get /api/trainers': 'Каталог тренеров.',
+  'get /api/trainers/by-slug/:slug': 'Карточка тренера по адресу-ссылке.',
+  'get /api/trainers/:id': 'Карточка тренера.',
+  'get /api/schedule': 'Расписание видно до входа: иначе не понять, стоит ли регистрироваться.',
+  'get /api/schedule/:id/context': 'Страница записи открывается гостю и предлагает войти.',
+  'get /api/reviews': 'Отзывы — часть витрины.',
+
+  'post /api/auth/login': 'Вход.',
+  'post /api/auth/register': 'Регистрация.',
+  'post /api/auth/logout':
+    'Выход обязан работать и с протухшей сессией — иначе с негодной cookie не выйти.',
+
+  // STUB: закрываются и ограничиваются частотой на шаге 34.54. Пока открыты —
+  // ими пользуются формы публикации, которые сами ещё не переведены на сессию.
+  'post /api/geocode': 'Временно открыт, закрывается на шаге 34.54.',
+  'post /api/suggest': 'Временно открыт, закрывается на шаге 34.54.',
+};
+
+/** Таблица маршрутов у самого приложения — как в стороже утечки паролей. */
+function collectRoutes(app: INestApplication): RouteRecord[] {
+  const instance = app.getHttpAdapter().getInstance() as unknown as {
+    router?: { stack?: unknown[] };
+    _router?: { stack?: unknown[] };
+  };
+  const stack = (instance.router ?? instance._router)?.stack ?? [];
+  const routes: RouteRecord[] = [];
+
+  for (const layer of stack as { route?: { path: string; methods: Record<string, boolean> } }[]) {
+    if (!layer.route) continue;
+
+    for (const [method, enabled] of Object.entries(layer.route.methods)) {
+      if (!enabled) continue;
+      if (method !== 'get' && method !== 'post' && method !== 'patch' && method !== 'delete') {
+        continue;
+      }
+
+      routes.push({ method, path: layer.route.path });
+    }
+  }
+
+  return routes;
+}
+
+/** Подставить в путь любые значения параметров: до данных вызов дойти не должен. */
+function fillParams(path: string): string {
+  return path.replace(/:[A-Za-z]+/g, '1');
+}
+
+describe('Сторож доступа', () => {
+  let harness: TestHarness;
+  let routes: RouteRecord[];
+
+  beforeAll(async () => {
+    harness = await createTestHarness('route-guard');
+    routes = collectRoutes(harness.app);
+    await harness.writeMany(fixtureCollections);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('таблица маршрутов не пуста', () => {
+    // Санити: если таблица вдруг окажется пустой, сторож станет зелёной пустышкой.
+    expect(routes.length).toBeGreaterThan(50);
+  });
+
+  it('каждый непубличный маршрут отвечает гостю 401', async () => {
+    const offenders: string[] = [];
+
+    for (const route of routes) {
+      const key = `${route.method} ${route.path}`;
+
+      if (key in PUBLIC_ROUTES) continue;
+
+      const response = await request(harness.app.getHttpServer())
+        [route.method](fillParams(route.path))
+        .send({});
+
+      // Именно 401, а не «любая ошибка»: 400 означало бы, что разбор тела случился
+      // РАНЬШЕ проверки доступа, то есть маршрут успел что-то сделать с чужим вводом.
+      if (response.status !== 401) {
+        offenders.push(`${key} — ответил ${response.status} вместо 401`);
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('каждый публичный маршрут открывается гостю', async () => {
+    // Обратная сторона: список публичных не должен разъезжаться с кодом. Маршрут,
+    // помеченный здесь, но закрытый в коде, — такая же ошибка, как и наоборот.
+    const offenders: string[] = [];
+
+    for (const key of Object.keys(PUBLIC_ROUTES)) {
+      const [method, path] = key.split(' ') as [RouteRecord['method'], string];
+      const exists = routes.some((route) => route.method === method && route.path === path);
+
+      if (!exists) {
+        offenders.push(`${key} — объявлен публичным, но такого маршрута нет`);
+        continue;
+      }
+
+      const response = await request(harness.app.getHttpServer())
+        [method](fillParams(path))
+        .send({});
+
+      if (response.status === 401) {
+        offenders.push(`${key} — объявлен публичным, но отвечает 401`);
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});

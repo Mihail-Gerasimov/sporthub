@@ -26,11 +26,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { isNotificationTypeEnabled } from '@sporthub/domain';
+import { isNotificationTypeEnabled, roleCan } from '@sporthub/domain';
 import type { Notification, NotificationType } from '@sporthub/types';
 import { z } from 'zod';
 
-import { NotFoundError, ValidationError } from '../common/domain-error';
+import { CurrentUser } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
+import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
 import type { NotificationsRepository } from '../repositories/catalog.repository';
 import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
@@ -39,20 +41,9 @@ import { USERS_REPOSITORY } from '../repositories/crud.repository';
 /** Верхняя граница страницы. Больше сотни маршрут не отдаёт никогда. */
 const MAX_LIMIT = 100;
 
-const userIdSchema = z.object({ userId: z.number().int().positive() }).strict();
-
 const deleteSchema = z.object({
-  userId: z.number().int().positive(),
   ids: z.array(z.number().int().positive()).min(1),
 });
-
-function requiredUserId(raw: string | undefined): number {
-  if (raw === undefined || !/^\d+$/.test(raw)) {
-    throw new ValidationError('Некорректные параметры запроса');
-  }
-
-  return Number(raw);
-}
 
 function optionalNumber(raw: string | undefined): number | undefined {
   if (raw === undefined) return undefined;
@@ -73,7 +64,7 @@ export class NotificationsController {
 
   @Get()
   async findMany(
-    @Query('userId') rawUserId?: string,
+    @CurrentUser() session: SessionContext,
     @Query('unreadOnly') unreadOnly?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
@@ -88,6 +79,13 @@ export class NotificationsController {
     // а считать длину уже прочитанного массива дешевле, чем спрашивать базу второй
     // раз. Закрывается только вместе с потребителем — сводками кабинета провайдера.
     if (scope === 'all') {
+      // ⚠️ Полный срез ленты платформы — служебное чтение, а не пользовательское.
+      // До фазы 34 он открывался ЛЮБОМУ по одному параметру в строке запроса
+      // и отдавал уведомления всех людей разом.
+      if (!roleCan(session.user.role, 'use_admin_tools')) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
+
       const all = await this.notifications.findMany({});
 
       return {
@@ -97,7 +95,7 @@ export class NotificationsController {
       };
     }
 
-    const userId = requiredUserId(rawUserId);
+    const userId = session.user.id;
     const onlyUnread = unreadOnly === 'true' || unreadOnly === '1';
     const offset = optionalNumber(rawOffset) ?? 0;
     const rawLimitValue = optionalNumber(rawLimit);
@@ -125,8 +123,8 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  async unreadCount(@Query('userId') rawUserId?: string): Promise<{ unreadCount: number }> {
-    const userId = requiredUserId(rawUserId);
+  async unreadCount(@CurrentUser() session: SessionContext): Promise<{ unreadCount: number }> {
+    const userId = session.user.id;
     const excludeTypes = await this.disabledTypes(userId);
 
     return {
@@ -136,31 +134,24 @@ export class NotificationsController {
 
   @Post('read-all')
   @HttpCode(HttpStatus.OK)
-  async readAll(@Body() rawBody: unknown): Promise<{ updatedCount: number }> {
-    const parsed = userIdSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные запроса');
-    }
-
-    const updatedCount = await this.notifications.markAllRead(parsed.data.userId);
+  async readAll(@CurrentUser() session: SessionContext): Promise<{ updatedCount: number }> {
+    // До фазы 34 маршрут не проверял вообще ничего: прислал чужой номер — пометил
+    // прочитанными чужие уведомления.
+    const updatedCount = await this.notifications.markAllRead(session.user.id);
 
     return { updatedCount };
   }
 
   @Post(':id/read')
   @HttpCode(HttpStatus.OK)
-  async markRead(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<Notification> {
+  async markRead(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Notification> {
     const notificationId = Number(rawId);
 
     if (!Number.isInteger(notificationId) || notificationId <= 0) {
       throw new ValidationError('Некорректный id уведомления');
-    }
-
-    const parsed = userIdSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные запроса');
     }
 
     // Чужое уведомление отвечает тем же «не найдено», что и несуществующее:
@@ -170,7 +161,7 @@ export class NotificationsController {
     // Принадлежность проверяет запрос по одному номеру, а не чтение всей ленты
     // пользователя ради поиска в ней одной строки.
     const owned = await this.notifications.count({
-      userId: parsed.data.userId,
+      userId: session.user.id,
       ids: [notificationId],
     });
 
@@ -182,7 +173,10 @@ export class NotificationsController {
   }
 
   @Delete()
-  async remove(@Body() rawBody: unknown): Promise<{ deleted: number }> {
+  async remove(
+    @Body() rawBody: unknown,
+    @CurrentUser() session: SessionContext,
+  ): Promise<{ deleted: number }> {
     const parsed = deleteSchema.safeParse(rawBody);
 
     if (!parsed.success) {
@@ -192,7 +186,7 @@ export class NotificationsController {
     // Спрашивается только про названные номера, а не про всю ленту пользователя:
     // чужие среди них просто не вернутся.
     const own = await this.notifications.findMany({
-      userId: parsed.data.userId,
+      userId: session.user.id,
       ids: parsed.data.ids,
     });
     // Чужие идентификаторы отбрасываются молча — в ответе видно только

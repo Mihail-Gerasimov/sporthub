@@ -12,6 +12,7 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Schedule } from '@sporthub/types';
 
+import { Public } from '../auth/access.decorators';
 import { ValidationError } from '../common/domain-error';
 import type { ScheduleRepository } from '../repositories/entities.repository';
 import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
@@ -47,6 +48,11 @@ function optionalId(raw: string | undefined): number | undefined {
   return parsed;
 }
 
+// Пометка на классе: маршрут у контроллера один, и он публичный. Расписание —
+// это «когда можно прийти»: гость смотрит свободные занятия на карточке клуба
+// и на странице записи, ещё не имея учётки. Личного здесь нет — слот, время,
+// число оставшихся мест; кто именно записан, маршрут не отдаёт.
+@Public()
 @Controller('schedule')
 export class ScheduleController {
   constructor(@Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository) {}

@@ -7,9 +7,15 @@
 
 import { Controller, Get, Param } from '@nestjs/common';
 
+import { Public } from '../auth/access.decorators';
 import { NotFoundError, ValidationError } from '../common/domain-error';
 import { SlotContextService, type SlotContext } from './slot-context.service';
 
+// Пометка на классе: маршрут один и он публичный. Страница записи открывается
+// гостю — он видит, на что записывается (занятие, услуга, тренер, площадка),
+// и только на самой записи упирается во вход. Сама запись остаётся закрытой:
+// публичен лишь показ слота, а не действие с ним.
+@Public()
 @Controller('schedule')
 export class SlotContextController {
   constructor(private readonly slots: SlotContextService) {}

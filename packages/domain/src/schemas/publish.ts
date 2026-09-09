@@ -63,7 +63,11 @@ const publishClubBaseSchema = z.object({
   coordinates: coordinatesSchema,
   cityCoordinates: coordinatesSchema,
   scheduleSlots: z.array(scheduleSlotSchema).min(1, 'Добавьте хотя бы один слот расписания'),
-  userId: z.number().int().positive('ID пользователя обязателен'),
+  // ⚠️ Фаза 34: поле принимается, но НИ НА ЧТО не влияет — владельца публикации
+  // сервер берёт из сессии. Оставлено необязательным, чтобы клиент, собранный
+  // до этой фазы, пережил выкатку: он поле ещё шлёт. Удаляется вместе с последним
+  // таким клиентом.
+  userId: z.number().int().positive('ID пользователя обязателен').optional(),
 });
 
 /** Схема публикации клуба с cross-field валидацией: slot.sportId ∈ sportIds */
@@ -143,7 +147,11 @@ const publishTrainerBaseSchema = z.object({
   // Основная услуга остаётся в плоских offering*-полях (первая карточка),
   // каждая доп. карточка — полный TrainerOfferingFormItem со своим расписанием.
   additionalOfferings: z.array(trainerOfferingItemSchema).optional().default([]),
-  userId: z.number().int().positive('ID пользователя обязателен'),
+  // ⚠️ Фаза 34: поле принимается, но НИ НА ЧТО не влияет — владельца публикации
+  // сервер берёт из сессии. Оставлено необязательным, чтобы клиент, собранный
+  // до этой фазы, пережил выкатку: он поле ещё шлёт. Удаляется вместе с последним
+  // таким клиентом.
+  userId: z.number().int().positive('ID пользователя обязателен').optional(),
 });
 
 /** Схема публикации тренера с cross-field валидацией: slot.sportId ∈ sportIds */

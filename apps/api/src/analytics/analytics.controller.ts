@@ -23,6 +23,7 @@ import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { DEFAULT_TIME_ZONE } from '@sporthub/types';
 import type { Trainer } from '@sporthub/types';
 
+import { Requires } from '../auth/access.decorators';
 import type { BookingsCountFilter, BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
@@ -84,6 +85,10 @@ function getFromDate(period: Period, now: Date = new Date()): string | null {
 /** Точка входа для тестов: граница периода — единственное, что здесь стоит проверять. */
 export const getFromDateForTests = getFromDate;
 
+// Сводка по всей площадке — служебное чтение. До фазы 34 маршрут отдавал
+// анонимно число пользователей по ролям, записи, отзывы, загрузку слотов,
+// топ публикаций и активность из журнала аудита.
+@Requires('view_analytics')
 @Controller('analytics')
 export class AnalyticsController {
   constructor(

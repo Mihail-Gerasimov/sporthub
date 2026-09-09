@@ -10,6 +10,7 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub/types';
 
 import type { CitiesRepository, SimpleDictionaryRepository } from './dictionaries.repository';
+import { Public } from '../auth/access.decorators';
 import {
   AMENITIES_REPOSITORY,
   CITIES_REPOSITORY,
@@ -19,6 +20,13 @@ import {
   WORK_FORMATS_REPOSITORY,
 } from './dictionaries.repository';
 
+// Все справочники открыты гостю, поэтому пометка стоит на КАЖДОМ классе, а не на
+// методах: в контроллере справочника ровно один маршрут, и открыт он целиком.
+// Гость обязан видеть виды спорта, города, теги, удобства, форматы работы и
+// специализации — из них собираются фильтры каталога и подписи карточек, то есть
+// без них витрина площадки не отрисуется вовсе. Личных данных здесь нет: это
+// общие списки, одинаковые для всех.
+@Public()
 @Controller('sports')
 export class SportsController {
   constructor(
@@ -32,6 +40,7 @@ export class SportsController {
   }
 }
 
+@Public()
 @Controller('cities')
 export class CitiesController {
   constructor(@Inject(CITIES_REPOSITORY) private readonly cities: CitiesRepository) {}
@@ -42,6 +51,7 @@ export class CitiesController {
   }
 }
 
+@Public()
 @Controller('tags')
 export class TagsController {
   constructor(
@@ -55,6 +65,7 @@ export class TagsController {
   }
 }
 
+@Public()
 @Controller('amenities')
 export class AmenitiesController {
   constructor(
@@ -68,6 +79,7 @@ export class AmenitiesController {
   }
 }
 
+@Public()
 @Controller('work-formats')
 export class WorkFormatsController {
   constructor(
@@ -81,6 +93,7 @@ export class WorkFormatsController {
   }
 }
 
+@Public()
 @Controller('specialties')
 export class SpecialtiesController {
   constructor(

@@ -9,10 +9,17 @@ import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
 import { loadProviderScope } from '@/lib/provider-scope';
+import { requireRole } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderProfileLayout({ children }: { children: ReactNode }) {
+  // ⚠️ Проверка стоит ПЕРЕД загрузкой среза (фаза 34): иначе гость успевал бы
+  // получить данные кабинета в потоке ответа, и клиентская плашка «нет доступа»
+  // прятала бы то, что ему уже отдали. Обе роли провайдера пускаются: разделение
+  // их прав — отдельный этап этой же фазы.
+  await requireRole(['club_owner', 'trainer']);
+
   const { bookings, clubs, trainers } = await loadProviderScope();
 
   return (

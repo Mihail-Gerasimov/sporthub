@@ -10,6 +10,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
+/**
+ * Сводка — служебное чтение, и после фазы 34 она под правом администратора.
+ * До неё маршрут отдавал анонимно число пользователей по ролям, записи, отзывы,
+ * загрузку слотов и активность из журнала аудита.
+ */
+const ADMIN_ID = 3;
+
 describe('Сводка платформы', () => {
   let harness: TestHarness;
 
@@ -322,7 +329,9 @@ describe('Сводка платформы', () => {
   const server = () => harness.app.getHttpServer();
 
   it('без фильтров отдаёт полную сводку', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.status).toBe(200);
     expect(Object.keys(response.body.data)).toEqual([
@@ -338,20 +347,26 @@ describe('Сводка платформы', () => {
   });
 
   it('скрытые публикации в сводку не попадают', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.kpi.totalClubs).toBe(2);
   });
 
   it('загрузка слотов считается как отношение занятых мест к общей вместимости', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     // 4 занятых из 20 общих мест.
     expect(response.body.data.kpi.averageSlotLoad).toBeCloseTo(4 / 20, 5);
   });
 
   it('город отбирает не только клубы, но и записи с отзывами через них', async () => {
-    const response = await request(server()).get('/api/analytics?city=Самара');
+    const response = await request(server())
+      .get('/api/analytics?city=Самара')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.kpi.totalClubs).toBe(1);
     expect(response.body.data.kpi.totalBookings).toBe(1);
@@ -360,7 +375,9 @@ describe('Сводка платформы', () => {
   });
 
   it('вид спорта отбирает и публикации, и записи', async () => {
-    const response = await request(server()).get('/api/analytics?sportId=5');
+    const response = await request(server())
+      .get('/api/analytics?sportId=5')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.kpi.totalClubs).toBe(1);
     expect(response.body.data.kpi.totalBookings).toBe(1);
@@ -370,7 +387,9 @@ describe('Сводка платформы', () => {
   });
 
   it('город и вид спорта вместе дают пересечение', async () => {
-    const response = await request(server()).get('/api/analytics?city=Самара&sportId=5');
+    const response = await request(server())
+      .get('/api/analytics?city=Самара&sportId=5')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.kpi.totalClubs).toBe(0);
     expect(response.body.data.kpi.totalBookings).toBe(0);
@@ -390,7 +409,9 @@ describe('Сводка платформы', () => {
       logs: [],
     });
 
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.data.kpi.averageSlotLoad).toBe(0);
@@ -398,14 +419,18 @@ describe('Сводка платформы', () => {
   });
 
   it('верхушка ранжируется по числу записей', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.topEntities).toHaveLength(2);
     expect(response.body.data.topEntities[0].bookings).toBe(1);
   });
 
   it('журнал приходит свёрнутым по дням и по возрастанию', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     // Три события за два дня дают ДВЕ строки, а не три: свёртку делает хранилище.
     // Дни идут по возрастанию — так их рисует график.
@@ -416,7 +441,9 @@ describe('Сводка платформы', () => {
   });
 
   it('график записей считается по дню создания, а не по дню занятия', async () => {
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     // Занятие у обеих записей одно — 18 марта, а созданы они 1 и 2 марта.
     expect(response.body.data.bookingsByDate).toEqual([
@@ -428,7 +455,9 @@ describe('Сводка платформы', () => {
   it('пустой журнал даёт пустой график, а не строку с нулём', async () => {
     await harness.write('logs', []);
 
-    const response = await request(server()).get('/api/analytics');
+    const response = await request(server())
+      .get('/api/analytics')
+      .set('Cookie', await harness.as(ADMIN_ID));
 
     expect(response.body.data.platformActivity).toEqual([]);
   });

@@ -10,6 +10,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import type { SuggestItem, SuggestItemType } from '@sporthub/types';
 import { z } from 'zod';
 
+import { Public } from '../auth/access.decorators';
 import { ExternalServiceError, NotFoundError, ValidationError } from '../common/domain-error';
 
 const geocodeSchema = z.object({
@@ -97,6 +98,14 @@ function mapSuggestType(tags: string[] | undefined): SuggestItemType {
 
 @Controller()
 export class GeoController {
+  // Открыто гостю: по координатам рисуется карта на публичных страницах — главной
+  // и карточке клуба, — а подсказки адреса нужны в поиске по городу, куда заходят
+  // без входа.
+  //
+  // STUB: временно. Оба маршрута тратят платную внешнюю квоту, и открытыми их
+  // держать нельзя: гость может выкачивать чужой ключ запросами. На шаге 34.54 они
+  // закрываются и ограничиваются частотой обращений.
+  @Public()
   @Post('geocode')
   @HttpCode(HttpStatus.OK)
   async geocode(
@@ -148,6 +157,9 @@ export class GeoController {
     };
   }
 
+  // Открыто по той же причине и с той же оговоркой.
+  // STUB: временно, до шага 34.54 — закрытие и ограничение частоты.
+  @Public()
   @Post('suggest')
   @HttpCode(HttpStatus.OK)
   async suggest(@Body() rawBody: unknown): Promise<{ suggestions: SuggestItem[] }> {

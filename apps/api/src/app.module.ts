@@ -3,9 +3,10 @@
 // пока их немного. По мере роста они разъедутся по своим модулям.
 
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AccessService } from './access/access.service';
+import { SessionGuard } from './auth/session.guard';
 import { SessionService } from './auth/session.service';
 import { BookingService } from './bookings/booking.service';
 import { BOOKING_CONTROLLERS } from './bookings/bookings.controller';
@@ -62,6 +63,10 @@ import { StorageModule } from './storage/storage.module';
     // Формат ответа и разбор ошибок — общие для всех контроллеров.
     { provide: APP_INTERCEPTOR, useClass: ApiResponseInterceptor },
     { provide: APP_FILTER, useClass: DomainErrorFilter },
+    // ⚠️ Закрыто по умолчанию: маршрут без пометки `@Public` требует сессии.
+    // Регистрация именно здесь, а не в каждом модуле, и есть суть решения —
+    // маршрут, добавленный завтра, окажется закрыт сам.
+    { provide: APP_GUARD, useClass: SessionGuard },
     HealthService,
     AccessService,
     SlotContextService,

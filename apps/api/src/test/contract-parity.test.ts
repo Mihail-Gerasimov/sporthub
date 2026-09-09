@@ -71,6 +71,27 @@ const KNOWN_DIFFERENCES: Record<string, string> = {
     'Фаза 34: пароль обязателен, вызов без него отбивается разбором тела (400 вместо 404).',
   'POST /api/auth/login (нет)':
     'Фаза 34: пароль обязателен, вызов без него отбивается разбором тела (400 вместо 404).',
+
+  // --- Фаза 34: личность больше не приходит от клиента ---
+  'POST /api/clubs (ошибка)':
+    'Фаза 34: поле `userId` в теле публикации стало необязательным — владельца берут ' +
+    'из сессии. Код ответа и текст прежние, из разбора ошибок пропала строка про `userId`.',
+
+  // --- Фаза 34: отказ по правам приходит раньше, чем отказ по владению ---
+  //
+  // Оба случая раньше доходили до сервиса, и он отвечал своим подробным текстом.
+  // Теперь запрос останавливает guard: у роли нет самого права на такое действие,
+  // и до проверки «а его ли это вещь» дело не доходит. Код ответа тот же — 403.
+  'POST /api/trainer-club-links (нет прав)':
+    'Фаза 34: спортсмена останавливает право (`Недостаточно прав`), а не проверка владения.',
+  'POST /api/moderation (не админ)':
+    'Фаза 34: владельца клуба останавливает право (`Недостаточно прав`), а не проверка роли ' +
+    'внутри маршрута.',
+
+  // --- Фаза 34: запись в журнал с клиента убрана совсем ---
+  'POST /api/logs':
+    'Фаза 34: маршрут удалён — журнал пишет только сервер, исполнителя берёт из сессии. ' +
+    'Раньше кто угодно мог записать действие от имени администратора.',
 };
 
 type SnapshotEntry = { status: number; body: unknown };
@@ -101,7 +122,6 @@ const clubForm = {
       sportId: 3,
     },
   ],
-  userId: 2,
 };
 
 const trainerForm = {
@@ -137,7 +157,6 @@ const trainerForm = {
       sportId: 3,
     },
   ],
-  userId: 2,
 };
 
 type Call = {
@@ -147,6 +166,18 @@ type Call = {
   body?: unknown;
   /** Дозасев перед вызовом: базовый срез для него неполон. */
   prepare?: (harness: TestHarness) => Promise<void>;
+  /**
+   * От чьего лица идёт вызов (фаза 34).
+   *
+   * ⚠️ Сверка контрактов проверяет ФОРМУ ответа, а не доступ к нему. После того как
+   * маршруты закрылись, анонимный вызов возвращает 401 — и сверка перестала бы
+   * сравнивать данные вообще, превратившись в проверку того, что всё закрыто.
+   * Поэтому вызовы идут с сессией того, кому маршрут положен, а закрытость
+   * проверяет отдельный сторож `route-guard.test.ts`.
+   *
+   * Номера соответствуют фикстурам: 1 — спортсмен, 2 — владелец клуба, 3 — админ.
+   */
+  as?: number;
 };
 
 const CALLS: Call[] = [
@@ -159,23 +190,33 @@ const CALLS: Call[] = [
     method: 'get',
     url: '/api/clubs?sort=reliability&dir=desc',
   },
-  { name: 'POST /api/clubs', method: 'post', url: '/api/clubs', body: clubForm },
-  { name: 'POST /api/clubs (ошибка)', method: 'post', url: '/api/clubs', body: { name: 'Плохо' } },
+  { name: 'POST /api/clubs', method: 'post', url: '/api/clubs', body: clubForm, as: 2 },
+  {
+    name: 'POST /api/clubs (ошибка)',
+    method: 'post',
+    url: '/api/clubs',
+    body: { name: 'Плохо', as: 2 },
+  },
   { name: 'GET /api/clubs/[id]', method: 'get', url: '/api/clubs/1' },
   { name: 'GET /api/clubs/[id] (нет)', method: 'get', url: '/api/clubs/999' },
   {
     name: 'PATCH /api/clubs/[id]',
+    as: 2,
     method: 'patch',
     url: '/api/clubs/1',
     body: { ...clubForm, scheduleSlots: [{ ...clubForm.scheduleSlots[0], id: 1 }] },
   },
   {
     name: 'PATCH /api/clubs/[id] (чужой)',
+    as: 1,
     method: 'patch',
     url: '/api/clubs/1',
-    body: { ...clubForm, userId: 1 },
+    body: { ...clubForm },
   },
-  { name: 'DELETE /api/clubs/[id]', method: 'delete', url: '/api/clubs/3' },
+  // Клуб 3 в фикстурах без владельца, и удалить его теперь может только тот,
+  // кому это разрешает право модерации. До фазы 34 бесхозную публикацию вместе
+  // со всеми записями на занятия сносил кто угодно.
+  { name: 'DELETE /api/clubs/[id]', method: 'delete', url: '/api/clubs/3', as: 3 },
   { name: 'GET /api/trainers', method: 'get', url: '/api/trainers' },
   {
     name: 'GET /api/trainers?clubId=1',
@@ -183,7 +224,7 @@ const CALLS: Call[] = [
     url: '/api/trainers?clubId=1',
     prepare: (harness: TestHarness) => harness.writeMany(fixtureConfirmedLinkCollections),
   },
-  { name: 'POST /api/trainers', method: 'post', url: '/api/trainers', body: trainerForm },
+  { name: 'POST /api/trainers', method: 'post', url: '/api/trainers', body: trainerForm, as: 2 },
   {
     name: 'GET /api/trainers/[id]',
     method: 'get',
@@ -195,13 +236,14 @@ const CALLS: Call[] = [
   { name: 'GET /api/trainers/[id] (нет)', method: 'get', url: '/api/trainers/999' },
   {
     name: 'PATCH /api/trainers/[id]',
+    as: 2,
     method: 'patch',
     url: '/api/trainers/1',
     body: { ...trainerForm, scheduleSlots: [{ ...trainerForm.scheduleSlots[0], id: 1001 }] },
     // Правка сохраняет номер связи у услуги — значит, связь должна существовать.
     prepare: (harness: TestHarness) => harness.writeMany(fixtureHistoricLinkCollections),
   },
-  { name: 'DELETE /api/trainers/[id]', method: 'delete', url: '/api/trainers/5' },
+  { name: 'DELETE /api/trainers/[id]', method: 'delete', url: '/api/trainers/5', as: 2 },
   { name: 'GET /api/schedule', method: 'get', url: '/api/schedule' },
   {
     name: 'GET /api/schedule?ownerType=trainer',
@@ -213,121 +255,137 @@ const CALLS: Call[] = [
   { name: 'GET /api/reviews?clubId=1', method: 'get', url: '/api/reviews?clubId=1' },
   {
     name: 'POST /api/reviews',
+    as: 1,
     method: 'post',
     url: '/api/reviews',
-    body: { userId: 1, trainerId: 1, rating: 5, text: 'Снимок' },
+    body: { trainerId: 1, rating: 5, text: 'Снимок' },
   },
   {
     name: 'POST /api/reviews (без адресата)',
+    as: 1,
     method: 'post',
     url: '/api/reviews',
-    body: { userId: 1, rating: 5, text: 'Снимок' },
+    body: { rating: 5, text: 'Снимок' },
   },
-  { name: 'GET /api/bookings', method: 'get', url: '/api/bookings?userId=1' },
+  { name: 'GET /api/bookings', method: 'get', url: '/api/bookings', as: 1 },
   {
     name: 'POST /api/bookings',
+    as: 1,
     method: 'post',
     url: '/api/bookings',
-    body: { scheduleId: 1001, userId: 1 },
+    body: { scheduleId: 1001 },
   },
   {
     name: 'POST /api/bookings (не атлет)',
+    as: 2,
     method: 'post',
     url: '/api/bookings',
-    body: { scheduleId: 1001, userId: 2 },
+    body: { scheduleId: 1001 },
   },
   {
     name: 'DELETE /api/bookings/[id]',
+    as: 1,
     method: 'delete',
     url: '/api/bookings/3',
-    body: { userId: 1 },
+    body: {},
   },
   {
     name: 'POST /api/bookings/[id]/confirm',
+    as: 2,
     method: 'post',
     url: '/api/bookings/3/confirm',
-    body: { userId: 2 },
+    body: {},
   },
   {
     name: 'POST /api/bookings/[id]/reject',
+    as: 2,
     method: 'post',
     url: '/api/bookings/3/reject',
-    body: { userId: 2, reason: 'Нет мест' },
+    body: { reason: 'Нет мест' },
   },
   {
     name: 'POST /api/bookings/[id]/cancel',
+    as: 1,
     method: 'post',
     url: '/api/bookings/1/cancel',
-    body: { userId: 1 },
+    body: {},
   },
   {
     name: 'GET /api/trainer-club-links',
+    as: 2,
     method: 'get',
     url: '/api/trainer-club-links',
     prepare: (harness: TestHarness) => harness.writeMany(fixtureConfirmedLinkCollections),
   },
   {
     name: 'POST /api/trainer-club-links',
+    as: 2,
     method: 'post',
     url: '/api/trainer-club-links',
-    body: { trainerId: 1, clubId: 1, userId: 2 },
+    body: { trainerId: 1, clubId: 1 },
   },
   {
     name: 'POST /api/trainer-club-links (нет прав)',
+    as: 1,
     method: 'post',
     url: '/api/trainer-club-links',
-    body: { trainerId: 1, clubId: 1, userId: 1 },
+    body: { trainerId: 1, clubId: 1 },
   },
-  { name: 'GET /api/notifications', method: 'get', url: '/api/notifications?userId=1' },
+  { name: 'GET /api/notifications', method: 'get', url: '/api/notifications', as: 1 },
   {
     name: 'GET /api/notifications/unread-count',
+    as: 1,
     method: 'get',
-    url: '/api/notifications/unread-count?userId=1',
+    url: '/api/notifications/unread-count',
   },
   {
     name: 'POST /api/notifications/read-all',
+    as: 1,
     method: 'post',
     url: '/api/notifications/read-all',
-    body: { userId: 1 },
+    body: {},
   },
   {
     name: 'GET /api/provider-client-notes',
+    as: 2,
     method: 'get',
-    url: '/api/provider-client-notes?providerUserId=2',
+    url: '/api/provider-client-notes',
   },
   {
     name: 'POST /api/provider-client-notes',
+    as: 2,
     method: 'post',
     url: '/api/provider-client-notes',
-    body: { providerUserId: 2, clientUserId: 1, note: 'Снимок' },
+    body: { clientUserId: 1, note: 'Снимок' },
   },
-  { name: 'GET /api/logs', method: 'get', url: '/api/logs' },
+  { name: 'GET /api/logs', method: 'get', url: '/api/logs', as: 3 },
   {
     name: 'POST /api/logs',
+    as: 3,
     method: 'post',
     url: '/api/logs',
     body: {
       action: 'admin_login',
-      actorId: 3,
-      actorRole: 'admin',
       entityType: 'user',
       entityId: 3,
     },
   },
-  { name: 'GET /api/publications', method: 'get', url: '/api/publications' },
+  { name: 'GET /api/publications', method: 'get', url: '/api/publications', as: 3 },
   {
     name: 'POST /api/moderation',
+    as: 3,
     method: 'post',
     url: '/api/moderation',
-    body: { action: 'hide', entityType: 'club', entityId: 1, moderatorId: 3, reason: 'Снимок' },
+    body: { action: 'hide', entityType: 'club', entityId: 1, reason: 'Снимок' },
   },
   {
     name: 'POST /api/moderation (не админ)',
+    as: 2,
     method: 'post',
     url: '/api/moderation',
-    body: { action: 'hide', entityType: 'club', entityId: 1, moderatorId: 2, reason: 'Снимок' },
+    body: { action: 'hide', entityType: 'club', entityId: 1, reason: 'Снимок' },
   },
-  { name: 'GET /api/analytics', method: 'get', url: '/api/analytics' },
+  { name: 'GET /api/analytics', method: 'get', url: '/api/analytics', as: 3 },
   {
     name: 'POST /api/auth/login',
     method: 'post',
@@ -353,44 +411,51 @@ const CALLS: Call[] = [
   },
   {
     name: 'PATCH /api/users/[id]',
+    as: 1,
     method: 'patch',
     url: '/api/users/1',
-    body: { userId: 1, phone: '+7 (900) 111-22-33' },
+    body: { phone: '+7 (900) 111-22-33' },
   },
   {
     name: 'GET /api/users/[id]/notification-preferences',
+    as: 1,
     method: 'get',
     url: '/api/users/1/notification-preferences',
   },
   {
     name: 'PATCH /api/users/[id]/notification-preferences',
+    as: 1,
     method: 'patch',
     url: '/api/users/1/notification-preferences',
-    body: { userId: 1, preferences: { booking_rejected: false } },
+    body: { preferences: { booking_rejected: false } },
   },
   {
     name: 'DELETE /api/admin/bookings/[id]',
+    as: 3,
     method: 'delete',
     url: '/api/admin/bookings/1',
-    body: { adminUserId: 3 },
+    body: {},
   },
   {
     name: 'POST /api/admin/users/[id]/lift-quarantine',
+    as: 3,
     method: 'post',
     url: '/api/admin/users/1/lift-quarantine',
-    body: { adminUserId: 3 },
+    body: {},
   },
   {
     name: 'POST /api/admin/users/[id]/password',
+    as: 3,
     method: 'post',
     url: '/api/admin/users/1/password',
-    body: { adminUserId: 3, newPassword: 'fresh-password-99' },
+    body: { newPassword: 'fresh-password-99' },
   },
   {
     name: 'POST /api/admin/users/[id]/recompute-reliability',
+    as: 3,
     method: 'post',
     url: '/api/admin/users/1/recompute-reliability',
-    body: { adminUserId: 3 },
+    body: {},
   },
 ];
 
@@ -431,10 +496,13 @@ describe('Сверка с эталоном контрактов прежнего
       }
 
       const agent = request(harness.app.getHttpServer());
+      const cookie = call.as === undefined ? undefined : await harness.as(call.as);
+      const pending = agent[call.method](call.url);
+
+      if (cookie !== undefined) pending.set('Cookie', cookie);
+
       const response =
-        call.body === undefined
-          ? await agent[call.method](call.url)
-          : await agent[call.method](call.url).send(call.body as object);
+        call.body === undefined ? await pending : await pending.send(call.body as object);
 
       const actual = { status: response.status, body: normalize(response.body) };
       const reference = expected[call.name];

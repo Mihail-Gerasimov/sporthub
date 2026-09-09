@@ -40,8 +40,9 @@ import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
+import { CurrentUser, Public } from './access.decorators';
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from './session-cookie';
-import { SessionService } from './session.service';
+import { SessionService, type SessionContext } from './session.service';
 
 /**
  * Ответ на неудачный вход — один на все случаи: нет такой почты, неверный пароль,
@@ -113,6 +114,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -165,6 +167,9 @@ export class AuthController {
    * Поэтому маршрут молча проходит и без сессии: результат один и тот же, а
    * сообщать «такой сессии нет» некому и незачем.
    */
+  // Публичный намеренно: выход обязан работать и с протухшей сессией, иначе
+  // человек с негодной cookie не смог бы даже выйти.
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
@@ -190,15 +195,9 @@ export class AuthController {
    * помнил, кто он, и сам это сообщал серверу.
    */
   @Get('me')
-  async me(@Req() request: Request): Promise<AuthUser> {
-    const token = readSessionCookie(request);
-
-    if (token === null) throw new UnauthorizedError('Требуется вход');
-
-    const context = await this.sessions.resolve(token, new Date());
-
-    if (context === null) throw new UnauthorizedError('Требуется вход');
-
+  async me(@CurrentUser() context: SessionContext): Promise<AuthUser> {
+    // Своей проверки здесь нет: маршрут не помечен публичным, значит без годной
+    // сессии до него не доходят вовсе — это работа глобального guard'а.
     return AuthController.toAuthUser(context.user);
   }
 
@@ -214,6 +213,7 @@ export class AuthController {
     setSessionCookie(response, token, new Date(session.expiresAt));
   }
 
+  @Public()
   @Post('register')
   async register(
     @Body() rawBody: unknown,

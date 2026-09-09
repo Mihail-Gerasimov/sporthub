@@ -9,7 +9,11 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { AppModule } from '../app.module';
+import { SESSION_COOKIE_NAME } from '../auth/session-cookie';
+import { SessionService } from '../auth/session.service';
 import { configureApp } from '../configure-app';
+import type { UsersRepository } from '../repositories/crud.repository';
+import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
 import { exportSourceShape } from '../storage/seed/export-source-shape';
 import { importSourceData } from '../storage/seed/import-from-files';
@@ -67,6 +71,21 @@ export type TestHarness = {
   writeMany(collections: Partial<Record<CollectionName, unknown>>): Promise<void>;
   /** Прочитать коллекцию с диска: проверка состояния после запроса. */
   read<T = unknown>(name: string): Promise<T>;
+  /**
+   * Действовать от лица пользователя: выдаёт ему сессию и возвращает готовую
+   * строку cookie для `.set('Cookie', await harness.as(1))`.
+   *
+   * Имя `as`, а не `cookieFor`, выбрано по месту вызова: тест говорит, ОТ ЧЬЕГО
+   * ЛИЦА идёт запрос, а не каким заголовком это переносится. Способ переноса
+   * личности — дело обвязки, и если он однажды сменится (заголовок вместо cookie),
+   * менять придётся одну функцию, а не сотни вызовов в наборах.
+   *
+   * ⚠️ Звать ТОЛЬКО после `write`/`writeMany`: каждая запись пересобирает базу
+   * целиком (`TRUNCATE ... CASCADE`), а сессии — обычная таблица той же схемы.
+   * Cookie, выданная до засева, умрёт вместе с ним, и тест получит 401 без
+   * единого намёка на причину.
+   */
+  as(userId: number): Promise<string>;
   close(): Promise<void>;
 };
 
@@ -153,6 +172,35 @@ async function createDatabaseHarness(): Promise<TestHarness> {
       const exported = await exportSourceShape(db.prisma);
 
       return exported[SOURCE_FIELD[name as CollectionName]] as T;
+    },
+    async as(userId: number): Promise<string> {
+      // Пользователь берётся ИЗ БАЗЫ, а не сочиняется здесь: сессия зависит от роли
+      // (у ролей разные сроки), и придуманная роль расходилась бы с той, по которой
+      // маршрут потом проверяет права. Тест засеял пользователя — от него и пляшем.
+      const users = app.get<UsersRepository>(USERS_REPOSITORY);
+      const user = await users.findById(userId);
+
+      if (user === null) {
+        // Без этой ошибки промах превращается в 401 на ровном месте: тест краснеет
+        // на «требуется вход», хотя вход тут ни при чём — просто пользователя забыли
+        // засеять (или засеяли, а следующий `write` пересобрал базу).
+        throw new Error(
+          `Обвязка не может войти за пользователя ${userId}: его нет в базе. ` +
+            'Засей его через write/writeMany ДО вызова as() — каждая запись ' +
+            'пересобирает базу и гасит выданные сессии.',
+        );
+      }
+
+      // Сессия выдаётся тем же сервисом, что и на настоящем входе. Собрать строку
+      // руками было бы короче, но тогда обвязка знала бы устройство идентификатора
+      // сама — и разошлась бы с выдачей при первой же её правке, причём молча:
+      // наборы продолжили бы зеленеть, проверяя вход, которого больше нет.
+      const { token } = await app.get(SessionService).issue({ user, now: new Date() });
+
+      // Значение кодируется так же, как его ставит express: разбор на стороне
+      // сервера симметрично раскодирует, и любой будущий небезопасный символ
+      // в идентификаторе переживёт дорогу.
+      return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`;
     },
     async close() {
       await app.close();

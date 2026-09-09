@@ -1,7 +1,7 @@
 // Server page избранного атлета (Step 25.6): тянет clubs/trainers/bookings/reviews/users/specialties,
 // пропускает в client-обёртку AthleteFavorites, которая применяет access-gate и фильтры.
 import { AthleteFavorites } from '@/components/profile/athlete/AthleteFavorites';
-import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
+import { readSession } from '@/lib/session';
 import {
   getBookingsByUser,
   getClubs,
@@ -17,7 +17,7 @@ export default async function AthleteFavoritesRoute() {
   // Кто смотрит — известно из cookie входа: клиентская часть всё равно отберёт
   // записи по этому же атлету, поэтому спрашивать чужие незачем. У гостя записей
   // нет вовсе — раздел покажет отказ в доступе.
-  const athleteUserId = await getAuthUserIdFromCookies();
+  const athleteUserId = (await readSession())?.id ?? null;
 
   const [bookings, clubs, reviews, specialties, trainers, users] = await Promise.all([
     athleteUserId === null ? [] : getBookingsByUser(athleteUserId),

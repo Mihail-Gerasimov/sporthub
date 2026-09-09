@@ -6,36 +6,29 @@
 // урезанные копии, и записи вроде `link_approve` или `booking_confirm` система
 // писала, но ни принять, ни отфильтровать по ним не могла.
 //
-// ⚠️ Маршрут записи принимает исполнителя и его роль прямо из тела — подделать
-// авторство записи может кто угодно. Перенесено как есть.
+// Фаза 34: маршрут ЗАПИСИ с клиента убран совсем.
+//
+// Он принимал исполнителя и его роль прямо из тела: кто угодно мог написать
+// в журнал что угодно от имени администратора. Журнал, которому нельзя верить,
+// хуже отсутствующего — по нему принимают решения.
+//
+// Теперь журнал пишет только сервер, из своих обработчиков, беря исполнителя
+// из сессии. Клиентских записей не осталось: события входа, выхода и работы
+// от чужого лица фиксирует сам бэкенд.
+//
+// Чтение — под правом администратора: журнал платформы отдавался анонимно
+// постранично, вместе с номерами исполнителей и служебными подробностями.
 
-import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import type { LogAction, LogEntityType, LogEntry, UserRole } from '@sporthub/types';
-import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
+import { LOG_ACTIONS } from '@sporthub/types';
 import { z } from 'zod';
 
+import { Requires } from '../auth/access.decorators';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
 import { ValidationError } from '../common/domain-error';
 import type { LogsRepository } from '../repositories/crud.repository';
 import { LOGS_REPOSITORY } from '../repositories/crud.repository';
-
-const createSchema = z.object({
-  action: z
-    .string()
-    .refine((value) => LOG_ACTIONS.includes(value as LogAction), 'Недопустимое действие'),
-  actorId: z.number().int().positive(),
-  actorRole: z
-    .string()
-    .refine((value) => USER_ROLES.includes(value as UserRole), 'Недопустимая роль'),
-  entityType: z
-    .string()
-    .refine(
-      (value) => LOG_ENTITY_TYPES.includes(value as LogEntityType),
-      'Недопустимый тип сущности',
-    ),
-  entityId: z.number().int().positive(),
-  meta: z.record(z.string(), z.unknown()).optional(),
-});
 
 const querySchema = z.object({
   action: z
@@ -49,6 +42,8 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+// Право одно на весь раздел: журнал целиком служебный.
+@Requires('view_platform_logs')
 @Controller('logs')
 export class LogsController {
   constructor(@Inject(LOGS_REPOSITORY) private readonly logs: LogsRepository) {}
@@ -84,17 +79,6 @@ export class LogsController {
 
     // Счётчики лежат РЯДОМ с data — форма ответа журнала и публикаций.
     return withTopLevel(page.items, { total: page.total, offset, limit });
-  }
-
-  @Post()
-  async create(@Body() rawBody: unknown): Promise<LogEntry> {
-    const parsed = createSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные лога');
-    }
-
-    return this.logs.insert(parsed.data as Omit<LogEntry, 'id' | 'createdAt'>);
   }
 }
 

@@ -3,14 +3,14 @@
 // на каждый запрос (чтобы router.refresh обновлял индикаторы).
 // Phase 26 post-fix: userId берём из auth-cookie (реальный залогиненный юзер),
 // а не из hardcoded MVP_PROVIDER_USER_ID. Cookie пишется в useAuthStore при login.
-import { getAuthUserIdFromCookies } from '@/lib/auth-cookie-server';
+import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderNotificationsRoute() {
-  const userId = await getAuthUserIdFromCookies();
+  const userId = (await readSession())?.id ?? null;
   // Phase 27 Step 27.2: applyPreferences=true — SSR-страница уважает отключённые
   // пользователем типы (согласованность с dropdown колокольчика и badge-счётчиком).
   const notifications =

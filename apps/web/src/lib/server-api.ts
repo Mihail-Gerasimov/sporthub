@@ -10,6 +10,8 @@
 
 import 'server-only';
 
+import { cookies } from 'next/headers';
+
 import type {
   Amenity,
   Booking,
@@ -37,6 +39,37 @@ const API_ORIGIN = process.env.SPORT_HUB_API_ORIGIN ?? 'http://localhost:3001';
 
 /** Общая форма ответа проекта. */
 type ApiEnvelope<T> = { success: boolean; data?: T; error?: string };
+
+/**
+ * Сессия вызывающего для запроса со страницы.
+ *
+ * ⚠️ Браузерные запросы несут cookie сами — они идут через проксирование Next
+ * и остаются в том же источнике. Запросы страниц идут ОТСЮДА, напрямую на адрес
+ * бэкенда, и заголовков не несут вовсе. Без этого проброса получилось бы
+ * «в браузере работает, а страница пустая»: бэкенд отвечал бы 401 на всё,
+ * что требует входа.
+ *
+ * Ошибка чтения не считается сбоем: страницу могут отрисовывать вне запроса
+ * (сборка, прогрев) — тогда сессии просто нет, и это нормальный гость.
+ */
+async function sessionHeaders(): Promise<Record<string, string>> {
+  try {
+    const jar = await cookies();
+    const header = jar.toString();
+
+    return header === '' ? {} : { cookie: header };
+  } catch {
+    return {};
+  }
+}
+
+/** Разбор ошибки доступа: страница обязана отличать «нельзя» от «сломалось». */
+export class SessionRequiredError extends Error {
+  constructor(readonly path: string) {
+    super(`Требуется вход для запроса ${path}`);
+    this.name = 'SessionRequiredError';
+  }
+}
 
 /**
  * Бэкенд не ответил.
@@ -72,10 +105,19 @@ async function apiGet<T>(path: string): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(`${API_ORIGIN}/api${path}`, { cache: 'no-store' });
+    response = await fetch(`${API_ORIGIN}/api${path}`, {
+      cache: 'no-store',
+      headers: await sessionHeaders(),
+    });
   } catch {
     // Соединения нет вовсе: бэкенд не поднят, база недоступна, сеть отвалилась.
     throw new BackendUnavailableError(path);
+  }
+
+  // Отказ по доступу — не поломка сервиса. Страница на него отвечает уводом
+  // на главную, а не сообщением «сервис недоступен».
+  if (response.status === 401 || response.status === 403) {
+    throw new SessionRequiredError(path);
   }
 
   if (!response.ok) {
@@ -102,12 +144,19 @@ async function apiGetOptional<T>(path: string): Promise<T | null> {
   let response: Response;
 
   try {
-    response = await fetch(`${API_ORIGIN}/api${path}`, { cache: 'no-store' });
+    response = await fetch(`${API_ORIGIN}/api${path}`, {
+      cache: 'no-store',
+      headers: await sessionHeaders(),
+    });
   } catch {
     throw new BackendUnavailableError(path);
   }
 
   if (response.status === 404) return null;
+
+  if (response.status === 401 || response.status === 403) {
+    throw new SessionRequiredError(path);
+  }
 
   if (!response.ok) {
     throw new BackendUnavailableError(path, response.status);

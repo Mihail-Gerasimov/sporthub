@@ -1,0 +1,180 @@
+// Сторож личности: она приходит из сессии и ниоткуда больше.
+//
+// До фазы 34 контроллеры брали, кто их вызвал, из тела запроса — 31 маршрут — или
+// из строки запроса — ещё 5. Подставил чужой номер и действуешь от его имени.
+// Дыру закрывает guard, но закрытая дыра легко открывается обратно: достаточно
+// дописать `userId` в схему разбора тела «чтобы фронту было проще».
+//
+// Сторож смотрит на схемы разбора и на объявления параметров. Он не заменяет тесты
+// прав — он ловит возврат самой возможности принять личность снаружи.
+
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+const API_ROOT = process.cwd();
+const SOURCE_ROOT = path.join(API_ROOT, 'src');
+
+/** Имена, которыми в проекте называли личность вызывающего. */
+const IDENTITY_FIELDS = [
+  'userId',
+  'actorId',
+  'actorRole',
+  'adminUserId',
+  'moderatorId',
+  'providerUserId',
+];
+
+/**
+ * Файлы, которым такие имена положены по делу.
+ *
+ * ⚠️ Список намеренно короткий и объяснённый. Каждая новая строка здесь — это
+ * ослабление сторожа, и она обязана быть решением, а не способом успокоить тест.
+ */
+const ALLOWED = new Set([
+  // Слой данных: `userId` — обычная колонка, а не личность вызывающего.
+  'src/repositories/',
+  'src/storage/',
+  'src/dictionaries/',
+  // Проверки прав: сюда номер уже приходит из сессии.
+  'src/access/access.service.ts',
+  // Сессии: здесь `userId` — владелец сессии.
+  'src/auth/session.service.ts',
+]);
+
+/**
+ * Разобрать файл на объявления схем `const имяSchema = z.object({ ... })`.
+ *
+ * Нужно именно объявлениями, а не поиском по всему тексту: одно и то же имя поля
+ * в схеме тела — дыра, а в схеме строки запроса — обычный фильтр.
+ */
+function collectSchemas(text: string): { name: string; body: string }[] {
+  const schemas: { name: string; body: string }[] = [];
+  const declaration = /const\s+(\w+)\s*=\s*z\s*\r?\n?\s*\.?\s*object\(\{/g;
+  let match = declaration.exec(text);
+
+  while (match !== null) {
+    // Тело схемы — до закрывающей скобки объекта. Считаем вложенность, потому что
+    // внутри встречаются и объекты, и вызовы.
+    let depth = 1;
+    let index = declaration.lastIndex;
+
+    while (index < text.length && depth > 0) {
+      if (text[index] === '{') depth += 1;
+      else if (text[index] === '}') depth -= 1;
+
+      index += 1;
+    }
+
+    schemas.push({ name: match[1] ?? '', body: text.slice(declaration.lastIndex, index) });
+    match = declaration.exec(text);
+  }
+
+  return schemas;
+}
+
+async function collectSources(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const found: string[] = [];
+
+  for (const entry of entries) {
+    const full = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entry.name === 'prisma-client' || entry.name === 'node_modules') continue;
+
+      found.push(...(await collectSources(full)));
+      continue;
+    }
+
+    if (!entry.name.endsWith('.ts') || entry.name.endsWith('.test.ts')) continue;
+
+    found.push(path.relative(API_ROOT, full));
+  }
+
+  return found;
+}
+
+describe('Граница личности', () => {
+  it('схемы разбора тела не принимают личность вызывающего', async () => {
+    const files = await collectSources(SOURCE_ROOT);
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      const relative = file.split(path.sep).join('/');
+
+      if ([...ALLOWED].some((allowed) => relative.startsWith(allowed))) continue;
+
+      const text = await readFile(path.join(API_ROOT, file), 'utf8');
+
+      for (const { name, body } of collectSchemas(text)) {
+        // Схемы строки запроса пропускаем: там `actorId` — это ФИЛЬТР журнала
+        // («покажи действия такого-то»), а не заявление «я такой-то». Разница
+        // принципиальная: фильтр ничего не разрешает, он только сужает выдачу.
+        if (/query/i.test(name)) continue;
+
+        for (const field of IDENTITY_FIELDS) {
+          if (new RegExp(`\\b${field}\\s*:`).test(body)) {
+            offenders.push(`${relative} — поле «${field}» в схеме «${name}»`);
+          }
+        }
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});
+
+describe('Изменяющие маршруты', () => {
+  /** Глаголы, с которых начинаются методы, меняющие состояние. */
+  const MUTATING = [
+    'create',
+    'update',
+    'patch',
+    'delete',
+    'remove',
+    'mark',
+    'revoke',
+    'approve',
+    'reject',
+    'confirm',
+    'cancel',
+    'hide',
+    'unhide',
+    'moderate',
+    'lift',
+    'recompute',
+    'change',
+    'issue',
+  ];
+
+  it('чтение не меняет состояние', async () => {
+    // ⚠️ Это не придирка к стилю. `SameSite=Lax` — первая линия против подделки
+    // межсайтовых запросов — пропускает переходы верхнего уровня, то есть
+    // изменяющий `GET` выполняется по обычной ссылке с чужого сайта. Проверка
+    // источника такие запросы не видит: браузер помечает их как переход, а не
+    // как межсайтовый запрос.
+    const files = await collectSources(SOURCE_ROOT);
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      if (!file.endsWith('.controller.ts')) continue;
+
+      const text = await readFile(path.join(API_ROOT, file), 'utf8');
+      const relative = file.split(path.sep).join('/');
+      // Ищем `@Get(...)`, за которым идёт метод с глаголом действия в имени.
+      const routes = text.matchAll(/@Get\([^)]*\)[\s\S]{0,200}?async\s+(\w+)\s*\(/g);
+
+      for (const route of routes) {
+        const method = route[1] ?? '';
+
+        if (MUTATING.some((verb) => method.toLowerCase().startsWith(verb))) {
+          offenders.push(`${relative} — GET-маршрут «${method}» похож на изменяющий`);
+        }
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});

@@ -106,11 +106,11 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   'post /api/bookings/:id/confirm': { url: '/api/bookings/3/confirm', body: { userId: 2 } },
   'post /api/bookings/:id/reject': {
     url: '/api/bookings/3/reject',
-    body: { userId: 2, reason: 'Сторож' },
+    body: { reason: 'Сторож' },
   },
   'post /api/bookings/:id/check-in': {
     url: '/api/bookings/1/check-in',
-    body: { userId: 2, outcome: 'completed' },
+    body: { outcome: 'completed' },
   },
   'get /api/clubs/by-slug/:slug': { url: '/api/clubs/by-slug/volna-aquatic-club' },
   'get /api/trainers/by-slug/:slug': { url: '/api/trainers/by-slug/anna-lebedeva' },
@@ -123,20 +123,22 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   'get /api/provider-client-notes': { url: '/api/provider-client-notes?providerUserId=2' },
   'post /api/provider-client-notes': {
     url: '/api/provider-client-notes',
-    body: { providerUserId: 2, clientUserId: 1, note: 'Сторож' },
+    body: { clientUserId: 1, note: 'Сторож' },
   },
   'patch /api/provider-client-notes/:id': {
     url: '/api/provider-client-notes/1',
-    body: { providerUserId: 2, note: 'Сторож' },
+    body: { note: 'Сторож' },
   },
   'delete /api/provider-client-notes/:id': {
     url: '/api/provider-client-notes/1',
     body: { providerUserId: 2 },
   },
-  'patch /api/users/:id': { url: '/api/users/1', body: { userId: 1, phone: '+7 (900) 111-22-33' } },
+  // Обход идёт под администратором (см. SWEEP_AS_USER_ID), а править учётную
+  // запись можно только СВОЮ — поэтому и адрес его собственный.
+  'patch /api/users/:id': { url: '/api/users/3', body: { phone: '+7 (900) 111-22-33' } },
   'patch /api/users/:id/notification-preferences': {
-    url: '/api/users/1/notification-preferences',
-    body: { userId: 1, preferences: { booking_rejected: false } },
+    url: '/api/users/3/notification-preferences',
+    body: { preferences: { booking_rejected: false } },
   },
   'post /api/auth/login': {
     url: '/api/auth/login',
@@ -153,7 +155,7 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   },
   'post /api/reviews': {
     url: '/api/reviews',
-    body: { userId: 1, trainerId: 1, rating: 5, text: 'Сторож' },
+    body: { trainerId: 1, rating: 5, text: 'Сторож' },
   },
   'post /api/trainer-club-links': {
     url: '/api/trainer-club-links',
@@ -175,8 +177,6 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
     url: '/api/logs',
     body: {
       action: 'admin_login',
-      actorId: 3,
-      actorRole: 'admin',
       entityType: 'user',
       entityId: 3,
     },
@@ -196,7 +196,7 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   },
   'post /api/admin/users/:id/password': {
     url: '/api/admin/users/1/password',
-    body: { adminUserId: 3, newPassword: 'guard-password-77' },
+    body: { newPassword: 'guard-password-77' },
   },
   'post /api/admin/users/:id/recompute-reliability': {
     url: '/api/admin/users/1/recompute-reliability',
@@ -217,9 +217,21 @@ const USER_BEARING_ROUTES = [
   'post /api/admin/users/:id/password',
 ];
 
+/**
+ * От чьего лица обходить маршруты (фаза 34).
+ *
+ * ⚠️ Без сессии этот сторож превратился бы в зелёную пустышку: после закрытия
+ * маршрутов он получал бы 401 на каждом шаге, тела ответов исчезли бы, и утечке
+ * стало бы неоткуда взяться. Тест продолжал бы проходить, ничего не проверяя.
+ * Поэтому обход идёт под администратором — ему открыто больше всех, а значит
+ * и данных в ответах больше всего.
+ */
+const SWEEP_AS_USER_ID = 3;
+
 describe('Сторож: пароль и его хеш не уходят наружу', () => {
   let harness: TestHarness;
   let routes: RouteRecord[];
+  let cookie: string;
 
   beforeAll(async () => {
     // Рабочие данные плюс общий набор фикстур: у пользователей есть хеши,
@@ -232,6 +244,8 @@ describe('Сторож: пароль и его хеш не уходят нару
     // Срез засеивается ДАННЫМИ, а не записью файлов: у обвязки на базе директории
     // данных нет вовсе, и прежний вызов писал бы файлы мимо хранилища.
     await harness.writeMany(fixtureCollections);
+    // Сессия выдаётся ПОСЛЕ засева: он пересобирает таблицы и гасит прежние.
+    cookie = await harness.as(SWEEP_AS_USER_ID);
   });
 
   afterAll(async () => {
@@ -248,10 +262,29 @@ describe('Сторож: пароль и его хеш не уходят нару
       const plan = REQUEST_BY_ROUTE[key] ?? { url: path };
       const response = await request(harness.app.getHttpServer())
         [method](plan.url)
+        .set('Cookie', cookie)
         .send(plan.body as object);
 
       expect(response.status, `${key} → ${response.status}`).toBeLessThan(300);
       expect(response.body.success, `${key}`).toBe(true);
+    }
+  });
+
+  it('те же маршруты без сессии не отвечают данными', async () => {
+    // Контрольная группа к предыдущей проверке. Без неё нельзя отличить «сторож
+    // обошёл живые маршруты» от «сторож получил 401 и ничего не увидел».
+    for (const key of USER_BEARING_ROUTES) {
+      const [method, path] = key.split(' ') as [RouteRecord['method'], string];
+      const plan = REQUEST_BY_ROUTE[key] ?? { url: path };
+
+      // Вход и регистрация открыты намеренно — они и есть способ получить сессию.
+      if (key.startsWith('post /api/auth/')) continue;
+
+      const response = await request(harness.app.getHttpServer())
+        [method](plan.url)
+        .send(plan.body as object);
+
+      expect(response.status, `${key} → ${response.status}`).toBe(401);
     }
   });
 
@@ -263,6 +296,7 @@ describe('Сторож: пароль и его хеш не уходят нару
       const plan = REQUEST_BY_ROUTE[key] ?? { url: route.path };
       const response = await request(harness.app.getHttpServer())
         [route.method](plan.url)
+        .set('Cookie', cookie)
         .send(plan.body as object);
 
       // Сырой текст ответа — на случай, если тело не разобралось в объект.

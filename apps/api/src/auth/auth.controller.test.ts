@@ -329,16 +329,19 @@ describe('Сессии при смене пароля', () => {
     expect((await request(server).get('/api/auth/me').set('Cookie', current)).status).toBe(200);
   });
 
-  it('смена пароля из-под чужой сессии гасит все сессии владельца', async () => {
-    // Случай админской смены пароля: своей сессии у владельца среди отзываемых нет,
-    // и оставлять «текущую» нечего — гасятся все.
+  it('смена пароля без сессии невозможна вовсе', async () => {
+    // Сценарий «сменить пароль из-под чужой сессии» после фазы 34 недостижим:
+    // маршрут закрыт, и анонимный вызов не доходит до смены. Админская смена
+    // чужого пароля живёт на своём маршруте — `POST /api/admin/users/:id/password`.
     const server = harness.app.getHttpServer();
     const owner = await login();
 
-    await request(server)
+    const response = await request(server)
       .patch('/api/users/1')
-      .send({ userId: 1, password: 'новый-пароль', currentPassword: DEMO_PASSWORD });
+      .send({ password: 'новый-пароль', currentPassword: DEMO_PASSWORD });
 
-    expect((await request(server).get('/api/auth/me').set('Cookie', owner)).status).toBe(401);
+    expect(response.status).toBe(401);
+    // Сессия владельца жива: пароль не менялся, гасить было нечего.
+    expect((await request(server).get('/api/auth/me').set('Cookie', owner)).status).toBe(200);
   });
 });

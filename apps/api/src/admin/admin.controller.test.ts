@@ -1,4 +1,13 @@
-// Тесты административных маршрутов: каждый проверяет роль по хранилищу.
+// Тесты административных маршрутов.
+//
+// Фаза 34 меняет здесь основание проверки. Раньше исполнитель приходил в теле
+// (`adminUserId`), и «администратор» означал «клиент прислал номер, у которого
+// в хранилище стоит роль admin»: подставил чужую цифру — стал кем угодно.
+// Теперь исполнитель берётся из сессии, а весь раздел закрыт правом
+// `use_admin_tools`.
+//
+// Отсюда три группы проверок вместо одной: что администратору положено, что гость
+// и обычные роли не проходят вовсе, и что тело запроса на личность больше не влияет.
 
 import { verify } from '@node-rs/argon2';
 import request from 'supertest';
@@ -8,8 +17,31 @@ import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
+/**
+ * Все маршруты раздела разом.
+ *
+ * Список нужен именно списком: проверки «гостя не пускают» и «обычной роли не
+ * положено» обязаны накрывать раздел целиком, а не тот маршрут, про который
+ * вспомнили. Маршрут, дописанный в контроллер завтра, добавляется сюда одной
+ * строкой — и сразу попадает под обе проверки.
+ */
+const ADMIN_ROUTES = [
+  { method: 'delete', path: '/api/admin/bookings/1' },
+  { method: 'post', path: '/api/admin/trainer-club-links/1/force-revoke' },
+  { method: 'post', path: '/api/admin/users/1/lift-quarantine' },
+  { method: 'post', path: '/api/admin/users/1/password' },
+  { method: 'post', path: '/api/admin/users/1/recompute-reliability' },
+] as const;
+
 describe('Административные маршруты', () => {
   let harness: TestHarness;
+  // ⚠️ Cookie выдаются в beforeEach ПОСЛЕ засева и заново на каждый кейс: перенос
+  // среза пересобирает базу целиком, а сессии живут в ней же обычной таблицей.
+  // Сессия, выданная до засева, умерла бы вместе с ним — и кейс покраснел бы
+  // отказом в доступе, к которому проверка не имеет отношения.
+  let adminCookie: string;
+  let athleteCookie: string;
+  let providerCookie: string;
 
   beforeAll(async () => {
     harness = await createTestHarness('admin-http');
@@ -178,6 +210,10 @@ describe('Административные маршруты', () => {
       logs: [],
       notifications: [],
     });
+
+    adminCookie = await harness.as(3);
+    athleteCookie = await harness.as(1);
+    providerCookie = await harness.as(2);
   });
 
   afterAll(async () => {
@@ -187,7 +223,7 @@ describe('Административные маршруты', () => {
   it('администратор удаляет запись и освобождает место', async () => {
     const response = await request(harness.app.getHttpServer())
       .delete('/api/admin/bookings/1')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ success: true });
@@ -199,22 +235,10 @@ describe('Административные маршруты', () => {
     expect(schedule[0].bookedCount).toBe(0);
   });
 
-  it('не администратор получает отказ, запись остаётся', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .delete('/api/admin/bookings/1')
-      .send({ adminUserId: 1 });
-
-    expect(response.status).toBe(403);
-    expect(response.body.error).toBe('Действие доступно только администратору');
-
-    const bookings = await harness.read<unknown[]>('bookings');
-    expect(bookings).toHaveLength(1);
-  });
-
   it('несуществующая запись — 404', async () => {
     const response = await request(harness.app.getHttpServer())
       .delete('/api/admin/bookings/99')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Запись не найдена');
@@ -223,7 +247,7 @@ describe('Административные маршруты', () => {
   it('принудительный разрыв связи уведомляет обе стороны и отвязывает услуги', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/trainer-club-links/1/force-revoke')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ status: 'revoked', revokedBy: 'admin' });
@@ -245,11 +269,11 @@ describe('Административные маршруты', () => {
   it('повторный принудительный разрыв — 409', async () => {
     await request(harness.app.getHttpServer())
       .post('/api/admin/trainer-club-links/1/force-revoke')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/trainer-club-links/1/force-revoke')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(409);
   });
@@ -257,7 +281,7 @@ describe('Административные маршруты', () => {
   it('снятие карантина ставит метку и шлёт уведомление', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/lift-quarantine')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(200);
     expect(typeof response.body.data.quarantineLiftedAt).toBe('string');
@@ -272,7 +296,8 @@ describe('Административные маршруты', () => {
   it('смена пароля администратором не требует текущего пароля', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/password')
-      .send({ adminUserId: 3, newPassword: 'fresh-password-99' });
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' });
 
     expect(response.status).toBe(200);
 
@@ -289,7 +314,8 @@ describe('Административные маршруты', () => {
   it('короткий пароль — 400', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/password')
-      .send({ adminUserId: 3, newPassword: '123' });
+      .set('Cookie', adminCookie)
+      .send({ newPassword: '123' });
 
     expect(response.status).toBe(400);
   });
@@ -297,7 +323,7 @@ describe('Административные маршруты', () => {
   it('пересчёт надёжности только пишет запись в журнал', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/recompute-reliability')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(200);
 
@@ -308,51 +334,15 @@ describe('Административные маршруты', () => {
   it('пересчёт для несуществующего пользователя — 404', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/99/recompute-reliability')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(404);
-  });
-
-  it('принудительный разрыв связи не-администратором запрещён', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/trainer-club-links/1/force-revoke')
-      .send({ adminUserId: 1 });
-
-    expect(response.status).toBe(403);
-    expect(response.body.error).toBe('Действие доступно только администратору');
-  });
-
-  it('снятие карантина не-администратором запрещено', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/1/lift-quarantine')
-      .send({ adminUserId: 1 });
-
-    expect(response.status).toBe(403);
-  });
-
-  it('смена пароля не-администратором запрещена', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/1/password')
-      .send({ adminUserId: 1, newPassword: 'взлом-пароля' });
-
-    expect(response.status).toBe(403);
-
-    const users = await harness.read<{ passwordHash: string }[]>('users');
-    expect(users[0].passwordHash).toBe(DEMO_PASSWORD_HASH);
-  });
-
-  it('пересчёт надёжности не-администратором запрещён', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/1/recompute-reliability')
-      .send({ adminUserId: 1 });
-
-    expect(response.status).toBe(403);
   });
 
   it('снятие карантина несуществующему пользователю — не найдено', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/99/lift-quarantine')
-      .send({ adminUserId: 3 });
+      .set('Cookie', adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Пользователь не найден');
@@ -361,17 +351,109 @@ describe('Административные маршруты', () => {
   it('смена пароля несуществующему пользователю — не найдено', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/99/password')
-      .send({ adminUserId: 3, newPassword: 'новый-пароль' });
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'новый-пароль' });
 
     expect(response.status).toBe(404);
   });
 
-  it('удаление записи без данных запроса отклоняется', async () => {
+  it('гость не проходит ни на один маршрут раздела', async () => {
+    // Отказ обязан быть именно 401, а не 400: четырёхсотый означал бы, что маршрут
+    // успел разобрать чужое тело до проверки доступа.
+    const offenders: string[] = [];
+
+    for (const route of ADMIN_ROUTES) {
+      const response = await request(harness.app.getHttpServer())
+        [route.method](route.path)
+        .send({ newPassword: 'подобранный-пароль' });
+
+      if (response.status !== 401) {
+        offenders.push(`${route.method} ${route.path} — ответил ${response.status} вместо 401`);
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+
+    // И ни один отказ ничего не сделал по дороге.
+    expect(await harness.read<unknown[]>('bookings')).toHaveLength(1);
+    expect(await harness.read<unknown[]>('logs')).toHaveLength(0);
+  });
+
+  it('атлету не положен ни один маршрут раздела', async () => {
+    // Вход состоялся, права нет — это 403, а не 401. Разница существенная: 401
+    // означает «войди», и клиент по нему отправляет пользователя на форму входа.
+    const offenders: string[] = [];
+
+    for (const route of ADMIN_ROUTES) {
+      const response = await request(harness.app.getHttpServer())
+        [route.method](route.path)
+        .set('Cookie', athleteCookie)
+        .send({ newPassword: 'взлом-пароля' });
+
+      if (response.status !== 403 || response.body.error !== 'Недостаточно прав') {
+        offenders.push(
+          `${route.method} ${route.path} — ответил ${response.status} ${JSON.stringify(response.body)}`,
+        );
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+
+    // Ничего не изменилось и в журнал не попало: отказ случился до действия.
+    expect(await harness.read<unknown[]>('bookings')).toHaveLength(1);
+    expect(await harness.read<unknown[]>('logs')).toHaveLength(0);
+
+    const users = await harness.read<{ passwordHash: string }[]>('users');
+    expect(users[0].passwordHash).toBe(DEMO_PASSWORD_HASH);
+  });
+
+  it('владельцу клуба не положен ни один маршрут раздела', async () => {
+    // Провайдер — не «просто пользователь»: у него есть свои права, и раздел мог бы
+    // открыться ему по ошибке в наборе прав. Проверяется отдельно от атлета именно
+    // поэтому.
+    const offenders: string[] = [];
+
+    for (const route of ADMIN_ROUTES) {
+      const response = await request(harness.app.getHttpServer())
+        [route.method](route.path)
+        .set('Cookie', providerCookie)
+        .send({ newPassword: 'взлом-пароля' });
+
+      if (response.status !== 403) {
+        offenders.push(`${route.method} ${route.path} — ответил ${response.status} вместо 403`);
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('исполнитель берётся из сессии, а тело на него не влияет', async () => {
+    // Главное следствие фазы: подсунуть чужой номер больше некуда. Под админской
+    // сессией в теле лежит номер атлета — попади он в журнал, админское действие
+    // выглядело бы действием атлета, и разбор инцидента пошёл бы по ложному следу.
     const response = await request(harness.app.getHttpServer())
-      .delete('/api/admin/bookings/1')
-      .send({});
+      .post('/api/admin/users/1/recompute-reliability')
+      .set('Cookie', adminCookie)
+      .send({ adminUserId: 1, actorId: 1, actorRole: 'athlete' });
+
+    expect(response.status).toBe(200);
+
+    const logs = await harness.read<{ actorId: number; actorRole: string }[]>('logs');
+    expect(logs[0]).toMatchObject({ actorId: 3, actorRole: 'admin' });
+  });
+
+  it('старое поле adminUserId в теле смены пароля отвергается', async () => {
+    // Схема пароля строгая, и это здесь важно: клиент, продолжающий слать
+    // `adminUserId`, обязан получить отказ, а не молча пройти. Иначе поле выглядело бы
+    // рабочим ещё долго после того, как перестало что-либо значить.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ adminUserId: 3, newPassword: 'fresh-password-99' });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Некорректные данные запроса');
+
+    const users = await harness.read<{ passwordHash: string }[]>('users');
+    expect(users[0].passwordHash).toBe(DEMO_PASSWORD_HASH);
   });
 });

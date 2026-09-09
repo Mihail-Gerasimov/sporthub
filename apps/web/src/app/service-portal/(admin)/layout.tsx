@@ -12,12 +12,23 @@ import Link from 'next/link';
 
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
+import { requireRole } from '@/lib/session';
 
-export default function AdminLayout({
+export const dynamic = 'force-dynamic';
+
+export default async function AdminLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // ⚠️ Серверная проверка (фаза 34). Прежний `AdminGuard` работает в браузере,
+  // и до его срабатывания страница успевала загрузить список ВСЕХ пользователей
+  // платформы, записи, клубы и тренеров — и отдать их в поток ответа. Гость
+  // видел перенаправление, но данные к нему уже уехали.
+  //
+  // `AdminGuard` остаётся: он рисует состояние в браузере и уводит при потере
+  // сессии без перезагрузки. Защитой он больше не является.
+  await requireRole(['admin']);
   return (
     <AdminGuard>
       <div className="w-full max-w-[1440px] px-4 py-7 sm:px-8">
