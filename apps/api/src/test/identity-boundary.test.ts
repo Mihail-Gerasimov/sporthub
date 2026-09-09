@@ -108,6 +108,32 @@ describe('Граница личности', () => {
 
       const text = await readFile(path.join(API_ROOT, file), 'utf8');
 
+      // ⚠️ Личность может вернуться не только схемой тела. Прогон диверсий (34.57)
+      // показал дыру: `@Headers('x-user-id')` в контроллере не ловился ничем, то есть
+      // номер снова принимался снаружи — просто другим входом.
+      //
+      // `@Headers()` запрещён везде: своих заголовков у платформы нет, а чужие
+      // читать незачем. `@Req()` разрешён единственному файлу — входу: он берёт
+      // из запроса адрес и вид браузера, чтобы записать их в сессию. Личность
+      // оттуда не берётся, и это стережёт проверка схем ниже.
+      const readsRequestDirectly = relative !== 'src/auth/auth.controller.ts';
+
+      for (const decorator of text.matchAll(/@(Headers|Req|Request)\(([^)]*)\)/g)) {
+        const kind = decorator[1] ?? '';
+
+        if (kind !== 'Headers' && !readsRequestDirectly) continue;
+
+        offenders.push(`${relative} — контроллер читает запрос напрямую: @${kind}()`);
+      }
+
+      for (const query of text.matchAll(/@Query\('(\w+)'\)/g)) {
+        const parameter = query[1] ?? '';
+
+        if (IDENTITY_FIELDS.includes(parameter)) {
+          offenders.push(`${relative} — личность из строки запроса: @Query('${parameter}')`);
+        }
+      }
+
       for (const { name, body } of collectSchemas(text)) {
         // Схемы строки запроса пропускаем: там `actorId` — это ФИЛЬТР журнала
         // («покажи действия такого-то»), а не заявление «я такой-то». Разница
