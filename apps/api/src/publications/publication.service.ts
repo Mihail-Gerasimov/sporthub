@@ -74,6 +74,15 @@ export type ClubPublicationResult = {
   schedules: Schedule[];
 };
 
+/**
+ * От чьего лица удаляется публикация.
+ *
+ * Размеченное объединение, а не «номер или ничего»: пропуск проверки владения —
+ * это НАМЕРЕНИЕ, и оно обязано быть названо. Прежняя форма `actorUserId?: number`
+ * позволяла отключить сверку, просто забыв аргумент.
+ */
+export type PublicationActor = { kind: 'owner'; userId: number } | { kind: 'moderator' };
+
 @Injectable()
 export class PublicationService {
   constructor(
@@ -287,18 +296,25 @@ export class PublicationService {
    * причине, что и у правки: владелец известен репозиторию, а выдача каталога
    * это поле наружу не отдаёт вовсе.
    *
-   * `actorUserId` не задан — значит удаляет администратор: право модерации
-   * проверено раньше, и владелец ему не важен.
+   * ⚠️ Шаг 35.25. Раньше «не проверять владельца» кодировалось ОТСУТСТВИЕМ
+   * значения: контроллер передавал `undefined`, и сверка молча пропускалась.
+   * Это единственное место проекта, где право ОТМЕНЯЛО проверку владения, а не
+   * дополняло её, — и любая ошибка в сторону «положено» открывала удаление любой
+   * чужой публикации со всеми записями людей, отзывами и связями. Ответ 200,
+   * в журнале корректная запись, восстановить нечем.
+   *
+   * Теперь намерение называется вслух: `{ kind: 'owner' }` или `{ kind: 'moderator' }`.
+   * Пропуск проверки нельзя выразить случайно — забытый аргумент не соберётся.
    */
-  async deleteClub(clubId: number, actorUserId?: number): Promise<void> {
+  async deleteClub(clubId: number, actor: PublicationActor): Promise<void> {
     const club = await this.clubs.findById(clubId);
 
     if (!club) {
       throw new NotFoundError(`Клуб с id ${clubId} не найден`);
     }
 
-    if (actorUserId !== undefined) {
-      this.ensureManagedBy(club.managedByUserId, actorUserId, 'клуба', clubId);
+    if (actor.kind === 'owner') {
+      this.ensureManagedBy(club.managedByUserId, actor.userId, 'клуба', clubId);
     }
 
     await this.cascadeDelete({ ownerType: 'club', ownerId: clubId });
@@ -306,15 +322,15 @@ export class PublicationService {
   }
 
   /** Удалить карточку тренера. Правило владения — то же, что у клуба. */
-  async deleteTrainer(trainerId: number, actorUserId?: number): Promise<void> {
+  async deleteTrainer(trainerId: number, actor: PublicationActor): Promise<void> {
     const trainer = await this.trainers.findById(trainerId);
 
     if (!trainer) {
       throw new NotFoundError(`Тренер с id ${trainerId} не найден`);
     }
 
-    if (actorUserId !== undefined) {
-      this.ensureManagedBy(trainer.managedByUserId, actorUserId, 'тренера', trainerId);
+    if (actor.kind === 'owner') {
+      this.ensureManagedBy(trainer.managedByUserId, actor.userId, 'тренера', trainerId);
     }
 
     await this.cascadeDelete({ ownerType: 'trainer', ownerId: trainerId });

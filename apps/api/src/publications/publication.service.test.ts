@@ -298,7 +298,10 @@ describe('PublicationService', () => {
       text: 'Отлично',
     });
 
-    await service.deleteClub(club.id);
+    // ⚠️ Шаг 35.25: от чьего лица идёт удаление, теперь говорится вслух.
+    // Раньше здесь стоял вызов с одним аргументом, и проверка владения молча
+    // не выполнялась — забыть её было так же легко, как забыть аргумент.
+    await service.deleteClub(club.id, { kind: 'moderator' });
 
     expect(await clubs.findById(club.id)).toBeNull();
     expect(await offerings.findAll()).toHaveLength(0);
@@ -308,7 +311,9 @@ describe('PublicationService', () => {
   });
 
   it('удаление несуществующего клуба сообщает id', async () => {
-    await expect(service.deleteClub(555)).rejects.toThrow('Клуб с id 555 не найден');
+    await expect(service.deleteClub(555, { kind: 'moderator' })).rejects.toThrow(
+      'Клуб с id 555 не найден',
+    );
   });
 
   it('публикация тренера с клубом создаёт подтверждённую связь', async () => {

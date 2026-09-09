@@ -47,7 +47,7 @@ import {
 } from '../common/domain-error';
 import { CatalogQueryService } from './catalog-query.service';
 import { LogService } from '../logs/log.service';
-import { PublicationService } from '../publications/publication.service';
+import { type PublicationActor, PublicationService } from '../publications/publication.service';
 
 /** Разбор идентификатора с текстом своего домена. */
 function parseId(raw: string, message: string): number {
@@ -280,7 +280,7 @@ export class ClubsController {
     // Владельца сверяет сервис: выдача каталога поле владельца наружу не отдаёт,
     // и проверка по ней отказывала бы всегда. Администратору владелец не важен —
     // ему это разрешает право модерации.
-    await this.publications.deleteClub(clubId, ownerCheckFor(session));
+    await this.publications.deleteClub(clubId, publicationActor(session));
 
     await this.logs.record({
       action: 'publish_delete',
@@ -478,7 +478,7 @@ export class TrainersController {
     const trainer = await this.query.findTrainer(trainerId);
 
     // Та же дыра, что и у клуба: удаляли без спроса, а в журнал шёл владелец.
-    await this.publications.deleteTrainer(trainerId, ownerCheckFor(session));
+    await this.publications.deleteTrainer(trainerId, publicationActor(session));
 
     await this.logs.record({
       action: 'publish_delete',
@@ -494,16 +494,21 @@ export class TrainersController {
 }
 
 /**
- * Кого сервис должен сверить с владельцем публикации.
+ * От чьего лица идёт удаление публикации.
  *
- * Для администратора — никого: право модерации разрешает трогать чужие публикации,
- * и требовать от него ещё и владения значило бы запретить модерацию как таковую.
- * Для всех остальных — их самих.
+ * ⚠️ Шаг 35.25. Прежняя форма возвращала «номер или ничего», и `undefined` означал
+ * «владельца не сверять». Отключить защиту можно было, просто не передав аргумент.
+ * Теперь намерение названо вслух, и «модератор» — это отдельное значение, а не
+ * отсутствие значения.
+ *
+ * Модерация не отменяет владение, а даёт вторую причину: право трогать чужие
+ * публикации есть у того, кому его выдали. Требовать от модератора ещё и владения
+ * значило бы запретить модерацию как таковую.
  */
-function ownerCheckFor(session: SessionContext): number | undefined {
+function publicationActor(session: SessionContext): PublicationActor {
   return accountCan(accountKindOf(session.user), 'moderate_publications')
-    ? undefined
-    : session.user.id;
+    ? { kind: 'moderator' }
+    : { kind: 'owner', userId: session.user.id };
 }
 
 export { DomainError };
