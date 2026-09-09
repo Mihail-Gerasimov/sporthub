@@ -26,7 +26,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { isNotificationTypeEnabled, roleCan } from '@sporthub/domain';
+import { isNotificationTypeEnabled, accountCan, accountKindOf } from '@sporthub/domain';
 import type { Notification, NotificationType } from '@sporthub/types';
 import { z } from 'zod';
 
@@ -82,7 +82,7 @@ export class NotificationsController {
       // ⚠️ Полный срез ленты платформы — служебное чтение, а не пользовательское.
       // До фазы 34 он открывался ЛЮБОМУ по одному параметру в строке запроса
       // и отдавал уведомления всех людей разом.
-      if (!roleCan(session.user.role, 'use_admin_tools')) {
+      if (!accountCan(accountKindOf(session.user), 'use_admin_tools')) {
         throw new ForbiddenError('Недостаточно прав');
       }
 

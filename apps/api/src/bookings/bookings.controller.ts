@@ -26,7 +26,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { DISCIPLINE_CONFIG, getSlotEndAt, roleCan } from '@sporthub/domain';
+import {
+  DISCIPLINE_CONFIG,
+  getSlotEndAt,
+  accountCan,
+  accountKindOf,
+  hasHumanAbilities,
+} from '@sporthub/domain';
 import type { Booking, BookingStatus } from '@sporthub/types';
 import { BOOKING_STATUSES } from '@sporthub/types';
 import { z } from 'zod';
@@ -193,21 +199,22 @@ export class BookingsController {
     // ⚠️ Права спрашиваются здесь, а не декоратором `@Requires`, и это вынужденно:
     // режим включается параметром запроса, а декоратор закрывает маршрут целиком.
     // Закрыть им весь маршрут значило бы отобрать у человека его же записи.
-    if (wantsPlatformWide && !roleCan(session.user.role, 'use_admin_tools')) {
+    if (wantsPlatformWide && !accountCan(accountKindOf(session.user), 'use_admin_tools')) {
       throw new ForbiddenError('Недостаточно прав');
     }
 
-    // Записи своих публикаций — то же самое действие, что и разбор заявок по ним,
-    // поэтому и право то же. Спортсмену оно не выдано: публикаций у него нет.
-    if (wantsOwnPublications && !roleCan(session.user.role, 'manage_own_bookings')) {
-      throw new ForbiddenError('Недостаточно прав');
-    }
+    // ⚠️ Шаг 35.19b. Записи своих публикаций и свои клиенты — это ВЛАДЕНИЕ,
+    // а не право роли: и то и другое есть у того, у кого есть лица услуг.
+    //
+    // Отказ обязан остаться отказом. Пустой ответ вместо 403 читается как
+    // «записей пока нет» и прячет то, что спрашивать было нечего — а это ровно
+    // тот вид тихой поломки, ради которого фаза завела «тихие» диверсии.
+    if (wantsOwnPublications || wantsClients) {
+      const owners = await this.access.getManagedPublicationIds(session.user.id);
 
-    // Клиенты — это работа провайдера со своими людьми, и право у неё то же, что
-    // у заметок о клиентах. Администратору оно не выдано намеренно: своих клиентов
-    // у него нет, а разбирать площадку он ходит через `?scope=all`.
-    if (wantsClients && !roleCan(session.user.role, 'manage_own_clients')) {
-      throw new ForbiddenError('Недостаточно прав');
+      if (owners.clubIds.length + owners.trainerIds.length === 0) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
     }
 
     // Публикации спрашивающего — ОДИН запрос по индексу владельца, общий для обоих
@@ -264,10 +271,13 @@ export class BookingsController {
     const user = session.user;
     const userId = user.id;
 
-    // Роль по имени больше не проверяется — спрашиваем ПРАВО. Текст ответа оставлен
-    // дословно: он закреплён сторожем текстов и разбирается фронтом.
-    if (!roleCan(user.role, 'book_sessions')) {
-      throw new ForbiddenError('Запись доступна только спортсмену');
+    // ⚠️ Шаг 35.19c и решение заказчика 13. Записываться может любой ЧЕЛОВЕК —
+    // это базовый набор, а не привилегия: владелец зала ходит в свой зал, тренер
+    // тренируется у другого тренера. Не может только администратор: он не человек
+    // площадки, а надзор за ней. Понадобилось тренироваться — заводит себе
+    // обычную учётную запись.
+    if (!hasHumanAbilities(accountKindOf(user))) {
+      throw new ForbiddenError('Запись доступна только пользователям площадки');
     }
 
     const context = await this.slotContext.getContext(scheduleId);
@@ -407,7 +417,6 @@ export class BookingsController {
     return updated;
   }
 
-  @Requires('manage_own_bookings')
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
   async confirm(
@@ -439,7 +448,6 @@ export class BookingsController {
     return updated;
   }
 
-  @Requires('manage_own_bookings')
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   async reject(
@@ -479,7 +487,6 @@ export class BookingsController {
   }
 
   /** Отметка исхода. Доступна только после конца занятия и в течение 48 часов. */
-  @Requires('manage_own_bookings')
   @Post(':id/check-in')
   @HttpCode(HttpStatus.OK)
   async checkIn(

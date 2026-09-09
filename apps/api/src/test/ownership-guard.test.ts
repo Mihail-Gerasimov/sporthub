@@ -19,7 +19,7 @@
 
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureCollections } from '@sporthub/fixtures';
 
@@ -189,8 +189,15 @@ describe('Сторож владения', () => {
 
   beforeAll(async () => {
     harness = await createTestHarness('ownership-guard');
-    // ⚠️ Посторонний засеивается ВМЕСТЕ с фикстурами, одним вызовом: каждая запись
-    // пересобирает базу целиком и гасит уже выданные сессии.
+  });
+
+  // ⚠️ Засев перед КАЖДЫМ тестом, а не один раз на набор. Наборы делят одну
+  // тестовую схему, и соседний файл пересобирает базу своим `beforeEach` —
+  // данные, засеянные один раз, из-под этого набора уезжают.
+  //
+  // ⚠️ Посторонний засеивается ВМЕСТЕ с фикстурами, одним вызовом: каждая запись
+  // пересобирает базу целиком и гасит уже выданные сессии.
+  beforeEach(async () => {
     await harness.writeMany({
       ...fixtureCollections,
       users: [...(fixtureCollections.users ?? []), stranger],

@@ -32,7 +32,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { capabilitiesOf } from '@sporthub/domain';
+import { accountKindOf, capabilitiesOf } from '@sporthub/domain';
 import type { AuthAccountType, User, UserRole } from '@sporthub/types';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -275,7 +275,7 @@ export class AuthController {
       role: user.role,
       // Права считаются по роли ТОГО, ОТ ЧЬЕГО ЛИЦА действуют: под имперсонизацией
       // администратор видит площадку глазами пользователя, а не своими.
-      capabilities: capabilitiesOf(user.role),
+      capabilities: capabilitiesOf(accountKindOf(user)),
     };
   }
 

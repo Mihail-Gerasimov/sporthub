@@ -15,15 +15,28 @@
 // Удаление принимает ещё и право модерации: чужую публикацию сносит администратор,
 // и владения от него не требуется.
 //
+// ⚠️ Шаг 35.17 показал обратную сторону того разделения: роль в данных и роль
+// в правах — разные вещи. Карточками тренера владеют и представители услуг
+// (в живой базе четыре из одиннадцати), и собственная карточка отвечала хозяину
+// «Недостаточно прав». Поэтому правка и удаление помечены `@OrOwnerOf`: владелец
+// проходит независимо от роли, а посторонний по-прежнему упирается либо в право,
+// либо в проверку владения внутри сервиса. Создание пометки не получает — у
+// несуществующей публикации владельца нет, и решается это отдельно (шаг 35.19c).
+//
 // ⚠️ Правка клуба и тренера подменяет текст ошибки: любое «не найдено» изнутри
 // (сама сущность, основная услуга, слот) выходит наружу как общее «Клуб не найден».
 // Это вводит в заблуждение, но покрыто тестами и потому сохранено дословно.
 
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { publishClubSchema, publishTrainerSchema, roleCan } from '@sporthub/domain';
+import {
+  publishClubSchema,
+  publishTrainerSchema,
+  accountCan,
+  accountKindOf,
+} from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
-import { CurrentUser, Public, Requires } from '../auth/access.decorators';
+import { CurrentUser, OrOwnerOf, Public, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
 import {
@@ -168,7 +181,6 @@ export class ClubsController {
     return detail;
   }
 
-  @Requires('manage_own_clubs')
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishClubSchema.safeParse(rawBody);
@@ -204,7 +216,7 @@ export class ClubsController {
     return result;
   }
 
-  @Requires('manage_own_clubs')
+  @OrOwnerOf('club')
   @Patch(':id')
   async update(
     @Param('id') rawId: string,
@@ -251,7 +263,8 @@ export class ClubsController {
     }
   }
 
-  @Requires('manage_own_clubs', 'moderate_publications')
+  @Requires('moderate_publications')
+  @OrOwnerOf('club')
   @Delete(':id')
   async remove(
     @Param('id') rawId: string,
@@ -378,7 +391,6 @@ export class TrainersController {
     return detail;
   }
 
-  @Requires('manage_own_trainer_profile')
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishTrainerSchema.safeParse(rawBody);
@@ -410,7 +422,7 @@ export class TrainersController {
     return result;
   }
 
-  @Requires('manage_own_trainer_profile')
+  @OrOwnerOf('trainer')
   @Patch(':id')
   async update(
     @Param('id') rawId: string,
@@ -455,7 +467,8 @@ export class TrainersController {
     }
   }
 
-  @Requires('manage_own_trainer_profile', 'moderate_publications')
+  @Requires('moderate_publications')
+  @OrOwnerOf('trainer')
   @Delete(':id')
   async remove(
     @Param('id') rawId: string,
@@ -488,7 +501,9 @@ export class TrainersController {
  * Для всех остальных — их самих.
  */
 function ownerCheckFor(session: SessionContext): number | undefined {
-  return roleCan(session.user.role, 'moderate_publications') ? undefined : session.user.id;
+  return accountCan(accountKindOf(session.user), 'moderate_publications')
+    ? undefined
+    : session.user.id;
 }
 
 export { DomainError };

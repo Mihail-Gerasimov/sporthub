@@ -160,6 +160,121 @@ const booking = (id: number, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/**
+ * Люди набора: атлет, администратор и по паре на каждую роль провайдера.
+ *
+ * Пара «свой + чужой» в каждой роли обязательна: без чужого той же роли отказ
+ * по владению неотличим от отказа по праву.
+ *
+ * Список общий для всех срезов набора: каждая запись пересобирает базу целиком,
+ * и срез, забывший кого-то из шестерых, отвечал бы его запросам 401 вместо
+ * проверяемого отказа или успеха.
+ */
+const USERS = [
+  user(ATHLETE_ID, 'athlete', 'Алексей'),
+  user(OWNER_ID, 'club_owner', 'Марина'),
+  user(ADMIN_ID, 'admin', 'Администратор'),
+  user(STRANGER_ID, 'club_owner', 'Чужой'),
+  user(TRAINER_ID, 'trainer', 'Павел'),
+  user(OTHER_TRAINER_ID, 'trainer', 'Чужой тренер'),
+];
+
+/**
+ * Карточка тренера. Владелец задаётся снаружи — именно он здесь и проверяется.
+ *
+ * Этап Э8a фазы 34 отдал карточку роли тренера, а шаг 35.17 показал обратную
+ * сторону того же решения: карточками владеют и представители услуг тоже, и
+ * роль запирала их у собственной вещи.
+ */
+const trainerCard = (over: Record<string, unknown> = {}) => ({
+  id: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  name: 'Марина Соколова',
+  slug: 'marina-sokolova',
+  bio: 'Биография',
+  avatarUrl: '',
+  experienceYears: 5,
+  priceFrom: 900,
+  managedByUserId: TRAINER_ID,
+  sportIds: [3],
+  specialtyIds: [],
+  workFormatIds: [],
+  rating: 5,
+  reviewCount: 0,
+  status: 'published',
+  ...over,
+});
+
+/**
+ * Форма публикации клуба и форма карточки тренера.
+ *
+ * Обе живут на уровне файла: их шлют три набора проверок сразу, и копия,
+ * разъехавшаяся с оригиналом, проверяла бы другую форму под тем же именем.
+ * Отличия конкретного вызова задаются россыпью поверх.
+ */
+const CLUB_FORM = {
+  name: 'Новый клуб',
+  city: 'Самара',
+  address: 'Ленина 2',
+  description: 'Описание клуба длиной больше пятидесяти символов, чтобы пройти проверку формы.',
+  phone: '+7 (900) 000-00-00',
+  email: '',
+  priceFrom: '900',
+  sportIds: [3],
+  tagIds: [],
+  amenityIds: [],
+  vk: '',
+  telegram: '',
+  facebook: '',
+  scheduleSlots: [
+    {
+      title: 'Слот',
+      date: '2026-09-01',
+      startTime: '10:00',
+      endTime: '11:00',
+      price: '500',
+      capacity: '10',
+      location: 'Зал',
+      sportId: 3,
+    },
+  ],
+};
+
+const TRAINER_FORM = {
+  firstName: 'Павел',
+  lastName: 'Тренеров',
+  city: 'Самара',
+  address: 'Ленина 4',
+  bio: 'Описание тренера длиной больше пятидесяти символов, чтобы пройти проверку формы.',
+  experience: '5',
+  sportIds: [3],
+  specialtyIds: [1],
+  workFormatIds: [1],
+  phone: '+7 (900) 000-00-00',
+  vk: '',
+  telegram: '',
+  facebook: '',
+  offeringName: 'Персональная',
+  offeringDescription: 'Занятие один на один',
+  offeringFormat: 'Индивидуальная',
+  offeringPrice: '2000',
+  offeringDuration: '60',
+  offeringLocation: 'Зал',
+  clubId: null,
+  scheduleSlots: [
+    {
+      title: 'Слот',
+      date: '2026-09-03',
+      startTime: '09:00',
+      endTime: '10:00',
+      price: '2000',
+      capacity: '1',
+      location: 'Зал',
+      sportId: 3,
+    },
+  ],
+};
+
 describe('Маршруты клубов и тренеров', () => {
   let harness: TestHarness;
 
@@ -176,39 +291,12 @@ describe('Маршруты клубов и тренеров', () => {
     // досев внутри теста обесценил бы cookie, взятую до него.
     await harness.writeMany({
       ...fixtureDictionaryCollections,
-      users: [
-        user(ATHLETE_ID, 'athlete', 'Алексей'),
-        user(OWNER_ID, 'club_owner', 'Марина'),
-        user(ADMIN_ID, 'admin', 'Администратор'),
-        user(STRANGER_ID, 'club_owner', 'Чужой'),
-        // Обе роли провайдера засеиваются парами «свой + чужой»: без чужого
-        // той же роли отказ по владению неотличим от отказа по праву.
-        user(TRAINER_ID, 'trainer', 'Павел'),
-        user(OTHER_TRAINER_ID, 'trainer', 'Чужой тренер'),
-      ],
+      users: USERS,
       clubs: [club(1), club(2, { rating: 2, sportIds: [5] })],
-      trainers: [
-        {
-          id: 1,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          name: 'Марина Соколова',
-          slug: 'marina-sokolova',
-          bio: 'Биография',
-          avatarUrl: '',
-          experienceYears: 5,
-          priceFrom: 900,
-          // Этап Э8a: карточка тренера принадлежит пользователю с ролью тренера.
-          // До разделения ею владел представитель услуг — то есть роль в данных
-          // была, а в правах её не было.
-          managedByUserId: TRAINER_ID,
-          sportIds: [3],
-          specialtyIds: [],
-          workFormatIds: [],
-          rating: 5,
-          reviewCount: 0,
-          status: 'published',
-        },
-      ],
+      // Этап Э8a: карточка тренера принадлежит пользователю с ролью тренера.
+      // До разделения ею владел представитель услуг — то есть роль в данных
+      // была, а в правах её не было.
+      trainers: [trainerCard()],
       offerings: [CLUB_OFFERING, TRAINER_OFFERING],
       schedule: [CLUB_SLOT],
       bookings: [CLUB_BOOKING],
@@ -418,41 +506,13 @@ describe('Маршруты клубов и тренеров', () => {
   });
 
   describe('публикация и правка', () => {
-    const form = {
-      name: 'Новый клуб',
-      city: 'Самара',
-      address: 'Ленина 2',
-      description: 'Описание клуба длиной больше пятидесяти символов, чтобы пройти проверку формы.',
-      phone: '+7 (900) 000-00-00',
-      email: '',
-      priceFrom: '900',
-      sportIds: [3],
-      tagIds: [],
-      amenityIds: [],
-      vk: '',
-      telegram: '',
-      facebook: '',
-      scheduleSlots: [
-        {
-          title: 'Слот',
-          date: '2026-09-01',
-          startTime: '10:00',
-          endTime: '11:00',
-          price: '500',
-          capacity: '10',
-          location: 'Зал',
-          sportId: 3,
-        },
-      ],
-    };
-
     // Правка существующего клуба шлёт слот с номером: без него слот 1 считался бы
     // выброшенным из расписания, и проверка владения потянула бы за собой отмену
     // записи — лишний шум там, где проверяется право, а не расписание.
     const editForm = {
-      ...form,
+      ...CLUB_FORM,
       name: 'Клуб 1 после правки',
-      scheduleSlots: [{ ...form.scheduleSlots[0], id: 1 }],
+      scheduleSlots: [{ ...CLUB_FORM.scheduleSlots[0], id: 1 }],
     };
 
     it('гость не публикует клуб — 401', async () => {
@@ -460,7 +520,7 @@ describe('Маршруты клубов и тренеров', () => {
       // Тот сценарий больше недостижим: номер публикующего приходит не из тела,
       // а из сессии, и у несуществующего пользователя сессии быть не может.
       // Достижим ровно один случай «личности нет» — её нет вовсе.
-      const response = await request(server()).post('/api/clubs').send(form);
+      const response = await request(server()).post('/api/clubs').send(CLUB_FORM);
 
       expect(response.status).toBe(401);
       expect(response.body).toEqual({ success: false, error: 'Требуется вход' });
@@ -539,7 +599,7 @@ describe('Маршруты клубов и тренеров', () => {
       const response = await request(server())
         .post('/api/clubs')
         .set('Cookie', await harness.as(STRANGER_ID))
-        .send({ ...form, userId: OWNER_ID });
+        .send({ ...CLUB_FORM, userId: OWNER_ID });
 
       expect(response.status).toBe(201);
 
@@ -556,7 +616,7 @@ describe('Маршруты клубов и тренеров', () => {
       const response = await request(server())
         .patch('/api/clubs/999')
         .set('Cookie', await harness.as(OWNER_ID))
-        .send(form);
+        .send(CLUB_FORM);
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Клуб не найден');
@@ -649,67 +709,13 @@ describe('Маршруты клубов и тренеров', () => {
   // роли, которой действие положено, иначе зелёный отказ не отличить от маршрута,
   // сломанного для всех.
   describe('разделение прав представителя услуг и тренера', () => {
+    // Клуб тренера отличается от общей формы только названием, адресом и датой
+    // слота — остальное та же форма публикации, и повторять её целиком незачем.
     const clubForm = {
+      ...CLUB_FORM,
       name: 'Клуб тренера',
-      city: 'Самара',
       address: 'Ленина 3',
-      description: 'Описание клуба длиной больше пятидесяти символов, чтобы пройти проверку формы.',
-      phone: '+7 (900) 000-00-00',
-      email: '',
-      priceFrom: '900',
-      sportIds: [3],
-      tagIds: [],
-      amenityIds: [],
-      vk: '',
-      telegram: '',
-      facebook: '',
-      scheduleSlots: [
-        {
-          title: 'Слот',
-          date: '2026-09-02',
-          startTime: '10:00',
-          endTime: '11:00',
-          price: '500',
-          capacity: '10',
-          location: 'Зал',
-          sportId: 3,
-        },
-      ],
-    };
-
-    const trainerForm = {
-      firstName: 'Павел',
-      lastName: 'Тренеров',
-      city: 'Самара',
-      address: 'Ленина 4',
-      bio: 'Описание тренера длиной больше пятидесяти символов, чтобы пройти проверку формы.',
-      experience: '5',
-      sportIds: [3],
-      specialtyIds: [1],
-      workFormatIds: [1],
-      phone: '+7 (900) 000-00-00',
-      vk: '',
-      telegram: '',
-      facebook: '',
-      offeringName: 'Персональная',
-      offeringDescription: 'Занятие один на один',
-      offeringFormat: 'Индивидуальная',
-      offeringPrice: '2000',
-      offeringDuration: '60',
-      offeringLocation: 'Зал',
-      clubId: null,
-      scheduleSlots: [
-        {
-          title: 'Слот',
-          date: '2026-09-03',
-          startTime: '09:00',
-          endTime: '10:00',
-          price: '2000',
-          capacity: '1',
-          location: 'Зал',
-          sportId: 3,
-        },
-      ],
+      scheduleSlots: [{ ...CLUB_FORM.scheduleSlots[0], date: '2026-09-02' }],
     };
 
     it('тренер не публикует клуб', async () => {
@@ -754,7 +760,7 @@ describe('Маршруты клубов и тренеров', () => {
       const response = await request(server())
         .post('/api/trainers')
         .set('Cookie', await harness.as(OWNER_ID))
-        .send(trainerForm);
+        .send(TRAINER_FORM);
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Недостаточно прав');
@@ -765,7 +771,7 @@ describe('Маршруты клубов и тренеров', () => {
       const response = await request(server())
         .patch('/api/trainers/1')
         .set('Cookie', await harness.as(OWNER_ID))
-        .send(trainerForm);
+        .send(TRAINER_FORM);
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Недостаточно прав');
@@ -775,7 +781,7 @@ describe('Маршруты клубов и тренеров', () => {
       const response = await request(server())
         .post('/api/trainers')
         .set('Cookie', await harness.as(TRAINER_ID))
-        .send(trainerForm);
+        .send(TRAINER_FORM);
 
       expect(response.status).toBe(201);
 
@@ -789,7 +795,7 @@ describe('Маршруты клубов и тренеров', () => {
       const patched = await request(server())
         .patch('/api/trainers/1')
         .set('Cookie', await harness.as(TRAINER_ID))
-        .send(trainerForm);
+        .send(TRAINER_FORM);
 
       expect(patched.status).toBe(200);
 
@@ -810,6 +816,140 @@ describe('Маршруты клубов и тренеров', () => {
 
       expect(response.status).toBe(200);
       expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(0);
+    });
+  });
+
+  // Шаг 35.17: владение решает, а не роль.
+  //
+  // Этап Э8a развёл права по ролям — и запер владельцев у их собственных вещей:
+  // карточка тренера, заведённая представителем услуг, перестала слушаться
+  // хозяина (в живой базе так заперты 4 карточки из 11). Роль говорила одно,
+  // владение — другое, и права слушали роль.
+  //
+  // Срез здесь ЗЕРКАЛЬНЫЙ общему: клубом владеет человек с ролью тренера,
+  // карточкой тренера — представитель услуг. Обе стороны проверяются вместе,
+  // потому что дефект у них общий и чинится одним движением: обратная пара
+  // (роль тренера + свой клуб) сегодня в живых данных не встречается, но
+  // запрещена тем же самым способом, а значит и вскроется тем же.
+  describe('владение решает, а не роль', () => {
+    beforeEach(async () => {
+      await harness.writeMany({
+        ...fixtureDictionaryCollections,
+        users: USERS,
+        clubs: [club(1, { managedByUserId: TRAINER_ID })],
+        trainers: [trainerCard({ managedByUserId: OWNER_ID })],
+        offerings: [CLUB_OFFERING, TRAINER_OFFERING],
+        // Ни слотов, ни записей: удаление здесь проверяет право, а не каскад —
+        // каскад закрыт своим набором.
+        schedule: [],
+        bookings: [],
+        reviews: [],
+        logs: [],
+      });
+    });
+
+    it('владелец правит свою карточку тренера, хотя роль у него другая', async () => {
+      // Тот самый живой отказ: `marina@studio.local` с ролью `club_owner`
+      // получала 403 на собственной карточке.
+      const response = await request(server())
+        .patch('/api/trainers/1')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send({ ...TRAINER_FORM, firstName: 'Марина', lastName: 'Соколова' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.trainer.name).toBe('Марина Соколова');
+    });
+
+    it('владелец удаляет свою карточку тренера', async () => {
+      const response = await request(server())
+        .delete('/api/trainers/1')
+        .set('Cookie', await harness.as(OWNER_ID));
+
+      expect(response.status).toBe(200);
+      expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(0);
+    });
+
+    it('посторонний чужую карточку не правит и не удаляет — она на месте', async () => {
+      // Двое посторонних, и отказы у них РАЗНОГО происхождения: у тренера право
+      // роли есть, и его останавливает ВЛАДЕНИЕ внутри сервиса; у представителя
+      // услуг нет и права — его останавливает guard, ещё до сервиса.
+      //
+      // Текст сверяется только у первого, и это не небрежность. Отказ по владению
+      // называет вещь поимённо, и он обязан звучать именно так: сломай проверку
+      // владения — и вместо него придёт общий отказ по праву. А вот текст отказа
+      // ПО ПРАВУ пинить нельзя: шаг 35.19 убирает владельческие права из словаря,
+      // и тогда обоих остановит одно и то же владение. Общая часть текста живёт
+      // в обоих мирах, поимённая — только там, где сработало владение.
+      const strangers = [
+        { userId: OTHER_TRAINER_ID, error: 'Недостаточно прав для редактирования тренера с id 1' },
+        { userId: STRANGER_ID, error: undefined },
+      ];
+
+      for (const stranger of strangers) {
+        const patched = await request(server())
+          .patch('/api/trainers/1')
+          .set('Cookie', await harness.as(stranger.userId))
+          .send(TRAINER_FORM);
+
+        expect(patched.status).toBe(403);
+        expect(patched.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+
+        const removed = await request(server())
+          .delete('/api/trainers/1')
+          .set('Cookie', await harness.as(stranger.userId));
+
+        expect(removed.status).toBe(403);
+        expect(removed.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+      }
+
+      expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(1);
+    });
+
+    it('владелец правит и удаляет свой клуб, хотя роль у него тренерская', async () => {
+      // Обратная сторона того же дефекта: `manage_own_clubs` есть только
+      // у представителя услуг, а клубом владеет тренер.
+      const patched = await request(server())
+        .patch('/api/clubs/1')
+        .set('Cookie', await harness.as(TRAINER_ID))
+        .send({ ...CLUB_FORM, name: 'Клуб 1 после правки' });
+
+      expect(patched.status).toBe(200);
+      expect(patched.body.data.club.name).toBe('Клуб 1 после правки');
+
+      const removed = await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(TRAINER_ID));
+
+      expect(removed.status).toBe(200);
+      expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(0);
+    });
+
+    it('посторонний чужой клуб не правит и не удаляет — он на месте', async () => {
+      // Зеркало к карточке: право на клубы есть у представителя услуг, и его
+      // останавливает владение; у тренера права нет — его останавливает guard.
+      const strangers = [
+        { userId: STRANGER_ID, error: 'Недостаточно прав для редактирования клуба с id 1' },
+        { userId: OTHER_TRAINER_ID, error: undefined },
+      ];
+
+      for (const stranger of strangers) {
+        const patched = await request(server())
+          .patch('/api/clubs/1')
+          .set('Cookie', await harness.as(stranger.userId))
+          .send(CLUB_FORM);
+
+        expect(patched.status).toBe(403);
+        expect(patched.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+
+        const removed = await request(server())
+          .delete('/api/clubs/1')
+          .set('Cookie', await harness.as(stranger.userId));
+
+        expect(removed.status).toBe(403);
+        expect(removed.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+      }
+
+      expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(1);
     });
   });
 });

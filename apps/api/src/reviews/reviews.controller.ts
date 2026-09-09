@@ -229,7 +229,6 @@ export class ReviewsController {
    * площадки. Одного права мало — нужно ещё и посещение, иначе накрутка рейтинга
    * стоит ровно один запрос.
    */
-  @Requires('write_reviews')
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<Review> {
     const parsed = createReviewSchema.safeParse(rawBody);

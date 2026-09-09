@@ -57,7 +57,6 @@ function parseNoteId(raw: string): number {
 // Весь раздел — работа провайдера со своими клиентами, и право у всех четырёх
 // маршрутов одно. Пометка стоит на классе, а не на каждом методе: маршрут,
 // добавленный сюда завтра, окажется под тем же правом сам.
-@Requires('manage_own_clients')
 @Controller('provider-client-notes')
 export class ProviderClientNotesController {
   constructor(

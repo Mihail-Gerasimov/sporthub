@@ -22,7 +22,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { compareByCreatedAtDesc, roleCan } from '@sporthub/domain';
+import { compareByCreatedAtDesc, accountCan, accountKindOf } from '@sporthub/domain';
 import type { TrainerClubLink, TrainerClubLinkStatus } from '@sporthub/types';
 import { z } from 'zod';
 
@@ -148,7 +148,7 @@ export class TrainerClubLinksController {
 
     // Полный срез — служебное чтение, и оно осталось ровно у той роли, которой
     // положены служебные действия.
-    if (session !== undefined && roleCan(session.user.role, 'use_admin_tools')) {
+    if (session !== undefined && accountCan(accountKindOf(session.user), 'use_admin_tools')) {
       return this.links.list(filter);
     }
 
@@ -167,7 +167,6 @@ export class TrainerClubLinksController {
     return [...byId.values()].sort(compareByCreatedAtDesc);
   }
 
-  @Requires('manage_own_links')
   @Post()
   async create(
     @Body() rawBody: unknown,
@@ -201,7 +200,6 @@ export class TrainerClubLinksController {
     return link;
   }
 
-  @Requires('manage_own_links')
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
   async approve(
@@ -232,7 +230,6 @@ export class TrainerClubLinksController {
     return link;
   }
 
-  @Requires('manage_own_links')
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   async reject(
@@ -272,7 +269,6 @@ export class TrainerClubLinksController {
     return link;
   }
 
-  @Requires('manage_own_links')
   @Post(':id/revoke')
   @HttpCode(HttpStatus.OK)
   async revoke(

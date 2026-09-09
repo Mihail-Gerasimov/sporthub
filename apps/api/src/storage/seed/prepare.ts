@@ -253,9 +253,15 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       id: user.id,
       createdAt,
       role: user.role,
-      // Вид учётной записи (фаза 35). Не задан — человек: администратора
-      // назначают явно, случайно им стать нельзя.
-      accountKind: user.accountKind ?? 'person',
+      // Вид учётной записи (фаза 35). Не задан — выводим из роли тем же правилом,
+      // что и миграция `20260910120000_account_kind`: администратором остаётся тот,
+      // кто им был.
+      //
+      // ⚠️ Мост на время перехода. Он умирает вместе с колонкой `role` в шаге 35.24;
+      // до тех пор данные, собранные до фазы (фикстуры, сид, выгрузки), обязаны
+      // читаться одинаково и здесь, и в базе — иначе тесты и живая база разойдутся
+      // в том, кто администратор.
+      accountKind: user.accountKind ?? (user.role === 'admin' ? 'admin' : 'person'),
       status: user.status ?? 'active',
       name: repair?.name ?? user.name,
       email: repair?.email ?? user.email,

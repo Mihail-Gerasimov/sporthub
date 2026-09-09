@@ -8,7 +8,7 @@
 // иначе вырезалось бы несуществующее поле, а хеш уходил бы наружу.
 
 import { Controller, Get, Inject, Query } from '@nestjs/common';
-import { roleCan } from '@sporthub/domain';
+import { accountCan, accountKindOf } from '@sporthub/domain';
 import type { CatalogOwnerType, Offering, User } from '@sporthub/types';
 
 import { AccessService } from '../access/access.service';
@@ -99,11 +99,16 @@ export class UsersController {
     @Query('scope') scope?: string,
   ): Promise<SafeUser[]> {
     if (scope === 'clients') {
-      if (!roleCan(session.user.role, 'manage_own_clients')) {
+      // ⚠️ Шаг 35.19b. Клиенты — это владение, а не право роли: они есть у того,
+      // у кого есть лица услуг. Но отказ обязан остаться отказом: «нет лиц» — это
+      // 403, а не пустой список. Пустой ответ вместо отказа читается как «клиентов
+      // пока нет» и прячет то, что спрашивать было нечего.
+      const owners = await this.access.getManagedPublicationIds(session.user.id);
+
+      if (owners.clubIds.length + owners.trainerIds.length === 0) {
         throw new ForbiddenError('Недостаточно прав');
       }
 
-      const owners = await this.access.getManagedPublicationIds(session.user.id);
       const clients = await this.users.findClientsOf(owners);
 
       // ⚠️ Шаг 35.13, точка 10. Себя в собственном списке клиентов быть не должно.
@@ -114,7 +119,7 @@ export class UsersController {
       return clients.filter((client) => client.id !== session.user.id).map(stripPasswordHash);
     }
 
-    if (!roleCan(session.user.role, 'manage_any_user')) {
+    if (!accountCan(accountKindOf(session.user), 'manage_any_user')) {
       throw new ForbiddenError('Недостаточно прав');
     }
 

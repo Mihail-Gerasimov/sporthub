@@ -15,11 +15,17 @@
 
 import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { roleCan, type Capability } from '@sporthub/domain';
+import { accountCan, accountKindOf, type Capability } from '@sporthub/domain';
 import type { Request } from 'express';
 
+import { AccessService } from '../access/access.service';
 import { ForbiddenError, UnauthorizedError } from '../common/domain-error';
-import { IS_PUBLIC, REQUIRED_CAPABILITY } from './access.decorators';
+import {
+  IS_PUBLIC,
+  OWNED_PUBLICATION,
+  REQUIRED_CAPABILITY,
+  type OwnedPublicationKind,
+} from './access.decorators';
 import { readSessionCookie } from './session-cookie';
 import { SessionService, type SessionContext } from './session.service';
 
@@ -31,6 +37,7 @@ export class SessionGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly sessions: SessionService,
+    private readonly access: AccessService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -84,10 +91,54 @@ export class SessionGuard implements CanActivate {
     // Перечисленных прав хватает ЛЮБОГО: маршрут, к которому ведут две разные
     // причины (своё владение или модерация), иначе пришлось бы либо открывать
     // без права вовсе, либо заводить третье право-синоним.
-    if (!capabilities.some((capability) => roleCan(sessionContext.user.role, capability))) {
-      throw new ForbiddenError('Недостаточно прав');
+    if (
+      capabilities.some((capability) => accountCan(accountKindOf(sessionContext.user), capability))
+    ) {
+      return true;
     }
 
-    return true;
+    // Роль не подошла — но вещь может быть его собственной, и тогда решает владение
+    // (шаг 35.17). Порядок именно такой: право проверяется по словарю и не стоит
+    // ни одного запроса, владение — стоит одного чтения публикации, и платить за
+    // него имеет смысл только там, где роль уже отказала.
+    if (await this.ownsRouteTarget(context, request, sessionContext.user.id)) {
+      return true;
+    }
+
+    throw new ForbiddenError('Недостаточно прав');
+  }
+
+  /**
+   * Принадлежит ли вызывающему та вещь, чей номер стоит в пути маршрута.
+   *
+   * Отвечает `false` всюду, где вопрос не задан: маршрут без пометки `@OrOwnerOf`,
+   * нечисловой номер, чужая или несуществующая публикация. Разбор номера здесь
+   * НЕ бросает ошибку разбора — иначе guard отвечал бы «неверный идентификатор»
+   * вместо отказа по правам, и по одному коду ответа стало бы видно, где маршрут
+   * останавливается раньше проверки.
+   *
+   * ⚠️ Владение спрашивается у `AccessService` — того же, что отвечает на этот
+   * вопрос сервисам публикаций и записей. Своего чтения `managedByUserId` здесь
+   * нет намеренно: две правды о владении разъезжаются на первой же правке.
+   */
+  private async ownsRouteTarget(
+    context: ExecutionContext,
+    request: RequestWithSession,
+    userId: number,
+  ): Promise<boolean> {
+    const kind = this.reflector.getAllAndOverride<OwnedPublicationKind | undefined>(
+      OWNED_PUBLICATION,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (kind === undefined) return false;
+
+    const publicationId = Number(request.params?.id);
+
+    if (!Number.isInteger(publicationId) || publicationId <= 0) return false;
+
+    return kind === 'club'
+      ? this.access.isManagerOfClub(publicationId, userId)
+      : this.access.isManagerOfTrainer(publicationId, userId);
   }
 }

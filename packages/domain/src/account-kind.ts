@@ -63,3 +63,15 @@ export function isAdminKind(kind: AccountKind): boolean {
 export function isAccountKind(value: string): value is AccountKind {
   return (ACCOUNT_KINDS as readonly string[]).includes(value);
 }
+
+/**
+ * Вид учётной записи пользователя с умолчанием.
+ *
+ * Поле необязательное в типе — чтобы клиент, собранный до фазы 35, пережил
+ * выкатку, — но в базе колонка обязательная со значением по умолчанию. Умолчание
+ * объявлено здесь один раз, а не повторяется `?? 'person'` в двух десятках мест:
+ * иначе смена умолчания превратилась бы в обход всего кода.
+ */
+export function accountKindOf(user: { accountKind?: AccountKind }): AccountKind {
+  return user.accountKind ?? DEFAULT_ACCOUNT_KIND;
+}
