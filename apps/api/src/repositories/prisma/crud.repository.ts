@@ -277,7 +277,7 @@ export class PrismaReviewsRepository implements ReviewsRepository {
     return this.transactions.client;
   }
 
-  private static toReview(row: ReviewRow): Review {
+  private static toReview(row: ReviewRow & { user?: { name: string } | null }): Review {
     // Адресат ровно один, второй ключ в файле отсутствовал — снимаем пустой.
     return omitNulls({
       id: row.id,
@@ -287,11 +287,21 @@ export class PrismaReviewsRepository implements ReviewsRepository {
       trainerId: row.trainerId,
       rating: row.rating,
       text: row.text,
+      // Имя автора приезжает связью в том же запросе. Отдельным походом за
+      // пользователями это стало бы «плюс один запрос на каждый отзыв», а
+      // списком всех пользователей — тем самым, что фаза и закрывает.
+      authorName: row.user?.name ?? null,
     }) as unknown as Review;
   }
 
+  /** Автор нужен только именем: остальные его поля к отзыву отношения не имеют. */
+  private static readonly AUTHOR = { user: { select: { name: true } } } as const;
+
   async findAll(): Promise<Review[]> {
-    const rows = await this.client.review.findMany({ orderBy: { id: 'asc' } });
+    const rows = await this.client.review.findMany({
+      orderBy: { id: 'asc' },
+      include: PrismaReviewsRepository.AUTHOR,
+    });
 
     return rows.map((row) => PrismaReviewsRepository.toReview(row));
   }
@@ -307,6 +317,7 @@ export class PrismaReviewsRepository implements ReviewsRepository {
       // работал только их префикс. Тай-брейкер по номеру обязателен: при равных
       // метках времени `ORDER BY` в базе неустойчив.
       orderBy: filter.order === 'newest' ? [{ createdAt: 'desc' }, { id: 'desc' }] : { id: 'asc' },
+      include: PrismaReviewsRepository.AUTHOR,
     });
 
     return rows.map((row) => PrismaReviewsRepository.toReview(row));

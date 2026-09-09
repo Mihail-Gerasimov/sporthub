@@ -26,6 +26,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { capabilitiesOf } from '@sporthub/domain';
 import type { AuthAccountType, User, UserRole } from '@sporthub/types';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -78,6 +79,23 @@ const registerSchema = z
     accountType: z.enum(['athlete', 'provider']),
   })
   .strict();
+
+/**
+ * Профиль вошедшего — ответ «кто я».
+ *
+ * Шире публичной карточки на три поля, и каждое нужно по делу: по роли страницы
+ * решают, какой кабинет показывать; по списку прав интерфейс рисует действия,
+ * а не угадывает их по роли во второй раз; метка снятия карантина нужна расчёту
+ * доступности записи. Раньше всё это браузер знал сам — он же сам себе и назначал.
+ *
+ * Расширять `AuthUser` нельзя: его форма закреплена сверкой контрактов у входа
+ * и регистрации, а лишнее поле там означало бы изменение обещания без нужды.
+ */
+export type SessionProfile = AuthUser & {
+  role: UserRole;
+  capabilities: string[];
+  quarantineLiftedAt?: string;
+};
 
 /** Публичная карточка пользователя — ровно те поля, что отдавались раньше. */
 export type AuthUser = {
@@ -195,10 +213,21 @@ export class AuthController {
    * помнил, кто он, и сам это сообщал серверу.
    */
   @Get('me')
-  async me(@CurrentUser() context: SessionContext): Promise<AuthUser> {
+  async me(@CurrentUser() context: SessionContext): Promise<SessionProfile> {
     // Своей проверки здесь нет: маршрут не помечен публичным, значит без годной
     // сессии до него не доходят вовсе — это работа глобального guard'а.
-    return AuthController.toAuthUser(context.user);
+    const user = context.user;
+
+    return {
+      ...AuthController.toAuthUser(user),
+      role: user.role,
+      // Права считаются по роли ТОГО, ОТ ЧЬЕГО ЛИЦА действуют: под имперсонизацией
+      // администратор видит площадку глазами пользователя, а не своими.
+      capabilities: capabilitiesOf(user.role),
+      ...(user.quarantineLiftedAt === undefined
+        ? {}
+        : { quarantineLiftedAt: user.quarantineLiftedAt }),
+    };
   }
 
   /** Выдать сессию и положить её идентификатор в ответ. */

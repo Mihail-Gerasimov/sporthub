@@ -24,9 +24,13 @@ export type SessionUser = {
   name: string;
   email: string;
   role: UserRole;
+  /** Что этой роли можно. Интерфейс рисует по списку, а не угадывает по роли. */
+  capabilities: string[];
   phone?: string;
   avatarUrl?: string;
   city?: string;
+  /** Нужна расчёту карантина на странице записи. */
+  quarantineLiftedAt?: string;
 };
 
 /**

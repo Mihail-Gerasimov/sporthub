@@ -14,7 +14,6 @@ import {
   getSports,
   getTrainerBySlug,
   getTrainerClubLinks,
-  getUsers,
 } from '@/lib/server-api';
 import { compareByCreatedAtDesc, computeTrainerReliability } from '@sporthub/domain';
 
@@ -46,13 +45,12 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   }
 
   /* Параллельная загрузка всех связанных данных */
-  const [offerings, specialties, sports, schedule, reviews, users, bookings] = await Promise.all([
+  const [offerings, specialties, sports, schedule, reviews, bookings] = await Promise.all([
     getOfferings(),
     getSpecialties(),
     getSports(),
     getSchedule({ ownerType: 'all' }),
     getReviews(),
-    getUsers(),
     // Симметрично карточке клуба: один бейдж — записи только этого тренера
     // и только те статусы, которые читает расчёт надёжности.
     getBookingsWhere({ trainerId: trainer.id, status: PROVIDER_RELIABILITY_STATUSES }),
@@ -85,8 +83,12 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     .sort(compareByCreatedAtDesc);
 
   /* Карта авторов отзывов: userId → name */
-  const reviewAuthors = users.reduce<Record<number, string>>((accumulator, user) => {
-    accumulator[user.id] = user.name;
+  // ⚠️ Имя автора приезжает в самом отзыве (фаза 34). Раньше страница поднимала
+  // ради подписи СПИСОК ВСЕХ пользователей площадки — с почтами и телефонами,
+  // и без всякой проверки: тот маршрут был открыт любому.
+  const reviewAuthors = reviews.reduce<Record<number, string>>((accumulator, review) => {
+    if (review.authorName !== undefined) accumulator[review.userId] = review.authorName;
+
     return accumulator;
   }, {});
 

@@ -16,7 +16,6 @@ import {
   getTags,
   getTrainerClubLinks,
   getTrainers,
-  getUsers,
 } from '@/lib/server-api';
 import { compareByCreatedAtDesc, computeClubReliability } from '@sporthub/domain';
 
@@ -47,31 +46,20 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
-  const [
-    amenities,
-    offerings,
-    specialties,
-    sports,
-    tags,
-    trainers,
-    schedule,
-    reviews,
-    users,
-    bookings,
-  ] = await Promise.all([
-    getAmenities(),
-    getOfferings(),
-    getSpecialties(),
-    getSports(),
-    getTags(),
-    getTrainers(),
-    getSchedule(),
-    getReviews(),
-    getUsers(),
-    // Карточке нужен один бейдж — надёжность этого клуба. Записи чужих публикаций
-    // и статусы, которых расчёт не читает, ей не нужны вовсе.
-    getBookingsWhere({ clubId: club.id, status: PROVIDER_RELIABILITY_STATUSES }),
-  ]);
+  const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews, bookings] =
+    await Promise.all([
+      getAmenities(),
+      getOfferings(),
+      getSpecialties(),
+      getSports(),
+      getTags(),
+      getTrainers(),
+      getSchedule(),
+      getReviews(),
+      // Карточке нужен один бейдж — надёжность этого клуба. Записи чужих публикаций
+      // и статусы, которых расчёт не читает, ей не нужны вовсе.
+      getBookingsWhere({ clubId: club.id, status: PROVIDER_RELIABILITY_STATUSES }),
+    ]);
 
   // Phase 25 Step 25.13: публичная симметрия reliability.
   const reliability = computeClubReliability(bookings, club.id);
@@ -94,8 +82,12 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
   const clubReviews = reviews
     .filter((review) => review.clubId === club.id)
     .sort(compareByCreatedAtDesc);
-  const reviewAuthors = users.reduce<Record<number, string>>((accumulator, user) => {
-    accumulator[user.id] = user.name;
+  // ⚠️ Имя автора приезжает в самом отзыве (фаза 34). Раньше страница поднимала
+  // ради подписи СПИСОК ВСЕХ пользователей площадки — с почтами и телефонами,
+  // и без всякой проверки: тот маршрут был открыт любому.
+  const reviewAuthors = reviews.reduce<Record<number, string>>((accumulator, review) => {
+    if (review.authorName !== undefined) accumulator[review.userId] = review.authorName;
+
     return accumulator;
   }, {});
 

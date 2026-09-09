@@ -5,7 +5,8 @@ import { notFound } from 'next/navigation';
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
 import { getQuarantineDateFrom, QUARANTINE_STATUSES } from '@/lib/booking-scopes';
-import { getBookingsWhere, getScheduleSlotContext, getUsers } from '@/lib/server-api';
+import { getBookingsWhere, getScheduleSlotContext } from '@/lib/server-api';
+import { readSession } from '@/lib/session';
 import { isAthleteInQuarantine, type QuarantineResult } from '@sporthub/domain';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
 import type { OfferingFormat } from '@sporthub/types';
@@ -42,7 +43,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
   // карантина ниже, и разъезжаться этим двум значениям нельзя.
   const now = new Date();
 
-  const [slotContext, bookings, users] = await Promise.all([
+  const [slotContext, bookings, viewer] = await Promise.all([
     getScheduleSlotContext(normalizedScheduleId),
     // ⚠️ Записи здесь нужны НЕ по этому слоту, а по истории атлетов: страница
     // заранее считает карантин, чтобы клиентская часть выбрала из готового свой.
@@ -53,23 +54,22 @@ export default async function BookingPage({ params }: BookingPageProps) {
       status: QUARANTINE_STATUSES,
       dateFrom: getQuarantineDateFrom(getDateKeyInTimeZone(now)),
     }),
-    getUsers(),
+    readSession(),
   ]);
 
   if (!slotContext || !slotContext.offering) {
     notFound();
   }
 
-  // Step 25.7: предварительный расчёт quarantine-статуса для каждого athlete-
-  // пользователя (MVP seed). Client выбирает нужный по своему athleteUserId
-  // из useAuthStore. Провайдеры/админы не учитываются — им booking-CTA в любом
-  // случае недоступен по role-guard внутри компонента.
+  // ⚠️ Карантин считается только для ТОГО, КТО СМОТРИТ (фаза 34). Раньше страница
+  // поднимала список всех пользователей площадки и считала карантин каждому
+  // атлету — то есть ради одного бейджа отдавала наружу почты и телефоны всех
+  // зарегистрированных. Гостю считать нечего: ему запись всё равно недоступна.
   const quarantineByUserId: Record<number, QuarantineResult> = {};
-  for (const user of users) {
-    if (user.role !== 'athlete') continue;
 
-    quarantineByUserId[user.id] = isAthleteInQuarantine(bookings, user.id, now, {
-      quarantineLiftedAt: user.quarantineLiftedAt ?? null,
+  if (viewer !== null && viewer.role === 'athlete') {
+    quarantineByUserId[viewer.id] = isAthleteInQuarantine(bookings, viewer.id, now, {
+      quarantineLiftedAt: viewer.quarantineLiftedAt ?? null,
     });
   }
 
