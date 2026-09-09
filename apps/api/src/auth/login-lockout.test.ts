@@ -54,9 +54,7 @@ describe('Блокировка входа после неверных попыт
 
   /** Одна попытка входа. */
   const attempt = (email: string, password: string) =>
-    request(harness.app.getHttpServer())
-      .post('/api/auth/login')
-      .send({ email, accountType: 'athlete', password });
+    request(harness.app.getHttpServer()).post('/api/auth/login').send({ email, password });
 
   /** Несколько неверных попыток подряд. */
   const failTimes = async (count: number, email: string): Promise<void> => {

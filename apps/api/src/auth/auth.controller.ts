@@ -32,7 +32,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { accountKindOf, capabilitiesOf } from '@sporthub/domain';
+import { accountKindOf, capabilitiesOf, isAdminKind } from '@sporthub/domain';
 import type { AccountKind } from '@sporthub/types';
 import type { AuthAccountType, User, UserRole } from '@sporthub/types';
 import type { Request, Response } from 'express';
@@ -77,13 +77,18 @@ const loginSchema = z
   .object({
     email: z.string().email('Некорректный email'),
     /**
-     * Тип кабинета — ПОДСКАЗКА интерфейса, а не часть входа.
+     * Служебный вход (шаг 35.23).
      *
-     * Необязателен с фазы 34: вход администратора идёт тем же маршрутом, а кабинета
-     * у него нет ни одного из двух. Раньше поле было обязательным, и админу
-     * пришлось бы притворяться спортсменом, чтобы предъявить пароль.
+     * ⚠️ До фазы 35 «служебность» входа определялась ОТСУТСТВИЕМ поля `accountType`:
+     * форма админки его не слала, обычная модалка слала. Фаза убирает типы кабинета,
+     * и без явного признака оба входа стали бы байт-в-байт одинаковыми — админ начал
+     * бы входить через общую модалку.
+     *
+     * Поле, а не отдельный маршрут: маршрут потребовал бы второй копии всей защиты
+     * входа — ограничения частоты, лестницы блокировок, сверки по фиктивному хешу, —
+     * и эти копии разошлись бы при первой правке.
      */
-    accountType: z.enum(['athlete', 'provider']).optional(),
+    portal: z.literal('service').optional(),
     password: z.string().min(1, 'Пароль обязателен'),
   })
   .strict();
@@ -95,9 +100,13 @@ const registerSchema = z
     password: z.string().min(6, 'Пароль минимум 6 символов'),
     phone: z.string().optional(),
     city: z.string().optional(),
-    accountType: z.enum(['athlete', 'provider']),
   })
   .strict();
+
+// ⚠️ Шаг 35.22. Поля `accountType` в регистрации больше нет, и это не упущение.
+// Регистрация заводит ЧЕЛОВЕКА. Кем он будет на площадке, решает не форма входа,
+// а то, заведёт ли он лицо услуг — карточку тренера или клуб. Выбор в форме снова
+// связал бы личность с типом, то есть вернул бы ровно то, что фаза убирает.
 
 /**
  * Профиль вошедшего — ответ «кто я».
@@ -193,7 +202,7 @@ export class AuthController {
       throw new ValidationError('Некорректные данные запроса');
     }
 
-    const { email, accountType, password } = parsed.data;
+    const { email, portal, password } = parsed.data;
     const attemptKeys = { email, ip: request.ip };
 
     // Проверка блокировки стоит ДО обращения к базе и до сверки пароля: подбор
@@ -229,17 +238,21 @@ export class AuthController {
     // Обе проверки ниже — подсказки интерфейсу, а не защита: они говорят уже тому,
     // кто предъявил верный пароль.
     //
-    // Порядок важен. Администратор не совпадает НИ С ОДНИМ типом кабинета, поэтому
-    // проверка типа перехватила бы его первой, и сообщение про служебный вход стало
-    // бы недостижимым — админ читал бы «неверный тип кабинета» и не понимал, куда идти.
-    if (user.role === 'admin' && accountType !== undefined) {
+    // ⚠️ Шаг 35.23. Служебный вход и обычный различаются ЯВНЫМ признаком, а не
+    // отсутствием поля. Обе двери проверяются в обе стороны:
+    //   • администратор через общую форму не проходит — иначе служебная панель
+    //     открывалась бы из той же модалки, что и кабинет;
+    //   • обычный человек через служебную форму тоже не проходит — иначе признак
+    //     стал бы украшением, которое ничего не разделяет.
+    const isService = portal === 'service';
+    const isAdmin = isAdminKind(accountKindOf(user));
+
+    if (isAdmin && !isService) {
       throw new ForbiddenError('Администраторы входят через /service-portal');
     }
 
-    // Тип сверяется, только если его назвали. Служебная форма его не шлёт вовсе:
-    // кабинета у администратора нет ни одного.
-    if (accountType !== undefined && !matchesAccountType(user.role, accountType)) {
-      throw new ForbiddenError('Неверный тип кабинета для этого email');
+    if (!isAdmin && isService) {
+      throw new ForbiddenError('Служебный вход только для администраторов');
     }
 
     await this.openSession(user, request, response);
@@ -457,19 +470,25 @@ export class AuthController {
       throw new ValidationError('Некорректные данные регистрации');
     }
 
-    const { name, email, password, phone, city, accountType } = parsed.data;
+    const { name, email, password, phone, city } = parsed.data;
     const existing = await this.users.findByEmail(email);
 
     if (existing) {
       throw new ConflictError('Email уже зарегистрирован');
     }
 
-    // Регистрация провайдера всегда создаёт владельца клуба:
-    // тренер как роль появляется только в исходных данных.
-    const role: UserRole = accountType === 'athlete' ? 'athlete' : 'club_owner';
-
+    // ⚠️ Шаг 35.22. Регистрация заводит ЧЕЛОВЕКА, и только его.
+    //
+    // Прежде здесь стояла строка `accountType === 'athlete' ? 'athlete' : 'club_owner'` —
+    // и роль `trainer` не создавалась ни одним путём продукта: получить её можно было
+    // только сидом. То есть словарь прав разводил тренера и владельца клуба, а стать
+    // тренером было нельзя. Теперь становятся не ролью, а действием: завёл карточку —
+    // ты тренер, завёл клуб — владелец клуба, завёл оба — и то и другое.
+    //
+    // Колонка `role` доживает до шага 35.24; до тех пор пишем нейтральное значение.
     const created = await this.users.insert({
-      role,
+      role: 'athlete',
+      accountKind: 'person',
       status: 'active',
       name,
       email,
@@ -487,13 +506,6 @@ export class AuthController {
 
     return AuthController.toAuthUser(created);
   }
-}
-
-/** Совпадает ли доменная роль с типом кабинета, выбранным в форме. */
-function matchesAccountType(role: UserRole, accountType: AuthAccountType): boolean {
-  return accountType === 'athlete'
-    ? role === 'athlete'
-    : role === 'club_owner' || role === 'trainer';
 }
 
 export const AUTH_CONTROLLERS = [AuthController];

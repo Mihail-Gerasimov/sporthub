@@ -72,9 +72,7 @@ describe('Вход не выдаёт заведённые почты време�
 
   /** Одна попытка входа. */
   const attempt = (email: string, password: string) =>
-    request(harness.app.getHttpServer())
-      .post('/api/auth/login')
-      .send({ email, accountType: 'athlete', password });
+    request(harness.app.getHttpServer()).post('/api/auth/login').send({ email, password });
 
   it('неизвестная почта всё равно доходит до сверки пароля — ровно один раз', async () => {
     const response = await attempt('nobody@test.local', DEMO_PASSWORD);

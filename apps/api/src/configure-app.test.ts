@@ -73,7 +73,7 @@ describe('Настройка приложения на пути запроса',
     request(harness.app.getHttpServer())
       .post('/api/auth/login')
       .set('X-Forwarded-For', ip)
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password });
+      .send({ email: 'athlete@test.local', password });
 
   describe('Доверие к заголовкам прокси', () => {
     // В бою перед приложением стоит nginx, и соединение к процессу всегда приходит
@@ -105,7 +105,7 @@ describe('Настройка приложения на пути запроса',
       const response = await request(harness.app.getHttpServer())
         .post('/api/auth/login')
         .set('X-Forwarded-For', `${SPOOFED_IP}, ${CLIENT_IP}`)
-        .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+        .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
       expect(response.status).toBe(200);
 
@@ -138,7 +138,7 @@ describe('Настройка приложения на пути запроса',
       request(harness.app.getHttpServer())
         .post('/api/auth/login')
         .set('Sec-Fetch-Site', site)
-        .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+        .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     it('изменяющий запрос с чужого сайта отбивается до контроллера', async () => {
       const response = await post('cross-site');

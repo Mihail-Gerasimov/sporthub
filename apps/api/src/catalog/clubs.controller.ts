@@ -33,6 +33,7 @@ import {
   publishTrainerSchema,
   accountCan,
   accountKindOf,
+  hasHumanAbilities,
 } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
@@ -194,6 +195,13 @@ export class ClubsController {
 
     // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
     // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    // ⚠️ Шаг 35.18a, решение заказчика 13. Лицо услуг заводит человек площадки.
+    // Администратор им не является: он за площадкой следит, а не работает на ней.
+    // Правки и удаления это НЕ касается — там законна модерация.
+    if (!hasHumanAbilities(accountKindOf(session.user))) {
+      throw new ForbiddenError('Публикации заводят пользователи площадки');
+    }
+
     const { userId: _ignoredUserId, ...form } = parsed.data;
     const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);
@@ -404,6 +412,13 @@ export class TrainersController {
 
     // Владелец — из сессии. Одноимённое поле в теле сервер игнорирует: до фазы 34
     // именно оно и решало, от чьего имени публикуется клуб или тренер.
+    // ⚠️ Шаг 35.18a, решение заказчика 13. Лицо услуг заводит человек площадки.
+    // Администратор им не является: он за площадкой следит, а не работает на ней.
+    // Правки и удаления это НЕ касается — там законна модерация.
+    if (!hasHumanAbilities(accountKindOf(session.user))) {
+      throw new ForbiddenError('Публикации заводят пользователи площадки');
+    }
+
     const { userId: _ignoredUserId, ...form } = parsed.data;
     const userId = session.user.id;
     await this.query.rememberCity(form.city, form.cityCoordinates);

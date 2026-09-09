@@ -123,6 +123,46 @@ describe('Вид учётной записи', () => {
       expect(response.status, 'администратор оставил отзыв').toBe(403);
     });
 
+    it('не заводит клуб', async () => {
+      // ⚠️ Дыра, найденная при переводе тестов: право `write_reviews` сняли,
+      // а проверку человека поставили только записям. Отзыв и публикации остались
+      // открыты администратору, и держалось это лишь тем, что записаться он не мог.
+      const response = await request(harness.app.getHttpServer())
+        .post('/api/clubs')
+        .set('Cookie', adminCookie)
+        .send({
+          name: 'Клуб администратора',
+          city: 'Самара',
+          address: 'ул. Надзорная, 1',
+          description: 'Попытка администратора завести лицо услуг — так быть не должно.',
+          phone: '+7 (900) 000-00-13',
+          email: 'admin-club@sporthub.local',
+          priceFrom: '900',
+          sportIds: [1],
+          tagIds: [],
+          amenityIds: [],
+          vk: '',
+          telegram: '',
+          facebook: '',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          cityCoordinates: { lat: 53.2, lng: 50.1 },
+          scheduleSlots: [
+            {
+              title: 'Слот',
+              date: '2030-01-01',
+              startTime: '10:00',
+              endTime: '11:00',
+              price: '900',
+              capacity: '5',
+              location: 'Зал',
+              sportId: 1,
+            },
+          ],
+        });
+
+      expect(response.status, 'администратор завёл клуб').toBe(403);
+    });
+
     it('контрольная группа: обычный человек записывается', async () => {
       // Без неё «администратору отказано» неотличимо от «отказано всем».
       const response = await request(harness.app.getHttpServer())

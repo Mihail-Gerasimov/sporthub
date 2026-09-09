@@ -142,7 +142,7 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
   },
   'post /api/auth/login': {
     url: '/api/auth/login',
-    body: { email: 'alexey@sporthub.local', accountType: 'athlete', password: 'sporthub123' },
+    body: { email: 'alexey@sporthub.local', password: 'sporthub123' },
   },
   'post /api/auth/register': {
     url: '/api/auth/register',
@@ -150,7 +150,6 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
       name: 'Сторож',
       email: 'guard@sporthub.local',
       password: 'guard-secret-1',
-      accountType: 'athlete',
     },
   },
   'post /api/reviews': {

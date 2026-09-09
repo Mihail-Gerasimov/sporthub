@@ -21,7 +21,7 @@
 // Потолок числа отзывов адресату — число завершённых записей к нему же.
 
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
-import { COMPLETED_BOOKING_STATUSES } from '@sporthub/domain';
+import { COMPLETED_BOOKING_STATUSES, accountKindOf, hasHumanAbilities } from '@sporthub/domain';
 import type { Review } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
@@ -235,6 +235,15 @@ export class ReviewsController {
 
     if (!parsed.success) {
       throw new ValidationError('Некорректные данные отзыва');
+    }
+
+    // ⚠️ Шаг 35.18a, решение заказчика 13. Отзыв — действие человека площадки.
+    // Администратор им не является: он надзор, а не пользователь. Раньше это
+    // держалось правом `write_reviews`, которого у него не было; после снятия прав
+    // проверка обязана стоять явно, иначе достаточно одной завершённой записи
+    // из данных — и отзыв пройдёт.
+    if (!hasHumanAbilities(accountKindOf(session.user))) {
+      throw new ForbiddenError('Отзывы оставляют пользователи площадки');
     }
 
     const { clubId, rating, text, trainerId } = parsed.data;

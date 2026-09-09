@@ -58,7 +58,7 @@ describe('Маршруты входа и регистрации', () => {
   it('атлет входит с верным паролем, пароль наружу не уходит', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     expect(response.status).toBe(200);
     expect(response.body.data.id).toBe(1);
@@ -69,7 +69,7 @@ describe('Маршруты входа и регистрации', () => {
   it('вход выдаёт cookie сессии — недоступную скрипту и не пускающую на чужой сайт', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     const cookie = sessionCookie(response);
 
@@ -84,7 +84,7 @@ describe('Маршруты входа и регистрации', () => {
   it('неверный пароль не пускает', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: 'не тот' });
+      .send({ email: 'athlete@test.local', password: 'не тот' });
 
     expect(response.status).toBe(401);
     expect(response.body.error).toBe('Неверная почта или пароль');
@@ -96,11 +96,11 @@ describe('Маршруты входа и регистрации', () => {
     // и вход превратится в перечислитель заведённых почт.
     const wrongPassword = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: 'не тот' });
+      .send({ email: 'athlete@test.local', password: 'не тот' });
 
     const unknownEmail = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'nobody@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'nobody@test.local', password: DEMO_PASSWORD });
 
     expect(unknownEmail.status).toBe(wrongPassword.status);
     expect(unknownEmail.body.error).toBe(wrongPassword.body.error);
@@ -113,7 +113,7 @@ describe('Маршруты входа и регистрации', () => {
 
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     expect(response.status).toBe(401);
     expect(response.body.error).toBe('Неверная почта или пароль');
@@ -122,18 +122,24 @@ describe('Маршруты входа и регистрации', () => {
   it('без пароля вход не принимается вовсе', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete' });
+      .send({ email: 'athlete@test.local' });
 
     expect(response.status).toBe(400);
   });
 
-  it('несовпадение типа кабинета — 403', async () => {
+  // ⚠️ Шаг 35.23. Раньше здесь проверялось «несовпадение типа кабинета»: человек
+  // с ролью провайдера, назвавший себя спортсменом, получал 403. Типов кабинета
+  // больше нет — человек один, и кабинет у него один. Сверять нечего.
+  //
+  // Осталась ДРУГАЯ проверка того же места: обычный человек не проходит служебным
+  // входом. Без неё признак служебности стал бы украшением.
+  it('обычный человек через служебный вход не пускается — 403', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'owner@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'owner@test.local', password: DEMO_PASSWORD, portal: 'service' });
 
     expect(response.status).toBe(403);
-    expect(response.body.error).toMatch(/тип кабинета/i);
+    expect(response.body.error).toMatch(/служебн/i);
   });
 
   it('администратор через общий вход не пускается — 403', async () => {
@@ -141,7 +147,7 @@ describe('Маршруты входа и регистрации', () => {
     // отвечает проверка типа; сам факт «это админ» наружу не сообщается.
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'admin@test.local', accountType: 'provider', password: DEMO_PASSWORD });
+      .send({ email: 'admin@test.local', password: DEMO_PASSWORD });
 
     expect(response.status).toBe(403);
     expect(response.body.error).toMatch(/service-portal|администрат/i);
@@ -152,7 +158,7 @@ describe('Маршруты входа и регистрации', () => {
     const server = harness.app.getHttpServer();
     const login = await request(server)
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
     const cookie = sessionCookie(login) as string;
 
     const logout = await request(server).post('/api/auth/logout').set('Cookie', cookie);
@@ -176,7 +182,7 @@ describe('Маршруты входа и регистрации', () => {
     const server = harness.app.getHttpServer();
     const login = await request(server)
       .post('/api/auth/login')
-      .send({ email: 'owner@test.local', accountType: 'provider', password: DEMO_PASSWORD });
+      .send({ email: 'owner@test.local', password: DEMO_PASSWORD });
 
     const me = await request(server)
       .get('/api/auth/me')
@@ -207,10 +213,10 @@ describe('Маршруты входа и регистрации', () => {
     const server = harness.app.getHttpServer();
     const first = await request(server)
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
     const second = await request(server)
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     expect(sessionCookie(first)).not.toBe(sessionCookie(second));
   });
@@ -220,7 +226,6 @@ describe('Маршруты входа и регистрации', () => {
       name: 'Сразу внутри',
       email: 'fresh@test.local',
       password: 'secret1',
-      accountType: 'athlete',
     });
 
     expect(response.status).toBe(201);
@@ -232,7 +237,6 @@ describe('Маршруты входа и регистрации', () => {
       name: 'Новый',
       email: 'new@test.local',
       password: 'secret1',
-      accountType: 'athlete',
     });
 
     expect(response.status).toBe(201);
@@ -250,18 +254,34 @@ describe('Маршруты входа и регистрации', () => {
     expect(await verify(stored[3].passwordHash, 'secret1')).toBe(true);
   });
 
-  it('регистрация провайдера создаёт владельца клуба', async () => {
+  // ⚠️ Шаг 35.22. Раньше регистрация «провайдера» создавала владельца клуба,
+  // а роль тренера не создавалась НИ ОДНИМ путём продукта — только сидом.
+  // Теперь регистрация заводит человека, а кем он станет, решает то, заведёт ли
+  // он лицо услуг.
+  it('регистрация заводит человека без лиц услуг', async () => {
     const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
-      name: 'Провайдер',
-      email: 'provider@test.local',
+      name: 'Новый человек',
+      email: 'newcomer@test.local',
       password: 'secret1',
-      accountType: 'provider',
     });
 
     expect(response.status).toBe(201);
 
-    const stored = await harness.read<{ role: string }[]>('users');
-    expect(stored.at(-1)?.role).toBe('club_owner');
+    const stored = await harness.read<{ accountKind?: string }[]>('users');
+    expect(stored.at(-1)?.accountKind, 'регистрация завела не человека').toBe('person');
+  });
+
+  it('регистрация с типом учётной записи отклоняется', async () => {
+    // Схема `.strict()`: лишнего поля быть не должно. Иначе старый клиент молча
+    // продолжал бы слать выбор, которого больше нет, и никто бы не заметил.
+    const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
+      name: 'Кто-то',
+      email: 'someone@test.local',
+      password: 'secret1',
+      accountType: 'provider',
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it('занятая почта — 409', async () => {
@@ -269,7 +289,6 @@ describe('Маршруты входа и регистрации', () => {
       name: 'Дубль',
       email: 'athlete@test.local',
       password: 'secret1',
-      accountType: 'athlete',
     });
 
     expect(response.status).toBe(409);
@@ -281,7 +300,6 @@ describe('Маршруты входа и регистрации', () => {
       name: 'А',
       email: 'short@test.local',
       password: 'secret1',
-      accountType: 'athlete',
     });
 
     expect(response.status).toBe(400);
@@ -306,7 +324,7 @@ describe('Сессии при смене пароля', () => {
   const login = async (): Promise<string> => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
 
     return sessionCookie(response) as string;
   };
@@ -478,12 +496,12 @@ describe('Служебный вход администратора', () => {
     await harness.close();
   });
 
-  it('администратор входит, не называя тип кабинета', async () => {
-    // Кабинета у него нет ни одного из двух — назвать нечего. Отсутствие поля
-    // и отличает служебный вход от обычного.
+  it('администратор входит служебным входом', async () => {
+    // ⚠️ Шаг 35.23. Раньше служебность определялась ОТСУТСТВИЕМ поля типа кабинета.
+    // После снятия типов оба входа стали бы неотличимы, поэтому признак назван явно.
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'admin@test.local', password: DEMO_PASSWORD });
+      .send({ email: 'admin@test.local', password: DEMO_PASSWORD, portal: 'service' });
 
     expect(response.status).toBe(200);
     expect(sessionCookie(response)).toBeDefined();
@@ -501,7 +519,7 @@ describe('Служебный вход администратора', () => {
   it('администратора через общую модалку по-прежнему разворачивает', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'admin@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+      .send({ email: 'admin@test.local', password: DEMO_PASSWORD });
 
     expect(response.status).toBe(403);
   });

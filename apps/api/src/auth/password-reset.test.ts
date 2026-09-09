@@ -99,9 +99,7 @@ describe('Восстановление пароля', () => {
     request(server()).post('/api/auth/reset-password').send({ token, password });
 
   const login = (password: string) =>
-    request(server())
-      .post('/api/auth/login')
-      .send({ email: 'athlete@test.local', accountType: 'athlete', password });
+    request(server()).post('/api/auth/login').send({ email: 'athlete@test.local', password });
 
   /** Значение ссылки из последнего письма — ровно то, что получил бы человек. */
   const tokenFromLetter = (): string => {
