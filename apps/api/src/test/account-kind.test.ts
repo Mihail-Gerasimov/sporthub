@@ -58,6 +58,52 @@ describe('Вид учётной записи', () => {
     expect(athlete?.accountKind, 'у обычного человека не тот вид').toBe('person');
   });
 
+  // ⚠️ Шаг 35.21. Лица едут ОТВЕТОМ «кто я», а не вычисляются фронтом из каталога:
+  // проверка «пускать ли в кабинет лица» обязана укладываться в тот же единственный
+  // запрос, иначе лейаут сходит за данными до проверки.
+  describe('ответ «кто я» привозит лица услуг', () => {
+    it('у человека с клубом и карточкой — оба лица', async () => {
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/auth/me')
+        .set('Cookie', await harness.as(2));
+
+      const faces = (response.body as { data?: { faces?: { kind: string }[] } }).data?.faces ?? [];
+
+      expect(faces.length, 'лиц не привезли вовсе').toBeGreaterThan(0);
+      expect(
+        faces.some((face) => face.kind === 'club'),
+        'клуба нет в лицах',
+      ).toBe(true);
+      expect(
+        faces.some((face) => face.kind === 'trainer'),
+        'карточки нет в лицах',
+      ).toBe(true);
+    });
+
+    it('у человека без лиц список пуст, а не отсутствует', async () => {
+      // Пустой список и отсутствие поля — разные вещи: на втором фронт споткнётся.
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/auth/me')
+        .set('Cookie', athleteCookie);
+
+      const faces = (response.body as { data?: { faces?: unknown[] } }).data?.faces;
+
+      expect(Array.isArray(faces), 'поле лиц отсутствует').toBe(true);
+      expect(faces).toHaveLength(0);
+    });
+
+    it('чужих лиц в ответе нет', async () => {
+      const response = await request(harness.app.getHttpServer())
+        .get('/api/auth/me')
+        .set('Cookie', await harness.as(4));
+
+      const faces = (response.body as { data?: { faces?: { id: number }[] } }).data?.faces ?? [];
+
+      // Пользователь 4 — тренер без публикаций: все карточки набора у пользователя 2.
+      expect(faces, 'человеку привезли чужие лица').toHaveLength(0);
+    });
+  });
+
   describe('администратор не получает базовый набор (решение заказчика 13)', () => {
     it('не записывается на занятия', async () => {
       const response = await request(harness.app.getHttpServer())

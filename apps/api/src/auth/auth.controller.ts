@@ -33,6 +33,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { accountKindOf, capabilitiesOf } from '@sporthub/domain';
+import type { AccountKind } from '@sporthub/types';
 import type { AuthAccountType, User, UserRole } from '@sporthub/types';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -46,6 +47,8 @@ import {
 } from '../common/domain-error';
 import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
+import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
+import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
 import { RateLimit } from '../common/rate-limit';
@@ -107,9 +110,30 @@ const registerSchema = z
  * Расширять `AuthUser` нельзя: его форма закреплена сверкой контрактов у входа
  * и регистрации, а лишнее поле там означало бы изменение обещания без нужды.
  */
+/** Лицо услуг: карточка тренера или клуб, которым человек управляет. */
+export type ServiceFace = {
+  kind: 'club' | 'trainer';
+  id: number;
+  name: string;
+};
+
 export type SessionProfile = AuthUser & {
   role: UserRole;
+  /** Вид учётной записи: человек или администратор (шаг 35.18). */
+  accountKind: AccountKind;
   capabilities: string[];
+  /**
+   * Лица услуг человека — клубы и карточки тренера, которыми он управляет
+   * (шаг 35.21).
+   *
+   * ⚠️ Едут ОТВЕТОМ, а не вычисляются фронтом из каталога. Две причины.
+   * Первая: `managedByUserId` уходит из публичной выдачи (шаг 35.20a), и считать
+   * свои публикации фронту станет нечем. Вторая важнее — проверка «пускать ли
+   * в кабинет лица» обязана укладываться в тот же единственный запрос, что и
+   * «кто я»: иначе лейаут либо сходит за каталогом до проверки, либо отдаст
+   * данные в поток раньше отказа. Ровно тот дефект, который ловит сторож порядка.
+   */
+  faces: ServiceFace[];
   /** Работа идёт от чужого лица. Интерфейс показывает плашку возврата. */
   impersonating?: boolean;
   /** Кто на самом деле вошёл — под имперсонизацией это администратор. */
@@ -130,6 +154,9 @@ export type AuthUser = {
 export class AuthController {
   constructor(
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    // Лица услуг для ответа «кто я»: отбор по индексам владельца.
+    @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
+    @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     private readonly sessions: SessionService,
     private readonly loginAttempts: LoginAttemptsService,
   ) {}
@@ -259,7 +286,7 @@ export class AuthController {
     // Своей проверки здесь нет: маршрут не помечен публичным, значит без годной
     // сессии до него не доходят вовсе — это работа глобального guard'а.
     return {
-      ...AuthController.toProfile(context.user),
+      ...(await this.toProfile(context.user)),
       // Признак работы от чужого лица нужен интерфейсу: под ним показывается
       // плашка возврата, а часть действий закрыта.
       ...(context.session.impersonatedUserId === undefined
@@ -268,15 +295,41 @@ export class AuthController {
     };
   }
 
-  /** Профиль вошедшего: карточка плюс роль и права. */
-  private static toProfile(user: User): SessionProfile {
+  /** Профиль вошедшего: карточка, вид учётной записи, полномочия и лица услуг. */
+  private async toProfile(user: User): Promise<SessionProfile> {
+    const kind = accountKindOf(user);
+
     return {
       ...AuthController.toAuthUser(user),
       role: user.role,
-      // Права считаются по роли ТОГО, ОТ ЧЬЕГО ЛИЦА действуют: под имперсонизацией
+      accountKind: kind,
+      // Полномочия считаются по ТОМУ, ОТ ЧЬЕГО ЛИЦА действуют: под имперсонизацией
       // администратор видит площадку глазами пользователя, а не своими.
-      capabilities: capabilitiesOf(accountKindOf(user)),
+      capabilities: capabilitiesOf(kind),
+      faces: await this.facesOf(user.id),
     };
+  }
+
+  /**
+   * Лица услуг человека — одним ответом.
+   *
+   * Читает только имя и номер: полные карточки со связями кабинету на этом шаге
+   * не нужны, а ответ «кто я» спрашивают на каждой странице кабинета.
+   */
+  private async facesOf(userId: number): Promise<ServiceFace[]> {
+    const [clubs, trainers] = await Promise.all([
+      this.clubs.findAll({ managedByUserId: userId }),
+      this.trainers.findAll({ managedByUserId: userId }),
+    ]);
+
+    return [
+      ...clubs.map((club) => ({ kind: 'club' as const, id: club.id, name: club.name })),
+      ...trainers.map((trainer) => ({
+        kind: 'trainer' as const,
+        id: trainer.id,
+        name: trainer.name,
+      })),
+    ];
   }
 
   /**
@@ -309,7 +362,7 @@ export class AuthController {
 
     setSessionCookie(response, token, new Date(session.expiresAt));
 
-    return AuthController.toProfile(context.actor);
+    return await this.toProfile(context.actor);
   }
 
   /**
@@ -372,7 +425,7 @@ export class AuthController {
 
     setSessionCookie(response, token, new Date(session.expiresAt));
 
-    return AuthController.toProfile(target);
+    return await this.toProfile(target);
   }
 
   /** Выдать сессию и положить её идентификатор в ответ. */
