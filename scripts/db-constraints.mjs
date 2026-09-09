@@ -24,6 +24,14 @@ export const INDEX_PREDICATES = {
   schedule_has_free_seats_idx: 'booked_count < capacity',
   bookings_active_by_slot_idx: `status IN (${toSqlList(ACTIVE_BOOKING_STATUSES)})`,
   notifications_unread_idx: 'read_at IS NULL',
+  notifications_club_unread_idx: 'read_at IS NULL',
+  notifications_trainer_unread_idx: 'read_at IS NULL',
+  // Личный ящик человека — это отсутствие лица, а не «моё вообще». Условие
+  // на NULL обычным индексом по user_id не выражается: он отдаст все строки
+  // владельца восемнадцати клубов, и лицо отсеется уже после чтения.
+  notifications_personal_idx: 'addressee_club_id IS NULL AND addressee_trainer_id IS NULL',
+  notifications_personal_unread_idx:
+    'addressee_club_id IS NULL AND addressee_trainer_id IS NULL AND read_at IS NULL',
   sessions_active_idx: 'revoked_at IS NULL',
 };
 
@@ -41,6 +49,24 @@ export const CHECK_CONSTRAINTS = {
   users_account_kind: {
     table: 'users',
     expression: `account_kind IN (${ACCOUNT_KINDS.map((kind) => `'${kind}'`).join(', ')})`,
+  },
+  // Лицо услуг у заметки о клиенте: не более одного (шаг 35.27a).
+  provider_client_notes_face_one: {
+    table: 'provider_client_notes',
+    expression:
+      '(CASE WHEN face_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN face_trainer_id IS NULL THEN 0 ELSE 1 END) <= 1',
+  },
+  /**
+   * Адресат уведомления — НЕ БОЛЕЕ одного лица (шаг 35.26).
+   *
+   * Именно «не более», а не «ровно один»: у уведомления человеку лица нет вовсе,
+   * и обе колонки пусты. Форма через CASE — та же, что у остальных пар: функция
+   * num_nonnulls есть только в PostgreSQL, а эта запись переносится куда угодно.
+   */
+  notifications_addressee_one: {
+    table: 'notifications',
+    expression:
+      '(CASE WHEN addressee_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN addressee_trainer_id IS NULL THEN 0 ELSE 1 END) <= 1',
   },
   offerings_owner_one: {
     table: 'offerings',
@@ -114,6 +140,21 @@ export const PARTIAL_INDEXES = {
   schedule_has_free_seats_idx: { table: 'schedule', columns: 'date, start_time' },
   bookings_active_by_slot_idx: { table: 'bookings', columns: 'schedule_id, status' },
   notifications_unread_idx: { table: 'notifications', columns: 'user_id, created_at DESC' },
+  /// Счётчик непрочитанного в ящике клуба и в ящике карточки тренера.
+  notifications_club_unread_idx: {
+    table: 'notifications',
+    columns: 'addressee_club_id, created_at DESC',
+  },
+  notifications_trainer_unread_idx: {
+    table: 'notifications',
+    columns: 'addressee_trainer_id, created_at DESC',
+  },
+  /// Личный ящик: лента и её счётчик непрочитанного.
+  notifications_personal_idx: { table: 'notifications', columns: 'user_id, created_at DESC' },
+  notifications_personal_unread_idx: {
+    table: 'notifications',
+    columns: 'user_id, created_at DESC',
+  },
   /// Отзыв всех живых сессий пользователя: отозванные в индекс не попадают,
   /// а их со временем становится большинство.
   sessions_active_idx: { table: 'sessions', columns: 'user_id' },

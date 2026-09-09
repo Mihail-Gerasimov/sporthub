@@ -386,6 +386,9 @@ model Club {
   venueSchedule  Schedule[] @relation("ScheduleVenueClub")
   venueBookings  Booking[]  @relation("BookingVenueClub")
 
+  /// Ящик лица: уведомления, адресованные самому клубу, а не его владельцу.
+  addressedNotifications Notification[] @relation("NotificationAddresseeClub")
+
   reviews     Review[]
   images      ClubImage[]
   sports      ClubSport[]
@@ -406,6 +409,7 @@ model Club {
   /// Симметрично тренеру; одиночный (rating DESC) его не покрывает (6.5).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("clubs")
+  faceNotes ProviderClientNote[]
 }
 
 /// Тренер — вторая публикация провайдера, симметричная клубу.
@@ -463,6 +467,9 @@ model Trainer {
   schedule  Schedule[] @relation("ScheduleOwnerTrainer")
   bookings  Booking[]  @relation("BookingOwnerTrainer")
 
+  /// Ящик лица: уведомления, адресованные карточке тренера.
+  addressedNotifications Notification[] @relation("NotificationAddresseeTrainer")
+
   reviews     Review[]
   sports      TrainerSport[]
   specialties TrainerSpecialty[]
@@ -480,6 +487,7 @@ model Trainer {
   conductedSchedule Schedule[] @relation("ScheduleConductedBy")
   conductedBookings Booking[]  @relation("BookingConductedBy")
 
+  faceNotes ProviderClientNote[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -782,7 +790,22 @@ model Review {
 model Notification {
   id        Int      @id @default(autoincrement()) @map("id")
   createdAt DateTime @default(now()) @map("created_at")
-  userId    Int      @map("user_id")
+
+  /// Владелец-человек. Остаётся NOT NULL и после появления адресата-лица:
+  /// это и совместимость со старыми строками, и каскад удаления человека,
+  /// и быстрый срез «всё моё» одним условием, без OR по колонкам лица.
+  /// ⚠️ Значение ВЫВОДИМОЕ, а не снимок: при смене владельца лица оно
+  /// пересчитывается вместе с ним (решение 5.4 фазы 35). Иначе ящик клуба
+  /// после передачи клуба остался бы числиться за прежним человеком.
+  userId Int @map("user_id")
+
+  /// Адресат-лицо: клуб. Пусто — уведомление адресовано человеку.
+  addresseeClubId Int? @map("addressee_club_id")
+
+  /// Адресат-лицо: карточка тренера. Пусто — уведомление адресовано человеку.
+  /// Пара взаимоисключающая: заполнено НЕ БОЛЕЕ одного из двух
+  /// (CHECK notifications_addressee_one, scripts/db-constraints.mjs).
+  addresseeTrainerId Int? @map("addressee_trainer_id")
 
   /// Словарь NotificationType — 22 значения, объявлен в packages/types.
   type String @map("type") @db.VarChar(64)
@@ -796,8 +819,16 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// Лента колокольчика с постраничностью.
+  /// Удаление лица уносит его ящик: без лица уведомление о нём нечитаемо.
+  addresseeClub    Club?    @relation("NotificationAddresseeClub", fields: [addresseeClubId], references: [id], onDelete: Cascade)
+  addresseeTrainer Trainer? @relation("NotificationAddresseeTrainer", fields: [addresseeTrainerId], references: [id], onDelete: Cascade)
+
+  /// Лента колокольчика с постраничностью: объединённый ящик человека.
   @@index([userId, createdAt(sort: Desc)])
+  /// Лента ящика клуба с постраничностью.
+  @@index([addresseeClubId, createdAt(sort: Desc)])
+  /// Лента ящика карточки тренера с постраничностью.
+  @@index([addresseeTrainerId, createdAt(sort: Desc)])
   @@map("notifications")
 }
 
@@ -901,9 +932,17 @@ model ProviderClientNote {
   /// Заметка переживает удаление записи, теряя только контекст.
   bookingId Int? @map("booking_id")
 
+  /// Лицо услуг, от имени которого ведётся заметка (фаза 35, решение 19).
+  /// Заполнено не более одного — ограничение provider_client_notes_face_one.
+  /// Смысл: заметки остаются ПРИ КЛУБЕ, когда управляющий уходит.
+  faceClubId    Int? @map("face_club_id")
+  faceTrainerId Int? @map("face_trainer_id")
+
   providerUser User     @relation("NoteProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
   clientUser   User     @relation("NoteClient", fields: [clientUserId], references: [id], onDelete: Cascade)
   booking      Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  faceClub     Club?    @relation(fields: [faceClubId], references: [id], onDelete: Cascade)
+  faceTrainer  Trainer? @relation(fields: [faceTrainerId], references: [id], onDelete: Cascade)
 
   /// Заметки провайдера по клиенту.
   @@index([providerUserId, clientUserId, createdAt(sort: Desc)])
