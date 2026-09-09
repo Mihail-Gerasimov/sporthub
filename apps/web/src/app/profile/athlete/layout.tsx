@@ -10,12 +10,12 @@
 import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
-import { requireRole } from '@/lib/session';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AthleteProfileLayout({ children }: { children: ReactNode }) {
-  await requireRole(['athlete']);
+  await requireSession();
 
   return <ProfileLayoutShell variant="athlete">{children}</ProfileLayoutShell>;
 }

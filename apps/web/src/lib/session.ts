@@ -13,19 +13,34 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import type { UserRole } from '@sporthub/types';
+import type { AccountKind, UserRole } from '@sporthub/types';
 
 /** Внутренний адрес бэкенда: тот же, что у слоя доступа к данным. */
 const API_ORIGIN = process.env.SPORT_HUB_API_ORIGIN ?? 'http://localhost:3001';
 
 /** Профиль вошедшего — ровно то, что отдаёт «кто я». */
+/** Лицо услуг: карточка тренера или клуб, которым человек управляет. */
+export type ServiceFace = {
+  kind: 'club' | 'trainer';
+  id: number;
+  name: string;
+};
+
 export type SessionUser = {
   id: number;
   name: string;
   email: string;
   role: UserRole;
-  /** Что этой роли можно. Интерфейс рисует по списку, а не угадывает по роли. */
+  /** Вид учётной записи: человек или администратор (фаза 35). */
+  accountKind: AccountKind;
+  /** Что положено этому виду. Интерфейс рисует по списку, а не угадывает. */
   capabilities: string[];
+  /**
+   * Лица услуг человека. Приезжают тем же ответом «кто я», а не вычисляются
+   * из каталога: проверка «пускать ли в кабинет лица» обязана уложиться
+   * в единственный запрос — иначе лейаут сходит за данными до проверки.
+   */
+  faces: ServiceFace[];
   phone?: string;
   avatarUrl?: string;
   city?: string;
@@ -83,14 +98,35 @@ export async function requireSession(): Promise<SessionUser> {
 /**
  * Пустить только того, чья роль в списке.
  *
- * Список ролей, а не право: страницы делятся по кабинетам, а кабинет — это роль.
+ * ⚠️ Шаг 35.20. Фаза 35 убрала роли, и проверок страницы стало ТРИ, каждая
+ * про своё. Раньше все три выражались через `requireRole`, и это работало ровно
+ * до тех пор, пока человек бывал кем-то одним.
+ *
  * Права проверяет бэкенд на каждом обращении к данным; здесь решается только,
- * какую страницу показывать.
+ * какую страницу показывать. Но решается ДО того, как страница пойдёт за данными:
+ * иначе гость получит их в потоке ответа, а плашка нарисуется поверх.
  */
-export async function requireRole(roles: readonly UserRole[]): Promise<SessionUser> {
+
+/** Кабинет лица услуг: пускает того, кто этим лицом управляет. */
+export async function requireOwner(kind: 'club' | 'trainer', id: number): Promise<SessionUser> {
   const user = await requireSession();
 
-  if (!roles.includes(user.role)) redirect('/');
+  if (!user.faces.some((face) => face.kind === kind && face.id === id)) redirect('/');
+
+  return user;
+}
+
+/**
+ * Служебная панель: пускает администратора.
+ *
+ * ⚠️ Серверная защита админки сохраняется — меняется только источник признака.
+ * Прежде это была роль, теперь вид учётной записи. Убрать проверку целиком
+ * значило бы вернуть дыру, закрытую фазой 34.
+ */
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireSession();
+
+  if (user.accountKind !== 'admin') redirect('/');
 
   return user;
 }

@@ -52,17 +52,14 @@ export interface ProviderNavInput {
  * одна и показывает то, чем роли позволено управлять.
  */
 const PUBLICATION_SECTIONS: {
-  capability: Capability;
   item: ProfileNavItem;
   own: (input: ProviderNavInput) => readonly unknown[];
 }[] = [
   {
-    capability: 'manage_own_clubs',
     item: { key: 'publications', label: 'Публикации', href: '/profile/provider/publications' },
     own: (input) => input.providerClubs,
   },
   {
-    capability: 'manage_own_trainer_profile',
     item: { key: 'trainer-profile', label: 'Моя карточка', href: '/profile/provider/publications' },
     own: (input) => input.providerTrainers,
   },
@@ -75,12 +72,15 @@ const PUBLICATION_SECTIONS: {
  * (с защитой: без публикаций booking невозможен).
  */
 export function getProviderNavItems(input: ProviderNavInput): ProfileNavItem[] {
-  // Публикации чужого вида не в счёт: тренеру, которому по старым данным
-  // достался клуб, раздел клубов всё равно не нужен — управлять им ему нечем.
-  const ownSections = PUBLICATION_SECTIONS.filter(
-    (section) =>
-      hasCapability(input.capabilities, section.capability) && section.own(input).length > 0,
-  );
+  // ⚠️ Шаг 35.33. Раздел показывается по ВЛАДЕНИЮ, и только по нему.
+  //
+  // Раньше здесь стояли два условия: право роли И наличие публикаций. Права
+  // `manage_own_clubs` и `manage_own_trainer_profile` исчезли вместе с ролями —
+  // осталось второе, и оно единственное осмысленное: у кого есть клубы, тому
+  // нужен раздел клубов; у кого карточка — раздел карточки; у кого оба — оба.
+  //
+  // Это и есть живой случай заказчика: свой зал плюс персоналки на выезде.
+  const ownSections = PUBLICATION_SECTIONS.filter((section) => section.own(input).length > 0);
   const hasPublications = ownSections.length > 0;
   const showBookingSections = hasPublications && input.hasProviderBookings;
 

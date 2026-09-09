@@ -120,26 +120,26 @@ export function ProviderPublications({
   /** Счётчик запросов, чтобы поздний ответ не открыл устаревшую модалку. */
   const editBootstrapRequestIdRef = useRef(0);
 
-  // Что этой роли вообще положено вести. Право спрашивается по имени из общего
-  // словаря, а не сравнением роли со строкой: словарь один на весь проект.
-  const mayManageClubs = hasCapability(capabilities, 'manage_own_clubs');
-  const mayManageTrainerProfile = hasCapability(capabilities, 'manage_own_trainer_profile');
-
-  // --- Фильтр managed клубов/тренеров. useMemo до early-return, иначе react-hooks ломаются. ---
-  // Публикации чужого вида не показываются даже своему владельцу по старым данным:
-  // править их роль всё равно не может, и список из них был бы списком тупиков.
+  // --- Свои публикации. useMemo до early-return, иначе react-hooks ломаются. ---
+  //
+  // ⚠️ Шаг 35.33. Раньше здесь стояла ещё одна проверка — «положено ли этой роли
+  // вести такой вид публикаций», — и владелец клуба, у которого была карточка
+  // тренера, своей карточки не видел: право на неё было только у роли `trainer`.
+  // Это и был дефект 4.6 № 1 в интерфейсном виде. Теперь показывается то, чем
+  // человек владеет, и ничего сверх.
   const providerClubs = useMemo(
-    () =>
-      providerUserId === null || !mayManageClubs ? [] : getProviderClubs(clubs, providerUserId),
-    [clubs, providerUserId, mayManageClubs],
+    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
+    [clubs, providerUserId],
   );
   const providerTrainers = useMemo(
-    () =>
-      providerUserId === null || !mayManageTrainerProfile
-        ? []
-        : getProviderTrainers(trainers, providerUserId),
-    [trainers, providerUserId, mayManageTrainerProfile],
+    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
+    [trainers, providerUserId],
   );
+
+  // Кнопки заведения показываются всем: лицо услуг заводит любой вошедший
+  // (решение заказчика 1). Ограничение придёт с финансовой моделью.
+  const mayManageClubs = true;
+  const mayManageTrainerProfile = true;
 
   // Для trainer-модалки показываем все клубы провайдера + (в edit-режиме) текущий affiliated клуб,
   // даже если он чужой — иначе селект не сможет показать текущее значение.

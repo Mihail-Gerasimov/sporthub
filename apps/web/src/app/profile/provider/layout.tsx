@@ -9,7 +9,9 @@ import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
 import { loadProviderScope } from '@/lib/provider-scope';
-import { requireRole } from '@/lib/session';
+import { redirect } from 'next/navigation';
+
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,11 +20,12 @@ export default async function ProviderProfileLayout({ children }: { children: Re
   // получить данные кабинета в потоке ответа, и клиентская плашка «нет доступа»
   // прятала бы то, что ему уже отдали.
   //
-  // Обе роли провайдера пускаются в кабинет и после этапа Э8a: кабинет у них
-  // общий, разными стали РАЗДЕЛЫ внутри. Что кому показать, решают права
-  // вошедшего — они приходят тем же ответом «кто я», и лейаут передаёт их вниз,
-  // чтобы навигация не гадала по имени роли.
-  const session = await requireRole(['club_owner', 'trainer']);
+  // ⚠️ Шаг 35.20. Ролей больше нет: в кабинет провайдера пускает не имя роли,
+  // а наличие хотя бы одного лица услуг. Человек без лиц уходит на главную —
+  // и уходит ДО того, как страница сходит за данными.
+  const session = await requireSession();
+
+  if (session.faces.length === 0) redirect('/');
 
   const { bookings, clubs, trainers } = await loadProviderScope();
 

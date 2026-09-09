@@ -12,7 +12,7 @@ import Link from 'next/link';
 
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
-import { requireRole } from '@/lib/session';
+import { requireAdmin } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,10 @@ export default async function AdminLayout({
   //
   // `AdminGuard` остаётся: он рисует состояние в браузере и уводит при потере
   // сессии без перезагрузки. Защитой он больше не является.
-  await requireRole(['admin']);
+  // ⚠️ Шаг 35.20. Признак сменился с роли на вид учётной записи, сама проверка
+  // осталась на месте и стоит ДО чтения данных: иначе гость получил бы сводку
+  // площадки в потоке ответа, а плашка нарисовалась бы поверх.
+  await requireAdmin();
   return (
     <AdminGuard>
       <div className="w-full max-w-[1440px] px-4 py-7 sm:px-8">
