@@ -48,6 +48,17 @@ export const CHECK_CONSTRAINTS = {
     table: 'sessions',
     expression: 'expires_at > created_at',
   },
+  /**
+   * Ссылка восстановления с уже вышедшим сроком не заводится.
+   *
+   * То же, что у сессий, и по той же причине: срок считается кодом при выдаче,
+   * а ошибка в этом расчёте молча выдала бы мёртвую ссылку — человек получил бы
+   * письмо, по которому нельзя перейти, и списал бы это на почту.
+   */
+  password_reset_tokens_expires_after_created: {
+    table: 'password_reset_tokens',
+    expression: 'expires_at > created_at',
+  },
   bookings_owner_one: {
     table: 'bookings',
     expression:

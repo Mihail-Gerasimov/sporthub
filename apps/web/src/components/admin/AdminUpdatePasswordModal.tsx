@@ -1,7 +1,12 @@
 /**
  * Модалка «Сменить пароль» для админ-карточки на `/service-portal/dashboard`.
- * Принимает userId и adminUserId, валидирует новый пароль (≥6) + подтверждение,
- * шлёт POST /api/admin/users/[id]/password.
+ * Принимает userId — ЧЕЙ пароль меняют, валидирует новый пароль (≥6)
+ * + подтверждение, шлёт POST /api/admin/users/[id]/password.
+ *
+ * Phase 34 Step 34.49: поле `adminUserId` из тела ушло. Кто меняет — сервер
+ * знает из сессии, а тело он теперь разбирает строго и на лишнее поле отвечает
+ * отказом. Раньше исполнителя называл браузер, и подставить туда можно было
+ * что угодно.
  *
  * Phase 33 Step 33.10. Пароли теперь хранятся хешем, показывать чужой нечего —
  * этот показ убран из карточки пользователя. Взамен модалка умеет:
@@ -28,7 +33,6 @@ interface AdminUpdatePasswordModalProps {
   onClose: () => void;
   userId: number;
   userName: string;
-  adminUserId: number;
   /** Опц. callback после успеха — например, для обновления seed-snapshot'а. */
   onSuccess?: () => void;
 }
@@ -38,7 +42,6 @@ export function AdminUpdatePasswordModal({
   onClose,
   userId,
   userName,
-  adminUserId,
   onSuccess,
 }: AdminUpdatePasswordModalProps) {
   const newPwdId = useId();
@@ -115,7 +118,7 @@ export function AdminUpdatePasswordModal({
       const response = await fetch(`/api/admin/users/${userId}/password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUserId, newPassword }),
+        body: JSON.stringify({ newPassword }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;

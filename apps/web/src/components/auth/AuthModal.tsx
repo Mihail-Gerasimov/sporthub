@@ -274,8 +274,11 @@ export function AuthModal() {
     resetModalState();
   }
 
-  // Phase 26 Step 26.7: fake-auth через fetch к /api/auth/login.
-  // Сервер проверяет email в users.json и возвращает sanitized-user.
+  // Вход: пароль сверяет сервер, он же ставит cookie сессии.
+  //
+  // ⚠️ Пароль в теле запроса появился в фазе 34. До неё форма спрашивала его
+  // у человека, но НЕ ОТПРАВЛЯЛА: сервер пускал по одной лишь почте, и поле
+  // пароля было украшением.
   async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -303,6 +306,7 @@ export function AuthModal() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           email: normalizedLoginForm.email,
+          password: normalizedLoginForm.password,
           accountType: loginAccountType,
         }),
       });
@@ -325,8 +329,8 @@ export function AuthModal() {
     }
   }
 
-  // Phase 26 Step 26.7: fake-auth регистрация через /api/auth/register.
-  // Сервер пишет нового user в users.json через db.createUser.
+  // Регистрация: сервер заводит пользователя, хеширует пароль и сразу открывает
+  // сессию — отдельный вход после неё ничего не проверял бы заново.
   async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 

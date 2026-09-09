@@ -54,6 +54,24 @@ export class UnauthorizedError extends DomainError {
 }
 
 /**
+ * Слишком много обращений — 429.
+ *
+ * Срок ожидания несёт сама ошибка: без него ответ говорит «нельзя», но не говорит
+ * «когда можно», и клиенту остаётся только долбиться в закрытую дверь. Число
+ * уходит наружу и текстом (человеку), и заголовком `Retry-After` (программе).
+ */
+export class TooManyRequestsError extends DomainError {
+  readonly status = 429;
+
+  constructor(
+    message: string,
+    readonly retryAfterSeconds: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
  * Сбой внешнего сервиса. Код передаётся явно, потому что прокси к картам
  * отдаёт весь набор: 429 при лимите, 502 при отказе, 504 при таймауте.
  */

@@ -7,7 +7,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { DomainError, QuarantineError, ValidationError } from './domain-error';
+import { DomainError, QuarantineError, TooManyRequestsError, ValidationError } from './domain-error';
 
 /**
  * Ошибка соединения с базой, а не ошибка запроса.
@@ -57,6 +57,15 @@ export class DomainErrorFilter implements ExceptionFilter {
         error: exception.message,
         ...(exception.details ? { details: exception.details } : {}),
       });
+
+      return;
+    }
+
+    if (exception instanceof TooManyRequestsError) {
+      // Срок ожидания дублируется заголовком: текст читает человек, заголовок —
+      // клиент, которому нужно решить, когда повторять. Тело при этом обычное.
+      response.setHeader('Retry-After', String(exception.retryAfterSeconds));
+      response.status(exception.status).json({ success: false, error: exception.message });
 
       return;
     }

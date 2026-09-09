@@ -154,11 +154,6 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   const router = useRouter();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
   const addToast = useToastStore((s) => s.addToast);
-  // Phase 29 Step 29.7: id текущего админа — для AdminUpdatePasswordModal через UserCard.
-  // adminOriginalUser имеет приоритет (если включена impersonation), иначе обычный user.
-  const currentAdminUserId = useAuthStore(
-    (state) => state.adminOriginalUser?.id ?? state.user?.id ?? 0,
-  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -242,20 +237,10 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
     startImpersonation(targetSessionUser, targetAccountType);
 
-    const adminUser = useAuthStore.getState().adminOriginalUser ?? useAuthStore.getState().user;
-    fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'admin_impersonate_start',
-        actorId: adminUser?.id ?? 0,
-        actorRole: 'admin',
-        entityType: 'user',
-        entityId: targetSessionUser.id,
-        meta: { targetUserName: targetSessionUser.name, targetAccountType },
-      }),
-    }).catch(() => {});
-
+    // ⚠️ Записи в журнал отсюда БОЛЬШЕ НЕТ. Маршрут `POST /api/logs` удалён:
+    // браузер сам называл исполнителя и сам же решал, что записать, — то есть
+    // журнал говорил ровно то, что ему велел клиент. Теперь его ведёт сервер
+    // и берёт исполнителя из сессии.
     const profilePath = targetAccountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
     router.push(profilePath);
     router.refresh();
@@ -263,12 +248,11 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
   /** Phase 24 Step 24.15: снятие карантина */
   async function handleLiftQuarantine(userId: number) {
-    const adminUserId = useAuthStore.getState().user?.id ?? 0;
     try {
+      // Номер в адресе — ЧЕЙ карантин снимают. Кто снимает, сервер берёт из сессии:
+      // прежнее поле `adminUserId` в теле он теперь отвергает вовсе.
       const response = await fetch(`/api/admin/users/${userId}/lift-quarantine`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUserId }),
       });
       const body = (await response.json()) as { success: boolean; error?: string };
       if (!response.ok || !body.success) {
@@ -285,12 +269,9 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
   /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) */
   async function handleRecomputeReliability(userId: number) {
-    const adminUserId = useAuthStore.getState().user?.id ?? 0;
     try {
       const response = await fetch(`/api/admin/users/${userId}/recompute-reliability`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUserId }),
       });
       const body = (await response.json()) as { success: boolean; error?: string };
       if (!response.ok || !body.success) {
@@ -427,7 +408,6 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
                 onImpersonate={() => handleImpersonate(user)}
                 onLiftQuarantine={() => handleLiftQuarantine(user.id)}
                 onRecomputeReliability={() => handleRecomputeReliability(user.id)}
-                adminUserId={currentAdminUserId}
               />
             );
           })}
@@ -492,9 +472,6 @@ type UserCardProps = {
   onImpersonate: () => void;
   onLiftQuarantine: () => void;
   onRecomputeReliability: () => void;
-  // Phase 29 Step 29.7: id текущего админа — нужен модалке для PATCH-body.
-  // 0 = нет admin-сессии (карточки тогда вообще не видны guard'ом DashboardPage).
-  adminUserId: number;
 };
 
 function UserCard({
@@ -505,7 +482,6 @@ function UserCard({
   onImpersonate,
   onLiftQuarantine,
   onRecomputeReliability,
-  adminUserId,
 }: UserCardProps) {
   const isAthlete = user.role === 'athlete';
   const inQuarantine = quarantine.inQuarantine;
@@ -598,7 +574,6 @@ function UserCard({
         onClose={() => setPasswordModalOpen(false)}
         userId={user.id}
         userName={user.name}
-        adminUserId={adminUserId}
       />
     </article>
   );
