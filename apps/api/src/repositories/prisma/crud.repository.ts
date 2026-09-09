@@ -630,19 +630,40 @@ export class PrismaUsersRepository implements UsersRepository {
 
     const removed = [...before.keys()].filter((type) => !after.has(type));
 
+    // ⚠️ Шаг 35.29. Правится ЛИЧНАЯ настройка — та, у которой лица нет.
+    // Настройки лиц живут в тех же строках с заполненной колонкой лица, и стирать
+    // их вместе с личными нельзя: человек, выключивший уведомления себе, не просил
+    // включать обратно уведомления своего клуба.
+    const personalScope = { userId, faceClubId: null, faceTrainerId: null };
+
     if (removed.length > 0) {
       await this.client.userNotificationPreference.deleteMany({
-        where: { userId, type: { in: removed } },
+        where: { ...personalScope, type: { in: removed } },
       });
     }
 
     for (const [type, enabled] of after) {
       if (before.get(type) === enabled) continue;
 
-      await this.client.userNotificationPreference.upsert({
-        where: { userId_type: { userId, type } },
-        create: { userId, type, enabled },
-        update: { enabled },
+      // ⚠️ `upsert` по составному ключу больше не годится: ключ стал суррогатным,
+      // а уникальность выражена ЧАСТИЧНЫМ индексом, которого Prisma не знает.
+      // Поэтому «найти и обновить, иначе создать» — двумя запросами. Настройки
+      // сохраняются редко, и цена этой честности неразличима.
+      const existing = await this.client.userNotificationPreference.findFirst({
+        where: { ...personalScope, type },
+        select: { id: true },
+      });
+
+      if (existing === null) {
+        await this.client.userNotificationPreference.create({
+          data: { userId, type, enabled },
+        });
+        continue;
+      }
+
+      await this.client.userNotificationPreference.update({
+        where: { id: existing.id },
+        data: { enabled },
       });
     }
   }

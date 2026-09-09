@@ -21,6 +21,9 @@ export const INDEX_PREDICATES = {
   bookings_active_slot_user_uq: `status IN (${toSqlList(ACTIVE_BOOKING_STATUSES)})`,
   links_active_pair_uq: `status IN (${toSqlList(ACTIVE_LINK_STATUSES)})`,
   bst_initial_uq: 'from_status IS NULL',
+  user_notification_preferences_club_uq: 'face_club_id IS NOT NULL',
+  user_notification_preferences_trainer_uq: 'face_trainer_id IS NOT NULL',
+  user_notification_preferences_personal_uq: 'face_club_id IS NULL AND face_trainer_id IS NULL',
   schedule_has_free_seats_idx: 'booked_count < capacity',
   bookings_active_by_slot_idx: `status IN (${toSqlList(ACTIVE_BOOKING_STATUSES)})`,
   notifications_unread_idx: 'read_at IS NULL',
@@ -49,6 +52,12 @@ export const CHECK_CONSTRAINTS = {
   users_account_kind: {
     table: 'users',
     expression: `account_kind IN (${ACCOUNT_KINDS.map((kind) => `'${kind}'`).join(', ')})`,
+  },
+  // Лицо услуг у настройки уведомлений: не более одного (шаг 35.29).
+  user_notification_preferences_face_one: {
+    table: 'user_notification_preferences',
+    expression:
+      '(CASE WHEN face_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN face_trainer_id IS NULL THEN 0 ELSE 1 END) <= 1',
   },
   // Лицо услуг у заметки о клиенте: не более одного (шаг 35.27a).
   provider_client_notes_face_one: {
@@ -133,6 +142,23 @@ export const PARTIAL_UNIQUE_INDEXES = {
   bookings_active_slot_user_uq: { table: 'bookings', columns: 'schedule_id, user_id' },
   links_active_pair_uq: { table: 'trainer_club_links', columns: 'trainer_id, club_id' },
   bst_initial_uq: { table: 'booking_status_transitions', columns: 'booking_id' },
+  // ⚠️ Уникальность настройки уведомлений выражена ТРЕМЯ индексами, по одному
+  // на форму строки. Обычный UNIQUE по четырём колонкам дублей не запретит:
+  // в PostgreSQL NULL не равен NULL, и личных настроек можно вставить сколько
+  // угодно одинаковых. `NULLS NOT DISTINCT` — диалектная специфика, которую
+  // проект сознательно не использует.
+  user_notification_preferences_club_uq: {
+    table: 'user_notification_preferences',
+    columns: 'user_id, type, face_club_id',
+  },
+  user_notification_preferences_trainer_uq: {
+    table: 'user_notification_preferences',
+    columns: 'user_id, type, face_trainer_id',
+  },
+  user_notification_preferences_personal_uq: {
+    table: 'user_notification_preferences',
+    columns: 'user_id, type',
+  },
 };
 
 /** Частичные обычные индексы — под запросы, которые смотрят только на часть строк. */

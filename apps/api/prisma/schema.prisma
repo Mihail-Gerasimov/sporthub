@@ -408,6 +408,7 @@ model Club {
   /// Симметрично тренеру; одиночный (rating DESC) его не покрывает (6.5).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("clubs")
+  facePreferences UserNotificationPreference[]
 }
 
 /// Тренер — вторая публикация провайдера, симметричная клубу.
@@ -486,6 +487,7 @@ model Trainer {
   /// Умолчальная сортировка выдачи тренеров трёхуровневая (clubs.controller.ts:289-293).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("trainers")
+  facePreferences UserNotificationPreference[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1139,13 +1141,27 @@ model BookingStatusTransition {
 /// Значит enabled почти всегда false, и таблица остаётся крошечной.
 /// Индекс по type не нужен: чтение всегда идёт по userId.
 model UserNotificationPreference {
+  /// ⚠️ Суррогатный ключ вместо составного (шаг 35.29). Лицо необязательно,
+  /// и в первичный ключ его взять нельзя: NULL в PK Prisma не разрешит.
+  /// Уникальность выражена тремя частичными индексами в scripts/db-constraints.mjs —
+  /// обычный UNIQUE по четырём колонкам дублей не запретит, потому что
+  /// в PostgreSQL NULL не равен NULL.
+  id      Int     @id @default(autoincrement()) @map("id")
   userId  Int     @map("user_id")
   type    String  @map("type") @db.VarChar(64)
   enabled Boolean @map("enabled")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Лицо услуг, чьи уведомления настраиваются. Пусто — настройка личная.
+  /// Смысл: владелец трёх клубов глушит один, не трогая остальные два.
+  faceClubId    Int? @map("face_club_id")
+  faceTrainerId Int? @map("face_trainer_id")
 
-  @@id([userId, type])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faceClub    Club?    @relation(fields: [faceClubId], references: [id], onDelete: Cascade)
+  faceTrainer Trainer? @relation(fields: [faceTrainerId], references: [id], onDelete: Cascade)
+
+  /// Настройки человека читаются одним запросом при каждой выдаче уведомлений.
+  @@index([userId])
   @@map("user_notification_preferences")
 }
 
