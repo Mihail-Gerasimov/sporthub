@@ -32,9 +32,11 @@ import type { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import type {
+  NotificationMailbox,
   NotificationsCountFilter,
   NotificationsFilter,
   NotificationsRepository,
+  NotificationsScope,
   OfferingsRepository,
   TrainerClubLinksRepository,
 } from '../catalog.repository';
@@ -433,11 +435,68 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
       id: row.id,
       createdAt: toIsoString(row.createdAt),
       userId: row.userId,
+      ...PrismaNotificationsRepository.toAddressee(row),
       type: row.type as NotificationType,
       // Колонка объявлена как JSON, значит содержимое приходит уже разобранным.
       payload: (row.payload ?? {}) as Record<string, unknown>,
       readAt: toOptionalIsoString(row.readAt),
     });
+  }
+
+  /**
+   * Колонки лица → пара полей контракта.
+   *
+   * Обе пусты — уведомление адресовано человеку, и полей в ответе просто нет:
+   * старый клиент, ничего про адресата не знающий, видит прежнюю форму.
+   */
+  private static toAddressee(
+    row: Pick<NotificationRow, 'addresseeClubId' | 'addresseeTrainerId'>,
+  ): { addresseeType?: CatalogOwnerType; addresseeId?: EntityId } {
+    if (row.addresseeClubId !== null) {
+      return { addresseeType: 'club', addresseeId: row.addresseeClubId };
+    }
+
+    if (row.addresseeTrainerId !== null) {
+      return { addresseeType: 'trainer', addresseeId: row.addresseeTrainerId };
+    }
+
+    return {};
+  }
+
+  /**
+   * Пара полей контракта → колонки лица.
+   *
+   * Один строитель на запись и на отбор: разъехавшись, они отдали бы ящик клуба
+   * не тому лицу — молча и с кодом 200.
+   */
+  private static addresseeColumns(notification: {
+    addresseeType?: CatalogOwnerType;
+    addresseeId?: EntityId;
+  }): { addresseeClubId: number | null; addresseeTrainerId: number | null } {
+    if (notification.addresseeType === undefined || notification.addresseeId === undefined) {
+      return { addresseeClubId: null, addresseeTrainerId: null };
+    }
+
+    return notification.addresseeType === 'club'
+      ? { addresseeClubId: notification.addresseeId, addresseeTrainerId: null }
+      : { addresseeClubId: null, addresseeTrainerId: notification.addresseeId };
+  }
+
+  /**
+   * Условие ящика: чей именно.
+   *
+   * Личный ящик — это ОТСУТСТВИЕ лица, а не «моё вообще»: под него заведён
+   * отдельный частичный индекс, потому что у владельца восемнадцати клубов
+   * его номер стоит почти в каждой строке.
+   */
+  private static mailboxWhere(mailbox: NotificationMailbox): Prisma.NotificationWhereInput {
+    if (mailbox.kind === 'personal') {
+      return { addresseeClubId: null, addresseeTrainerId: null };
+    }
+
+    return mailbox.kind === 'club'
+      ? { addresseeClubId: mailbox.id }
+      : { addresseeTrainerId: mailbox.id };
   }
 
   /**
@@ -451,6 +510,9 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
   private static where(filter: NotificationsFilter): Prisma.NotificationWhereInput {
     return {
       userId: filter.userId,
+      ...(filter.mailbox === undefined
+        ? {}
+        : PrismaNotificationsRepository.mailboxWhere(filter.mailbox)),
       readAt: filter.unreadOnly === true ? null : undefined,
       // Пустой список `ids` означает «ни одного», и `IN ()` даёт ровно это.
       id: filter.ids === undefined ? undefined : { in: filter.ids },
@@ -484,6 +546,7 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     const created = await this.client.notification.create({
       data: {
         userId: notification.userId,
+        ...PrismaNotificationsRepository.addresseeColumns(notification),
         type: notification.type,
         payload: (notification.payload ?? {}) as Prisma.InputJsonValue,
         readAt: fromOptionalIsoString(notification.readAt),
@@ -508,11 +571,20 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     return PrismaNotificationsRepository.toNotification(updated);
   }
 
-  async markAllRead(userId: EntityId): Promise<number> {
+  async markAllRead(scope: NotificationsScope): Promise<number> {
     // Одним запросом: чтение ленты целиком ради пометки прочитанным дало бы
     // столько же работы, сколько её отрисовка, и разъехалось бы при гонке.
+    //
+    // Условие ящика — тот же строитель, что и у выдачи: «прочитать всё» обязано
+    // гасить ровно то, что человек видит перед собой, и ни строкой больше.
     const { count } = await this.client.notification.updateMany({
-      where: { userId, readAt: null },
+      where: {
+        userId: scope.userId,
+        ...(scope.mailbox === undefined
+          ? {}
+          : PrismaNotificationsRepository.mailboxWhere(scope.mailbox)),
+        readAt: null,
+      },
       data: { readAt: new Date() },
     });
 

@@ -631,6 +631,32 @@ describe('Маршруты записей', () => {
         expect(ids(response.body)).toEqual([9]);
       });
 
+      it('срез публикаций сужается до ОДНОГО лица', async () => {
+        // Шаг 35.27a: та же пара «вид + номер» работает и здесь, и это не запас
+        // впрок — оба среза кабинета отвечают на вопрос «данные какого лица»,
+        // и разбирать названное лицо им положено одинаково. Строка условия
+        // у них общая: разъехаться этим двум ответам негде.
+        //
+        // Клуб 3 ведёт провайдер 5; на нём и проверяется, что записи чужого
+        // тренера в срез его клуба не попадают.
+        const response = await request(server())
+          .get('/api/bookings?scope=owner&faceType=club&faceId=3')
+          .set('Cookie', await as(5));
+
+        expect(response.status).toBe(200);
+        expect(ids(response.body)).toEqual([8, 9]);
+        expect(ids(response.body), 'в срез клуба попала запись чужого тренера').not.toContain(7);
+      });
+
+      it('чужое лицо в срезе публикаций — 403', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=owner&faceType=club&faceId=3')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+      });
+
       it('гостю срез публикаций не отдаётся', async () => {
         const response = await request(server()).get('/api/bookings?scope=owner');
 
@@ -736,6 +762,86 @@ describe('Маршруты записей', () => {
 
         expect(response.status).toBe(403);
         expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+      });
+
+      it('срез сужается до ОДНОГО лица: клиенты клубов не сливаются в кучу', async () => {
+        // ⚠️ Шаг 35.27a, решение заказчика 19. До него владелец четырёх клубов
+        // видел клиентов всех четырёх одной кучей: срез считался по ЧЕЛОВЕКУ.
+        // Теперь лицо можно назвать, и тогда клиенты у каждого свои.
+        //
+        // Провайдер 5 получает второй клуб (4) с собственным клиентом — атлетом 6.
+        const [clubs, schedule, bookings] = await Promise.all([
+          harness.read<Record<string, unknown>[]>('clubs'),
+          harness.read<Record<string, unknown>[]>('schedule'),
+          harness.read<Record<string, unknown>[]>('bookings'),
+        ]);
+
+        await harness.writeMany({
+          clubs: [
+            ...clubs,
+            { ...rowById(clubs, 3), id: 4, name: 'Второй клуб пятого', slug: 'vtoroy-pyatogo' },
+          ],
+          schedule: [...schedule, { ...rowById(schedule, 2), id: 3, ownerId: 4, bookedCount: 1 }],
+          bookings: [
+            ...bookings,
+            booking(11, {
+              userId: 6,
+              scheduleId: 3,
+              status: 'completed',
+              ownerType: 'club',
+              ownerId: 4,
+              clubId: 4,
+              trainerId: undefined,
+            }),
+          ],
+        });
+
+        const cookie = await as(5);
+
+        // Без названного лица — прежнее поведение: клиенты всех лиц человека.
+        // Старая страница переживает выкатку.
+        const merged = await request(server())
+          .get('/api/bookings?scope=clients')
+          .set('Cookie', cookie);
+
+        expect(ids(merged.body)).toEqual([7, 8, 9, 11]);
+
+        // С названным лицом — только его клиенты. Атлета 6 в клубе 3 не было.
+        const first = await request(server())
+          .get('/api/bookings?scope=clients&faceType=club&faceId=3')
+          .set('Cookie', cookie);
+
+        expect(first.status).toBe(200);
+        expect(ids(first.body)).toEqual([7, 8, 9]);
+        expect(ids(first.body), 'клиент второго клуба попал в срез первого').not.toContain(11);
+
+        // И зеркально: у второго клуба свой единственный клиент.
+        const second = await request(server())
+          .get('/api/bookings?scope=clients&faceType=club&faceId=4')
+          .set('Cookie', cookie);
+
+        expect(ids(second.body)).toEqual([11]);
+      });
+
+      it('чужое лицо в срезе — 403, а не чужие клиенты', async () => {
+        // Лицо приезжает строкой запроса, поэтому владение сверяется. Пустой ответ
+        // здесь соврал бы про причину — назвать чужой клуб и получить его клиентов
+        // нечем, и сказать об этом надо прямо.
+        const response = await request(server())
+          .get('/api/bookings?scope=clients&faceType=club&faceId=3')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
+      });
+
+      it('половина пары лица отклоняется — 400', async () => {
+        const response = await request(server())
+          .get('/api/bookings?scope=clients&faceType=club')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Некорректные параметры запроса');
       });
 
       it('администратору срез клиентов закрыт — у него свой полный', async () => {

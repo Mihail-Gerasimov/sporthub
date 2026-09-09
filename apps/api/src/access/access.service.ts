@@ -17,8 +17,11 @@ import {
   getBookingTrainerId,
   isClientOfProvider as isClientOfProviderRule,
 } from '@sporthub/domain';
-import type { Booking, Club, Trainer } from '@sporthub/types';
+import type { Booking, Club, ServiceFaceRef, Trainer } from '@sporthub/types';
 
+import { ForbiddenError } from '../common/domain-error';
+import type { BookingsRepository } from '../repositories/bookings.repository';
+import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 import type { OwnerIdFilter, UsersRepository } from '../repositories/crud.repository';
@@ -44,6 +47,7 @@ export class AccessService {
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
   ) {}
 
   /** Роль администратора. Отсутствующий пользователь администратором не считается. */
@@ -99,6 +103,70 @@ export class AccessService {
       clubIds: clubs.map((club) => club.id),
       trainerIds: trainers.map((trainer) => trainer.id),
     };
+  }
+
+  /**
+   * Одно названное лицо как ограничение по публикациям — с проверкой владения
+   * (шаг 35.27a).
+   *
+   * ⚠️ Лицо приезжает СНАРУЖИ, строкой запроса, поэтому владение сверяется здесь,
+   * а не подразумевается. Отказ обязан остаться отказом: пустая выдача вместо 403
+   * читалась бы как «клиентов пока нет» и прятала бы то, что спрашивать это лицо
+   * было нечем, — ровно тот вид тихой поломки, ради которого фаза завела «тихие»
+   * диверсии.
+   *
+   * Возвращает тот же вид ограничения, что и `getManagedPublicationIds`, — один
+   * набор понимают все потребители (записи публикаций, клиенты, заметки), и
+   * разойтись в понимании владения им негде.
+   */
+  async requireOwnedFace(userId: number, face: ServiceFaceRef): Promise<OwnerIdFilter> {
+    if (!(await this.isManagerOfFace(face, userId))) {
+      throw new ForbiddenError('Недостаточно прав');
+    }
+
+    return face.type === 'club'
+      ? { clubIds: [face.id], trainerIds: [] }
+      : { clubIds: [], trainerIds: [face.id] };
+  }
+
+  /**
+   * Лица человека, к которым этот клиент действительно ходил (шаг 35.27a).
+   *
+   * Нужно там, где лицо не назвали: заметка обязана лечь при лице, а гадать
+   * нельзя. Считает база — группировкой по публикациям, а не чтением записей:
+   * наружу приезжает по строке на лицо, а не по строке на занятие.
+   *
+   * ⚠️ Пересечение с владениями делается ЗДЕСЬ и обязательно. Группировка
+   * возвращает и клуб-площадку тренерского занятия, а он бывает чужим: без
+   * пересечения в ответе оказалось бы лицо, которым спрашивающий не владеет.
+   * Строк тут единицы — это разбор ответа, а не отбор данных в памяти.
+   */
+  async facesVisitedBy(clientUserId: number, owners: OwnerIdFilter): Promise<ServiceFaceRef[]> {
+    if (owners.clubIds.length + owners.trainerIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.bookings.countByOwner({ userId: clientUserId, owners });
+    const allowed = {
+      club: new Set(owners.clubIds),
+      trainer: new Set(owners.trainerIds),
+    };
+
+    return rows
+      .filter((row) => allowed[row.type].has(row.id))
+      .map((row) => ({ type: row.type, id: row.id }));
+  }
+
+  /**
+   * Управляет ли человек этим лицом — один вопрос вместо развилки по видам.
+   *
+   * Развилка `club`/`trainer` живёт здесь и только здесь: разложенная по местам
+   * вызова, она обязала бы править каждое из них при появлении третьего вида лица.
+   */
+  async isManagerOfFace(face: ServiceFaceRef, userId: number): Promise<boolean> {
+    return face.type === 'club'
+      ? this.isManagerOfClub(face.id, userId)
+      : this.isManagerOfTrainer(face.id, userId);
   }
 
   async isManagerOfClub(clubId: number, userId: number): Promise<boolean> {

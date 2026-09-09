@@ -22,8 +22,8 @@ import {
   getBookingTrainerId,
   getDateKeyInTimeZone,
 } from '@/lib/utils';
-import { getPersonalCabinetConfig, useAuthStore } from '@/stores/useAuthStore';
-import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
+import { FACE_CABINET_TITLE } from '@/lib/service-faces';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import type {
   Booking,
   Club,
@@ -115,9 +115,11 @@ export function ProviderDashboard({
   reviews = [],
 }: ProviderDashboardProps) {
   const user = useAuthStore((state) => state.user);
-  const accountType = useAuthStore((state) => state.accountType);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const cabinetConfig = getPersonalCabinetConfig(accountType);
+  // ⚠️ Шаг 35.32. Кабинет открыт в контексте ЛИЦА услуг, и подпись называет
+  // именно его: «CrossFit Garage», а не «кабинет провайдера». У кого лицо одно,
+  // тот разницы не заметит; у кого их несколько — по подписи видит, где он.
+  const { activeFace } = useAuthFaces();
+  const cabinetTitle = activeFace?.name ?? FACE_CABINET_TITLE;
 
   const providerUserId = user?.id ?? null;
 
@@ -199,13 +201,16 @@ export function ProviderDashboard({
     return Math.round((sum / providerReviews.length) * 10) / 10;
   }, [providerReviews]);
 
-  // Непрочитанные уведомления провайдера.
+  // Непрочитанные уведомления ЛИЦ услуг (шаг 35.37, ловушка 7.6).
+  //
+  // ⚠️ Раньше здесь считались все непрочитанные ЧЕЛОВЕКА — и личные тоже.
+  // Сводка провайдера показывала бы «три непрочитанных», из которых два про его
+  // собственную запись к чужому тренеру: к кабинету услуг они отношения не имеют.
+  //
+  // Адресат решает: строка с лицом принадлежит ящику лица, без лица — личному.
   const unreadCount = useMemo(
-    () =>
-      providerUserId === null
-        ? 0
-        : notifications.filter((n) => n.userId === providerUserId && !n.readAt).length,
-    [notifications, providerUserId],
+    () => notifications.filter((item) => item.addresseeType !== undefined && !item.readAt).length,
+    [notifications],
   );
 
   // KPI активных записей на сегодня и на ближайшие 7 дней.
@@ -258,15 +263,19 @@ export function ProviderDashboard({
     return map;
   }, [providerTrainers, offerings, providerBookings]);
 
-  if (!isAuthenticated || accountType !== 'provider' || !user) {
-    return <AccessDeniedCard requiredRole="provider" testId="provider-dashboard-access-denied" />;
+  // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
+  // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
+  // до похода за ними. Осталась одна причина ничего не рисовать: ответ
+  // «кто я» ещё в пути, и номера человека нет.
+  if (!user) {
+    return null;
   }
 
   if (isEmpty) {
     return (
       <Card className="p-6 sm:p-8" data-testid="provider-dashboard-empty">
         <div className="flex flex-wrap gap-2">
-          <Badge tone="outline">{cabinetConfig?.title ?? 'Кабинет провайдера'}</Badge>
+          <Badge tone="outline">{cabinetTitle}</Badge>
         </div>
         <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-ink">
           Опубликуйте первую услугу
@@ -294,7 +303,7 @@ export function ProviderDashboard({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="outline">{cabinetConfig?.title ?? 'Кабинет провайдера'}</Badge>
+              <Badge tone="outline">{cabinetTitle}</Badge>
             </div>
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
               Обзор, {user.name}

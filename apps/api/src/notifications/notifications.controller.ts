@@ -4,6 +4,12 @@
 // как журнал и публикации кладут `total` рядом с `data`. Две разные формы ответа
 // на соседних маршрутах, обе закреплены фронтом.
 //
+// ⚠️ Фаза 35, шаг 35.28. У ленты появился АДРЕСАТ-ЛИЦО, а значит и ящики:
+// `?club=<id>` — ящик клуба, `?trainer=<id>` — ящик карточки, `?scope=personal` —
+// только личные уведомления человека, без параметров — объединённый срез «всё моё».
+// Чужое лицо назвать нечем: владение спрашивается у `AccessService`, и на чужой
+// номер приходит отказ, а не пустая лента (пустая читалась бы как «уведомлений нет»).
+//
 // Настройки пользователя применяются при чтении, а не при создании: выключенный
 // тип продолжает писаться в хранилище, но не показывается и не считается.
 //
@@ -30,10 +36,14 @@ import { isNotificationTypeEnabled, accountCan, accountKindOf } from '@sporthub/
 import type { Notification, NotificationType } from '@sporthub/types';
 import { z } from 'zod';
 
+import { AccessService } from '../access/access.service';
 import { CurrentUser } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
-import type { NotificationsRepository } from '../repositories/catalog.repository';
+import type {
+  NotificationMailbox,
+  NotificationsRepository,
+} from '../repositories/catalog.repository';
 import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
@@ -60,6 +70,7 @@ export class NotificationsController {
   constructor(
     @Inject(NOTIFICATIONS_REPOSITORY) private readonly notifications: NotificationsRepository,
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    private readonly access: AccessService,
   ) {}
 
   @Get()
@@ -69,6 +80,8 @@ export class NotificationsController {
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
     @Query('scope') scope?: string,
+    @Query('clubId') rawClubId?: string,
+    @Query('trainerId') rawTrainerId?: string,
   ): Promise<{ items: Notification[]; total: number; unreadCount: number }> {
     // Полный срез без разбора адресата: нужен сводкам личного кабинета
     // провайдера. Настройки пользователя к нему не применяются — они
@@ -103,41 +116,71 @@ export class NotificationsController {
       rawLimitValue !== undefined && rawLimitValue > MAX_LIMIT ? MAX_LIMIT : rawLimitValue;
 
     const excludeTypes = await this.disabledTypes(userId);
+    const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
+    const inMailbox = mailbox === undefined ? {} : { mailbox };
 
     // Страница, общее число и непрочитанные — тремя запросами и параллельно.
     // Прежде это была ОДНА лента, прочитанная целиком и порезанная срезом массива,
     // плюс вторая такая же ради счётчика непрочитанных.
+    //
+    // ⚠️ Счётчик непрочитанных считается по ТОМУ ЖЕ ящику, что и выдача. Разойдясь,
+    // они дают «в колокольчике 3, в списке 0»: цифра есть, а строк под ней нет.
     const [items, total, unreadCount] = await Promise.all([
       this.notifications.findMany({
         userId,
+        ...inMailbox,
         unreadOnly: onlyUnread,
         excludeTypes,
         offset,
         ...(limit === undefined ? {} : { limit }),
       }),
-      this.notifications.count({ userId, unreadOnly: onlyUnread, excludeTypes }),
-      this.notifications.count({ userId, unreadOnly: true, excludeTypes }),
+      this.notifications.count({ userId, ...inMailbox, unreadOnly: onlyUnread, excludeTypes }),
+      this.notifications.count({ userId, ...inMailbox, unreadOnly: true, excludeTypes }),
     ]);
 
     return { items, total, unreadCount };
   }
 
   @Get('unread-count')
-  async unreadCount(@CurrentUser() session: SessionContext): Promise<{ unreadCount: number }> {
+  async unreadCount(
+    @CurrentUser() session: SessionContext,
+    @Query('scope') scope?: string,
+    @Query('clubId') rawClubId?: string,
+    @Query('trainerId') rawTrainerId?: string,
+  ): Promise<{ unreadCount: number }> {
     const userId = session.user.id;
     const excludeTypes = await this.disabledTypes(userId);
+    const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
 
     return {
-      unreadCount: await this.notifications.count({ userId, unreadOnly: true, excludeTypes }),
+      unreadCount: await this.notifications.count({
+        userId,
+        ...(mailbox === undefined ? {} : { mailbox }),
+        unreadOnly: true,
+        excludeTypes,
+      }),
     };
   }
 
   @Post('read-all')
   @HttpCode(HttpStatus.OK)
-  async readAll(@CurrentUser() session: SessionContext): Promise<{ updatedCount: number }> {
+  async readAll(
+    @CurrentUser() session: SessionContext,
+    @Query('scope') scope?: string,
+    @Query('clubId') rawClubId?: string,
+    @Query('trainerId') rawTrainerId?: string,
+  ): Promise<{ updatedCount: number }> {
     // До фазы 34 маршрут не проверял вообще ничего: прислал чужой номер — пометил
     // прочитанными чужие уведомления.
-    const updatedCount = await this.notifications.markAllRead(session.user.id);
+    //
+    // ⚠️ Шаг 35.28, ловушка 7.7. Кнопка «прочитать всё» стоит В ЯЩИКЕ, и гасить
+    // она обязана ровно этот ящик. Без области действия один клик в ящике одного
+    // клуба гасил бы ящики всех остальных лиц человека — массово и необратимо.
+    const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
+    const updatedCount = await this.notifications.markAllRead({
+      userId: session.user.id,
+      ...(mailbox === undefined ? {} : { mailbox }),
+    });
 
     return { updatedCount };
   }
@@ -160,6 +203,12 @@ export class NotificationsController {
     //
     // Принадлежность проверяет запрос по одному номеру, а не чтение всей ленты
     // пользователя ради поиска в ней одной строки.
+    //
+    // ⚠️ Шаг 35.28. Спрашивается ОБЪЕДИНЁННЫЙ ящик — без сужения до личного.
+    // Уведомление клубу несёт и лицо, и его владельца-человека, поэтому владелец
+    // находит его здесь. Сузь проверку до личного ящика — и владелец клуба начнёт
+    // получать «не найдено» на собственное уведомление, а причина будет выглядеть
+    // как пропавшая строка.
     const owned = await this.notifications.count({
       userId: session.user.id,
       ids: [notificationId],
@@ -184,7 +233,8 @@ export class NotificationsController {
     }
 
     // Спрашивается только про названные номера, а не про всю ленту пользователя:
-    // чужие среди них просто не вернутся.
+    // чужие среди них просто не вернутся. Ящик не сужается по той же причине,
+    // что и в пометке прочитанным: уведомления своих лиц — тоже свои.
     const own = await this.notifications.findMany({
       userId: session.user.id,
       ids: parsed.data.ids,
@@ -194,6 +244,51 @@ export class NotificationsController {
     const deleted = await this.notifications.removeMany(own.map((item) => item.id));
 
     return { deleted };
+  }
+
+  /**
+   * Какой ящик спрашивают — и вправе ли.
+   *
+   * Три формы: `?clubId=` / `?trainerId=` — ящик лица, `?scope=personal` — только
+   * личные уведомления человека, ничего — объединённый срез «всё моё». Последняя
+   * остаётся умолчанием, поэтому старый клиент, ничего про ящики не знающий,
+   * переживает выкатку без правок.
+   *
+   * ⚠️ Владение спрашивается у `AccessService` — единственного места, где оно живёт.
+   * На чужое лицо приходит ОТКАЗ, а не пустая лента: пустая читается как
+   * «уведомлений пока нет» и прячет то, что спрашивать было нечего.
+   */
+  private async resolveMailbox(
+    session: SessionContext,
+    scope: string | undefined,
+    rawClubId: string | undefined,
+    rawTrainerId: string | undefined,
+  ): Promise<NotificationMailbox | undefined> {
+    const clubId = optionalNumber(rawClubId);
+    const trainerId = optionalNumber(rawTrainerId);
+
+    // Два лица разом — это два ящика, и какой из них имелся в виду, неизвестно.
+    if (clubId !== undefined && trainerId !== undefined) {
+      throw new ValidationError('Некорректные параметры запроса');
+    }
+
+    if (clubId !== undefined) {
+      if (!(await this.access.isManagerOfClub(clubId, session.user.id))) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
+
+      return { kind: 'club', id: clubId };
+    }
+
+    if (trainerId !== undefined) {
+      if (!(await this.access.isManagerOfTrainer(trainerId, session.user.id))) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
+
+      return { kind: 'trainer', id: trainerId };
+    }
+
+    return scope === 'personal' ? { kind: 'personal' } : undefined;
   }
 
   /**

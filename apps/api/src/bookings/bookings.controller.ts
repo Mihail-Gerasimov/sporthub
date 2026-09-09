@@ -45,10 +45,11 @@ import {
   ValidationError,
 } from '../common/domain-error';
 import { AccessService } from '../access/access.service';
+import type { OwnerIdFilter } from '../repositories/crud.repository';
 import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { LogService } from '../logs/log.service';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService, faceRecipient } from '../notifications/notification.service';
 import { SlotContextService } from '../schedule/slot-context.service';
 import { BookingService } from './booking.service';
 import { BookingsGateway } from './bookings.gateway';
@@ -92,27 +93,37 @@ const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
  * запроса. Схема НЕ строгая, поэтому оставшийся у старого клиента `?userId=…`
  * просто игнорируется — как игнорировался любой неизвестный параметр.
  */
-const listQuerySchema = z.object({
-  scope: z.string().optional(),
-  clubId: z.coerce.number().int().positive().optional(),
-  trainerId: z.coerce.number().int().positive().optional(),
-  dateFrom: dateKey.optional(),
-  dateTo: dateKey.optional(),
-  // Набор статусов приходит перечислением через запятую: повторять параметр
-  // умеют не все клиенты, а список словарный и проверяется по нему же.
-  status: z
-    .string()
-    .transform((value) => value.split(',').map((item) => item.trim()))
-    .refine(
-      (values) =>
-        values.length > 0 &&
-        values.every((value) => BOOKING_STATUSES.includes(value as BookingStatus)),
-      'Недопустимый статус записи',
-    )
-    .optional(),
-  offset: z.coerce.number().int().min(0).optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional(),
-});
+const listQuerySchema = z
+  .object({
+    scope: z.string().optional(),
+    clubId: z.coerce.number().int().positive().optional(),
+    trainerId: z.coerce.number().int().positive().optional(),
+    dateFrom: dateKey.optional(),
+    dateTo: dateKey.optional(),
+    // Набор статусов приходит перечислением через запятую: повторять параметр
+    // умеют не все клиенты, а список словарный и проверяется по нему же.
+    status: z
+      .string()
+      .transform((value) => value.split(',').map((item) => item.trim()))
+      .refine(
+        (values) =>
+          values.length > 0 &&
+          values.every((value) => BOOKING_STATUSES.includes(value as BookingStatus)),
+        'Недопустимый статус записи',
+      )
+      .optional(),
+    // Лицо услуг, которым сужается срез кабинета (шаг 35.27a). Пара «вид + номер»:
+    // оба поля или ни одного — половина пары это опечатка клиента, а не «отбора нет».
+    // Необязательна: старая страница лица не шлёт и обязана пережить выкатку.
+    faceType: z.enum(['club', 'trainer']).optional(),
+    faceId: z.coerce.number().int().positive().optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .refine(
+    (value) => (value.faceType === undefined) === (value.faceId === undefined),
+    'Лицо услуг задаётся парой «вид + номер»',
+  );
 
 /** Разбор идентификатора записи с текстом, который отдавал прежний маршрут. */
 function parseBookingId(raw: string): number {
@@ -191,7 +202,12 @@ export class BookingsController {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
-    const { clubId, dateFrom, dateTo, limit, offset, scope, status, trainerId } = parsed.data;
+    const { clubId, dateFrom, dateTo, faceId, faceType, limit, offset, scope, status, trainerId } =
+      parsed.data;
+    // Пара схлопывается в ссылку на лицо один раз, здесь: дальше по коду «лицо
+    // названо» — это одно условие, а не совпадение двух необязательных полей.
+    const face =
+      faceType === undefined || faceId === undefined ? undefined : { type: faceType, id: faceId };
     const wantsPlatformWide = scope === 'all';
     const wantsOwnPublications = scope === 'owner';
     const wantsClients = scope === 'clients';
@@ -209,16 +225,15 @@ export class BookingsController {
     // Отказ обязан остаться отказом. Пустой ответ вместо 403 читается как
     // «записей пока нет» и прячет то, что спрашивать было нечего — а это ровно
     // тот вид тихой поломки, ради которого фаза завела «тихие» диверсии.
-    if (wantsOwnPublications || wantsClients) {
-      const owners = await this.access.getManagedPublicationIds(session.user.id);
-
-      if (owners.clubIds.length + owners.trainerIds.length === 0) {
-        throw new ForbiddenError('Недостаточно прав');
-      }
-    }
-
-    // Публикации спрашивающего — ОДИН запрос по индексу владельца, общий для обоих
-    // режимов. Пустой набор означает «публикаций нет, значит и записей нет»,
+    //
+    // ⚠️ Шаг 35.27a. Названо лицо — срез считается по НЕМУ ОДНОМУ, и владение
+    // сверяется тем же `AccessService`. До этого шага срез кабинета объединял
+    // все лица человека: владелец четырёх клубов видел клиентов всех четырёх
+    // одной кучей и не мог разобрать, кто чей.
+    //
+    // ⚠️ Публикации спрашиваются ОДИН раз (раньше здесь стояло два одинаковых
+    // запроса подряд: один ради проверки «есть ли вообще лица», второй ради
+    // условия). Пустой набор означает «публикаций нет, значит и записей нет»,
     // и репозиторий читает его именно так: выдача будет пустой, а не полной.
     //
     // ⚠️ Дальше из этого набора ничего не разворачивается. Записи публикаций —
@@ -228,10 +243,18 @@ export class BookingsController {
     // остаются подзапросом внутри условия, потому что список из сотен номеров,
     // проехавший по проводу ради второго запроса, это та же работа в памяти,
     // только с лишним кругом.
-    const publications =
-      wantsOwnPublications || wantsClients
-        ? await this.access.getManagedPublicationIds(session.user.id)
-        : undefined;
+    let publications: OwnerIdFilter | undefined;
+
+    if (wantsOwnPublications || wantsClients) {
+      publications =
+        face === undefined
+          ? await this.access.getManagedPublicationIds(session.user.id)
+          : await this.access.requireOwnedFace(session.user.id, face);
+
+      if (publications.clubIds.length + publications.trainerIds.length === 0) {
+        throw new ForbiddenError('Недостаточно прав');
+      }
+    }
 
     // Автопереходы прогоняются во всех режимах — иначе выдача покажет протухшие статусы.
     await this.bookings.runLazyTransitions();
@@ -309,14 +332,16 @@ export class BookingsController {
       },
     });
 
-    // Провайдеру — что появилась новая заявка.
-    const providerUserId =
+    // Заявка приходит ЛИЦУ, на занятие которого записались (шаг 35.27), а не
+    // в общую кучу его владельца: у человека с тремя клубами разобрать, к какому
+    // из них относится заявка, иначе нечем.
+    const face =
       booking.ownerType === 'trainer'
-        ? (context?.trainer?.managedByUserId ?? null)
-        : (context?.club?.managedByUserId ?? null);
+        ? faceRecipient('trainer', context?.trainer)
+        : faceRecipient('club', context?.club);
 
-    if (providerUserId !== null && providerUserId !== undefined) {
-      await this.notifications.notify(providerUserId, 'booking_requested', {
+    if (face !== null) {
+      await this.notifications.notify(face, 'booking_requested', {
         bookingId: booking.id,
         scheduleId: booking.scheduleId,
         athleteUserId: booking.userId,

@@ -383,11 +383,11 @@ const catalogContract = (createRepositories: () => Promise<CatalogRepositories>)
       await notifications.insert({ ...baseNotification });
       await notifications.insert({ ...baseNotification, userId: 2 });
 
-      expect(await notifications.markAllRead(1)).toBe(2);
+      expect(await notifications.markAllRead({ userId: 1 })).toBe(2);
       expect(await notifications.count({ userId: 1, unreadOnly: true })).toBe(0);
       expect(await notifications.count({ userId: 2, unreadOnly: true })).toBe(1);
       // Повторный вызов ничего не находит и ничего не меняет.
-      expect(await notifications.markAllRead(1)).toBe(0);
+      expect(await notifications.markAllRead({ userId: 1 })).toBe(0);
     });
 
     it('удаление считает только реально удалённое', async () => {

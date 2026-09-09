@@ -27,6 +27,7 @@ import type {
   PasswordResetToken,
   ProviderClientNote,
   Review,
+  ServiceFaceRef,
   Session,
   User,
 } from '@sporthub/types';
@@ -38,6 +39,7 @@ import type {
   LogsRepository,
   OwnerIdFilter,
   PasswordResetTokensRepository,
+  ProviderClientNotesFilter,
   ProviderClientNotesRepository,
   ReviewsCountFilter,
   ReviewsFilter,
@@ -660,7 +662,37 @@ type NoteRow = {
   clientUserId: number;
   note: string;
   bookingId: number | null;
+  faceClubId: number | null;
+  faceTrainerId: number | null;
 };
+
+/**
+ * Условие «заметки этого лица» — ОДИН строитель на все запросы (шаг 35.27a).
+ *
+ * В базе лицо лежит двумя колонками ради внешнего ключа и каскада, а бизнес-код
+ * знает пару «вид + номер». Перевод между формами живёт здесь и только здесь:
+ * вторая копия этого `if` разошлась бы с первой при появлении третьего вида лица,
+ * причём молча — запрос просто перестал бы находить часть строк.
+ */
+function noteFaceCondition(
+  face: ServiceFaceRef,
+): { faceClubId: number } | { faceTrainerId: number } {
+  return face.type === 'club' ? { faceClubId: face.id } : { faceTrainerId: face.id };
+}
+
+/** Та же пара в виде полей записи: `undefined` там, где лица нет. */
+function noteFaceColumns(note: { faceType?: ServiceFaceRef['type']; faceId?: number }): {
+  faceClubId: number | null;
+  faceTrainerId: number | null;
+} {
+  if (note.faceType === undefined || note.faceId === undefined) {
+    return { faceClubId: null, faceTrainerId: null };
+  }
+
+  return note.faceType === 'club'
+    ? { faceClubId: note.faceId, faceTrainerId: null }
+    : { faceClubId: null, faceTrainerId: note.faceId };
+}
 
 @Injectable()
 export class PrismaProviderClientNotesRepository implements ProviderClientNotesRepository {
@@ -679,6 +711,10 @@ export class PrismaProviderClientNotesRepository implements ProviderClientNotesR
       clientUserId: row.clientUserId,
       note: row.note,
       bookingId: row.bookingId,
+      // Две колонки схлопываются в пару: наружу лицо едет тем же видом,
+      // каким его называет запрос, — `{ type, id }`, а не «одно из двух полей».
+      faceType: row.faceClubId !== null ? 'club' : row.faceTrainerId !== null ? 'trainer' : null,
+      faceId: row.faceClubId ?? row.faceTrainerId,
     }) as unknown as ProviderClientNote;
   }
 
@@ -694,13 +730,15 @@ export class PrismaProviderClientNotesRepository implements ProviderClientNotesR
     return row === null ? null : PrismaProviderClientNotesRepository.toNote(row);
   }
 
-  async findMany(filter: {
-    providerUserId: number;
-    clientUserId?: number;
-  }): Promise<ProviderClientNote[]> {
+  async findMany(filter: ProviderClientNotesFilter): Promise<ProviderClientNote[]> {
     const rows = await this.client.providerClientNote.findMany({
       where: {
-        providerUserId: filter.providerUserId,
+        // Отбор по лицу ложится на индексы `provider_client_notes_face_club_idx`
+        // и `..._face_trainer_idx`; отбор по автору — на прежний индекс по паре
+        // «автор + клиент». Ни того ни другого нет только у полного среза,
+        // которого у этого маршрута не бывает.
+        ...(filter.providerUserId === undefined ? {} : { providerUserId: filter.providerUserId }),
+        ...(filter.face === undefined ? {} : noteFaceCondition(filter.face)),
         ...(filter.clientUserId !== undefined ? { clientUserId: filter.clientUserId } : {}),
       },
       // «Свежие первыми» с тай-брейкером по номеру — то же, что даёт общий
@@ -725,6 +763,7 @@ export class PrismaProviderClientNotesRepository implements ProviderClientNotesR
         clientUserId: note.clientUserId,
         note: note.note,
         bookingId: note.bookingId ?? null,
+        ...noteFaceColumns(note),
       },
     });
 

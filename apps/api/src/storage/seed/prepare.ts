@@ -714,6 +714,12 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       id: notification.id,
       createdAt: requireTimestamp(notification.createdAt, `уведомление ${notification.id}`),
       userId: notification.userId,
+      // Адресат-лицо: пара полей контракта раскладывается на две колонки, ровно
+      // как владелец услуги и расписания. Обе пусты — уведомление человеку.
+      addresseeClubId:
+        notification.addresseeType === 'club' ? (notification.addresseeId ?? null) : null,
+      addresseeTrainerId:
+        notification.addresseeType === 'trainer' ? (notification.addresseeId ?? null) : null,
       type: notification.type,
       // Форма содержимого зависит от типа, запросов по его внутренностям нет.
       payload: notification.payload as Prisma.InputJsonValue,
@@ -755,6 +761,10 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       clientUserId: note.clientUserId,
       note: note.note,
       bookingId: note.bookingId ?? null,
+      // Лицо услуг (шаг 35.27a): пара «вид + номер» раскладывается на две колонки,
+      // потому что только у колонки бывает внешний ключ и каскад.
+      faceClubId: note.faceType === 'club' ? (note.faceId ?? null) : null,
+      faceTrainerId: note.faceType === 'trainer' ? (note.faceId ?? null) : null,
     }));
 
   return {

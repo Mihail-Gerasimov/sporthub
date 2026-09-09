@@ -151,6 +151,21 @@ const CLUB_SLOT = {
   price: 500,
 };
 
+/**
+ * Отзыв атлета о клубе 1 — чужие слова.
+ *
+ * Лежит в общем срезе, а не заводится по месту: уборка лица (35.24a) не имеет
+ * права его стирать, и проверить это можно только тогда, когда отзыв есть.
+ */
+const CLUB_REVIEW = {
+  id: 1,
+  createdAt: '2026-01-03T00:00:00.000Z',
+  userId: ATHLETE_ID,
+  clubId: 1,
+  rating: 4,
+  text: 'Хороший зал',
+};
+
 const CLUB_BOOKING = {
   id: 1,
   createdAt: '2026-01-02T00:00:00.000Z',
@@ -326,7 +341,7 @@ describe('Маршруты клубов и тренеров', () => {
       offerings: [CLUB_OFFERING, TRAINER_OFFERING],
       schedule: [CLUB_SLOT],
       bookings: [CLUB_BOOKING],
-      reviews: [],
+      reviews: [CLUB_REVIEW],
       logs: [],
     });
   });
@@ -734,13 +749,64 @@ describe('Маршруты клубов и тренеров', () => {
       expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(1);
     });
 
-    it('владелец удаляет свою публикацию', async () => {
+    it('владелец убирает свою публикацию: она уходит из каталога, история цела', async () => {
+      // ⚠️ Шаг 35.24a, решение заказчика 21. Прежде эта проверка ждала, что клуб
+      // ИСЧЕЗНЕТ, и вместе с ним молча исчезала запись атлета на занятие: человек
+      // узнал бы об отмене, придя к закрытой двери. Теперь «удаление» владельцем
+      // прячет лицо, а чужую историю не трогает.
       const response = await request(server())
         .delete('/api/clubs/1')
         .set('Cookie', await harness.as(OWNER_ID));
 
       expect(response.status).toBe(200);
-      expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(1);
+
+      // Лицо на месте и помечено скрытым — тем же механизмом, что у модерации.
+      const clubs =
+        await harness.read<{ id: number; status?: string; hiddenAt?: string }[]>('clubs');
+      expect(clubs).toHaveLength(2);
+      expect(clubs.find((item) => item.id === 1)?.status).toBe('hidden');
+      expect(clubs.find((item) => item.id === 1)?.hiddenAt).toBeDefined();
+
+      // Чужая история цела: запись атлета и его отзыв на месте.
+      expect(await harness.read<{ id: number }[]>('bookings')).toHaveLength(1);
+      expect(await harness.read<{ id: number }[]>('reviews')).toHaveLength(1);
+
+      // ⚠️ И главное следствие, ради которого затевался архив: из каталога лицо
+      // ушло. Диверсия d-29 («помечает, но из каталога не убирает») краснит
+      // именно эту строку — пометка без ухода из выдачи ничего не значит.
+      const catalog = await request(server()).get('/api/clubs');
+      expect(catalog.body.data.map((item: { id: number }) => item.id)).toEqual([2]);
+    });
+
+    it('убрать лицо с живой записью на будущее нельзя, и ничего не меняется', async () => {
+      // Запрет из решения 21: пока люди записаны, лицо не убирается — сначала
+      // отмени записи, тогда они получат уведомления и поймут, что произошло.
+      await harness.writeMany({
+        bookings: [
+          {
+            ...CLUB_BOOKING,
+            id: 2,
+            // Занятие в БУДУЩЕМ считается от часов, а не вписано числом: дата,
+            // вписанная числом, однажды становится прошлым, и проверка запрета
+            // молча перестаёт проверять запрет.
+            date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            status: 'confirmed',
+          },
+        ],
+      });
+
+      const response = await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(OWNER_ID));
+
+      expect(response.status).toBe(409);
+      // Отказ ОБЪЯСНЯЕТ причину и называет следующий шаг.
+      expect(response.body.error).toMatch(/отмен/i);
+
+      // Вторая половина проверки: состояние базы не тронуто.
+      const clubs = await harness.read<{ id: number; status?: string }[]>('clubs');
+      expect(clubs.find((item) => item.id === 1)?.status).not.toBe('hidden');
+      expect(await harness.read<{ id: number }[]>('bookings')).toHaveLength(1);
     });
 
     it('администратор удаляет чужую публикацию', async () => {
@@ -900,7 +966,7 @@ describe('Маршруты клубов и тренеров', () => {
       expect(created?.managedByUserId).toBe(TRAINER_ID);
     });
 
-    it('владелец правит свою карточку и удаляет её', async () => {
+    it('владелец правит свою карточку и убирает её из каталога', async () => {
       const patched = await request(server())
         .patch('/api/trainers/1')
         .set('Cookie', await harness.as(TRAINER_ID))
@@ -913,7 +979,10 @@ describe('Маршруты клубов и тренеров', () => {
         .set('Cookie', await harness.as(TRAINER_ID));
 
       expect(removed.status).toBe(200);
-      expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(0);
+      // Шаг 35.24a: карточка прячется, а не стирается — правило одно с клубом.
+      const trainers = await harness.read<{ id: number; status?: string }[]>('trainers');
+      expect(trainers).toHaveLength(1);
+      expect(trainers[0].status).toBe('hidden');
     });
 
     it('администратор удаляет чужую карточку тренера правом модерации', async () => {
@@ -974,13 +1043,14 @@ describe('Маршруты клубов и тренеров', () => {
       expect(response.body.data.trainer.name).toBe('Марина Соколова');
     });
 
-    it('владелец удаляет свою карточку тренера', async () => {
+    it('владелец убирает свою карточку тренера из каталога', async () => {
       const response = await request(server())
         .delete('/api/trainers/1')
         .set('Cookie', await harness.as(OWNER_ID));
 
       expect(response.status).toBe(200);
-      expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(0);
+      const trainers = await harness.read<{ id: number; status?: string }[]>('trainers');
+      expect(trainers[0].status).toBe('hidden');
     });
 
     it('посторонний чужую карточку не правит и не удаляет — она на месте', async () => {
@@ -1035,7 +1105,8 @@ describe('Маршруты клубов и тренеров', () => {
         .set('Cookie', await harness.as(TRAINER_ID));
 
       expect(removed.status).toBe(200);
-      expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(0);
+      const clubs = await harness.read<{ id: number; status?: string }[]>('clubs');
+      expect(clubs[0].status).toBe('hidden');
     });
 
     it('посторонний чужой клуб не правит и не удаляет — он на месте', async () => {

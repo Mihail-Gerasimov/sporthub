@@ -379,6 +379,15 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       id: row.id,
       createdAt: toIsoString(row.createdAt),
       userId: row.userId,
+      // Колонки лица собираются обратно в пару полей контракта. Обе пусты —
+      // полей в срезе нет вовсе: уведомление адресовано человеку.
+      addresseeType:
+        row.addresseeClubId !== null
+          ? 'club'
+          : row.addresseeTrainerId !== null
+            ? 'trainer'
+            : undefined,
+      addresseeId: row.addresseeClubId ?? row.addresseeTrainerId ?? undefined,
       type: row.type as NotificationType,
       payload: row.payload as Record<string, unknown>,
       readAt: row.readAt ? toIsoString(row.readAt) : undefined,
@@ -407,6 +416,10 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       clientUserId: row.clientUserId,
       note: row.note,
       bookingId: row.bookingId ?? undefined,
+      // Две колонки схлопываются обратно в пару — ровно так же, как в репозитории.
+      faceType:
+        row.faceClubId !== null ? 'club' : row.faceTrainerId !== null ? 'trainer' : undefined,
+      faceId: row.faceClubId ?? row.faceTrainerId ?? undefined,
     } as ProviderClientNote),
   );
 

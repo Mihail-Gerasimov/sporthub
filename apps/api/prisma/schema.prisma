@@ -396,6 +396,7 @@ model Club {
   amenities   ClubAmenity[]
   favoritedBy UserFavoriteClub[]
   trainerLink TrainerClubLink[]
+  faceNotes   ProviderClientNote[]
 
   /// Публичная выдача, отсев скрытых.
   @@index([status])
@@ -409,7 +410,6 @@ model Club {
   /// Симметрично тренеру; одиночный (rating DESC) его не покрывает (6.5).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("clubs")
-  faceNotes ProviderClientNote[]
 }
 
 /// Тренер — вторая публикация провайдера, симметричная клубу.
@@ -476,6 +476,11 @@ model Trainer {
   workFormats TrainerWorkFormat[]
   clubLinks   TrainerClubLink[]
 
+  conductedSchedule Schedule[] @relation("ScheduleConductedBy")
+  conductedBookings Booking[]  @relation("BookingConductedBy")
+
+  faceNotes ProviderClientNote[]
+
   @@index([status])
   @@index([managedByUserId])
   @@index([city, status])
@@ -483,11 +488,6 @@ model Trainer {
   /// Умолчальная сортировка выдачи тренеров трёхуровневая (clubs.controller.ts:289-293).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("trainers")
-
-  conductedSchedule Schedule[] @relation("ScheduleConductedBy")
-  conductedBookings Booking[]  @relation("BookingConductedBy")
-
-  faceNotes ProviderClientNote[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -593,7 +593,7 @@ model Schedule {
   /// взаимоисключающих ссылок владельца вторую занять не даёт, а поле `trainerId`
   /// есть и в типе, и в эталоне контрактов.
   conductedByTrainerId Int? @map("conducted_by_trainer_id")
-  sportId        Int  @map("sport_id")
+  sportId              Int  @map("sport_id")
 
   title String @map("title") @db.VarChar(200)
 
@@ -623,14 +623,14 @@ model Schedule {
   price Int     @map("price")
   room  String? @map("room") @db.VarChar(100)
 
-  offering     Offering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
-  ownerClub    Club?     @relation("ScheduleOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
-  ownerTrainer Trainer?  @relation("ScheduleOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  offering           Offering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  ownerClub          Club?     @relation("ScheduleOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
+  ownerTrainer       Trainer?  @relation("ScheduleOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
   // Как и у услуги: слоты тренера переживают удаление зала, теряя площадку.
-  venueClub    Club?     @relation("ScheduleVenueClub", fields: [venueClubId], references: [id], onDelete: SetNull)
+  venueClub          Club?     @relation("ScheduleVenueClub", fields: [venueClubId], references: [id], onDelete: SetNull)
   // Каскад, а не обнуление: удаление тренера сегодня уносит и его занятия.
-  conductedByTrainer Trainer? @relation("ScheduleConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
-  sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
+  conductedByTrainer Trainer?  @relation("ScheduleConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
+  sport              Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
 
   /// Restrict, а не Cascade: каскад стёр бы историю атлета, включая завершённые
   /// занятия. Перед удалением слота его записи переводятся в «отменено провайдером»
@@ -711,23 +711,23 @@ model Booking {
 
   completedAt DateTime? @map("completed_at")
 
-  schedule     Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  schedule           Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   /// В 6.7 правило для этой связи не задано отдельно: удаление владельца уже
   /// каскадит на записи, а сама запись обязана пережить исчезновение услуги.
-  offering     Offering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
-  ownerClub    Club?     @relation("BookingOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
-  ownerTrainer Trainer?  @relation("BookingOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
+  offering           Offering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  ownerClub          Club?     @relation("BookingOwnerClub", fields: [ownerClubId], references: [id], onDelete: Cascade)
+  ownerTrainer       Trainer?  @relation("BookingOwnerTrainer", fields: [ownerTrainerId], references: [id], onDelete: Cascade)
   // А вот записи каскадом удаляются — и это НЕ асимметрия ради асимметрии, а точное
   // повторение сегодняшнего поведения: `cascadeDeleteInner` сносит записи фильтром
   // `{ clubId }` (`publication.service.ts:402`), а `clubId` у тренерского занятия
   // в зале клуба — это как раз площадка (`booking.service.ts:176`).
-  venueClub    Club?     @relation("BookingVenueClub", fields: [venueClubId], references: [id], onDelete: Cascade)
+  venueClub          Club?     @relation("BookingVenueClub", fields: [venueClubId], references: [id], onDelete: Cascade)
   // Каскад: удаление тренера сегодня уносит и записи на его занятия
   // (`publication.service.ts` отбирает их фильтром по тренеру).
-  conductedByTrainer Trainer? @relation("BookingConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
+  conductedByTrainer Trainer?  @relation("BookingConductedBy", fields: [conductedByTrainerId], references: [id], onDelete: Cascade)
   /// Restrict: пользователей не удаляют физически, а история обязана пережить аккаунт.
-  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sport              Sport     @relation(fields: [sportId], references: [id], onDelete: Restrict)
 
   statusTransitions BookingStatusTransition[]
   providerNotes     ProviderClientNote[]

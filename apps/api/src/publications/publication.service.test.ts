@@ -24,13 +24,38 @@ import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { OfferingsRepository } from '../repositories/catalog.repository';
 import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
-import type { ReviewsRepository } from '../repositories/crud.repository';
-import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
-import type { ClubsRepository, ScheduleRepository } from '../repositories/entities.repository';
-import { CLUBS_REPOSITORY, SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
+import type {
+  ProviderClientNotesRepository,
+  ReviewsRepository,
+} from '../repositories/crud.repository';
+import {
+  PROVIDER_CLIENT_NOTES_REPOSITORY,
+  REVIEWS_REPOSITORY,
+} from '../repositories/crud.repository';
+import type {
+  ClubsRepository,
+  ScheduleRepository,
+  TrainersRepository,
+} from '../repositories/entities.repository';
+import {
+  CLUBS_REPOSITORY,
+  SCHEDULE_REPOSITORY,
+  TRAINERS_REPOSITORY,
+} from '../repositories/entities.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 import type { PublicationSlotInput } from './publication.service';
 import { PublicationService } from './publication.service';
+
+/**
+ * День со сдвигом от сегодняшнего, ключом `YYYY-MM-DD`.
+ *
+ * ⚠️ Запрет на удаление лица с живыми записями смотрит на СЕГОДНЯШНИЙ день,
+ * поэтому «будущее» и «прошлое» в наборе обязаны считаться от часов, а не быть
+ * вписаны числом. Дата, вписанная числом, однажды становится прошлым — и проверка
+ * запрета молча перестаёт проверять запрет.
+ */
+const dayKey = (shiftDays: number): string =>
+  new Date(Date.now() + shiftDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 /** Пользователь среза: 2 — провайдер-владелец, 1 — атлет, 3 — модератор. */
 const user = (id: number, role: string) => ({
@@ -49,10 +74,12 @@ describe('PublicationService', () => {
   let harness: TestHarness;
   let service: PublicationService;
   let clubs: ClubsRepository;
+  let trainerCards: TrainersRepository;
   let offerings: OfferingsRepository;
   let schedule: ScheduleRepository;
   let bookings: BookingsRepository;
   let reviews: ReviewsRepository;
+  let notes: ProviderClientNotesRepository;
 
   const clubInput = {
     name: 'Кроссфит',
@@ -107,10 +134,12 @@ describe('PublicationService', () => {
 
     service = harness.app.get(PublicationService);
     clubs = harness.app.get(CLUBS_REPOSITORY);
+    trainerCards = harness.app.get(TRAINERS_REPOSITORY);
     offerings = harness.app.get(OFFERINGS_REPOSITORY);
     schedule = harness.app.get(SCHEDULE_REPOSITORY);
     bookings = harness.app.get(BOOKINGS_REPOSITORY);
     reviews = harness.app.get(REVIEWS_REPOSITORY);
+    notes = harness.app.get(PROVIDER_CLIENT_NOTES_REPOSITORY);
   });
 
   afterAll(async () => {
@@ -277,7 +306,7 @@ describe('PublicationService', () => {
     ).rejects.toThrow('Слот клуба с id 9999 не найден');
   });
 
-  it('удаление забирает услуги, слоты, записи и отзывы', async () => {
+  it('модератор стирает лицо целиком: услуги, слоты, записи и отзывы', async () => {
     const { club, schedules } = await createClub();
     await bookings.insert({
       scheduleId: schedules[0].id,
@@ -286,7 +315,10 @@ describe('PublicationService', () => {
       ownerId: club.id,
       clubId: club.id,
       sportId: 1,
-      date: '2026-04-01',
+      // ⚠️ Занятие в ПРОШЛОМ и намеренно: живые будущие записи запрещают
+      // стирание точно так же, как запрещают архивирование, и проверка
+      // каскада должна проверять каскад, а не запрет.
+      date: dayKey(-30),
       status: 'pending',
       paymentStatus: 'unpaid',
       totalPrice: 1000,
@@ -297,21 +329,36 @@ describe('PublicationService', () => {
       rating: 5,
       text: 'Отлично',
     });
+    await notes.insert({
+      providerUserId: 2,
+      clientUserId: 1,
+      note: 'Заметка при лице',
+      faceType: 'club',
+      faceId: club.id,
+    });
 
     // ⚠️ Шаг 35.25: от чьего лица идёт удаление, теперь говорится вслух.
     // Раньше здесь стоял вызов с одним аргументом, и проверка владения молча
     // не выполнялась — забыть её было так же легко, как забыть аргумент.
-    await service.deleteClub(club.id, { kind: 'moderator' });
+    //
+    // ⚠️ Шаг 35.24a: стирание осталось ТОЛЬКО у модератора, и метод отвечает,
+    // что именно произошло с публикацией.
+    expect(await service.removeClub(club.id, { kind: 'moderator' })).toBe('deleted');
 
     expect(await clubs.findById(club.id)).toBeNull();
     expect(await offerings.findAll()).toHaveLength(0);
     expect(await schedule.findMany({ ownerType: 'all' })).toHaveLength(0);
     expect(await bookings.findAll()).toHaveLength(0);
     expect(await reviews.findAll()).toHaveLength(0);
+    // ⚠️ Заметки о клиентах уходят вместе с лицом — каскадом внешнего ключа
+    // (шаг 35.27a). До переезда на лицо они были привязаны к ЧЕЛОВЕКУ и после
+    // удаления публикации оставались без предмета: это вторая половина ловушки
+    // 7.10, и починил её сам перенос, а не отдельная чистка в каскаде.
+    expect(await notes.findAll()).toHaveLength(0);
   });
 
   it('удаление несуществующего клуба сообщает id', async () => {
-    await expect(service.deleteClub(555, { kind: 'moderator' })).rejects.toThrow(
+    await expect(service.removeClub(555, { kind: 'moderator' })).rejects.toThrow(
       'Клуб с id 555 не найден',
     );
   });
@@ -334,6 +381,142 @@ describe('PublicationService', () => {
 
     expect(result.offering.trainerClubLinkId).toBeDefined();
     expect(result.schedules[0].trainerId).toBe(result.trainer.id);
+  });
+
+  // --- Шаг 35.24a: убрать лицо = архив, а не стирание ------------------------
+  //
+  // Ловушка 7.10 фазы: удаление публикации сносило каскадом ЧУЖУЮ историю —
+  // записи людей на занятия, их отзывы, связи с чужими тренерами. Пока завести
+  // лицо мог только «провайдер», это было редкостью; после фазы 35 лицо заводит
+  // любой вошедший, и «завёл — передумал — убрал» становится обычным действием.
+  //
+  // Решение заказчика 21: запрет плюс архивирование. Здесь проверяются оба
+  // и вместе с ними — что чужая история переживает уборку целиком.
+  describe('Убрать лицо: запрет при живых записях и архив вместо стирания', () => {
+    /** Живая запись на будущее занятие — то, ради чего стоит запрет. */
+    const insertUpcoming = (club: { id: number }, scheduleId: number) =>
+      bookings.insert({
+        scheduleId,
+        userId: 1,
+        ownerType: 'club',
+        ownerId: club.id,
+        clubId: club.id,
+        sportId: 1,
+        date: dayKey(3),
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
+        totalPrice: 1000,
+        statusHistory: [],
+      } as never);
+
+    it('владелец убирает клуб: лицо прячется, а история остаётся целой', async () => {
+      const { club, offering, schedules } = await createClub();
+      await bookings.insert({
+        scheduleId: schedules[0].id,
+        userId: 1,
+        ownerType: 'club',
+        ownerId: club.id,
+        clubId: club.id,
+        sportId: 1,
+        date: dayKey(-30),
+        status: 'completed',
+        paymentStatus: 'paid',
+        totalPrice: 1000,
+        statusHistory: [],
+      } as never);
+      await reviews.insert({ userId: 1, clubId: club.id, rating: 5, text: 'Отлично' });
+
+      expect(await service.removeClub(club.id, { kind: 'owner', userId: 2 })).toBe('archived');
+
+      // Лицо на месте и помечено скрытым — тем же механизмом, которым пользуется
+      // модерация. Второго механизма заводить не понадобилось.
+      const stored = await clubs.findById(club.id);
+      expect(stored).not.toBeNull();
+      expect(stored?.status).toBe('hidden');
+      expect(stored?.hiddenByUserId).toBe(2);
+      expect(stored?.hiddenAt).toBeDefined();
+      expect(stored?.hideReason).toBeTruthy();
+
+      // Чужая история цела целиком: прошедшая запись, отзыв, услуга и слоты.
+      // Отзыв — чужие слова, и уборка лица их не стирает.
+      expect(await bookings.findAll()).toHaveLength(1);
+      expect(await reviews.findAll()).toHaveLength(1);
+      expect(await offerings.findById(offering.id)).not.toBeNull();
+      expect(await schedule.findByOfferingId(offering.id)).toHaveLength(1);
+    });
+
+    it('клуб с живой записью на будущее убрать нельзя, и в базе ничего не меняется', async () => {
+      const { club, schedules } = await createClub();
+      await insertUpcoming(club, schedules[0].id);
+
+      // Отказ обязан ОБЪЯСНЯТЬ причину: «нельзя» без причины не подсказывает,
+      // что делать дальше, и владелец решит, что сломалось приложение.
+      await expect(service.removeClub(club.id, { kind: 'owner', userId: 2 })).rejects.toThrow(
+        /отмен/i,
+      );
+
+      // Вторая половина проверки и главная: состояние базы не тронуто.
+      const stored = await clubs.findById(club.id);
+      expect(stored?.status).not.toBe('hidden');
+      expect(stored?.hiddenAt).toBeUndefined();
+      expect(await bookings.findAll()).toHaveLength(1);
+    });
+
+    it('модератор тоже не стирает лицо с живой записью на будущее', async () => {
+      // Каскад модератора сносит те же чужие записи, что и каскад владельца.
+      // Право модерации даёт трогать ЧУЖУЮ вещь, а не сносить занятие,
+      // на которое люди записаны и ничего об этом не узнают.
+      const { club, schedules } = await createClub();
+      await insertUpcoming(club, schedules[0].id);
+
+      await expect(service.removeClub(club.id, { kind: 'moderator' })).rejects.toThrow(/отмен/i);
+
+      expect(await clubs.findById(club.id)).not.toBeNull();
+      expect(await bookings.findAll()).toHaveLength(1);
+    });
+
+    it('отменённая запись запрет снимает', async () => {
+      // Контрольная группа к двум отказам выше: без неё зелёный запрет
+      // был бы одинаково зелен и в случае, когда уборка сломана для всех.
+      const { club, schedules } = await createClub();
+      const booking = await insertUpcoming(club, schedules[0].id);
+      await bookings.update(booking.id, { status: 'cancelled_by_provider' });
+
+      expect(await service.removeClub(club.id, { kind: 'owner', userId: 2 })).toBe('archived');
+      expect((await clubs.findById(club.id))?.status).toBe('hidden');
+    });
+
+    it('чужое лицо владельцем не убирается', async () => {
+      const { club } = await createClub();
+
+      await expect(service.removeClub(club.id, { kind: 'owner', userId: 1 })).rejects.toThrow(
+        `Недостаточно прав для редактирования клуба с id ${club.id}`,
+      );
+      expect((await clubs.findById(club.id))?.status).not.toBe('hidden');
+    });
+
+    it('карточка тренера убирается тем же правилом', async () => {
+      const created = await service.createTrainer({
+        trainer: {
+          name: 'Пётр',
+          slug: 'petr-archive',
+          bio: 'Био',
+          experienceYears: 5,
+          managedByUserId: 2,
+        } as unknown as Omit<Trainer, 'id' | 'createdAt'>,
+        offering: { ...offeringInput, ownerType: 'trainer' as const },
+        slots: [slot()],
+        userId: 2,
+      });
+
+      expect(await service.removeTrainer(created.trainer.id, { kind: 'owner', userId: 2 })).toBe(
+        'archived',
+      );
+
+      const stored = await trainerCards.findById(created.trainer.id);
+      expect(stored?.status).toBe('hidden');
+      expect(stored?.hiddenByUserId).toBe(2);
+    });
   });
 
   describe('Удаление слота с записями', () => {

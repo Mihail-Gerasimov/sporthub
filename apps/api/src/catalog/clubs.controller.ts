@@ -288,10 +288,14 @@ export class ClubsController {
     // Владельца сверяет сервис: выдача каталога поле владельца наружу не отдаёт,
     // и проверка по ней отказывала бы всегда. Администратору владелец не важен —
     // ему это разрешает право модерации.
-    await this.publications.deleteClub(clubId, publicationActor(session));
+    // ⚠️ Шаг 35.24a: у владельца это АРХИВ, у модератора — стирание. Что именно
+    // произошло, решает сервис, а маршрут только записывает исход в журнал:
+    // событие «убрана из каталога» и событие «стёрта» — разные, и аудит,
+    // называющий их одним словом, врёт о необратимости действия.
+    const outcome = await this.publications.removeClub(clubId, publicationActor(session));
 
     await this.logs.record({
-      action: 'publish_delete',
+      action: outcome === 'archived' ? 'publish_archive' : 'publish_delete',
       actorId: session.actor.id,
       actorRole: accountKindOf(session.actor),
       entityType: 'club',
@@ -493,10 +497,10 @@ export class TrainersController {
     const trainer = await this.query.findTrainer(trainerId);
 
     // Та же дыра, что и у клуба: удаляли без спроса, а в журнал шёл владелец.
-    await this.publications.deleteTrainer(trainerId, publicationActor(session));
+    const outcome = await this.publications.removeTrainer(trainerId, publicationActor(session));
 
     await this.logs.record({
-      action: 'publish_delete',
+      action: outcome === 'archived' ? 'publish_archive' : 'publish_delete',
       actorId: session.actor.id,
       actorRole: accountKindOf(session.actor),
       entityType: 'trainer',

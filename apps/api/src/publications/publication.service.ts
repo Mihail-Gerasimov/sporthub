@@ -1,4 +1,8 @@
-// Сервис публикаций: создание, правка и удаление клубов и тренеров.
+// Сервис публикаций: создание, правка и уборка клубов и карточек тренера.
+//
+// «Уборка», а не «удаление», с шага 35.24a: у владельца это АРХИВ (лицо уходит
+// из каталога, история остаётся), у модератора — стирание. Оба исхода проходят
+// через один запрет: пока на лицо записаны люди, убрать его нельзя.
 //
 // Самые тяжёлые операции проекта — до пяти коллекций в одной транзакции.
 // Раньше каждая из них собирала полные массивы коллекций вручную и передавала
@@ -9,7 +13,12 @@ import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
-import { ForbiddenError, NotFoundError, ValidationError } from '../common/domain-error';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../common/domain-error';
 import type { TransactionRunner } from '../storage/transaction-runner';
 import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 import {
@@ -33,7 +42,7 @@ import {
   OFFERINGS_REPOSITORY,
   TRAINER_CLUB_LINKS_REPOSITORY,
 } from '../repositories/catalog.repository';
-import type { ReviewsRepository } from '../repositories/crud.repository';
+import type { OwnerIdFilter, ReviewsRepository } from '../repositories/crud.repository';
 import { REVIEWS_REPOSITORY } from '../repositories/crud.repository';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
@@ -82,6 +91,25 @@ export type ClubPublicationResult = {
  * позволяла отключить сверку, просто забыв аргумент.
  */
 export type PublicationActor = { kind: 'owner'; userId: number } | { kind: 'moderator' };
+
+/**
+ * Что произошло с публикацией по запросу «убрать» (шаг 35.24a).
+ *
+ * Исход возвращается наружу, а не остаётся внутри сервиса: от него зависит запись
+ * в журнале — «убрана из каталога» и «стёрта» это разные события, и аудит, который
+ * называет их одинаково, врёт. Значение размеченное, а не булево: третий исход
+ * (например, «убрана с уведомлением клиентов») добавится веткой, а компилятор
+ * покажет все места, где её забыли обработать.
+ */
+export type PublicationRemoval = 'archived' | 'deleted';
+
+/**
+ * Причина скрытия, которую ставит сам владелец.
+ *
+ * Объявлена ОДИН раз и здесь: её читает карточка публикации в разделе модерации,
+ * и вторая копия строки разъехалась бы при первой же правке формулировки.
+ */
+export const OWNER_ARCHIVE_REASON = 'Убрано владельцем из каталога';
 
 @Injectable()
 export class PublicationService {
@@ -285,10 +313,34 @@ export class PublicationService {
     return { trainer, offering: updatedOffering, schedules };
   }
 
-  // --- Удаление ---------------------------------------------------------------
+  // --- Уборка лица: архив у владельца, стирание у модератора -------------------
 
   /**
-   * Удалить клуб вместе с услугами, слотами, записями и отзывами.
+   * Убрать клуб из каталога.
+   *
+   * ⚠️ Шаг 35.24a, решение заказчика 21. Раньше этот метод СТИРАЛ публикацию
+   * вместе с чужой историей: записями людей на занятия, их отзывами и связями
+   * с чужими тренерами. На живой базе у клуба 1 это было 9 записей, 2 отзыва
+   * и 3 связи, и ни один из этих людей ничего бы не узнал — просто пришёл бы
+   * на занятие, которого больше нет. Пока лицо мог завести только «провайдер»,
+   * такое случалось редко; после фазы 35 лицо заводит любой вошедший, и
+   * «завёл — передумал — убрал» становится обычным действием.
+   *
+   * Поэтому у метода теперь ДВА исхода, и выбирает между ними не флаг снаружи,
+   * а тот, кто действует:
+   *
+   * - **владелец** свою публикацию ПРЯЧЕТ. Лицо уходит из каталога, новых записей
+   *   не принимает (`BookingService.create`), но остаётся в базе целиком: отзывы —
+   *   чужие слова, прошедшие записи — чужая история, связи с тренерами — чужие
+   *   договорённости. Стирать это по нажатию одной кнопки владельцу нечем;
+   * - **модератор** публикацию СТИРАЕТ. Жёсткое удаление сохранено ровно здесь
+   *   и только здесь, потому что у него есть предмет, которого нет у скрытия:
+   *   заведённое по ошибке лицо, дубль, спам, требование убрать данные. У админа
+   *   для «спрятать» уже есть свой маршрут модерации, и «удалить» у него значит
+   *   именно «стереть», а не «спрятать вторым способом».
+   *
+   * Оба исхода проходят через один запрет — живые записи на будущее (см.
+   * `assertNoUpcomingBookings`).
    *
    * ⚠️ Фаза 34: появилась проверка владельца. До неё удалить публикацию мог кто
    * угодно — маршрут даже не читал тело запроса, — и вместе с ней исчезали все
@@ -305,8 +357,11 @@ export class PublicationService {
    *
    * Теперь намерение называется вслух: `{ kind: 'owner' }` или `{ kind: 'moderator' }`.
    * Пропуск проверки нельзя выразить случайно — забытый аргумент не соберётся.
+   *
+   * Возвращает то, что на самом деле произошло: журналу нужно записать событие,
+   * а не намерение.
    */
-  async deleteClub(clubId: number, actor: PublicationActor): Promise<void> {
+  async removeClub(clubId: number, actor: PublicationActor): Promise<PublicationRemoval> {
     const club = await this.clubs.findById(clubId);
 
     if (!club) {
@@ -317,12 +372,22 @@ export class PublicationService {
       this.ensureManagedBy(club.managedByUserId, actor.userId, 'клуба', clubId);
     }
 
+    await this.assertNoUpcomingBookings({ clubIds: [clubId], trainerIds: [] }, 'клуб');
+
+    if (actor.kind === 'owner') {
+      await this.clubs.update(clubId, this.archivePatch(actor.userId));
+
+      return 'archived';
+    }
+
     await this.cascadeDelete({ ownerType: 'club', ownerId: clubId });
     await this.clubs.remove(clubId);
+
+    return 'deleted';
   }
 
-  /** Удалить карточку тренера. Правило владения — то же, что у клуба. */
-  async deleteTrainer(trainerId: number, actor: PublicationActor): Promise<void> {
+  /** Убрать карточку тренера. Правила — те же, что у клуба. */
+  async removeTrainer(trainerId: number, actor: PublicationActor): Promise<PublicationRemoval> {
     const trainer = await this.trainers.findById(trainerId);
 
     if (!trainer) {
@@ -333,8 +398,84 @@ export class PublicationService {
       this.ensureManagedBy(trainer.managedByUserId, actor.userId, 'тренера', trainerId);
     }
 
+    await this.assertNoUpcomingBookings({ clubIds: [], trainerIds: [trainerId] }, 'карточку');
+
+    if (actor.kind === 'owner') {
+      await this.trainers.update(trainerId, this.archivePatch(actor.userId));
+
+      return 'archived';
+    }
+
     await this.cascadeDelete({ ownerType: 'trainer', ownerId: trainerId });
     await this.trainers.remove(trainerId);
+
+    return 'deleted';
+  }
+
+  /**
+   * Пометка «лицо убрано из каталога».
+   *
+   * ⚠️ Второго механизма скрытия НЕ заводится. Поля `hiddenAt`, `hideReason`
+   * и `hiddenByUserId` уже есть у клубов и карточек — ими пользуется модерация,
+   * по ним же каталог отсекает скрытое (`excludeHidden`). Кнопка владельца
+   * направлена ТУДА ЖЕ: пара «своё скрытие рядом с чужим» дала бы два источника
+   * правды о видимости лица, и первый же запрос каталога пришлось бы учить обоим.
+   *
+   * Кто скрыл — записывается: в карточке публикации видно, убрал её владелец
+   * или модератор, и разбор жалобы не упирается в «непонятно, кто это сделал».
+   *
+   * Обратный путь есть и он уже работает: правка публикации снимает скрытие
+   * (`updateClubInner`/`updateTrainerInner`), то есть «вернуть в каталог» —
+   * это сохранить карточку заново. Отдельной кнопки восстановления владельцу
+   * не заводится, пока за ней нет второго потребителя.
+   */
+  private archivePatch(userId: number): Partial<Club> & Partial<Trainer> {
+    return {
+      status: 'hidden' as const,
+      hideReason: OWNER_ARCHIVE_REASON,
+      hiddenByUserId: userId,
+      hiddenAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Запрет убирать лицо, пока на него записаны люди (шаг 35.24a, решение 21).
+   *
+   * ⚠️ Смысл запрета — не в целостности данных, а в людях. Архив прячет лицо
+   * из каталога, но УЖЕ СОЗДАННУЮ запись он не отменяет: атлет по-прежнему ждёт
+   * занятие, и если владелец просто уберёт публикацию, человек узнает об этом,
+   * придя к закрытой двери. Поэтому порядок обязателен: сначала отмени записи —
+   * отмена рассылает уведомления, — и только потом убирай лицо.
+   *
+   * ⚠️ Правило одно на владельца и на модератора. Каскад модератора сносит те же
+   * чужие записи; право модерации даёт трогать чужую вещь, а не отменять занятие
+   * молча. Ему доступен обычный порядок: скрыть публикацию своим маршрутом,
+   * отменить записи, стереть.
+   *
+   * Считает база: `count` с отбором по публикациям, действующим статусам и дню
+   * занятия. Ни одна строка записей не доезжает до приложения, и цена проверки
+   * не зависит от того, сколько у лица записей за всю его историю.
+   */
+  private async assertNoUpcomingBookings(owners: OwnerIdFilter, label: string): Promise<void> {
+    // Сегодняшний день ВКЛЮЧИТЕЛЬНО: занятие сегодня вечером — такое же будущее,
+    // как и завтрашнее. День берётся в UTC — тем же способом, каким день занятия
+    // лежит в базе, иначе граница уехала бы на сутки для половины поясов.
+    const today = new Date().toISOString().slice(0, 10);
+
+    const upcoming = await this.bookings.count({
+      owners,
+      status: [...ACTIVE_BOOKING_STATUSES],
+      dateFrom: today,
+    });
+
+    if (upcoming > 0) {
+      // Текст обязан объяснять причину и называть следующий шаг: «нельзя» без
+      // причины владелец прочитает как поломку приложения и напишет в поддержку.
+      throw new ConflictError(
+        `Нельзя убрать ${label}: на ближайшие занятия записаны люди (${upcoming}). ` +
+          'Сначала отмените эти записи — участники получат уведомления — и повторите.',
+      );
+    }
   }
 
   // --- Вспомогательное --------------------------------------------------------

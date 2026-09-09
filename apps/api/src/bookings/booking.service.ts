@@ -30,6 +30,7 @@ import type {
 
 import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
+import type { NotificationRecipient } from '../notifications/notification.service';
 import { NotificationService } from '../notifications/notification.service';
 import type { TransactionRunner } from '../storage/transaction-runner';
 import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
@@ -170,6 +171,21 @@ export class BookingService {
     }
 
     const { affiliatedClub, club, offering, schedule: slot, trainer } = context;
+
+    // ⚠️ Шаг 35.24a. Убранное лицо новых записей не принимает.
+    //
+    // Архив прячет публикацию из каталога, но ссылка на слот остаётся рабочей:
+    // она есть в закладках, в письмах и в чужих сообщениях. Без этой проверки
+    // человек записался бы к тому, кого на площадке уже нет, — и получил бы
+    // подтверждение записи на занятие, которое никто не проведёт.
+    //
+    // Спрашивается ВЛАДЕЛЕЦ слота, а не клуб-площадка: тренерское занятие в чужом
+    // зале принадлежит тренеру, и убирал своё лицо именно он.
+    const owner = slot.ownerType === 'club' ? club : trainer;
+
+    if (owner?.status === 'hidden') {
+      throw new ConflictError('Публикация убрана из каталога — запись на неё закрыта');
+    }
 
     const timestamp = new Date().toISOString();
     // Политика отмены фиксируется на момент записи: изменение условий позже
@@ -366,16 +382,29 @@ export class BookingService {
     };
   }
 
-  /** Кто из пользователей отвечает за сущность, к которой относится запись. */
-  private async resolveProviderUserId(booking: Booking): Promise<number | null> {
-    const owner =
+  /**
+   * Лицо, к которому относится запись, — как адресат уведомления.
+   *
+   * ⚠️ Шаг 35.27. Прежде здесь возвращался ОДИН номер — владелец лица, — и лицо
+   * терялось: у человека с тремя клубами заявки всех трёх приходили в общую кучу.
+   * Теперь возвращается пара «лицо + его владелец», и ящик достаётся клубу.
+   */
+  private async resolveProviderFace(booking: Booking): Promise<NotificationRecipient | null> {
+    if (booking.ownerType === undefined || booking.ownerId === undefined) return null;
+
+    const managedByUserId =
       booking.ownerType === 'trainer'
         ? await this.slotContext.findTrainerManager(booking.ownerId)
-        : booking.ownerType === 'club'
-          ? await this.slotContext.findClubManager(booking.ownerId)
-          : null;
+        : await this.slotContext.findClubManager(booking.ownerId);
 
-    return owner;
+    // Владельца нет — писать некуда: колонка `user_id` обязательна.
+    if (managedByUserId === null) return null;
+
+    return {
+      addresseeType: booking.ownerType,
+      addresseeId: booking.ownerId,
+      managedByUserId,
+    };
   }
 
   /**
@@ -392,28 +421,30 @@ export class BookingService {
 
     switch (transition.to) {
       case 'confirmed':
-        await this.notifications.notify(athleteId, 'booking_confirmed', {
+        await this.notifications.notify({ userId: athleteId }, 'booking_confirmed', {
           bookingId: booking.id,
         });
         break;
 
       case 'rejected_by_provider':
-        await this.notifications.notify(athleteId, 'booking_rejected', {
+        await this.notifications.notify({ userId: athleteId }, 'booking_rejected', {
           bookingId: booking.id,
           reason: transition.reason,
         });
         break;
 
       case 'cancelled_by_athlete': {
-        await this.notifications.notify(athleteId, 'booking_cancelled_by_athlete', {
+        await this.notifications.notify({ userId: athleteId }, 'booking_cancelled_by_athlete', {
           bookingId: booking.id,
           cancelReason: booking.cancelReason,
         });
 
-        const providerUserId = await this.resolveProviderUserId(booking);
-        if (providerUserId !== null) {
+        // Отмена приходит ЛИЦУ, у которого сорвалось занятие, а не в общую кучу
+        // его владельца.
+        const providerFace = await this.resolveProviderFace(booking);
+        if (providerFace !== null) {
           await this.notifications.notify(
-            providerUserId,
+            providerFace,
             'booking_cancelled_by_athlete_to_provider',
             {
               bookingId: booking.id,
@@ -428,16 +459,16 @@ export class BookingService {
       case 'cancelled_by_provider': {
         const bySystem = transition.actor === 'system';
         await this.notifications.notify(
-          athleteId,
+          { userId: athleteId },
           bySystem ? 'booking_auto_expired' : 'booking_cancelled_by_provider',
           { bookingId: booking.id },
         );
 
         // Провайдера извещаем только при автоотмене: ручную он инициировал сам.
         if (bySystem) {
-          const providerUserId = await this.resolveProviderUserId(booking);
-          if (providerUserId !== null) {
-            await this.notifications.notify(providerUserId, 'booking_auto_expired_to_provider', {
+          const providerFace = await this.resolveProviderFace(booking);
+          if (providerFace !== null) {
+            await this.notifications.notify(providerFace, 'booking_auto_expired_to_provider', {
               bookingId: booking.id,
               athleteUserId: booking.userId,
             });
@@ -447,13 +478,13 @@ export class BookingService {
       }
 
       case 'completed':
-        await this.notifications.notify(athleteId, 'booking_completed', {
+        await this.notifications.notify({ userId: athleteId }, 'booking_completed', {
           bookingId: booking.id,
         });
         break;
 
       case 'no_show':
-        await this.notifications.notify(athleteId, 'booking_no_show', {
+        await this.notifications.notify({ userId: athleteId }, 'booking_no_show', {
           bookingId: booking.id,
         });
         break;

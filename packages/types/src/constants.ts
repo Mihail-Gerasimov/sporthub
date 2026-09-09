@@ -61,6 +61,11 @@ export const LOG_ACTIONS = [
   'publish_create',
   'publish_update',
   'publish_delete',
+  // Phase 35 Step 35.24a — владелец убирает своё лицо из каталога.
+  // Отдельное действие, а не `publish_delete`: архив обратим и чужую историю
+  // не трогает, а стирание необратимо. Одно слово на оба означало бы, что
+  // по журналу нельзя отличить «спрятал» от «снёс вместе с записями людей».
+  'publish_archive',
   'booking_create',
   'booking_cancel',
   'admin_login',

@@ -47,6 +47,19 @@ export interface OfferingsRepository {
 }
 
 /**
+ * Ящик уведомлений: чей именно.
+ *
+ * Три формы, и каждая отвечает на свой вопрос: `personal` — только личные
+ * уведомления человека (обе колонки лица пусты), `club`/`trainer` — ящик
+ * одного лица. Отсутствие ящика в отборе означает объединённый срез по `userId`.
+ *
+ * Вид лица назван тем же словарём `CatalogOwnerType`, что и владелец услуги,
+ * расписания и записи: третий вид лица — строка в словаре и колонка, а не
+ * ревизия всех запросов.
+ */
+export type NotificationMailbox = { kind: 'personal' } | { kind: CatalogOwnerType; id: number };
+
+/**
  * Отбор ленты уведомлений. Все поля необязательные.
  *
  * ⚠️ `excludeTypes` — это перевод НАСТРОЕК пользователя в условие запроса, а не
@@ -58,6 +71,14 @@ export interface OfferingsRepository {
  */
 export interface NotificationsFilter {
   userId?: number;
+  /**
+   * Ящик, который читаем. Без него выдача идёт по `userId` — это объединённый
+   * ящик человека: и его личные уведомления, и уведомления всех его лиц.
+   *
+   * ⚠️ Ящик лица определяется КОЛОНКОЙ ЛИЦА, а не владельцем: «прочитать всё»
+   * в ящике одного клуба не имеет права погасить ящики остальных лиц человека.
+   */
+  mailbox?: NotificationMailbox;
   unreadOnly?: boolean;
   /** Отобрать только эти уведомления. Пустой список означает «ни одного». */
   ids?: number[];
@@ -76,11 +97,27 @@ export type NotificationsCountFilter = Omit<NotificationsFilter, 'offset' | 'lim
   userId: number;
 };
 
+/**
+ * Область массовой пометки прочитанным: чей ящик гасим.
+ *
+ * Владелец обязателен всегда, ящик лица — по желанию. Ни типов, ни номеров:
+ * «прочитать всё» — это про ящик целиком, и сузить его чем-то ещё значило бы
+ * оставить в нём непрочитанное, показав ноль.
+ */
+export type NotificationsScope = Pick<NotificationsFilter, 'mailbox'> & { userId: number };
+
 export interface NotificationsRepository {
   findMany(filter: NotificationsFilter): Promise<Notification[]>;
   count(filter: NotificationsCountFilter): Promise<number>;
   insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification>;
   markRead(id: number): Promise<Notification>;
-  markAllRead(userId: number): Promise<number>;
+  /**
+   * Пометить прочитанными весь ящик разом.
+   *
+   * Область действия обязательна: без неё кнопка «прочитать всё» в ящике одного
+   * клуба гасила бы ящики всех остальных лиц человека — массово, необратимо
+   * и в один клик.
+   */
+  markAllRead(scope: NotificationsScope): Promise<number>;
   removeMany(ids: number[]): Promise<number>;
 }

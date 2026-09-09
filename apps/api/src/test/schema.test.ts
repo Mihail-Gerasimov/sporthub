@@ -240,6 +240,98 @@ describe('Ограничения работают, а не просто суще
     ).rejects.toThrow(/reviews_target_one/);
   });
 
+  it('уведомление сразу двум лицам не записывается', async () => {
+    // Шаг 35.26. Пара колонок адресата взаимоисключающая: уведомление адресовано
+    // либо клубу, либо карточке тренера, либо (когда обе пусты) человеку. Две
+    // заполненные колонки — это строка, у которой два ящика: она попала бы в оба
+    // и посчиталась бы дважды.
+    await db.truncateAll();
+    const { clubId, userId } = await seedMinimum();
+    const trainer = await db.prisma.trainer.create({
+      data: {
+        name: 'Тренер',
+        slug: 'trainer-addressee',
+        slugNormalized: 'trainer-addressee',
+        bio: '',
+        city: 'Самара',
+        latitude: 0,
+        longitude: 0,
+        priceFrom: 0,
+        experienceYears: 0,
+        source: 'seed',
+        status: 'published',
+      },
+    });
+
+    await expect(
+      db.prisma.notification.create({
+        data: {
+          userId,
+          type: 'booking_requested',
+          payload: {},
+          addresseeClubId: clubId,
+          addresseeTrainerId: trainer.id,
+        },
+      }),
+    ).rejects.toThrow(/notifications_addressee_one/);
+  });
+
+  it('заметка о клиенте сразу двум лицам не записывается', async () => {
+    // Шаг 35.27a. Та же взаимоисключающая пара, что у уведомления, и по той же
+    // причине: заметка ведётся ПРИ ОДНОМ лице. Две заполненные колонки дали бы
+    // строку, которая видна в двух кабинетах сразу, а правит её кто угодно
+    // из двух владельцев — то есть ровно ту кучу, которую шаг разбирает.
+    await db.truncateAll();
+    const { clubId, userId } = await seedMinimum();
+    const trainer = await db.prisma.trainer.create({
+      data: {
+        name: 'Тренер',
+        slug: 'trainer-note-face',
+        slugNormalized: 'trainer-note-face',
+        bio: '',
+        city: 'Самара',
+        latitude: 0,
+        longitude: 0,
+        priceFrom: 0,
+        experienceYears: 0,
+        source: 'seed',
+        status: 'published',
+      },
+    });
+
+    await expect(
+      db.prisma.providerClientNote.create({
+        data: {
+          providerUserId: userId,
+          clientUserId: userId,
+          note: 'Двум лицам сразу',
+          updatedAt: new Date(),
+          faceClubId: clubId,
+          faceTrainerId: trainer.id,
+        },
+      }),
+    ).rejects.toThrow(/provider_client_notes_face_one/);
+  });
+
+  it('уведомление одному лицу и уведомление человеку записываются', async () => {
+    // Обратная сторона: ограничение обязано пропускать обе законные формы.
+    // Без этой проверки «не более одного» можно было бы случайно ужесточить
+    // до «ровно одного», и уведомления человеку перестали бы писаться вовсе.
+    await db.truncateAll();
+    const { clubId, userId } = await seedMinimum();
+
+    const toClub = await db.prisma.notification.create({
+      data: { userId, type: 'booking_requested', payload: {}, addresseeClubId: clubId },
+    });
+    const toPerson = await db.prisma.notification.create({
+      data: { userId, type: 'booking_confirmed', payload: {} },
+    });
+
+    expect(toClub.addresseeClubId).toBe(clubId);
+    expect(toPerson.addresseeClubId).toBeNull();
+    expect(toPerson.addresseeTrainerId).toBeNull();
+  });
+
   it('город не заводится дважды под тем же нормализованным именем', async () => {
     await db.truncateAll();
     await db.prisma.city.create({

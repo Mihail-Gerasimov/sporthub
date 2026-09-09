@@ -22,8 +22,8 @@ import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { NotificationsRepository } from '../repositories/catalog.repository';
 import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
-import type { ScheduleRepository } from '../repositories/entities.repository';
-import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
+import type { ScheduleRepository, TrainersRepository } from '../repositories/entities.repository';
+import { SCHEDULE_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 import { BookingService } from './booking.service';
 
@@ -173,6 +173,28 @@ describe('BookingService', () => {
       const second = await service.create({ scheduleId: 100, userId: 1 });
 
       expect(second.status).toBe('pending');
+    });
+
+    it('на убранное из каталога лицо записаться нельзя', async () => {
+      // ⚠️ Шаг 35.24a. Архив прячет лицо из каталога, но ссылка на слот остаётся
+      // рабочей — она есть в закладках и в чужих сообщениях. Без этой проверки
+      // человек получил бы подтверждение записи на занятие, которое никто
+      // не проведёт: лица на площадке уже нет.
+      const trainers = harness.app.get<TrainersRepository>(TRAINERS_REPOSITORY);
+      await trainers.update(5, {
+        status: 'hidden',
+        hideReason: 'Убрано владельцем из каталога',
+        hiddenByUserId: 2,
+        hiddenAt: new Date().toISOString(),
+      });
+
+      await expect(service.create({ scheduleId: 100, userId: 1 })).rejects.toThrow(
+        'Публикация убрана из каталога — запись на неё закрыта',
+      );
+
+      // Отказ обязан быть отказом: ни записи, ни занятого места.
+      expect(await bookings.findAll()).toHaveLength(0);
+      expect((await schedule.findById(100))?.bookedCount).toBe(0);
     });
 
     it('на заполненный слот записаться нельзя', async () => {

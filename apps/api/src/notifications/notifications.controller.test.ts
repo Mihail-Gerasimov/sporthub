@@ -10,6 +10,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 const notification = (id: number, over: Record<string, unknown>) => ({
@@ -312,5 +314,260 @@ describe('Маршруты уведомлений', () => {
     expect(response.body.data.items).toHaveLength(5);
     expect(response.body.data.total).toBe(5);
     expect(response.body.data.unreadCount).toBe(4);
+  });
+});
+
+/**
+ * Ящики лиц (шаг 35.28).
+ *
+ * У человека с двумя лицами ящиков три: клуба, карточки тренера и личный. Набор
+ * проверяет, что они РАЗНЫЕ на чтении, на счётчике и на «прочитать всё» — и что
+ * чужое лицо назвать нечем.
+ *
+ * ⚠️ Ловушка 7.7 фазы 35: «прочитать всё» в ящике одного клуба не имеет права
+ * погасить ящики остальных лиц. Операция массовая, необратимая и в один клик,
+ * а прежний тест смотрел на репозиторий по `userId` и остался бы зелёным.
+ */
+describe('Ящики лиц', () => {
+  let harness: TestHarness;
+  let asOwner: string; // пользователь 2 — клуб 1 и карточка тренера 1
+  let asStranger: string; // пользователь 1 — ни одного лица
+
+  const face = (id: number, over: Record<string, unknown>) => ({
+    id,
+    createdAt: `2026-03-0${id}T00:00:00.000Z`,
+    userId: 2,
+    type: 'booking_requested',
+    payload: {},
+    ...over,
+  });
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-mailboxes');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'athlete',
+          status: 'active',
+          name: 'Посторонний',
+          email: 'stranger@test.local',
+          phone: '+7 (900) 000-00-11',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          role: 'club_owner',
+          status: 'active',
+          name: 'Владелец двух лиц',
+          email: 'owner@test.local',
+          phone: '+7 (900) 000-00-12',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          city: 'Самара',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          priceFrom: 500,
+          distanceKm: 1,
+          managedByUserId: 2,
+          status: 'published',
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина',
+          slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 1000,
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Чужая карточка',
+          slug: 'chuzhaya',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 3,
+          priceFrom: 800,
+          managedByUserId: 1,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      // Три ящика одного человека: клуб, карточка, личный — по два уведомления,
+      // и все шесть непрочитанные.
+      notifications: [
+        face(1, { addresseeType: 'club', addresseeId: 1 }),
+        face(2, { addresseeType: 'club', addresseeId: 1, type: 'link_requested' }),
+        face(3, { addresseeType: 'trainer', addresseeId: 1 }),
+        face(4, { addresseeType: 'trainer', addresseeId: 1, type: 'link_requested' }),
+        face(5, { type: 'booking_confirmed' }),
+        face(6, { type: 'booking_rejected' }),
+      ],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      logs: [],
+    });
+
+    [asOwner, asStranger] = await Promise.all([harness.as(2), harness.as(1)]);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const get = (path: string, cookie: string) =>
+    request(harness.app.getHttpServer()).get(`/api${path}`).set('Cookie', cookie);
+
+  const ids = (response: { body: { data: { items: { id: number }[] } } }) =>
+    response.body.data.items.map((item) => item.id).sort((a, b) => a - b);
+
+  it('лента лица отдаёт только его ящик', async () => {
+    const club = await get('/notifications?clubId=1', asOwner);
+    const trainer = await get('/notifications?trainerId=1', asOwner);
+
+    expect(ids(club)).toEqual([1, 2]);
+    expect(ids(trainer)).toEqual([3, 4]);
+  });
+
+  it('личный ящик — это отсутствие лица, а не «всё моё»', async () => {
+    const personal = await get('/notifications?scope=personal', asOwner);
+
+    expect(ids(personal)).toEqual([5, 6]);
+  });
+
+  it('без параметров лента остаётся объединённой — старый клиент переживает выкатку', async () => {
+    const all = await get('/notifications', asOwner);
+
+    expect(ids(all)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(all.body.data.total).toBe(6);
+  });
+
+  it('счётчик непрочитанных считает по тому же ящику, что и лента', async () => {
+    const club = await get('/notifications?clubId=1', asOwner);
+    const counter = await get('/notifications/unread-count?clubId=1', asOwner);
+
+    // Два числа об одном ящике: то, что в ленте, и то, что на колокольчике.
+    expect(counter.body.data.unreadCount).toBe(club.body.data.unreadCount);
+    expect(counter.body.data.unreadCount).toBe(2);
+  });
+
+  it('«прочитать всё» в ящике клуба не гасит ящики остальных лиц', async () => {
+    // Ловушка 7.7. Без области действия один клик погасил бы все шесть строк.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all?clubId=1')
+      .set('Cookie', asOwner);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ updatedCount: 2 });
+
+    const stored = await harness.read<{ id: number; readAt?: string }[]>('notifications');
+    const read = stored.filter((item) => item.readAt !== undefined).map((item) => item.id);
+
+    expect(read.sort()).toEqual([1, 2]);
+  });
+
+  it('«прочитать всё» без ящика по-прежнему гасит всё разом', async () => {
+    // Обратная сторона: область действия не должна превратиться в «ничего
+    // не гасим, пока не назвали лицо» — умолчание осталось прежним.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all')
+      .set('Cookie', asOwner);
+
+    expect(response.body.data).toEqual({ updatedCount: 6 });
+  });
+
+  it('уведомление своему лицу помечается прочитанным и удаляется владельцем', async () => {
+    // Проверка владения обязана понимать лицо: сузь её до личного ящика —
+    // и владелец клуба получит «не найдено» на собственном уведомлении.
+    const marked = await request(harness.app.getHttpServer())
+      .post('/api/notifications/1/read')
+      .set('Cookie', asOwner);
+
+    expect(marked.status).toBe(200);
+    expect(marked.body.data.readAt).toBeDefined();
+    expect(marked.body.data.addresseeType).toBe('club');
+    expect(marked.body.data.addresseeId).toBe(1);
+
+    const removed = await request(harness.app.getHttpServer())
+      .delete('/api/notifications')
+      .set('Cookie', asOwner)
+      .send({ ids: [3] });
+
+    expect(removed.body.data).toEqual({ deleted: 1 });
+  });
+
+  it('чужое лицо назвать нечем — отказ, а не пустая лента', async () => {
+    // Пустая лента читалась бы как «уведомлений пока нет» и прятала бы то,
+    // что спрашивать было нечего.
+    const foreign = await get('/notifications?trainerId=2', asOwner);
+
+    expect(foreign.status).toBe(403);
+    expect(foreign.body.error).toBe('Недостаточно прав');
+
+    const counter = await get('/notifications/unread-count?trainerId=2', asOwner);
+    expect(counter.status).toBe(403);
+
+    const readAll = await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all?trainerId=2')
+      .set('Cookie', asOwner);
+    expect(readAll.status).toBe(403);
+
+    // И чужой ящик не тронут.
+    const stored = await harness.read<{ readAt?: string }[]>('notifications');
+    expect(stored.every((item) => item.readAt === undefined)).toBe(true);
+  });
+
+  it('человек без лиц не открывает ящик чужого лица', async () => {
+    const response = await get('/notifications?clubId=1', asStranger);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('два лица разом — некорректные параметры', async () => {
+    const response = await get('/notifications?clubId=1&trainerId=1', asOwner);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Некорректные параметры запроса');
   });
 });

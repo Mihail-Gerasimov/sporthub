@@ -6,54 +6,30 @@
 // ⚠️ Фаза 35, этап Э0a: группа санкций за неявки и три её типа удалены вместе
 // с самим механизмом. Удаление типов группу за собой не уносит — её пришлось
 // убрать отдельно, иначе в настройках осталась бы пустая вкладка.
-import type { AuthAccountType, NotificationType, User } from '@sporthub/types';
+import type { NotificationType, User } from '@sporthub/types';
 
 // Phase 29 Step 29.4: добавлена группа 'reviews' для уведомлений по отзывам
 // (получено провайдером + опубликовано автором). UI-фильтр группы появится
 // автоматически благодаря NOTIFICATION_GROUP_KEYS-derived рендеру в
-// NotificationsListPage. Audience группы — обе роли (athlete для подтверждения,
-// provider для входящих отзывов), поэтому тaб виден и тем, и тем.
+// NotificationsListPage.
+//
+// ⚠️ Фаза 35: группа — это ТЕМА уведомления («записи», «связи», «отзывы»),
+// а не его получатель. Кому строка видна, решает адресат, и решает это сервер.
 export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'reviews'] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
 
-/**
- * Phase 27 Step 27.3: кому адресован каждый NotificationType.
- * - athlete: booking FSM для атлета.
- * - provider: link_* события (трейнер↔клуб) + provider-ось booking-уведомлений
- *   (booking_requested / ..._to_provider / booking_auto_expired_to_provider).
- * У каждого типа строго один адресат — пересечений нет.
- */
-export const NOTIFICATION_TYPE_AUDIENCE: Record<NotificationType, AuthAccountType> = {
-  booking_confirmed: 'athlete',
-  booking_rejected: 'athlete',
-  booking_cancelled_by_athlete: 'athlete',
-  booking_cancelled_by_provider: 'athlete',
-  booking_completed: 'athlete',
-  booking_no_show: 'athlete',
-  booking_auto_expired: 'athlete',
-  booking_requested: 'provider',
-  booking_cancelled_by_athlete_to_provider: 'provider',
-  booking_auto_expired_to_provider: 'provider',
-  link_requested: 'provider',
-  link_approved: 'provider',
-  link_rejected: 'provider',
-  link_revoked: 'provider',
-  // Phase 29 Step 29.4: review-уведомления — два одноcторонних канала.
-  review_received_by_provider: 'provider',
-  review_published_for_athlete: 'athlete',
-};
-
-/**
- * Возвращает true, если тип уведомления адресован этому accountType.
- * Используется в Settings-редакторе (скрыть чужие чекбоксы) и в NotificationsListPage
- * (не считать чужие типы в счётчике tab'ов, если они случайно попали в базу).
- */
-export function isNotificationTypeApplicable(
-  type: NotificationType,
-  accountType: AuthAccountType,
-): boolean {
-  return NOTIFICATION_TYPE_AUDIENCE[type] === accountType;
-}
+// ⚠️ Фаза 35, шаг 35.28a. Здесь жила модель видимости «тип уведомления → роль
+// человека»: `NOTIFICATION_TYPE_AUDIENCE` и `isNotificationTypeApplicable`.
+// Она удалена целиком, и вот почему.
+//
+// Формула отвечала на вопрос «показывать ли эту строку» ролью получателя, а ролей
+// больше нет: человек с клубом сам ходит на занятия, и его лента смешанная
+// по построению. Пока роль совпадала с «ролью» типа, числа сходились СЛУЧАЙНО;
+// как только перестали — появлялось «в колокольчике 3, а в списке 0»: счётчик
+// считает сервер по ящику, а лента прятала строки сама, в браузере, по формуле.
+//
+// Теперь видимость строки решает её АДРЕСАТ — лицо услуг или человек, — и решает
+// это сервер, отбирая ящик запросом. Правило одно, и оно в одном месте.
 
 /** Маппинг NotificationType → группа (для фильтров и редактора). */
 export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroupKey> = {

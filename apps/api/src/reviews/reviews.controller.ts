@@ -35,7 +35,7 @@ import {
   ValidationError,
 } from '../common/domain-error';
 import { AccessService } from '../access/access.service';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService, faceRecipient } from '../notifications/notification.service';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ReviewsRepository } from '../repositories/crud.repository';
@@ -302,13 +302,15 @@ export class ReviewsController {
     const entity = club ?? trainer;
     const entityType: 'club' | 'trainer' = clubId !== undefined ? 'club' : 'trainer';
     const entityId = clubId ?? (trainerId as number);
-    const ownerUserId = entity?.managedByUserId;
     const entityName = entity?.name ?? '';
+    // Отзыв приходит ЛИЦУ, о котором он написан (шаг 35.27): у владельца двух
+    // клубов иначе не разобрать, к какому из них относится оценка.
+    const face = faceRecipient(entityType, entity);
 
     // Отзыв самому себе теоретически возможен через инструменты разработчика —
     // провайдеру в этом случае уведомление не уходит.
-    if (ownerUserId !== undefined && ownerUserId !== userId) {
-      await this.notifications.notify(ownerUserId, 'review_received_by_provider', {
+    if (face !== null && face.managedByUserId !== userId) {
+      await this.notifications.notify(face, 'review_received_by_provider', {
         reviewId: review.id,
         entityType,
         entityId,
@@ -319,7 +321,8 @@ export class ReviewsController {
       });
     }
 
-    await this.notifications.notify(userId, 'review_published_for_athlete', {
+    // А подтверждение публикации — самому автору, человеку.
+    await this.notifications.notify({ userId }, 'review_published_for_athlete', {
       reviewId: review.id,
       entityType,
       entityId,

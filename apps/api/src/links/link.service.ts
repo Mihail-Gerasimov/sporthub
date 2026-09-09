@@ -13,7 +13,7 @@ import type { TrainerClubLink } from '@sporthub/types';
 
 import { AccessService } from '../access/access.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../common/domain-error';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService, faceRecipient } from '../notifications/notification.service';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
@@ -133,23 +133,28 @@ export class LinkService {
         : {}),
     });
 
-    // Уведомление уходит противоположной стороне: инициатор не должен получать
-    // сообщение о собственной заявке. Когда обе стороны свои, противоположной
-    // стороны нет вовсе — уведомлять некого.
-    const notifiedUserId = bothSidesMine
-      ? undefined
+    // Уведомление уходит противоположной СТОРОНЕ — то есть её лицу (шаг 35.27),
+    // а не человеку: приглашение адресовано клубу, а не тому, кто им управляет.
+    // Инициатор сообщения о собственной заявке не получает; когда обе стороны
+    // свои, противоположной стороны нет вовсе — уведомлять некого.
+    const notified = bothSidesMine
+      ? null
       : initiatedBy === 'club'
-        ? trainer.managedByUserId
-        : club.managedByUserId;
+        ? faceRecipient('trainer', trainer)
+        : faceRecipient('club', club);
 
-    if (notifiedUserId !== undefined) {
-      await this.notifications.notify(notifiedUserId, 'link_requested', {
+    if (notified !== null) {
+      await this.notifications.notify(notified, 'link_requested', {
         linkId: link.id,
         trainerId: input.trainerId,
         clubId: input.clubId,
         initiatedBy,
       });
     }
+
+    // Номер уведомлённого человека остаётся частью ответа сервиса: на него
+    // смотрит журнал и вызывающий контроллер.
+    const notifiedUserId = notified === null ? undefined : notified.managedByUserId;
 
     return { link, initiatedBy, notifiedUserId };
   }
@@ -311,11 +316,14 @@ export class LinkService {
       this.trainers.findById(link.trainerId),
       this.clubs.findById(link.clubId),
     ]);
-    const notifyUserId =
-      link.initiatedBy === 'trainer' ? trainer?.managedByUserId : club?.managedByUserId;
+    // Ответ на заявку приходит в ящик лица, которое её подавало.
+    const notified =
+      link.initiatedBy === 'trainer'
+        ? faceRecipient('trainer', trainer)
+        : faceRecipient('club', club);
 
-    if (notifyUserId !== undefined) {
-      await this.notifications.notify(notifyUserId, type, payload);
+    if (notified !== null) {
+      await this.notifications.notify(notified, type, payload);
     }
   }
 
@@ -351,15 +359,17 @@ export class LinkService {
       revokedBy,
     };
 
-    if (
-      (options.notifyBothSides || revokedBy !== 'trainer') &&
-      trainer?.managedByUserId !== undefined
-    ) {
-      await this.notifications.notify(trainer.managedByUserId, 'link_revoked', payload);
+    // Разрыв связи получают ЛИЦА сторон: та, что разорвала, — только когда
+    // разрыв пришёл со стороны администратора.
+    const trainerFace = faceRecipient('trainer', trainer);
+    const clubFace = faceRecipient('club', club);
+
+    if ((options.notifyBothSides || revokedBy !== 'trainer') && trainerFace !== null) {
+      await this.notifications.notify(trainerFace, 'link_revoked', payload);
     }
 
-    if ((options.notifyBothSides || revokedBy !== 'club') && club?.managedByUserId !== undefined) {
-      await this.notifications.notify(club.managedByUserId, 'link_revoked', payload);
+    if ((options.notifyBothSides || revokedBy !== 'club') && clubFace !== null) {
+      await this.notifications.notify(clubFace, 'link_revoked', payload);
     }
 
     return { link: updated, revokedBy, detachedCount };

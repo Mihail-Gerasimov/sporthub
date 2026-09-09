@@ -14,6 +14,7 @@ import type {
   PasswordResetToken,
   ProviderClientNote,
   Review,
+  ServiceFaceRef,
   Session,
   User,
 } from '@sporthub/types';
@@ -174,13 +175,33 @@ export interface UsersRepository {
   update(id: number, patch: Partial<User>): Promise<User>;
 }
 
+/**
+ * Отбор заметок (шаг 35.27a).
+ *
+ * ⚠️ Автор и лицо — РАЗНЫЕ вопросы, и оба необязательны намеренно.
+ *
+ * `face` — «заметки этого клуба, кем бы они ни были написаны». Сужать его ещё
+ * и автором нельзя: ровно ради этого заметка и переехала на лицо — когда у клуба
+ * появится второй управляющий, он обязан видеть заметки о клиентах своего клуба,
+ * а не только собственные.
+ *
+ * `providerUserId` — «все мои заметки», путь для того, кто лицо не назвал:
+ * старый клиент переживает выкатку и получает то же, что получал.
+ *
+ * Хотя бы одно из двух обязано быть задано — это следит вызывающий: фильтр без
+ * единого условия означал бы «все заметки площадки», то есть ровно тот срез,
+ * который фаза 34 убрала как самую тяжёлую дыру.
+ */
+export interface ProviderClientNotesFilter {
+  providerUserId?: number;
+  face?: ServiceFaceRef;
+  clientUserId?: number;
+}
+
 export interface ProviderClientNotesRepository {
   findAll(): Promise<ProviderClientNote[]>;
   findById(id: number): Promise<ProviderClientNote | null>;
-  findMany(filter: {
-    providerUserId: number;
-    clientUserId?: number;
-  }): Promise<ProviderClientNote[]>;
+  findMany(filter: ProviderClientNotesFilter): Promise<ProviderClientNote[]>;
   insert(
     note: Omit<ProviderClientNote, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<ProviderClientNote>;

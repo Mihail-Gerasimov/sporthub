@@ -3,12 +3,55 @@
 // Прежняя реализация глушила любую ошибку записи молча, чтобы сбой уведомления
 // не ронял основную операцию. Поведение сохранено, но теперь сбой хотя бы
 // попадает в лог, а не исчезает бесследно.
+//
+// ⚠️ Фаза 35, шаг 35.27. Адресат уведомления перестал быть ЧЕЛОВЕКОМ и стал ЛИЦОМ.
+// До неё владелец трёх клубов получал одну общую кучу: разобрать, к какому клубу
+// относится заявка, было нечем, а «прочитать всё» гасило её целиком. Теперь запись
+// на занятие клуба приходит клубу, а своя запись к чужому тренеру — самому человеку.
+//
+// Адресат называется ОДНИМ значением, а не парой необязательных аргументов:
+// «человек» и «лицо» — разные формы, и забыть заполнить лицо, назвав только номер
+// человека, теперь нельзя — это будет уведомление человеку, чем оно и написано.
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { Notification, NotificationType } from '@sporthub/types';
+import type { CatalogOwnerType, EntityId, Notification, NotificationType } from '@sporthub/types';
 
 import type { NotificationsRepository } from '../repositories/catalog.repository';
 import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
+
+/**
+ * Кому адресовано уведомление.
+ *
+ * Человеку — только его номер, обе колонки лица остаются пустыми. Лицу услуг —
+ * вид, номер и владелец-человек: колонка `user_id` остаётся NOT NULL, потому что
+ * объединённый ящик «всё моё» читается по ней одним условием, без `OR` по лицам.
+ */
+export type PersonRecipient = { readonly userId: EntityId };
+
+export type FaceRecipient = {
+  readonly addresseeType: CatalogOwnerType;
+  readonly addresseeId: EntityId;
+  readonly managedByUserId: EntityId;
+};
+
+export type NotificationRecipient = PersonRecipient | FaceRecipient;
+
+/**
+ * Лицо услуг как адресат — из уже прочитанного клуба или карточки тренера.
+ *
+ * Владелец у лица необязателен в типе (карточки из сида ничьи), а колонка
+ * `user_id` обязательна. Поэтому «владельца нет» здесь означает «отправлять
+ * некуда», и вызов возвращает `null`: раньше эта же проверка была рассыпана
+ * по пяти местам записи отдельными `if`.
+ */
+export function faceRecipient(
+  addresseeType: CatalogOwnerType,
+  face: { id: EntityId; managedByUserId?: EntityId } | null | undefined,
+): FaceRecipient | null {
+  if (!face || face.managedByUserId === undefined) return null;
+
+  return { addresseeType, addresseeId: face.id, managedByUserId: face.managedByUserId };
+}
 
 @Injectable()
 export class NotificationService {
@@ -24,14 +67,28 @@ export class NotificationService {
    * эффект, из-за него не должна падать запись на тренировку или смена статуса.
    */
   async notify(
-    userId: number,
+    recipient: NotificationRecipient,
     type: NotificationType,
     payload: Record<string, unknown>,
   ): Promise<Notification | null> {
+    // Ящик лица несёт и лицо, и его владельца: первое решает видимость строки,
+    // второе даёт срез «всё моё» и каскад при удалении человека.
+    const addressee =
+      'userId' in recipient
+        ? { userId: recipient.userId }
+        : {
+            userId: recipient.managedByUserId,
+            addresseeType: recipient.addresseeType,
+            addresseeId: recipient.addresseeId,
+          };
+
     try {
-      return await this.notifications.insert({ userId, type, payload });
+      return await this.notifications.insert({ ...addressee, type, payload });
     } catch (error) {
-      this.logger.error(`Не удалось создать уведомление ${type} для пользователя ${userId}`, error);
+      this.logger.error(
+        `Не удалось создать уведомление ${type} для пользователя ${addressee.userId}`,
+        error,
+      );
 
       return null;
     }
