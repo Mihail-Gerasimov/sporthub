@@ -321,8 +321,10 @@ export function ClubDetailPageClient({
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Автор отзыва — из сессии. Прежнее поле `userId` в теле означало
+        // «я такой-то», и написать отзыв от чужого имени можно было одной правкой
+        // запроса.
         body: JSON.stringify({
-          userId: athleteActionUserId,
           clubId: club.id,
           rating: normalizedReviewForm.rating,
           text: normalizedReviewForm.text,

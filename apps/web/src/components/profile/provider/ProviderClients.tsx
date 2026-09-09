@@ -260,7 +260,7 @@ export function ProviderClients({
   }, [openedClient]);
 
   async function saveNote() {
-    if (!openedClient || providerUserId === null) {
+    if (!openedClient) {
       return;
     }
 
@@ -275,10 +275,13 @@ export function ProviderClients({
       ? `/api/provider-client-notes/${existing.id}`
       : '/api/provider-client-notes';
     const method = existing ? 'PATCH' : 'POST';
+    // ⚠️ Автор заметки — из сессии. Схемы тела на сервере СТРОГИЕ: прежние поля
+    // `userId` и `providerUserId` он теперь не игнорирует, а отвергает запрос
+    // целиком. Заметки о клиентах — самые чувствительные данные площадки,
+    // и называть их автора клиенту не положено.
     const body = existing
-      ? { userId: providerUserId, note: trimmed }
+      ? { note: trimmed }
       : {
-          providerUserId,
           clientUserId: openedClient.userId,
           note: trimmed,
         };
@@ -310,7 +313,7 @@ export function ProviderClients({
   }
 
   async function deleteNote() {
-    if (!openedClient || !openedClient.note || providerUserId === null) {
+    if (!openedClient || !openedClient.note) {
       return;
     }
 
@@ -318,8 +321,6 @@ export function ProviderClients({
     try {
       const response = await fetch(`/api/provider-client-notes/${openedClient.note.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: providerUserId }),
       });
       const result = (await response.json()) as { success: boolean; error?: string };
 

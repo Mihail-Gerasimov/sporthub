@@ -33,7 +33,11 @@ const GROUP_TITLES: Record<NotificationGroupKey, string> = {
 const DEBOUNCE_MS = 500;
 
 interface Props {
-  /** Id пользователя — используется в path PATCH-эндпоинта и body для ownership-guard. */
+  /**
+   * Чьи настройки правим. Номер уходит ТОЛЬКО в адрес маршрута — сервер сверяет
+   * его с сессией и чужие настройки не отдаёт и не меняет. В теле запроса
+   * такого поля больше нет: схема стала строгой и отвергает его.
+   */
   userId: number;
   /** Текущие preferences (опционально). Undefined → все типы включены по умолчанию. */
   notificationPreferences?: Partial<Record<NotificationType, boolean>>;
@@ -132,7 +136,7 @@ export function UserNotificationPreferencesEditor({
       const response = await fetch(`/api/users/${userId}/notification-preferences`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, preferences: nextPrefs }),
+        body: JSON.stringify({ preferences: nextPrefs }),
       });
       if (!response.ok) {
         addToast({ message: 'Не удалось сохранить настройки уведомлений', tone: 'error' });

@@ -45,9 +45,15 @@ import type { Notification } from '@sporthub/types';
 export interface NotificationsListPageProps {
   notifications: Notification[];
   /**
-   * Id пользователя — нужен для массового mark-read (read-all body).
-   * Может быть undefined, если server page не смог определить юзера (гость или cookie
-   * не установлена). В этом случае список просто рендерим без mutation-flows.
+   * Чья это лента. Приходит из СЕРВЕРНОЙ СЕССИИ страницы, а не из браузера.
+   *
+   * ⚠️ В запросы он больше не уходит ни в каком виде: сервер сам знает, чьи
+   * уведомления читать и чьи помечать. Здесь номер нужен ровно для одного —
+   * сбросить стор и выделение при смене человека, иначе после входа под другой
+   * учёткой на экране остались бы чужие уведомления.
+   *
+   * `undefined` — гостевая отрисовка: до проверки в лейауте такого не бывает,
+   * но тип это допускает, и мутации в этом случае просто не выполняются.
    */
   userId?: number;
   /**
@@ -258,20 +264,15 @@ export function NotificationsListPage({
   const markSingleRead = useCallback(
     async (id: number) => {
       if (pendingId !== null) return;
-      // Без userId fetch не имеет смысла — endpoint валидирует ownership через { userId }
-      // в теле и strict Zod-схему, пустой body сразу даст 500/400 и грустный toast.
-      // Это же защищает гостевой рендер (когда cookie не установлен).
-      if (userId === undefined) return;
       setPendingId(id);
       // Phase 29 Step 29.2: optimistic — стор сразу декрементит unreadCount,
       // bell-badge меняется до ответа сервера. На fail откатываем.
       markReadInStore(id);
       try {
-        const response = await fetch(`/api/notifications/${id}/read`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId }),
-        });
+        // Владельца сервер берёт из сессии. Чужое уведомление он отвечает тем же
+        // «не найдено», что и несуществующее, — по коду ответа чужие номера
+        // не переберёшь.
+        const response = await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
         if (!response.ok) {
           rollbackMarkReadInStore(id);
           addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
@@ -283,7 +284,7 @@ export function NotificationsListPage({
         setPendingId(null);
       }
     },
-    [pendingId, addToast, userId, markReadInStore, rollbackMarkReadInStore],
+    [pendingId, addToast, markReadInStore, rollbackMarkReadInStore],
   );
 
   // Phase 29 Step 29.3: переключение режима выбора. На входе/выходе —
@@ -319,10 +320,6 @@ export function NotificationsListPage({
 
   const handleConfirmDelete = useCallback(async () => {
     if (confirmIds === null || confirmIds.length === 0) return;
-    if (userId === undefined) {
-      setConfirmIds(null);
-      return;
-    }
     setDeleting(true);
     // Optimistic: убираем из стора, считаем удалённые непрочитанные.
     const removed = removeManyInStore(confirmIds);
@@ -330,7 +327,8 @@ export function NotificationsListPage({
       const response = await fetch('/api/notifications', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, ids: confirmIds }),
+        // Чужие номера в списке сервер молча отбрасывает — удаляется только своё.
+        body: JSON.stringify({ ids: confirmIds }),
       });
       if (!response.ok) {
         rollbackRemoveManyInStore(removed);
@@ -352,22 +350,18 @@ export function NotificationsListPage({
       setDeleting(false);
       setConfirmIds(null);
     }
-  }, [confirmIds, userId, removeManyInStore, rollbackRemoveManyInStore, addToast]);
+  }, [confirmIds, removeManyInStore, rollbackRemoveManyInStore, addToast]);
 
   const markAllRead = useCallback(async () => {
     if (markingAll) return;
-    // Без userId не делаем запрос — это гостевой рендер или админ без impersonation.
-    if (userId === undefined) return;
     setMarkingAll(true);
     // Phase 29 Step 29.2: optimistic — все непрочитанные помечаются в сторе,
     // bell-badge становится 0. На fail возвращаем readAt и unreadCount.
     const optimisticallyMarkedIds = markAllReadInStore();
     try {
-      const response = await fetch('/api/notifications/read-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
+      // ⚠️ До фазы 34 этот маршрут не проверял НИЧЕГО: прислал чужой номер —
+      // пометил прочитанными чужие уведомления. Тела у него больше нет.
+      const response = await fetch('/api/notifications/read-all', { method: 'POST' });
       if (!response.ok) {
         rollbackMarkAllReadInStore(optimisticallyMarkedIds);
         addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
@@ -380,7 +374,7 @@ export function NotificationsListPage({
     } finally {
       setMarkingAll(false);
     }
-  }, [markingAll, userId, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
+  }, [markingAll, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
 
   // Phase 27 Step 27.8: гость или несоответствие роли — AccessDeniedCard.
   // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти

@@ -1,8 +1,11 @@
 // Сессии входа: выдача, проверка, продление, отзыв.
 //
-// Это единственное место, которое знает, как устроен идентификатор сессии. Наружу
-// он уходит один раз — в cookie при входе; в базе лежит только его хеш, поэтому
-// утёкший дамп войти не даёт. Тот же принцип, что у паролей (фаза 33).
+// Наружу идентификатор уходит один раз — в cookie при входе; в базе лежит только
+// его хеш, поэтому утёкший дамп войти не даёт. Тот же принцип, что у паролей (фаза 33).
+//
+// Само устройство секрета (длина, кодировка, алгоритм хеша) живёт в
+// `common/secret-token.ts`: со ссылками восстановления (34.69) потребителей стало
+// двое, и держать по копии значило бы дать им разъехаться молча.
 //
 // Чего здесь намеренно НЕТ:
 //
@@ -10,22 +13,13 @@
 // - знания про роли: политику сроков держит `@sporthub/domain`, сервис только
 //   спрашивает у неё, живо ли ещё.
 
-import { createHash, randomBytes } from 'node:crypto';
-
 import { Inject, Injectable } from '@nestjs/common';
 import { SESSION_POLICY, SESSION_TOUCH_INTERVAL_MS, isSessionExpired } from '@sporthub/domain';
 import type { Session, User } from '@sporthub/types';
 
+import { createSecretToken, hashSecretToken } from '../common/secret-token';
 import type { SessionsRepository, UsersRepository } from '../repositories/crud.repository';
 import { SESSIONS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repository';
-
-/**
- * Длина идентификатора — 32 байта, то есть 256 бит случайности.
- *
- * OWASP требует минимум 64 бита энтропии; берём с запасом, потому что цена запаса
- * нулевая, а укоротить потом будет нельзя — выданные сессии переживают выкатку.
- */
-const TOKEN_BYTES = 32;
 
 /** Что известно о вызывающем после проверки сессии. */
 export type SessionContext = {
@@ -46,11 +40,6 @@ export class SessionService {
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
   ) {}
 
-  /** Хеш идентификатора: в базу уходит только он. */
-  private static hash(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
   /**
    * Выдать сессию. Возвращает сам идентификатор — единственный момент, когда он
    * существует в открытом виде; вызывающий обязан положить его в cookie и забыть.
@@ -62,12 +51,12 @@ export class SessionService {
     userAgent?: string;
     ip?: string;
   }): Promise<{ token: string; session: Session }> {
-    const token = randomBytes(TOKEN_BYTES).toString('base64url');
+    const token = createSecretToken();
     const policy = SESSION_POLICY[input.user.role];
     const nowIso = input.now.toISOString();
 
     const session = await this.sessions.insert({
-      tokenHash: SessionService.hash(token),
+      tokenHash: hashSecretToken(token),
       userId: input.user.id,
       impersonatedUserId: input.impersonatedUserId,
       lastSeenAt: nowIso,
@@ -85,7 +74,7 @@ export class SessionService {
    * роль, а её знает только `resolve`.
    */
   async findLiveByToken(token: string, now: Date): Promise<Session | null> {
-    return this.sessions.findLiveByTokenHash(SessionService.hash(token), now.toISOString());
+    return this.sessions.findLiveByTokenHash(hashSecretToken(token), now.toISOString());
   }
 
   /**

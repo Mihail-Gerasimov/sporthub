@@ -29,7 +29,6 @@ describe('PublishClubModal', () => {
     open: true,
     onClose: vi.fn(),
     onSuccess: vi.fn(),
-    userId: 2,
     sports: mockSports,
     tags: mockTags,
     amenities: mockAmenities,

@@ -3,12 +3,12 @@
  * Покрывают: ImpersonationBanner, Header admin-навигация,
  * AuthModal блокировка, redirect при start/stop impersonation.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
 import { Header } from '@/components/layout/Header';
-import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 // Мокаем next/navigation. Phase 27 Step 27.15: refresh вынесен в именованный
@@ -28,8 +28,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+const ADMIN_USER_ID = 3;
+
 const adminUser = {
-  id: MVP_ADMIN_USER_ID,
+  id: ADMIN_USER_ID,
   name: 'Администратор SportHub',
   email: 'admin@sporthub.local',
 };
@@ -42,12 +44,15 @@ const athleteUser = {
 
 describe('Impersonation flow (Step 17.5)', () => {
   beforeEach(() => {
-    localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useUIStore.setState({ isAuthModalOpen: false });
     mockPush.mockClear();
     mockRefresh.mockClear();
     mockReplace.mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   // --- ImpersonationBanner ---
@@ -207,7 +212,11 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(mockRefresh).toHaveBeenCalled();
     });
 
-    it('«Выйти» без impersonation делает logout, replace на / и refresh', () => {
+    it('«Выйти» без имперсонизации гасит сессию, делает replace на / и refresh', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true, status: 200 } as Response);
+
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
         user: athleteUser,
@@ -219,8 +228,15 @@ describe('Impersonation flow (Step 17.5)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/');
+      });
+
       const state = useAuthStore.getState();
 
+      // ⚠️ Уход на главную происходит ПОСЛЕ ответа сервера: иначе главная
+      // отрисовалась бы под ещё живой сессией.
+      expect(fetchSpy).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
       // Phase 30.6: обычный logout редиректит на главную и инвалидирует RSC-кэш —

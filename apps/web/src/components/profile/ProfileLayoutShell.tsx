@@ -21,6 +21,15 @@ interface ProfileLayoutShellProps {
   clubs?: Club[];
   trainers?: Trainer[];
   bookings?: Booking[];
+  /**
+   * Права вошедшего — списком строк, как их отдаёт бэкенд.
+   *
+   * Приходят СВЕРХУ, из серверного лейаута: он и так спрашивает «кто я», чтобы
+   * решить, пускать ли сюда. Считать права здесь по роли из браузерного стора
+   * значило бы завести на площадке второй словарь прав — тот, который разъедется
+   * с настоящим молча.
+   */
+  capabilities?: readonly string[];
   children: ReactNode;
 }
 
@@ -29,6 +38,7 @@ export function ProfileLayoutShell({
   clubs = [],
   trainers = [],
   bookings = [],
+  capabilities = [],
   children,
 }: ProfileLayoutShellProps) {
   const user = useAuthStore((state) => state.user);
@@ -74,8 +84,9 @@ export function ProfileLayoutShell({
       providerClubs,
       providerTrainers,
       hasProviderBookings,
+      capabilities,
     });
-  }, [user, accountType, variant, clubs, trainers, bookings]);
+  }, [user, accountType, variant, clubs, trainers, bookings, capabilities]);
 
   const ariaLabel =
     variant === 'athlete' ? 'Разделы кабинета атлета' : 'Разделы кабинета провайдера';

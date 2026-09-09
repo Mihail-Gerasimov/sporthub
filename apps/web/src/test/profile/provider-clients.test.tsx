@@ -405,8 +405,10 @@ describe('ProviderClients (Step 25.10-B)', () => {
     const call = fetchMock.mock.calls[0];
     expect(call[0]).toBe('/api/provider-client-notes');
     expect(call[1].method).toBe('POST');
+    // ⚠️ Автора заметки в теле НЕТ: сервер берёт его из сессии, а схема тела
+    // строгая — прежнее `providerUserId` она теперь отвергает. Заметки о клиентах
+    // самые чувствительные данные площадки, и подписывать их клиенту не положено.
     expect(JSON.parse(call[1].body as string)).toEqual({
-      providerUserId: providerUser.id,
       clientUserId: athleteUser.id,
       note: 'Мотивированный клиент',
     });
@@ -447,8 +449,8 @@ describe('ProviderClients (Step 25.10-B)', () => {
 
     const call = fetchMock.mock.calls[0];
     expect(call[0]).toBe('/api/provider-client-notes/42');
-    expect(call[1].method).toBe('DELETE');
-    expect(JSON.parse(call[1].body as string)).toEqual({ userId: providerUser.id });
+    // Тела у удаления больше нет вовсе: владельца заметки проверяет сервер.
+    expect(call[1]).toEqual({ method: 'DELETE' });
   });
 
   it('рендерит access-denied, если пользователь — атлет', () => {

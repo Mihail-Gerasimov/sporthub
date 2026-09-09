@@ -11,7 +11,6 @@ import { useToastStore } from '@/stores/useToastStore';
 import type { UpcomingProfileBooking } from '@/components/profile/athlete-bookings';
 
 type AthleteUpcomingBookingCardProps = {
-  athleteUserId: number | null;
   booking: UpcomingProfileBooking;
 };
 
@@ -50,10 +49,7 @@ function isLateCancelPreview(booking: UpcomingProfileBooking, now: Date): boolea
   return hoursUntilSlotStart(booking, now) < freeUntilHours;
 }
 
-export function AthleteUpcomingBookingCard({
-  athleteUserId,
-  booking,
-}: AthleteUpcomingBookingCardProps) {
+export function AthleteUpcomingBookingCard({ booking }: AthleteUpcomingBookingCardProps) {
   const router = useRouter();
   const addToast = useToastStore((state) => state.addToast);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -61,26 +57,11 @@ export function AthleteUpcomingBookingCard({
   const [isLateWarnOpen, setIsLateWarnOpen] = useState(false);
 
   async function handleCancelBooking() {
-    if (athleteUserId === null) {
-      addToast({
-        message: 'Не удалось определить пользователя для отмены записи',
-        tone: 'error',
-      });
-      return;
-    }
-
     setIsCancelling(true);
 
     try {
-      const response = await fetch(`/api/bookings/${booking.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: athleteUserId,
-        }),
-      });
+      // ⚠️ Тела у отмены больше нет: владельца записи сервер берёт из сессии.
+      const response = await fetch(`/api/bookings/${booking.id}`, { method: 'DELETE' });
       const result = (await response.json()) as BookingCancelResponse;
 
       if (!response.ok || !result.success) {

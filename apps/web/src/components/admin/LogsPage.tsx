@@ -236,9 +236,9 @@ export function LogsPage() {
   const handleOpenBookingDrawer = useCallback(
     async (bookingId: EntityId) => {
       try {
-        // ⚠️ Прежнего `?userId=` здесь нет. Он был не отбором, а предъявлением
-        // личности: браузер сообщал серверу, кем себя считает. Права на чтение
-        // записи сервер проверяет по сессии — и отвечает отказом, если их нет.
+        // ⚠️ Прежнего параметра с номером пользователя в адресе больше нет.
+        // Он был не отбором, а предъявлением личности: браузер сообщал серверу,
+        // кем себя считает. Права на чтение записи сервер проверяет по сессии.
         const response = await fetch(`/api/bookings/${bookingId}`);
         const body = (await response.json()) as {
           success: boolean;

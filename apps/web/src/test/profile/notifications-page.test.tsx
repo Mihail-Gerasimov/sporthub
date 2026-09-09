@@ -88,23 +88,41 @@ describe('NotificationsListPage', () => {
       );
     });
 
-    // Post-fix: тело запроса должно содержать { userId } — иначе endpoint отвечает 500
-    // на JSON.parse пустого тела + strict Zod-схема с required userId.
+    // ⚠️ Тела у запроса больше НЕТ. Владельца уведомления сервер берёт из сессии,
+    // а чужое отвечает тем же «не найдено», что и несуществующее, — по коду
+    // ответа чужие номера не переберёшь.
     const [, init] = fetchMock.mock.calls[0];
-    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
-    expect(JSON.parse(init.body as string)).toEqual({ userId: 1 });
+    expect(init).toEqual({ method: 'POST' });
 
     await waitFor(() => {
       expect(screen.queryByTestId('notification-item-unread-1')).not.toBeInTheDocument();
     });
   });
 
-  it('клик по уведомлению без userId (гость) не шлёт fetch', () => {
-    render(<NotificationsListPage notifications={seed} accountType="athlete" />);
+  it('пометка прочитанным не называет пользователя ни в адресе, ни в теле', async () => {
+    // Прежний тест проверял, что без `userId` запрос не уходит вовсе: поле было
+    // обязательным, и без него сервер отвечал отказом. Проверять стало нечего —
+    // поля нет. Взамен проверяется то, что действительно важно: личность
+    // не уезжает на сервер ни одним из двух способов.
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
 
     fireEvent.click(screen.getByTestId('notification-item-1'));
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+
+    expect(String(url)).not.toContain('userId');
+    expect(init.body).toBeUndefined();
   });
 
   it('«Отметить всё как прочитанное» шлёт POST read-all и сбрасывает индикаторы', async () => {
@@ -124,11 +142,12 @@ describe('NotificationsListPage', () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/notifications/read-all',
-        expect.objectContaining({ method: 'POST' }),
-      );
+      expect(fetchMock).toHaveBeenCalledWith('/api/notifications/read-all', { method: 'POST' });
     });
+
+    // ⚠️ До фазы 34 этот маршрут не проверял НИЧЕГО: прислал чужой номер —
+    // пометил прочитанными чужие уведомления. Тела у него больше нет.
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
 
     await waitFor(() => {
       expect(screen.queryByTestId('notification-item-unread-1')).not.toBeInTheDocument();

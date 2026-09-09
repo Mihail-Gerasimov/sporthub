@@ -75,7 +75,9 @@ describe('proxy: что решает', () => {
   });
 
   it('пропускает запрос с cookie сессии', () => {
-    expect(proxy(requestFor('/profile/athlete', { 'sh-session': 'x' })).headers.get('location')).toBeNull();
+    expect(
+      proxy(requestFor('/profile/athlete', { 'sh-session': 'x' })).headers.get('location'),
+    ).toBeNull();
   });
 
   it('знает и защищённое имя cookie, которым сессия ставится по HTTPS', () => {

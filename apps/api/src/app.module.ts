@@ -21,6 +21,8 @@ import { LINK_CONTROLLERS } from './links/links.controller';
 import { ADMIN_CONTROLLERS } from './admin/admin.controller';
 import { ANALYTICS_CONTROLLERS } from './analytics/analytics.controller';
 import { AUTH_CONTROLLERS } from './auth/auth.controller';
+import { PASSWORD_RESET_CONTROLLERS } from './auth/password-reset.controller';
+import { PasswordResetService } from './auth/password-reset.service';
 import { GEO_CONTROLLERS } from './geo/geo.controller';
 import { LOG_CONTROLLERS } from './logs/logs.controller';
 import { MODERATION_CONTROLLERS } from './moderation/moderation.controller';
@@ -62,6 +64,7 @@ import { StorageModule } from './storage/storage.module';
     ...USER_ACCOUNT_CONTROLLERS,
     ...NOTE_CONTROLLERS,
     ...AUTH_CONTROLLERS,
+    ...PASSWORD_RESET_CONTROLLERS,
     ...LOG_CONTROLLERS,
     ...MODERATION_CONTROLLERS,
     ...ANALYTICS_CONTROLLERS,
@@ -87,6 +90,7 @@ import { StorageModule } from './storage/storage.module';
     CatalogQueryService,
     LinkService,
     SessionService,
+    PasswordResetService,
     LoginAttemptsService,
   ],
 })

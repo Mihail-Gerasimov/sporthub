@@ -89,6 +89,17 @@ export class LinkService {
     const initiatedBy: LinkInitiator =
       input.initiatedBy ?? (isClubManager && !isTrainerManager ? 'club' : 'trainer');
 
+    // ⚠️ Названная сторона обязана быть СВОЕЙ, и до этапа Э8a это не проверялось.
+    // Дыра: владелец клуба присылал «инициатор — тренер», связь вставала в состояние,
+    // где решение принимает клуб, то есть он сам, — и подтверждал приглашение за
+    // тренера, которого никто не спрашивал. Здесь решает не роль, а владение:
+    // роль говорит, что человеку положено вести связи, владение — с какой он стороны.
+    const initiatorIsManager = initiatedBy === 'club' ? isClubManager : isTrainerManager;
+
+    if (!initiatorIsManager) {
+      throw new ForbiddenError('Недостаточно прав для отправки запроса');
+    }
+
     const existing = await this.links.findMany({
       trainerId: input.trainerId,
       clubId: input.clubId,

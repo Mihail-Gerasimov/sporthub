@@ -1,7 +1,11 @@
 /**
  * Phase 24 Step 24.7: хук useUnreadCountPolling для NotificationBell.
  * Проверяет: первичный fetch, rerun при смене pathname, fallback interval 60s,
- * отсутствие запросов при userId=null, refetch-триггер.
+ * отсутствие запросов при выключенном опросе, refetch-триггер.
+ *
+ * Phase 34 Step 34.49: адрес запроса больше НЕ содержит номера пользователя —
+ * счётчик считается по сессии. Это проверяется отдельным утверждением: адрес
+ * с номером означал бы, что чужой счётчик по-прежнему можно спросить.
  */
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,23 +48,32 @@ afterEach(() => {
 });
 
 describe('useUnreadCountPolling', () => {
-  it('делает первичный fetch unread-count при userId и возвращает значение', async () => {
+  it('делает первичный fetch unread-count и возвращает значение', async () => {
     fetchSpy.mockResolvedValueOnce(makeResponse(3));
 
-    const { result } = renderHook(() => useUnreadCountPolling({ userId: 1 }));
+    const { result } = renderHook(() => useUnreadCountPolling({ enabled: true }));
 
     await flushMicrotasks();
 
     expect(result.current.unreadCount).toBe(3);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/notifications/unread-count?userId=1',
-      expect.any(Object),
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('/api/notifications/unread-count', expect.any(Object));
   });
 
-  it('не делает запрос, если userId = null', async () => {
-    renderHook(() => useUnreadCountPolling({ userId: null }));
+  it('не называет пользователя в адресе — счётчик считается по сессии', async () => {
+    fetchSpy.mockResolvedValueOnce(makeResponse(3));
+
+    renderHook(() => useUnreadCountPolling({ enabled: true }));
+
+    await flushMicrotasks();
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+
+    expect(url).not.toContain('userId');
+  });
+
+  it('не делает запрос, если опрос выключен', async () => {
+    renderHook(() => useUnreadCountPolling({ enabled: false }));
 
     await flushMicrotasks();
 
@@ -70,7 +83,7 @@ describe('useUnreadCountPolling', () => {
   it('повторно fetch-ит при смене pathname', async () => {
     fetchSpy.mockResolvedValue(makeResponse(1));
 
-    const { rerender } = renderHook(() => useUnreadCountPolling({ userId: 1 }));
+    const { rerender } = renderHook(() => useUnreadCountPolling({ enabled: true }));
 
     await flushMicrotasks();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -85,7 +98,7 @@ describe('useUnreadCountPolling', () => {
   it('делает fallback-fetch каждые 60 секунд, если pathname не меняется', async () => {
     fetchSpy.mockResolvedValue(makeResponse(2));
 
-    renderHook(() => useUnreadCountPolling({ userId: 1 }));
+    renderHook(() => useUnreadCountPolling({ enabled: true }));
 
     await flushMicrotasks();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -106,7 +119,7 @@ describe('useUnreadCountPolling', () => {
   it('refetch() принудительно запускает запрос', async () => {
     fetchSpy.mockResolvedValue(makeResponse(5));
 
-    const { result } = renderHook(() => useUnreadCountPolling({ userId: 1 }));
+    const { result } = renderHook(() => useUnreadCountPolling({ enabled: true }));
 
     await flushMicrotasks();
     expect(fetchSpy).toHaveBeenCalledTimes(1);

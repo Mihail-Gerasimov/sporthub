@@ -1,7 +1,7 @@
 // Тесты синхронизации города из auth-профиля в filter store (Step 19.9)
 // При логине/регистрации/impersonation selectedCity обновляется из user.city
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_CITY } from '@sporthub/types';
 import { useSyncCityFromAuth } from '@/hooks/useSyncCityFromAuth';
@@ -12,6 +12,10 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
   beforeEach(() => {
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useFilterStore.getState().resetFilters();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('при логине с city — selectedCity обновляется из профиля', () => {
@@ -40,7 +44,10 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
     expect(useFilterStore.getState().selectedCity).toBe(DEFAULT_CITY);
   });
 
-  it('при logout — selectedCity сбрасывается к DEFAULT_CITY', () => {
+  it('при выходе — selectedCity сбрасывается к DEFAULT_CITY', async () => {
+    // Выход теперь ходит на сервер: сессию гасит он, а не очистка стора.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200 } as Response);
+
     // Сначала логин с городом
     act(() => {
       useAuthStore.getState().login({
@@ -54,8 +61,8 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
     // Проверяем что город установлен
     expect(useFilterStore.getState().selectedCity).toBe('Казань');
 
-    act(() => {
-      useAuthStore.getState().logout();
+    await act(async () => {
+      await useAuthStore.getState().logout();
     });
 
     expect(useFilterStore.getState().selectedCity).toBe(DEFAULT_CITY);

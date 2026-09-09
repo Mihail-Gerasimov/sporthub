@@ -44,6 +44,22 @@ describe('AuthModal', () => {
     });
   }
 
+  /**
+   * Ответы сервера для сценариев входа и регистрации.
+   *
+   * ⚠️ Вопрос «кто я» отвечается ОТДЕЛЬНО, как гостю. Общая оболочка задаёт его
+   * при монтировании (фаза 34: личность приходит с сервера, а не из localStorage),
+   * и без разделения по адресу этот вопрос получал бы ответ входа — тест был бы
+   * зелёным не потому, что вход сработал.
+   */
+  function stubAuthApi(response: Response) {
+    fetchMock.mockImplementation((input: RequestInfo | URL) =>
+      String(input) === '/api/auth/me'
+        ? Promise.resolve(jsonResponse({ success: false, error: 'Требуется вход' }, 401))
+        : Promise.resolve(response.clone()),
+    );
+  }
+
   it('открывается из Header и закрывается по кнопке и overlay', () => {
     render(
       <AppShell>
@@ -146,7 +162,7 @@ describe('AuthModal', () => {
   });
 
   it('выполняет login-fetch, закрывает модалку и обновляет Header', async () => {
-    fetchMock.mockResolvedValue(
+    stubAuthApi(
       jsonResponse(
         {
           success: true,
@@ -194,10 +210,21 @@ describe('AuthModal', () => {
       '/api/auth/login',
       expect.objectContaining({ method: 'POST' }),
     );
+
+    // ⚠️ Пароль обязан УЙТИ НА СЕРВЕР. До фазы 34 форма его спрашивала, но
+    // не отправляла: сервер пускал по одной почте, и поле пароля было
+    // украшением — вход открывался знанием чужого адреса.
+    const loginCall = fetchMock.mock.calls.find(([url]) => url === '/api/auth/login');
+
+    expect(JSON.parse(String((loginCall?.[1] as RequestInit).body))).toEqual({
+      email: 'marina@studio.local',
+      password: '123456',
+      accountType: 'provider',
+    });
   });
 
   it('для спортсмена получает user.id из server response', async () => {
-    fetchMock.mockResolvedValue(
+    stubAuthApi(
       jsonResponse(
         {
           success: true,
@@ -239,9 +266,7 @@ describe('AuthModal', () => {
   });
 
   it('login: 404 от сервера показывает ошибку в форме, модалка остаётся', async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ success: false, error: 'Пользователь не найден' }, 404),
-    );
+    stubAuthApi(jsonResponse({ success: false, error: 'Пользователь не найден' }, 404));
 
     useUIStore.setState({ isAuthModalOpen: true });
     render(<AuthModal />);
@@ -335,7 +360,7 @@ describe('AuthModal', () => {
   });
 
   it('выполняет register-fetch, закрывает модалку и сохраняет accountType', async () => {
-    fetchMock.mockResolvedValue(
+    stubAuthApi(
       jsonResponse(
         {
           success: true,
@@ -397,9 +422,7 @@ describe('AuthModal', () => {
   });
 
   it('register: 409 от сервера показывает «Email уже зарегистрирован», модалка остаётся', async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ success: false, error: 'Email уже зарегистрирован' }, 409),
-    );
+    stubAuthApi(jsonResponse({ success: false, error: 'Email уже зарегистрирован' }, 409));
 
     useUIStore.setState({ isAuthModalOpen: true });
     render(<AuthModal />);

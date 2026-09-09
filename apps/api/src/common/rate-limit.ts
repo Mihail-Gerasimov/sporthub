@@ -67,6 +67,19 @@ export const RATE_LIMITS = {
     limitEnv: 'SPORT_HUB_RATE_LIMIT_GEO',
     windowEnv: 'SPORT_HUB_RATE_LIMIT_GEO_WINDOW_MS',
   },
+  // Восстановление пароля (шаги 34.71–34.72). Оба маршрута публичны, и оба стоят
+  // денег: заявка шлёт письмо, сброс считает argon2id. Пять за десять минут —
+  // это «не пришло, попробую ещё раз» пару раз подряд, но не рассылка писем
+  // на чужой адрес и не поток расчётов хеша.
+  //
+  // Счёт у каждого маршрута свой (ключ библиотеки включает имя обработчика),
+  // поэтому заявки не съедают попытки сброса и наоборот.
+  passwordReset: {
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+    limitEnv: 'SPORT_HUB_RATE_LIMIT_PASSWORD_RESET',
+    windowEnv: 'SPORT_HUB_RATE_LIMIT_PASSWORD_RESET_WINDOW_MS',
+  },
 } as const satisfies Record<string, RateLimitDefinition>;
 
 /** Имя предела из словаря. */

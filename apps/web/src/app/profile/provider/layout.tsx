@@ -16,14 +16,24 @@ export const dynamic = 'force-dynamic';
 export default async function ProviderProfileLayout({ children }: { children: ReactNode }) {
   // ⚠️ Проверка стоит ПЕРЕД загрузкой среза (фаза 34): иначе гость успевал бы
   // получить данные кабинета в потоке ответа, и клиентская плашка «нет доступа»
-  // прятала бы то, что ему уже отдали. Обе роли провайдера пускаются: разделение
-  // их прав — отдельный этап этой же фазы.
-  await requireRole(['club_owner', 'trainer']);
+  // прятала бы то, что ему уже отдали.
+  //
+  // Обе роли провайдера пускаются в кабинет и после этапа Э8a: кабинет у них
+  // общий, разными стали РАЗДЕЛЫ внутри. Что кому показать, решают права
+  // вошедшего — они приходят тем же ответом «кто я», и лейаут передаёт их вниз,
+  // чтобы навигация не гадала по имени роли.
+  const session = await requireRole(['club_owner', 'trainer']);
 
   const { bookings, clubs, trainers } = await loadProviderScope();
 
   return (
-    <ProfileLayoutShell variant="provider" clubs={clubs} trainers={trainers} bookings={bookings}>
+    <ProfileLayoutShell
+      variant="provider"
+      clubs={clubs}
+      trainers={trainers}
+      bookings={bookings}
+      capabilities={session.capabilities}
+    >
       {children}
     </ProfileLayoutShell>
   );

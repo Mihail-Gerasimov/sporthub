@@ -112,19 +112,12 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
   beforeEach(() => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
-      user: {
-        id: 3,
-        createdAt: '',
-        role: 'admin',
-        name: 'Admin',
-        email: 'a@a.com',
-        phone: '+7',
-        passwordHash: 's',
-        favoriteClubIds: [],
-      },
-      accountType: 'provider',
+      user: { id: 3, name: 'Admin', email: 'a@a.com', phone: '+7' },
+      role: 'admin',
+      accountType: null,
       isAuthenticated: true,
       isAdmin: true,
+      status: 'ready',
     });
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
@@ -165,7 +158,7 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
     expect(screen.queryByTestId('logs-open-booking-history-5')).not.toBeInTheDocument();
   });
 
-  it('клик по «История FSM» шлёт GET /api/bookings/42?userId=3 и открывает drawer', async () => {
+  it('клик по «История FSM» шлёт GET /api/bookings/42 без личности и открывает drawer', async () => {
     const { LogsPage } = await import('@/components/admin/LogsPage');
     renderWithToast(<LogsPage />);
 
@@ -174,7 +167,10 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
 
     await waitFor(() => {
       const calls = (global.fetch as unknown as { mock: { calls: Array<[string]> } }).mock.calls;
-      expect(calls.some((c) => c[0] === '/api/bookings/42?userId=3')).toBe(true);
+      // ⚠️ Адрес БЕЗ номера админа. Прежний `?userId=3` был предъявлением личности:
+      // права на чтение записи сервер проверяет по сессии, а не по строке запроса.
+      expect(calls.some((c) => c[0] === '/api/bookings/42')).toBe(true);
+      expect(calls.every((c) => !c[0].includes('userId='))).toBe(true);
     });
 
     // Drawer рендерит заголовок «История статусов»

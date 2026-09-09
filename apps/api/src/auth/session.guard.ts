@@ -66,17 +66,21 @@ export class SessionGuard implements CanActivate {
 
     request.sessionContext = sessionContext;
 
-    const capability = this.reflector.getAllAndOverride<Capability>(REQUIRED_CAPABILITY, [
+    const capabilities = this.reflector.getAllAndOverride<Capability[]>(REQUIRED_CAPABILITY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (capability === undefined) return true;
+    if (capabilities === undefined) return true;
 
     // Право проверяется по роли ТОГО, ОТ ЧЬЕГО ЛИЦА действуют. Под имперсонизацией
     // это цель, а не администратор: смысл имперсонизации в том, чтобы увидеть
     // площадку глазами пользователя, а не пройти его маршрутами с админскими правами.
-    if (!roleCan(sessionContext.user.role, capability)) {
+    //
+    // Перечисленных прав хватает ЛЮБОГО: маршрут, к которому ведут две разные
+    // причины (своё владение или модерация), иначе пришлось бы либо открывать
+    // без права вовсе, либо заводить третье право-синоним.
+    if (!capabilities.some((capability) => roleCan(sessionContext.user.role, capability))) {
       throw new ForbiddenError('Недостаточно прав');
     }
 

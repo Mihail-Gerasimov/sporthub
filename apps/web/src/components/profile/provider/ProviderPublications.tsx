@@ -16,7 +16,7 @@ import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
-import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
+import { hasCapability, type ClubFormState, type TrainerFormState } from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
@@ -36,6 +36,15 @@ import type {
 type ProviderPublicationsProps = {
   clubs?: Club[];
   trainers?: Trainer[];
+  /**
+   * Права вошедшего — списком строк с бэкенда (этап Э8a).
+   *
+   * Разделом распоряжаются они, а не роль: представитель услуг ведёт клубы,
+   * тренер — свою карточку. Кнопка, которую всё равно отобьёт сервер, здесь
+   * не показывается — не ради безопасности (её держит бэкенд), а чтобы кабинет
+   * не предлагал того, чего человеку не разрешено.
+   */
+  capabilities?: readonly string[];
   sports?: Sport[];
   tags?: Tag[];
   amenities?: Amenity[];
@@ -80,6 +89,7 @@ type TrainerClubLinksResponse = {
 export function ProviderPublications({
   clubs = [],
   trainers = [],
+  capabilities = [],
   sports = [],
   tags = [],
   amenities = [],
@@ -110,14 +120,25 @@ export function ProviderPublications({
   /** Счётчик запросов, чтобы поздний ответ не открыл устаревшую модалку. */
   const editBootstrapRequestIdRef = useRef(0);
 
+  // Что этой роли вообще положено вести. Право спрашивается по имени из общего
+  // словаря, а не сравнением роли со строкой: словарь один на весь проект.
+  const mayManageClubs = hasCapability(capabilities, 'manage_own_clubs');
+  const mayManageTrainerProfile = hasCapability(capabilities, 'manage_own_trainer_profile');
+
   // --- Фильтр managed клубов/тренеров. useMemo до early-return, иначе react-hooks ломаются. ---
+  // Публикации чужого вида не показываются даже своему владельцу по старым данным:
+  // править их роль всё равно не может, и список из них был бы списком тупиков.
   const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
+    () =>
+      providerUserId === null || !mayManageClubs ? [] : getProviderClubs(clubs, providerUserId),
+    [clubs, providerUserId, mayManageClubs],
   );
   const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
+    () =>
+      providerUserId === null || !mayManageTrainerProfile
+        ? []
+        : getProviderTrainers(trainers, providerUserId),
+    [trainers, providerUserId, mayManageTrainerProfile],
   );
 
   // Для trainer-модалки показываем все клубы провайдера + (в edit-режиме) текущий affiliated клуб,
@@ -306,10 +327,14 @@ export function ProviderPublications({
       />
 
       <Card className="flex flex-wrap gap-3 p-4 sm:p-6">
-        <Button onClick={handleOpenCreateClubModal}>Опубликовать клуб</Button>
-        <Button variant="outline" onClick={handleOpenCreateTrainerModal}>
-          Опубликовать тренера
-        </Button>
+        {mayManageClubs ? (
+          <Button onClick={handleOpenCreateClubModal}>Опубликовать клуб</Button>
+        ) : null}
+        {mayManageTrainerProfile ? (
+          <Button variant="outline" onClick={handleOpenCreateTrainerModal}>
+            Опубликовать тренера
+          </Button>
+        ) : null}
       </Card>
 
       {/* Publish-модалки */}
@@ -317,7 +342,6 @@ export function ProviderPublications({
         open={isClubModalOpen}
         onClose={resetClubModalState}
         onSuccess={handlePublishSuccess}
-        userId={providerUserId}
         mode={clubModalMode}
         entityId={clubEditEntityId}
         initialData={clubInitialData}
@@ -330,7 +354,6 @@ export function ProviderPublications({
         onClose={resetTrainerModalState}
         onSuccess={handlePublishSuccess}
         clubs={trainerModalClubOptions}
-        userId={providerUserId}
         mode={trainerModalMode}
         entityId={trainerEditEntityId}
         initialData={trainerInitialData}

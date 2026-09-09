@@ -459,3 +459,59 @@ describe('Работа от чужого лица', () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe('Служебный вход администратора', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('auth-admin-login');
+  });
+
+  beforeEach(async () => {
+    await harness.write('users', [
+      user(1, 'athlete', 'athlete@test.local'),
+      user(3, 'admin', 'admin@test.local'),
+    ]);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('администратор входит, не называя тип кабинета', async () => {
+    // Кабинета у него нет ни одного из двух — назвать нечего. Отсутствие поля
+    // и отличает служебный вход от обычного.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.local', password: DEMO_PASSWORD });
+
+    expect(response.status).toBe(200);
+    expect(sessionCookie(response)).toBeDefined();
+  });
+
+  it('администратора с неверным паролем не пускает', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.local', password: 'не тот' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Неверная почта или пароль');
+  });
+
+  it('администратора через общую модалку по-прежнему разворачивает', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.local', accountType: 'athlete', password: DEMO_PASSWORD });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('обычный пользователь входит и без типа кабинета', async () => {
+    // Поле необязательное для всех: сервер сверяет его, только когда оно названо.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'athlete@test.local', password: DEMO_PASSWORD });
+
+    expect(response.status).toBe(200);
+  });
+});

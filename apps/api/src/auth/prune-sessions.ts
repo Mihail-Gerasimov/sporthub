@@ -1,4 +1,4 @@
-// Уборка просроченных сессий.
+// Уборка просроченных сессий и ссылок восстановления пароля.
 //
 // Отдельная команда, а не работа внутри проверки сессии. Чистить на чужом запросе —
 // значит заставлять случайного пользователя платить за уборку чужих строк, причём
@@ -7,7 +7,12 @@
 //
 // Отозванные строки НЕ удаляются вместе с просроченными: пока срок не вышел, отозванная
 // сессия — это след, по которому разбирают инцидент. Она уйдёт своим чередом,
-// когда истечёт `expiresAt`.
+// когда истечёт `expiresAt`. То же и с использованными ссылками восстановления.
+//
+// Обе таблицы чистит ОДНА команда (шаг 34.74), а не две. Устроены они одинаково —
+// хеш секрета плюс срок, — и живут по одному правилу; вторая команда означала бы,
+// что однажды кто-то заведёт первую в расписании, а вторую забудет, и таблица
+// ссылок будет расти молча.
 
 import path from 'node:path';
 
@@ -26,7 +31,7 @@ function loadEnvironment(): void {
   }
 }
 
-/** Убрать просроченные сессии. Возвращает код завершения процесса. */
+/** Убрать просроченные сессии и ссылки восстановления. Возвращает код завершения процесса. */
 export async function pruneSessions(now: Date = new Date()): Promise<number> {
   loadEnvironment();
 
@@ -39,11 +44,21 @@ export async function pruneSessions(now: Date = new Date()): Promise<number> {
 
     service = new PrismaService(settings);
 
-    const removed = await service.client.session.deleteMany({
+    const removedSessions = await service.client.session.deleteMany({
+      where: { expiresAt: { lt: now } },
+    });
+    const removedResetTokens = await service.client.passwordResetToken.deleteMany({
       where: { expiresAt: { lt: now } },
     });
 
-    console.log(`УБОРКА СЕССИЙ\nБаза: ${settings.schema}\nУдалено просроченных: ${removed.count}`);
+    console.log(
+      [
+        'УБОРКА СЕССИЙ И ССЫЛОК ВОССТАНОВЛЕНИЯ',
+        `База: ${settings.schema}`,
+        `Удалено просроченных сессий: ${removedSessions.count}`,
+        `Удалено просроченных ссылок восстановления: ${removedResetTokens.count}`,
+      ].join('\n'),
+    );
 
     return 0;
   } catch (error) {

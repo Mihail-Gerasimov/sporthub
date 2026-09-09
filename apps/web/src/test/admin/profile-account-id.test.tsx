@@ -10,12 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
-import {
-  AUTH_STORE_DEFAULT_STATE,
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
-  useAuthStore,
-} from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ATHLETE_USER_ID = 1;
+const PROVIDER_USER_ID = 2;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -35,7 +36,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -46,7 +47,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
     render(<AthleteDashboard bookings={[]} clubs={[]} schedule={[]} trainers={[]} users={[]} />);
 
     expect(screen.getByTestId('athlete-dashboard-account-id')).toHaveTextContent(
-      `ID: #${MVP_ATHLETE_USER_ID}`,
+      `ID: #${ATHLETE_USER_ID}`,
     );
   });
 
@@ -54,7 +55,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: {
-        id: MVP_PROVIDER_USER_ID,
+        id: PROVIDER_USER_ID,
         name: 'Марина Крылова',
         email: 'marina@studio.local',
       },
@@ -62,7 +63,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
       isAuthenticated: true,
     });
 
-    // Dummy-клуб под `managedByUserId = MVP_PROVIDER_USER_ID`, чтобы Dashboard
+    // Dummy-клуб под `managedByUserId = PROVIDER_USER_ID`, чтобы Dashboard
     // не уходил в empty-state (там шапки с ID нет) и рендерил мета-инфо.
     render(
       <ProviderDashboard
@@ -84,7 +85,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
             tagIds: [],
             amenityIds: [],
             priceFrom: 0,
-            managedByUserId: MVP_PROVIDER_USER_ID,
+            managedByUserId: PROVIDER_USER_ID,
           },
         ]}
         trainers={[]}
@@ -96,7 +97,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
     );
 
     expect(screen.getByTestId('provider-dashboard-account-id')).toHaveTextContent(
-      `ID: #${MVP_PROVIDER_USER_ID}`,
+      `ID: #${PROVIDER_USER_ID}`,
     );
   });
 });

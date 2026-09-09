@@ -1,8 +1,9 @@
 // Phase 24 Step 24.7: страница уведомлений атлета — плоский список с mark-read.
 // Server Component, dynamic='force-dynamic': читаем актуальный notifications.json
 // на каждый запрос (чтобы router.refresh обновлял индикаторы).
-// Phase 26 post-fix: userId берём из auth-cookie (реальный залогиненный юзер),
-// а не из hardcoded MVP_ATHLETE_USER_ID. Cookie пишется в useAuthStore при login.
+// Phase 34: адресат ленты берётся из СЕРВЕРНОЙ СЕССИИ (`readSession`). До неё
+// он приходил из cookie, которую писал сам браузер, — то есть страницу чужих
+// уведомлений можно было открыть, поправив одно число в браузере.
 import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';

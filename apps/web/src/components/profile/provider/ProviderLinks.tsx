@@ -134,14 +134,13 @@ export function ProviderLinks({
   );
 
   async function callAction(linkId: number, action: 'approve' | 'reject' | 'revoke') {
-    if (providerUserId === null) return;
-
     setActionLinkId(linkId);
     try {
+      // ⚠️ Сторону, принимающую решение, сервер определяет по сессии. Правило
+      // «решает противоположная инициатору сторона» было правильным и раньше —
+      // ему не хватало честного источника личности: номер приходил из тела.
       const response = await fetch(`/api/trainer-club-links/${linkId}/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: providerUserId }),
       });
       const body = (await response.json()) as { success: boolean; error?: string };
 
@@ -177,13 +176,11 @@ export function ProviderLinks({
     initiatedBy: 'trainer' | 'club',
     onClose: () => void,
   ) {
-    if (providerUserId === null) return;
-
     try {
       const response = await fetch('/api/trainer-club-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trainerId, clubId, userId: providerUserId, initiatedBy }),
+        body: JSON.stringify({ trainerId, clubId, initiatedBy }),
       });
       const body = (await response.json()) as { success: boolean; error?: string };
 

@@ -23,7 +23,12 @@ import {
   PASSWORD_ALPHABET,
   generatePassword,
 } from '@/lib/generate-password';
-import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ADMIN_USER_ID = 3;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -63,7 +68,6 @@ describe('Модалка выдачи пароля', () => {
     onClose: vi.fn(),
     userId: 1,
     userName: 'Алексей Смирнов',
-    adminUserId: 3,
   };
 
   beforeEach(() => {
@@ -129,6 +133,13 @@ describe('Модалка выдачи пароля', () => {
       '/api/admin/users/1/password',
       expect.objectContaining({ method: 'POST' }),
     );
+
+    // ⚠️ В теле только новый пароль. Кто его меняет — сервер знает из сессии,
+    // и схема тела стала строгой: прежнее поле `adminUserId` он теперь отвергает.
+    const [, init] = (fetch as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock
+      .calls[0];
+
+    expect(Object.keys(JSON.parse(String(init.body)))).toEqual(['newPassword']);
 
     // Закрыли окно — значение стёрлось. Повторное открытие его не возвращает.
     fireEvent.click(screen.getByTestId('admin-update-password-done'));
@@ -207,7 +218,7 @@ describe('Карточка пользователя в админке', () => {
   beforeEach(() => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
-      user: { id: MVP_ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
+      user: { id: ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
       isAuthenticated: true,
       isAdmin: true,
     });

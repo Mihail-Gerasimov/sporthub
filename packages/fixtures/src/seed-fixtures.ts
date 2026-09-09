@@ -11,10 +11,13 @@ import type { Booking, Club, Offering, Review, Schedule, Trainer, User } from '@
 import { fixtureSports } from './dictionaries';
 
 // --- Фикстуры пользователей (Phase 26 Step 26.6) ---
-// Копия исходных 3 users из production-seed. Нужна для изоляции тестов от
+// Копия исходных users из production-seed. Нужна для изоляции тестов от
 // расширенного production users.json (после 26.6 там 7 записей — athlete+
-// provider-stage testing). analytics.route.test.ts с `totalUsers=3` продолжает
-// работать благодаря этим fixtures.
+// provider-stage testing).
+// Фаза 34, этап Э8a: к трём исходным добавлен тренер — теперь по человеку на
+// каждую роль площадки. Сверка контрактов снята ДО его появления и засеивает
+// набор без него (см. `contract-parity.test.ts`): иначе сравнение сводки
+// платформы пришлось бы выключить из-за лишнего пользователя.
 // Phase 33 Step 33.9: пароля открытым текстом в фикстурах не остаётся —
 // поле хранит готовый argon2id-хеш с теми же параметрами, что и рабочий код
 // (19456 КиБ / 2 прохода / 1 дорожка). Хеши посчитаны заранее и записаны
@@ -68,6 +71,24 @@ export const fixtureUsers: User[] = [
     passwordHash: FIXTURE_ADMIN_PASSWORD_HASH,
     avatarUrl: '/images/users/admin.jpg',
     favoriteClubIds: [],
+  },
+  {
+    // Этап Э8a фазы 34: тренер как отдельная роль. До него общий набор знал
+    // только спортсмена, представителя услуг и администратора — и ветка входа
+    // тренером не была покрыта ни одним тестом, хотя роль существовала с фазы 4.
+    // Публикаций у него нет намеренно: карточки набора принадлежат представителю
+    // услуг, и переписывать их владельца ради одного пользователя значило бы
+    // менять данные, на которых снят эталон контрактов.
+    id: 4,
+    createdAt: '2026-04-07T09:00:00.000Z',
+    role: 'trainer',
+    status: 'active',
+    name: 'Павел Тренеров',
+    email: 'pavel@sporthub.local',
+    phone: '+7 (927) 000-40-40',
+    passwordHash: FIXTURE_PASSWORD_HASH,
+    favoriteClubIds: [],
+    city: 'Самара',
   },
 ];
 

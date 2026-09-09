@@ -1,8 +1,15 @@
-// Тесты data-driven навигации ЛК (Step 25.2): пункты зависят от наличия публикаций и bookings.
+// Тесты data-driven навигации ЛК (Step 25.2): пункты зависят от наличия публикаций
+// и bookings, а после этапа Э8a — ещё и от прав вошедшего.
 import { describe, expect, it } from 'vitest';
 
+import { capabilitiesOf } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 import { getAthleteNavItems, getProviderNavItems } from '@/components/profile/profile-nav-items';
+
+// Права берутся из общего словаря, а не выписываются строками: набор роли меняется
+// в одном месте, и тест обязан ехать за ним, а не хранить его копию.
+const CLUB_OWNER = capabilitiesOf('club_owner');
+const TRAINER = capabilitiesOf('trainer');
 
 const mockClub: Club = {
   id: 1,
@@ -67,6 +74,7 @@ describe('getProviderNavItems', () => {
       providerClubs: [],
       providerTrainers: [],
       hasProviderBookings: false,
+      capabilities: CLUB_OWNER,
     });
 
     expect(items.map((item) => item.key)).toEqual([
@@ -82,6 +90,7 @@ describe('getProviderNavItems', () => {
       providerClubs: [mockClub],
       providerTrainers: [],
       hasProviderBookings: false,
+      capabilities: CLUB_OWNER,
     });
 
     const keys = items.map((item) => item.key);
@@ -94,16 +103,19 @@ describe('getProviderNavItems', () => {
     expect(keys).not.toContain('stats');
   });
 
-  it('только trainers без bookings — publications/links/reviews добавляются', () => {
+  it('только trainers без bookings — свой раздел, links и reviews добавляются', () => {
     const items = getProviderNavItems({
       providerClubs: [],
       providerTrainers: [mockTrainer],
       hasProviderBookings: false,
+      capabilities: TRAINER,
     });
 
     const keys = items.map((item) => item.key);
 
-    expect(keys).toContain('publications');
+    // У тренера раздел публикаций свой: он ведёт одну карточку, а не список клубов.
+    expect(keys).toContain('trainer-profile');
+    expect(keys).not.toContain('publications');
     expect(keys).toContain('links');
     expect(keys).toContain('reviews');
   });
@@ -113,6 +125,7 @@ describe('getProviderNavItems', () => {
       providerClubs: [mockClub],
       providerTrainers: [],
       hasProviderBookings: true,
+      capabilities: CLUB_OWNER,
     });
 
     const keys = items.map((item) => item.key);
@@ -122,11 +135,14 @@ describe('getProviderNavItems', () => {
     expect(keys).toContain('stats');
   });
 
-  it('оба clubs и trainers с bookings — полный набор в детерминированном порядке', () => {
+  it('представитель услуг с клубом и bookings — полный набор в детерминированном порядке', () => {
     const items = getProviderNavItems({
       providerClubs: [mockClub],
+      // Карточка тренера по старым данным принадлежит ему же — раздела для неё
+      // всё равно не будет: права на неё у роли нет.
       providerTrainers: [mockTrainer],
       hasProviderBookings: true,
+      capabilities: CLUB_OWNER,
     });
 
     expect(items.map((item) => item.key)).toEqual([
@@ -150,6 +166,7 @@ describe('getProviderNavItems', () => {
       providerClubs: [],
       providerTrainers: [],
       hasProviderBookings: true,
+      capabilities: CLUB_OWNER,
     });
 
     expect(items.map((item) => item.key)).toEqual([
@@ -158,5 +175,63 @@ describe('getProviderNavItems', () => {
       'notifications',
       'settings',
     ]);
+  });
+  // Этап Э8a: решение заказчика от 08.09.2026. Разделы кабинета показываются
+  // по правам, а не по одному признаку «провайдер».
+  describe('разделение представителя услуг и тренера', () => {
+    it('наборы разделов у двух ролей разные', () => {
+      const clubOwner = getProviderNavItems({
+        providerClubs: [mockClub],
+        providerTrainers: [],
+        hasProviderBookings: true,
+        capabilities: CLUB_OWNER,
+      });
+      const trainer = getProviderNavItems({
+        providerClubs: [],
+        providerTrainers: [mockTrainer],
+        hasProviderBookings: true,
+        capabilities: TRAINER,
+      });
+
+      // Сравнение списком, а не «на глаз»: различие ровно в разделе публикаций.
+      expect(clubOwner.map((item) => item.key)).not.toEqual(trainer.map((item) => item.key));
+      expect(clubOwner.map((item) => item.key)).toContain('publications');
+      expect(trainer.map((item) => item.key)).toContain('trainer-profile');
+    });
+
+    it('у тренера нет раздела клубов, даже если клуб ему достался по старым данным', () => {
+      const items = getProviderNavItems({
+        providerClubs: [mockClub],
+        providerTrainers: [],
+        hasProviderBookings: true,
+        capabilities: TRAINER,
+      });
+
+      // Публикаций своего вида нет — значит, нет и всего, что от них зависит.
+      expect(items.map((item) => item.key)).toEqual([
+        'dashboard',
+        'finance',
+        'notifications',
+        'settings',
+      ]);
+    });
+
+    it('без прав вовсе остаются только базовые разделы', () => {
+      // Страховка от пустого списка прав: недоступный бэкенд не должен
+      // превращаться в кабинет, где показано всё.
+      const items = getProviderNavItems({
+        providerClubs: [mockClub],
+        providerTrainers: [mockTrainer],
+        hasProviderBookings: true,
+        capabilities: [],
+      });
+
+      expect(items.map((item) => item.key)).toEqual([
+        'dashboard',
+        'finance',
+        'notifications',
+        'settings',
+      ]);
+    });
   });
 });

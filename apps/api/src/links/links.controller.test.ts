@@ -233,6 +233,35 @@ describe('Маршруты связей тренер↔клуб', () => {
     expect(response.body.error).toBe('Недостаточно прав для отправки запроса');
   });
 
+  // Этап Э8a: сторона заявки — это владение, а не слово клиента.
+  it('названная сторона обязана быть своей: тренер не выдаёт себя за клуб', async () => {
+    // Дыра до этого этапа: `initiatedBy` приходил из тела и ни с чем не сверялся.
+    // Назвавшись противоположной стороной, инициатор ставил связь в состояние,
+    // где решение принимает ОН ЖЕ, — и подтверждал её за того, кого не спросили.
+    const response = await post('/trainer-club-links', asTrainer, {
+      trainerId: 3,
+      clubId: 1,
+      initiatedBy: 'club',
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Недостаточно прав для отправки запроса');
+
+    const links = await harness.read<{ id: number }[]>('trainer-club-links');
+    expect(links.map((link) => link.id)).toEqual([900]);
+  });
+
+  it('и клуб не выдаёт себя за тренера — иначе он одобрит приглашение сам себе', async () => {
+    const response = await post('/trainer-club-links', asOwner, {
+      trainerId: 3,
+      clubId: 1,
+      initiatedBy: 'trainer',
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Недостаточно прав для отправки запроса');
+  });
+
   it('несуществующий тренер — 404', async () => {
     const response = await post('/trainer-club-links', asOwner, { trainerId: 99, clubId: 1 });
 

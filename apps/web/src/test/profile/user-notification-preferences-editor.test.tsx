@@ -171,7 +171,9 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     expect(url).toBe('/api/users/1/notification-preferences');
     expect(init.method).toBe('PATCH');
     const body = JSON.parse(init.body as string);
-    expect(body.userId).toBe(1);
+    // ⚠️ В теле только настройки. Номер уходит лишь в АДРЕС маршрута, и сервер
+    // сверяет его с сессией; схема тела строгая — прежнее `userId` она отвергает.
+    expect(Object.keys(body)).toEqual(['preferences']);
     expect(body.preferences.booking_completed).toBe(false);
   });
 

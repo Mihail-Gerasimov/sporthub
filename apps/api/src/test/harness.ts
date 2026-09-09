@@ -5,7 +5,7 @@
 // Пустые файлы создаются для всех коллекций сразу — иначе первый же запрос,
 // который читает соседнюю коллекцию, падает на отсутствующем файле.
 
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, InjectionToken } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { AppModule } from '../app.module';
@@ -55,6 +55,20 @@ export const COLLECTIONS = [
 
 /** Имя коллекции. */
 export type CollectionName = (typeof COLLECTIONS)[number];
+
+/**
+ * Подмена одного провайдера в поднимаемом приложении.
+ *
+ * Нужна там, где реализация уходит НАРУЖУ процесса и в тесте этого быть не должно:
+ * сегодня это отправитель писем (`MAILER`). Подмена идёт через тот же токен
+ * внедрения, что и в бою, — и потому проверяет заодно главное обещание границы:
+ * если реализацию нельзя заменить снаружи, значит её смена потребует правки
+ * бизнес-кода, и весь смысл токена теряется.
+ */
+export type ProviderOverride = {
+  token: InjectionToken;
+  useValue: unknown;
+};
 
 export type TestHarness = {
   app: INestApplication;
@@ -131,7 +145,7 @@ function emptySource(): SourceData {
  *    базы выгружается целиком, и правка накладывается НА НЕГО — иначе всё, что успело
  *    создать приложение, исчезало бы при первой же дозаписи.
  */
-async function createDatabaseHarness(): Promise<TestHarness> {
+async function createDatabaseHarness(overrides: ProviderOverride[]): Promise<TestHarness> {
   const db = await createTestDatabase();
 
   // Стартовый срез пуст: наборы засеивают себя сами. Чистка обязательна: схема
@@ -154,7 +168,14 @@ async function createDatabaseHarness(): Promise<TestHarness> {
     await importSourceData({ client: db.prisma, source: current, recalculate: false });
   };
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  // Подмены накладываются на тот же модуль, что и в бою: собирается приложение
+  // целиком, и заменяется ровно один провайдер по своему токену.
+  const builder = overrides.reduce(
+    (accumulator, override) =>
+      accumulator.overrideProvider(override.token).useValue(override.useValue),
+    Test.createTestingModule({ imports: [AppModule] }),
+  );
+  const moduleRef = await builder.compile();
   const app = configureApp(moduleRef.createNestApplication());
   await app.init();
 
@@ -218,9 +239,16 @@ async function createDatabaseHarness(): Promise<TestHarness> {
  * сделало, а вторая реализация каждой новой таблицы стоила бы работы впустую.
  *
  * Имя `prefix` остаётся в сигнатуре: по нему различаются схемы параллельных прогонов.
+ *
+ * `overrides` не задаётся почти нигде и по умолчанию пуст: набор обязан проверять
+ * то же приложение, что работает в бою. Подмена оправдана только для того, что
+ * уходит за пределы процесса, — см. `ProviderOverride`.
  */
-export async function createTestHarness(_prefix: string): Promise<TestHarness> {
+export async function createTestHarness(
+  _prefix: string,
+  overrides: ProviderOverride[] = [],
+): Promise<TestHarness> {
   await ensureTestSchema();
 
-  return createDatabaseHarness();
+  return createDatabaseHarness(overrides);
 }

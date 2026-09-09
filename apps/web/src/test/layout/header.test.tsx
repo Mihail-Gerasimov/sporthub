@@ -1,5 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// Шапка. Phase 34 Step 34.48: личность приходит ответом «кто я», а выход ходит
+// на сервер — поэтому прежняя проверка «после rehydrate из localStorage шапка
+// видит тип аккаунта» заменена на «после ответа сервера шапка видит тип аккаунта».
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Мокаем next/navigation (Header использует useRouter,
 // а NotificationBell/useUnreadCountPolling — usePathname)
@@ -13,17 +16,19 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { Header } from '@/components/layout/Header';
-import { AUTH_STORAGE_KEY, AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 describe('Header', () => {
   beforeEach(() => {
-    localStorage.clear();
-
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
     useUIStore.setState({
       isAuthModalOpen: false,
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('в гостевом состоянии показывает кнопку входа', () => {
@@ -75,7 +80,11 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 
-  it('после logout возвращается в гостевое состояние', () => {
+  it('«Выйти» гасит сессию на сервере и возвращает гостевое состояние', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, status: 200 } as Response);
+
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
@@ -88,30 +97,36 @@ describe('Header', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Выйти' }));
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    await waitFor(() => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByText('Алексей Смирнов')).not.toBeInTheDocument();
     expect(screen.queryByText('Спортсмен')).not.toBeInTheDocument();
   });
 
-  it('после rehydrate из localStorage UI по-прежнему видит правильный тип аккаунта', async () => {
-    localStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({
-        state: {
-          user: {
+  it('после ответа «кто я» шапка видит правильный тип аккаунта', async () => {
+    // Полная перезагрузка страницы: стор пуст, личность приезжает с сервера.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: {
+            id: 2,
             name: 'Марина Крылова',
             email: 'marina@studio.local',
+            role: 'club_owner',
+            capabilities: [],
           },
-          accountType: 'provider',
-          isAuthenticated: true,
-        },
-        version: 0,
-      }),
-    );
+        }),
+    } as unknown as Response);
 
     await act(async () => {
-      await useAuthStore.persist.rehydrate();
+      await useAuthStore.getState().loadSession();
     });
 
     render(<Header />);

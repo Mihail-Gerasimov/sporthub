@@ -20,7 +20,7 @@ const okResponse = (payload: unknown) =>
  */
 const hangingFetch = () =>
   vi.spyOn(globalThis, 'fetch').mockImplementation(
-    (_input: RequestInfo | URL, init?: RequestInit) =>
+    (_input, init) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => {
           reject(new DOMException('The operation was aborted', 'AbortError'));

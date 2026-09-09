@@ -79,7 +79,6 @@ type PublishClubModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: (message: string) => void;
-  userId: number | null;
   mode?: PublishModalMode;
   entityId?: number | null;
   initialData?: ClubFormState | null;
@@ -120,7 +119,10 @@ function resolveInitialState(
   return createInitialState();
 }
 
-function buildClubPayload(form: ClubFormState, userId: number, entityId?: number) {
+// ⚠️ Поля `userId` в теле больше нет. Владельца публикации сервер берёт из сессии;
+// до фазы 34 именно это число и решало, от чьего имени публикуется клуб, —
+// то есть опубликовать клуб на чужое имя можно было правкой запроса.
+function buildClubPayload(form: ClubFormState, entityId?: number) {
   return {
     name: form.name,
     city: form.city,
@@ -145,7 +147,6 @@ function buildClubPayload(form: ClubFormState, userId: number, entityId?: number
 
       return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
     }),
-    userId,
   };
 }
 
@@ -169,7 +170,6 @@ export function PublishClubModal({
   open,
   onClose,
   onSuccess,
-  userId,
   mode = 'create',
   entityId = null,
   initialData,
@@ -223,12 +223,6 @@ export function PublishClubModal({
       return;
     }
 
-    if (userId === null) {
-      setSubmitNotice('Не удалось определить пользователя провайдера');
-      setSubmitNoticeTone('danger');
-      return;
-    }
-
     if (isEditMode && entityId === null) {
       setSubmitNotice('Не удалось определить публикацию для редактирования');
       setSubmitNoticeTone('danger');
@@ -244,7 +238,7 @@ export function PublishClubModal({
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildClubPayload(form, userId, entityId ?? undefined)),
+        body: JSON.stringify(buildClubPayload(form, entityId ?? undefined)),
       });
       const body = (await response.json()) as PublishClubApiErrorBody;
 

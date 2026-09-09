@@ -1,46 +1,69 @@
 /**
  * Тесты admin-расширения auth store (Step 17.2).
  * Покрывают: adminLogin, startImpersonation, stopImpersonation,
- * logout при impersonation, persistence новых полей, userRoleToAccountType.
+ * выход при имперсонизации, восстановление личности с сервера,
+ * userRoleToAccountType.
+ *
+ * Phase 34 Step 34.48: личность больше не хранится в localStorage — она
+ * приходит ответом `GET /api/auth/me`. Прежний тест «поля переживают
+ * перезагрузку через localStorage» заменён на «после перезагрузки личность
+ * восстанавливается с сервера», потому что проверять надо именно это.
  */
 import { act } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  AUTH_STORAGE_KEY,
   AUTH_STORE_DEFAULT_STATE,
-  MVP_ADMIN_USER_ID,
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
   useAuthStore,
   userRoleToAccountType,
   type AuthSessionUser,
 } from '@/stores/useAuthStore';
 
+const ADMIN_USER_ID = 3;
+const ATHLETE_USER_ID = 1;
+const PROVIDER_USER_ID = 2;
+
 const adminUser: AuthSessionUser = {
-  id: MVP_ADMIN_USER_ID,
+  id: ADMIN_USER_ID,
   name: 'Администратор SportHub',
   email: 'admin@sporthub.local',
 };
 
 const athleteUser: AuthSessionUser = {
-  id: MVP_ATHLETE_USER_ID,
+  id: ATHLETE_USER_ID,
   name: 'Алексей Смирнов',
   email: 'alexey@sporthub.local',
   phone: '+7 (927) 000-10-10',
 };
 
 const providerUser: AuthSessionUser = {
-  id: MVP_PROVIDER_USER_ID,
+  id: PROVIDER_USER_ID,
   name: 'Марина Крылова',
   email: 'marina@studio.local',
   phone: '+7 (927) 000-20-20',
 };
 
+/** Ответ «кто я» с ролью и правами — ровно та форма, что приходит с сервера. */
+function meResponse(user: AuthSessionUser, role: string) {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ success: true, data: { ...user, role, capabilities: [] } }),
+  } as unknown as Response;
+}
+
+/** Ответ «вошедшего нет». */
+function guestResponse() {
+  return { ok: false, status: 401, json: () => Promise.resolve({}) } as unknown as Response;
+}
+
 describe('Admin auth store (Step 17.2)', () => {
   beforeEach(() => {
-    localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   // --- adminLogin ---
@@ -153,7 +176,11 @@ describe('Admin auth store (Step 17.2)', () => {
   // --- logout при impersonation ---
 
   describe('logout', () => {
-    it('полностью очищает все поля включая admin/impersonation', () => {
+    it('полностью очищает все поля включая admin/impersonation', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true, status: 200 } as Response);
+
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
@@ -162,12 +189,13 @@ describe('Admin auth store (Step 17.2)', () => {
         useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
       });
 
-      act(() => {
-        useAuthStore.getState().logout();
+      await act(async () => {
+        await useAuthStore.getState().logout();
       });
 
       const state = useAuthStore.getState();
 
+      expect(fetchSpy).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
       expect(state.user).toBeNull();
       expect(state.accountType).toBeNull();
       expect(state.isAuthenticated).toBe(false);
@@ -175,50 +203,119 @@ describe('Admin auth store (Step 17.2)', () => {
       expect(state.isImpersonating).toBe(false);
       expect(state.adminOriginalUser).toBeNull();
     });
-  });
 
-  // --- persistence ---
+    it('очищает состояние даже если сервер недоступен', async () => {
+      // Иначе сбой сети оставлял бы человека внутри интерфейса: кнопка нажата,
+      // а на экране по-прежнему его кабинет.
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('сеть недоступна'));
 
-  describe('persistence', () => {
-    it('новые admin-поля сохраняются в localStorage и восстанавливаются', async () => {
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
       });
 
-      act(() => {
-        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      await act(async () => {
+        await useAuthStore.getState().logout();
       });
 
-      // Сохраняем текущий localStorage
-      const persistedValue = localStorage.getItem(AUTH_STORAGE_KEY);
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().user).toBeNull();
+    });
+  });
 
-      expect(persistedValue).toBeTruthy();
+  // --- восстановление личности с сервера ---
 
-      // Проверяем что JSON содержит admin-поля
-      const parsed = JSON.parse(persistedValue!);
-
-      expect(parsed.state.isAdmin).toBe(true);
-      expect(parsed.state.isImpersonating).toBe(true);
-      expect(parsed.state.adminOriginalUser).toEqual(adminUser);
-
-      // Сброс и rehydration
-      act(() => {
-        useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
-      });
-
-      localStorage.setItem(AUTH_STORAGE_KEY, persistedValue!);
+  describe('loadSession', () => {
+    it('восстанавливает admin-сессию ответом «кто я», без localStorage', async () => {
+      // Полная перезагрузка страницы: стор пуст, localStorage не при делах.
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(adminUser, 'admin'));
 
       await act(async () => {
-        await useAuthStore.persist.rehydrate();
+        await useAuthStore.getState().loadSession();
       });
 
       const state = useAuthStore.getState();
 
+      expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(true);
-      expect(state.isImpersonating).toBe(true);
-      expect(state.adminOriginalUser).toEqual(adminUser);
-      expect(state.user).toEqual(athleteUser);
-      expect(state.accountType).toBe('athlete');
+      expect(state.role).toBe('admin');
+      expect(state.accountType).toBeNull();
+      expect(state.user?.id).toBe(ADMIN_USER_ID);
+      expect(state.status).toBe('ready');
+    });
+
+    it('имперсонизация НЕ переживает перезагрузку — сервер о ней не знает', async () => {
+      // Раньше подменённая личность лежала в localStorage и «переживала»
+      // перезагрузку. Сервер при этом продолжал видеть администратора: экран
+      // и настоящие права расходились. Теперь ответ «кто я» — единственный
+      // источник, и перезагрузка честно возвращает админа к себе.
+      act(() => {
+        useAuthStore.getState().adminLogin(adminUser);
+      });
+      act(() => {
+        useAuthStore.getState().startImpersonation(athleteUser, 'athlete');
+      });
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(adminUser, 'admin'));
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.isImpersonating).toBe(false);
+      expect(state.adminOriginalUser).toBeNull();
+      expect(state.user?.id).toBe(ADMIN_USER_ID);
+    });
+
+    it('отказ сессии обнуляет стор — вход не «прилипает» к браузеру', async () => {
+      act(() => {
+        useAuthStore.getState().adminLogin(adminUser);
+      });
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(guestResponse());
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.isAdmin).toBe(false);
+      expect(state.user).toBeNull();
+      expect(state.status).toBe('ready');
+    });
+
+    it('недоступный сервер не выкидывает вошедшего, но снимает ожидание', async () => {
+      // Разница принципиальная: «сессии нет» и «спросить не удалось» — не одно
+      // и то же. Второе не должно выглядеть как выход из системы.
+      act(() => {
+        useAuthStore.getState().adminLogin(adminUser);
+      });
+
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('сеть недоступна'));
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.id).toBe(ADMIN_USER_ID);
+      expect(state.status).toBe('ready');
+    });
+
+    it('роль из ответа определяет кабинет: club_owner → provider', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(meResponse(providerUser, 'club_owner'));
+
+      await act(async () => {
+        await useAuthStore.getState().loadSession();
+      });
+
+      expect(useAuthStore.getState().accountType).toBe('provider');
+      expect(useAuthStore.getState().isAdmin).toBe(false);
     });
   });
 

@@ -8,6 +8,13 @@
 // исполнителя для них берут из сессии (шаги 34.22 и 34.38). Поэтому пометки стоят
 // на методах, а не на классе.
 //
+// Этап Э8a (решение заказчика от 08.09.2026): у клубов и у тренеров теперь РАЗНЫЕ
+// права. Клуб ведёт представитель услуг (`manage_own_clubs`), карточку тренера —
+// сам тренер (`manage_own_trainer_profile`). До этого обе роли имели один набор,
+// и тренер мог опубликовать клуб, а владелец клуба — выйти на площадку тренером.
+// Удаление принимает ещё и право модерации: чужую публикацию сносит администратор,
+// и владения от него не требуется.
+//
 // ⚠️ Правка клуба и тренера подменяет текст ошибки: любое «не найдено» изнутри
 // (сама сущность, основная услуга, слот) выходит наружу как общее «Клуб не найден».
 // Это вводит в заблуждение, но покрыто тестами и потому сохранено дословно.
@@ -22,7 +29,7 @@ import {
 } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
-import { CurrentUser, Public } from '../auth/access.decorators';
+import { CurrentUser, Public, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
 import {
@@ -169,6 +176,7 @@ export class ClubsController {
     return detail;
   }
 
+  @Requires('manage_own_clubs')
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishClubSchema.safeParse(rawBody);
@@ -191,7 +199,10 @@ export class ClubsController {
     await this.logs.record({
       action: 'publish_create',
       actorId: userId,
-      actorRole: 'club_owner',
+      // Роль пишется из сессии, а не константой: после разделения прав клуб
+      // публикует представитель услуг, карточку тренера — тренер, и записанная
+      // намертво роль врала бы в журнале ровно про то, ради чего разделение делалось.
+      actorRole: session.user.role,
       entityType: 'club',
       entityId: result.club.id,
       meta: { name: result.club.name, city: result.club.city },
@@ -200,6 +211,7 @@ export class ClubsController {
     return result;
   }
 
+  @Requires('manage_own_clubs')
   @Patch(':id')
   async update(
     @Param('id') rawId: string,
@@ -228,7 +240,7 @@ export class ClubsController {
       await this.logs.record({
         action: 'publish_update',
         actorId: userId,
-        actorRole: 'club_owner',
+        actorRole: session.user.role,
         entityType: 'club',
         entityId: clubId,
         meta: { name: result.club.name },
@@ -246,6 +258,7 @@ export class ClubsController {
     }
   }
 
+  @Requires('manage_own_clubs', 'moderate_publications')
   @Delete(':id')
   async remove(
     @Param('id') rawId: string,
@@ -375,6 +388,7 @@ export class TrainersController {
     return detail;
   }
 
+  @Requires('manage_own_trainer_profile')
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<unknown> {
     const parsed = publishTrainerSchema.safeParse(rawBody);
@@ -397,7 +411,7 @@ export class TrainersController {
     await this.logs.record({
       action: 'publish_create',
       actorId: userId,
-      actorRole: 'club_owner',
+      actorRole: session.user.role,
       entityType: 'trainer',
       entityId: result.trainer.id,
       meta: { name: result.trainer.name, city: result.trainer.city },
@@ -406,6 +420,7 @@ export class TrainersController {
     return result;
   }
 
+  @Requires('manage_own_trainer_profile')
   @Patch(':id')
   async update(
     @Param('id') rawId: string,
@@ -434,7 +449,7 @@ export class TrainersController {
       await this.logs.record({
         action: 'publish_update',
         actorId: userId,
-        actorRole: 'club_owner',
+        actorRole: session.user.role,
         entityType: 'trainer',
         entityId: trainerId,
         meta: { name: result.trainer.name },
@@ -450,6 +465,7 @@ export class TrainersController {
     }
   }
 
+  @Requires('manage_own_trainer_profile', 'moderate_publications')
   @Delete(':id')
   async remove(
     @Param('id') rawId: string,

@@ -2,8 +2,12 @@
  * Phase 24 Step 24.7: NotificationBell — кнопка-колокольчик в Header'е.
  * Показывает счётчик непрочитанных и по клику открывает dropdown
  * с последними 5 уведомлениями. Список грузится лениво по клику
- * (fetch GET /api/notifications?userId&limit=5). Видим только
+ * (fetch GET /api/notifications?limit=5). Видим только
  * аутентифицированным пользователям с accountType (athlete/provider).
+ *
+ * Phase 34 Step 34.49: номер пользователя из запросов ушёл — и из строки адреса,
+ * и из тела. Лента и пометка прочитанным идут по сессии; чужое уведомление
+ * сервер отвечает тем же «не найдено», что и несуществующее.
  * Счётчик обновляется через useUnreadCountPolling (pathname + interval 60s).
  *
  * Phase 29 Step 29.2: счётчик читаем из `useNotificationsStore` —
@@ -43,8 +47,6 @@ function formatNotificationDate(iso: string): string {
 export function NotificationBell() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const accountType = useAuthStore((state) => state.accountType);
-  const user = useAuthStore((state) => state.user);
-  const userId = user?.id ?? null;
 
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -59,15 +61,12 @@ export function NotificationBell() {
   const markReadInStore = useNotificationsStore((state) => state.markRead);
   const rollbackMarkRead = useNotificationsStore((state) => state.rollbackMarkRead);
 
-  const { refetch } = useUnreadCountPolling({
-    userId: isAuthenticated ? userId : null,
-  });
+  const { refetch } = useUnreadCountPolling({ enabled: isAuthenticated });
 
   const loadItems = useCallback(async () => {
-    if (userId === null) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/notifications?userId=${userId}&limit=${DROPDOWN_LIMIT}`);
+      const response = await fetch(`/api/notifications?limit=${DROPDOWN_LIMIT}`);
       if (!response.ok) return;
       const body = (await response.json()) as {
         success: boolean;
@@ -81,7 +80,7 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -123,7 +122,7 @@ export function NotificationBell() {
   const handleItemClick = useCallback(
     async (notification: Notification) => {
       setIsOpen(false);
-      if (notification.readAt === undefined && userId !== null) {
+      if (notification.readAt === undefined) {
         // Optimistic: badge уменьшается мгновенно, dropdown получает readAt.
         markReadInStore(notification.id);
         const now = new Date().toISOString();
@@ -131,8 +130,6 @@ export function NotificationBell() {
         try {
           const response = await fetch(`/api/notifications/${notification.id}/read`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
           });
           if (!response.ok) {
             // Rollback при non-ok ответе — badge возвращается, dropdown тоже.
@@ -154,7 +151,7 @@ export function NotificationBell() {
       }
       router.push(allNotificationsHref);
     },
-    [userId, refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
+    [refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
   );
 
   if (!isAuthenticated || !accountType) {

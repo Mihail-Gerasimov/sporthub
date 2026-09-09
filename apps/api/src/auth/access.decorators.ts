@@ -23,13 +23,20 @@ export const REQUIRED_CAPABILITY = Symbol('REQUIRED_CAPABILITY');
 export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC, true);
 
 /**
- * Маршрут требует конкретного права, а не просто входа.
+ * Маршрут требует права, а не просто входа.
  *
  * Право — это «что роли положено вообще». Принадлежность конкретной вещи проверяет
  * сервис: для неё нужно загрузить сущность, и в декоратор это не поместится.
+ *
+ * Прав можно перечислить несколько, и тогда достаточно ЛЮБОГО из них. Нужно это
+ * там, где к одному действию ведут две разные причины: удалить публикацию может
+ * и её владелец (своё право), и модератор (своё). Требование «оба сразу» площадке
+ * не встретилось ни разу, а вот «или» встретилось дважды — поэтому смысл именно
+ * такой, и он назван здесь, а не угадывается по месту применения.
  */
-export const Requires = (capability: Capability): MethodDecorator & ClassDecorator =>
-  SetMetadata(REQUIRED_CAPABILITY, capability);
+export const Requires = (
+  ...capabilities: [Capability, ...Capability[]]
+): MethodDecorator & ClassDecorator => SetMetadata(REQUIRED_CAPABILITY, capabilities);
 
 /**
  * Личность вызывающего — из сессии и только из неё.

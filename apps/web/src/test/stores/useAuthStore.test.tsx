@@ -1,19 +1,22 @@
+// Стор личности. Phase 34 Step 34.48: источник — ответ `GET /api/auth/me`,
+// а не localStorage. Прежняя проверка «состояние поднимается из localStorage»
+// заменена на «состояние приходит с сервера»; выход проверяется вместе
+// с обращением к `POST /api/auth/logout` — без него сессия остаётся живой.
 import { act } from '@testing-library/react';
-import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { AuthAccountType, UserRole } from '@sporthub/types';
 import {
-  AUTH_STORAGE_KEY,
   AUTH_STORE_DEFAULT_STATE,
   getPersonalCabinetConfig,
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
   PERSONAL_CABINET_CONFIG,
   selectAuthAccountType,
   selectAthleteActionUserId,
   useAuthStore,
   type AuthSessionUser,
 } from '@/stores/useAuthStore';
+
+const ATHLETE_USER_ID = 1;
 
 const athleteUser: AuthSessionUser = {
   name: 'Алексей Смирнов',
@@ -29,8 +32,11 @@ const providerUser: AuthSessionUser = {
 
 describe('useAuthStore', () => {
   beforeEach(() => {
-    localStorage.clear();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('сохраняет пользователя и тип аккаунта через login и register', () => {
@@ -57,7 +63,14 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
-  it('очищает состояние через logout', () => {
+  it('выход гасит сессию на сервере, а не только чистит стор', async () => {
+    // ⚠️ Главное здесь — обращение к серверу. Очистить стор мало: сессия живёт
+    // на сервере, и после «выхода» украденный идентификатор продолжал бы
+    // работать до собственного срока.
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, status: 200 } as Response);
+
     act(() => {
       useAuthStore.getState().login({
         accountType: 'provider',
@@ -65,40 +78,50 @@ describe('useAuthStore', () => {
       });
     });
 
-    act(() => {
-      useAuthStore.getState().logout();
+    await act(async () => {
+      await useAuthStore.getState().logout();
     });
 
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().accountType).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it('восстанавливает состояние из localStorage через persistence', async () => {
-    act(() => {
-      useAuthStore.getState().login({
-        accountType: 'athlete',
-        user: athleteUser,
-      });
-    });
-
-    const persistedValue = localStorage.getItem(AUTH_STORAGE_KEY);
-
-    expect(persistedValue).toContain('athlete');
-
-    act(() => {
-      useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
-    });
-
-    localStorage.setItem(AUTH_STORAGE_KEY, persistedValue ?? '');
+  it('берёт личность из ответа «кто я», а не из localStorage', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: { ...athleteUser, id: ATHLETE_USER_ID, role: 'athlete', capabilities: [] },
+        }),
+    } as unknown as Response);
 
     await act(async () => {
-      await useAuthStore.persist.rehydrate();
+      await useAuthStore.getState().loadSession();
     });
 
-    expect(useAuthStore.getState().user).toEqual(athleteUser);
-    expect(useAuthStore.getState().accountType).toBe('athlete');
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    const state = useAuthStore.getState();
+
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.accountType).toBe('athlete');
+    expect(state.role).toBe('athlete');
+    expect(state.user?.id).toBe(ATHLETE_USER_ID);
+    expect(state.status).toBe('ready');
+  });
+
+  it('не хранит личность в localStorage', async () => {
+    // Пока личность лежала в браузере, кабинет открывался правкой одной строки
+    // в инструментах разработчика.
+    act(() => {
+      useAuthStore.getState().login({ accountType: 'athlete', user: athleteUser });
+    });
+
+    const stored = Object.keys(localStorage).map((key) => localStorage.getItem(key) ?? '');
+
+    expect(stored.some((value) => value.includes(athleteUser.email))).toBe(false);
   });
 
   it('даёт читать accountType из auth-store после авторизации через selector', () => {
@@ -112,18 +135,18 @@ describe('useAuthStore', () => {
     expect(selectAuthAccountType(useAuthStore.getState())).toBe('provider');
   });
 
-  it('возвращает fake athlete userId только для athlete-only действий', () => {
+  it('возвращает номер атлета только для athlete-действий', () => {
     act(() => {
       useAuthStore.getState().login({
         accountType: 'athlete',
         user: {
           ...athleteUser,
-          id: MVP_ATHLETE_USER_ID,
+          id: ATHLETE_USER_ID,
         },
       });
     });
 
-    expect(selectAthleteActionUserId(useAuthStore.getState())).toBe(MVP_ATHLETE_USER_ID);
+    expect(selectAthleteActionUserId(useAuthStore.getState())).toBe(ATHLETE_USER_ID);
 
     act(() => {
       useAuthStore.getState().login({
@@ -143,10 +166,6 @@ describe('useAuthStore', () => {
 
   it('использует отдельный AuthAccountType и не смешивает его с UserRole', () => {
     expectTypeOf<AuthAccountType>().not.toEqualTypeOf<UserRole>();
-  });
-
-  it('экспортирует MVP_PROVIDER_USER_ID = 2 для fake-провайдера', () => {
-    expect(MVP_PROVIDER_USER_ID).toBe(2);
   });
 
   it('provider-кабинет имеет profilePath /profile/provider', () => {

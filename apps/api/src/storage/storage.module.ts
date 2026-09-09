@@ -11,6 +11,11 @@
 // решение заказчика — путь отката закрыть. Цена второй реализации была не в её
 // поддержке, а в том, что КАЖДАЯ новая таблица требовала бы вторую реализацию,
 // заведомо идущую в мусор.
+//
+// Здесь же выбирается отправитель писем (`MAILER`, шаг 34.70) — по той же причине,
+// по какой здесь выбирается хранилище: это единственное место, где интерфейс
+// связывается с реализацией. Держать выбор в двух разных модулях значило бы искать
+// его в двух местах.
 
 import { Global, Module } from '@nestjs/common';
 
@@ -30,6 +35,7 @@ import {
 } from '../repositories/catalog.repository';
 import {
   LOGS_REPOSITORY,
+  PASSWORD_RESET_TOKENS_REPOSITORY,
   PROVIDER_CLIENT_NOTES_REPOSITORY,
   REVIEWS_REPOSITORY,
   SESSIONS_REPOSITORY,
@@ -48,6 +54,7 @@ import {
 } from '../repositories/prisma/catalog.repository';
 import {
   PrismaLogsRepository,
+  PrismaPasswordResetTokensRepository,
   PrismaProviderClientNotesRepository,
   PrismaReviewsRepository,
   PrismaSessionsRepository,
@@ -63,6 +70,8 @@ import {
   PrismaScheduleRepository,
   PrismaTrainersRepository,
 } from '../repositories/prisma/entities.repository';
+import { LogMailer } from '../mail/log-mailer';
+import { MAILER } from '../mail/mailer';
 import { PrismaTransactionRunner } from './prisma-transaction';
 import { DATABASE_SETTINGS, PrismaService, readDatabaseSettings } from './prisma.service';
 import { STORAGE_HEALTH } from './storage-health';
@@ -127,8 +136,19 @@ const repository = <TRepository>(
       ...repository(PrismaProviderClientNotesRepository),
     },
 
-    // --- Сессии входа ---
+    // --- Сессии входа и ссылки восстановления ---
     { provide: SESSIONS_REPOSITORY, ...repository(PrismaSessionsRepository) },
+    {
+      provide: PASSWORD_RESET_TOKENS_REPOSITORY,
+      ...repository(PrismaPasswordResetTokensRepository),
+    },
+
+    // --- Отправка писем ---
+    // Реализация выбирается здесь по той же причине, по которой здесь выбирается
+    // хранилище: это единственное место, где интерфейс связывается с реализацией.
+    // Сегодня стоит заглушка, пишущая письмо в журнал; подключение почтовой службы —
+    // замена ОДНОГО класса в этой строке, без правки маршрутов и сервисов.
+    { provide: MAILER, useClass: LogMailer },
 
     // --- Записи ---
     { provide: BOOKINGS_REPOSITORY, ...repository(PrismaBookingsRepository) },
@@ -147,6 +167,8 @@ const repository = <TRepository>(
     USERS_REPOSITORY,
     PROVIDER_CLIENT_NOTES_REPOSITORY,
     SESSIONS_REPOSITORY,
+    PASSWORD_RESET_TOKENS_REPOSITORY,
+    MAILER,
     TRAINER_CLUB_LINKS_REPOSITORY,
     OFFERINGS_REPOSITORY,
     NOTIFICATIONS_REPOSITORY,

@@ -30,7 +30,6 @@ describe('PublishTrainerModal', () => {
     open: true,
     onClose: vi.fn(),
     onSuccess: vi.fn(),
-    userId: 2,
     clubs: [
       { id: 1, name: 'FitZone Studio' },
       { id: 2, name: 'PowerGym' },
@@ -397,7 +396,6 @@ describe('PublishTrainerModal', () => {
     expect(payload).toMatchObject({
       firstName: 'Александр',
       lastName: 'Иванов',
-      userId: 2,
       sportIds: [2], // Бокс
       specialtyIds: [1], // Подготовка к соревнованиям
       workFormatIds: [1], // В зале
@@ -405,6 +403,9 @@ describe('PublishTrainerModal', () => {
     });
     expect(payload).not.toHaveProperty('certificates');
     expect(payload).not.toHaveProperty('gallery');
+    // ⚠️ Владельца публикации в теле НЕТ: его берёт из сессии сервер. Прежнее
+    // поле `userId` решало, от чьего имени публикуется карточка.
+    expect(payload).not.toHaveProperty('userId');
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 

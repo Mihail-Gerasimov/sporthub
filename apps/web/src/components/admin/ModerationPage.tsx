@@ -93,7 +93,6 @@ const ICON_CHEV_RIGHT = (
 );
 
 export function ModerationPage({ sports }: ModerationPageProps) {
-
   const [cities, setCities] = useState<City[]>([]);
 
   useEffect(() => {

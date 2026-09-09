@@ -254,7 +254,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     expect(screen.getByTestId('provider-bookings-card-502')).toBeInTheDocument();
   });
 
-  it('confirm: клик «Подтвердить» шлёт POST /api/bookings/[id]/confirm с userId провайдера', async () => {
+  it('confirm: клик «Подтвердить» шлёт POST /api/bookings/[id]/confirm без личности', async () => {
     authenticateProvider();
     fetchMock.mockResolvedValueOnce(createJsonResponse({ success: true, data: { id: 501 } }));
 
@@ -280,7 +280,9 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
     const call = fetchMock.mock.calls[0];
     expect(call[0]).toBe('/api/bookings/501/confirm');
-    expect(JSON.parse(call[1].body as string)).toEqual({ userId: providerUser.id });
+    // ⚠️ Тело пустое: кто подтверждает — сервер знает из сессии. Прежнее поле
+    // `userId` позволяло решить судьбу ЧУЖОЙ записи подменой одного числа.
+    expect(JSON.parse(call[1].body as string)).toEqual({});
   });
 
   it('reject: клик «Отклонить» открывает модалку причины (Step 27.13)', () => {
@@ -339,7 +341,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body).toEqual({ userId: providerUser.id, reason: 'Время не подходит' });
+    expect(body).toEqual({ reason: 'Время не подходит' });
   });
 
   it('reject: submit без причины шлёт POST /reject без поля reason (Step 27.13)', async () => {
@@ -369,7 +371,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body).toEqual({ userId: providerUser.id });
+    expect(body).toEqual({});
     expect(body.reason).toBeUndefined();
   });
 
@@ -435,7 +437,6 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       expect(fetchMock.mock.calls[0][0]).toBe('/api/bookings/601/check-in');
     });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
-      userId: providerUser.id,
       outcome: 'completed',
     });
   });
@@ -476,7 +477,6 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       expect(fetchMock.mock.calls[0][1].body).toBeDefined();
     });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
-      userId: providerUser.id,
       outcome: 'no_show',
     });
   });

@@ -8,8 +8,13 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardPage } from '@/components/admin/DashboardPage';
-import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Trainer, User } from '@sporthub/types';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ADMIN_USER_ID = 3;
 
 // Мокаем next/navigation. Phase 27 Step 27.15: refresh вынесен в именованный
 // mock, чтобы можно было ассертить его вызов после impersonation start.
@@ -118,7 +123,7 @@ describe('DashboardPage (Step 17.4)', () => {
     localStorage.clear();
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
-      user: { id: MVP_ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
+      user: { id: ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
       isAuthenticated: true,
       isAdmin: true,
     });

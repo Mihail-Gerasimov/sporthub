@@ -90,6 +90,10 @@ services:
       DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
       NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
       YANDEX_SUGGEST_API_KEY: ${YANDEX_SUGGEST_API_KEY:-}
+      # Адрес площадки для ссылки в письме восстановления пароля (шаг 34.71).
+      # Берётся отсюда, а не из заголовков запроса: заголовок `Host` подделывает
+      # тот же, кто просит письмо, и ссылка ушла бы человеку на чужой сайт.
+      SPORT_HUB_PUBLIC_ORIGIN: ${SPORT_HUB_PUBLIC_ORIGIN:-http://localhost:3000}
     ports:
       - '127.0.0.1:3001:3001'
     healthcheck:

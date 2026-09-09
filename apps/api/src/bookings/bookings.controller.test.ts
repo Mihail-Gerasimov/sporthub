@@ -139,6 +139,9 @@ describe('Маршруты записей', () => {
         user(3, 'admin'),
         user(4, 'athlete'),
         user(5, 'club_owner'),
+        // Этап Э8a: тренер — отдельная роль по правам. Разбор заявок ей положен
+        // так же, как представителю услуг, а вот ЧЬИ заявки — решает владение.
+        user(6, 'trainer'),
       ],
       trainers: [
         {
@@ -201,6 +204,11 @@ describe('Маршруты записей', () => {
           status: 'published',
         },
       ],
+      // ⚠️ Расписание чистится ВМЕСТЕ с остальным срезом, а не остаётся от
+      // предыдущего теста. Пока его тут не было, слоты доживали до следующего
+      // засева и ссылались на услуги и тренеров, которых он уже не заводит, —
+      // перенос падал на внешнем ключе, причём в чужом тесте и без связи с ним.
+      schedule: [],
       bookings: [],
       notifications: [],
       logs: [],
@@ -754,13 +762,17 @@ describe('Маршруты записей', () => {
     });
 
     it('сам атлет свою заявку подтвердить не может', async () => {
+      // Этап Э8a: разбор заявок стал правом провайдера (`manage_own_bookings`),
+      // и спортсмена останавливает guard — раньше проверки владения, у которой
+      // текст свой. Кто может, не изменилось: своя заявка ему по-прежнему не
+      // подтверждается, изменилось только место отказа.
       const response = await request(server())
         .post('/api/bookings/7/confirm')
         .set('Cookie', await as(1))
         .send({});
 
       expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
+      expect(response.body.error).toBe('Недостаточно прав');
     });
 
     it('несуществующая запись — не найдено', async () => {
@@ -903,13 +915,14 @@ describe('Маршруты записей', () => {
       await harness.write('schedule', [slot(1, slotAt(-2), { bookedCount: 1 })]);
       await harness.write('bookings', [booking(7)]);
 
+      // Тот же порядок, что и у подтверждения: сначала право роли, потом владение.
       const response = await request(server())
         .post('/api/bookings/7/check-in')
         .set('Cookie', await as(1))
         .send({ outcome: 'completed' });
 
       expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Недостаточно прав для check-in');
+      expect(response.body.error).toBe('Недостаточно прав');
     });
 
     it('неизвестный исход отклоняется', async () => {
@@ -944,6 +957,175 @@ describe('Маршруты записей', () => {
       // где состояние создаётся — ветка обязана ответить 404;
       // где не создаётся — хранилище обязано ОТКАЗАТЬ, а не принять молча.
       await expect(harness.writeMany({ schedule: [], bookings: [booking(7)] })).rejects.toThrow();
+    });
+  });
+  // Этап Э8a: право на разбор заявок общее у обеих ролей провайдера, а вот
+  // «свои занятия» у них разные. Поэтому проверяется не право (оно одно), а то,
+  // что владение считается по своей стороне: тренер разбирает заявки на свои
+  // занятия и не разбирает заявки клуба.
+  describe('разбор заявок тренером', () => {
+    beforeEach(async () => {
+      await harness.writeMany({
+        trainers: [
+          {
+            id: 1,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            name: 'Марина',
+            slug: 'marina',
+            bio: 'Биография',
+            avatarUrl: '',
+            experienceYears: 5,
+            priceFrom: 1000,
+            managedByUserId: 2,
+            sportIds: [3],
+            specialtyIds: [],
+            workFormatIds: [],
+            rating: 5,
+            reviewCount: 0,
+            status: 'published',
+          },
+          {
+            id: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            name: 'Павел',
+            slug: 'pavel',
+            bio: 'Биография',
+            avatarUrl: '',
+            experienceYears: 3,
+            priceFrom: 1200,
+            managedByUserId: 6,
+            sportIds: [3],
+            specialtyIds: [],
+            workFormatIds: [],
+            rating: 5,
+            reviewCount: 0,
+            status: 'published',
+          },
+        ],
+        offerings: [
+          {
+            id: 1,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            ownerType: 'trainer',
+            ownerId: 1,
+            sportId: 3,
+            title: 'Персональная',
+            description: 'Описание',
+            format: 'personal',
+            price: 1000,
+            durationMinutes: 60,
+            capacity: 5,
+            address: 'ул. Ленина, 1',
+            coordinates: { lat: 53.2, lng: 50.1 },
+            cancellationPolicy: 'free_until_24h',
+          },
+          {
+            id: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            ownerType: 'trainer',
+            ownerId: 2,
+            sportId: 3,
+            title: 'Персональная Павла',
+            description: 'Описание',
+            format: 'personal',
+            price: 1200,
+            durationMinutes: 60,
+            capacity: 5,
+            address: 'ул. Ленина, 2',
+            coordinates: { lat: 53.2, lng: 50.1 },
+            cancellationPolicy: 'free_until_24h',
+          },
+          {
+            id: 3,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            ownerType: 'club',
+            ownerId: 2,
+            sportId: 3,
+            title: 'Групповая клуба',
+            description: 'Описание',
+            format: 'group',
+            price: 500,
+            durationMinutes: 60,
+            capacity: 10,
+            address: 'ул. Ленина, 1',
+            coordinates: { lat: 53.2, lng: 50.1 },
+            cancellationPolicy: 'free_until_24h',
+          },
+        ],
+        schedule: [
+          slot(1, slotAt(24), { bookedCount: 1 }),
+          slot(2, slotAt(24), { ownerId: 2, trainerId: 2, offeringId: 2, bookedCount: 1 }),
+          slot(3, slotAt(24), {
+            ownerType: 'club',
+            ownerId: 2,
+            clubId: 2,
+            trainerId: undefined,
+            offeringId: 3,
+            bookedCount: 1,
+          }),
+        ],
+        bookings: [
+          booking(7, { status: 'pending' }),
+          booking(8, {
+            scheduleId: 2,
+            offeringId: 2,
+            ownerId: 2,
+            trainerId: 2,
+            status: 'pending',
+          }),
+          booking(9, {
+            scheduleId: 3,
+            offeringId: 3,
+            ownerType: 'club',
+            ownerId: 2,
+            clubId: 2,
+            trainerId: undefined,
+            status: 'pending',
+          }),
+        ],
+      });
+    });
+
+    it('тренер подтверждает заявку на своё занятие', async () => {
+      const response = await request(server())
+        .post('/api/bookings/8/confirm')
+        .set('Cookie', await as(6))
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('confirmed');
+    });
+
+    it('тренер не подтверждает заявку на занятие чужого клуба', async () => {
+      const response = await request(server())
+        .post('/api/bookings/9/confirm')
+        .set('Cookie', await as(6))
+        .send({});
+
+      // Право у тренера есть — останавливает владение, и текст об этом говорит.
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
+    });
+
+    it('тренер не подтверждает заявку к чужому тренеру', async () => {
+      const response = await request(server())
+        .post('/api/bookings/7/confirm')
+        .set('Cookie', await as(6))
+        .send({});
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
+    });
+
+    it('представитель услуг не подтверждает заявку тренера', async () => {
+      // Обратная сторона: у клуба своя сторона, и заявка тренера ему не принадлежит.
+      const response = await request(server())
+        .post('/api/bookings/8/confirm')
+        .set('Cookie', await as(5))
+        .send({});
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Недостаточно прав для подтверждения записи');
     });
   });
 });

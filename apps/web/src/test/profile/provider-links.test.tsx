@@ -162,7 +162,7 @@ describe('ProviderLinks (Step 25.12)', () => {
     expect(screen.getByTestId(`provider-links-card-${pendingLink.id}`)).toBeInTheDocument();
   });
 
-  it('club-side approve: клик «Подтвердить» шлёт POST /approve с userId провайдера', async () => {
+  it('club-side approve: клик «Подтвердить» шлёт POST /approve без личности', async () => {
     authenticateProvider();
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: { id: 301 } }));
 
@@ -192,7 +192,10 @@ describe('ProviderLinks (Step 25.12)', () => {
 
     const call = fetchMock.mock.calls[0];
     expect(call[0]).toBe('/api/trainer-club-links/301/approve');
-    expect(JSON.parse(call[1].body as string)).toEqual({ userId: providerUser.id });
+    // ⚠️ Тела нет вовсе. Сторону, принимающую решение, сервер определяет
+    // по сессии: правило «решает противоположная инициатору сторона» было верным
+    // и раньше — ему не хватало честного источника личности.
+    expect(call[1]).toEqual({ method: 'POST' });
   });
 
   it('club-side reject: клик «Отклонить» шлёт POST /reject', async () => {
@@ -317,7 +320,6 @@ describe('ProviderLinks (Step 25.12)', () => {
     expect(body).toEqual({
       trainerId: anotherForeignTrainer.id,
       clubId: myClub.id,
-      userId: providerUser.id,
       // Phase 27 Step 27.9: клиент явно передаёт initiatedBy='club' из invite-модалки,
       // чтобы сервер смог направить уведомление trainer-manager'у (а не самому себе).
       initiatedBy: 'club',
@@ -409,7 +411,6 @@ describe('ProviderLinks (Step 25.12)', () => {
     expect(JSON.parse(call[1].body as string)).toEqual({
       trainerId: myTrainer.id,
       clubId: foreignClub.id,
-      userId: providerUser.id,
       // Phase 27 Step 27.9: request-модалка всегда передаёт initiatedBy='trainer'
       // (симметрично с invite-модалкой, которая шлёт 'club').
       initiatedBy: 'trainer',

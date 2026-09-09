@@ -18,9 +18,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
-import { AUTH_STORE_DEFAULT_STATE, MVP_ATHLETE_USER_ID, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import type { QuarantineResult } from '@sporthub/domain';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ATHLETE_USER_ID = 1;
 
 describe('BookingActionBlock — quarantine (Step 25.7)', () => {
   const fetchMock = vi.fn();
@@ -45,14 +50,14 @@ describe('BookingActionBlock — quarantine (Step 25.7)', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
     });
 
     const quarantineByUserId: Record<number, QuarantineResult> = {
-      [MVP_ATHLETE_USER_ID]: {
+      [ATHLETE_USER_ID]: {
         inQuarantine: true,
         until: '2026-04-29T12:00:00.000Z',
         reason: '3 неявки подряд — записи временно ограничены',
@@ -82,14 +87,14 @@ describe('BookingActionBlock — quarantine (Step 25.7)', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
     });
 
     const quarantineByUserId: Record<number, QuarantineResult> = {
-      [MVP_ATHLETE_USER_ID]: { inQuarantine: false },
+      [ATHLETE_USER_ID]: { inQuarantine: false },
     };
 
     render(

@@ -21,13 +21,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
-import {
-  AUTH_STORE_DEFAULT_STATE,
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
-  useAuthStore,
-} from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ATHLETE_USER_ID = 1;
+const PROVIDER_USER_ID = 2;
 
 describe('BookingActionBlock', () => {
   const fetchMock = vi.fn();
@@ -80,7 +81,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'provider',
       user: {
-        id: MVP_PROVIDER_USER_ID,
+        id: PROVIDER_USER_ID,
         name: 'Марина Крылова',
         email: 'marina@studio.local',
       },
@@ -109,7 +110,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -145,7 +146,7 @@ describe('BookingActionBlock', () => {
             id: 78,
             createdAt: '2026-03-18T12:00:00.000Z',
             scheduleId: 1001,
-            userId: MVP_ATHLETE_USER_ID,
+            userId: ATHLETE_USER_ID,
             sportId: 3,
             date: '2026-03-20',
             status: 'cancelled_by_provider',
@@ -159,7 +160,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -184,7 +185,7 @@ describe('BookingActionBlock', () => {
             id: 77,
             createdAt: '2026-03-18T12:00:00.000Z',
             scheduleId: 1001,
-            userId: MVP_ATHLETE_USER_ID,
+            userId: ATHLETE_USER_ID,
             sportId: 3,
             date: '2026-03-20',
             status: 'confirmed',
@@ -198,7 +199,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -233,7 +234,7 @@ describe('BookingActionBlock', () => {
               id: 501,
               createdAt: '2026-03-18T12:10:00.000Z',
               scheduleId: 1001,
-              userId: MVP_ATHLETE_USER_ID,
+              userId: ATHLETE_USER_ID,
               sportId: 3,
               date: '2026-03-20',
               status: 'confirmed',
@@ -248,7 +249,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -266,6 +267,10 @@ describe('BookingActionBlock', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
+    // Первый запрос — проверка «нет ли уже записи на этот слот». Он тоже идёт
+    // БЕЗ номера в адресе: маршрут отдаёт записи того, кто спрашивает.
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/bookings');
+
     const postCall = fetchMock.mock.calls[1];
 
     expect(postCall[0]).toBe('/api/bookings');
@@ -275,10 +280,9 @@ describe('BookingActionBlock', () => {
         'Content-Type': 'application/json',
       },
     });
-    expect(JSON.parse(postCall[1].body as string)).toEqual({
-      scheduleId: 1001,
-      userId: MVP_ATHLETE_USER_ID,
-    });
+    // ⚠️ В теле ТОЛЬКО номер слота. Записывается тот, чья сессия: прежнее поле
+    // `userId` позволяло записать на занятие кого угодно правкой запроса.
+    expect(JSON.parse(postCall[1].body as string)).toEqual({ scheduleId: 1001 });
 
     await waitFor(() => {
       expect(screen.getByText('Запись подтверждена. Слот закреплён за вами.')).toBeInTheDocument();
@@ -312,7 +316,7 @@ describe('BookingActionBlock', () => {
     useAuthStore.getState().login({
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },

@@ -1,14 +1,18 @@
 /**
  * Тесты доменной модели для admin-функционала (Step 17.1).
- * Проверяют: UserStatus тип, status? поле в User, admin seed-пользователь,
- * USER_STATUSES константы, MVP_ADMIN_USER_ID.
+ * Проверяют: UserStatus тип, status? поле в User, admin-пользователь набора,
+ * константы USER_STATUSES.
+ *
+ * Phase 34 Step 34.48: проверка константы `MVP_ADMIN_USER_ID` убрана вместе
+ * с самой константой — фронт больше не знает наперёд, кто администратор.
+ * Что администратор есть в наборе, проверяет блок ниже; что фронт не завёл
+ * такие константы заново — сторож `test/security/client-identity.test.ts`.
  */
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import type { User, UserRole, UserStatus } from '@sporthub/types';
 import { USER_STATUSES } from '@sporthub/types';
 import { fixtureUsers } from '@sporthub/fixtures';
-import { MVP_ADMIN_USER_ID } from '@/stores/useAuthStore';
 
 describe('Admin domain model (Step 17.1)', () => {
   // --- Типы ---
@@ -43,10 +47,6 @@ describe('Admin domain model (Step 17.1)', () => {
 
   it('USER_STATUSES содержит все три статуса', () => {
     expect(USER_STATUSES).toEqual(['active', 'banned', 'suspended']);
-  });
-
-  it('MVP_ADMIN_USER_ID равен 3', () => {
-    expect(MVP_ADMIN_USER_ID).toBe(3);
   });
 
   // --- Общий набор пользователей ---

@@ -7,7 +7,12 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { DomainError, QuarantineError, TooManyRequestsError, ValidationError } from './domain-error';
+import {
+  DomainError,
+  QuarantineError,
+  TooManyRequestsError,
+  ValidationError,
+} from './domain-error';
 
 /**
  * Ошибка соединения с базой, а не ошибка запроса.

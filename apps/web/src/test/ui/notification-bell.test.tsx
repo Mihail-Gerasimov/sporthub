@@ -16,12 +16,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
-import {
-  AUTH_STORE_DEFAULT_STATE,
-  MVP_ATHLETE_USER_ID,
-  MVP_PROVIDER_USER_ID,
-  useAuthStore,
-} from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+
+// Номера пользователей стенда: раньше приезжали константами из стора.
+const ATHLETE_USER_ID = 1;
+const PROVIDER_USER_ID = 2;
 import type { Notification } from '@sporthub/types';
 
 interface FetchRoutes {
@@ -89,7 +88,7 @@ describe('NotificationBell', () => {
       isAuthenticated: true,
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -110,7 +109,7 @@ describe('NotificationBell', () => {
       isAuthenticated: true,
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -130,14 +129,14 @@ describe('NotificationBell', () => {
         {
           id: 10,
           createdAt: '2026-04-20T12:00:00.000Z',
-          userId: MVP_ATHLETE_USER_ID,
+          userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
           payload: { bookingId: 501 },
         },
         {
           id: 9,
           createdAt: '2026-04-19T12:00:00.000Z',
-          userId: MVP_ATHLETE_USER_ID,
+          userId: ATHLETE_USER_ID,
           type: 'booking_rejected',
           payload: { bookingId: 502 },
         },
@@ -148,7 +147,7 @@ describe('NotificationBell', () => {
       isAuthenticated: true,
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -178,7 +177,7 @@ describe('NotificationBell', () => {
       isAuthenticated: true,
       accountType: 'provider',
       user: {
-        id: MVP_PROVIDER_USER_ID,
+        id: PROVIDER_USER_ID,
         name: 'Марина Крылова',
         email: 'marina@studio.local',
       },
@@ -208,7 +207,7 @@ describe('NotificationBell', () => {
         {
           id: 42,
           createdAt: '2026-04-22T12:00:00.000Z',
-          userId: MVP_ATHLETE_USER_ID,
+          userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
           payload: { bookingId: 777 },
         },
@@ -219,7 +218,7 @@ describe('NotificationBell', () => {
       isAuthenticated: true,
       accountType: 'athlete',
       user: {
-        id: MVP_ATHLETE_USER_ID,
+        id: ATHLETE_USER_ID,
         name: 'Алексей Смирнов',
         email: 'alexey@sporthub.local',
       },
@@ -234,13 +233,19 @@ describe('NotificationBell', () => {
     fireEvent.click(screen.getByTestId('notification-bell-item-42'));
     await flush();
 
-    // Должен быть выполнен POST с body { userId }.
+    // POST без тела: владельца уведомления сервер берёт из сессии, а чужое
+    // отвечает тем же «не найдено», что и несуществующее.
     const readCall = fetchMock.mock.calls.find(([url]) =>
       String(url).includes('/api/notifications/42/read'),
     );
     expect(readCall).toBeDefined();
-    expect(readCall?.[1]).toMatchObject({ method: 'POST' });
-    expect(JSON.parse(String(readCall?.[1]?.body))).toEqual({ userId: MVP_ATHLETE_USER_ID });
+    expect(readCall?.[1]).toEqual({ method: 'POST' });
+
+    // И лента dropdown'а спрашивается без номера в адресе.
+    const listCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith('/api/notifications?'),
+    );
+    expect(String(listCall?.[0])).not.toContain('userId');
 
     // Навигация на полную страницу уведомлений.
     expect(routerPushMock).toHaveBeenCalledWith('/profile/athlete/notifications');

@@ -24,6 +24,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   LogEntry,
   NotificationType,
+  PasswordResetToken,
   ProviderClientNote,
   Review,
   Session,
@@ -36,6 +37,7 @@ import type {
   LogsQuery,
   LogsRepository,
   OwnerIdFilter,
+  PasswordResetTokensRepository,
   ProviderClientNotesRepository,
   ReviewsCountFilter,
   ReviewsFilter,
@@ -824,6 +826,108 @@ export class PrismaSessionsRepository implements SessionsRepository {
 
   async removeExpired(before: string): Promise<number> {
     const result = await this.client.session.deleteMany({
+      where: { expiresAt: { lt: new Date(before) } },
+    });
+
+    return result.count;
+  }
+}
+
+/** Строка ссылки восстановления из базы. */
+type PasswordResetTokenRow = {
+  id: number;
+  createdAt: Date;
+  tokenHash: string;
+  userId: number;
+  expiresAt: Date;
+  usedAt: Date | null;
+};
+
+/**
+ * Одноразовые ссылки восстановления поверх базы.
+ *
+ * Главное здесь — `claim`. Взятие ссылки в работу идёт ОДНИМ обновлением с условием
+ * «ещё не использована и срок не вышел», а не чтением с последующей записью: два
+ * одновременных перехода по одной ссылке иначе оба прошли бы проверку. Это тот же
+ * приём, которым в фазе 33 чинился овербукинг, и та же причина — проверка и запись
+ * обязаны быть одной операцией.
+ */
+@Injectable()
+export class PrismaPasswordResetTokensRepository implements PasswordResetTokensRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toToken(row: PasswordResetTokenRow): PasswordResetToken {
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      tokenHash: row.tokenHash,
+      userId: row.userId,
+      expiresAt: toIsoString(row.expiresAt),
+      usedAt: row.usedAt === null ? undefined : toIsoString(row.usedAt),
+    }) as unknown as PasswordResetToken;
+  }
+
+  async insert(token: Omit<PasswordResetToken, 'id' | 'createdAt'>): Promise<PasswordResetToken> {
+    const row = await this.client.passwordResetToken.create({
+      data: {
+        tokenHash: token.tokenHash,
+        userId: token.userId,
+        expiresAt: new Date(token.expiresAt),
+        usedAt: token.usedAt === undefined ? null : new Date(token.usedAt),
+      },
+    });
+
+    return PrismaPasswordResetTokensRepository.toToken(row);
+  }
+
+  async findUsableByTokenHash(tokenHash: string, now: string): Promise<PasswordResetToken | null> {
+    // Пригодность проверяет ЗАПРОС: мёртвая ссылка не должна доезжать до памяти,
+    // чтобы там её отбросили ещё раз.
+    const row = await this.client.passwordResetToken.findFirst({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: new Date(now) } },
+    });
+
+    return row === null ? null : PrismaPasswordResetTokensRepository.toToken(row);
+  }
+
+  async claim(tokenHash: string, now: string): Promise<PasswordResetToken | null> {
+    const at = new Date(now);
+    // `updateMany` с условием, а не `update` по номеру: условие «ещё не использована»
+    // обязано проверяться ТОЙ ЖЕ операцией, которая ставит метку. Проигравший получит
+    // ноль изменённых строк и честный отказ.
+    const claimed = await this.client.passwordResetToken.updateMany({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: at } },
+      data: { usedAt: at },
+    });
+
+    if (claimed.count === 0) return null;
+
+    // Строку читаем уже после захвата — по уникальному индексу и ровно один раз.
+    // Сам захват от этого чтения не зависит, поэтому гонки здесь уже нет.
+    const row = await this.client.passwordResetToken.findUnique({ where: { tokenHash } });
+
+    return row === null ? null : PrismaPasswordResetTokensRepository.toToken(row);
+  }
+
+  async markAllUsedForUser(userId: number, at: string, exceptId?: number): Promise<number> {
+    const result = await this.client.passwordResetToken.updateMany({
+      where: {
+        userId,
+        usedAt: null,
+        ...(exceptId === undefined ? {} : { id: { not: exceptId } }),
+      },
+      data: { usedAt: new Date(at) },
+    });
+
+    return result.count;
+  }
+
+  async removeExpired(before: string): Promise<number> {
+    const result = await this.client.passwordResetToken.deleteMany({
       where: { expiresAt: { lt: new Date(before) } },
     });
 

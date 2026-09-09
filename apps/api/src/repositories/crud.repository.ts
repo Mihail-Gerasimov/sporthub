@@ -11,6 +11,7 @@
 import type {
   LogAction,
   LogEntry,
+  PasswordResetToken,
   ProviderClientNote,
   Review,
   Session,
@@ -24,6 +25,7 @@ export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
 export const USERS_REPOSITORY = Symbol('USERS_REPOSITORY');
 export const PROVIDER_CLIENT_NOTES_REPOSITORY = Symbol('PROVIDER_CLIENT_NOTES_REPOSITORY');
 export const SESSIONS_REPOSITORY = Symbol('SESSIONS_REPOSITORY');
+export const PASSWORD_RESET_TOKENS_REPOSITORY = Symbol('PASSWORD_RESET_TOKENS_REPOSITORY');
 
 // --- Интерфейсы ---------------------------------------------------------------
 
@@ -189,6 +191,54 @@ export interface SessionsRepository {
    * Возвращает число отозванных.
    */
   revokeAllForUser(userId: number, at: string, exceptId?: number): Promise<number>;
+
+  /** Убрать просроченные. Отдельная команда, а не работа на чужом запросе. */
+  removeExpired(before: string): Promise<number>;
+}
+
+// --- Ссылки восстановления пароля ---------------------------------------------
+
+/**
+ * Хранилище одноразовых ссылок восстановления (фаза 34, шаг 34.69).
+ *
+ * Интерфейс узкий по той же причине, что и у сессий: ссылка ищется по ХЕШУ, а не
+ * по значению из письма. Само значение сюда не попадает вовсе — забыть захешировать
+ * негде, потому что метода, принимающего открытое значение, здесь нет.
+ *
+ * Второе правило — **никаких проверок «прочитал и посмотрел»**. Пригодность ссылки
+ * (не использована, срок не вышел) выражена условиями запроса, а взятие ссылки в
+ * работу — обновлением с условием. Иначе два одновременных перехода по одной ссылке
+ * оба прошли бы проверку и оба сбросили бы пароль.
+ */
+export interface PasswordResetTokensRepository {
+  /** Выдать ссылку. Уникальность хеша стережёт база. */
+  insert(token: Omit<PasswordResetToken, 'id' | 'createdAt'>): Promise<PasswordResetToken>;
+
+  /**
+   * Найти пригодную ссылку по хешу: не использована и срок не вышел.
+   *
+   * Годится только для ответа «ссылка ещё жива» (форма ввода нового пароля). Сам
+   * сброс обязан идти через `claim`: между этим чтением и записью помещается
+   * второй такой же запрос.
+   */
+  findUsableByTokenHash(tokenHash: string, now: string): Promise<PasswordResetToken | null>;
+
+  /**
+   * Взять ссылку в работу: пометить использованной, ЕСЛИ она ещё пригодна.
+   *
+   * Одной операцией с условием, а не «прочитать, проверить, записать». Возвращает
+   * саму ссылку, если удалось, и `null`, если её нет, срок вышел или её уже забрал
+   * кто-то другой. Победитель ровно один — это гарантия базы, а не порядка строк
+   * в коде.
+   */
+  claim(tokenHash: string, now: string): Promise<PasswordResetToken | null>;
+
+  /**
+   * Погасить все невостребованные ссылки пользователя одним обновлением.
+   * Возвращает число погашенных. Зовётся после успешного сброса: второе письмо
+   * не должно остаться рабочим ключом от уже восстановленной учётки.
+   */
+  markAllUsedForUser(userId: number, at: string, exceptId?: number): Promise<number>;
 
   /** Убрать просроченные. Отдельная команда, а не работа на чужом запросе. */
   removeExpired(before: string): Promise<number>;

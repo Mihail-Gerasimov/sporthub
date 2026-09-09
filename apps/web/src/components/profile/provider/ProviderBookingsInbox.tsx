@@ -299,18 +299,16 @@ export function ProviderBookingsInbox({
     successMessage: string;
     errorFallback: string;
   }) {
-    if (providerUserId === null) {
-      addToast({ message: 'Не удалось определить провайдера для действия', tone: 'error' });
-      return;
-    }
-
     setPendingActionId(item.booking.id);
 
     try {
+      // ⚠️ Номер провайдера в теле больше не передаётся: решение по чужой записи
+      // принималось бы простой подменой этого числа. Права на запись сервер
+      // проверяет по сессии.
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: providerUserId, ...payload }),
+        body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { success: boolean; error?: string };
 

@@ -4,7 +4,11 @@
  * - mount (первый fetch),
  * - смене pathname (интенсивная навигация пользователя),
  * - fallback interval 60s (если pathname долго не меняется).
- * При userId=null запросы не делаются (guest/admin без impersonation).
+ * При `enabled: false` запросы не делаются (гость либо админ без имперсонизации).
+ *
+ * Phase 34 Step 34.49: номер пользователя из строки запроса ушёл. Счётчик
+ * считается по сессии, и спросить чужой больше нечем — раньше для этого хватало
+ * одной цифры в адресе. Здесь остался только выключатель: спрашивать или нет.
  *
  * Phase 29 Step 29.2: помимо локального state хук также пишет полученное
  * значение в `useNotificationsStore` (через `setUnreadCount`) — это
@@ -22,8 +26,8 @@ import { useNotificationsStore } from '@/stores/useNotificationsStore';
 const POLL_INTERVAL_MS = 60_000;
 
 export interface UseUnreadCountPollingOptions {
-  /** Id пользователя, для которого читаем счётчик. null → запросы не делаются. */
-  userId: number | null;
+  /** Спрашивать ли счётчик. `false` — гость: спрашивать нечего и не о ком. */
+  enabled: boolean;
 }
 
 export interface UseUnreadCountPollingResult {
@@ -33,7 +37,7 @@ export interface UseUnreadCountPollingResult {
 }
 
 export function useUnreadCountPolling({
-  userId,
+  enabled,
 }: UseUnreadCountPollingOptions): UseUnreadCountPollingResult {
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
@@ -41,13 +45,13 @@ export function useUnreadCountPolling({
   // AbortController для отмены устаревшего in-flight запроса
   const controllerRef = useRef<AbortController | null>(null);
 
-  const fetchCount = useCallback(async (targetUserId: number) => {
+  const fetchCount = useCallback(async () => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
 
     try {
-      const response = await fetch(`/api/notifications/unread-count?userId=${targetUserId}`, {
+      const response = await fetch('/api/notifications/unread-count', {
         signal: controller.signal,
       });
       if (!response.ok) return;
@@ -69,9 +73,9 @@ export function useUnreadCountPolling({
   }, []);
 
   const refetch = useCallback(async () => {
-    if (userId === null) return;
-    await fetchCount(userId);
-  }, [userId, fetchCount]);
+    if (!enabled) return;
+    await fetchCount();
+  }, [enabled, fetchCount]);
 
   // Триггер: mount и смена pathname → немедленный fetch.
   // setState внутри fetchCount срабатывает после await fetch(...), то есть в
@@ -80,25 +84,24 @@ export function useUnreadCountPolling({
   // disable. Прежняя обёртка в queueMicrotask делала ровно то же, но добавляла
   // лишний tick задержки, из-за чего badge ~100-500мс показывал 0 после логина.
   useEffect(() => {
-    if (userId === null) return;
+    if (!enabled) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchCount(userId);
-  }, [userId, pathname, fetchCount]);
+    void fetchCount();
+  }, [enabled, pathname, fetchCount]);
 
-  // Fallback: interval 60s пока userId активен
+  // Fallback: опрос раз в 60 секунд, пока хук включён
   useEffect(() => {
-    if (userId === null) return;
+    if (!enabled) return;
 
     const intervalId = setInterval(() => {
-      void fetchCount(userId);
+      void fetchCount();
     }, POLL_INTERVAL_MS);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [userId, fetchCount]);
+  }, [enabled, fetchCount]);
 
-  // Когда userId становится null — счётчик отдаётся как 0 (derived value),
-  // без setState в effect. Так избегаем react-hooks/set-state-in-effect.
-  return { unreadCount: userId === null ? 0 : unreadCount, refetch };
+  // Выключенный опрос отдаёт 0 вычислением, а не записью в состояние из эффекта.
+  return { unreadCount: enabled ? unreadCount : 0, refetch };
 }

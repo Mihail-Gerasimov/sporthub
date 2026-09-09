@@ -111,7 +111,10 @@ export function AccountCredentialsSection({ user, accountTitle }: AccountCredent
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, phone: trimmed }),
+        // ⚠️ Номер в адресе — ЧЬЮ учётку правят; сервер сверяет его с сессией
+        // и чужую не отдаст. Одноимённого поля в теле больше нет: раньше «своё»
+        // определялось совпадением двух чисел, которые оба присылал клиент.
+        body: JSON.stringify({ phone: trimmed }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -151,7 +154,7 @@ export function AccountCredentialsSection({ user, accountTitle }: AccountCredent
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, password: newPassword, currentPassword }),
+        body: JSON.stringify({ password: newPassword, currentPassword }),
       });
       if (response.status === 401) {
         setCurrentPasswordError('Неверный текущий пароль');

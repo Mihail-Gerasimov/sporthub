@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { z } from 'zod';
 
+import { PASSWORD_RESET_TTL_MINUTES } from '@sporthub/domain';
 import { AUTH_ACCOUNT_TYPE_OPTIONS, DEFAULT_CITY } from '@sporthub/types';
 import { formatPhone } from '@/lib/utils';
 import type { AuthAccountType } from '@sporthub/types';
@@ -12,6 +13,15 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 type AuthTab = 'login' | 'register';
+
+/**
+ * Что показывает модалка: обычные вкладки или заявку на восстановление.
+ *
+ * Третьей вкладкой восстановление НЕ сделано намеренно: это не сценарий выбора
+ * («войти или зарегистрироваться»), а тупиковая ветка одного из них — человек
+ * попал сюда, потому что войти не может.
+ */
+type AuthView = 'tabs' | 'forgot';
 
 type LoginFormState = {
   email: string;
@@ -46,6 +56,10 @@ const DEFAULT_REGISTER_ERRORS: RegisterFormErrors = {};
 const loginFormSchema = z.object({
   email: z.email('Укажи корректный email.'),
   password: z.string().min(6, 'Пароль должен быть не короче 6 символов.'),
+});
+
+const forgotFormSchema = z.object({
+  email: z.email('Укажи корректный email.'),
 });
 
 const registerFormSchema = z.object({
@@ -235,12 +249,119 @@ function PasswordToggle({ visible, onClick }: { visible: boolean; onClick: () =>
   );
 }
 
+/**
+ * Заявка на восстановление пароля.
+ *
+ * ⚠️ Ответ показывается ОДИН на все случаи — и для заведённой почты, и для
+ * незаведённой. Так отвечает сервер (иначе маршрут стал бы перечислителем
+ * аккаунтов), и интерфейс обязан не выдать разницу там, где её нет: никаких
+ * «такой адрес не найден».
+ */
+function ForgotPasswordPanel({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    const normalizedEmail = email.trim();
+    const validationResult = forgotFormSchema.safeParse({ email: normalizedEmail });
+
+    if (!validationResult.success) {
+      setError(validationResult.error.issues[0]?.message ?? 'Укажи корректный email.');
+      return;
+    }
+
+    setError(undefined);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        // Сюда попадают только отказы, не связанные с существованием почты:
+        // разбор тела и превышение частоты. Их текст показываем как есть.
+        setError(json.error ?? 'Не удалось отправить письмо');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSent(true);
+      setIsSubmitting(false);
+    } catch {
+      setError('Сетевая ошибка, попробуй позже');
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isSent) {
+    return (
+      <section className="space-y-5" aria-label="Письмо отправлено">
+        <p className="text-sm text-muted">
+          Если такой адрес зарегистрирован, мы отправили на него ссылку для смены пароля. Ссылка
+          действует {PASSWORD_RESET_TTL_MINUTES} минут и сработает один раз.
+        </p>
+        <Button fullWidth type="button" onClick={onBack}>
+          Вернуться ко входу
+        </Button>
+      </section>
+    );
+  }
+
+  return (
+    <form
+      noValidate
+      className="space-y-5"
+      aria-label="Восстановление пароля"
+      onSubmit={handleSubmit}
+    >
+      <p className="text-sm text-muted">
+        Укажи почту, на которую заведён аккаунт. Пришлём ссылку для смены пароля.
+      </p>
+
+      <Input
+        label="Email"
+        type="email"
+        placeholder="name@example.com"
+        value={email}
+        error={error}
+        disabled={isSubmitting}
+        onChange={(event) => {
+          setEmail(event.target.value);
+          setError(undefined);
+        }}
+      />
+
+      <div className="grid gap-3">
+        <Button fullWidth type="submit" loading={isSubmitting}>
+          Отправить ссылку
+        </Button>
+        <Button fullWidth type="button" variant="ghost" onClick={onBack}>
+          Вернуться ко входу
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function AuthModal() {
   const isAuthModalOpen = useUIStore((state) => state.isAuthModalOpen);
   const closeAuthModal = useUIStore((state) => state.closeAuthModal);
   const login = useAuthStore((state) => state.login);
   const register = useAuthStore((state) => state.register);
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
+  const [view, setView] = useState<AuthView>('tabs');
   const [loginAccountType, setLoginAccountType] = useState<AuthAccountType | null>(null);
   const [registerAccountType, setRegisterAccountType] = useState<AuthAccountType | null>(null);
   const [loginForm, setLoginForm] = useState<LoginFormState>(DEFAULT_LOGIN_FORM);
@@ -257,6 +378,7 @@ export function AuthModal() {
   const registerPanelId = useId();
   function resetModalState() {
     setActiveTab('login');
+    setView('tabs');
     setLoginAccountType(null);
     setRegisterAccountType(null);
     setLoginForm(DEFAULT_LOGIN_FORM);
@@ -402,221 +524,241 @@ export function AuthModal() {
       description="Выбери сценарий, тип аккаунта и продолжи работу с SportHub. Логика авторизации будет расширяться на следующих шагах."
     >
       <div className="space-y-6">
-        <div
-          role="tablist"
-          aria-label="Сценарии авторизации"
-          className="grid grid-cols-2 gap-2 rounded-card border border-line bg-canvas p-1"
-        >
-          <button
-            id={loginTabId}
-            role="tab"
-            type="button"
-            aria-controls={loginPanelId}
-            aria-selected={activeTab === 'login'}
-            className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
-              activeTab === 'login'
-                ? 'bg-lime text-ink shadow-card'
-                : 'text-ink hover:bg-panel hover:text-accent'
-            }`}
-            onClick={() => {
-              setActiveTab('login');
+        {view === 'forgot' ? (
+          <ForgotPasswordPanel
+            onBack={() => {
+              setView('tabs');
             }}
-          >
-            Вход
-          </button>
-          <button
-            id={registerTabId}
-            role="tab"
-            type="button"
-            aria-controls={registerPanelId}
-            aria-selected={activeTab === 'register'}
-            className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
-              activeTab === 'register'
-                ? 'bg-lime text-ink shadow-card'
-                : 'text-ink hover:bg-panel hover:text-accent'
-            }`}
-            onClick={() => {
-              setActiveTab('register');
-            }}
-          >
-            Регистрация
-          </button>
-        </div>
-
-        {activeTab === 'login' ? (
-          <form
-            id={loginPanelId}
-            noValidate
-            role="tabpanel"
-            aria-labelledby={loginTabId}
-            className="space-y-5"
-            onSubmit={handleLoginSubmit}
-          >
-            <AccountTypeSelector
-              selectedAccountType={loginAccountType}
-              onSelect={setLoginAccountType}
-            />
-
-            <div className="grid gap-4">
-              <Input
-                label="Email"
-                type="email"
-                placeholder="name@example.com"
-                value={loginForm.email}
-                error={loginErrors.email}
-                disabled={isLoginSubmitting}
-                onChange={(event) => {
-                  setLoginForm((currentValue) => ({
-                    ...currentValue,
-                    email: event.target.value,
-                  }));
-                  setLoginErrors((currentValue) => ({
-                    ...currentValue,
-                    email: undefined,
-                  }));
-                }}
-              />
-              <Input
-                label="Пароль"
-                type={showLoginPassword ? 'text' : 'password'}
-                placeholder="Введите пароль"
-                value={loginForm.password}
-                error={loginErrors.password}
-                disabled={isLoginSubmitting}
-                endAdornment={
-                  <PasswordToggle
-                    visible={showLoginPassword}
-                    onClick={() => {
-                      setShowLoginPassword((v) => !v);
-                    }}
-                  />
-                }
-                onChange={(event) => {
-                  setLoginForm((currentValue) => ({
-                    ...currentValue,
-                    password: event.target.value,
-                  }));
-                  setLoginErrors((currentValue) => ({
-                    ...currentValue,
-                    password: undefined,
-                  }));
-                }}
-              />
-            </div>
-
-            <Button
-              fullWidth
-              type="submit"
-              loading={isLoginSubmitting}
-              disabled={!loginAccountType}
-            >
-              Продолжить вход
-            </Button>
-          </form>
+          />
         ) : (
-          <form
-            id={registerPanelId}
-            noValidate
-            role="tabpanel"
-            aria-labelledby={registerTabId}
-            className="space-y-5"
-            onSubmit={handleRegisterSubmit}
-          >
-            <AccountTypeSelector
-              selectedAccountType={registerAccountType}
-              onSelect={setRegisterAccountType}
-            />
-
-            <div className="grid gap-4">
-              <Input
-                label="Имя"
-                placeholder="Как к тебе обращаться"
-                value={registerForm.name}
-                error={registerErrors.name}
-                disabled={isRegisterSubmitting}
-                onChange={(event) => {
-                  setRegisterForm((currentValue) => ({
-                    ...currentValue,
-                    name: event.target.value,
-                  }));
-                  setRegisterErrors((currentValue) => ({
-                    ...currentValue,
-                    name: undefined,
-                  }));
+          <>
+            <div
+              role="tablist"
+              aria-label="Сценарии авторизации"
+              className="grid grid-cols-2 gap-2 rounded-card border border-line bg-canvas p-1"
+            >
+              <button
+                id={loginTabId}
+                role="tab"
+                type="button"
+                aria-controls={loginPanelId}
+                aria-selected={activeTab === 'login'}
+                className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === 'login'
+                    ? 'bg-lime text-ink shadow-card'
+                    : 'text-ink hover:bg-panel hover:text-accent'
+                }`}
+                onClick={() => {
+                  setActiveTab('login');
                 }}
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="name@example.com"
-                value={registerForm.email}
-                error={registerErrors.email}
-                disabled={isRegisterSubmitting}
-                onChange={(event) => {
-                  setRegisterForm((currentValue) => ({
-                    ...currentValue,
-                    email: event.target.value,
-                  }));
-                  setRegisterErrors((currentValue) => ({
-                    ...currentValue,
-                    email: undefined,
-                  }));
+              >
+                Вход
+              </button>
+              <button
+                id={registerTabId}
+                role="tab"
+                type="button"
+                aria-controls={registerPanelId}
+                aria-selected={activeTab === 'register'}
+                className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === 'register'
+                    ? 'bg-lime text-ink shadow-card'
+                    : 'text-ink hover:bg-panel hover:text-accent'
+                }`}
+                onClick={() => {
+                  setActiveTab('register');
                 }}
-              />
-              <Input
-                label="Телефон"
-                placeholder="+7 (999) 000-00-00"
-                value={registerForm.phone}
-                error={registerErrors.phone}
-                disabled={isRegisterSubmitting}
-                onChange={(event) => {
-                  setRegisterForm((currentValue) => ({
-                    ...currentValue,
-                    phone: maskRussianPhoneInput(event.target.value),
-                  }));
-                  setRegisterErrors((currentValue) => ({
-                    ...currentValue,
-                    phone: undefined,
-                  }));
-                }}
-              />
-              <Input
-                label="Пароль"
-                type={showRegisterPassword ? 'text' : 'password'}
-                placeholder="Минимум 6 символов"
-                value={registerForm.password}
-                error={registerErrors.password}
-                disabled={isRegisterSubmitting}
-                endAdornment={
-                  <PasswordToggle
-                    visible={showRegisterPassword}
-                    onClick={() => {
-                      setShowRegisterPassword((v) => !v);
-                    }}
-                  />
-                }
-                onChange={(event) => {
-                  setRegisterForm((currentValue) => ({
-                    ...currentValue,
-                    password: event.target.value,
-                  }));
-                  setRegisterErrors((currentValue) => ({
-                    ...currentValue,
-                    password: undefined,
-                  }));
-                }}
-              />
+              >
+                Регистрация
+              </button>
             </div>
 
-            <Button
-              fullWidth
-              type="submit"
-              loading={isRegisterSubmitting}
-              disabled={!registerAccountType}
-            >
-              Создать аккаунт
-            </Button>
-          </form>
+            {activeTab === 'login' ? (
+              <form
+                id={loginPanelId}
+                noValidate
+                role="tabpanel"
+                aria-labelledby={loginTabId}
+                className="space-y-5"
+                onSubmit={handleLoginSubmit}
+              >
+                <AccountTypeSelector
+                  selectedAccountType={loginAccountType}
+                  onSelect={setLoginAccountType}
+                />
+
+                <div className="grid gap-4">
+                  <Input
+                    label="Email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={loginForm.email}
+                    error={loginErrors.email}
+                    disabled={isLoginSubmitting}
+                    onChange={(event) => {
+                      setLoginForm((currentValue) => ({
+                        ...currentValue,
+                        email: event.target.value,
+                      }));
+                      setLoginErrors((currentValue) => ({
+                        ...currentValue,
+                        email: undefined,
+                      }));
+                    }}
+                  />
+                  <Input
+                    label="Пароль"
+                    type={showLoginPassword ? 'text' : 'password'}
+                    placeholder="Введите пароль"
+                    value={loginForm.password}
+                    error={loginErrors.password}
+                    disabled={isLoginSubmitting}
+                    endAdornment={
+                      <PasswordToggle
+                        visible={showLoginPassword}
+                        onClick={() => {
+                          setShowLoginPassword((v) => !v);
+                        }}
+                      />
+                    }
+                    onChange={(event) => {
+                      setLoginForm((currentValue) => ({
+                        ...currentValue,
+                        password: event.target.value,
+                      }));
+                      setLoginErrors((currentValue) => ({
+                        ...currentValue,
+                        password: undefined,
+                      }));
+                    }}
+                  />
+                </div>
+
+                <Button
+                  fullWidth
+                  type="submit"
+                  loading={isLoginSubmitting}
+                  disabled={!loginAccountType}
+                >
+                  Продолжить вход
+                </Button>
+
+                <button
+                  type="button"
+                  className="w-full text-sm font-semibold text-muted underline-offset-4 transition-colors hover:text-accent hover:underline"
+                  onClick={() => {
+                    setView('forgot');
+                  }}
+                >
+                  Забыли пароль?
+                </button>
+              </form>
+            ) : (
+              <form
+                id={registerPanelId}
+                noValidate
+                role="tabpanel"
+                aria-labelledby={registerTabId}
+                className="space-y-5"
+                onSubmit={handleRegisterSubmit}
+              >
+                <AccountTypeSelector
+                  selectedAccountType={registerAccountType}
+                  onSelect={setRegisterAccountType}
+                />
+
+                <div className="grid gap-4">
+                  <Input
+                    label="Имя"
+                    placeholder="Как к тебе обращаться"
+                    value={registerForm.name}
+                    error={registerErrors.name}
+                    disabled={isRegisterSubmitting}
+                    onChange={(event) => {
+                      setRegisterForm((currentValue) => ({
+                        ...currentValue,
+                        name: event.target.value,
+                      }));
+                      setRegisterErrors((currentValue) => ({
+                        ...currentValue,
+                        name: undefined,
+                      }));
+                    }}
+                  />
+                  <Input
+                    label="Email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={registerForm.email}
+                    error={registerErrors.email}
+                    disabled={isRegisterSubmitting}
+                    onChange={(event) => {
+                      setRegisterForm((currentValue) => ({
+                        ...currentValue,
+                        email: event.target.value,
+                      }));
+                      setRegisterErrors((currentValue) => ({
+                        ...currentValue,
+                        email: undefined,
+                      }));
+                    }}
+                  />
+                  <Input
+                    label="Телефон"
+                    placeholder="+7 (999) 000-00-00"
+                    value={registerForm.phone}
+                    error={registerErrors.phone}
+                    disabled={isRegisterSubmitting}
+                    onChange={(event) => {
+                      setRegisterForm((currentValue) => ({
+                        ...currentValue,
+                        phone: maskRussianPhoneInput(event.target.value),
+                      }));
+                      setRegisterErrors((currentValue) => ({
+                        ...currentValue,
+                        phone: undefined,
+                      }));
+                    }}
+                  />
+                  <Input
+                    label="Пароль"
+                    type={showRegisterPassword ? 'text' : 'password'}
+                    placeholder="Минимум 6 символов"
+                    value={registerForm.password}
+                    error={registerErrors.password}
+                    disabled={isRegisterSubmitting}
+                    endAdornment={
+                      <PasswordToggle
+                        visible={showRegisterPassword}
+                        onClick={() => {
+                          setShowRegisterPassword((v) => !v);
+                        }}
+                      />
+                    }
+                    onChange={(event) => {
+                      setRegisterForm((currentValue) => ({
+                        ...currentValue,
+                        password: event.target.value,
+                      }));
+                      setRegisterErrors((currentValue) => ({
+                        ...currentValue,
+                        password: undefined,
+                      }));
+                    }}
+                  />
+                </div>
+
+                <Button
+                  fullWidth
+                  type="submit"
+                  loading={isRegisterSubmitting}
+                  disabled={!registerAccountType}
+                >
+                  Создать аккаунт
+                </Button>
+              </form>
+            )}
+          </>
         )}
       </div>
     </Modal>

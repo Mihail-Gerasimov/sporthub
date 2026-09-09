@@ -1,6 +1,13 @@
 // Data-driven пункты навигации ЛК (Step 25.2).
-// Набор разделов зависит не от роли, а от фактических данных: у провайдера может быть
-// одновременно и club-side, и trainer-side, и даже пустой кабинет.
+// Набор разделов зависит от фактических данных: у провайдера может не быть ни одной
+// публикации и ни одной записи, и показывать ему пустые разделы незачем.
+//
+// Фаза 34, этап Э8a: к данным добавились ПРАВА. Раздел публикаций у представителя
+// услуг и у тренера разный — первый ведёт клубы, второй одну свою карточку, — и
+// решает это право, а не имя роли и не то, чем человек владеет. Права приходят
+// с бэкенда списком строк (`GET /api/auth/me` → `capabilities`): здесь их не
+// вычисляют заново, иначе на площадке появился бы второй словарь прав.
+import { hasCapability, type Capability } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
 /** Один пункт сайдбар-навигации внутри кабинета. */
@@ -32,28 +39,56 @@ export interface ProviderNavInput {
   providerClubs: Club[];
   providerTrainers: Trainer[];
   hasProviderBookings: boolean;
+  /** Права вошедшего — тот же список строк, что отдаёт бэкенд по «кто я». */
+  capabilities: readonly string[];
 }
 
 /**
+ * Виды публикаций: право → свой раздел кабинета и свой список сущностей.
+ *
+ * Таблица, а не цепочка условий, ровно по главному правилу: третий вид публикации
+ * (площадка, мероприятие — что угодно) добавляется СТРОКОЙ здесь, а не правкой
+ * условия, потом подписи, потом порядка. Адрес у разделов пока общий: страница
+ * одна и показывает то, чем роли позволено управлять.
+ */
+const PUBLICATION_SECTIONS: {
+  capability: Capability;
+  item: ProfileNavItem;
+  own: (input: ProviderNavInput) => readonly unknown[];
+}[] = [
+  {
+    capability: 'manage_own_clubs',
+    item: { key: 'publications', label: 'Публикации', href: '/profile/provider/publications' },
+    own: (input) => input.providerClubs,
+  },
+  {
+    capability: 'manage_own_trainer_profile',
+    item: { key: 'trainer-profile', label: 'Моя карточка', href: '/profile/provider/publications' },
+    own: (input) => input.providerTrainers,
+  },
+];
+
+/**
  * Набор разделов провайдера условный:
- * Publications/Links/Reviews появляются при наличии публикаций, Bookings/Clients/Stats —
- * при наличии bookings (с защитой: без публикаций booking невозможен).
+ * раздел публикаций своего вида появляется при наличии таких публикаций,
+ * Links/Reviews — вместе с ним, Bookings/Clients/Stats — при наличии bookings
+ * (с защитой: без публикаций booking невозможен).
  */
 export function getProviderNavItems(input: ProviderNavInput): ProfileNavItem[] {
-  const hasPublications = input.providerClubs.length > 0 || input.providerTrainers.length > 0;
+  // Публикации чужого вида не в счёт: тренеру, которому по старым данным
+  // достался клуб, раздел клубов всё равно не нужен — управлять им ему нечем.
+  const ownSections = PUBLICATION_SECTIONS.filter(
+    (section) =>
+      hasCapability(input.capabilities, section.capability) && section.own(input).length > 0,
+  );
+  const hasPublications = ownSections.length > 0;
   const showBookingSections = hasPublications && input.hasProviderBookings;
 
   const items: ProfileNavItem[] = [
     { key: 'dashboard', label: 'Обзор', href: '/profile/provider/dashboard' },
   ];
 
-  if (hasPublications) {
-    items.push({
-      key: 'publications',
-      label: 'Публикации',
-      href: '/profile/provider/publications',
-    });
-  }
+  items.push(...ownSections.map((section) => section.item));
 
   if (showBookingSections) {
     items.push({ key: 'bookings', label: 'Бронирования', href: '/profile/provider/bookings' });

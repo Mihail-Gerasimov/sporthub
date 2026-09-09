@@ -90,7 +90,6 @@ type PublishTrainerModalProps = {
   onSuccess: (message: string) => void;
   /** Список клубов для опциональной привязки */
   clubs: ClubOption[];
-  userId: number | null;
   mode?: PublishModalMode;
   entityId?: number | null;
   initialData?: TrainerFormState | null;
@@ -140,7 +139,9 @@ function resolveInitialState(
   return createInitialState();
 }
 
-function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: number) {
+// ⚠️ Поля `userId` в теле больше нет. Владельца публикации сервер берёт из сессии;
+// до фазы 34 именно это число и решало, от чьего имени публикуется карточка.
+function buildTrainerPayload(form: TrainerFormState, entityId?: number) {
   return {
     firstName: form.firstName,
     lastName: form.lastName,
@@ -177,7 +178,6 @@ function buildTrainerPayload(form: TrainerFormState, userId: number, entityId?: 
     ...(form.additionalOfferings && form.additionalOfferings.length > 0
       ? { additionalOfferings: form.additionalOfferings }
       : {}),
-    userId,
   };
 }
 
@@ -202,7 +202,6 @@ export function PublishTrainerModal({
   onClose,
   onSuccess,
   clubs,
-  userId,
   mode = 'create',
   entityId = null,
   initialData,
@@ -277,14 +276,14 @@ export function PublishTrainerModal({
   // Действия над link'ом в edit-режиме (trainerId = entityId).
   const submitLinkRequest = useCallback(
     async (clubId: number) => {
-      if (!isEditMode || entityId === null || userId === null) return;
+      if (!isEditMode || entityId === null) return;
       setLinkPendingAction(true);
       setLinkActionError(null);
       try {
         const response = await fetch('/api/trainer-club-links', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trainerId: entityId, clubId, userId }),
+          body: JSON.stringify({ trainerId: entityId, clubId }),
         });
         const body = (await response.json()) as { success: boolean; error?: string };
         if (!response.ok || !body.success) {
@@ -297,11 +296,11 @@ export function PublishTrainerModal({
         setLinkPendingAction(false);
       }
     },
-    [isEditMode, entityId, userId, fetchLinks],
+    [isEditMode, entityId, fetchLinks],
   );
 
   const submitLinkRevoke = useCallback(async () => {
-    if (!currentLink || userId === null) return;
+    if (!currentLink) return;
     setLinkPendingAction(true);
     setLinkActionError(null);
     try {
@@ -313,11 +312,7 @@ export function PublishTrainerModal({
         currentLink.status === 'pending'
           ? `/api/trainer-club-links/${currentLink.id}/revoke`
           : `/api/trainer-club-links/${currentLink.id}/revoke`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
+      const response = await fetch(endpoint, { method: 'POST' });
       const body = (await response.json()) as { success: boolean; error?: string };
       if (!response.ok || !body.success) {
         setLinkActionError(body.error ?? 'Не удалось отозвать запрос');
@@ -327,7 +322,7 @@ export function PublishTrainerModal({
     } finally {
       setLinkPendingAction(false);
     }
-  }, [currentLink, userId, fetchLinks]);
+  }, [currentLink, fetchLinks]);
 
   // Сброс формы при закрытии
   function handleClose() {
@@ -354,12 +349,6 @@ export function PublishTrainerModal({
       return;
     }
 
-    if (userId === null) {
-      setSubmitNotice('Не удалось определить пользователя провайдера');
-      setSubmitNoticeTone('danger');
-      return;
-    }
-
     if (isEditMode && entityId === null) {
       setSubmitNotice('Не удалось определить публикацию для редактирования');
       setSubmitNoticeTone('danger');
@@ -375,7 +364,7 @@ export function PublishTrainerModal({
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildTrainerPayload(form, userId, entityId ?? undefined)),
+        body: JSON.stringify(buildTrainerPayload(form, entityId ?? undefined)),
       });
       const body = (await response.json()) as PublishTrainerApiErrorBody;
 

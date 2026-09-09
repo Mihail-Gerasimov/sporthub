@@ -6,7 +6,12 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
-import { AUTH_STORE_DEFAULT_STATE, MVP_ADMIN_USER_ID, useAuthStore } from '@/stores/useAuthStore';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+
+// Номера пользователей стенда. Раньше они приезжали константами из стора —
+// фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
+// данные теста.
+const ADMIN_USER_ID = 3;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -22,7 +27,7 @@ describe('Admin placeholders (Step 17.7)', () => {
     localStorage.clear();
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
-      user: { id: MVP_ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
+      user: { id: ADMIN_USER_ID, name: 'Admin', email: 'admin@sporthub.local' },
       isAuthenticated: true,
       isAdmin: true,
     });

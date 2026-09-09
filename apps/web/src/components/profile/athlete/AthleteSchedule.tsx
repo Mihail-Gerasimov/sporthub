@@ -119,7 +119,7 @@ export function AthleteSchedule({
   trainers = [],
 }: AthleteScheduleProps) {
   // Phase 27 Step 27.8: auth-guard через useAuthStore — паттерн как в AthleteDashboard:160.
-  // Без этого гость (без auth-cookie) видел пустой UI с фильтрами вместо AccessDeniedCard.
+  // Без этого гость видел пустой UI с фильтрами вместо AccessDeniedCard.
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -323,7 +323,6 @@ function AthleteBookingDrawer({
 }) {
   const router = useRouter();
   const addToast = useToastStore((state) => state.addToast);
-  const athleteUserId = useAuthStore(selectAthleteActionUserId);
   const [isLateWarnOpen, setIsLateWarnOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -336,18 +335,15 @@ function AthleteBookingDrawer({
   const canCancel = booking?.status === 'pending' || booking?.status === 'confirmed';
 
   async function performCancel() {
-    if (!booking || athleteUserId === null) {
-      addToast({ message: 'Не удалось определить пользователя для отмены', tone: 'error' });
+    if (!booking) {
       return;
     }
 
     setIsCancelling(true);
     try {
-      const response = await fetch(`/api/bookings/${booking.id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: athleteUserId }),
-      });
+      // ⚠️ Тела у отмены больше нет. Владельца записи сервер берёт из сессии
+      // и чужую не отменит — раньше для этого хватало подмены номера в теле.
+      const response = await fetch(`/api/bookings/${booking.id}`, { method: 'DELETE' });
       const result = (await response.json()) as { success: boolean; error?: string };
 
       if (!response.ok || !result.success) {

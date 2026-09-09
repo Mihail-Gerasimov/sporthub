@@ -167,7 +167,8 @@ export class LoginAttemptsService {
       if (failures % step === 0) {
         const stepNumber = failures / step;
 
-        record.blockedUntil = now + Math.min(stepNumber * this.settings.stepMs, this.settings.maxMs);
+        record.blockedUntil =
+          now + Math.min(stepNumber * this.settings.stepMs, this.settings.maxMs);
       }
 
       this.records.set(key, record);
