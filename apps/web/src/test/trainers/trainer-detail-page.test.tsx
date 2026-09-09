@@ -43,7 +43,7 @@ describe('Trainer detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы' })).toBeInTheDocument();
   });
 
-  it('записи спрашивает только по своему тренеру и только нужными статусами', async () => {
+  it('за записями не ходит вовсе — надёжность приезжает в карточке', async () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('marina-sokolova')]: { trainer: fixtureTrainer },
@@ -51,12 +51,33 @@ describe('Trainer detail page', () => {
 
     await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) });
 
-    const call = stub.callTo('/bookings');
-    expect(call).toBeDefined();
-    expect(call).toContain(`trainerId=${fixtureTrainer.id}`);
-    expect(call).toContain(
-      'status=completed%2Cno_show%2Ccancelled_by_provider%2Crejected_by_provider',
-    );
+    // Симметрично карточке клуба: бейдж считает бэкенд одним запросом-агрегатом.
+    expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
+  });
+
+  it('показывает бейдж надёжности из поля карточки', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('marina-sokolova')]: {
+        trainer: {
+          ...fixtureTrainer,
+          reliability: {
+            totalRelevant: 10,
+            completedCount: 4,
+            noShowCount: 0,
+            lateCancelCount: 6,
+            rejectedByProviderCount: 0,
+            completionRate: 0.4,
+            badge: 'danger',
+            isNewUser: false,
+          },
+        },
+      },
+    });
+
+    render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) }));
+
+    expect(screen.getByTestId('trainer-reliability-section')).toBeInTheDocument();
   });
 
   it('отдаёт notFound для несуществующего тренера', async () => {

@@ -3,9 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
-import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
-  getBookingsWhere,
   getClubById,
   getOfferings,
   getReviews,
@@ -15,7 +13,7 @@ import {
   getTrainerBySlug,
   getTrainerClubLinks,
 } from '@/lib/server-api';
-import { compareByCreatedAtDesc, computeTrainerReliability } from '@sporthub/domain';
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -45,19 +43,16 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
   }
 
   /* Параллельная загрузка всех связанных данных */
-  const [offerings, specialties, sports, schedule, reviews, bookings] = await Promise.all([
+  const [offerings, specialties, sports, schedule, reviews] = await Promise.all([
     getOfferings(),
     getSpecialties(),
     getSports(),
     getSchedule({ ownerType: 'all' }),
     getReviews(),
-    // Симметрично карточке клуба: один бейдж — записи только этого тренера
-    // и только те статусы, которые читает расчёт надёжности.
-    getBookingsWhere({ trainerId: trainer.id, status: PROVIDER_RELIABILITY_STATUSES }),
   ]);
 
-  // Phase 25 Step 25.13: публичная симметрия reliability.
-  const reliability = computeTrainerReliability(bookings, trainer.id);
+  // Симметрично карточке клуба: надёжность считает бэкенд и отдаёт числом.
+  const reliability = trainer.reliability;
 
   /* Услуги тренера */
   const trainerOfferings = offerings

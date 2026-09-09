@@ -19,9 +19,7 @@ import { HeroSportMarquee } from '@/components/home/HeroSportMarquee';
 import { MapSection } from '@/components/map';
 import { getUpcomingSessions, UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
-import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
-  getBookingsWhere,
   getOfferings,
   getPublishedClubs,
   getPublishedTrainers,
@@ -31,8 +29,8 @@ import {
   getTags,
   getTrainerClubLinks,
 } from '@/lib/server-api';
-import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
+import { reliabilityByEntityId } from '@/lib/reliability-map';
 
 // Витрина читает живые JSON-данные после publish/edit/delete провайдеров.
 export const dynamic = 'force-dynamic';
@@ -48,7 +46,6 @@ export default async function Home() {
     trainerSchedule,
     trainers,
     trainerClubLinks,
-    bookings,
   ] = await Promise.all([
     // Phase 27 Step 27.12: публичные SSR-витрины читают только не-hidden коллекции,
     // чтобы скрытые админом публикации не оставались в выдаче, на карте, в счётчиках
@@ -62,20 +59,16 @@ export default async function Home() {
     getSchedule({ ownerType: 'trainer' }),
     getPublishedTrainers(),
     getTrainerClubLinks({ status: 'confirmed' }),
-    // Витрина показывает бейдж надёжности у каждой карточки каталога, поэтому
-    // владельца сузить нечем — карточек здесь столько же, сколько публикаций.
-    // Зато сужается набор статусов: расчёт надёжности читает ровно четыре из восьми,
-    // и остальные записи страница получала и выбрасывала.
-    getBookingsWhere({ status: PROVIDER_RELIABILITY_STATUSES }),
   ]);
 
-  // Phase 25 Step 25.13: публичные reliability-бейджи. SSR-снапшот один раз для всех карточек.
-  const reliabilityByClubId = new Map(
-    clubs.map((club) => [club.id, computeClubReliability(bookings, club.id)]),
-  );
-  const reliabilityByTrainerId = new Map(
-    trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
-  );
+  // Публичные бейджи надёжности приходят ГОТОВЫМИ вместе с карточками каталога.
+  //
+  // ⚠️ Раньше страница считала их сама и ради этого забирала записи ВСЕЙ площадки —
+  // тысячи строк с ценами и историей статусов ради двух чисел на карточку. Когда
+  // фаза 34 закрыла полный срез записей от гостя, главная перестала открываться
+  // вовсе: витрина требовала входа не ради данных, а ради бейджа.
+  const reliabilityByClubId = reliabilityByEntityId(clubs);
+  const reliabilityByTrainerId = reliabilityByEntityId(trainers);
 
   // Момент передаётся явно: без аргумента форматирование берёт время в обход
   // подменённых часов, и зафиксировать расчёт тестом становится нечем.

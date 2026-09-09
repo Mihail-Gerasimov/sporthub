@@ -15,6 +15,7 @@ import {
   computeTrainerReliability,
   DISCIPLINE_CONFIG,
   isAthleteInQuarantine,
+  PROVIDER_RELIABILITY_STATUSES,
 } from '@sporthub/domain';
 import { BOOKING_STATUSES, type Booking, type BookingStatus } from '@sporthub/types';
 import { describe, expect, it } from 'vitest';
@@ -22,7 +23,6 @@ import { describe, expect, it } from 'vitest';
 import {
   ATHLETE_RELIABILITY_STATUSES,
   getQuarantineDateFrom,
-  PROVIDER_RELIABILITY_STATUSES,
   QUARANTINE_LOOKBACK_DAYS,
   QUARANTINE_STATUSES,
 } from '@/lib/booking-scopes';
@@ -57,6 +57,10 @@ function statusesCountedBy(compute: (bookings: Booking[]) => { totalRelevant: nu
 }
 
 describe('Наборы статусов для сужения запроса записей', () => {
+  // ⚠️ Набор берётся из `@sporthub/domain`, а не из фронтового модуля: своей копии
+  // у фронта больше нет, надёжность провайдера считает бэкенд. Сторож нужен всё равно —
+  // теперь он защищает то самое объявление, по которому запрос-агрегат каталога
+  // отбирает записи: разойдясь с расчётом, оно молча выдало бы другие числа.
   it('надёжность клуба читает ровно PROVIDER_RELIABILITY_STATUSES', () => {
     expect(statusesCountedBy((bookings) => computeClubReliability(bookings, 1)).sort()).toEqual(
       [...PROVIDER_RELIABILITY_STATUSES].sort(),

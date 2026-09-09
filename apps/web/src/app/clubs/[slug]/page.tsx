@@ -3,10 +3,8 @@ import { notFound } from 'next/navigation';
 
 import { ClubDetailPageClient } from '@/components/clubs/ClubDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
-import { PROVIDER_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 import {
   getAmenities,
-  getBookingsWhere,
   getClubBySlug,
   getOfferings,
   getReviews,
@@ -17,7 +15,7 @@ import {
   getTrainerClubLinks,
   getTrainers,
 } from '@/lib/server-api';
-import { compareByCreatedAtDesc, computeClubReliability } from '@sporthub/domain';
+import { compareByCreatedAtDesc } from '@sporthub/domain';
 
 // Явно оставляем страницу динамической, чтобы detail page отражала edit/delete после build.
 export const dynamic = 'force-dynamic';
@@ -46,7 +44,7 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
     return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
-  const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews, bookings] =
+  const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews] =
     await Promise.all([
       getAmenities(),
       getOfferings(),
@@ -56,13 +54,14 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
       getTrainers(),
       getSchedule(),
       getReviews(),
-      // Карточке нужен один бейдж — надёжность этого клуба. Записи чужих публикаций
-      // и статусы, которых расчёт не читает, ей не нужны вовсе.
-      getBookingsWhere({ clubId: club.id, status: PROVIDER_RELIABILITY_STATUSES }),
     ]);
 
-  // Phase 25 Step 25.13: публичная симметрия reliability.
-  const reliability = computeClubReliability(bookings, club.id);
+  // Бейдж надёжности приезжает вместе с карточкой — числом, а не пачкой записей.
+  //
+  // ⚠️ Раньше страница считала его сама и забирала ради этого записи клуба целиком,
+  // без входа. Считать надёжность на бэкенде дешевле на порядок: там это один
+  // запрос-агрегат, а не выдача строк, из которых читаются только статусы.
+  const reliability = club.reliability;
 
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   // Phase 24 Step 24.9c: публичный список тренеров клуба — ТОЛЬКО через confirmed links.

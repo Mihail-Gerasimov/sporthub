@@ -164,7 +164,17 @@
           "distanceKm": 1.8,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 1,
+            "completedCount": 1,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 2,
@@ -198,7 +208,17 @@
           "distanceKm": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 3,
@@ -235,7 +255,17 @@
           "priceFrom": 850,
           "distanceKm": 2.3,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         }
       ]
     }
@@ -281,7 +311,17 @@
           "distanceKm": 1.8,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 1,
+            "completedCount": 1,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         }
       ]
     }
@@ -326,7 +366,17 @@
           "priceFrom": 850,
           "distanceKm": 2.3,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 1,
@@ -364,7 +414,17 @@
           "distanceKm": 1.8,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 1,
+            "completedCount": 1,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 2,
@@ -398,7 +458,17 @@
           "distanceKm": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         }
       ]
     }
@@ -526,7 +596,17 @@
           "distanceKm": 1.8,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 1,
+            "completedCount": 1,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         "primaryOffering": {
           "id": 1,
@@ -777,7 +857,17 @@
           "sportId": 1,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 1,
@@ -809,7 +899,17 @@
           "sportId": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 1,
+            "completedCount": 1,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         {
           "id": 3,
@@ -840,7 +940,17 @@
           "sportId": 4,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         }
       ]
     }
@@ -880,7 +990,17 @@
           "sportId": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         }
       ]
     }
@@ -927,7 +1047,17 @@
           "sportId": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "reliability": {
+            "totalRelevant": 0,
+            "completedCount": 0,
+            "noShowCount": 0,
+            "lateCancelCount": 0,
+            "rejectedByProviderCount": 0,
+            "completionRate": 1,
+            "badge": null,
+            "isNewUser": true
+          }
         },
         "affiliatedClub": null,
         "club": null,

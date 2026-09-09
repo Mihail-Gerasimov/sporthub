@@ -50,6 +50,20 @@ const trainerBooking: Omit<Booking, 'id' | 'createdAt'> = {
   trainerId: 5,
 };
 
+/**
+ * Устойчивый порядок строк «публикация + статус».
+ *
+ * Нужен потому, что порядок этих строк контрактом НЕ задан: единственный
+ * потребитель складывает их в словарь. Сравнивать выдачу как список значило бы
+ * закрепить порядок, который никто не обещал.
+ */
+const sortOwnerStatusRows = <T extends { type: string; id: number; status: string }>(
+  rows: T[],
+): T[] =>
+  [...rows].sort((left, right) =>
+    `${left.type}${left.id}${left.status}`.localeCompare(`${right.type}${right.id}${right.status}`),
+  );
+
 // ═════════════════════════════════════════════════════════════════════════════
 // КОНТРАКТНЫЙ НАБОР
 // ═════════════════════════════════════════════════════════════════════════════
@@ -375,6 +389,45 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
       { type: 'trainer', id: 5, count: 1 },
       { type: 'club', id: 2, count: 1 },
     ]);
+  });
+
+  it('считает записи по публикациям И статусам одним обходом', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base, status: 'completed' });
+    await bookings.insert({ ...base, scheduleId: 2002, status: 'completed' });
+    await bookings.insert({ ...base, scheduleId: 4004, status: 'no_show' });
+    // Тренерское занятие в зале клуба 1: считается И тренеру, И клубу-площадке.
+    await bookings.insert({ ...trainerBooking, status: 'rejected_by_provider' });
+    // Статус вне отбора — в счётчики попасть не должен.
+    await bookings.insert({ ...base, status: 'cancelled_by_athlete' });
+
+    const rows = await bookings.countByOwnerAndStatus({
+      status: ['completed', 'no_show', 'rejected_by_provider'],
+    });
+
+    // Порядок строк контрактом не задан — сравниваем набором.
+    expect(sortOwnerStatusRows(rows)).toEqual(
+      sortOwnerStatusRows([
+        { type: 'club', id: 1, status: 'completed', count: 2 },
+        { type: 'club', id: 1, status: 'no_show', count: 1 },
+        { type: 'club', id: 1, status: 'rejected_by_provider', count: 1 },
+        { type: 'trainer', id: 5, status: 'rejected_by_provider', count: 1 },
+      ]),
+    );
+  });
+
+  it('отбор по публикациям сужает счётчики статусов', async () => {
+    const bookings = await createRepository();
+    await bookings.insert({ ...base, status: 'completed' });
+    await bookings.insert({ ...base, scheduleId: 2002, ownerId: 2, clubId: 2, status: 'no_show' });
+
+    const rows = await bookings.countByOwnerAndStatus({
+      owners: { clubIds: [1], trainerIds: [] },
+      status: ['completed', 'no_show'],
+    });
+
+    // Клуб 2 в отбор не входит — его записи не считаются вовсе.
+    expect(rows).toEqual([{ type: 'club', id: 1, status: 'completed', count: 1 }]);
   });
 
   it('группировка по публикациям видит клуб и через владельца, и через площадку', async () => {

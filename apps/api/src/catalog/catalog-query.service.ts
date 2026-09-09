@@ -6,8 +6,12 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
-import { PROVIDER_RELIABILITY_STATUSES } from '@sporthub/domain';
-import type { Booking, Club, Sport, Trainer, User } from '@sporthub/types';
+import {
+  computeProviderReliabilityFromCounts,
+  PROVIDER_RELIABILITY_STATUSES,
+  type ProviderReliabilityCounts,
+} from '@sporthub/domain';
+import type { BookingStatus, Club, ReliabilityResult, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
 import type {
@@ -42,6 +46,33 @@ import {
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
 
+/** Надёжность публикаций одной выдачи: отдельно клубы, отдельно тренеры. */
+export interface ReliabilityByOwner {
+  clubs: Map<number, ReliabilityResult>;
+  trainers: Map<number, ReliabilityResult>;
+}
+
+/**
+ * Статус записи → поле счётчика надёжности.
+ *
+ * Словарь, а не цепочка условий: добавить статус в расчёт станет правкой ОДНОЙ
+ * строки здесь и одной в объявлении статусов, а не поиском всех мест, где статусы
+ * перечислены руками.
+ */
+const COUNTS_FIELD_BY_STATUS: Partial<Record<BookingStatus, keyof ProviderReliabilityCounts>> = {
+  completed: 'completed',
+  no_show: 'noShow',
+  cancelled_by_provider: 'cancelledByProvider',
+  rejected_by_provider: 'rejectedByProvider',
+};
+
+const emptyCounts = (): ProviderReliabilityCounts => ({
+  completed: 0,
+  noShow: 0,
+  cancelledByProvider: 0,
+  rejectedByProvider: 0,
+});
+
 @Injectable()
 export class CatalogQueryService {
   constructor(
@@ -73,24 +104,53 @@ export class CatalogQueryService {
   }
 
   /**
-   * Записи, из которых считается надёжность перечисленных публикаций.
+   * Надёжность перечисленных публикаций — запросом-агрегатом.
    *
-   * ⚠️ Раньше здесь читалась ВСЯ таблица записей платформы — на каждый запрос
-   * каталога с сортировкой по надёжности или с отсевом ненадёжных. Расчёт всё равно
-   * отбрасывал чужие публикации и все прочие статусы внутри себя, то есть почти всё
-   * поднятое выбрасывалось сразу. Теперь оба условия — в запросе; набор статусов
-   * берётся из того же объявления, которым пользуется сам расчёт, поэтому разойтись
-   * они не могут.
+   * ⚠️ Записи здесь НЕ поднимаются вовсе, и это главное свойство метода. Сначала
+   * читалась вся таблица записей платформы, потом — записи только нужных публикаций
+   * и только значимых статусов; но и это остаётся выдачей строк ради восьми чисел
+   * на карточку. База умеет посчитать сама, и здесь она это и делает: один обход
+   * таблицы отдаёт счётчики по публикациям и статусам, а формула надёжности —
+   * та же самая, из `@sporthub/domain`.
+   *
+   * Публикация без единой записи обязана получить результат, а не пропуск: карта
+   * заполняется нулями заранее, иначе новый клуб приходил бы на фронт без поля,
+   * и «нет записей» стало бы неотличимо от «надёжность не посчитали».
    */
-  bookingsForReliability(owners: { clubIds: number[]; trainerIds: number[] }): Promise<Booking[]> {
-    if (owners.clubIds.length === 0 && owners.trainerIds.length === 0) {
-      return Promise.resolve([]);
+  async reliabilityFor(owners: {
+    clubIds: number[];
+    trainerIds: number[];
+  }): Promise<ReliabilityByOwner> {
+    const clubs = new Map(owners.clubIds.map((id) => [id, emptyCounts()]));
+    const trainers = new Map(owners.trainerIds.map((id) => [id, emptyCounts()]));
+
+    if (clubs.size > 0 || trainers.size > 0) {
+      const rows = await this.bookings.countByOwnerAndStatus({
+        owners,
+        // Набор статусов берётся из того же объявления, которым пользуется расчёт:
+        // повторив список своими словами, запрос разошёлся бы с ним молча.
+        status: [...PROVIDER_RELIABILITY_STATUSES],
+      });
+
+      for (const row of rows) {
+        // Строка чужой публикации — законная: отбор по клубам ловит и тренерские
+        // занятия в их залах, а значит приносит счётчики тренеров, о которых
+        // не спрашивали. Такие строки просто некуда положить.
+        const counts = (row.type === 'club' ? clubs : trainers).get(row.id);
+        const field = COUNTS_FIELD_BY_STATUS[row.status];
+
+        if (counts !== undefined && field !== undefined) counts[field] += row.count;
+      }
     }
 
-    return this.bookings.findMany({
-      owners,
-      status: [...PROVIDER_RELIABILITY_STATUSES],
-    });
+    return {
+      clubs: new Map(
+        [...clubs].map(([id, counts]) => [id, computeProviderReliabilityFromCounts(counts)]),
+      ),
+      trainers: new Map(
+        [...trainers].map(([id, counts]) => [id, computeProviderReliabilityFromCounts(counts)]),
+      ),
+    };
   }
 
   /** Поиск по адресу-ссылке. Сравнение нечувствительно к регистру и кодировке. */
@@ -208,17 +268,22 @@ export class CatalogQueryService {
     const confirmed = await this.links.findMany({ clubId, status: 'confirmed' });
     const trainerIds = [...new Set(confirmed.map((link) => link.trainerId))];
 
-    const [primaryOffering, clubTrainers, slots, allReviews, sports] = await Promise.all([
-      this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
-      this.trainers.findAll({ ids: trainerIds }),
-      // Порядок задаёт запрос: сортировать после чтения можно было, пока читалось всё.
-      this.schedule.findMany({ ownerType: 'club', clubId, order: 'dateTime' }),
-      this.reviews.findMany({ clubId, order: 'newest' }),
-      this.resolveSports(club.sportIds),
-    ]);
+    const [primaryOffering, clubTrainers, slots, allReviews, sports, reliability] =
+      await Promise.all([
+        this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
+        this.trainers.findAll({ ids: trainerIds }),
+        // Порядок задаёт запрос: сортировать после чтения можно было, пока читалось всё.
+        this.schedule.findMany({ ownerType: 'club', clubId, order: 'dateTime' }),
+        this.reviews.findMany({ clubId, order: 'newest' }),
+        this.resolveSports(club.sportIds),
+        // Бейдж надёжности едет вместе с карточкой. Раньше его считал фронт, для чего
+        // забирал записи ВСЕЙ площадки; после закрытия полного среза публичная
+        // страница просто перестала открываться.
+        this.reliabilityFor({ clubIds: [clubId], trainerIds: [] }),
+      ]);
 
     return {
-      club,
+      club: { ...club, reliability: reliability.clubs.get(clubId) },
       primaryOffering,
       sports,
       // Порядок «сначала с высоким рейтингом» остаётся в памяти намеренно: тренеров
@@ -236,22 +301,25 @@ export class CatalogQueryService {
 
     if (!trainer) return null;
 
-    const [offerings, trainerSchedule, allReviews, confirmed, sports] = await Promise.all([
-      this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
-      // Отбор по тренеру и порядок — в запросе: раньше поднималось всё тренерское
-      // расписание платформы и отсеивалось в памяти.
-      this.schedule.findMany({ ownerType: 'trainer', trainerId, order: 'dateTime' }),
-      this.reviews.findMany({ trainerId, order: 'newest' }),
-      this.links.findMany({ trainerId, status: 'confirmed' }),
-      this.resolveSports(trainer.sportIds),
-    ]);
+    const [offerings, trainerSchedule, allReviews, confirmed, sports, reliability] =
+      await Promise.all([
+        this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
+        // Отбор по тренеру и порядок — в запросе: раньше поднималось всё тренерское
+        // расписание платформы и отсеивалось в памяти.
+        this.schedule.findMany({ ownerType: 'trainer', trainerId, order: 'dateTime' }),
+        this.reviews.findMany({ trainerId, order: 'newest' }),
+        this.links.findMany({ trainerId, status: 'confirmed' }),
+        this.resolveSports(trainer.sportIds),
+        // Симметрично карточке клуба: надёжность приходит числом, а не пачкой записей.
+        this.reliabilityFor({ clubIds: [], trainerIds: [trainerId] }),
+      ]);
 
     const venueClubId = confirmed[0]?.clubId;
     const affiliatedClub =
       venueClubId === undefined ? null : await this.clubs.findById(venueClubId);
 
     return {
-      trainer,
+      trainer: { ...trainer, reliability: reliability.trainers.get(trainerId) },
       affiliatedClub,
       // Дубли ключей сохранены намеренно: на них завязан прежний фронт.
       club: affiliatedClub,

@@ -12,6 +12,7 @@ import type {
   CancelReason,
   EntityId,
   ISODateTimeString,
+  ReliabilityResult,
   Schedule,
 } from '@sporthub/types';
 
@@ -19,19 +20,13 @@ import { hoursUntilSlotStart } from './time';
 
 /**
  * Результат расчёта надёжности для одной сущности (атлет, клуб или тренер).
- * Поле badge=null означает «рейтинг ≥ warningThreshold, бейджа не показываем».
- * isNewUser=true — количество завершённых booking'ов ниже minCompletedForBadge.
+ *
+ * Объявление переехало в `@sporthub/types` и здесь только пересылается дальше:
+ * надёжность стала полем контракта (`Club.reliability`, `Trainer.reliability`),
+ * а пакет типов не вправе зависеть от пакета логики. Импорт `из @sporthub/domain`
+ * у прежних потребителей продолжает работать — тип тот же самый.
  */
-export interface ReliabilityResult {
-  totalRelevant: number;
-  completedCount: number;
-  noShowCount: number;
-  lateCancelCount: number;
-  rejectedByProviderCount: number;
-  completionRate: number;
-  badge: null | 'warning' | 'danger';
-  isNewUser: boolean;
-}
+export type { ReliabilityResult } from '@sporthub/types';
 
 /** Собирает relevant-bookings атлета: completed + no_show + late-cancel (cancelled_by_athlete с reason='late'). */
 function getAthleteRelevantBookings(bookings: Booking[], userId: EntityId): Booking[] {
@@ -88,42 +83,70 @@ export function computeAthleteReliability(
 }
 
 /**
- * Рейтинг провайдера (клуба или тренера): отношение «прошедших» ко всем relevant.
- * Прошедшие = completed + no_show (провайдер дал возможность провести; неявка — вина атлета).
- * Знаменатель = completed + no_show + cancelled_by_provider + rejected_by_provider.
- * cancelled_by_athlete — не относится к репутации провайдера.
+ * Записи провайдера, разложенные по значимым статусам.
+ *
+ * Нужен потому, что считать надёжность можно из ДВУХ источников: из самих записей
+ * (так делают личные кабинеты, у которых записи уже на руках) и из счётчиков
+ * запроса-агрегата (так делает каталог, которому ради двух чисел на карточку
+ * поднимать записи незачем). Общий у них ровно этот набор чисел.
  */
-function computeProviderReliability(
-  relevant: Booking[],
-  config: DisciplineConfig,
-): ReliabilityResult {
-  const completedCount = relevant.filter((b) => b.status === 'completed').length;
-  const noShowCount = relevant.filter((b) => b.status === 'no_show').length;
-  const cancelledByProviderCount = relevant.filter(
-    (b) => b.status === 'cancelled_by_provider',
-  ).length;
-  const rejectedByProviderCount = relevant.filter(
-    (b) => b.status === 'rejected_by_provider',
-  ).length;
+export interface ProviderReliabilityCounts {
+  completed: number;
+  noShow: number;
+  cancelledByProvider: number;
+  rejectedByProvider: number;
+}
 
-  const totalRelevant = relevant.length;
-  const held = completedCount + noShowCount;
+/**
+ * Рейтинг провайдера (клуба или тренера) ИЗ СЧЁТЧИКОВ.
+ *
+ * Здесь и только здесь живёт сама формула: отношение «прошедших» ко всем значимым.
+ * Прошедшие = completed + no_show (провайдер дал возможность провести; неявка —
+ * вина атлета). Знаменатель = completed + no_show + cancelled_by_provider +
+ * rejected_by_provider. cancelled_by_athlete к репутации провайдера не относится.
+ *
+ * ⚠️ Расчёт по записям (`computeClubReliability` ниже) сводится СЮДА, а не повторяет
+ * формулу своими словами: две копии одной формулы разошлись бы молча, просто выдав
+ * разные числа на карточке каталога и в кабинете провайдера.
+ */
+export function computeProviderReliabilityFromCounts(
+  counts: ProviderReliabilityCounts,
+  config: DisciplineConfig = DISCIPLINE_CONFIG,
+): ReliabilityResult {
+  const totalRelevant =
+    counts.completed + counts.noShow + counts.cancelledByProvider + counts.rejectedByProvider;
+  const held = counts.completed + counts.noShow;
   const completionRate = totalRelevant === 0 ? 1 : held / totalRelevant;
   const isNewUser = held < config.minCompletedForBadge;
 
   return {
     totalRelevant,
-    completedCount,
-    noShowCount,
-    lateCancelCount: cancelledByProviderCount,
-    rejectedByProviderCount,
+    completedCount: counts.completed,
+    noShowCount: counts.noShow,
+    lateCancelCount: counts.cancelledByProvider,
+    rejectedByProviderCount: counts.rejectedByProvider,
     completionRate,
     badge: computeBadge(completionRate, isNewUser, config),
     isNewUser,
   };
 }
 
-/** Рейтинг клуба — по его booking'ам (ownerType='club' && ownerId=clubId или clubId=clubId). */
+/** Тот же рейтинг, но по уже поднятым записям: пересчитывает их в счётчики. */
+function computeProviderReliability(
+  relevant: Booking[],
+  config: DisciplineConfig,
+): ReliabilityResult {
+  return computeProviderReliabilityFromCounts(
+    {
+      completed: relevant.filter((b) => b.status === 'completed').length,
+      noShow: relevant.filter((b) => b.status === 'no_show').length,
+      cancelledByProvider: relevant.filter((b) => b.status === 'cancelled_by_provider').length,
+      rejectedByProvider: relevant.filter((b) => b.status === 'rejected_by_provider').length,
+    },
+    config,
+  );
+}
+
 /**
  * Статусы, из которых складывается надёжность провайдера.
  *
@@ -139,6 +162,7 @@ export const PROVIDER_RELIABILITY_STATUSES = [
   'rejected_by_provider',
 ] as const;
 
+/** Рейтинг клуба — по его записям (ownerType='club' && ownerId=clubId или clubId=clubId). */
 export function computeClubReliability(
   bookings: Booking[],
   clubId: EntityId,

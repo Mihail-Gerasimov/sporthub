@@ -43,17 +43,8 @@ export default async function BookingPage({ params }: BookingPageProps) {
   // карантина ниже, и разъезжаться этим двум значениям нельзя.
   const now = new Date();
 
-  const [slotContext, bookings, viewer] = await Promise.all([
+  const [slotContext, viewer] = await Promise.all([
     getScheduleSlotContext(normalizedScheduleId),
-    // ⚠️ Записи здесь нужны НЕ по этому слоту, а по истории атлетов: страница
-    // заранее считает карантин, чтобы клиентская часть выбрала из готового свой.
-    // Сузить по атлету нечем — кто смотрит, страница узнает уже в браузере.
-    // Поэтому сужаем тем, что читает само правило: два статуса и окно последних
-    // тридцати дней (плюс окно отметки исхода, см. `booking-scopes`).
-    getBookingsWhere({
-      status: QUARANTINE_STATUSES,
-      dateFrom: getQuarantineDateFrom(getDateKeyInTimeZone(now)),
-    }),
     readSession(),
   ]);
 
@@ -68,7 +59,20 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const quarantineByUserId: Record<number, QuarantineResult> = {};
 
   if (viewer !== null && viewer.role === 'athlete') {
-    quarantineByUserId[viewer.id] = isAthleteInQuarantine(bookings, viewer.id, now, {
+    // ⚠️ Записи спрашиваются ПОСЛЕ того, как стало известно, кто смотрит, и только
+    // его собственные. Прежний вызов шёл до этого и потому просил полный срез
+    // площадки: гостю такой запрос отвечает отказом, и страница записи падала
+    // пятисотой, хотя гостю здесь считать было нечего с самого начала.
+    //
+    // Сужаем и тем, что читает само правило: два статуса и окно последних тридцати
+    // дней (плюс окно отметки исхода, см. `booking-scopes`).
+    const history = await getBookingsWhere({
+      userId: viewer.id,
+      status: QUARANTINE_STATUSES,
+      dateFrom: getQuarantineDateFrom(getDateKeyInTimeZone(now)),
+    });
+
+    quarantineByUserId[viewer.id] = isAthleteInQuarantine(history, viewer.id, now, {
       quarantineLiftedAt: viewer.quarantineLiftedAt ?? null,
     });
   }

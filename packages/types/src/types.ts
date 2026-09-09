@@ -146,6 +146,29 @@ export interface Sport extends BaseEntity {
   isPopular: boolean;
 }
 
+/**
+ * Рейтинг надёжности одной публикации или атлета.
+ *
+ * Объявление живёт ЗДЕСЬ, а не рядом с расчётом в `@sporthub/domain`, потому что
+ * это уже не внутренний результат функции, а поле контракта: надёжность приходит
+ * вместе с карточкой клуба и тренера (`reliability` ниже). Расчёт переехать сюда
+ * не может — пакет типов не содержит логики, — а объявление обязано быть одно
+ * на всех, иначе бэкенд и фронт описывали бы одно поле двумя разными типами.
+ *
+ * `badge = null` означает «рейтинг выше порога предупреждения, бейджа нет».
+ * `isNewUser = true` — завершённых занятий слишком мало, чтобы судить.
+ */
+export interface ReliabilityResult {
+  totalRelevant: number;
+  completedCount: number;
+  noShowCount: number;
+  lateCancelCount: number;
+  rejectedByProviderCount: number;
+  completionRate: number;
+  badge: null | 'warning' | 'danger';
+  isNewUser: boolean;
+}
+
 export interface Club extends BaseEntity {
   name: string;
   slug: string;
@@ -179,6 +202,16 @@ export interface Club extends BaseEntity {
   hideReason?: string;
   hiddenByUserId?: EntityId;
   hiddenAt?: ISODateTimeString;
+  /**
+   * Надёжность публикации: считается бэкендом при чтении и НИКОГДА не хранится.
+   *
+   * Поле необязательное сознательно. Во-первых, его собирают не все ответы —
+   * создание и правка публикации отдают прежнюю форму. Во-вторых, старый клиент,
+   * ничего про него не знающий, обязан пережить выкатку. Раньше числа здесь
+   * не было вовсе: ради двух чисел на карточку фронт забирал ВСЕ записи площадки,
+   * а после закрытия полного среза публичные страницы перестали открываться.
+   */
+  reliability?: ReliabilityResult;
 }
 
 export interface Trainer extends BaseEntity {
@@ -217,6 +250,16 @@ export interface Trainer extends BaseEntity {
   hideReason?: string;
   hiddenByUserId?: EntityId;
   hiddenAt?: ISODateTimeString;
+  /**
+   * Надёжность публикации: считается бэкендом при чтении и НИКОГДА не хранится.
+   *
+   * Поле необязательное сознательно. Во-первых, его собирают не все ответы —
+   * создание и правка публикации отдают прежнюю форму. Во-вторых, старый клиент,
+   * ничего про него не знающий, обязан пережить выкатку. Раньше числа здесь
+   * не было вовсе: ради двух чисел на карточку фронт забирал ВСЕ записи площадки,
+   * а после закрытия полного среза публичные страницы перестали открываться.
+   */
+  reliability?: ReliabilityResult;
 }
 
 export interface Offering extends BaseEntity {

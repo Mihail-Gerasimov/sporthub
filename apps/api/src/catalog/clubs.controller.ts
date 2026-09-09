@@ -20,13 +20,7 @@
 // Это вводит в заблуждение, но покрыто тестами и потому сохранено дословно.
 
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import {
-  computeClubReliability,
-  computeTrainerReliability,
-  publishClubSchema,
-  publishTrainerSchema,
-  roleCan,
-} from '@sporthub/domain';
+import { publishClubSchema, publishTrainerSchema, roleCan } from '@sporthub/domain';
 import type { Club, Trainer } from '@sporthub/types';
 
 import { CurrentUser, Public, Requires } from '../auth/access.decorators';
@@ -109,36 +103,34 @@ export class ClubsController {
       includeHidden: includeHidden === 'true',
     });
 
-    if (sort === 'reliability' || excludeDanger === 'true') {
-      // Записи берутся ТОЛЬКО по клубам этой выдачи и только по статусам, из которых
-      // складывается надёжность. Раньше поднималась вся таблица записей платформы.
-      const bookings = await this.query.bookingsForReliability({
-        clubIds: clubs.map((club) => club.id),
-        trainerIds: [],
-      });
-      const byId = new Map(
-        clubs.map((club) => [club.id, computeClubReliability(bookings, club.id)]),
-      );
+    // Надёжность считается ОДНИМ запросом-агрегатом и едет вместе с карточками:
+    // на ней держатся и отсев ненадёжных, и сортировка, и публичный бейдж. Раньше
+    // бейдж считал фронт, забирая ради него все записи площадки, — а после закрытия
+    // полного среза публичные страницы просто перестали открываться.
+    const reliability = await this.query.reliabilityFor({
+      clubIds: clubs.map((club) => club.id),
+      trainerIds: [],
+    });
+    const byId = reliability.clubs;
 
-      if (excludeDanger === 'true') {
-        clubs = clubs.filter((club) => byId.get(club.id)?.badge !== 'danger');
-      }
-
-      if (sort === 'reliability') {
-        clubs = clubs.slice().sort((left, right) => {
-          const leftRate = byId.get(left.id)?.completionRate ?? 0;
-          const rightRate = byId.get(right.id)?.completionRate ?? 0;
-
-          if (rightRate !== leftRate) {
-            return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
-          }
-
-          return right.rating - left.rating;
-        });
-      }
+    if (excludeDanger === 'true') {
+      clubs = clubs.filter((club) => byId.get(club.id)?.badge !== 'danger');
     }
 
-    return clubs;
+    if (sort === 'reliability') {
+      clubs = clubs.slice().sort((left, right) => {
+        const leftRate = byId.get(left.id)?.completionRate ?? 0;
+        const rightRate = byId.get(right.id)?.completionRate ?? 0;
+
+        if (rightRate !== leftRate) {
+          return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
+        }
+
+        return right.rating - left.rating;
+      });
+    }
+
+    return clubs.map((club) => ({ ...club, reliability: byId.get(club.id) }));
   }
 
   /**
@@ -324,40 +316,37 @@ export class TrainersController {
       includeHidden: includeHidden === 'true',
     });
 
-    if (sort === 'reliability' || excludeDanger === 'true') {
-      // То же для тренеров: только их записи и только значимые статусы.
-      const bookings = await this.query.bookingsForReliability({
-        clubIds: [],
-        trainerIds: trainers.map((trainer) => trainer.id),
-      });
-      const byId = new Map(
-        trainers.map((trainer) => [trainer.id, computeTrainerReliability(bookings, trainer.id)]),
-      );
+    // То же для тренеров: один запрос-агрегат на всю выдачу.
+    const reliability = await this.query.reliabilityFor({
+      clubIds: [],
+      trainerIds: trainers.map((trainer) => trainer.id),
+    });
+    const byId = reliability.trainers;
 
-      if (excludeDanger === 'true') {
-        trainers = trainers.filter((trainer) => byId.get(trainer.id)?.badge !== 'danger');
-      }
-
-      if (sort === 'reliability') {
-        return trainers.slice().sort((left, right) => {
-          const leftRate = byId.get(left.id)?.completionRate ?? 0;
-          const rightRate = byId.get(right.id)?.completionRate ?? 0;
-
-          if (rightRate !== leftRate) {
-            return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
-          }
-
-          return right.rating - left.rating;
-        });
-      }
+    if (excludeDanger === 'true') {
+      trainers = trainers.filter((trainer) => byId.get(trainer.id)?.badge !== 'danger');
     }
 
-    // Умолчание: по рейтингу, при равенстве — по числу отзывов.
-    return trainers.sort((left, right) =>
-      right.rating !== left.rating
-        ? right.rating - left.rating
-        : right.reviewCount - left.reviewCount,
-    );
+    trainers =
+      sort === 'reliability'
+        ? trainers.slice().sort((left, right) => {
+            const leftRate = byId.get(left.id)?.completionRate ?? 0;
+            const rightRate = byId.get(right.id)?.completionRate ?? 0;
+
+            if (rightRate !== leftRate) {
+              return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
+            }
+
+            return right.rating - left.rating;
+          })
+        : // Умолчание: по рейтингу, при равенстве — по числу отзывов.
+          trainers.sort((left, right) =>
+            right.rating !== left.rating
+              ? right.rating - left.rating
+              : right.reviewCount - left.reviewCount,
+          );
+
+    return trainers.map((trainer) => ({ ...trainer, reliability: byId.get(trainer.id) }));
   }
 
   // Открыто гостю: адрес-ссылка тренера — та же ссылка из поиска и переписки.

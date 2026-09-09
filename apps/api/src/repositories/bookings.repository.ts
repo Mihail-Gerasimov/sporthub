@@ -95,6 +95,21 @@ export interface OwnerBookingCount {
   count: number;
 }
 
+/**
+ * Записи одной публикации в одном статусе.
+ *
+ * Отдельный счётчик, а не четыре вызова `countByOwner` подряд: надёжность
+ * складывается из четырёх статусов, и спрашивать их по одному значило бы четыре
+ * обхода таблицы вместо одного. Числа — ровно то, что нужно расчёту надёжности,
+ * поэтому каталог не поднимает записи вовсе.
+ */
+export interface OwnerStatusBookingCount {
+  type: CatalogOwnerType;
+  id: number;
+  status: BookingStatus;
+  count: number;
+}
+
 export interface BookingsRepository {
   findAll(): Promise<Booking[]>;
   findById(id: number): Promise<Booking | null>;
@@ -126,6 +141,18 @@ export interface BookingsRepository {
    * и от него зависит верхушка при равном числе записей.
    */
   countByOwner(filter: BookingsCountFilter): Promise<OwnerBookingCount[]>;
+  /**
+   * Записи по публикациям И статусам сразу.
+   *
+   * Порядок не задан контрактом: единственный потребитель — расчёт надёжности,
+   * а он складывает числа в словарь и от порядка строк не зависит. Обещать
+   * порядок, который никому не нужен, значит связать себе руки на пустом месте.
+   *
+   * Правила отнесения записи к публикации — те же, что у `countByOwner`: клуб
+   * записи это владелец ЛИБО площадка, тренер — владелец ЛИБО ведущий, и одна
+   * запись законно попадает и к клубу, и к тренеру.
+   */
+  countByOwnerAndStatus(filter: BookingsCountFilter): Promise<OwnerStatusBookingCount[]>;
   insert(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking>;
   update(id: number, patch: Partial<Booking>): Promise<Booking>;
   /**

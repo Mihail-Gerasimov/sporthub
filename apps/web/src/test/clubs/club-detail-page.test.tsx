@@ -45,7 +45,7 @@ describe('Club detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы клуба' })).toBeInTheDocument();
   });
 
-  it('записи спрашивает только по своему клубу и только нужными статусами', async () => {
+  it('за записями не ходит вовсе — надёжность приезжает в карточке', async () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('volna-aquatic-club')]: { club: fixtureClub },
@@ -53,12 +53,34 @@ describe('Club detail page', () => {
 
     await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) });
 
-    const call = stub.callTo('/bookings');
-    expect(call).toBeDefined();
-    expect(call).toContain(`clubId=${fixtureClub.id}`);
-    expect(call).toContain(
-      'status=completed%2Cno_show%2Ccancelled_by_provider%2Crejected_by_provider',
-    );
+    // Раньше страница считала бейдж сама и забирала ради этого записи клуба.
+    // Считать на бэкенде дешевле на порядок: там это один запрос-агрегат.
+    expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
+  });
+
+  it('показывает бейдж надёжности из поля карточки', async () => {
+    stub = installApiStub({
+      ...createFixtureRoutes(),
+      [bySlug('volna-aquatic-club')]: {
+        club: {
+          ...fixtureClub,
+          reliability: {
+            totalRelevant: 10,
+            completedCount: 4,
+            noShowCount: 0,
+            lateCancelCount: 6,
+            rejectedByProviderCount: 0,
+            completionRate: 0.4,
+            badge: 'danger',
+            isNewUser: false,
+          },
+        },
+      },
+    });
+
+    render(await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) }));
+
+    expect(screen.getByTestId('club-reliability-section')).toBeInTheDocument();
   });
 
   it('отдаёт notFound для несуществующего клуба', async () => {
