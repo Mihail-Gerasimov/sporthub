@@ -22,11 +22,11 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { roleCan } from '@sporthub/domain';
+import { compareByCreatedAtDesc, roleCan } from '@sporthub/domain';
 import type { TrainerClubLink, TrainerClubLinkStatus } from '@sporthub/types';
 import { z } from 'zod';
 
-import { CurrentUser, Requires } from '../auth/access.decorators';
+import { CurrentUser, Public, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
@@ -111,15 +111,27 @@ export class TrainerClubLinksController {
    *
    * ⚠️ До фазы 34 этот маршрут отдавал БЕЗ ВХОДА все связи платформы разом —
    * вместе с состояниями и причинами отказов, то есть перепиской двух сторон.
-   * Теперь обычный пользователь видит только те, где он сам сторона.
+   *
+   * Ширина выдачи теперь зависит от того, кто спрашивает:
+   *
+   * - **гость** видит только ПОДТВЕРЖДЁННЫЕ связи. Это публичный факт: карточка
+   *   клуба показывает своих тренеров, карточка тренера — свой клуб, и главная
+   *   страница собирает то же самое. Заявки, отказы и их причины гостю не видны;
+   * - **вошедший** видит подтверждённые плюс свои — те, где он сторона;
+   * - **администратор** видит всё: разбор споров без этого невозможен.
    *
    * Права `manage_own_links` здесь нет намеренно: администратору оно не положено
-   * (своих связей он не ведёт), а весь срез платформы ему нужен. Поэтому маршрут
-   * требует просто входа, а ширину выдачи выбирает по правам.
+   * (своих связей он не ведёт), а весь срез платформы ему нужен.
+   *
+   * ⚠️ Маршрут открыт гостю не «заодно». Закрыв его целиком, фаза сломала публичную
+   * витрину: главная падала пятисоткой, потому что карточки тренеров показывают
+   * привязку к клубу. Нашлось это только на поднятом приложении — ни один тест
+   * такого не ловил, и поэтому здесь же появилась проверка на гостя.
    */
+  @Public()
   @Get()
   async findMany(
-    @CurrentUser() session: SessionContext,
+    @CurrentUser() session: SessionContext | undefined,
     @Query('trainerId') trainerId?: string,
     @Query('clubId') clubId?: string,
     @Query('status') status?: string,
@@ -136,11 +148,23 @@ export class TrainerClubLinksController {
 
     // Полный срез — служебное чтение, и оно осталось ровно у той роли, которой
     // положены служебные действия.
-    if (roleCan(session.user.role, 'use_admin_tools')) {
+    if (session !== undefined && roleCan(session.user.role, 'use_admin_tools')) {
       return this.links.list(filter);
     }
 
-    return this.listOwn(session.user.id, filter);
+    // Подтверждённые связи публичны: их и так видно на карточках клуба и тренера.
+    const confirmed = await this.links.list({ ...filter, status: 'confirmed' });
+
+    if (session === undefined) return confirmed;
+
+    const own = await this.listOwn(session.user.id, filter);
+    const byId = new Map(confirmed.map((link) => [link.id, link]));
+
+    for (const link of own) byId.set(link.id, link);
+
+    // Порядок общий для обеих половин: иначе выдача зависела бы от того, вошёл
+    // ли спрашивающий, — а это уже разное поведение на одних и тех же данных.
+    return [...byId.values()].sort(compareByCreatedAtDesc);
   }
 
   @Requires('manage_own_links')

@@ -8,7 +8,11 @@
 import request from 'supertest';
 import { afterAll, beforeEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+import {
+  fixtureCollections,
+  fixtureConfirmedLinkCollections,
+  fixtureDictionaryCollections,
+} from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from '../test/harness';
 
@@ -144,11 +148,15 @@ describe('Маршруты связей тренер↔клуб', () => {
   };
 
   describe('Вход и права', () => {
-    it('анонимный список связей — 401', async () => {
+    it('анонимный список связей отдаёт только подтверждённые', async () => {
+      // Проверка изменила смысл в фазе 34: маршрут открыт гостю, но узко.
+      // Закрытым целиком он ронял главную страницу — витрина читает привязки.
       const response = await get('/trainer-club-links');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ success: false, error: 'Требуется вход' });
+      expect(response.status).toBe(200);
+      expect(
+        response.body.data.some((link: { status: string }) => link.status !== 'confirmed'),
+      ).toBe(false);
     });
 
     it('анонимная заявка — 401, и в хранилище ничего не появляется', async () => {
@@ -524,5 +532,43 @@ describe('Маршруты связей тренер↔клуб', () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Клуб не найден');
+  });
+});
+
+/**
+ * Ради этой проверки маршрут и открыт гостю.
+ *
+ * ⚠️ Закрытый целиком, он уронил публичную витрину: главная страница отдавала 500,
+ * потому что карточки тренеров показывают привязку к клубу. Ни один тест этого
+ * не поймал — нашлось только на поднятом приложении. Проверка живёт отдельным
+ * набором, чтобы падение было видно по имени.
+ */
+describe('Витрина без входа', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('links-public');
+  });
+
+  beforeEach(async () => {
+    // Общий набор плюс срез с подтверждённой связью: второй дополняет первый,
+    // а не заменяет — иначе не хватит справочников и публикаций.
+    await harness.writeMany({ ...fixtureCollections, ...fixtureConfirmedLinkCollections });
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('гость получает подтверждённые связи и ничего сверх', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/trainer-club-links?status=confirmed',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThan(0);
+    expect(
+      response.body.data.every((link: { status: string }) => link.status === 'confirmed'),
+    ).toBe(true);
   });
 });
