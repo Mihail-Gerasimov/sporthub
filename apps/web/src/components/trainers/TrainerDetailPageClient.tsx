@@ -361,7 +361,13 @@ export function TrainerDetailPageClient({
         | { success: false; error?: string };
 
       if (!response.ok || !payload.success) {
-        setReviewErrors({ submit: 'Не удалось отправить отзыв.' });
+        // ⚠️ Текст отказа показывается КАК ЕСТЬ, если сервер его прислал.
+        // Главный случай — отзыв без посещения (фаза 34): человеку надо объяснить,
+        // почему форма не сработала, а не отвечать «не удалось» на понятную причину.
+        setReviewErrors({
+          submit:
+            'error' in payload && payload.error ? payload.error : 'Не удалось отправить отзыв.',
+        });
         return;
       }
 
@@ -876,7 +882,10 @@ export function TrainerDetailPageClient({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="font-body text-xs leading-relaxed text-muted">
                     {isAthlete
-                      ? `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}.`
+                      ? // ⚠️ Отзыв принимается только после посещения (фаза 34, решение
+                        // заказчика от 08.09.2026). Раньше оценку мог поставить кто угодно
+                        // кому угодно, и она сразу двигала публичный рейтинг.
+                        `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}. Оставить его можно после посещения занятия.`
                       : 'Для отправки нужен вход или регистрация как спортсмен.'}
                   </p>
                   <Button type="submit" aria-label="Отправить отзыв" loading={isSubmittingReview}>

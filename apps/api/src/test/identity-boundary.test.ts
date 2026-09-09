@@ -178,3 +178,33 @@ describe('Изменяющие маршруты', () => {
     expect(offenders, offenders.join('\n')).toEqual([]);
   });
 });
+
+describe('Ключи внешних служб', () => {
+  it('серверный код не читает переменные с префиксом NEXT_PUBLIC_', async () => {
+    // ⚠️ Префикс `NEXT_PUBLIC_` заставляет Next вшить значение прямо в браузерный
+    // бандл. Пока серверный ключ геокодера читался под тем же именем, что и ключ
+    // карты в браузере, развести их было нельзя: либо серверный уезжал наружу,
+    // либо ломался один из двух.
+    //
+    // Прежнее имя остаётся ЗАПАСНЫМ значением на время переноса — сторож ловит
+    // только чтение как основного источника.
+    const files = await collectSources(SOURCE_ROOT);
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      const relative = file.split(path.sep).join('/');
+      const text = await readFile(path.join(API_ROOT, file), 'utf8');
+
+      for (const match of text.matchAll(/process\.env\.(NEXT_PUBLIC_\w+)/g)) {
+        // Запасное значение после `??` разрешено: основной источник — своё имя.
+        const before = text.slice(Math.max(0, match.index - 40), match.index);
+
+        if (before.includes('??')) continue;
+
+        offenders.push(`${relative} — читает ${match[1]} как основной источник`);
+      }
+    }
+
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});

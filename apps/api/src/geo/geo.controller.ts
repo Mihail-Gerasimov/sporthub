@@ -158,7 +158,15 @@ export class GeoController {
       throw new ValidationError(parsed.error.issues[0]?.message ?? 'Невалидный запрос');
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
+    // ⚠️ Ключ геокодера — СВОЙ, серверный (фаза 34, шаг 34.55). Раньше здесь
+    // читалась переменная с префиксом `NEXT_PUBLIC_` — то же имя, что вшивается
+    // в браузерный бандл на сборке фронта. Одно имя на два ключа означало, что
+    // серверный ключ либо уезжает в браузер, либо ломается при попытке их развести.
+    //
+    // Прежнее имя остаётся запасным значением, чтобы выкатка не требовала менять
+    // окружение в ту же секунду; после переноса ключа его можно убрать.
+    const apiKey =
+      process.env.YANDEX_GEOCODER_API_KEY ?? process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
 
     if (!apiKey) {
       throw new ExternalServiceError('API-ключ Яндекс.Карт не настроен', 500);
