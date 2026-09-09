@@ -488,17 +488,36 @@ export class PrismaUsersRepository implements UsersRepository {
     return row === null ? null : PrismaUsersRepository.toUser(row as UserRow);
   }
 
-  async countByRole(): Promise<Record<string, number>> {
-    // Считает база: сводке нужны три числа, а не таблица пользователей со всеми
-    // связями. Группировка ложится на индекс по роли, заведённый ровно под неё.
-    const rows = await this.client.user.groupBy({ by: ['role'], _count: { _all: true } });
-    const counts: Record<string, number> = {};
+  async countPlatformUsers(): Promise<{ total: number; providers: number; admins: number }> {
+    // ⚠️ Шаг 35.19e. Считает база — тремя запросами вместо выгрузки таблицы.
+    //
+    // «Провайдер» после фазы 35 — это не роль, а владелец лиц услуг. Отбор идёт
+    // по индексам `clubs_managed_by_user_id_idx` и `trainers_managed_by_user_id_idx`,
+    // а `distinct` не даёт посчитать дважды того, у кого и клуб, и карточка, —
+    // теперь это обычный случай, а не исключение.
+    const [total, admins, clubOwners, cardOwners] = await Promise.all([
+      this.client.user.count(),
+      this.client.user.count({ where: { accountKind: 'admin' } }),
+      this.client.club.findMany({
+        where: { managedByUserId: { not: null } },
+        distinct: ['managedByUserId'],
+        select: { managedByUserId: true },
+      }),
+      this.client.trainer.findMany({
+        where: { managedByUserId: { not: null } },
+        distinct: ['managedByUserId'],
+        select: { managedByUserId: true },
+      }),
+    ]);
 
-    for (const row of rows) {
-      counts[row.role] = row._count._all;
+    // Объединение двух наборов: человек с клубом И карточкой — один провайдер.
+    const providerIds = new Set<number>();
+
+    for (const row of [...clubOwners, ...cardOwners]) {
+      if (row.managedByUserId !== null) providerIds.add(row.managedByUserId);
     }
 
-    return counts;
+    return { total, admins, providers: providerIds.size };
   }
 
   async insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {

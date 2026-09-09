@@ -328,18 +328,20 @@ const usersContract = (createRepository: () => Promise<UsersRepository>) => {
     expect(await users.findByEmail('ivan@test.local')).toMatchObject({ id: created.id });
   });
 
-  it('считает пользователей по ролям, роли без единого — пропускает', async () => {
+  // ⚠️ Шаг 35.19e. Раньше здесь считались роли. Ролей больше нет: «провайдер» —
+  // это владелец лиц услуг, и считается он по владению.
+  it('сводные числа площадки считаются по владению, а не по роли', async () => {
     const users = await createRepository();
     await users.insert({ ...newUser });
     await users.insert({ ...newUser, email: 'petr@test.local' });
-    await users.insert({ ...newUser, email: 'club@test.local', role: 'club_owner' });
+    await users.insert({ ...newUser, email: 'admin@test.local', accountKind: 'admin' });
 
-    const counts = await users.countByRole();
+    const counts = await users.countPlatformUsers();
 
-    expect(counts).toEqual({ athlete: 2, club_owner: 1 });
-    // Роли, у которой нет ни одного пользователя, в ответе нет вовсе — потребитель
-    // подставляет ноль сам, и новая роль не требует правки репозитория.
-    expect(counts.admin).toBeUndefined();
+    expect(counts.total).toBe(3);
+    expect(counts.admins).toBe(1);
+    // Лиц услуг ни у кого нет — провайдеров ноль, хотя людей трое.
+    expect(counts.providers).toBe(0);
   });
 
   it('поиск по несуществующим ключам отдаёт null, а не бросает', async () => {

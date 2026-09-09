@@ -162,7 +162,14 @@ export interface UsersRepository {
    * в `@sporthub/types`, и новая роль не должна требовать правки репозитория.
    * Роли без единого пользователя в ответе отсутствуют.
    */
-  countByRole(): Promise<Record<string, number>>;
+  /**
+   * Сводные числа по площадке (шаг 35.19e).
+   *
+   * Прежде считалось группировкой по роли. Ролей больше нет, а «провайдер» —
+   * это тот, у кого есть лица услуг, то есть вопрос ВЛАДЕНИЯ. Считает по-прежнему
+   * база: сводке нужны три числа, а не таблица пользователей со связями.
+   */
+  countPlatformUsers(): Promise<{ total: number; providers: number; admins: number }>;
   insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
   update(id: number, patch: Partial<User>): Promise<User>;
 }

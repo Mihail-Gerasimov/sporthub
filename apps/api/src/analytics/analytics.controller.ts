@@ -127,14 +127,14 @@ export class AnalyticsController {
     // умеет фильтр публикаций, выбросило бы таких тренеров из сводки. Выражать это
     // условие в репозитории ради единственного места — заводить абстракцию без
     // второго потребителя; тренеров в каталоге единицы, и отбор остаётся здесь.
-    const [allClubs, allTrainers, roleCounts, platformActivity, sports] = await Promise.all([
+    const [allClubs, allTrainers, userCounts, platformActivity, sports] = await Promise.all([
       this.clubs.findAll({
         excludeHidden: true,
         ...(city ? { city } : {}),
         ...(sportId ? { sportId } : {}),
       }),
       this.trainers.findAll({ excludeHidden: true, ...(sportId ? { sportId } : {}) }),
-      this.users.countByRole(),
+      this.users.countPlatformUsers(),
       this.logs.countByDate({ fromDate: fromDate ?? undefined }),
       this.sports.findAll(),
     ]);
@@ -179,13 +179,16 @@ export class AnalyticsController {
         }),
       ]);
 
-    // Роли, которых нет ни у кого, в ответе группировки отсутствуют — отсюда `?? 0`.
-    const roleCount = (role: string): number => roleCounts[role] ?? 0;
-
+    // ⚠️ Шаг 35.19e. Считается по владению, а не по роли: провайдер — тот,
+    // у кого есть лица услуг. Человек с клубом И карточкой тренера — один
+    // провайдер, а не два: после фазы 35 это обычный случай.
+    //
+    // «Спортсмены» — все люди площадки, кроме администраторов: записываться
+    // может любой человек, и отдельного признака у этого больше нет.
     const kpi = {
-      totalUsers: Object.values(roleCounts).reduce((sum, count) => sum + count, 0),
-      totalAthletes: roleCount('athlete'),
-      totalProviders: roleCount('club_owner') + roleCount('trainer'),
+      totalUsers: userCounts.total,
+      totalAthletes: userCounts.total - userCounts.admins,
+      totalProviders: userCounts.providers,
       totalClubs: clubs.length,
       totalTrainers: trainers.length,
       totalBookings,
