@@ -391,6 +391,7 @@ type UserRow = {
   id: number;
   createdAt: Date;
   role: string;
+  accountKind: string;
   status: string;
   name: string;
   email: string;
@@ -429,6 +430,9 @@ export class PrismaUsersRepository implements UsersRepository {
         id: row.id,
         createdAt: toIsoString(row.createdAt),
         role: row.role,
+        // Вид учётной записи (шаг 35.18). Колонка обязательная со значением
+        // по умолчанию, поэтому пустой она не бывает.
+        accountKind: row.accountKind,
         status: row.status,
         name: row.name,
         email: row.email,
@@ -516,6 +520,9 @@ export class PrismaUsersRepository implements UsersRepository {
     const created = await this.client.user.create({
       data: {
         role: user.role,
+        // Вид учётной записи: не задан — заводим человека. Администратора
+        // назначают отдельно, регистрацией он не создаётся.
+        ...(user.accountKind === undefined ? {} : { accountKind: user.accountKind }),
         // Колонка обязательная с дефолтом: «нет значения» и «active» — одно и то же.
         ...(user.status === undefined ? {} : { status: user.status }),
         name: user.name,

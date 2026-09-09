@@ -9,7 +9,7 @@
 // Поэтому SQL не пишется руками, а собирается отсюда из тех же наборов. Тот же модуль
 // читает тест схемы: он сверяет предикаты, реально стоящие в базе, с наборами из кода.
 
-import { ACTIVE_BOOKING_STATUSES, ACTIVE_LINK_STATUSES } from '@sporthub/domain';
+import { ACCOUNT_KINDS, ACTIVE_BOOKING_STATUSES, ACTIVE_LINK_STATUSES } from '@sporthub/domain';
 
 /** Набор состояний в виде списка для SQL: `'pending','confirmed'`. */
 export function toSqlList(values) {
@@ -34,6 +34,14 @@ export const INDEX_PREDICATES = {
  * есть только в PostgreSQL, а эта форма переносится на любую СУБД. Цена — ноль.
  */
 export const CHECK_CONSTRAINTS = {
+  // Вид учётной записи — по словарю, а не «любая строка до 32 символов».
+  // Прежняя колонка `role` жила без ограничения вовсе, и словарь держал только
+  // TypeScript: база приняла бы что угодно. Список берётся из общего словаря,
+  // поэтому новое значение нельзя завести, забыв про базу.
+  users_account_kind: {
+    table: 'users',
+    expression: `account_kind IN (${ACCOUNT_KINDS.map((kind) => `'${kind}'`).join(', ')})`,
+  },
   offerings_owner_one: {
     table: 'offerings',
     expression:

@@ -387,8 +387,26 @@ export interface Review extends BaseEntity {
   authorName?: string;
 }
 
+/**
+ * Вид учётной записи. Объявление-близнец словаря `ACCOUNT_KINDS` в `@sporthub/domain`:
+ * пакет типов ни от чего не зависит по построению, поэтому значения перечислены здесь,
+ * а полнота словаря держится тем, что домен строит свой `Record` по этому же типу.
+ */
+export type AccountKind = 'person' | 'admin';
+
 export interface User extends BaseEntity {
+  /**
+   * ⚠️ Доживает до шага 35.24: фаза 35 убирает роли. «Тренер» и «владелец клуба»
+   * выводятся из владения публикациями, «атлет» перестаёт быть ролью вовсе.
+   */
   role: UserRole;
+  /**
+   * Вид учётной записи: человек или администратор (словарь `ACCOUNT_KINDS`
+   * в `@sporthub/domain`). Единственное различие, которое не выводится
+   * из владения. Необязательное поле, чтобы клиент, собранный до фазы 35,
+   * пережил выкатку.
+   */
+  accountKind?: AccountKind;
   status?: UserStatus;
   name: string;
   email: string;

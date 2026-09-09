@@ -2,6 +2,7 @@
 // Чистая доменная логика без ввода-вывода: она не знает ни про файловую систему,
 // ни про HTTP, ни про SQL. Поэтому её одинаково используют и фронт (apps/web),
 // и бэкенд (apps/api) — расчёт надёжности не имеет права разойтись между ними.
+export * from './account-kind';
 export * from './booking-status';
 export * from './booking-owner';
 export * from './booking-fsm';

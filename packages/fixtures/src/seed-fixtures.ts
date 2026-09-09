@@ -64,6 +64,9 @@ export const fixtureUsers: User[] = [
     id: 3,
     createdAt: '2026-04-07T09:00:00.000Z',
     role: 'admin',
+    // Вид учётной записи (фаза 35): единственное различие, которое не выводится
+    // из владения. У прочих он подразумевается человеком по умолчанию.
+    accountKind: 'admin',
     status: 'active',
     name: 'Администратор SportHub',
     email: 'admin@sporthub.local',

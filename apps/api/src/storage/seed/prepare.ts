@@ -253,6 +253,9 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       id: user.id,
       createdAt,
       role: user.role,
+      // Вид учётной записи (фаза 35). Не задан — человек: администратора
+      // назначают явно, случайно им стать нельзя.
+      accountKind: user.accountKind ?? 'person',
       status: user.status ?? 'active',
       name: repair?.name ?? user.name,
       email: repair?.email ?? user.email,
