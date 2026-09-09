@@ -88,7 +88,7 @@ describe('Сторож «сам себе»', () => {
 
   /** Статус записи прямо из базы: ответ маршрута тут не свидетель. */
   async function bookingStatus(id: number): Promise<string | undefined> {
-    const rows = await harness.read<{ id: number; status: string }>('bookings');
+    const rows = await harness.read<{ id: number; status: string }[]>('bookings');
 
     return rows.find((row) => row.id === id)?.status;
   }
@@ -189,9 +189,8 @@ describe('Сторож «сам себе»', () => {
   describe('отзыв своему лицу', () => {
     it('точка 7: отзыв своему клубу — отказ, рейтинг не изменился', async () => {
       // ⚠️ ЗАКРЫТО РОЛЬЮ до Э3: у владельца нет `write_reviews`.
-      const before = await harness.read<{ id: number; rating: number; reviewCount: number }>(
-        'clubs',
-      );
+      const before =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
       const beforeClub = before.find((row) => row.id === 1);
 
       const response = await request(harness.app.getHttpServer())
@@ -201,9 +200,8 @@ describe('Сторож «сам себе»', () => {
 
       expect(response.status, 'владелец оставил отзыв своему клубу').not.toBe(201);
 
-      const after = await harness.read<{ id: number; rating: number; reviewCount: number }>(
-        'clubs',
-      );
+      const after =
+        await harness.read<{ id: number; rating: number; reviewCount: number }[]>('clubs');
       const afterClub = after.find((row) => row.id === 1);
 
       expect(afterClub?.reviewCount, 'число отзывов клуба изменилось').toBe(

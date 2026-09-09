@@ -190,10 +190,6 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
     url: '/api/admin/trainer-club-links/1/force-revoke',
     body: { adminUserId: 3 },
   },
-  'post /api/admin/users/:id/lift-quarantine': {
-    url: '/api/admin/users/1/lift-quarantine',
-    body: { adminUserId: 3 },
-  },
   'post /api/admin/users/:id/password': {
     url: '/api/admin/users/1/password',
     body: { newPassword: 'guard-password-77' },

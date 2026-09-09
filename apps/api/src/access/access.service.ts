@@ -24,6 +24,20 @@ import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.
 import type { OwnerIdFilter, UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
+/**
+ * Предмет проверки «сам себе» — размеченное объединение.
+ *
+ * Объединение, а не шесть перегрузок: у вызывающего всегда есть ровно один предмет,
+ * и тип не даёт перепутать поля. Новый вид предмета добавляется веткой, а компилятор
+ * покажет все места, где её забыли обработать.
+ */
+export type SelfDealingTarget =
+  | { kind: 'club'; clubId: number }
+  | { kind: 'trainer'; trainerId: number }
+  | { kind: 'booking'; booking: Booking }
+  | { kind: 'client'; clientUserId: number }
+  | { kind: 'user'; targetUserId: number };
+
 @Injectable()
 export class AccessService {
   constructor(
@@ -97,6 +111,50 @@ export class AccessService {
     const trainer = await this.trainers.findById(trainerId);
 
     return trainer?.managedByUserId === userId;
+  }
+
+  /**
+   * Одно ли лицо по обе стороны действия (шаг 35.9).
+   *
+   * Фаза 35 убирает роли, и вместе с ними исчезают случайные преграды: сегодня
+   * владелец клуба не может записаться к себе только потому, что записываться
+   * умеет лишь роль атлета. Как только роли не станет, человек сможет оказаться
+   * обеими сторонами сделки — записаться к себе, подтвердить собственную заявку,
+   * отметить себе посещение и написать себе отзыв. Это и есть накрутка рейтинга
+   * стоимостью в три запроса.
+   *
+   * ⚠️ Правило живёт ЗДЕСЬ, а не россыпью `if` по контроллерам. Владение уже
+   * спрашивают у этого сервиса; спроси «сам себе» в другом месте — и две правды
+   * о владении разойдутся при первой же правке.
+   *
+   * ⚠️ Своего чтения владельца метод НЕ заводит: он собран поверх `isManagerOfClub`,
+   * `isManagerOfTrainer` и `isProviderOfBooking`. Копия логики владения разошлась бы
+   * с оригиналом ровно так же, как расходились три копии `isClientOfProvider` до фазы 33.
+   *
+   * Метод отвечает на вопрос «одно ли это лицо», а решение — запрет или разрешение —
+   * принимает вызывающий: решения заказчика 16 и 22 две такие ситуации прямо разрешают.
+   */
+  async isSelfDealing(userId: number, target: SelfDealingTarget): Promise<boolean> {
+    switch (target.kind) {
+      case 'club':
+        return this.isManagerOfClub(target.clubId, userId);
+      case 'trainer':
+        return this.isManagerOfTrainer(target.trainerId, userId);
+      case 'booking':
+        // Обе стороны записи: клиент — это `booking.userId`, сторона услуг —
+        // владелец слота. Совпали — значит человек по обе стороны.
+        return target.booking.userId === userId
+          ? this.isProviderOfBooking(target.booking, userId)
+          : false;
+      case 'client':
+        // Заметка о самом себе и собственная строка в списке клиентов.
+        return target.clientUserId === userId;
+      case 'user':
+        // Работа от лица самого себя.
+        return target.targetUserId === userId;
+      default:
+        return false;
+    }
   }
 
   /**

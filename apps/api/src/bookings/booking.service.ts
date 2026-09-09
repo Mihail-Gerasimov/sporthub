@@ -16,7 +16,6 @@ import {
   getBookedCountDelta,
   getSlotEndAt,
   getSlotStartAt,
-  isAthleteInQuarantine,
   type DisciplineConfig,
   validateTransition,
 } from '@sporthub/domain';
@@ -464,7 +463,6 @@ export class BookingService {
         break;
     }
 
-    void isAthleteInQuarantine;
     void this.logs;
   }
 }

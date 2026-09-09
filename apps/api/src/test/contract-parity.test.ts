@@ -429,13 +429,6 @@ export const CALLS: Call[] = [
     body: {},
   },
   {
-    name: 'POST /api/admin/users/[id]/lift-quarantine',
-    as: 3,
-    method: 'post',
-    url: '/api/admin/users/1/lift-quarantine',
-    body: {},
-  },
-  {
     name: 'POST /api/admin/users/[id]/password',
     as: 3,
     method: 'post',

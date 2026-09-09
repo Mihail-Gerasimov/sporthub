@@ -26,7 +26,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { DISCIPLINE_CONFIG, getSlotEndAt, isAthleteInQuarantine, roleCan } from '@sporthub/domain';
+import { DISCIPLINE_CONFIG, getSlotEndAt, roleCan } from '@sporthub/domain';
 import type { Booking, BookingStatus } from '@sporthub/types';
 import { BOOKING_STATUSES } from '@sporthub/types';
 import { z } from 'zod';
@@ -36,7 +36,6 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
-  QuarantineError,
   ValidationError,
 } from '../common/domain-error';
 import { AccessService } from '../access/access.service';
@@ -62,6 +61,15 @@ const positiveId = z.number().int().positive();
 const createSchema = z.object({ scheduleId: positiveId });
 const rejectSchema = z.object({ reason: z.string().trim().min(1).optional() });
 const checkInSchema = z.object({ outcome: z.enum(['completed', 'no_show']) });
+
+/**
+ * Отказ, когда человек оказался обеими сторонами записи (шаг 35.11).
+ *
+ * Текст объявлен один раз и объясняет ПРИЧИНУ, а не констатирует запрет: без него
+ * владелец, записавшийся на своё занятие, видел бы «недостаточно прав» на собственной
+ * записи и решил бы, что это сбой.
+ */
+const SELF_DEALING_BOOKING = 'Решение по своей записи принимает вторая сторона';
 
 /** День занятия в параметрах отбора — та же строка `YYYY-MM-DD`, что и в записи. */
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -262,25 +270,6 @@ export class BookingsController {
       throw new ForbiddenError('Запись доступна только спортсмену');
     }
 
-    // Карантин отсекает запись до всех остальных проверок.
-    //
-    // ⚠️ Читаются записи ТОЛЬКО этого человека и только двух статусов. Раньше здесь
-    // поднималась вся таблица записей платформы: расчёт всё равно отбрасывал чужие
-    // и все прочие статусы внутри себя, то есть 99% поднятого выбрасывалось сразу.
-    // Отбор перенесён в запрос — результат тот же, потому что условие дословно
-    // повторяет то, по которому фильтрует сам расчёт.
-    const athleteHistory = await this.gateway.findMany({
-      userId,
-      status: ['completed', 'no_show'],
-    });
-    const quarantine = isAthleteInQuarantine(athleteHistory, userId, new Date(), {
-      quarantineLiftedAt: user.quarantineLiftedAt ?? null,
-    });
-
-    if (quarantine.inQuarantine) {
-      throw new QuarantineError(quarantine.until, quarantine.reason);
-    }
-
     const context = await this.slotContext.getContext(scheduleId);
     const parent = context?.club ?? context?.trainer;
 
@@ -379,8 +368,12 @@ export class BookingsController {
     const userId = session.user.id;
     const booking = await this.requireBooking(bookingId);
 
-    const isAthlete = booking.userId === userId;
-    const isProvider = !isAthlete && (await this.access.isProviderOfBooking(booking, userId));
+    // ⚠️ Шаг 35.11, точка 6. Сторона отмены определяется ВЛАДЕНИЕМ, а не порядком
+    // проверок. Раньше ветка атлета стояла первой, и владелец, отменявший запись
+    // на своём же занятии, попадал в статистику как передумавший клиент — то есть
+    // портил собственную надёжность и прятал отмену со стороны услуг.
+    const isProvider = await this.access.isProviderOfBooking(booking, userId);
+    const isAthlete = !isProvider && booking.userId === userId;
 
     // Проверка владения остаётся прежней: посторонний не отменит ни как атлет,
     // ни как провайдер, потому что не является ни тем, ни другим для этой записи.
@@ -559,6 +552,17 @@ export class BookingsController {
   private async requireProvider(booking: Booking, userId: number, message: string): Promise<void> {
     if (!(await this.access.isProviderOfBooking(booking, userId))) {
       throw new ForbiddenError(message);
+    }
+
+    // ⚠️ Шаг 35.11. Владение — ещё не всё: решение по записи принимает НЕ ТОТ,
+    // кто её сделал. Иначе владелец, записавшийся на своё же занятие, сам себе
+    // подтверждает заявку и сам себе отмечает посещение — а это и есть накрутка
+    // рейтинга: посещение даёт право на отзыв.
+    //
+    // Проверка стоит здесь, в общей точке трёх решений (подтвердить, отклонить,
+    // отметить), а не тремя копиями в обработчиках.
+    if (await this.access.isSelfDealing(userId, { kind: 'booking', booking })) {
+      throw new ForbiddenError(SELF_DEALING_BOOKING);
     }
   }
 }

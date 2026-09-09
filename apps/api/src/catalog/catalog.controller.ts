@@ -106,7 +106,12 @@ export class UsersController {
       const owners = await this.access.getManagedPublicationIds(session.user.id);
       const clients = await this.users.findClientsOf(owners);
 
-      return clients.map(stripPasswordHash);
+      // ⚠️ Шаг 35.13, точка 10. Себя в собственном списке клиентов быть не должно.
+      // Записавшись на своё же занятие (решение 16 это разрешает), человек попадал
+      // в собственную клиентскую базу — со своей почтой и телефоном, — и мог завести
+      // заметку сам о себе. Отбор идёт по номеру, а не по правилу «сам себе»:
+      // здесь сравнивать нечего, обе стороны уже известны.
+      return clients.filter((client) => client.id !== session.user.id).map(stripPasswordHash);
     }
 
     if (!roleCan(session.user.role, 'manage_any_user')) {
