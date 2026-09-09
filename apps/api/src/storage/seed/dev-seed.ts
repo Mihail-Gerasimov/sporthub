@@ -157,8 +157,19 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
     specialties: numbered(SPECIALTIES),
     workFormats: numbered(WORK_FORMATS),
 
-    // По пользователю на каждую роль: без этого невозможно проверить ни один
-    // сценарий доступа, а именно на них ломаются правки чаще всего.
+    // ⚠️ Фаза 35: по человеку на каждый НАБОР ЛИЦ, а не на каждую роль.
+    //
+    // Ролей больше нет, и «по одному на роль» перестало что-либо покрывать.
+    // Проверять надо другое — что кабинет собирается по владению:
+    //   • человек без лиц                — только личные разделы;
+    //   • человек с клубами              — разделы клубов;
+    //   • человек с карточкой тренера    — раздел карточки;
+    //   • человек с ТЕМ И ДРУГИМ         — оба, и это живой случай заказчика:
+    //     свой зал плюс персоналки на выезде;
+    //   • администратор                  — служебная панель и ничего из базового набора.
+    //
+    // Пятый набор — «и то и другое» — в прежнем сиде выразить было нельзя вовсе:
+    // роль позволяла быть кем-то одним.
     users: [
       {
         id: 1,
@@ -206,6 +217,21 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
         phone: '+7 (900) 000-00-04',
         passwordHash,
         favoriteClubIds: [1],
+        city: 'Самара',
+      },
+      {
+        // Пятый набор: и зал, и персоналки. Ради него затевалась фаза —
+        // прежде такому человеку пришлось бы завести два аккаунта, и его
+        // отзывы, история и связи разошлись бы по двум учётным записям.
+        id: 5,
+        createdAt: SEEDED_AT,
+        role: 'club_owner',
+        status: 'active',
+        name: 'Егор Двулицев',
+        email: 'both@sporthub.local',
+        phone: '+7 (900) 000-00-05',
+        passwordHash,
+        favoriteClubIds: [],
         city: 'Самара',
       },
     ],
@@ -261,6 +287,32 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
         source: 'seed',
         status: 'published',
       },
+      {
+        // Зал того же человека, у которого есть карточка тренера (пользователь 5).
+        id: 3,
+        createdAt: SEEDED_AT,
+        name: 'Кроссфит «Свобода»',
+        slug: 'crossfit-svoboda',
+        description:
+          'Небольшой кроссфит-зал: функциональный тренинг, свободные веса, групповые занятия и персональные тренировки у владельца зала.',
+        shortDescription: 'Кроссфит и персональные тренировки',
+        city: 'Самара',
+        address: 'ул. Свободы, 12',
+        phone: '+7 (846) 000-10-30',
+        email: 'svoboda@sporthub.local',
+        coordinates: { lat: 53.235, lng: 50.19 },
+        sportIds: [6],
+        imageUrls: [],
+        amenityIds: [1, 2],
+        tagIds: [1],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 1200,
+        distanceKm: 0,
+        managedByUserId: 5,
+        source: 'seed',
+        status: 'published',
+      },
     ],
 
     trainers: [
@@ -284,6 +336,31 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
         coordinates: { lat: 53.22102, lng: 50.151918 },
         phone: '+7 (900) 000-00-03',
         managedByUserId: 3,
+        source: 'seed',
+        status: 'published',
+      },
+      {
+        // Карточка того же человека, у которого есть клуб (пользователь 5).
+        // Это и есть пятый набор лиц — ради него затевалась фаза.
+        id: 2,
+        createdAt: SEEDED_AT,
+        name: 'Егор Двулицев',
+        slug: 'egor-dvulitsev',
+        bio: 'Веду кроссфит в собственном зале и персональные тренировки на выезде — дома у клиента и в чужих залах по договорённости.',
+        avatarUrl: '',
+        experienceYears: 8,
+        specialtyIds: [1, 5],
+        workFormatIds: [1, 2],
+        rating: 0,
+        reviewCount: 0,
+        priceFrom: 2000,
+        sportIds: [6],
+        sportId: 6,
+        city: 'Самара',
+        address: 'ул. Свободы, 12',
+        coordinates: { lat: 53.235, lng: 50.19 },
+        phone: '+7 (900) 000-00-05',
+        managedByUserId: 5,
         source: 'seed',
         status: 'published',
       },

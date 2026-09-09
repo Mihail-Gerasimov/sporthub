@@ -86,15 +86,30 @@ describe('Учётные записи', () => {
 });
 
 describe('Демонабор', () => {
-  it('в каталоге есть пара клубов, тренер и подтверждённая связь между ними', async () => {
-    expect(await db.prisma.club.count()).toBe(2);
-    expect(await db.prisma.trainer.count()).toBe(1);
+  it('в каталоге есть клубы, карточки тренеров и подтверждённая связь', async () => {
+    // ⚠️ Фаза 35: публикаций стало больше, и не случайно. Пятый человек сида
+    // владеет И клубом, И карточкой тренера — набором лиц, который в прежней
+    // модели выразить было нельзя вовсе: роль позволяла быть кем-то одним.
+    expect(await db.prisma.club.count()).toBe(3);
+    expect(await db.prisma.trainer.count()).toBe(2);
 
     const link = await db.prisma.trainerClubLink.findFirstOrThrow();
 
     expect(link.status).toBe('confirmed');
     expect(link.trainerId).toBe(1);
     expect(link.clubId).toBe(1);
+  });
+
+  it('в сиде есть человек с двумя лицами — клубом и карточкой тренера', async () => {
+    // Живой случай заказчика: свой зал плюс персоналки на выезде. Без такого
+    // человека ни один сценарий кабинета с двумя лицами не проверяется.
+    const [clubs, trainers] = await Promise.all([
+      db.prisma.club.findMany({ where: { managedByUserId: 5 } }),
+      db.prisma.trainer.findMany({ where: { managedByUserId: 5 } }),
+    ]);
+
+    expect(clubs.length, 'у человека с двумя лицами нет клуба').toBeGreaterThan(0);
+    expect(trainers.length, 'у человека с двумя лицами нет карточки тренера').toBeGreaterThan(0);
   });
 
   it('тренерская услуга собрана «в зале клуба» — самый хрупкий путь каталога', async () => {
@@ -181,7 +196,14 @@ describe('Свойства самого сида', () => {
       },
     });
 
-    expect(club.id).toBe(3);
+    // Число зависит от размера сида, поэтому сверяется не с литералом, а с фактом:
+    // новый клуб не сел на занятый номер. Иначе тест приходилось бы править
+    // при каждом пополнении сида, и он перестал бы что-либо стеречь.
+    const seeded = await db.prisma.club.count({ where: { id: { not: club.id } } });
+
+    expect(club.id, 'счётчик номеров не поднят — публикация села на занятый номер').toBeGreaterThan(
+      seeded - 1,
+    );
 
     await db.prisma.club.delete({ where: { id: club.id } });
   });
