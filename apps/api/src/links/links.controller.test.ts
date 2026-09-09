@@ -218,6 +218,66 @@ describe('Маршруты связей тренер↔клуб', () => {
     expect(response.body.data.initiatedBy).toBe('trainer');
   });
 
+  // ⚠️ Шаг 35.10, решение заказчика 22. Единственное исключение из общего потока:
+  // когда обе стороны принадлежат одному человеку, признавать связь нечем и
+  // спрашивать некого. Живой случай — у человека свой зал, и он же ведёт там
+  // персоналки помимо своих сотрудников.
+  describe('обе стороны у одной учётной записи', () => {
+    it('связь встаёт сразу подтверждённой, без ожидания', async () => {
+      // Пользователь 2 управляет и клубом 1, и тренером 1.
+      const response = await post('/trainer-club-links', asOwner, { trainerId: 1, clubId: 1 });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.status).toBe('confirmed');
+      expect(response.body.data.approvedAt, 'подтверждение не отмечено временем').toBeDefined();
+    });
+
+    it('уведомления самому себе не уходит', async () => {
+      await post('/trainer-club-links', asOwner, { trainerId: 1, clubId: 1 });
+
+      const notifications = await harness.read<{ userId: number; type: string }[]>('notifications');
+
+      expect(
+        notifications.filter((item) => item.type === 'link_requested'),
+        'человек получил заявку от самого себя',
+      ).toHaveLength(0);
+    });
+
+    it('строки в ожидании не остаётся вовсе', async () => {
+      // ⚠️ Кода ответа мало: важно, что промежуточного состояния не было.
+      await post('/trainer-club-links', asOwner, { trainerId: 1, clubId: 1 });
+
+      const links =
+        await harness.read<{ trainerId: number; clubId: number; status: string }[]>(
+          'trainer-club-links',
+        );
+      // Считаем связи ИМЕННО этой пары: в наборе есть и засеянные ожидающие связи
+      // других пар, и они к делу не относятся.
+      const ownPair = links.filter((link) => link.trainerId === 1 && link.clubId === 1);
+
+      expect(ownPair.filter((link) => link.status === 'pending')).toHaveLength(0);
+      expect(ownPair.filter((link) => link.status === 'confirmed')).toHaveLength(1);
+    });
+
+    it('связь с ЧУЖОЙ стороной по-прежнему ждёт подтверждения', async () => {
+      // Контрольная группа: без неё «сразу подтверждено» неотличимо от
+      // «подтверждается вообще всё».
+      const response = await post('/trainer-club-links', asOwner, {
+        trainerId: 3,
+        clubId: 1,
+        initiatedBy: 'club',
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.status).toBe('pending');
+
+      const notifications = await harness.read<{ userId: number }[]>('notifications');
+      expect(notifications, 'чужую сторону не уведомили').toEqual([
+        expect.objectContaining({ userId: 5 }),
+      ]);
+    });
+  });
+
   it('клуб приглашает стороннего тренера — initiatedBy=club', async () => {
     const response = await post('/trainer-club-links', asOwner, {
       trainerId: 3,

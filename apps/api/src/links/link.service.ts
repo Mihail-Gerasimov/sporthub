@@ -110,16 +110,37 @@ export class LinkService {
       throw new ConflictError('Для этой пары уже существует активная связь');
     }
 
+    // ⚠️ Шаг 35.10, решение заказчика 22. Обе стороны у одной учётной записи —
+    // единственное исключение из общего потока «запрос → подтверждение».
+    //
+    // Логика площадки едина для всех: связь появляется, когда её признали обе стороны.
+    // Но когда стороны — один человек, признавать нечего и спрашивать некого: точка
+    // входа и конечная точка совпадают. Прежний путь заставлял его подать заявку
+    // самому себе, получить о ней уведомление и самому же её подтвердить.
+    //
+    // Признак — ВЛАДЕНИЕ, а не роль: «принадлежат ли обе стороны одному человеку».
+    // Проверка «названная сторона моя» выше остаётся на месте — она закрывает подмену
+    // ЧУЖОЙ стороны, и это разные вопросы.
+    const bothSidesMine = isTrainerManager && isClubManager;
+
     const link = await this.links.insert({
       trainerId: input.trainerId,
       clubId: input.clubId,
-      status: 'pending',
+      status: bothSidesMine ? 'confirmed' : 'pending',
       initiatedBy,
+      ...(bothSidesMine
+        ? { approvedByUserId: input.userId, approvedAt: new Date().toISOString() }
+        : {}),
     });
 
     // Уведомление уходит противоположной стороне: инициатор не должен получать
-    // сообщение о собственной заявке.
-    const notifiedUserId = initiatedBy === 'club' ? trainer.managedByUserId : club.managedByUserId;
+    // сообщение о собственной заявке. Когда обе стороны свои, противоположной
+    // стороны нет вовсе — уведомлять некого.
+    const notifiedUserId = bothSidesMine
+      ? undefined
+      : initiatedBy === 'club'
+        ? trainer.managedByUserId
+        : club.managedByUserId;
 
     if (notifiedUserId !== undefined) {
       await this.notifications.notify(notifiedUserId, 'link_requested', {
