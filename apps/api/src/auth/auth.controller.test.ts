@@ -345,3 +345,117 @@ describe('Сессии при смене пароля', () => {
     expect((await request(server).get('/api/auth/me').set('Cookie', owner)).status).toBe(200);
   });
 });
+
+describe('Работа от чужого лица', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('auth-impersonation');
+  });
+
+  beforeEach(async () => {
+    await harness.write('users', [
+      user(1, 'athlete', 'athlete@test.local'),
+      user(2, 'club_owner', 'owner@test.local'),
+      user(3, 'admin', 'admin@test.local'),
+    ]);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const server = () => harness.app.getHttpServer();
+
+  it('администратор начинает работу от лица пользователя', async () => {
+    const start = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3));
+
+    expect(start.status).toBe(200);
+    expect(start.body.data.id).toBe(1);
+
+    // Дальше сессия принадлежит уже другому лицу — это видно в «кто я».
+    const me = await request(server())
+      .get('/api/auth/me')
+      .set('Cookie', sessionCookie(start) as string);
+
+    expect(me.body.data.id).toBe(1);
+    expect(me.body.data.impersonating).toBe(true);
+    // Настоящий исполнитель не прячется: интерфейс обязан показать, кто работает.
+    expect(me.body.data.actorName).toBe('Пользователь 3');
+  });
+
+  it('права под чужим лицом — по тому, от чьего лица работают', async () => {
+    // Смысл имперсонизации в том, чтобы увидеть площадку глазами пользователя.
+    // Пройти его маршрутами с админскими правами — это не проверка, а обман.
+    const start = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3));
+    const cookie = sessionCookie(start) as string;
+
+    const logs = await request(server()).get('/api/logs').set('Cookie', cookie);
+
+    expect(logs.status).toBe(403);
+  });
+
+  it('не-администратор от чужого лица работать не может', async () => {
+    const response = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(403);
+  });
+
+  it('гость от чужого лица работать не может', async () => {
+    expect((await request(server()).post('/api/auth/impersonate/1')).status).toBe(401);
+  });
+
+  it('от лица другого администратора работать нельзя', async () => {
+    // Иначе след теряется: в журнале осталась бы пара администраторов,
+    // и кто из них действовал — не разобрать.
+    const response = await request(server())
+      .post('/api/auth/impersonate/3')
+      .set('Cookie', await harness.as(3));
+
+    expect(response.status).toBe(403);
+  });
+
+  it('возврат к себе восстанавливает права', async () => {
+    const start = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3));
+
+    const stop = await request(server())
+      .post('/api/auth/impersonate/stop')
+      .set('Cookie', sessionCookie(start) as string);
+
+    expect(stop.status).toBe(200);
+    expect(stop.body.data.id).toBe(3);
+
+    const cookie = sessionCookie(stop) as string;
+    const logs = await request(server()).get('/api/logs').set('Cookie', cookie);
+
+    expect(logs.status).toBe(200);
+  });
+
+  it('прежняя сессия администратора после начала работы гаснет', async () => {
+    // Две живые сессии одного администратора — два следа в журнале, и разобрать
+    // потом, какой из них настоящий, будет нечем.
+    const adminCookie = await harness.as(3);
+
+    await request(server()).post('/api/auth/impersonate/1').set('Cookie', adminCookie);
+
+    expect((await request(server()).get('/api/auth/me').set('Cookie', adminCookie)).status).toBe(
+      401,
+    );
+  });
+
+  it('возврат без начала работы отклоняется', async () => {
+    const response = await request(server())
+      .post('/api/auth/impersonate/stop')
+      .set('Cookie', await harness.as(3));
+
+    expect(response.status).toBe(400);
+  });
+});

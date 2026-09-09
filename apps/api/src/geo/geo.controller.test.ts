@@ -1,5 +1,9 @@
 // Тесты прокси карт. Внешняя служба подменяется: проверяется разбор ответа,
 // порядок координат и отбор подсказок по стране.
+//
+// Шаг 34.54 добавил сюда две проверки на каждый маршрут: зависшая служба обязана
+// оборваться по тайм-ауту, а не держать соединение бэкенда, и слишком длинная
+// строка обязана отбиваться разбором тела, не уходя во внешний запрос.
 
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,6 +12,21 @@ import { createTestHarness, type TestHarness } from '../test/harness';
 
 const okResponse = (payload: unknown) =>
   ({ ok: true, status: 200, json: async () => payload }) as unknown as Response;
+
+/**
+ * Внешняя служба, которая не отвечает никогда: обещание разрешается только
+ * по сигналу отмены. Ровно так ведёт себя настоящий `fetch` — без тайм-аута
+ * запрос висит до тайм-аута самой службы, а его может не быть вовсе.
+ */
+const hangingFetch = () =>
+  vi.spyOn(globalThis, 'fetch').mockImplementation(
+    (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+        });
+      }),
+  );
 
 describe('Маршруты карт', () => {
   let harness: TestHarness;
@@ -101,6 +120,32 @@ describe('Маршруты карт', () => {
         .send({ city: 'Самара', address: 'Ленина 1' });
 
       expect(response.status).toBe(500);
+    });
+
+    it('зависшая служба обрывается по тайм-ауту, а не висит', async () => {
+      vi.stubEnv('NEXT_PUBLIC_YANDEX_MAPS_API_KEY', 'test-api-key');
+      // Срок сокращён до неощутимого: проверяется сам обрыв, а не его длительность.
+      vi.stubEnv('SPORT_HUB_GEO_TIMEOUT_MS', '50');
+      hangingFetch();
+
+      const response = await request(harness.app.getHttpServer())
+        .post('/api/geocode')
+        .send({ city: 'Самара', address: 'Ленина 1' });
+
+      expect(response.status).toBe(504);
+      expect(response.body.error).toMatch(/аймаут/);
+    });
+
+    it('слишком длинный адрес отбивается разбором тела — 400', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      const response = await request(harness.app.getHttpServer())
+        .post('/api/geocode')
+        .send({ city: 'Самара', address: 'а'.repeat(1000) });
+
+      expect(response.status).toBe(400);
+      // Наружу не ушло ничего: длина проверена до обращения к платной службе.
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -211,6 +256,29 @@ describe('Маршруты карт', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.data.suggestions).toEqual([]);
+    });
+
+    it('зависшая служба обрывается по тайм-ауту — 504', async () => {
+      vi.stubEnv('YANDEX_SUGGEST_API_KEY', 'test-suggest-key');
+      vi.stubEnv('SPORT_HUB_GEO_TIMEOUT_MS', '50');
+      hangingFetch();
+
+      const response = await request(harness.app.getHttpServer())
+        .post('/api/suggest')
+        .send({ text: 'сам' });
+
+      expect(response.status).toBe(504);
+    });
+
+    it('слишком длинный текст поиска отбивается разбором тела — 400', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      const response = await request(harness.app.getHttpServer())
+        .post('/api/suggest')
+        .send({ text: 'а'.repeat(1000) });
+
+      expect(response.status).toBe(400);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });

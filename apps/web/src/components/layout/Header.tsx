@@ -40,17 +40,20 @@ export function Header() {
   // Admin без impersonation → ссылка на «Панель управления» вместо личного кабинета.
   const isAdminDirect = isAdmin && !isImpersonating;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isImpersonating) {
       stopImpersonation();
       router.push('/service-portal/dashboard');
       // Phase 30.6: симметрично stopImpersonation в ImpersonationBanner —
-      // RSC-кэш сегмента инвалидируется, иначе страница висит на старом userId.
+      // RSC-кэш сегмента инвалидируется, иначе страница висит на старой личности.
       router.refresh();
     } else {
-      logout();
-      // Phase 30.6: replace, не push — logout не должен оставлять ЛК в history-back.
-      // refresh после replace инвалидирует RSC-кэш текущего ЛК-сегмента (иначе AccessDeniedCard в кривом узком layout).
+      // ⚠️ Сначала дожидаемся выхода, потом уходим со страницы. Без ожидания
+      // главная успевала бы отрисоваться на сервере под ЕЩЁ ЖИВОЙ сессией:
+      // человек нажал «Выйти», а шапка показывает его имя.
+      await logout();
+      // Phase 30.6: replace, не push — выход не должен оставлять ЛК в history-back.
+      // refresh после replace инвалидирует RSC-кэш текущего ЛК-сегмента.
       router.replace('/');
       router.refresh();
     }
@@ -150,7 +153,9 @@ export function Header() {
               <button
                 type="button"
                 aria-label="Выйти"
-                onClick={handleLogout}
+                onClick={() => {
+                  void handleLogout();
+                }}
                 className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-orange)] bg-[var(--ui-bg)] font-body font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-orange)] hover:text-[var(--ui-bg)] lg:px-5 lg:py-3 lg:text-[13px]"
               >
                 {/* Icon-only вариант на sm/md (44×44, иконка-дверь) */}

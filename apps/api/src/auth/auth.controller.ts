@@ -22,6 +22,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Param,
   Post,
   Req,
   Res,
@@ -34,6 +35,7 @@ import { z } from 'zod';
 import {
   ConflictError,
   ForbiddenError,
+  NotFoundError,
   UnauthorizedError,
   ValidationError,
 } from '../common/domain-error';
@@ -41,7 +43,7 @@ import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
-import { CurrentUser, Public } from './access.decorators';
+import { CurrentUser, Public, Requires } from './access.decorators';
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from './session-cookie';
 import { SessionService, type SessionContext } from './session.service';
 
@@ -95,6 +97,10 @@ export type SessionProfile = AuthUser & {
   role: UserRole;
   capabilities: string[];
   quarantineLiftedAt?: string;
+  /** Работа идёт от чужого лица. Интерфейс показывает плашку возврата. */
+  impersonating?: boolean;
+  /** Кто на самом деле вошёл — под имперсонизацией это администратор. */
+  actorName?: string;
 };
 
 /** Публичная карточка пользователя — ровно те поля, что отдавались раньше. */
@@ -216,8 +222,18 @@ export class AuthController {
   async me(@CurrentUser() context: SessionContext): Promise<SessionProfile> {
     // Своей проверки здесь нет: маршрут не помечен публичным, значит без годной
     // сессии до него не доходят вовсе — это работа глобального guard'а.
-    const user = context.user;
+    return {
+      ...AuthController.toProfile(context.user),
+      // Признак работы от чужого лица нужен интерфейсу: под ним показывается
+      // плашка возврата, а часть действий закрыта.
+      ...(context.session.impersonatedUserId === undefined
+        ? {}
+        : { impersonating: true, actorName: context.actor.name }),
+    };
+  }
 
+  /** Профиль вошедшего: карточка плюс роль, права и метка карантина. */
+  private static toProfile(user: User): SessionProfile {
     return {
       ...AuthController.toAuthUser(user),
       role: user.role,
@@ -228,6 +244,94 @@ export class AuthController {
         ? {}
         : { quarantineLiftedAt: user.quarantineLiftedAt }),
     };
+  }
+
+  /**
+   * Вернуться к себе. Заканчивает работу от чужого лица.
+   *
+   * ⚠️ Объявлен РАНЬШЕ маршрута с параметром: иначе «stop» разбирается как
+   * номер пользователя, и возврат уходит в начало работы от лица несуществующего
+   * человека. Ошибка при этом получается правдоподобная — 400 «некорректный id», —
+   * и ищется она долго.
+   */
+  @Post('impersonate/stop')
+  @HttpCode(HttpStatus.OK)
+  async stopImpersonation(
+    @CurrentUser() context: SessionContext,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<SessionProfile> {
+    if (context.session.impersonatedUserId === undefined) {
+      throw new ValidationError('Работа от чужого лица не начиналась');
+    }
+
+    await this.sessions.revoke(context.session.id, new Date());
+
+    const { token, session } = await this.sessions.issue({
+      user: context.actor,
+      now: new Date(),
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    });
+
+    setSessionCookie(response, token, new Date(session.expiresAt));
+
+    return AuthController.toProfile(context.actor);
+  }
+
+  /**
+   * Начать работу от лица другого пользователя.
+   *
+   * ⚠️ До фазы 34 имперсонизация жила целиком в браузере: он подменял себе номер
+   * пользователя и продолжал слать его в теле запросов. Значит и след в журнале
+   * зависел от добросовестности клиента — а именно журнал и нужен, чтобы потом
+   * понять, кто на самом деле совершил действие.
+   *
+   * Теперь обе личности лежат в СЕССИИ: права проверяются по тому, от чьего лица
+   * работают, а журнал пишется по настоящему администратору.
+   */
+  @Requires('impersonate')
+  @Post('impersonate/:id')
+  @HttpCode(HttpStatus.OK)
+  async startImpersonation(
+    @Param('id') rawId: string,
+    @CurrentUser() context: SessionContext,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<SessionProfile> {
+    const targetId = Number(rawId);
+
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      throw new ValidationError('Некорректный id пользователя');
+    }
+
+    const target = await this.users.findById(targetId);
+
+    if (!target || target.status !== 'active') {
+      throw new NotFoundError('Пользователь не найден');
+    }
+
+    // Администратором под чужим именем работать нельзя: это не даёт увидеть
+    // площадку глазами пользователя, зато прячет, кто именно действовал.
+    if (target.role === 'admin') {
+      throw new ForbiddenError('Нельзя работать от лица администратора');
+    }
+
+    // Прежняя сессия отзывается: две живые сессии одного администратора —
+    // это два следа в журнале, и разобрать потом, какой из них настоящий, нечем.
+    await this.sessions.revoke(context.session.id, new Date());
+
+    const { token, session } = await this.sessions.issue({
+      user: context.actor,
+      now: new Date(),
+      impersonatedUserId: targetId,
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    });
+
+    setSessionCookie(response, token, new Date(session.expiresAt));
+
+    return AuthController.toProfile(target);
   }
 
   /** Выдать сессию и положить её идентификатор в ответ. */

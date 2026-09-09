@@ -31,9 +31,15 @@ export const CAPABILITIES = [
   /** Оставлять отзывы о посещённых занятиях. */
   'write_reviews',
 
-  // --- Представитель услуг и тренер ---
-  /** Вести собственные публикации: клубы, карточку тренера, услуги, расписание. */
-  'manage_own_publications',
+  // --- Представитель спортивных услуг ---
+  /** Вести свои клубы: публиковать, править, удалять — вместе с их услугами и расписанием. */
+  'manage_own_clubs',
+
+  // --- Тренер ---
+  /** Вести свою карточку тренера: публиковать, править, удалять — с её услугами и расписанием. */
+  'manage_own_trainer_profile',
+
+  // --- Общее для представителя услуг и тренера ---
   /** Разбирать заявки на свои занятия: подтверждать, отклонять, отмечать посещение. */
   'manage_own_bookings',
   /** Вести связи тренер↔клуб со своей стороны. */
@@ -62,18 +68,35 @@ export type Capability = (typeof CAPABILITIES)[number];
 const ATHLETE: readonly Capability[] = ['book_sessions', 'write_reviews'];
 
 /**
- * Права представителя спортивных услуг и тренера.
+ * Что у представителя услуг и тренера общее.
  *
- * ⚠️ Сейчас наборы совпадают, и это ВРЕМЕННО: разделение — отдельный этап той же
- * фазы (Э8a). Наборы объявлены раздельно именно поэтому — когда права разойдутся,
- * это будет правка двух строк, а не поиск всех мест, где «провайдер» значило обе роли.
+ * Общее — работа с людьми, которые к ним пришли: записи на свои занятия, связи
+ * со своей стороны и заметки о своих клиентах. Здесь роли не различаются, потому
+ * что различие живёт не в праве, а во владении: «свои занятия» у клуба и у тренера
+ * разные, и какие именно — решает `AccessService`, а не словарь.
  */
-const PROVIDER: readonly Capability[] = [
-  'manage_own_publications',
+const PROVIDER_SHARED: readonly Capability[] = [
   'manage_own_bookings',
   'manage_own_links',
   'manage_own_clients',
 ];
+
+/**
+ * Права представителя спортивных услуг.
+ *
+ * Решение заказчика от 08.09.2026 (этап Э8a): представитель ведёт КЛУБЫ и не
+ * публикуется как тренер. До этого обе роли провайдера имели один набор, и любой
+ * из них годился на любое действие — роль в интерфейсе была, а в правах её не было.
+ */
+const CLUB_OWNER: readonly Capability[] = ['manage_own_clubs', ...PROVIDER_SHARED];
+
+/**
+ * Права тренера.
+ *
+ * Тренер ведёт СЕБЯ: свою карточку и свои услуги. Клуб он не публикует — клуб
+ * заводит представитель услуг и приглашает тренера связью.
+ */
+const TRAINER: readonly Capability[] = ['manage_own_trainer_profile', ...PROVIDER_SHARED];
 
 /**
  * Права администратора.
@@ -93,8 +116,8 @@ const ADMIN: readonly Capability[] = [
 /** Роль → что ей можно. Полнота словаря держится типом. */
 export const ROLE_CAPABILITIES: Record<UserRole, ReadonlySet<Capability>> = {
   athlete: new Set(ATHLETE),
-  club_owner: new Set(PROVIDER),
-  trainer: new Set(PROVIDER),
+  club_owner: new Set(CLUB_OWNER),
+  trainer: new Set(TRAINER),
   admin: new Set(ADMIN),
 };
 
@@ -111,4 +134,16 @@ export function capabilitiesOf(role: UserRole): Capability[] {
 /** Роли, которым положено такое действие. Нужно тестам и разбору прав. */
 export function rolesWith(capability: Capability): UserRole[] {
   return USER_ROLES.filter((role) => roleCan(role, capability));
+}
+
+/**
+ * Есть ли право в списке, пришедшем с сервера.
+ *
+ * Интерфейс получает права строками (`GET /api/auth/me` → `capabilities`) и роли
+ * вызывающего не знает — и знать не должен: состав разделов кабинета решают права,
+ * а не имя роли. Проверка живёт здесь, чтобы название права было одно и то же
+ * по обе стороны, а опечатка в строке ловилась типом, а не глазами.
+ */
+export function hasCapability(capabilities: readonly string[], capability: Capability): boolean {
+  return capabilities.includes(capability);
 }
