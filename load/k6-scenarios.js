@@ -32,6 +32,7 @@ const ONLY = __ENV.ONLY || '';
 const athleteLatency = new Trend('profile_athlete', true);
 const providerLatency = new Trend('profile_provider', true);
 const adminLatency = new Trend('profile_admin', true);
+const mailboxLatency = new Trend('profile_mailbox', true);
 const failures = new Rate('error_rate');
 const failuresByStep = new Counter('failures_by_step');
 
@@ -109,14 +110,34 @@ const raceScenario = {
  * свободным местом: без него она не может ни выиграть, ни проиграть, и её порог падал бы,
  * утягивая за собой весь прогон профилей.
  */
+/**
+ * Ящик лица и список лиц (шаг 35.45).
+ *
+ * Отдельным профилем, потому что мерить надо не «страницу вообще», а два запроса,
+ * которые фаза 35 сделала горячими: ответ «кто я» теперь возит лица человека,
+ * а лента спрашивается по каждому лицу отдельно. Оба ходят на КАЖДОЙ странице
+ * кабинета — если они дороги, дорого станет всё.
+ */
+const mailboxScenario = {
+  mailbox: {
+    executor: 'constant-vus',
+    vus: VUS,
+    duration: DURATION,
+    exec: 'mailbox',
+    tags: { profile: 'mailbox' },
+  },
+};
+
 const scenarios =
   ONLY === 'race'
     ? raceScenario
     : ONLY === 'login'
       ? loginScenario
-      : ONLY === 'profiles'
-        ? profileScenarios
-        : { ...profileScenarios, ...raceScenario };
+      : ONLY === 'mailbox'
+        ? mailboxScenario
+        : ONLY === 'profiles'
+          ? profileScenarios
+          : { ...profileScenarios, ...raceScenario, ...mailboxScenario };
 
 export const options = {
   scenarios,
@@ -126,6 +147,9 @@ export const options = {
     profile_athlete: ['p(95)<1500'],
     profile_provider: ['p(95)<2000'],
     profile_admin: ['p(95)<3000'],
+    // Лента лица и список лиц (фаза 35). Порог жёстче кабинетных: это те два
+    // запроса, которые ходят на КАЖДОЙ странице кабинета, а не раз за сессию.
+    ...(ONLY === 'mailbox' || ONLY === '' ? { profile_mailbox: ['p(95)<800'] } : {}),
     // Ровно один успех на все одновременные запросы к слоту с одним местом.
     // Порог объявляется только тогда, когда гонка вообще гоняется.
     ...(ONLY === 'profiles' ? {} : { race_won: ['count==1'], race_unexpected: ['count==0'] }),
@@ -239,7 +263,9 @@ export function login() {
 
   const response = http.post(
     `${API}/api/auth/login`,
-    JSON.stringify({ email, accountType: 'athlete', password }),
+    // ⚠️ Фаза 35: типа учётной записи в теле входа больше нет. Служебный вход
+    // отделён признаком `portal: 'service'`, обычный — его отсутствием.
+    JSON.stringify({ email, password }),
     { headers: { 'Content-Type': 'application/json' }, tags: { profile: 'login' } },
   );
 
@@ -247,4 +273,48 @@ export function login() {
     'вход отвечает успехом': (r) => r.status === 200,
     'сессия выдана': (r) => String(r.headers['Set-Cookie'] || '').includes('sh-session'),
   });
+}
+
+/**
+ * Ящик лица: вход, список лиц, лента каждого лица и личная лента.
+ *
+ * Порядок повторяет живой: человек открывает кабинет, кабинет спрашивает «кто я»
+ * и получает лица, затем берёт ленту текущего лица. Меряется вся цепочка, потому
+ * что дорогой может оказаться любая её часть, а страница ждёт всю.
+ */
+export function mailbox() {
+  const email = __ENV.MAILBOX_EMAIL || 'both@sporthub.local';
+  const password = __ENV.LOGIN_PASSWORD || 'sporthub123';
+
+  const login = http.post(`${API}/api/auth/login`, JSON.stringify({ email, password }), {
+    headers: { 'Content-Type': 'application/json' },
+    tags: { profile: 'mailbox' },
+  });
+
+  if (login.status !== 200) {
+    track(mailboxLatency, login, 'mailbox:login');
+
+    return;
+  }
+
+  const me = track(mailboxLatency, http.get(`${API}/api/auth/me`), 'mailbox:me');
+  const faces = body(me)?.data?.faces ?? [];
+
+  check(me, {
+    'лица приезжают ответом «кто я»': () => Array.isArray(faces),
+  });
+
+  // Ящик каждого лица — по одному запросу, как это делает кабинет.
+  for (const face of faces) {
+    const key = face.kind === 'club' ? 'clubId' : 'trainerId';
+
+    track(
+      mailboxLatency,
+      http.get(`${API}/api/notifications?${key}=${face.id}`),
+      `mailbox:${face.kind}`,
+    );
+  }
+
+  // Личный ящик: он есть у всех, в том числе у человека без лиц.
+  track(mailboxLatency, http.get(`${API}/api/notifications?scope=personal`), 'mailbox:personal');
 }
