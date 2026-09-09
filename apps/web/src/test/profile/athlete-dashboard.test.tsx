@@ -1,5 +1,5 @@
 // Тесты AthleteDashboard (Step 25.3): ближайшая, pending-countdown, reliability,
-// карантин-баннер, new-user flow, KPI. Read-only компонент, toast не нужен.
+// new-user flow, KPI. Read-only компонент, toast не нужен.
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -84,10 +84,9 @@ describe('AthleteDashboard (Step 25.3)', () => {
   it('empty state: у нового атлета без bookings — нейтральная шапка «Сделайте первую запись»', () => {
     authenticateAthlete();
 
-    render(<AthleteDashboard bookings={[]} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={[]} />);
 
     expect(screen.getByText(/Сделайте первую запись/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('athlete-quarantine-banner')).not.toBeInTheDocument();
     expect(screen.queryByTestId('athlete-dashboard-pending')).not.toBeInTheDocument();
   });
 
@@ -108,7 +107,7 @@ describe('AthleteDashboard (Step 25.3)', () => {
       endTime: '18:00',
     });
 
-    render(<AthleteDashboard bookings={[booking]} schedule={[slot]} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={[booking]} schedule={[slot]} />);
 
     const pendingSection = screen.getByTestId('athlete-dashboard-pending');
     expect(pendingSection).toBeInTheDocument();
@@ -127,7 +126,7 @@ describe('AthleteDashboard (Step 25.3)', () => {
       }),
     );
 
-    render(<AthleteDashboard bookings={bookings} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={bookings} />);
 
     expect(screen.getByTestId('athlete-dashboard-reliability')).toBeInTheDocument();
     // Не new-user → нет placeholder-плашки про «покажется после N»
@@ -146,14 +145,16 @@ describe('AthleteDashboard (Step 25.3)', () => {
       }),
     );
 
-    render(<AthleteDashboard bookings={bookings} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={bookings} />);
 
     const rel = screen.getByTestId('athlete-dashboard-reliability');
     expect(within(rel).getByText(/Рейтинг покажется после/i)).toBeInTheDocument();
     expect(within(rel).getByText(/2 успешн/i)).toBeInTheDocument();
   });
 
-  it('карантин-баннер: 3 no_show за 30 дней → баннер сверху', () => {
+  // Сторож этапа Э0a: три неявки подряд больше не поднимают верхний красный баннер
+  // «Вы временно не можете создавать новые записи» — санкций за неявки нет.
+  it('три неявки за 30 дней не поднимают баннер запрета', () => {
     authenticateAthlete();
 
     // 3 no_show в апреле (в окне 30 дней до NOW = 2026-04-22).
@@ -163,9 +164,11 @@ describe('AthleteDashboard (Step 25.3)', () => {
       makeBooking({ id: 3, scheduleId: 303, status: 'no_show', date: '2026-04-20' }),
     ];
 
-    render(<AthleteDashboard bookings={noShows} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={noShows} />);
 
-    expect(screen.getByTestId('athlete-quarantine-banner')).toBeInTheDocument();
+    expect(screen.queryByText(/временно не можете создавать новые записи/i)).toBeNull();
+    // Кабинет при этом рабочий: надёжность считается и показывается.
+    expect(screen.getByTestId('athlete-dashboard-kpi')).toBeInTheDocument();
   });
 
   it('KPI: 7 completed + 2 active future → блок KPI с completed=7 и upcoming=2', () => {
@@ -184,7 +187,7 @@ describe('AthleteDashboard (Step 25.3)', () => {
       makeBooking({ id: 101, scheduleId: 501, status: 'pending', date: '2026-04-30' }),
     ];
 
-    render(<AthleteDashboard bookings={bookings} users={[athleteUser]} />);
+    render(<AthleteDashboard bookings={bookings} />);
 
     const kpi = screen.getByTestId('athlete-dashboard-kpi');
     expect(within(kpi).getByTestId('athlete-dashboard-kpi-completed')).toHaveTextContent('7');

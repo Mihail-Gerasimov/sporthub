@@ -7,12 +7,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 
-import {
-  DomainError,
-  QuarantineError,
-  TooManyRequestsError,
-  ValidationError,
-} from './domain-error';
+import { DomainError, TooManyRequestsError, ValidationError } from './domain-error';
 
 /**
  * Ошибка соединения с базой, а не ошибка запроса.
@@ -43,18 +38,6 @@ export class DomainErrorFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-
-    if (exception instanceof QuarantineError) {
-      // Форма ответа отличается от общей намеренно — см. комментарий к классу.
-      response.status(exception.status).json({
-        success: false,
-        error: exception.message,
-        until: exception.until,
-        reason: exception.reason,
-      });
-
-      return;
-    }
 
     if (exception instanceof ValidationError) {
       response.status(exception.status).json({

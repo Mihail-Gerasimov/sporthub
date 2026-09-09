@@ -38,13 +38,13 @@
 
 **Role:** athlete → provider
 
-- [ ] **step-1** Login athlete, navigate `/profile/athlete/settings` — expect **2 группы**: «Записи» + «Дисциплина» (группа «Связи» СКРЫТА)
+- [ ] **step-1** Login athlete, navigate `/profile/athlete/settings` — expect **2 группы**: «Записи» + «Отзывы» (группа «Связи» СКРЫТА; группы «Дисциплина» больше нет — санкции за неявки отменены в фазе 35, этап Э0a)
 - [ ] **step-2** Phase 27 Step 27.3 — assert в группе «Записи» у athlete **нет** чекбоксов `booking_requested`, `booking_cancelled_by_athlete_to_provider`, `booking_auto_expired_to_provider` (provider-типы не рендерятся у athlete). Должны быть видны только athlete-адресованные типы
-- [ ] **step-3** Assert REQUIRED чекбоксы disabled: `booking_confirmed`, `booking_cancelled_by_provider`, `quarantine_start`, с плашкой «Нельзя отключить»
+- [ ] **step-3** Assert REQUIRED чекбоксы disabled: `booking_confirmed`, `booking_cancelled_by_provider`, с плашкой «Нельзя отключить»
 - [ ] **step-4** Click по `booking_completed` (non-required) — после ~500ms expect toast «Настройки уведомлений сохранены»
 - [ ] **step-5** Phase 27 Step 27.0 — `browser_navigate` на ту же страницу (refresh) → assert галочка `booking_completed` **осталась снятой**: настройка сохранена в базе, а не только в состоянии страницы
 - [ ] **step-6** Создать событие типа `booking_completed` (через provider check-in с пред-подготовленным слотом в прошлом) → expect уведомление НЕ появляется у атлета — ни в dropdown, ни на странице `/notifications`, ни в badge (Phase 27 Step 27.2 — единый фильтр)
-- [ ] **step-7** Logout, login provider, `/profile/provider/settings` — expect все **3 группы** (booking, links, quarantine). В группе «Записи» должны быть видны provider-типы (`booking_requested` и др.)
+- [ ] **step-7** Logout, login provider, `/profile/provider/settings` — expect все **3 группы** (booking, links, reviews). В группе «Записи» должны быть видны provider-типы (`booking_requested` и др.)
 
 ## Scenario: Phase 26 hotfix — провайдер получает booking-уведомления
 

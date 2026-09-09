@@ -405,19 +405,6 @@ export interface User extends BaseEntity {
   // Город пользователя (MVP: display-only, без редактирования из ЛК)
   city?: string;
   /**
-   * Phase 24: Ручное снятие карантина админом. Если указано и дата позже последнего
-   * no_show, атлет не считается в карантине, даже при 3+ no_show подряд.
-   * Заполняется через POST /api/admin/users/[id]/lift-quarantine (Step 24.15).
-   */
-  quarantineLiftedAt?: ISODateTimeString;
-  /**
-   * Phase 25 Step 25.7: дедуп quarantine_start уведомлений. Хранит `until` последнего
-   * уведомления о карантине. При попытке повторного notify с тем же `until` — skip.
-   * Сбрасывается в undefined при quarantine_end (когда карантин снят по lift или
-   * по истечении окна).
-   */
-  notifiedQuarantineUntil?: ISODateTimeString;
-  /**
    * Phase 25 Step 25.14: per-тип preferences для уведомлений. Key — NotificationType,
    * value — включён ли. Если запись отсутствует или тип не в map — тип считается
    * включённым по умолчанию. REQUIRED_NOTIFICATION_TYPES нельзя отключить; такие
@@ -513,10 +500,6 @@ export type NotificationType =
   | 'link_approved'
   | 'link_rejected'
   | 'link_revoked'
-  // карантин атлета
-  | 'quarantine_start'
-  | 'quarantine_end'
-  | 'quarantine_lifted_by_admin'
   // Phase 29 Step 29.4: уведомления при создании отзыва — обоим участникам.
   | 'review_received_by_provider' // владельцу клуба/тренера: «получен новый отзыв»
   | 'review_published_for_athlete'; // автору отзыва: «ваш отзыв опубликован»

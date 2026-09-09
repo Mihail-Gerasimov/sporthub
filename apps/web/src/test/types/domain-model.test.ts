@@ -297,7 +297,7 @@ describe('Domain model contracts', () => {
     }>();
   });
 
-  it('Phase 24: NotificationType покрывает FSM booking, link-события и карантин', () => {
+  it('Phase 24: NotificationType покрывает FSM booking и link-события', () => {
     expectTypeOf<NotificationType>().toMatchTypeOf<
       | 'booking_confirmed'
       | 'booking_rejected'
@@ -310,9 +310,6 @@ describe('Domain model contracts', () => {
       | 'link_approved'
       | 'link_rejected'
       | 'link_revoked'
-      | 'quarantine_start'
-      | 'quarantine_end'
-      | 'quarantine_lifted_by_admin'
     >();
   });
 
@@ -325,7 +322,7 @@ describe('Domain model contracts', () => {
     }>();
   });
 
-  it('Phase 24: LogAction расширен 14 значениями FSM/links/карантина/reliability', () => {
+  it('Phase 24: LogAction расширен значениями FSM/links/reliability', () => {
     expectTypeOf<LogAction>().toMatchTypeOf<
       | 'booking_confirm'
       | 'booking_reject'
@@ -336,9 +333,6 @@ describe('Domain model contracts', () => {
       | 'link_approve'
       | 'link_reject'
       | 'link_revoke'
-      | 'quarantine_start'
-      | 'quarantine_end'
-      | 'quarantine_admin_lift'
       | 'reliability_recompute'
       | 'admin_hard_delete_booking'
     >();

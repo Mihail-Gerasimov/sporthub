@@ -13,7 +13,6 @@ import {
   ExternalServiceError,
   ForbiddenError,
   NotFoundError,
-  QuarantineError,
   UnauthorizedError,
   ValidationError,
 } from './domain-error';
@@ -182,20 +181,21 @@ describe('Каркас ошибок', () => {
     });
   });
 
-  it('карантин ломает общую форму ответа — и это сохранено', () => {
+  // Фаза 35, этап Э0a: исключений из общей формы ответа больше нет. Одно было —
+  // отказ по санкциям за неявки: он клал в `error` машинный код и дописывал рядом
+  // два своих поля. Механизм вырезан, а с ним и единственный ответ такого вида.
+  it('форма ответа единообразна: отказ отдаёт ровно success и текст', () => {
     const spy = createResponseSpy();
 
     new DomainErrorFilter().catch(
-      new QuarantineError('2026-08-25T00:00:00.000Z', 'no_show'),
+      new ForbiddenError('Запись доступна только спортсмену'),
       spy.host,
     );
 
     expect(spy.status).toHaveBeenCalledWith(403);
     expect(spy.json).toHaveBeenCalledWith({
       success: false,
-      error: 'quarantine',
-      until: '2026-08-25T00:00:00.000Z',
-      reason: 'no_show',
+      error: 'Запись доступна только спортсмену',
     });
   });
 

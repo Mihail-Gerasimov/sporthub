@@ -1934,15 +1934,6 @@
       "success": true
     }
   },
-  "POST /api/admin/users/[id]/lift-quarantine": {
-    "status": 200,
-    "body": {
-      "success": true,
-      "data": {
-        "quarantineLiftedAt": "<время>"
-      }
-    }
-  },
   "POST /api/admin/users/[id]/password": {
     "status": 200,
     "body": {

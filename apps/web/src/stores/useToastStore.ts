@@ -5,7 +5,7 @@
 // Концептуально отличается от in-app Notification (Step 24.5): toast — мгновенный
 // feedback на действие текущего пользователя, auto-dismiss через N секунд, не
 // сохраняется. Notification — персистентное уведомление, приходит с сервера
-// (booking FSM, link-события, карантин), живёт в notifications.json.
+// (booking FSM, link-события, отзывы), хранится в базе.
 'use client';
 
 import { create } from 'zustand';

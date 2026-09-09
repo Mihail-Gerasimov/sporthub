@@ -1,5 +1,5 @@
 // Phase 26 Step 26.3: тесты для UserNotificationPreferencesEditor.
-// Компонент выводит 3 group-секции (booking/links/quarantine) с чекбоксами
+// Компонент выводит group-секции (booking/links/reviews) с чекбоксами
 // per NotificationType, REQUIRED-типы disabled + плашка «Нельзя отключить»,
 // клик по non-required → debounced (500ms) PATCH /api/users/[id]/notification-preferences
 // + toast success/error.
@@ -36,7 +36,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('рендерит 3 группы (booking / links / quarantine) для provider', () => {
+  it('рендерит группы (booking / links / reviews) для provider', () => {
     render(
       <UserNotificationPreferencesEditor
         userId={user.id}
@@ -48,10 +48,10 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     expect(screen.getByTestId('notification-preferences-editor')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-links')).toBeInTheDocument();
-    expect(screen.getByTestId('notification-preferences-group-quarantine')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-preferences-group-reviews')).toBeInTheDocument();
   });
 
-  it('Phase 26 Step 26.8: для athlete группа `links` скрыта, booking+quarantine видны', () => {
+  it('Phase 26 Step 26.8: для athlete группа `links` скрыта, booking+reviews видны', () => {
     render(
       <UserNotificationPreferencesEditor
         userId={user.id}
@@ -61,7 +61,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     );
 
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
-    expect(screen.getByTestId('notification-preferences-group-quarantine')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-preferences-group-reviews')).toBeInTheDocument();
     expect(screen.queryByTestId('notification-preferences-group-links')).not.toBeInTheDocument();
   });
 
@@ -120,13 +120,12 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       />,
     );
 
-    // 3 REQUIRED_NOTIFICATION_TYPES: booking_confirmed, booking_cancelled_by_provider, quarantine_start.
-    // Phase 27 Step 27.3: все три адресованы athlete, рендерятся только в athlete-виде.
+    // REQUIRED_NOTIFICATION_TYPES: booking_confirmed и booking_cancelled_by_provider.
+    // Phase 27 Step 27.3: оба адресованы athlete, рендерятся только в athlete-виде.
     expect(screen.getByTestId('notification-preferences-toggle-booking_confirmed')).toBeDisabled();
     expect(
       screen.getByTestId('notification-preferences-toggle-booking_cancelled_by_provider'),
     ).toBeDisabled();
-    expect(screen.getByTestId('notification-preferences-toggle-quarantine_start')).toBeDisabled();
 
     // А non-required (например booking_completed) — не disabled
     expect(

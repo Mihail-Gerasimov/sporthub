@@ -28,7 +28,6 @@ import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test
 const ADMIN_ROUTES = [
   { method: 'delete', path: '/api/admin/bookings/1' },
   { method: 'post', path: '/api/admin/trainer-club-links/1/force-revoke' },
-  { method: 'post', path: '/api/admin/users/1/lift-quarantine' },
   { method: 'post', path: '/api/admin/users/1/password' },
   { method: 'post', path: '/api/admin/users/1/recompute-reliability' },
 ] as const;
@@ -278,21 +277,6 @@ describe('Административные маршруты', () => {
     expect(response.status).toBe(409);
   });
 
-  it('снятие карантина ставит метку и шлёт уведомление', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/1/lift-quarantine')
-      .set('Cookie', adminCookie);
-
-    expect(response.status).toBe(200);
-    expect(typeof response.body.data.quarantineLiftedAt).toBe('string');
-
-    const users = await harness.read<{ quarantineLiftedAt?: string }[]>('users');
-    expect(users[0].quarantineLiftedAt).toBeDefined();
-
-    const notifications = await harness.read<{ type: string }[]>('notifications');
-    expect(notifications[0].type).toBe('quarantine_lifted_by_admin');
-  });
-
   it('смена пароля администратором не требует текущего пароля', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/password')
@@ -339,13 +323,15 @@ describe('Административные маршруты', () => {
     expect(response.status).toBe(404);
   });
 
-  it('снятие карантина несуществующему пользователю — не найдено', async () => {
+  // Фаза 35, этап Э0a: ручное снятие санкций за неявки удалено вместе с самим
+  // механизмом. Сторож — не «маршрут отвечает отказом», а «маршрута нет»: отказ
+  // дал бы и живой маршрут при нехватке прав, и проверка молча ничего бы не значила.
+  it('снятого маршрута ручного послабления больше нет — 404 даже администратору', async () => {
     const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/99/lift-quarantine')
+      .post('/api/admin/users/1/lift-quarantine')
       .set('Cookie', adminCookie);
 
     expect(response.status).toBe(404);
-    expect(response.body.error).toBe('Пользователь не найден');
   });
 
   it('смена пароля несуществующему пользователю — не найдено', async () => {

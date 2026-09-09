@@ -51,10 +51,7 @@ const ACTION_LABELS: Record<LogAction, string> = {
   link_approve: 'Привязка подтверждена',
   link_reject: 'Привязка отклонена',
   link_revoke: 'Привязка разорвана',
-  // Phase 24 — карантин и reliability
-  quarantine_start: 'Карантин начался',
-  quarantine_end: 'Карантин завершён',
-  quarantine_admin_lift: 'Карантин снят администратором',
+  // Phase 24 — reliability
   reliability_recompute: 'Рейтинг пересчитан',
   // Phase 24 — админский hard-delete
   admin_hard_delete_booking: 'Запись удалена администратором',
@@ -83,9 +80,6 @@ const ACTION_TONES: Record<LogAction, ActionTone> = {
   link_approve: 'good',
   link_reject: 'danger',
   link_revoke: 'danger',
-  quarantine_start: 'warn',
-  quarantine_end: 'good',
-  quarantine_admin_lift: 'warn',
   reliability_recompute: 'neutral',
   admin_hard_delete_booking: 'danger',
   admin_login: 'neutral',

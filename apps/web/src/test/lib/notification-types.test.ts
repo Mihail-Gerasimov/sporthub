@@ -22,15 +22,15 @@ describe('notification-types (Step 25.14)', () => {
 
   it('isNotificationTypeEnabled: required всегда true, даже если false в prefs', () => {
     const user = {
-      notificationPreferences: { booking_confirmed: false, quarantine_start: false },
+      notificationPreferences: { booking_confirmed: false, booking_cancelled_by_provider: false },
     } as Pick<User, 'notificationPreferences'>;
     expect(isNotificationTypeEnabled(user, 'booking_confirmed')).toBe(true);
-    expect(isNotificationTypeEnabled(user, 'quarantine_start')).toBe(true);
+    expect(isNotificationTypeEnabled(user, 'booking_cancelled_by_provider')).toBe(true);
   });
 
   // Phase 27 Step 27.3: адресация типов по accountType.
   describe('isNotificationTypeApplicable (Phase 27)', () => {
-    it('все booking_*, quarantine_* → athlete; link_*, *_to_provider, booking_requested → provider', () => {
+    it('все booking_* → athlete; link_*, *_to_provider, booking_requested → provider', () => {
       const athleteTypes: NotificationType[] = [
         'booking_confirmed',
         'booking_rejected',
@@ -39,9 +39,6 @@ describe('notification-types (Step 25.14)', () => {
         'booking_completed',
         'booking_no_show',
         'booking_auto_expired',
-        'quarantine_start',
-        'quarantine_end',
-        'quarantine_lifted_by_admin',
       ];
       const providerTypes: NotificationType[] = [
         'booking_requested',
@@ -63,10 +60,11 @@ describe('notification-types (Step 25.14)', () => {
       }
     });
 
-    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 19 типов без пересечений', () => {
-      // Phase 29 Step 29.4: добавлено 2 review-типа → итого 19.
+    it('NOTIFICATION_TYPE_AUDIENCE покрывает все 16 типов без пересечений', () => {
+      // Было 19: Phase 29 Step 29.4 добавила 2 review-типа. Фаза 35, этап Э0a убрала
+      // три типа отменённых санкций за неявки → осталось 16.
       const keys = Object.keys(NOTIFICATION_TYPE_AUDIENCE) as NotificationType[];
-      expect(keys).toHaveLength(19);
+      expect(keys).toHaveLength(16);
       for (const key of keys) {
         expect(['athlete', 'provider']).toContain(NOTIFICATION_TYPE_AUDIENCE[key]);
       }

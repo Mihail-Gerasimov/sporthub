@@ -44,7 +44,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
       isAuthenticated: true,
     });
 
-    render(<AthleteDashboard bookings={[]} clubs={[]} schedule={[]} trainers={[]} users={[]} />);
+    render(<AthleteDashboard bookings={[]} clubs={[]} schedule={[]} trainers={[]} />);
 
     expect(screen.getByTestId('athlete-dashboard-account-id')).toHaveTextContent(
       `ID: #${ATHLETE_USER_ID}`,

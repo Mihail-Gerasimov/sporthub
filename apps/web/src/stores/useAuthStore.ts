@@ -49,7 +49,6 @@ export type SessionProfile = AuthSessionUser & {
   id: number;
   role: UserRole;
   capabilities: string[];
-  quarantineLiftedAt?: string;
   /** Работа идёт от чужого лица. Приходит только под ней. */
   impersonating?: boolean;
   /** Имя того, кто вошёл на самом деле, — под имперсонизацией это администратор. */

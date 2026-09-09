@@ -31,7 +31,7 @@ function authenticateAs(accountType: AuthAccountType) {
 const NOW = new Date('2026-04-22T12:00:00.000Z');
 
 // Phase 27 Step 27.3: фикстуры для provider — только provider-адресованные типы.
-// Раньше в фикстурах смешивались athlete-типы (booking_confirmed, quarantine_start),
+// Раньше в фикстурах смешивались athlete-типы (booking_confirmed, review_published_for_athlete),
 // теперь NotificationsListPage фильтрует их по accountType → все фикстуры — provider-типы.
 const fixtures: Notification[] = [
   // Сегодня (2 штуки) — booking-ось провайдера + link, оба непрочитанные
@@ -76,8 +76,8 @@ const fixtures: Notification[] = [
   },
 ];
 
-// Athlete-фикстуры для теста, проверяющего quarantine-фильтр (у provider'а
-// quarantine-уведомлений нет по дизайну).
+// Athlete-фикстуры для теста, проверяющего фильтр группы «Отзывы» в athlete-виде:
+// атлету приходит подтверждение публикации собственного отзыва.
 const athleteFixtures: Notification[] = [
   {
     id: 10,
@@ -90,8 +90,8 @@ const athleteFixtures: Notification[] = [
     id: 11,
     createdAt: '2026-04-22T09:00:00.000Z',
     userId: 1,
-    type: 'quarantine_start',
-    payload: { quarantineUntil: '2026-04-28T00:00:00.000Z' },
+    type: 'review_published_for_athlete',
+    payload: { reviewId: 801 },
   },
 ];
 
@@ -108,20 +108,18 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
   });
 
-  it('рендерит 4 таба групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
+  it('рендерит табы групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
     render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
 
-    // 3 booking (id=1, 3, 4) + 2 link (id=2, 5) + 0 quarantine = 5 total у провайдера
+    // 3 booking (id=1, 3, 4) + 2 link (id=2, 5) + 0 отзывов = 5 total у провайдера
     expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent(/Все/);
     expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent('5');
     expect(screen.getByTestId('notifications-filter-group-booking')).toHaveTextContent(/Записи/);
     expect(screen.getByTestId('notifications-filter-group-booking')).toHaveTextContent('3');
     expect(screen.getByTestId('notifications-filter-group-links')).toHaveTextContent(/Связи/);
     expect(screen.getByTestId('notifications-filter-group-links')).toHaveTextContent('2');
-    expect(screen.getByTestId('notifications-filter-group-quarantine')).toHaveTextContent(
-      /Дисциплина/,
-    );
-    expect(screen.getByTestId('notifications-filter-group-quarantine')).toHaveTextContent('0');
+    expect(screen.getByTestId('notifications-filter-group-reviews')).toHaveTextContent(/Отзывы/);
+    expect(screen.getByTestId('notifications-filter-group-reviews')).toHaveTextContent('0');
   });
 
   it('выбор booking-фильтра оставляет только booking-уведомления', async () => {
@@ -136,16 +134,16 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     expect(screen.queryByTestId('notification-item-5')).not.toBeInTheDocument();
   });
 
-  // Phase 27 Step 27.3: quarantine-уведомления приходят только athlete'ам,
-  // поэтому quarantine-фильтр проверяем в athlete-виде с локальными fixtures.
-  it('выбор quarantine-фильтра оставляет только quarantine-уведомление (athlete)', async () => {
+  // Phase 27 Step 27.3: подтверждение публикации отзыва приходит только атлету,
+  // поэтому фильтр группы «Отзывы» проверяем в athlete-виде с локальными fixtures.
+  it('выбор фильтра «Отзывы» оставляет только отзывное уведомление (athlete)', async () => {
     authenticateAs('athlete');
 
     render(
       <NotificationsListPage notifications={athleteFixtures} userId={1} accountType="athlete" />,
     );
 
-    fireEvent.click(screen.getByTestId('notifications-filter-group-quarantine'));
+    fireEvent.click(screen.getByTestId('notifications-filter-group-reviews'));
 
     expect(screen.getByTestId('notification-item-11')).toBeInTheDocument();
     expect(screen.queryByTestId('notification-item-10')).not.toBeInTheDocument();
@@ -164,14 +162,14 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     expect(screen.getByTestId('notification-item-1')).toBeInTheDocument();
   });
 
-  it('Phase 26 Step 26.8: для athlete tab `links` скрыт, booking+quarantine+all видны', () => {
+  it('Phase 26 Step 26.8: для athlete tab `links` скрыт, booking+reviews+all видны', () => {
     authenticateAs('athlete');
 
     render(<NotificationsListPage notifications={fixtures} userId={1} accountType="athlete" />);
 
     expect(screen.getByTestId('notifications-filter-group-all')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
-    expect(screen.getByTestId('notifications-filter-group-quarantine')).toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-reviews')).toBeInTheDocument();
     expect(screen.queryByTestId('notifications-filter-group-links')).not.toBeInTheDocument();
   });
 

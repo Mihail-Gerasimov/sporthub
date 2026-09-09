@@ -29,8 +29,6 @@ export type SessionUser = {
   phone?: string;
   avatarUrl?: string;
   city?: string;
-  /** Нужна расчёту карантина на странице записи. */
-  quarantineLiftedAt?: string;
 };
 
 /**

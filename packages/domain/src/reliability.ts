@@ -1,17 +1,19 @@
-// Phase 24 Step 24.12: чистые функции рейтинга надёжности для атлетов и провайдеров,
-// плюс computeCancelReason и isAthleteInQuarantine. Все функции принимают коллекцию
-// booking'ов явно — не обращаются к БД напрямую. Это делает их тестируемыми и пригодными
-// к SSR-вызову (`page.tsx` загружает bookings и прокидывает в UI уже посчитанный
-// `ReliabilityResult`).
+// Чистые функции рейтинга надёжности для атлетов и провайдеров, плюс computeCancelReason.
+// Все функции принимают коллекцию booking'ов явно — не обращаются к БД напрямую. Это
+// делает их тестируемыми и пригодными к SSR-вызову (`page.tsx` загружает bookings
+// и прокидывает в UI уже посчитанный `ReliabilityResult`).
+//
+// ⚠️ Фаза 35, этап Э0a: прежнее правило «три неявки подряд → неделя без записи»
+// вырезано целиком — санкции за неявки продумываются заново отдельной работой.
+// Надёжность осталась: она ИНФОРМИРУЕТ, а не наказывает. Неявки по-прежнему
+// считаются и опускают бейдж, просто больше не запирают запись.
 
 import { DISCIPLINE_CONFIG, type DisciplineConfig } from './discipline-config';
 import type {
   Booking,
-  BookingActor,
   CancellationPolicy,
   CancelReason,
   EntityId,
-  ISODateTimeString,
   ReliabilityResult,
   Schedule,
 } from '@sporthub/types';
@@ -225,86 +227,3 @@ export function computeCancelReason(
   // строгой политики отмены, то есть решение переворачивалось целиком.
   return hoursUntilSlotStart(slot, now) >= freeUntilHours ? 'on_time' : 'late';
 }
-
-export interface QuarantineResult {
-  inQuarantine: boolean;
-  until?: ISODateTimeString;
-  reason?: string;
-}
-
-/**
- * Опции для `isAthleteInQuarantine`. Phase 24 Step 24.15: `quarantineLiftedAt`
- * — отметка админа о ручном снятии карантина (поле `User.quarantineLiftedAt`).
- * Если есть lift и он позже последнего no_show — карантин считается снятым,
- * даже если по окну/триггеру атлет формально в нём.
- */
-export interface QuarantineOptions {
-  config?: DisciplineConfig;
-  quarantineLiftedAt?: ISODateTimeString | null;
-}
-
-/**
- * Определяет, находится ли атлет в карантине. Правило: N подряд no_show без
- * разрыва через completed в окне последних `windowDays` → карантин до
- * endAt_last_no_show + `durationDays`. Если текущее время ≥ until — карантин снят.
- * Если админ снял карантин (quarantineLiftedAt) и lift позже последнего no_show —
- * карантин тоже снят.
- *
- * Сортировка booking'ов — по `completedAt` (если есть) или `date`. Для событий одного
- * дня используется стабильный fallback — порядок из массива.
- */
-export function isAthleteInQuarantine(
-  bookings: Booking[],
-  userId: EntityId,
-  now: Date,
-  options: QuarantineOptions = {},
-): QuarantineResult {
-  const config = options.config ?? DISCIPLINE_CONFIG;
-  const quarantineLiftedAt = options.quarantineLiftedAt ?? null;
-  const windowMs = config.quarantine.windowDays * 24 * 60 * 60 * 1000;
-  const windowStart = new Date(now.getTime() - windowMs);
-
-  const relevant = bookings
-    .filter((b) => b.userId === userId && (b.status === 'completed' || b.status === 'no_show'))
-    .map((b) => ({
-      booking: b,
-      // Для сортировки: completedAt у completed, для no_show используем date+end-of-day.
-      sortKey: b.completedAt ?? `${b.date}T23:59:59.000Z`,
-    }))
-    .filter(({ sortKey }) => new Date(sortKey).getTime() >= windowStart.getTime())
-    .sort((left, right) => left.sortKey.localeCompare(right.sortKey));
-
-  if (relevant.length < config.quarantine.consecutiveNoShowTrigger) {
-    return { inQuarantine: false };
-  }
-
-  // Берём последние N и смотрим: все ли — no_show.
-  const lastN = relevant.slice(-config.quarantine.consecutiveNoShowTrigger);
-  const allNoShow = lastN.every(({ booking }) => booking.status === 'no_show');
-  if (!allNoShow) return { inQuarantine: false };
-
-  const lastNoShow = lastN[lastN.length - 1];
-  const lastNoShowTime = new Date(lastNoShow.sortKey).getTime();
-  const untilDate = new Date(lastNoShowTime + config.quarantine.durationDays * 24 * 60 * 60 * 1000);
-
-  if (now.getTime() >= untilDate.getTime()) {
-    return { inQuarantine: false };
-  }
-
-  // Phase 24 Step 24.15: ручное снятие админом. Lift после последнего no_show снимает карантин.
-  if (quarantineLiftedAt) {
-    const liftTime = new Date(quarantineLiftedAt).getTime();
-    if (liftTime >= lastNoShowTime) {
-      return { inQuarantine: false };
-    }
-  }
-
-  return {
-    inQuarantine: true,
-    until: untilDate.toISOString() as ISODateTimeString,
-    reason: `${config.quarantine.consecutiveNoShowTrigger} неявки подряд — записи временно ограничены`,
-  };
-}
-
-/** Тип actor, которому разрешено снимать карантин досрочно (admin). Пригодится в Step 24.14+. */
-export type QuarantineLiftActor = Extract<BookingActor, 'admin'>;

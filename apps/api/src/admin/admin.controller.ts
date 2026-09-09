@@ -16,7 +16,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import type { TrainerClubLink, User } from '@sporthub/types';
+import type { TrainerClubLink } from '@sporthub/types';
 import { z } from 'zod';
 
 import { AccessService } from '../access/access.service';
@@ -28,7 +28,6 @@ import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { LinkService } from '../links/link.service';
 import { LogService } from '../logs/log.service';
-import { NotificationService } from '../notifications/notification.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -58,7 +57,6 @@ export class AdminController {
     private readonly access: AccessService,
     private readonly links: LinkService,
     private readonly logs: LogService,
-    private readonly notifications: NotificationService,
   ) {}
 
   @Delete('bookings/:id')
@@ -110,39 +108,6 @@ export class AdminController {
     });
 
     return link;
-  }
-
-  @Post('users/:id/lift-quarantine')
-  @HttpCode(HttpStatus.OK)
-  async liftQuarantine(
-    @Param('id') rawId: string,
-    @CurrentUser() session: SessionContext,
-  ): Promise<{ quarantineLiftedAt: string | undefined }> {
-    const userId = parseId(rawId, 'Некорректный id пользователя');
-    const user = await this.users.findById(userId);
-
-    if (!user) {
-      throw new NotFoundError('Пользователь не найден');
-    }
-
-    const updated = await this.users.update(userId, {
-      quarantineLiftedAt: new Date().toISOString(),
-      // Метка снимается, чтобы следующий карантин снова дал уведомление о начале.
-      notifiedQuarantineUntil: undefined,
-    } as Partial<User>);
-
-    await this.notifications.notify(userId, 'quarantine_lifted_by_admin', {});
-
-    await this.logs.record({
-      action: 'quarantine_admin_lift',
-      actorId: session.actor.id,
-      actorRole: session.actor.role,
-      entityType: 'user',
-      entityId: userId,
-      meta: { quarantineLiftedAt: updated.quarantineLiftedAt },
-    });
-
-    return { quarantineLiftedAt: updated.quarantineLiftedAt };
   }
 
   @Post('users/:id/password')

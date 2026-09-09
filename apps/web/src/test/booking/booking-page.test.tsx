@@ -6,20 +6,6 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/**
- * Кто смотрит страницу. `null` — гость, и это состояние по умолчанию.
- *
- * ⚠️ Ради этой пары набор и знает про сессию. Расчёт карантина нужен только
- * вошедшему атлету, а записи для него страница спрашивала ДО того, как узнавала,
- * кто смотрит, — то есть просила полный срез площадки. Гостю такой запрос отвечает
- * отказом, и страница записи падала пятисотой на пустом месте.
- */
-let viewer: { id: number; role: string; name: string; email: string } | null = null;
-
-vi.mock('@/lib/session', () => ({
-  readSession: async () => viewer,
-}));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh: vi.fn(),
@@ -86,7 +72,6 @@ describe('Booking page', () => {
 
   afterEach(() => {
     stub?.restore();
-    viewer = null;
   });
 
   it('рендерит booking details для club slot без stub-копирайта', async () => {
@@ -110,25 +95,13 @@ describe('Booking page', () => {
     expect(screen.getByText('ул. Лесная, 23к1')).toBeInTheDocument();
   });
 
-  it('гостю записи не спрашивает вовсе — считать карантин ему нечего', async () => {
+  // Сторож этапа Э0a: единственным поводом поднимать историю записей были санкции
+  // за неявки. Механизма нет — значит, страница не должна спрашивать записи вообще
+  // и никому: ни гостю, ни вошедшему.
+  it('истории записей не спрашивает вовсе — считать по ней больше нечего', async () => {
     await BookingPage({ params: Promise.resolve({ scheduleId: '1' }) });
 
     expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
-  });
-
-  it('вошедшему атлету спрашивает ЕГО записи, теми статусами и тем периодом, что читает карантин', async () => {
-    viewer = { id: 1, role: 'athlete', name: 'Алексей', email: 'a@test.local' };
-
-    await BookingPage({ params: Promise.resolve({ scheduleId: '1' }) });
-
-    const call = stub.callTo('/bookings');
-    expect(call).toBeDefined();
-    // Свой срез, а не площадки: без номера атлета запрос означает полный срез.
-    expect(call).toContain('userId=1');
-    // Карантин смотрит на завершённые занятия и неявки за последние тридцать дней;
-    // остальные пять статусов и вся история до окна странице не нужны.
-    expect(call).toContain('status=completed%2Cno_show');
-    expect(call).toMatch(/dateFrom=\d{4}-\d{2}-\d{2}/);
   });
 
   it('отдаёт notFound для несуществующего slot id', async () => {

@@ -1,7 +1,7 @@
 /**
  * Client-component админ-Dashboard (Phase 28.20 rebrand).
  * Список пользователей платформы (без admin) с поиском, фильтрами и
- * быстрыми actions (impersonate, recompute reliability, lift quarantine).
+ * быстрыми actions (impersonate, recompute reliability).
  *
  * Phase 28.20:
  * — sec-head: eyebrow `Admin · Users` + Bowlby + sub `N пользователей · M показано`
@@ -9,8 +9,8 @@
  * — toolbar: search-input + lime-solid кнопка `Фильтры ⌃` (toggle ротация);
  * — filters-panel collapsible: grid 2-col Роль / Статус;
  * — user-card: grid `1fr 440px` на 1280+, 1-col на ≤1024;
- * — action правило: при карантине атлет получает «Снять карантин» вместо
- *   «Пересчитать рейтинг» (не плодим 3-ю кнопку, action-zone остаётся 2 кнопки);
+ * — action-зона атлета — одна кнопка «Пересчитать рейтинг» (фаза 35, этап Э0a:
+ *   ручное послабление санкций за неявки удалено вместе с самим механизмом);
  * — pagination client-side: 15 per page, pager всегда видим;
  * — admin фильтруются (как раньше), tag-бейджи «Новый/Ожидает» не вводим
  *   (ReliabilityBadge «Новый» этого достаточно).
@@ -24,13 +24,7 @@ import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePassword
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import {
-  ROLE_LABELS,
-  computeAthleteReliability,
-  isAthleteInQuarantine,
-  type QuarantineResult,
-  type ReliabilityResult,
-} from '@sporthub/domain';
+import { ROLE_LABELS, computeAthleteReliability, type ReliabilityResult } from '@sporthub/domain';
 import { cn } from '@/lib/utils';
 import { useAuthStore, userRoleToAccountType } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -160,8 +154,6 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  // Phase 24 Step 24.15: локальный оверлей снятых карантинов.
-  const [liftedUserIds, setLiftedUserIds] = useState<Set<number>>(new Set());
 
   // Wrapper-обработчики, которые при смене фильтра возвращают пагинатор на 1-ю страницу.
   // Делаем явно через handler'ы (а не useEffect/useMemo с setState) — это чище и
@@ -249,27 +241,6 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     const profilePath = accountType === 'athlete' ? '/profile/athlete' : '/profile/provider';
     router.push(profilePath);
     router.refresh();
-  }
-
-  /** Phase 24 Step 24.15: снятие карантина */
-  async function handleLiftQuarantine(userId: number) {
-    try {
-      // Номер в адресе — ЧЕЙ карантин снимают. Кто снимает, сервер берёт из сессии:
-      // прежнее поле `adminUserId` в теле он теперь отвергает вовсе.
-      const response = await fetch(`/api/admin/users/${userId}/lift-quarantine`, {
-        method: 'POST',
-      });
-      const body = (await response.json()) as { success: boolean; error?: string };
-      if (!response.ok || !body.success) {
-        addToast({ message: body.error ?? 'Не удалось снять карантин', tone: 'error' });
-        return;
-      }
-      setLiftedUserIds((prev) => new Set(prev).add(userId));
-      addToast({ message: 'Карантин снят', tone: 'success' });
-      router.refresh();
-    } catch {
-      addToast({ message: 'Ошибка при снятии карантина', tone: 'error' });
-    }
   }
 
   /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) */
@@ -396,22 +367,13 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
             const stats = getUserStats(user, bookings, clubs, trainers);
             const reliability =
               user.role === 'athlete' ? computeAthleteReliability(bookings, user.id) : null;
-            const quarantine: QuarantineResult | { inQuarantine: false } =
-              user.role === 'athlete' && !liftedUserIds.has(user.id)
-                ? isAthleteInQuarantine(bookings, user.id, new Date(), {
-                    quarantineLiftedAt: user.quarantineLiftedAt ?? null,
-                  })
-                : { inQuarantine: false as const };
-
             return (
               <UserCard
                 key={user.id}
                 user={user}
                 stats={stats}
                 reliability={reliability}
-                quarantine={quarantine}
                 onImpersonate={() => handleImpersonate(user)}
-                onLiftQuarantine={() => handleLiftQuarantine(user.id)}
                 onRecomputeReliability={() => handleRecomputeReliability(user.id)}
               />
             );
@@ -473,9 +435,7 @@ type UserCardProps = {
   user: User;
   stats: { label: string; value: number };
   reliability: ReliabilityResult | null;
-  quarantine: QuarantineResult | { inQuarantine: false };
   onImpersonate: () => void;
-  onLiftQuarantine: () => void;
   onRecomputeReliability: () => void;
 };
 
@@ -483,13 +443,10 @@ function UserCard({
   user,
   stats,
   reliability,
-  quarantine,
   onImpersonate,
-  onLiftQuarantine,
   onRecomputeReliability,
 }: UserCardProps) {
   const isAthlete = user.role === 'athlete';
-  const inQuarantine = quarantine.inQuarantine;
   const userStatus = user.status ?? 'active';
 
   // Блок «Учётные данные». Phase 33 Step 33.10: показа чужого пароля здесь
@@ -511,9 +468,6 @@ function UserCard({
           <Badge tone={ROLE_TONES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
           <StatusBadge status={userStatus} />
           {reliability ? <ReliabilityBadge reliability={reliability} compact showDetails /> : null}
-          {inQuarantine && quarantine.until ? (
-            <Badge tone="red">Карантин до {formatQuarantineUntil(quarantine.until)}</Badge>
-          ) : null}
         </div>
 
         <p className="m-0 break-all text-[13px] font-medium text-muted">{user.email}</p>
@@ -563,11 +517,7 @@ function UserCard({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {isAthlete && inQuarantine ? (
-          // Атлет в карантине: «Снять карантин» заменяет «Пересчитать рейтинг»
-          <ButtonGhost onClick={onLiftQuarantine}>Снять карантин</ButtonGhost>
-        ) : isAthlete ? (
-          // Атлет без карантина: «Пересчитать рейтинг»
+        {isAthlete ? (
           <ButtonGhost onClick={onRecomputeReliability}>Пересчитать рейтинг</ButtonGhost>
         ) : null}
 
@@ -582,11 +532,6 @@ function UserCard({
       />
     </article>
   );
-}
-
-function formatQuarantineUntil(until: string): string {
-  const date = new Date(until);
-  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 // --- Внутренние UI-элементы ---

@@ -1,5 +1,5 @@
 // Smoke-тесты на DISCIPLINE_CONFIG — единственный источник "магических чисел"
-// дисциплинарных механик (пороги рейтингов, окна FSM-переходов, параметры карантина).
+// дисциплинарных механик (пороги рейтингов, окна FSM-переходов, окна отмены).
 // Защищают от случайного изменения значений: любое обновление порогов требует
 // осознанной правки этого теста.
 
@@ -15,12 +15,6 @@ describe('DISCIPLINE_CONFIG', () => {
   it('экспортирует процентные пороги бейджей warning и danger', () => {
     expect(DISCIPLINE_CONFIG.reliability.warningThreshold).toBe(0.9);
     expect(DISCIPLINE_CONFIG.reliability.dangerThreshold).toBe(0.75);
-  });
-
-  it('экспортирует параметры карантина: 3 no_show подряд за 30 дней на 7 дней', () => {
-    expect(DISCIPLINE_CONFIG.quarantine.consecutiveNoShowTrigger).toBe(3);
-    expect(DISCIPLINE_CONFIG.quarantine.windowDays).toBe(30);
-    expect(DISCIPLINE_CONFIG.quarantine.durationDays).toBe(7);
   });
 
   it('экспортирует окно auto-cancel pending-записи (1 час до начала слота)', () => {

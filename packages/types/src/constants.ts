@@ -81,10 +81,7 @@ export const LOG_ACTIONS = [
   'link_approve',
   'link_reject',
   'link_revoke',
-  // Phase 24 — карантин и reliability
-  'quarantine_start',
-  'quarantine_end',
-  'quarantine_admin_lift',
+  // Phase 24 — reliability
   'reliability_recompute',
   // Phase 24 — админский hard-delete booking'а
   'admin_hard_delete_booking',

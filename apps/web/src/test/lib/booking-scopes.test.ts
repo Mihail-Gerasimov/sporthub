@@ -1,9 +1,9 @@
 // Сторож наборов статусов, которыми страницы сужают запрос записей.
 //
-// Наборы в `@/lib/booking-scopes` выведены из правил домена, но объявлены отдельно
-// от них — иначе сузить запрос было бы нечем. Разъехавшись, они дают самую тихую
-// поломку из возможных: страница спрашивает меньше, чем читает, счётчик становится
-// меньше, а выглядит всё по-прежнему рабочим.
+// Наборы выведены из правил домена, но объявлены отдельно от них — иначе сузить
+// запрос было бы нечем. Разъехавшись, они дают самую тихую поломку из возможных:
+// страница спрашивает меньше, чем читает, счётчик становится меньше, а выглядит
+// всё по-прежнему рабочим.
 //
 // Поэтому здесь проверяется не совпадение списков, а ПОВЕДЕНИЕ: через сами доменные
 // функции прогоняются записи всех восьми статусов, и набор тех, на которые функция
@@ -13,21 +13,12 @@ import {
   computeAthleteReliability,
   computeClubReliability,
   computeTrainerReliability,
-  DISCIPLINE_CONFIG,
-  isAthleteInQuarantine,
   PROVIDER_RELIABILITY_STATUSES,
 } from '@sporthub/domain';
 import { BOOKING_STATUSES, type Booking, type BookingStatus } from '@sporthub/types';
 import { describe, expect, it } from 'vitest';
 
-import {
-  ATHLETE_RELIABILITY_STATUSES,
-  getQuarantineDateFrom,
-  QUARANTINE_LOOKBACK_DAYS,
-  QUARANTINE_STATUSES,
-} from '@/lib/booking-scopes';
-
-const NOW = new Date('2026-05-20T12:00:00.000Z');
+import { ATHLETE_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
 
 /** Запись клуба 1, тренера 1 и атлета 1 — одна на статус. */
 function bookingOf(status: BookingStatus, over: Partial<Booking> = {}): Booking {
@@ -77,45 +68,5 @@ describe('Наборы статусов для сужения запроса з�
     expect(statusesCountedBy((bookings) => computeAthleteReliability(bookings, 1)).sort()).toEqual(
       [...ATHLETE_RELIABILITY_STATUSES].sort(),
     );
-  });
-
-  describe('карантин', () => {
-    const trigger = DISCIPLINE_CONFIG.quarantine.consecutiveNoShowTrigger;
-    const noShowRun = Array.from({ length: trigger }, (_, index) =>
-      bookingOf('no_show', { id: index + 1, date: '2026-05-18' }),
-    );
-
-    it('срабатывает на неявках подряд', () => {
-      expect(isAthleteInQuarantine(noShowRun, 1, NOW).inQuarantine).toBe(true);
-    });
-
-    it('завершённое занятие рвёт серию — значит статус читается правилом', () => {
-      const withCompleted = [
-        ...noShowRun.slice(0, trigger - 1),
-        bookingOf('completed', { id: 99, date: '2026-05-19' }),
-      ];
-
-      expect(QUARANTINE_STATUSES).toContain('completed');
-      expect(isAthleteInQuarantine(withCompleted, 1, NOW).inQuarantine).toBe(false);
-    });
-
-    it('статусы вне набора карантин не запускают', () => {
-      const outside = BOOKING_STATUSES.filter((status) => !QUARANTINE_STATUSES.includes(status));
-
-      for (const status of outside) {
-        const run = Array.from({ length: trigger }, (_, index) =>
-          bookingOf(status, { id: index + 1, date: '2026-05-18' }),
-        );
-
-        expect(isAthleteInQuarantine(run, 1, NOW).inQuarantine).toBe(false);
-      }
-    });
-
-    it('нижняя граница периода не уже окна правила', () => {
-      // Окно правила плюс запас на отметку исхода: отметить занятие провайдер вправе
-      // уже следующим днём, и без запаса такая запись выпала бы из отбора.
-      expect(QUARANTINE_LOOKBACK_DAYS).toBeGreaterThan(DISCIPLINE_CONFIG.quarantine.windowDays);
-      expect(getQuarantineDateFrom('2026-05-20')).toBe('2026-04-18');
-    });
   });
 });

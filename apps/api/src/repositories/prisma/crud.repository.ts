@@ -5,7 +5,7 @@
 // на границе переводятся мапперами. Здесь то же самое, но домены уже пишущие,
 // поэтому добавляется третье правило: **правка меняет только то, что пришло**.
 // Ключ, которого в правке нет, не трогается; ключ с пустым значением СТИРАЕТ поле —
-// на этом держится снятие метки карантина.
+// на этом держится, например, очистка города или аватара.
 //
 // Три места, где файловая реализация делала лишнюю работу, здесь превращаются
 // в запрос — это не оптимизация «заодно», а требование Главного правила:
@@ -49,7 +49,7 @@ import { Prisma } from '../../storage/prisma-client/client';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import { PrismaBookingsRepository } from './bookings.repository';
-import { fromDateKey, fromOptionalIsoString, omitNulls, toIsoString } from '../prisma-mappers';
+import { fromDateKey, omitNulls, toIsoString } from '../prisma-mappers';
 import { copyErasable, copyPresent, hasKey, idsOf, syncIdLinks } from './patch';
 import { ConflictError } from '../../common/domain-error';
 import { isUniqueViolation } from './unique-violation';
@@ -74,12 +74,6 @@ const USER_PLAIN_FIELDS = [
 /** Поля пользователя, которые правка вправе СТЕРЕТЬ пустым значением. */
 const USER_ERASABLE_FIELDS = ['avatarUrl', 'city'] as const satisfies readonly (keyof User &
   string)[];
-
-/** Метки времени пользователя: тот же разбор по наличию ключа, но со своим переводом. */
-const USER_TIMESTAMP_FIELDS = [
-  'quarantineLiftedAt',
-  'notifiedQuarantineUntil',
-] as const satisfies readonly (keyof User & string)[];
 
 // --- Суточная группировка ------------------------------------------------------
 
@@ -404,8 +398,6 @@ type UserRow = {
   passwordHash: string;
   avatarUrl: string | null;
   city: string | null;
-  quarantineLiftedAt: Date | null;
-  notifiedQuarantineUntil: Date | null;
   favoriteClubs?: { clubId: number }[];
   notificationPreferences?: { type: string; enabled: boolean }[];
 };
@@ -444,10 +436,6 @@ export class PrismaUsersRepository implements UsersRepository {
         passwordHash: row.passwordHash,
         avatarUrl: row.avatarUrl,
         city: row.city,
-        quarantineLiftedAt:
-          row.quarantineLiftedAt === null ? null : toIsoString(row.quarantineLiftedAt),
-        notifiedQuarantineUntil:
-          row.notifiedQuarantineUntil === null ? null : toIsoString(row.notifiedQuarantineUntil),
         // Отсутствие строк означает «настроек нет» — в файле ключа тоже не было.
         // Пустой объект здесь и `?? {}` у потребителя дают один и тот же ответ.
         notificationPreferences: Object.keys(preferences).length > 0 ? preferences : null,
@@ -536,8 +524,6 @@ export class PrismaUsersRepository implements UsersRepository {
         passwordHash: user.passwordHash,
         avatarUrl: user.avatarUrl ?? null,
         city: user.city ?? null,
-        quarantineLiftedAt: fromOptionalIsoString(user.quarantineLiftedAt),
-        notifiedQuarantineUntil: fromOptionalIsoString(user.notifiedQuarantineUntil),
         favoriteClubs: {
           create: idsOf(user.favoriteClubIds).map((clubId) => ({ clubId })),
         },
@@ -568,12 +554,6 @@ export class PrismaUsersRepository implements UsersRepository {
     copyPresent(patch, USER_PLAIN_FIELDS, data);
     // Необязательные — наоборот: ключ с пустым значением СТИРАЕТ поле.
     copyErasable(patch, USER_ERASABLE_FIELDS, data);
-
-    for (const field of USER_TIMESTAMP_FIELDS) {
-      // Так снимается метка карантина при ручном снятии администратором: маршрут
-      // шлёт ключ с пустым значением, и поле обязано обнулиться, а не остаться прежним.
-      if (hasKey(patch, field)) data[field] = fromOptionalIsoString(patch[field]);
-    }
 
     await this.client.user.update({ where: { id }, data });
 

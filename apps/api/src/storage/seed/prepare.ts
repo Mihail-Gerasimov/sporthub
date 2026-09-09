@@ -260,8 +260,6 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       passwordHash: user.passwordHash,
       avatarUrl: user.avatarUrl ?? null,
       city: user.city ?? null,
-      quarantineLiftedAt: toTimestamp(user.quarantineLiftedAt),
-      notifiedQuarantineUntil: toTimestamp(user.notifiedQuarantineUntil),
     });
 
     for (const clubId of user.favoriteClubIds ?? []) {

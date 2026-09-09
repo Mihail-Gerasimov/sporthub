@@ -1,6 +1,10 @@
 'use client';
 
-/* Client action block для booking page: проверяет состояние записи и запускает MVP create-flow. */
+/* Client action block для booking page: проверяет состояние записи и запускает MVP create-flow.
+ *
+ * ⚠️ Фаза 35, этап Э0a: плашка и заблокированная кнопка при санкциях за неявки убраны
+ * вместе с самим механизмом — вход в запись больше ничем, кроме мест и уже созданной
+ * записи, не ограничен. */
 
 import Link from 'next/link';
 import { startTransition, useEffect, useState } from 'react';
@@ -8,7 +12,6 @@ import { useRouter } from 'next/navigation';
 
 import { Badge, Button, Card } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
-import type { QuarantineResult } from '@sporthub/domain';
 import { selectAthleteActionUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -23,21 +26,7 @@ type BookingActionBlockProps = {
   dateLabel: string;
   timeLabel: string;
   availableSpots: number;
-  /**
-   * Step 25.7: предварительно вычисленный quarantine-статус по athlete userId.
-   * Server page считает `isAthleteInQuarantine` для всех athlete-пользователей
-   * и передаёт Record. Client находит запись по своему athleteUserId; если есть
-   * `inQuarantine=true` — показывает disabled CTA и плашку с датой `until`.
-   */
-  quarantineByUserId?: Record<number, QuarantineResult>;
 };
-
-function formatQuarantineUntil(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'long',
-  });
-}
 
 type BookingListResponse = {
   success: boolean;
@@ -59,7 +48,6 @@ export function BookingActionBlock({
   dateLabel,
   timeLabel,
   availableSpots,
-  quarantineByUserId,
 }: BookingActionBlockProps) {
   const router = useRouter();
   const openAuthModal = useUIStore((state) => state.openAuthModal);
@@ -132,12 +120,6 @@ export function BookingActionBlock({
   const hasExistingBooking = existingBookingId !== null;
   const isFull = availableSpots <= 0;
 
-  // Step 25.7: quarantine-статус текущего athlete. Блокирует CTA — атлет не может
-  // создать новую запись, пока окно активно.
-  const quarantineStatus =
-    athleteUserId !== null ? (quarantineByUserId?.[athleteUserId] ?? null) : null;
-  const isQuarantined = quarantineStatus?.inQuarantine === true;
-
   async function handleConfirmBooking() {
     if (!athleteUserId) {
       openAuthModal();
@@ -203,14 +185,6 @@ export function BookingActionBlock({
       );
     }
 
-    if (isQuarantined) {
-      return (
-        <Button fullWidth disabled variant="outline">
-          Вы в карантине
-        </Button>
-      );
-    }
-
     if (isFull) {
       return (
         <Button fullWidth disabled variant="outline">
@@ -259,17 +233,6 @@ export function BookingActionBlock({
         title: 'Вы уже записаны на этот слот',
         description:
           'Повторное бронирование не требуется. Запись уже сохранена и отразится в кабинете спортсмена.',
-      };
-    }
-
-    if (isQuarantined) {
-      return {
-        badgeTone: 'danger' as const,
-        badgeLabel: 'Карантин',
-        title: 'Вы временно не можете создавать новые записи',
-        description:
-          quarantineStatus?.reason ??
-          'Из-за повторных пропусков бронирования временно ограничены. Подождите окончания окна или дождитесь снятия карантина.',
       };
     }
 
@@ -324,23 +287,6 @@ export function BookingActionBlock({
             {dateLabel}, {timeLabel}
           </p>
         </div>
-
-        {isQuarantined && quarantineStatus?.until ? (
-          <div
-            className="rounded-card border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink"
-            data-testid="booking-action-quarantine-notice"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-danger">
-              Карантин
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink">
-              Вы в карантине до {formatQuarantineUntil(quarantineStatus.until)}
-            </p>
-            {quarantineStatus.reason ? (
-              <p className="mt-1 text-xs leading-relaxed text-muted">{quarantineStatus.reason}</p>
-            ) : null}
-          </div>
-        ) : null}
 
         <div className="grid gap-3">
           <div className="rounded-card border border-line bg-panel-strong px-4 py-4">

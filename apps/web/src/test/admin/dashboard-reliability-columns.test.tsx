@@ -1,6 +1,7 @@
-// Phase 24 Step 24.15: тесты новых колонок DashboardPage — «Надёжность» + «Карантин»
-// и row-actions «Снять карантин», «Пересчитать рейтинг». Проверяют вычисление на лету
-// через computeAthleteReliability/isAthleteInQuarantine и запросы к новым admin endpoint'ам.
+// Тесты колонки «Надёжность» и row-action «Пересчитать рейтинг» в DashboardPage.
+// Проверяют вычисление на лету через computeAthleteReliability и запрос к admin-маршруту.
+// Фаза 35, этап Э0a: колонка санкций за неявки и кнопка их ручного послабления удалены
+// вместе с механизмом — здесь остался сторож того, что их больше нет.
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -76,7 +77,7 @@ function renderDashboard(props: { users: User[]; bookings?: Booking[] }) {
   );
 }
 
-describe('DashboardPage — Step 24.15 reliability + quarantine columns', () => {
+describe('DashboardPage — колонка надёжности и её действия', () => {
   beforeEach(() => {
     localStorage.clear();
     useAuthStore.setState({
@@ -99,7 +100,9 @@ describe('DashboardPage — Step 24.15 reliability + quarantine columns', () => 
     expect(within(card).getByText(/новый/i)).toBeInTheDocument();
   });
 
-  it('показывает плашку «Карантин до ...» для атлета с 3+ no_show подряд', () => {
+  // Сторож этапа Э0a: три неявки подряд больше не дают ни плашки, ни отдельной
+  // кнопки. Атлет получает ровно одно действие — «Пересчитать рейтинг».
+  it('три неявки подряд не приводят к плашке и не подменяют кнопку действия', () => {
     const bookings = [
       makeBooking({ id: 20, status: 'no_show', date: '2026-04-10', userId: 1 }),
       makeBooking({ id: 21, status: 'no_show', date: '2026-04-15', userId: 1 }),
@@ -110,33 +113,10 @@ describe('DashboardPage — Step 24.15 reliability + quarantine columns', () => 
     renderDashboard({ users: [fixtureAthlete], bookings });
 
     const card = screen.getByText('Тестовый атлет').closest('article')!;
-    expect(within(card).getByText(/карантин до/i)).toBeInTheDocument();
-
-    vi.useRealTimers();
-  });
-
-  it('клик «Снять карантин» → POST /api/admin/users/1/lift-quarantine', async () => {
-    const bookings = [
-      makeBooking({ id: 20, status: 'no_show', date: '2026-04-10', userId: 1 }),
-      makeBooking({ id: 21, status: 'no_show', date: '2026-04-15', userId: 1 }),
-      makeBooking({ id: 22, status: 'no_show', date: '2026-04-19', userId: 1 }),
-    ];
-    vi.setSystemTime(new Date('2026-04-21T00:00:00.000Z'));
-
-    renderDashboard({ users: [fixtureAthlete], bookings });
-
-    const card = screen.getByText('Тестовый атлет').closest('article')!;
-    const liftBtn = within(card).getByRole('button', { name: /снять карантин/i });
-    fireEvent.click(liftBtn);
-
-    await waitFor(() => {
-      const liftCall = fetchMock.mock.calls.find(
-        (args) =>
-          typeof args[0] === 'string' && args[0].includes('/api/admin/users/1/lift-quarantine'),
-      );
-      expect(liftCall).toBeDefined();
-      expect((liftCall![1] as RequestInit).method).toBe('POST');
-    });
+    // Прежняя красная плашка выводила дату окончания запрета — её больше нет.
+    expect(within(card).queryByText(/до \d{2}\.\d{2}\.\d{4}/)).toBeNull();
+    // А действие у атлета осталось ровно одно и прежнее.
+    expect(within(card).getByRole('button', { name: /пересчитать/i })).toBeInTheDocument();
 
     vi.useRealTimers();
   });
@@ -158,11 +138,10 @@ describe('DashboardPage — Step 24.15 reliability + quarantine columns', () => 
     });
   });
 
-  it('для provider: нет кнопок «Снять карантин» / «Пересчитать рейтинг»', () => {
+  it('для provider: кнопки «Пересчитать рейтинг» нет', () => {
     renderDashboard({ users: [fixtureProvider], bookings: [] });
 
     const card = screen.getByText('Марина Крылова').closest('article')!;
-    expect(within(card).queryByRole('button', { name: /снять карантин/i })).toBeNull();
     expect(within(card).queryByRole('button', { name: /пересчитать/i })).toBeNull();
   });
 });

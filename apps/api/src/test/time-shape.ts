@@ -20,9 +20,6 @@ export const VOLATILE_KEYS: ReadonlySet<string> = new Set([
   'revokedAt',
   'hiddenAt',
   'completedAt',
-  'quarantineLiftedAt',
-  'notifiedQuarantineUntil',
-  'until',
   'timestamp',
   'uptime',
 ]);

@@ -59,10 +59,14 @@
 - [ ] **step-6** Admin click «Показать» — expect статус `published`
 - [ ] **step-7** Provider правит скрытую публикацию (PATCH) → скрытие снимается: статус `published`, причина и метка модератора очищены
 
-## Scenario: Admin-инструменты reliability/карантина (Step 24.15)
+## Scenario: Admin-инструменты reliability (Step 24.15)
 
-- [ ] **step-1** В `/service-portal/dashboard` таблица содержит колонки reliability и карантина
-- [ ] **step-2** Для атлета в карантине — кнопка «Снять карантин» → POST `/api/admin/users/[id]/lift-quarantine` → expect 200, уведомление `quarantine_lifted_by_admin` создано
+> ⚠️ Санкций за неявки в продукте нет: фаза 35, этап Э0a вырезал механизм целиком
+> вместе с колонкой в списке пользователей, кнопкой ручного послабления и маршрутом
+> `POST /api/admin/users/[id]/lift-quarantine`. Надёжность осталась и проверяется здесь.
+
+- [ ] **step-1** В `/service-portal/dashboard` карточка пользователя содержит бейдж надёжности; колонки и плашки со сроком запрета нет
+- [ ] **step-2** `POST /api/admin/users/[id]/lift-quarantine` под админом — expect **404**: маршрута ручного послабления больше нет
 - [ ] **step-3** Для любого user — кнопка «Пересчитать рейтинг» → POST `/api/admin/users/[id]/recompute-reliability` → expect 200 (no-op под кэш, лог пишется)
 - [ ] **step-4** Hard-delete booking через `DELETE /api/admin/bookings/[id]` → запись физически удалена, лог `admin_hard_delete_booking` есть
 - [ ] **step-5** Force-revoke TrainerClubLink от имени admin → POST `/api/admin/trainer-club-links/[id]/force-revoke` → expect `revokedBy='admin'`, обе стороны получают `link_revoked`, offerings детачатся

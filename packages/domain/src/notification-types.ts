@@ -1,7 +1,11 @@
-// Phase 25 Step 25.14: группы NotificationType для UI-фильтров в NotificationsListPage
-// и редактора per-тип preferences в Settings. REQUIRED_NOTIFICATION_TYPES — критичные
-// типы, которые нельзя отключить (booking_confirmed, booking_cancelled_by_provider,
-// quarantine_start). При записи preferences через API такие ключи игнорируются.
+// Группы NotificationType для UI-фильтров в NotificationsListPage и редактора
+// per-тип preferences в Settings. REQUIRED_NOTIFICATION_TYPES — критичные типы,
+// которые нельзя отключить (booking_confirmed, booking_cancelled_by_provider).
+// При записи preferences через API такие ключи игнорируются.
+//
+// ⚠️ Фаза 35, этап Э0a: группа санкций за неявки и три её типа удалены вместе
+// с самим механизмом. Удаление типов группу за собой не уносит — её пришлось
+// убрать отдельно, иначе в настройках осталась бы пустая вкладка.
 import type { AuthAccountType, NotificationType, User } from '@sporthub/types';
 
 // Phase 29 Step 29.4: добавлена группа 'reviews' для уведомлений по отзывам
@@ -9,12 +13,12 @@ import type { AuthAccountType, NotificationType, User } from '@sporthub/types';
 // автоматически благодаря NOTIFICATION_GROUP_KEYS-derived рендеру в
 // NotificationsListPage. Audience группы — обе роли (athlete для подтверждения,
 // provider для входящих отзывов), поэтому тaб виден и тем, и тем.
-export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'quarantine', 'reviews'] as const;
+export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'reviews'] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
 
 /**
  * Phase 27 Step 27.3: кому адресован каждый NotificationType.
- * - athlete: booking FSM для атлета + quarantine (атлет может попасть в карантин).
+ * - athlete: booking FSM для атлета.
  * - provider: link_* события (трейнер↔клуб) + provider-ось booking-уведомлений
  *   (booking_requested / ..._to_provider / booking_auto_expired_to_provider).
  * У каждого типа строго один адресат — пересечений нет.
@@ -34,9 +38,6 @@ export const NOTIFICATION_TYPE_AUDIENCE: Record<NotificationType, AuthAccountTyp
   link_approved: 'provider',
   link_rejected: 'provider',
   link_revoked: 'provider',
-  quarantine_start: 'athlete',
-  quarantine_end: 'athlete',
-  quarantine_lifted_by_admin: 'athlete',
   // Phase 29 Step 29.4: review-уведомления — два одноcторонних канала.
   review_received_by_provider: 'provider',
   review_published_for_athlete: 'athlete',
@@ -71,9 +72,6 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   link_approved: 'links',
   link_rejected: 'links',
   link_revoked: 'links',
-  quarantine_start: 'quarantine',
-  quarantine_end: 'quarantine',
-  quarantine_lifted_by_admin: 'quarantine',
   // Phase 29 Step 29.4: review-уведомления — отдельная группа 'reviews'.
   review_received_by_provider: 'reviews',
   review_published_for_athlete: 'reviews',
@@ -83,12 +81,10 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
  * Типы уведомлений, которые нельзя отключить — критичные для пользователя.
  * booking_confirmed — атлет должен знать, что провайдер подтвердил запись.
  * booking_cancelled_by_provider — атлет должен знать, что провайдер отменил его запись.
- * quarantine_start — атлет должен знать, что попал в карантин (бан на запись 7 дней).
  */
 export const REQUIRED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   'booking_confirmed',
   'booking_cancelled_by_provider',
-  'quarantine_start',
 ];
 
 /** Проверяет, можно ли отключить уведомление этого типа. */

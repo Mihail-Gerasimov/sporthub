@@ -168,10 +168,6 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       passwordHash: row.passwordHash,
       avatarUrl: row.avatarUrl ?? undefined,
       city: row.city ?? undefined,
-      quarantineLiftedAt: row.quarantineLiftedAt ? toIsoString(row.quarantineLiftedAt) : undefined,
-      notifiedQuarantineUntil: row.notifiedQuarantineUntil
-        ? toIsoString(row.notifiedQuarantineUntil)
-        : undefined,
       notificationPreferences:
         row.notificationPreferences.length === 0
           ? undefined

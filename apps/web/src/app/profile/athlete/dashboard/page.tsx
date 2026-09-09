@@ -1,7 +1,5 @@
 // Серверная страница Dashboard атлета (Step 25.3). Основной маршрут ЛК после
 // Phase 26 Step 26.5 — корневой /profile/athlete теперь редиректит сюда.
-import type { User } from '@sporthub/types';
-
 import { readSession } from '@/lib/session';
 import { getBookingsByUser, getClubs, getSchedule, getTrainers } from '@/lib/server-api';
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
@@ -24,12 +22,6 @@ export default async function AthleteDashboardRoute() {
   ]);
 
   return (
-    <AthleteDashboard
-      bookings={bookings}
-      clubs={clubs}
-      schedule={schedule}
-      trainers={trainers}
-      users={viewer === null ? [] : [viewer as unknown as User]}
-    />
+    <AthleteDashboard bookings={bookings} clubs={clubs} schedule={schedule} trainers={trainers} />
   );
 }

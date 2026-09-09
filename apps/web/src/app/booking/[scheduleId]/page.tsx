@@ -4,11 +4,8 @@ import { notFound } from 'next/navigation';
 
 import { BookingActionBlock } from '@/components/booking/BookingActionBlock';
 import { Badge, Card } from '@/components/ui';
-import { getQuarantineDateFrom, QUARANTINE_STATUSES } from '@/lib/booking-scopes';
-import { getBookingsWhere, getScheduleSlotContext } from '@/lib/server-api';
-import { readSession } from '@/lib/session';
-import { isAthleteInQuarantine, type QuarantineResult } from '@sporthub/domain';
-import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
+import { getScheduleSlotContext } from '@/lib/server-api';
+import { formatDate, formatPrice } from '@/lib/utils';
 import type { OfferingFormat } from '@sporthub/types';
 
 // Явно отключаем статическую оптимизацию, чтобы booking-context не зависал после обновления слота.
@@ -39,42 +36,13 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound();
   }
 
-  // Момент считается один раз: он же уходит в нижнюю границу запроса и в расчёт
-  // карантина ниже, и разъезжаться этим двум значениям нельзя.
-  const now = new Date();
-
-  const [slotContext, viewer] = await Promise.all([
-    getScheduleSlotContext(normalizedScheduleId),
-    readSession(),
-  ]);
+  // ⚠️ Фаза 35, этап Э0a: страница больше не читает ни сессию, ни историю записей.
+  // Раньше здесь считались санкции за неявки смотрящего — механизм вырезан целиком,
+  // а вместе с ним ушёл и единственный повод спрашивать что-либо, кроме самого слота.
+  const slotContext = await getScheduleSlotContext(normalizedScheduleId);
 
   if (!slotContext || !slotContext.offering) {
     notFound();
-  }
-
-  // ⚠️ Карантин считается только для ТОГО, КТО СМОТРИТ (фаза 34). Раньше страница
-  // поднимала список всех пользователей площадки и считала карантин каждому
-  // атлету — то есть ради одного бейджа отдавала наружу почты и телефоны всех
-  // зарегистрированных. Гостю считать нечего: ему запись всё равно недоступна.
-  const quarantineByUserId: Record<number, QuarantineResult> = {};
-
-  if (viewer !== null && viewer.role === 'athlete') {
-    // ⚠️ Записи спрашиваются ПОСЛЕ того, как стало известно, кто смотрит, и только
-    // его собственные. Прежний вызов шёл до этого и потому просил полный срез
-    // площадки: гостю такой запрос отвечает отказом, и страница записи падала
-    // пятисотой, хотя гостю здесь считать было нечего с самого начала.
-    //
-    // Сужаем и тем, что читает само правило: два статуса и окно последних тридцати
-    // дней (плюс окно отметки исхода, см. `booking-scopes`).
-    const history = await getBookingsWhere({
-      userId: viewer.id,
-      status: QUARANTINE_STATUSES,
-      dateFrom: getQuarantineDateFrom(getDateKeyInTimeZone(now)),
-    });
-
-    quarantineByUserId[viewer.id] = isAthleteInQuarantine(history, viewer.id, now, {
-      quarantineLiftedAt: viewer.quarantineLiftedAt ?? null,
-    });
   }
 
   const { affiliatedClub, club, offering, schedule: slot, trainer } = slotContext;
@@ -211,7 +179,6 @@ export default async function BookingPage({ params }: BookingPageProps) {
             dateLabel={actionDateLabel}
             timeLabel={actionTimeLabel}
             availableSpots={availableSpots}
-            quarantineByUserId={quarantineByUserId}
           />
         </div>
       </div>

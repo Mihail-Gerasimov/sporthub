@@ -3,7 +3,7 @@
  * client-компонент для /profile/athlete/notifications и /profile/provider/notifications.
  *
  * Phase 24: плоский список, mark-as-read по клику, mark-all-read.
- * Phase 26 Step 26.2: фильтры групп (booking/links/quarantine через
+ * Phase 26 Step 26.2: фильтры групп (booking/links/reviews через
  * NOTIFICATION_TYPE_GROUP), тоггл «Только непрочитанные», группировка по датам
  * (Сегодня / Вчера / Эта неделя / Раньше) через helper getDateBucket.
  *
@@ -71,7 +71,6 @@ const GROUP_LABELS: Record<GroupFilter, string> = {
   all: 'Все',
   booking: 'Записи',
   links: 'Связи',
-  quarantine: 'Дисциплина',
   // Phase 29 Step 29.4: tab «Отзывы» — для review-уведомлений
   // (получено провайдером + опубликовано автором).
   reviews: 'Отзывы',
@@ -187,9 +186,7 @@ export function NotificationsListPage({
   // Phase 29 Step 29.4: 'reviews' добавлено для обеих ролей — атлет получает
   // confirmation своего отзыва, провайдер — входящие отзывы клиентов.
   const visibleGroupKeys: readonly NotificationGroupKey[] =
-    accountType === 'athlete'
-      ? (['booking', 'quarantine', 'reviews'] as const)
-      : NOTIFICATION_GROUP_KEYS;
+    accountType === 'athlete' ? (['booking', 'reviews'] as const) : NOTIFICATION_GROUP_KEYS;
 
   // Защита от stale activeGroup: если active-tab стал невидимым (смена accountType на лету),
   // сбрасываем на 'all'. Для MVP accountType стабилен в пределах монтирования — скорее edge-case.
@@ -215,7 +212,6 @@ export function NotificationsListPage({
       all: 0,
       booking: 0,
       links: 0,
-      quarantine: 0,
       reviews: 0,
     };
     for (const n of notifications) {

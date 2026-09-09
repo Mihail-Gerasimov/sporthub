@@ -258,7 +258,6 @@ describe('Маршруты учётных данных', () => {
       .send({
         preferences: {
           booking_confirmed: false,
-          quarantine_start: false,
           booking_cancelled_by_provider: false,
           booking_rejected: false,
         },

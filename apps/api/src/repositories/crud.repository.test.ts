@@ -406,19 +406,16 @@ const usersContract = (createRepository: () => Promise<UsersRepository>) => {
 
   it('правка с пустым значением СТИРАЕТ поле, а не оставляет прежнее', async () => {
     const users = await createRepository();
-    const created = await users.insert({
-      ...newUser,
-      notifiedQuarantineUntil: '2026-05-01T00:00:00.000Z',
-    });
+    const created = await users.insert({ ...newUser, city: 'Санкт-Петербург' });
 
-    expect(created.notifiedQuarantineUntil).toBe('2026-05-01T00:00:00.000Z');
+    expect(created.city).toBe('Санкт-Петербург');
 
-    // На этом держится снятие карантина администратором: маршрут шлёт ключ
-    // с пустым значением, и метка обязана исчезнуть.
-    const updated = await users.update(created.id, { notifiedQuarantineUntil: undefined });
+    // Ключ с пустым значением обязан стереть поле, а не быть понятым как
+    // «не трогать»: иначе город невозможно очистить, а только заменить другим.
+    const updated = await users.update(created.id, { city: undefined });
 
-    expect(updated.notifiedQuarantineUntil).toBeUndefined();
-    expect((await users.findById(created.id))?.notifiedQuarantineUntil).toBeUndefined();
+    expect(updated.city).toBeUndefined();
+    expect((await users.findById(created.id))?.city).toBeUndefined();
   });
 };
 

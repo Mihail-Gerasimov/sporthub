@@ -1,5 +1,9 @@
 // Dashboard спортсмена (Step 25.3): ближайшая тренировка, pending-countdown до auto-cancel,
-// reliability-секция (+ new-user placeholder), KPI, карантин-баннер (перенесён из корня).
+// reliability-секция (+ new-user placeholder), KPI.
+//
+// ⚠️ Фаза 35, этап Э0a: верхний баннер о санкциях за неявки убран вместе с самим
+// механизмом. С ним ушёл и список пользователей во входных свойствах — он был нужен
+// ровно затем, чтобы достать оттуда отметку о ручном послаблении.
 'use client';
 
 import Link from 'next/link';
@@ -12,14 +16,14 @@ import {
 } from '@/components/profile/athlete-bookings';
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
-import { computeAthleteReliability, isAthleteInQuarantine } from '@sporthub/domain';
+import { computeAthleteReliability } from '@sporthub/domain';
 import {
   getPersonalCabinetConfig,
   selectAthleteActionUserId,
   useAuthStore,
 } from '@/stores/useAuthStore';
 import { AccessDeniedCard } from '@/components/profile/AccessDeniedCard';
-import type { Booking, Club, Schedule, Trainer, User } from '@sporthub/types';
+import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 import { findBookingSlot } from '@/lib/utils';
 
 type AthleteDashboardProps = {
@@ -27,7 +31,6 @@ type AthleteDashboardProps = {
   clubs?: Club[];
   schedule?: Schedule[];
   trainers?: Trainer[];
-  users?: User[];
 };
 
 /** Остаток мс до авто-отмены pending (1h до старта слота). Отрицательный — окно уже прошло.
@@ -66,7 +69,6 @@ export function AthleteDashboard({
   clubs = [],
   schedule = [],
   trainers = [],
-  users = [],
 }: AthleteDashboardProps) {
   const user = useAuthStore((state) => state.user);
   const accountType = useAuthStore((state) => state.accountType);
@@ -84,21 +86,6 @@ export function AthleteDashboard({
     () =>
       athleteUserId === null ? null : computeAthleteReliability(athleteBookings, athleteUserId),
     [athleteBookings, athleteUserId],
-  );
-
-  const athleteUser = useMemo(
-    () => (athleteUserId === null ? null : (users.find((u) => u.id === athleteUserId) ?? null)),
-    [users, athleteUserId],
-  );
-
-  const quarantineStatus = useMemo(
-    () =>
-      athleteUserId === null
-        ? ({ inQuarantine: false } as const)
-        : isAthleteInQuarantine(athleteBookings, athleteUserId, new Date(), {
-            quarantineLiftedAt: athleteUser?.quarantineLiftedAt ?? null,
-          }),
-    [athleteBookings, athleteUserId, athleteUser],
   );
 
   const upcomingProfileBookings = useMemo(
@@ -165,44 +152,6 @@ export function AthleteDashboard({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Карантин-баннер сверху (Phase 24 Step 24.14, смигрирован в Dashboard в 25.3). */}
-      {quarantineStatus.inQuarantine ? (
-        <Card
-          className="border-danger/40 bg-danger/10 p-5 sm:p-6"
-          data-testid="athlete-quarantine-banner"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-danger">
-                Карантин
-              </p>
-              <p className="mt-2 text-lg font-semibold text-ink">
-                Вы временно не можете создавать новые записи
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                {quarantineStatus.reason ??
-                  'Из-за повторных пропусков новые бронирования временно ограничены.'}
-              </p>
-              {quarantineStatus.until ? (
-                <p className="mt-1 text-sm text-muted">
-                  Карантин действует до{' '}
-                  <span className="font-semibold text-ink">
-                    {new Date(quarantineStatus.until).toLocaleDateString('ru-RU', {
-                      day: '2-digit',
-                      month: 'long',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  .
-                </p>
-              ) : null}
-            </div>
-            <Badge tone="danger">Active</Badge>
-          </div>
-        </Card>
-      ) : null}
-
       {/* Шапка: new-user → нейтральная «Сделайте первую запись», иначе — «Обзор». */}
       <Card className="p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">

@@ -1,5 +1,5 @@
 // Phase 26 Step 26.3: UI-редактор per-type notification preferences в Settings.
-// 3 group-секции (booking/links/quarantine) из NOTIFICATION_TYPE_GROUP.
+// Group-секции (booking/links/reviews) из NOTIFICATION_TYPE_GROUP.
 // REQUIRED_NOTIFICATION_TYPES — disabled + плашка «Нельзя отключить».
 // Изменение чекбокса debounced (500мс) отправляет PATCH на
 // /api/users/[id]/notification-preferences с полным снапшотом prefs и toast'ит
@@ -24,7 +24,6 @@ import type { NotificationType } from '@sporthub/types';
 const GROUP_TITLES: Record<NotificationGroupKey, string> = {
   booking: 'Записи',
   links: 'Связи',
-  quarantine: 'Дисциплина',
   // Phase 29 Step 29.4: уведомления при отзывах.
   reviews: 'Отзывы',
 };
@@ -57,9 +56,7 @@ export function UserNotificationPreferencesEditor({
   // Phase 29 Step 29.4: 'reviews' видим обеим ролям (athlete получает
   // confirmation своего отзыва, provider — входящие отзывы клиентов).
   const visibleGroups: readonly NotificationGroupKey[] =
-    accountType === 'athlete'
-      ? (['booking', 'quarantine', 'reviews'] as const)
-      : NOTIFICATION_GROUP_KEYS;
+    accountType === 'athlete' ? (['booking', 'reviews'] as const) : NOTIFICATION_GROUP_KEYS;
   // Локальный draft preferences — инициализируется фактическим состоянием user.
   // Для отсутствующих ключей isNotificationTypeEnabled вернёт true по дефолту.
   const [prefs, setPrefs] = useState<Partial<Record<NotificationType, boolean>>>(() => {
@@ -110,7 +107,6 @@ export function UserNotificationPreferencesEditor({
     const map: Record<NotificationGroupKey, NotificationType[]> = {
       booking: [],
       links: [],
-      quarantine: [],
       // Phase 29 Step 29.4: новая группа отзывов.
       reviews: [],
     };
@@ -170,7 +166,7 @@ export function UserNotificationPreferencesEditor({
         <h2 className="font-display text-xl font-semibold text-ink">Уведомления</h2>
         <p className="mt-1 text-sm text-muted">
           Выберите, какие события вы хотите получать в ленте и bell-иконке. Критичные уведомления
-          (подтверждения, отмены провайдером, карантин) отключить нельзя.
+          (подтверждения и отмены провайдером) отключить нельзя.
         </p>
       </header>
 

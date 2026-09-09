@@ -1,15 +1,14 @@
 // Конфиг дисциплинарных параметров платформы: пороги рейтингов надёжности,
-// окна авто-переходов FSM booking'а, условия карантина атлета, окна отмены по policy.
+// окна авто-переходов FSM booking'а, окна отмены по policy.
 // Единственный источник "магических чисел" для FSM, reliability-утилит и guard'ов.
 // Все параметры — константы компиляции; изменение значений требует пересборки.
-// Используется в Step 24.3 (FSM transitionBooking/runLazyBookingTransitions),
-// Step 24.12 (reliability.ts), Step 24.14 (карантин-guard, late-cancel warning).
+// Используется в FSM (transitionBooking/runLazyBookingTransitions), в расчёте
+// надёжности (reliability.ts) и в предупреждении о поздней отмене.
 
 export const DISCIPLINE_CONFIG = {
   // Минимум завершённых booking'ов у пользователя для публичного отображения бейджа
   // надёжности. Ниже этого порога на публичных поверхностях — компактная плашка
-  // "Новый пользователь" без числового рейтинга. Grace-периода для карантина нет —
-  // карантин срабатывает и у новичков (осознанное решение Phase 24).
+  // "Новый пользователь" без числового рейтинга.
   minCompletedForBadge: 5,
 
   reliability: {
@@ -17,15 +16,6 @@ export const DISCIPLINE_CONFIG = {
     warningThreshold: 0.9,
     // Порог красного бейджа "danger": completionRate < 0.75
     dangerThreshold: 0.75,
-  },
-
-  quarantine: {
-    // Количество no_show подряд (без разрыва через completed) для срабатывания карантина
-    consecutiveNoShowTrigger: 3,
-    // Окно учёта no_show в днях — считаем только booking'и за последние N дней
-    windowDays: 30,
-    // Длительность карантина в днях с момента последнего no_show
-    durationDays: 7,
   },
 
   pending: {

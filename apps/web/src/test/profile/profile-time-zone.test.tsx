@@ -281,14 +281,7 @@ describe('Отсчёт до авто-отмены заявки (Step 33.11)', ()
       date: '2026-08-22',
     });
 
-    render(
-      <AthleteDashboard
-        bookings={[booking]}
-        schedule={[slot]}
-        users={[athleteUser]}
-        clubs={[club]}
-      />,
-    );
+    render(<AthleteDashboard bookings={[booking]} schedule={[slot]} clubs={[club]} />);
 
     const pending = screen.getByTestId('athlete-dashboard-pending');
     expect(within(pending).getByText(/2ч 30мин/)).toBeInTheDocument();

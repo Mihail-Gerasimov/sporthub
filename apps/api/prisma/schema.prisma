@@ -177,12 +177,6 @@ model User {
   /// В MVP это текст, а не ссылка на City — так объявлено в типах.
   city String? @map("city") @db.VarChar(200)
 
-  /// Карантин атлета (фазы 24/25): ручное снятие админом.
-  quarantineLiftedAt DateTime? @map("quarantine_lifted_at")
-
-  /// Дедуп уведомления о начале карантина: хранит `until` последнего уведомления.
-  notifiedQuarantineUntil DateTime? @map("notified_quarantine_until")
-
   managedClubs    Club[]    @relation("ClubManagedBy")
   hiddenClubs     Club[]    @relation("ClubHiddenBy")
   managedTrainers Trainer[] @relation("TrainerManagedBy")
@@ -1057,7 +1051,7 @@ model ClubImage {
 /// Переход статуса записи вместо Booking.statusHistory.
 /// Массив переписывался целиком из объекта, прочитанного ДО транзакции
 /// (booking.service.ts:106), — два одновременных перехода теряли один бесследно,
-/// а по этой истории считаются надёжность и карантин. Здесь дописывание истории
+/// а по этой истории считается надёжность. Здесь дописывание истории
 /// становится вставкой ОДНОЙ строки (7.9).
 model BookingStatusTransition {
   id        Int @id @default(autoincrement()) @map("id")

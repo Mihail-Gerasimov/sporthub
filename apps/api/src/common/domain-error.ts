@@ -83,19 +83,3 @@ export class ExternalServiceError extends DomainError {
     super(message);
   }
 }
-
-/**
- * Особый случай: карантин атлета. Ответ не укладывается в общую форму —
- * в поле `error` лежит машинный код, а рядом два дополнительных поля.
- * На это завязаны экран записи и тест, поэтому форма сохраняется как есть.
- */
-export class QuarantineError extends DomainError {
-  readonly status = 403;
-
-  constructor(
-    readonly until: string | undefined,
-    readonly reason: string | undefined,
-  ) {
-    super('quarantine');
-  }
-}
