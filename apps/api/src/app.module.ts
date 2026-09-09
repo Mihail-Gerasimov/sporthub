@@ -6,6 +6,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AccessService } from './access/access.service';
+import { SessionService } from './auth/session.service';
 import { BookingService } from './bookings/booking.service';
 import { BOOKING_CONTROLLERS } from './bookings/bookings.controller';
 import { BookingsGateway } from './bookings/bookings.gateway';
@@ -71,6 +72,7 @@ import { StorageModule } from './storage/storage.module';
     BookingsGateway,
     CatalogQueryService,
     LinkService,
+    SessionService,
   ],
 })
 export class AppModule {}

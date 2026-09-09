@@ -24,6 +24,7 @@ export const INDEX_PREDICATES = {
   schedule_has_free_seats_idx: 'booked_count < capacity',
   bookings_active_by_slot_idx: `status IN (${toSqlList(ACTIVE_BOOKING_STATUSES)})`,
   notifications_unread_idx: 'read_at IS NULL',
+  sessions_active_idx: 'revoked_at IS NULL',
 };
 
 /**
@@ -42,6 +43,10 @@ export const CHECK_CONSTRAINTS = {
     table: 'schedule',
     expression:
       '(CASE WHEN owner_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN owner_trainer_id IS NULL THEN 0 ELSE 1 END) = 1',
+  },
+  sessions_expires_after_created: {
+    table: 'sessions',
+    expression: 'expires_at > created_at',
   },
   bookings_owner_one: {
     table: 'bookings',
@@ -90,6 +95,9 @@ export const PARTIAL_INDEXES = {
   schedule_has_free_seats_idx: { table: 'schedule', columns: 'date, start_time' },
   bookings_active_by_slot_idx: { table: 'bookings', columns: 'schedule_id, status' },
   notifications_unread_idx: { table: 'notifications', columns: 'user_id, created_at DESC' },
+  /// Отзыв всех живых сессий пользователя: отозванные в индекс не попадают,
+  /// а их со временем становится большинство.
+  sessions_active_idx: { table: 'sessions', columns: 'user_id' },
 };
 
 /** Готовый SQL для миграции. */

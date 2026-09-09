@@ -8,9 +8,10 @@
 // Ответ всё равно очищается от него: хеш наружу не отдаётся никогда — он
 // пригоден для перебора офлайн, и «это же не пароль» тут не оправдание.
 
-import { Body, Controller, Get, Inject, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Req } from '@nestjs/common';
 import { REQUIRED_NOTIFICATION_TYPES } from '@sporthub/domain';
 import type { NotificationType, User } from '@sporthub/types';
+import type { Request } from 'express';
 import { z } from 'zod';
 
 import {
@@ -22,6 +23,8 @@ import {
 import { hashPassword, verifyPassword } from '../common/password';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
+import { readSessionCookie } from '../auth/session-cookie';
+import { SessionService } from '../auth/session.service';
 
 /** Тот же формат телефона, что и в формах публикации. */
 const PHONE_PATTERN = /^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/;
@@ -74,10 +77,17 @@ function parseUserId(raw: string, message: string): number {
 
 @Controller('users')
 export class UserAccountController {
-  constructor(@Inject(USERS_REPOSITORY) private readonly users: UsersRepository) {}
+  constructor(
+    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    private readonly sessions: SessionService,
+  ) {}
 
   @Patch(':id')
-  async update(@Param('id') rawId: string, @Body() rawBody: unknown): Promise<SafeUser> {
+  async update(
+    @Param('id') rawId: string,
+    @Body() rawBody: unknown,
+    @Req() request: Request,
+  ): Promise<SafeUser> {
     const targetUserId = parseUserId(rawId, 'Некорректный id пользователя');
     const parsed = patchSchema.safeParse(rawBody);
 
@@ -114,6 +124,21 @@ export class UserAccountController {
     if (password !== undefined) patch.passwordHash = await hashPassword(password);
 
     const updated = await this.users.update(targetUserId, patch);
+
+    // Смена пароля гасит ОСТАЛЬНЫЕ сессии пользователя.
+    //
+    // Иначе смена пароля не спасает от того, ради чего её меняют: сессия, открытая
+    // тем, кто пароль подсмотрел, продолжала бы работать до собственного срока.
+    // Текущая сессия остаётся живой — иначе человек, сменивший пароль, вылетал бы
+    // из системы в момент смены.
+    if (password !== undefined) {
+      const now = new Date();
+      const token = readSessionCookie(request);
+      const current = token === null ? null : await this.sessions.findLiveByToken(token, now);
+
+      if (current === null) await this.sessions.revokeAll(targetUserId, now);
+      else await this.sessions.revokeOthers(targetUserId, current.id, now);
+    }
 
     return stripPasswordHash(updated);
   }

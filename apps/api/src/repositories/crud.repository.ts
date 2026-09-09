@@ -8,7 +8,14 @@
 // Тексты ошибок — часть контракта: на них завязаны маршруты, которые превращают
 // сообщение в код ответа, и тесты, сравнивающие строку посимвольно.
 
-import type { LogAction, LogEntry, ProviderClientNote, Review, User } from '@sporthub/types';
+import type {
+  LogAction,
+  LogEntry,
+  ProviderClientNote,
+  Review,
+  Session,
+  User,
+} from '@sporthub/types';
 
 // --- Токены внедрения ---------------------------------------------------------
 
@@ -16,6 +23,7 @@ export const LOGS_REPOSITORY = Symbol('LOGS_REPOSITORY');
 export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
 export const USERS_REPOSITORY = Symbol('USERS_REPOSITORY');
 export const PROVIDER_CLIENT_NOTES_REPOSITORY = Symbol('PROVIDER_CLIENT_NOTES_REPOSITORY');
+export const SESSIONS_REPOSITORY = Symbol('SESSIONS_REPOSITORY');
 
 // --- Интерфейсы ---------------------------------------------------------------
 
@@ -147,4 +155,41 @@ export interface ProviderClientNotesRepository {
   ): Promise<ProviderClientNote>;
   update(id: number, patch: { note?: string; bookingId?: number }): Promise<ProviderClientNote>;
   remove(id: number): Promise<void>;
+}
+
+// --- Сессии -------------------------------------------------------------------
+
+/**
+ * Хранилище сессий входа (фаза 34).
+ *
+ * Интерфейс намеренно узкий: сессия ищется по ХЕШУ идентификатора, а не по нему
+ * самому. Сам идентификатор в базу не попадает вовсе, поэтому и метода поиска
+ * по нему тут нет — забыть захешировать негде.
+ */
+export interface SessionsRepository {
+  /** Выдать сессию. Хеш обязан быть уникален — это стережёт база. */
+  insert(session: Omit<Session, 'id' | 'createdAt'>): Promise<Session>;
+
+  /**
+   * Найти живую сессию по хешу: не отозвана и не просрочена по предельному сроку.
+   * Срок бездействия считает вызывающий по политике роли — он о ней знает, а
+   * репозиторий о ролях знать не должен.
+   */
+  findLiveByTokenHash(tokenHash: string, now: string): Promise<Session | null>;
+
+  /** Продлить: срок бездействия считается от этой метки. */
+  touch(id: number, seenAt: string): Promise<void>;
+
+  /** Отозвать одну сессию — выход. Повторный отзыв ничего не меняет. */
+  revoke(id: number, at: string): Promise<void>;
+
+  /**
+   * Отозвать все живые сессии пользователя — смена пароля, бан, выход отовсюду.
+   * Одним обновлением по индексу, а не чтением списка и отзывом по одной.
+   * Возвращает число отозванных.
+   */
+  revokeAllForUser(userId: number, at: string, exceptId?: number): Promise<number>;
+
+  /** Убрать просроченные. Отдельная команда, а не работа на чужом запросе. */
+  removeExpired(before: string): Promise<number>;
 }

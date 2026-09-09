@@ -21,7 +21,14 @@
 //    когда-нибудь прицепится.
 
 import { Injectable } from '@nestjs/common';
-import type { LogEntry, NotificationType, ProviderClientNote, Review, User } from '@sporthub/types';
+import type {
+  LogEntry,
+  NotificationType,
+  ProviderClientNote,
+  Review,
+  Session,
+  User,
+} from '@sporthub/types';
 
 import type {
   DailyCount,
@@ -33,6 +40,7 @@ import type {
   ReviewsCountFilter,
   ReviewsFilter,
   ReviewsRepository,
+  SessionsRepository,
   UsersRepository,
 } from '../crud.repository';
 import { Prisma } from '../../storage/prisma-client/client';
@@ -703,5 +711,111 @@ export class PrismaProviderClientNotesRepository implements ProviderClientNotesR
     // Удаление отсутствующей заметки не считается ошибкой — так же вела себя
     // файловая реализация, отфильтровывавшая по номеру.
     await this.client.providerClientNote.deleteMany({ where: { id } });
+  }
+}
+
+/** Строка сессии из базы. */
+type SessionRow = {
+  id: number;
+  createdAt: Date;
+  tokenHash: string;
+  userId: number;
+  impersonatedUserId: number | null;
+  lastSeenAt: Date;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  userAgent: string | null;
+  ip: string | null;
+};
+
+/**
+ * Сессии входа поверх базы.
+ *
+ * Все обращения идут по индексам и ни одно не читает таблицу целиком: проверка
+ * сессии случается на КАЖДОМ запросе к закрытому маршруту, и перебор здесь стоил бы
+ * дороже всей остальной работы запроса.
+ */
+@Injectable()
+export class PrismaSessionsRepository implements SessionsRepository {
+  constructor(private readonly transactions: PrismaTransactionRunner) {}
+
+  private get client(): DatabaseClient {
+    return this.transactions.client;
+  }
+
+  private static toSession(row: SessionRow): Session {
+    return omitNulls({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      tokenHash: row.tokenHash,
+      userId: row.userId,
+      impersonatedUserId: row.impersonatedUserId,
+      lastSeenAt: toIsoString(row.lastSeenAt),
+      expiresAt: toIsoString(row.expiresAt),
+      revokedAt: row.revokedAt === null ? undefined : toIsoString(row.revokedAt),
+      userAgent: row.userAgent,
+      ip: row.ip,
+    }) as unknown as Session;
+  }
+
+  async insert(session: Omit<Session, 'id' | 'createdAt'>): Promise<Session> {
+    const row = await this.client.session.create({
+      data: {
+        tokenHash: session.tokenHash,
+        userId: session.userId,
+        impersonatedUserId: session.impersonatedUserId ?? null,
+        lastSeenAt: new Date(session.lastSeenAt),
+        expiresAt: new Date(session.expiresAt),
+        revokedAt: session.revokedAt === undefined ? null : new Date(session.revokedAt),
+        userAgent: session.userAgent ?? null,
+        ip: session.ip ?? null,
+      },
+    });
+
+    return PrismaSessionsRepository.toSession(row);
+  }
+
+  async findLiveByTokenHash(tokenHash: string, now: string): Promise<Session | null> {
+    // Отозванность и предельный срок проверяет ЗАПРОС, а не код после чтения:
+    // иначе мёртвая сессия сначала доезжала бы до памяти и только потом отбрасывалась.
+    const row = await this.client.session.findFirst({
+      where: { tokenHash, revokedAt: null, expiresAt: { gt: new Date(now) } },
+    });
+
+    return row === null ? null : PrismaSessionsRepository.toSession(row);
+  }
+
+  async touch(id: number, seenAt: string): Promise<void> {
+    await this.client.session.update({ where: { id }, data: { lastSeenAt: new Date(seenAt) } });
+  }
+
+  async revoke(id: number, at: string): Promise<void> {
+    // Условие по `revokedAt` не даёт переписать метку у уже отозванной: первый отзыв
+    // и есть настоящий, и именно он интересен при разборе инцидента.
+    await this.client.session.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date(at) },
+    });
+  }
+
+  async revokeAllForUser(userId: number, at: string, exceptId?: number): Promise<number> {
+    const result = await this.client.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(exceptId === undefined ? {} : { id: { not: exceptId } }),
+      },
+      data: { revokedAt: new Date(at) },
+    });
+
+    return result.count;
+  }
+
+  async removeExpired(before: string): Promise<number> {
+    const result = await this.client.session.deleteMany({
+      where: { expiresAt: { lt: new Date(before) } },
+    });
+
+    return result.count;
   }
 }

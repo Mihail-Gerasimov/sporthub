@@ -25,6 +25,7 @@
     "db:psql": "docker compose exec db psql -U sporthub -d sporthub",
     "db:reset": "docker compose down -v && docker compose up -d db",
     "db:seed": "node scripts/db-seed-dev.mjs",
+    "db:sessions:prune": "node scripts/db-sessions-prune.mjs",
     "db:test:clean": "node scripts/db-test-clean.mjs",
     "test:db": "npm run db:up && node scripts/wait-for-db.mjs && npm run test",
     "app:up": "docker compose --profile app up -d --build",

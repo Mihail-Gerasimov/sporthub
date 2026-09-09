@@ -32,6 +32,7 @@ import {
   LOGS_REPOSITORY,
   PROVIDER_CLIENT_NOTES_REPOSITORY,
   REVIEWS_REPOSITORY,
+  SESSIONS_REPOSITORY,
   USERS_REPOSITORY,
 } from '../repositories/crud.repository';
 import {
@@ -49,6 +50,7 @@ import {
   PrismaLogsRepository,
   PrismaProviderClientNotesRepository,
   PrismaReviewsRepository,
+  PrismaSessionsRepository,
   PrismaUsersRepository,
 } from '../repositories/prisma/crud.repository';
 import {
@@ -125,6 +127,9 @@ const repository = <TRepository>(
       ...repository(PrismaProviderClientNotesRepository),
     },
 
+    // --- Сессии входа ---
+    { provide: SESSIONS_REPOSITORY, ...repository(PrismaSessionsRepository) },
+
     // --- Записи ---
     { provide: BOOKINGS_REPOSITORY, ...repository(PrismaBookingsRepository) },
   ],
@@ -141,6 +146,7 @@ const repository = <TRepository>(
     REVIEWS_REPOSITORY,
     USERS_REPOSITORY,
     PROVIDER_CLIENT_NOTES_REPOSITORY,
+    SESSIONS_REPOSITORY,
     TRAINER_CLUB_LINKS_REPOSITORY,
     OFFERINGS_REPOSITORY,
     NOTIFICATIONS_REPOSITORY,

@@ -83,8 +83,9 @@ describe('Физические имена', () => {
     const existing = new Set(rows.map((row) => row.tablename));
 
     expect(tables.filter((table) => !existing.has(table))).toEqual([]);
-    // 27 таблиц по описи фазы плюс служебная таблица истории миграций.
-    expect(tables.length).toBe(27);
+    // 27 таблиц по описи фазы 33 плюс `sessions` из фазы 34. Число закреплено намеренно:
+    // таблица, добавленная мимо описи, обязана быть замечена, а не приехать молча.
+    expect(tables.length).toBe(28);
   });
 
   it('имена таблиц и колонок записаны в нижнем регистре', async () => {
