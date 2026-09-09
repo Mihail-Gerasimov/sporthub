@@ -10,8 +10,12 @@
   `npm run dev --workspace @sporthub/web` (порт 3000).
   ⚠️ `npm run dev` в корне поднимает только фронт. Без бэкенда страницы откроются,
   но данных на них не будет — и это не даст ошибки, см. пояснение к step-1.
-- `apps/api/.env` содержит ключи карт (после Ф32 они на бэкенде, не во фронте).
-- Данные в `data/` — рабочие; перед прогоном сделать копию, после — вернуть.
+- `apps/api/.env` содержит ключи внешних служб карт: геокодер и подсказки адресов
+  вызывает бэкенд. Ключ самой карты (`NEXT_PUBLIC_YANDEX_MAPS_API_KEY`) нужен фронту,
+  а в контейнерном контуре compose читает корневой `.env`.
+- База поднята и засеяна: `npm run db:up`, `npm run db:seed`. Шаги ниже меняют данные —
+  вернуть исходное состояние можно так: `npm run db:reset`, затем
+  `npm run db:migrate --workspace @sporthub/api` и `npm run db:seed`.
 
 ## Scenario: Проверка двухпроцессной схемы
 
@@ -26,7 +30,7 @@
 
 ## Scenario: Спортсмен
 
-- [ ] **step-6** Login как athlete через `/api/auth/login`
+- [ ] **step-6** Login как athlete через `/api/auth/login` — сервер ставит cookie сессии; после логина обязательна навигация (стор наполняется ответом `GET /api/auth/me`)
 - [ ] **step-7** Navigate `/profile/athlete/dashboard` — expect счётчик посещений и рейтинг надёжности
 - [ ] **step-8** Проверить страницы кабинета: schedule, stats, favorites, reviews, notifications, settings — expect данные, а не пустые списки
 - [ ] **step-9** POST /api/bookings на будущий слот — expect 201, статус pending
@@ -35,10 +39,10 @@
 
 ## Scenario: Провайдер
 
-- [ ] **step-12** Login как provider, navigate `/profile/provider/publications` — expect список публикаций с кнопками
+- [ ] **step-12** Login как provider (`accountType: 'provider'`), navigate `/profile/provider/publications` — expect список публикаций с кнопками
 - [ ] **step-13** Click «Редактировать» у клуба — expect модалка заполнена данными: название, адрес, направления, теги, удобства, слоты
 - [ ] **step-14** Click «Сохранить изменения» — expect тост об успехе
-- [ ] **step-15** Проверить в `data/clubs.json`, что адрес-ссылка, источник и картинки не затёрты, а занятые места в слотах сохранены
+- [ ] **step-15** `browser_evaluate`: fetch `/api/clubs/<id>` — expect адрес-ссылка, источник и картинки не затёрты, а занятые места в слотах сохранены
 - [ ] **step-16** Подтверждение чужой записи — expect 403
 - [ ] **step-17** Подтверждение своей записи — expect confirmed и уведомление атлету
 
@@ -48,7 +52,7 @@
 - [ ] **step-19** approve чужой стороной — expect 403; своей — expect confirmed; revoke — expect revoked
 - [ ] **step-20** POST /api/geocode — expect координаты (ключ живёт на бэкенде)
 - [ ] **step-21** POST /api/suggest — expect список подсказок
-- [ ] **step-22** GET /api/analytics, /api/logs, /api/publications — expect непустые данные
+- [ ] **step-22** GET /api/analytics, /api/logs, /api/publications под сессией админа — expect непустые данные; без сессии те же маршруты отвечают 401
 - [ ] **step-23** POST /api/moderation не-админом — expect 403; админом hide и unhide — expect 200
 - [ ] **step-24** Navigate `/service-portal/dashboard` — expect список пользователей
 

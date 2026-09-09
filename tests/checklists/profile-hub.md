@@ -4,20 +4,24 @@
 **Base URL:** http://localhost:3000
 **Preconditions:**
 
-- Seed; у провайдера id=2 есть ≥1 клуб и ≥1 тренер
-- dev-сервер запущен
+- База поднята и засеяна (`npm run db:up`, `npm run db:seed`), подняты бэкенд `:3001` и фронт `:3000`
+- Учётки из сида `apps/api/src/storage/seed/dev-seed.ts`, пароль общий — `DEV_PASSWORD`:
+  атлет id=4 `athlete@sporthub.local`, представитель услуг id=2 `owner@sporthub.local`
+  (роль `club_owner`, у него 2 клуба), тренер id=3 `trainer@sporthub.local` (у него карточка тренера)
+- ⚠️ Кабинет провайдера общий для обеих ролей, но **разделы внутри разные**: у представителя
+  услуг «Публикации», у тренера «Моя карточка». Роль сценария выбирать по проверяемому разделу
 
 ## Scenario: Redirect корневых `/profile/*`
 
-**Role:** athlete (id=1) → provider (id=2)
+**Role:** athlete (id=4) → provider (id=2)
 
 - [ ] **step-1** Login athlete, navigate `/profile/athlete` — expect redirect на `/profile/athlete/dashboard`
 - [ ] **step-2** Logout, login provider, navigate `/profile/provider` — expect redirect на `/profile/provider/dashboard`
-- [ ] **step-3** Assert в DOM нет монолитного `ProviderProfilePage` / `AthleteProfilePage` (удалены в Step 26.5)
+- [ ] **step-3** Assert в DOM нет монолитного `ProviderProfilePage` / `AthleteProfilePage`: кабинет собран из разделов, а не из одной страницы
 
 ## Scenario: Подмаршруты кабинета атлета
 
-**Role:** athlete (id=1)
+**Role:** athlete (id=4)
 
 - [ ] **step-1** Login, navigate `/profile/athlete/dashboard` — expect reliability-секция, KPI, ближайшая запись
 - [ ] **step-2** Navigate `/profile/athlete/schedule` — expect 4 FSM-фильтра (Все / Активные / Завершённые / Отменённые)
@@ -46,12 +50,16 @@
 - [ ] **step-4** На viewport < 768px (mobile) — breadcrumb виден даже при скрытом sidebar
 - [ ] **step-5** Повторить step-2 для provider на всех подмаршрутах, кроме dashboard
 
-## Scenario: Access-denied при чужом типе ЛК
+## Scenario: Чужой кабинет закрыт на сервере
 
 **Role:** cross (athlete + guest)
 
-- [ ] **step-1** Login athlete, navigate `/profile/provider/dashboard` — expect `AccessDeniedCard` (Step 26.1) с `requiredRole="provider"`, кнопка «Войти на другой»
-- [ ] **step-2** Logout, navigate `/profile/athlete/settings` — expect `AccessDeniedCard` для guest'а
-- [ ] **step-3** Assert UX одинаковый на всех **17 подмаршрутах** (7 athlete + 10 provider, нет визуальных расхождений)
-- [ ] **step-4** Phase 27 Step 27.8 — guest заходит на 3 ранее сломанных маршрута: `/profile/athlete/schedule`, `/profile/athlete/notifications`, `/profile/provider/notifications`. Expect `AccessDeniedCard` на всех трёх: data-testid `profile-access-denied-athlete` (первые два) и `profile-access-denied-provider` (третий), heading «Доступ ограничен», **НЕТ** пустых табов `Все 0 / Записи 0 / Дисциплина 0` и плашек «У вас нет записей»
-- [ ] **step-5** Phase 27 Step 27.8 cross-role: login athlete, navigate `/profile/provider/notifications` — expect `AccessDeniedCard` с badge «Provider only». Logout, login provider, navigate `/profile/athlete/schedule` — expect `AccessDeniedCard` с badge «Athlete only»
+⚠️ Решение принимает layout кабинета (`requireRole` в `apps/web/src/app/profile/*/layout.tsx`):
+гостя и чужую роль он уводит на главную **до** загрузки данных. Проверяется именно это —
+что данных кабинета в ответе нет вовсе, а не что их спрятали плашкой поверх.
+
+- [ ] **step-1** Login athlete, navigate `/profile/provider/dashboard` — expect увели на главную `/`
+- [ ] **step-2** Logout, navigate `/profile/athlete/settings` — expect гостя увели на главную `/`
+- [ ] **step-3** Assert поведение одинаковое на всех **17 подмаршрутах** (7 athlete + 10 provider): проверка стоит в layout, а не в каждой странице, и пропущенных маршрутов быть не должно
+- [ ] **step-4** Guest заходит на `/profile/athlete/schedule`, `/profile/athlete/notifications`, `/profile/provider/notifications` — на всех трёх увели на главную. Assert по **исходному** HTML/RSC-потоку ответа: в нём нет ни записей, ни уведомлений, ни пустых табов `Все 0 / Записи 0 / Дисциплина 0`
+- [ ] **step-5** Cross-role: login athlete, navigate `/profile/provider/notifications` — увели на главную. Logout, login provider (id=2), navigate `/profile/athlete/schedule` — тоже увели на главную

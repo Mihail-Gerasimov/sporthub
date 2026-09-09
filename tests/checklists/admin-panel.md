@@ -1,24 +1,26 @@
 # E2E: Admin Panel / Service Portal (Phase 17 + Phase 20–22 + Phase 24 Step 24.15)
 
-**Role:** admin (id=3, `admin@sporthub.local` / `admin-sporthub-2026`)
+**Role:** admin (id=1, `admin@sporthub.local` / `sporthub123`)
 **Base URL:** http://localhost:3000
 **Preconditions:**
 
-- Seed с хотя бы одним клубом/тренером/booking'ом для осмысленного рендера
-- dev-сервер запущен
+- База поднята и засеяна: `npm run db:up`, затем `npm run db:seed`. Учётки — из
+  `apps/api/src/storage/seed/dev-seed.ts`, общий пароль в константе `DEV_PASSWORD`
+- Подняты оба процесса: бэкенд `npm run start --workspace @sporthub/api`, фронт `npm run dev --workspace @sporthub/web`
+- Записей в сиде нет: сценарии про booking'и требуют сначала создать запись под атлетом
 
 ## Scenario: Admin login и dashboard
 
 - [ ] **step-1** Navigate `/service-portal` → вход admin-email/password → expect redirect на `/service-portal/dashboard`
-- [ ] **step-2** Assert в Header `ImpersonationBanner` отсутствует (не impersonation), виден admin-бейдж
+- [ ] **step-2** Assert в Header `ImpersonationBanner` отсутствует (работы от чужого лица нет), виден admin-бейдж
 - [ ] **step-3** Assert таблица пользователей — все user кроме admin, поиск по name/email/id работает, фильтры «роль» + «статус» комбинируются
 
-## Scenario: Impersonation
+## Scenario: Работа от чужого лица
 
-- [ ] **step-1** В таблице выбрать провайдера id=2 → click «Войти как» → expect redirect на `/profile/provider/dashboard`
-- [ ] **step-2** Assert в Header `ImpersonationBanner` с именем «Марина Крылова» и кнопкой «Выйти из impersonation»
-- [ ] **step-3** Все действия провайдера работают под его правами
-- [ ] **step-4** Click «Выйти из impersonation» — expect возврат в admin dashboard с admin-правами
+- [ ] **step-1** В таблице выбрать провайдера id=2 → click «Войти как» → expect `POST /api/auth/impersonate/2` и redirect на `/profile/provider/dashboard`
+- [ ] **step-2** Assert `ImpersonationBanner`: «Вы работаете от имени Ольга Владелец» и кнопка «Вернуться в панель»
+- [ ] **step-3** Все действия провайдера работают под его правами. Assert: в журнале исполнителем записан **админ**, а не провайдер — сессия помнит обе личности
+- [ ] **step-4** Click «Вернуться в панель» → expect `POST /api/auth/impersonate/stop`, возврат в admin dashboard с admin-правами
 
 ## Scenario: Логи активности
 
@@ -54,13 +56,14 @@
   - маркер клуба на карте (`<MapSection>`) — если карта рендерится, маркер исчез
 - [ ] **step-4** Navigate `/clubs/[slug]` скрытой — expect `HiddenPublicationNotice` или 403/404
 - [ ] **step-5** Logout admin, login provider-владелец скрытой → `/profile/provider/publications` — expect badge «Скрыто модератором» на карточке
-- [ ] **step-6** Admin click «Показать» — expect статус `published`, auto-restore через 30 дней также работает (проверяется при open страницы)
-- [ ] **step-7** Provider делает PATCH публикации → auto-restore из hidden в published
+- [ ] **step-6** Admin click «Показать» — expect статус `published`
+- [ ] **step-7** Provider правит скрытую публикацию (PATCH) → скрытие снимается: статус `published`, причина и метка модератора очищены
 
 ## Scenario: Admin-инструменты reliability/карантина (Step 24.15)
 
 - [ ] **step-1** В `/service-portal/dashboard` таблица содержит колонки reliability и карантина
 - [ ] **step-2** Для атлета в карантине — кнопка «Снять карантин» → POST `/api/admin/users/[id]/lift-quarantine` → expect 200, уведомление `quarantine_lifted_by_admin` создано
 - [ ] **step-3** Для любого user — кнопка «Пересчитать рейтинг» → POST `/api/admin/users/[id]/recompute-reliability` → expect 200 (no-op под кэш, лог пишется)
-- [ ] **step-4** Hard-delete booking через admin API → запись физически удалена, лог `admin_hard_delete_booking` есть
+- [ ] **step-4** Hard-delete booking через `DELETE /api/admin/bookings/[id]` → запись физически удалена, лог `admin_hard_delete_booking` есть
 - [ ] **step-5** Force-revoke TrainerClubLink от имени admin → POST `/api/admin/trainer-club-links/[id]/force-revoke` → expect `revokedBy='admin'`, обе стороны получают `link_revoked`, offerings детачатся
+- [ ] **step-6** Под сессией **не**-админа те же маршруты — 403: служебные действия закрыты правом роли, а не только скрытыми кнопками
