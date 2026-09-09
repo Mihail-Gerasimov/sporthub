@@ -103,6 +103,29 @@ describe('Сессии', () => {
     expect(await sessions.resolve(token, muchLater)).toBeNull();
   });
 
+  // ⚠️ Шаг 35.7. Раньше срок бездействия проверялся только словарём
+  // (`session-policy.test.ts`), а его ПОДКЛЮЧЕНИЕ — ничем. Ровно тот вид дефекта,
+  // который дал фазе 34 шесть непокрасневших диверсий: логика покрыта, а то,
+  // что её зовут, — нет. Здесь проверяется поведение живой сессии.
+  describe('срок бездействия применяется, а не только объявлен', () => {
+    /** Чуть больше суток — за порогом админа, но далеко до предельного срока. */
+    const afterDay = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
+    it('сессия администратора гаснет через сутки без действий', async () => {
+      const { token } = await sessions.issue({ user: { id: 2, role: 'admin' }, now });
+
+      expect(await sessions.resolve(token, afterDay)).toBeNull();
+    });
+
+    it('сессия обычного человека сутки бездействия переживает', async () => {
+      // Контрольная группа: без неё тест «админа выбросило» зелен и тогда,
+      // когда выбрасывает всех подряд.
+      const { token } = await sessions.issue({ user: { id: 1, role: 'athlete' }, now });
+
+      expect(await sessions.resolve(token, afterDay)).not.toBeNull();
+    });
+  });
+
   it('бан действует немедленно, а не после истечения сессии', async () => {
     // Сессия выдана до бана и по срокам ещё жива — но действовать ею уже нельзя.
     const { token } = await sessions.issue({ user: { id: 3, role: 'athlete' }, now });
