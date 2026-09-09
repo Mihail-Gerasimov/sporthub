@@ -48,7 +48,15 @@ export type LogEntityType = (typeof LOG_ENTITY_TYPES)[number];
 export interface LogEntry extends BaseEntity {
   action: LogAction;
   actorId: EntityId;
-  actorRole: UserRole;
+  /**
+   * Кем был исполнитель в момент действия — исторический снимок.
+   *
+   * ⚠️ Фаза 35: до неё сюда писалось имя роли, и старые строки его хранят.
+   * После — вид учётной записи (`person` / `admin`). Строка, а не объединение:
+   * журнал читает оба вида значений, и сузить тип значило бы соврать
+   * про уже записанное.
+   */
+  actorRole: string;
   entityType: LogEntityType;
   entityId: EntityId;
   meta?: Record<string, unknown>;

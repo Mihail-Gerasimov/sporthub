@@ -191,7 +191,7 @@ export class TrainerClubLinksController {
       // администратора теряться не должен. Роль — его же: сторона заявки
       // (`initiatedBy`) живёт в `meta` и ролью исполнителя не является.
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer_club_link',
       entityId: link.id,
       meta: { trainerId: link.trainerId, clubId: link.clubId, initiatedBy },
@@ -214,7 +214,7 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_approve',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer_club_link',
       entityId: linkId,
       // Сторона подтверждения переехала в `meta`: раньше её изображала роль,
@@ -254,7 +254,7 @@ export class TrainerClubLinksController {
     await this.logs.record({
       action: 'link_reject',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: {
@@ -283,7 +283,7 @@ export class TrainerClubLinksController {
       actorId: session.actor.id,
       // Кто разорвал связь по сторонам — в `meta` (`revokedBy`), а здесь роль
       // того, кто действительно вошёл.
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: { trainerId: link.trainerId, clubId: link.clubId, revokedBy, detachedCount },

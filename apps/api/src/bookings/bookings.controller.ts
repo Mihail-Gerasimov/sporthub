@@ -299,7 +299,7 @@ export class BookingsController {
       // спортсмена. Роль записи в журнале — это роль исполнителя, а не догадка
       // о том, кому такое действие обычно положено.
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: booking.id,
       meta: {
@@ -356,7 +356,7 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_cancel',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
       // Сторона отмены остаётся в `meta`: роль говорит, КТО действовал,
@@ -404,7 +404,7 @@ export class BookingsController {
       // Сторону отмены (`actor` в `meta`) и роль исполнителя путать нельзя:
       // отменить со стороны провайдера может и представитель услуг, и тренер,
       // и администратор под чужим лицом.
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
       meta: {
@@ -439,7 +439,7 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_confirm',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
       meta: { scheduleId: updated.scheduleId, athleteId: updated.userId },
@@ -473,7 +473,7 @@ export class BookingsController {
     await this.logs.record({
       action: 'booking_reject',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
       meta: {
@@ -533,7 +533,7 @@ export class BookingsController {
     await this.logs.record({
       action: outcome === 'completed' ? 'booking_check_in_completed' : 'booking_check_in_no_show',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
       meta: {

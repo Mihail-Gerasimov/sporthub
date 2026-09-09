@@ -1,3 +1,4 @@
+import { accountKindOf } from '@sporthub/domain';
 // Модерация публикаций и сводный список для админского раздела.
 //
 // Скрытие ставит причину, восстановление её снимает. Публикация без явного
@@ -137,7 +138,7 @@ export class ModerationController {
     await this.logs.record({
       action: action === 'hide' ? 'moderation_hide' : 'moderation_unhide',
       actorId: moderatorId,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: owner,
       entityId,
       meta:

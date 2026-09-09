@@ -1,3 +1,5 @@
+import { ACCOUNT_KIND_LABELS } from './account-kind';
+import type { AccountKind } from '@sporthub/types';
 // Подписи ролей пользователя — единственное объявление на весь проект.
 //
 // До этого словарь жил двумя копиями в админке (`LogsPage`, `DashboardPage`),
@@ -25,5 +27,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
  * которого в словаре уже нет. Тогда показываем саму строку, а не пустоту.
  */
 export function roleLabel(role: string): string {
-  return ROLE_LABELS[role as UserRole] ?? role;
+  // ⚠️ Фаза 35: журнал хранит два вида значений. В строках до фазы — имя роли,
+  // после — вид учётной записи. Подпись обязана читать оба, иначе половина
+  // журнала станет нечитаемой: старые записи никуда не денутся.
+  return ROLE_LABELS[role as UserRole] ?? ACCOUNT_KIND_LABELS[role as AccountKind] ?? role;
 }

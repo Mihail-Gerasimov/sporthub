@@ -168,6 +168,11 @@ describe('Маршруты модерации', () => {
   it('владелец клуба модерировать не может — 403', async () => {
     // Своя публикация или чужая — неважно: скрытие с причиной это действие площадки,
     // а не владельца. Прежде тот же вызов проходил, стоило прислать чужой номер.
+    //
+    // ⚠️ После шага 35.19 проверка стала строже, чем была. Прежде у роли
+    // `club_owner` был свой набор прав, и вопрос стоял «нет ли среди них
+    // модерации». Теперь набор у человека ПУСТ, а `moderate_publications`
+    // осталось админским — и владение собственным клубом к нему не ведёт.
     const response = await request(harness.app.getHttpServer())
       .post('/api/moderation')
       .set('Cookie', providerCookie)
@@ -180,13 +185,22 @@ describe('Маршруты модерации', () => {
     expect(clubs.find((club) => club.id === 1)?.status).toBe('published');
   });
 
-  it('атлет модерировать не может — 403', async () => {
+  it('человек без публикаций модерировать не может — 403', async () => {
+    // Пара к проверке выше: там у человека есть свои лица услуг, здесь нет ни
+    // одного. С шага 35.19 это единственное различие, которое вообще осталось
+    // между обычными людьми, — и ни одно из двух состояний к модерации не ведёт.
     const response = await request(harness.app.getHttpServer())
       .post('/api/moderation')
       .set('Cookie', athleteCookie)
       .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Не нравится' });
 
     expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Недостаточно прав');
+
+    // Отказ обязан быть отказом: публикация не скрыта и в журнал ничего не легло.
+    const clubs = await harness.read<{ id: number; status?: string }[]>('clubs');
+    expect(clubs.find((club) => club.id === 1)?.status).toBe('published');
+    expect(await harness.read<unknown[]>('logs')).toHaveLength(0);
   });
 
   it('гость модерировать не может — 401, и разбор тела до этого не доходит', async () => {

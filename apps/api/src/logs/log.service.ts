@@ -13,7 +13,17 @@ import { LOGS_REPOSITORY } from '../repositories/crud.repository';
 export type LogActionInput = {
   action: LogAction;
   actorId: number;
-  actorRole: UserRole;
+  /**
+   * Кем был исполнитель в момент действия — исторический снимок.
+   *
+   * ⚠️ Шаг 35.19d. До фазы 35 сюда писалось имя роли, и старые строки журнала
+   * его хранят. После фазы ролей нет, и пишется вид учётной записи
+   * (`person` / `admin`). Тип — строка, а не объединение: журнал читает и то,
+   * и другое, а сузить его значило бы соврать про уже записанные строки.
+   *
+   * Решений о доступе это поле не принимает — только рассказывает.
+   */
+  actorRole: string;
   entityType: LogEntityType;
   entityId: number;
   meta?: Record<string, unknown>;

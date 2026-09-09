@@ -1,3 +1,4 @@
+import { accountKindOf } from '@sporthub/domain';
 // Административные маршруты.
 //
 // Каждый проверяет роль администратора по хранилищу, а не по слову клиента, —
@@ -75,7 +76,7 @@ export class AdminController {
       // поэтому константа была особенно вредна: она выглядела верной и потому
       // расходилась бы с действительностью молча.
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
     });
@@ -95,7 +96,7 @@ export class AdminController {
     await this.logs.record({
       action: 'link_revoke',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer_club_link',
       entityId: linkId,
       meta: {
@@ -139,7 +140,7 @@ export class AdminController {
     await this.logs.record({
       action: 'admin_password_change',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'user',
       entityId: targetUserId,
       meta: {},
@@ -163,7 +164,7 @@ export class AdminController {
     await this.logs.record({
       action: 'reliability_recompute',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'user',
       entityId: userId,
     });

@@ -207,7 +207,7 @@ export class ClubsController {
       // Роль берётся оттуда же: после разделения прав клуб публикует представитель
       // услуг, карточку тренера — тренер, а под имперсонизацией — администратор.
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'club',
       entityId: result.club.id,
       meta: { name: result.club.name, city: result.club.city },
@@ -245,7 +245,7 @@ export class ClubsController {
       await this.logs.record({
         action: 'publish_update',
         actorId: session.actor.id,
-        actorRole: session.actor.role,
+        actorRole: accountKindOf(session.actor),
         entityType: 'club',
         entityId: clubId,
         meta: { name: result.club.name },
@@ -285,7 +285,7 @@ export class ClubsController {
     await this.logs.record({
       action: 'publish_delete',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'club',
       entityId: clubId,
       meta: { name: club?.name ?? 'unknown' },
@@ -413,7 +413,7 @@ export class TrainersController {
     await this.logs.record({
       action: 'publish_create',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer',
       entityId: result.trainer.id,
       meta: { name: result.trainer.name, city: result.trainer.city },
@@ -451,7 +451,7 @@ export class TrainersController {
       await this.logs.record({
         action: 'publish_update',
         actorId: session.actor.id,
-        actorRole: session.actor.role,
+        actorRole: accountKindOf(session.actor),
         entityType: 'trainer',
         entityId: trainerId,
         meta: { name: result.trainer.name },
@@ -483,7 +483,7 @@ export class TrainersController {
     await this.logs.record({
       action: 'publish_delete',
       actorId: session.actor.id,
-      actorRole: session.actor.role,
+      actorRole: accountKindOf(session.actor),
       entityType: 'trainer',
       entityId: trainerId,
       meta: { name: trainer?.name ?? 'unknown' },
