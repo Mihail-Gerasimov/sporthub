@@ -14,7 +14,12 @@
 //   спрашивает у неё, живо ли ещё.
 
 import { Inject, Injectable } from '@nestjs/common';
-import { SESSION_POLICY, SESSION_TOUCH_INTERVAL_MS, isSessionExpired } from '@sporthub/domain';
+import {
+  SESSION_POLICY,
+  SESSION_TOUCH_INTERVAL_MS,
+  accountKindOf,
+  isSessionExpired,
+} from '@sporthub/domain';
 import type { Session, User } from '@sporthub/types';
 
 import { createSecretToken, hashSecretToken } from '../common/secret-token';
@@ -45,14 +50,16 @@ export class SessionService {
    * существует в открытом виде; вызывающий обязан положить его в cookie и забыть.
    */
   async issue(input: {
-    user: Pick<User, 'id' | 'role'>;
+    user: Pick<User, 'id' | 'accountKind'>;
     now: Date;
     impersonatedUserId?: number;
     userAgent?: string;
     ip?: string;
   }): Promise<{ token: string; session: Session }> {
     const token = createSecretToken();
-    const policy = SESSION_POLICY[input.user.role];
+    // Срок берётся по виду учётной записи (шаг 35.24): у администратора окно
+    // бездействия короче суток, у человека равно предельному сроку.
+    const policy = SESSION_POLICY[accountKindOf(input.user)];
     const nowIso = input.now.toISOString();
 
     const session = await this.sessions.insert({
@@ -70,8 +77,8 @@ export class SessionService {
 
   /**
    * Найти сессию по идентификатору из cookie: не отозвана и не просрочена
-   * по предельному сроку. Срок бездействия здесь НЕ проверяется — для него нужна
-   * роль, а её знает только `resolve`.
+   * по предельному сроку. Срок бездействия здесь НЕ проверяется — для него нужен
+   * вид учётной записи, а его знает только `resolve`.
    */
   async findLiveByToken(token: string, now: Date): Promise<Session | null> {
     return this.sessions.findLiveByTokenHash(hashSecretToken(token), now.toISOString());
@@ -96,9 +103,9 @@ export class SessionService {
 
     if (actor === null || actor.status !== 'active') return null;
 
-    // Срок бездействия зависит от роли ТОГО, КТО ВОШЁЛ, а не от того, под кем
-    // работают: короткий срок админа не должен удлиняться имперсонизацией.
-    if (isSessionExpired({ ...session, role: actor.role }, now)) return null;
+    // Срок бездействия зависит от вида учётной записи ТОГО, КТО ВОШЁЛ, а не того,
+    // под кем работают: короткий срок админа не должен удлиняться имперсонизацией.
+    if (isSessionExpired({ ...session, accountKind: accountKindOf(actor) }, now)) return null;
 
     const user =
       session.impersonatedUserId === undefined

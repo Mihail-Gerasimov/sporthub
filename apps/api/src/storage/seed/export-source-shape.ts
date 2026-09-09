@@ -160,7 +160,6 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
     withoutEmpty({
       id: row.id,
       createdAt: toIsoString(row.createdAt),
-      role: row.role as User['role'],
       // Вид учётной записи (фаза 35): без него выгрузка теряет единственное
       // различие, которое не выводится из владения.
       accountKind: row.accountKind as User['accountKind'],

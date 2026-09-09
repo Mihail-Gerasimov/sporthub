@@ -124,7 +124,6 @@ describe('Impersonation flow (Step 17.5)', () => {
       // сервере всё ещё подменённая. Плашка обязана вернуться вместе с ней.
       stubSession({
         ...athleteUser,
-        role: 'athlete',
         capabilities: [],
         impersonating: true,
         actorName: adminUser.name,
@@ -163,7 +162,7 @@ describe('Impersonation flow (Step 17.5)', () => {
     });
 
     it('кнопка «Вернуться в панель» гасит подмену НА СЕРВЕРЕ и делает redirect', async () => {
-      const fetchSpy = stubSession({ ...adminUser, role: 'admin', capabilities: [] });
+      const fetchSpy = stubSession({ ...adminUser, accountKind: 'admin', capabilities: [] });
 
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,
@@ -241,7 +240,7 @@ describe('Impersonation flow (Step 17.5)', () => {
 
   describe('Header logout при impersonation', () => {
     it('«Выйти» при impersonation вызывает stopImpersonation, push в панель и refresh', async () => {
-      stubSession({ ...adminUser, role: 'admin', capabilities: [] });
+      stubSession({ ...adminUser, accountKind: 'admin', capabilities: [] });
 
       useAuthStore.setState({
         ...AUTH_STORE_DEFAULT_STATE,

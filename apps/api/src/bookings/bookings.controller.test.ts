@@ -62,10 +62,10 @@ function slotAt(offsetHoursFromNow: number, durationMinutes = 60) {
   };
 }
 
-const user = (id: number, role: string, over: Record<string, unknown> = {}) => ({
+const user = (id: number, accountKind: string, over: Record<string, unknown> = {}) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   status: 'active',
   name: `Пользователь ${id}`,
   email: `u${id}@test.local`,
@@ -157,16 +157,16 @@ describe('Маршруты записей', () => {
     await harness.writeMany({
       ...fixtureDictionaryCollections,
       users: [
-        user(1, 'athlete'),
-        user(2, 'club_owner'),
+        user(1, 'person'),
+        user(2, 'person'),
         user(3, 'admin'),
-        user(4, 'athlete'),
-        user(5, 'club_owner'),
+        user(4, 'person'),
+        user(5, 'person'),
         // ⚠️ Фаза 35: роль в этой строке не решает уже ничего — она осталась
         // только потому, что колонка жива до шага 35.24. Что положено пользователю 6,
         // определяет ВЛАДЕНИЕ: ниже он выступает и человеком без единого лица услуг,
         // и тренером своего занятия — в зависимости от того, что засеял набор.
-        user(6, 'trainer'),
+        user(6, 'person'),
       ],
       trainers: [
         {

@@ -108,7 +108,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('рендерит табы групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
 
     // 3 booking (id=1, 3, 4) + 2 link (id=2, 5) + 0 отзывов = 5 total у провайдера
     expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent(/Все/);
@@ -122,7 +122,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('выбор booking-фильтра оставляет только booking-уведомления', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-booking'));
 
@@ -138,9 +138,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   it('выбор фильтра «Отзывы» оставляет только отзывное уведомление (athlete)', async () => {
     authenticateAs();
 
-    render(
-      <NotificationsListPage notifications={athleteFixtures} userId={1} accountType="athlete" />,
-    );
+    render(<NotificationsListPage notifications={athleteFixtures} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-reviews'));
 
@@ -149,7 +147,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('тоггл «Только непрочитанные» скрывает прочитанные', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
 
     // По умолчанию id=3 (прочитанное) виден
     expect(screen.getByTestId('notification-item-3')).toBeInTheDocument();
@@ -176,7 +174,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('рендерит date-buckets (today / yesterday / thisWeek / earlier) и распределяет уведомления', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} accountType="provider" />);
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
 
     const today = screen.getByTestId('notifications-bucket-today');
     const yesterday = screen.getByTestId('notifications-bucket-yesterday');

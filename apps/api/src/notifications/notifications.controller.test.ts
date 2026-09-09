@@ -52,7 +52,6 @@ describe('Маршруты уведомлений', () => {
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           name: 'Алексей',
           email: 'a@test.local',
           phone: '+7 (900) 000-00-01',
@@ -62,7 +61,6 @@ describe('Маршруты уведомлений', () => {
         {
           id: 2,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           name: 'Пётр',
           email: 'p@test.local',
           phone: '+7 (900) 000-00-02',
@@ -73,7 +71,7 @@ describe('Маршруты уведомлений', () => {
         {
           id: 3,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'admin',
+          accountKind: 'admin',
           name: 'Админ',
           email: 'ad@test.local',
           phone: '+7 (900) 000-00-03',
@@ -353,7 +351,6 @@ describe('Ящики лиц', () => {
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           status: 'active',
           name: 'Посторонний',
           email: 'stranger@test.local',
@@ -364,7 +361,6 @@ describe('Ящики лиц', () => {
         {
           id: 2,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
           status: 'active',
           name: 'Владелец двух лиц',
           email: 'owner@test.local',

@@ -16,10 +16,10 @@ import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from '../test/harness';
 
-const user = (id: number, role: string, name: string) => ({
+const user = (id: number, accountKind: string, name: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   // Состояние обязательно: сессия неактивного пользователя не разбирается вовсе.
   status: 'active',
   name,
@@ -104,19 +104,19 @@ describe('Маршрут отзывов', () => {
     await harness.writeMany({
       ...fixtureDictionaryCollections,
       users: [
-        user(1, 'athlete', 'Алексей Смирнов'),
-        user(2, 'club_owner', 'Марина Крылова'),
-        user(4, 'athlete', 'Новичок Без Посещений'),
+        user(1, 'person', 'Алексей Смирнов'),
+        user(2, 'person', 'Марина Крылова'),
+        user(4, 'person', 'Новичок Без Посещений'),
         // Двое под правило квоты: у первого по одному посещению каждого адресата,
         // у второго — по два. Отзывов в наборе у них нет, поэтому вся их квота
         // цела, и проверка считает ровно то, что тест собирается проверить.
-        user(5, 'athlete', 'Одно Посещение'),
-        user(6, 'athlete', 'Два Посещения'),
+        user(5, 'person', 'Одно Посещение'),
+        user(6, 'person', 'Два Посещения'),
         // Человек, который заодно управляет клубом 2. Раньше он был единственным,
         // кем вообще достижим отзыв самому себе: провайдерским ролям писать отзывы
         // не полагалось. После снятия ролей такой отзыв достижим для любого
         // владельца, и держит его не роль, а правило «сам себе».
-        user(7, 'athlete', 'Спортсмен-владелец'),
+        user(7, 'person', 'Спортсмен-владелец'),
       ],
       clubs: [club(1, 'Волна', 'volna', 2), club(2, 'Свой клуб', 'svoy', 7)],
       trainers: [

@@ -24,7 +24,6 @@ const fetchMock = vi.fn();
 const fixtureAthlete: User = {
   id: 1,
   createdAt: '2026-03-17T09:00:00.000Z',
-  role: 'athlete',
   status: 'active',
   name: 'Тестовый атлет',
   email: 'athlete@sporthub.local',
@@ -36,7 +35,6 @@ const fixtureAthlete: User = {
 const fixtureProvider: User = {
   id: 2,
   createdAt: '2026-03-17T09:00:00.000Z',
-  role: 'club_owner',
   status: 'active',
   name: 'Марина Крылова',
   email: 'provider@sporthub.local',
@@ -138,10 +136,14 @@ describe('DashboardPage — колонка надёжности и её дейс
     });
   });
 
-  it('для provider: кнопки «Пересчитать рейтинг» нет', () => {
+  it('кнопка «Пересчитать рейтинг» есть и у владельца лиц услуг', () => {
+    // ⚠️ Шаг 35.24. Прежде здесь проверялось обратное: у роли `club_owner`
+    // кнопки не было. Это и была ошибка модели — владелец зала ходит на йогу
+    // как все, его неявки считаются так же, и прятать их от администратора
+    // не от чего. Записываться может любой вошедший (решение 5.1).
     renderDashboard({ users: [fixtureProvider], bookings: [] });
 
     const card = screen.getByText('Марина Крылова').closest('article')!;
-    expect(within(card).queryByRole('button', { name: /пересчитать/i })).toBeNull();
+    expect(within(card).getByRole('button', { name: /пересчитать/i })).toBeInTheDocument();
   });
 });

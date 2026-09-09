@@ -32,11 +32,10 @@ vi.mock('next/navigation', () => ({
 /**
  * Ответы сервера: вход и следом «кто я».
  *
- * ⚠️ Шаг 35.34. Признак служебной записи — `accountKind`, а не роль: ролей
- * больше нет. Поле `role` в ответе оставлено до отдельного шага, снимающего
- * колонку, и на решение формы уже не влияет.
+ * ⚠️ Шаги 35.34 и 35.24. Признак служебной записи — `accountKind`, и он
+ * единственный: роли в ответе «кто я» больше нет вовсе.
  */
-function stubServer(role: string, loginOk = true) {
+function stubServer(accountKind: string, loginOk = true) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
     const url = String(input);
 
@@ -59,8 +58,7 @@ function stubServer(role: string, loginOk = true) {
               id: ADMIN_USER_ID,
               name: 'Администратор SportHub',
               email: 'admin@sporthub.local',
-              role,
-              accountKind: role === 'admin' ? 'admin' : 'person',
+              accountKind,
               faces: [],
               capabilities: [],
             },
@@ -123,9 +121,9 @@ describe('Service Portal Login (Step 17.3)', () => {
 
       expect(url).toBe('/api/auth/login');
       // ⚠️ Шаг 35.35. Служебность входа названа ЯВНО. Прежде её выражало
-      // ОТСУТСТВИЕ поля `accountType`, то есть признак, который ломается
-      // молча: уберёт кто-нибудь лишнее поле из тела — и служебный вход
-      // станет обычным, а тест этого не заметит.
+      // ОТСУТСТВИЕ поля с типом учётной записи, то есть признак, который
+      // ломается молча: уберёт кто-нибудь лишнее поле из тела — и служебный
+      // вход станет обычным, а тест этого не заметит.
       expect(JSON.parse(String(init.body))).toEqual({
         email: 'admin@sporthub.local',
         password: 'admin-sporthub-2026',
@@ -158,7 +156,7 @@ describe('Service Portal Login (Step 17.3)', () => {
 
     it('верный пароль обычного человека не даёт доступа к панели', async () => {
       // Вид учётной записи решает сервер, а не форма: вход прошёл, но панель не для него.
-      stubServer('athlete');
+      stubServer('person');
 
       render(<ServicePortalLoginForm />);
       fillAndSubmit('alexey@sporthub.local', 'athlete-pass');

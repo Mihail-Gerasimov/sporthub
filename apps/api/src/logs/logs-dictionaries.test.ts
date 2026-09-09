@@ -2,7 +2,7 @@
 //
 // Проверяет, что журнал работает РОВНО с тем набором значений, который объявлен
 // в общих словарях @sporthub/types. Если кто-то снова заведёт рядом урезанную
-// копию списка действий, типов сущностей или ролей — эти тесты покраснеют
+// копию списка действий или типов сущностей — эти тесты покраснеют
 // на первом же значении, которого в копии не хватает.
 //
 // ⚠️ Фаза 34 сменила точку входа сторожа, но не его смысл. Раньше каждое значение
@@ -15,7 +15,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { fixtureUsers } from '@sporthub/fixtures';
-import { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from '@sporthub/types';
+import { ACCOUNT_KINDS } from '@sporthub/domain';
+import { LOG_ACTIONS, LOG_ENTITY_TYPES } from '@sporthub/types';
 
 import { createTestHarness, type TestHarness } from '../test/harness';
 
@@ -102,11 +103,19 @@ describe('Словари журнала не расходятся с валид�
     ).toEqual([...LOG_ENTITY_TYPES].sort());
   });
 
-  it('каждая роль из общего словаря доезжает до выдачи', async () => {
-    // Роль в записи — снимок на момент действия, а не текущая роль исполнителя,
-    // поэтому один и тот же админ вправе стоять в записях с любой ролью.
+  it('исполнитель доезжает до выдачи и в новом написании, и в старом', async () => {
+    // Исполнитель в записи — снимок на момент действия, а не нынешнее состояние,
+    // поэтому один и тот же админ вправе стоять в записях с любым значением.
+    //
+    // ⚠️ Шаг 35.24. Значений в журнале ДВА вида: до фазы 35 писалось имя роли,
+    // после — вид учётной записи. Старые строки никуда не делись (на живой базе
+    // их 94 из 101), и выдача обязана возить оба — иначе половина журнала
+    // потеряется на фильтре или приедет пустой.
+    const LEGACY_ACTORS = ['athlete', 'club_owner', 'trainer'];
+    const actors = [...ACCOUNT_KINDS, ...LEGACY_ACTORS];
+
     const cookie = await seedLogs(
-      USER_ROLES.map((actorRole, index) => ({
+      actors.map((actorRole, index) => ({
         id: index + 1,
         createdAt: '2026-02-01T10:00:00.000Z',
         action: 'admin_login',
@@ -124,7 +133,7 @@ describe('Словари журнала не расходятся с валид�
     expect(response.status).toBe(200);
     expect(
       [...new Set(response.body.data.map((item: { actorRole: string }) => item.actorRole))].sort(),
-    ).toEqual([...USER_ROLES].sort());
+    ).toEqual([...actors].sort());
   });
 
   // Обратная сторона: словарь не должен превратиться в «принимаем что угодно».

@@ -13,8 +13,10 @@ import { Inject, Injectable } from '@nestjs/common';
 // одноимённый метод сервиса ниже делегирует ему, и без псевдонима строка
 // читалась бы как рекурсия.
 import {
+  accountKindOf,
   getBookingClubId,
   getBookingTrainerId,
+  isAdminKind,
   isClientOfProvider as isClientOfProviderRule,
 } from '@sporthub/domain';
 import type { Booking, Club, ServiceFaceRef, Trainer } from '@sporthub/types';
@@ -50,11 +52,17 @@ export class AccessService {
     @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
   ) {}
 
-  /** Роль администратора. Отсутствующий пользователь администратором не считается. */
+  /**
+   * Административные полномочия. Отсутствующий пользователь ими не обладает.
+   *
+   * Признак берётся из вида учётной записи, а не из роли (шаг 35.24): роль
+   * удалена, и различие администратора — единственное, что не выводится
+   * из владения лицами услуг.
+   */
   async isAdmin(userId: number): Promise<boolean> {
     const user = await this.users.findById(userId);
 
-    return user?.role === 'admin';
+    return user !== null && isAdminKind(accountKindOf(user));
   }
 
   /**

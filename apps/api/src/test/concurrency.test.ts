@@ -114,7 +114,6 @@ async function seedSlotWithOneSeat(): Promise<{ scheduleId: number; userIds: num
         email: `race-${index}@test.local`,
         phone: '+7 (900) 000-00-00',
         passwordHash: 'хеш-заглушка',
-        role: 'athlete',
         status: 'active',
       },
     });
@@ -300,7 +299,6 @@ describe('Ограничения базы отдают ПРЕЖНИЕ текст
   it('занятая почта — «Email уже зарегистрирован»', async () => {
     const users = new PrismaUsersRepository(new PrismaTransactionRunner(db.service));
     const user = {
-      role: 'athlete',
       status: 'active',
       name: 'Первый',
       email: 'duplicate@test.local',

@@ -1,10 +1,4 @@
-import type {
-  AuthAccountType,
-  BookingStatus,
-  Coordinates,
-  PaymentStatus,
-  UserStatus,
-} from './types';
+import type { BookingStatus, Coordinates, PaymentStatus, UserStatus } from './types';
 
 export const DEFAULT_CITY = 'Самара';
 
@@ -17,22 +11,13 @@ export const DEFAULT_MAP_ZOOM = 12;
 export const DEFAULT_LOCALE = 'ru-RU';
 export const DEFAULT_TIME_ZONE = 'Europe/Samara';
 
-// Единственное объявление списка ролей в проекте: тип UserRole выводится
-// из этого массива (см. types.ts), а валидация ролей на бэкенде импортирует
-// его же. Добавить роль = дописать строку сюда, ничего больше править не надо.
-export const USER_ROLES = ['athlete', 'trainer', 'club_owner', 'admin'] as const;
+// ⚠️ Списка ролей здесь больше нет (шаг 35.24). Роль не принимала решений:
+// права считаются по виду учётной записи (ACCOUNT_KINDS в @sporthub/domain),
+// а «тренер» и «владелец клуба» — это владение лицами услуг, а не признак
+// у человека. Вместе с ней ушёл и «тип учётной записи» регистрации: она
+// заводит человека, а кем он станет, решает то, что он заведёт.
 
 export const USER_STATUSES: UserStatus[] = ['active', 'banned', 'suspended'];
-
-export const AUTH_ACCOUNT_TYPE_LABELS: Record<AuthAccountType, string> = {
-  provider: 'Представитель спортивных услуг',
-  athlete: 'Спортсмен',
-};
-
-export const AUTH_ACCOUNT_TYPE_OPTIONS = [
-  { value: 'provider', label: AUTH_ACCOUNT_TYPE_LABELS.provider },
-  { value: 'athlete', label: AUTH_ACCOUNT_TYPE_LABELS.athlete },
-] as const;
 
 // Phase 24 (Step 24.3): полный список FSM-значений BookingStatus.
 // Старый 'cancelled' удалён — cancelBooking работает через soft-cancel в FSM

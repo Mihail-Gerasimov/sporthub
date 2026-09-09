@@ -100,7 +100,6 @@ describe('useAuthStore', () => {
     stubSessionResponse({
       ...providerPerson,
       id: PERSON_ID,
-      role: 'club_owner',
       accountKind: 'person',
       faces: [CLUB_FACE, TRAINER_FACE],
       capabilities: [],
@@ -123,7 +122,6 @@ describe('useAuthStore', () => {
     stubSessionResponse({
       ...providerPerson,
       id: PERSON_ID,
-      role: 'club_owner',
       accountKind: 'person',
       faces: [CLUB_FACE, TRAINER_FACE],
       capabilities: [],
@@ -140,7 +138,6 @@ describe('useAuthStore', () => {
     stubSessionResponse({
       ...providerPerson,
       id: PERSON_ID,
-      role: 'club_owner',
       accountKind: 'person',
       faces: [CLUB_FACE, TRAINER_FACE],
       capabilities: [],
@@ -168,7 +165,6 @@ describe('useAuthStore', () => {
     stubSessionResponse({
       ...providerPerson,
       id: PERSON_ID,
-      role: 'club_owner',
       accountKind: 'person',
       faces: [CLUB_FACE, TRAINER_FACE],
       capabilities: [],
@@ -186,7 +182,6 @@ describe('useAuthStore', () => {
     stubSessionResponse({
       ...providerPerson,
       id: PERSON_ID,
-      role: 'club_owner',
       accountKind: 'person',
       faces: [CLUB_FACE],
       capabilities: [],

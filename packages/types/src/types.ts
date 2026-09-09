@@ -3,16 +3,11 @@
 // Часть типов-перечислений выводится из словарей-массивов в ./constants:
 // список значений объявлен там ровно один раз, тип — его проекция.
 // Импорт type-only, поэтому во время выполнения связи между модулями нет.
-import type { LOG_ACTIONS, LOG_ENTITY_TYPES, USER_ROLES } from './constants';
+import type { LOG_ACTIONS, LOG_ENTITY_TYPES } from './constants';
 
 export type EntityId = number;
 export type ISODateString = string;
 export type ISODateTimeString = string;
-
-export type AuthAccountType = 'provider' | 'athlete';
-
-// Роль пользователя. Источник правды — USER_ROLES в constants.ts.
-export type UserRole = (typeof USER_ROLES)[number];
 
 // Статус пользователя: active по умолчанию, banned/suspended — для будущей модерации
 export type UserStatus = 'active' | 'banned' | 'suspended';
@@ -419,11 +414,6 @@ export interface Review extends BaseEntity {
 export type AccountKind = 'person' | 'admin';
 
 export interface User extends BaseEntity {
-  /**
-   * ⚠️ Доживает до шага 35.24: фаза 35 убирает роли. «Тренер» и «владелец клуба»
-   * выводятся из владения публикациями, «атлет» перестаёт быть ролью вовсе.
-   */
-  role: UserRole;
   /**
    * Вид учётной записи: человек или администратор (словарь `ACCOUNT_KINDS`
    * в `@sporthub/domain`). Единственное различие, которое не выводится

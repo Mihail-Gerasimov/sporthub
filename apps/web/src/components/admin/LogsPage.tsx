@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { roleLabel as formatRoleLabel } from '@sporthub/domain';
+import { actorLabel as formatActorLabel } from '@sporthub/domain';
 
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
 import { Skeleton } from '@/components/ui';
@@ -597,7 +597,10 @@ function LogCard({
 }) {
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
   const actionTone = ACTION_TONES[log.action] ?? 'neutral';
-  const roleLabel = formatRoleLabel(log.actorRole);
+  // Исполнитель в записи — исторический снимок: в строках до фазы 35 лежит имя
+  // роли, в новых — вид учётной записи. Подпись читает оба, иначе половина
+  // журнала стала бы нечитаемой.
+  const actorLabel = formatActorLabel(log.actorRole);
   const entityLabel = ENTITY_TYPE_LABELS[log.entityType] ?? log.entityType;
   const metaName = log.meta?.name as string | undefined;
 
@@ -614,7 +617,7 @@ function LogCard({
             {actionLabel}
           </span>
           <span className="text-[13px] font-medium text-muted">
-            {roleLabel} <strong className="font-bold text-ink">#{log.actorId}</strong>
+            {actorLabel} <strong className="font-bold text-ink">#{log.actorId}</strong>
           </span>
         </div>
         <p className="m-0 break-words text-sm font-semibold leading-[1.3] text-ink">

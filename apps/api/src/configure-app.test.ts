@@ -29,7 +29,6 @@ const SPOOFED_IP = '198.51.100.66';
 const user = (id: number, email: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   status: 'active',
   name: `Пользователь ${id}`,
   email,

@@ -10,10 +10,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from './harness';
 
-const user = (id: number, role: string, email: string) => ({
+const user = (id: number, accountKind: string, email: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   status: 'active',
   name: `Пользователь ${id}`,
   email,
@@ -31,8 +31,8 @@ describe('Обвязка тестов: вход от лица пользоват
 
   beforeEach(async () => {
     await harness.write('users', [
-      user(1, 'athlete', 'athlete@test.local'),
-      user(2, 'club_owner', 'owner@test.local'),
+      user(1, 'person', 'athlete@test.local'),
+      user(2, 'person', 'owner@test.local'),
     ]);
   });
 

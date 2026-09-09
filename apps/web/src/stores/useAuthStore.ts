@@ -38,7 +38,7 @@ import {
   type CabinetTarget,
   type ServiceFace,
 } from '@/lib/service-faces';
-import type { AccountKind, UserRole } from '@sporthub/types';
+import type { AccountKind } from '@sporthub/types';
 
 export type AuthSessionUser = {
   id?: number;
@@ -59,8 +59,12 @@ export type AuthSessionUser = {
  */
 export type SessionProfile = AuthSessionUser & {
   id: number;
-  role: UserRole;
-  /** Вид учётной записи: человек или служебная запись. */
+  /**
+   * Вид учётной записи: человек или служебная запись.
+   *
+   * ⚠️ Роли в ответе нет с шага 35.24. «Кем человек является» больше не свойство
+   * человека: что он умеет — `capabilities`, чем управляет — `faces`.
+   */
   accountKind?: AccountKind;
   /** Лица услуг человека: карточка тренера и клубы. */
   faces?: ServiceFace[];
@@ -118,9 +122,7 @@ type AuthState = {
    * и ссылка на прежний объект указывала бы на лицо, которого может уже не быть.
    */
   activeFaceKey: string | null;
-  /** Роль из сессии. `null` — гость либо ответ ещё не пришёл. */
-  role: UserRole | null;
-  /** Права роли из сессии: интерфейс рисует действия по списку, а не по догадке. */
+  /** Права из сессии: интерфейс рисует действия по списку, а не по догадке. */
   capabilities: string[];
   status: AuthSessionStatus;
   login: (payload: AuthSessionPayload) => void;
@@ -178,7 +180,6 @@ export const AUTH_STORE_DEFAULT_STATE = {
   accountKind: null,
   faces: [],
   activeFaceKey: null,
-  role: null,
   capabilities: [],
   status: 'unknown',
   isAdmin: false,
@@ -191,7 +192,6 @@ export const AUTH_STORE_DEFAULT_STATE = {
   | 'accountKind'
   | 'faces'
   | 'activeFaceKey'
-  | 'role'
   | 'capabilities'
   | 'status'
   | 'isAdmin'
@@ -343,7 +343,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       return;
     }
 
-    const { role, accountKind, faces, capabilities, impersonating, actorName, ...user } = profile;
+    const { accountKind, faces, capabilities, impersonating, actorName, ...user } = profile;
     const sessionFaces = faces ?? [];
 
     // ⚠️ Работа от чужого лица приезжает ОТВЕТОМ СЕРВЕРА, а не хранится здесь.
@@ -364,7 +364,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
     set({
       user,
-      role,
       capabilities,
       accountKind: accountKind ?? 'person',
       faces: sessionFaces,
@@ -373,7 +372,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       // Вид учётной записи в ответе — вид ТОГО, ОТ ЧЬЕГО ЛИЦА работают. Сама
       // возможность работать от чужого лица есть только у администратора,
       // поэтому под ней вошедший — администратор, кем бы он сейчас ни выглядел.
-      isAdmin: accountKind === 'admin' || role === 'admin' || isImpersonating,
+      isAdmin: accountKind === 'admin' || isImpersonating,
       status: 'ready',
       isImpersonating,
       adminOriginalUser: isImpersonating
@@ -423,7 +422,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       user,
       isAuthenticated: true,
       isAdmin: true,
-      role: 'admin',
       accountKind: 'admin',
       faces: [],
       activeFaceKey: null,

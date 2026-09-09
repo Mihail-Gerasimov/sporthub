@@ -54,7 +54,7 @@ const providerUser: AuthSessionUser = {
 const PROVIDER_FACE: ServiceFace = { kind: 'club', id: 3, name: 'CrossFit Garage' };
 
 /** Ответ «кто я». */
-function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = []) {
+function meResponse(user: AuthSessionUser, accountKind: string, faces: ServiceFace[] = []) {
   return {
     ok: true,
     status: 200,
@@ -63,8 +63,7 @@ function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = 
         success: true,
         data: {
           ...user,
-          role,
-          accountKind: role === 'admin' ? 'admin' : 'person',
+          accountKind,
           faces,
           capabilities: [],
         },
@@ -75,7 +74,7 @@ function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = 
 /** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
 function impersonatedMeResponse(
   target: AuthSessionUser,
-  role: string,
+  accountKind: string,
   actorName: string,
   faces: ServiceFace[] = [],
 ) {
@@ -87,8 +86,7 @@ function impersonatedMeResponse(
         success: true,
         data: {
           ...target,
-          role,
-          accountKind: 'person',
+          accountKind,
           faces,
           capabilities: [],
           impersonating: true,
@@ -155,7 +153,7 @@ describe('Admin integration (Step 17.8)', () => {
       expect(useAuthStore.getState().accountKind).toBe('admin');
 
       // 2. Impersonation: athlete
-      server.answers(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+      server.answers(impersonatedMeResponse(athleteUser, 'person', adminUser.name));
 
       await act(async () => {
         await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
@@ -180,7 +178,7 @@ describe('Admin integration (Step 17.8)', () => {
 
       // 4. Impersonation: provider
       server.answers(
-        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
+        impersonatedMeResponse(providerUser, 'person', adminUser.name, [PROVIDER_FACE]),
       );
 
       await act(async () => {
@@ -218,7 +216,7 @@ describe('Admin integration (Step 17.8)', () => {
 
   describe('право записываться под работой от чужого лица', () => {
     it('возвращает номер ЦЕЛИ, а не администратора', async () => {
-      stubSession(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+      stubSession(impersonatedMeResponse(athleteUser, 'person', adminUser.name));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
@@ -249,9 +247,7 @@ describe('Admin integration (Step 17.8)', () => {
       // ⚠️ Шаг 35.34. Прежде здесь ожидался `null`: «тип учётной записи —
       // провайдер, значит записываться нельзя». Владелец клуба — такой же
       // человек, и его записи существуют. Роль этого никогда не решала.
-      stubSession(
-        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
-      );
+      stubSession(impersonatedMeResponse(providerUser, 'person', adminUser.name, [PROVIDER_FACE]));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
@@ -278,7 +274,7 @@ describe('Admin integration (Step 17.8)', () => {
       });
 
       // Первый impersonation — athlete
-      server.answers(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+      server.answers(impersonatedMeResponse(athleteUser, 'person', adminUser.name));
 
       await act(async () => {
         await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID);
@@ -295,7 +291,7 @@ describe('Admin integration (Step 17.8)', () => {
 
       // Второй impersonation — provider (без logout между ними)
       server.answers(
-        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
+        impersonatedMeResponse(providerUser, 'person', adminUser.name, [PROVIDER_FACE]),
       );
 
       await act(async () => {
@@ -371,7 +367,7 @@ describe('Admin integration (Step 17.8)', () => {
       // без единого признака на экране.
       useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+        impersonatedMeResponse(athleteUser, 'person', adminUser.name),
       );
 
       await act(async () => {
@@ -394,7 +390,7 @@ describe('Admin integration (Step 17.8)', () => {
     it('у цели без лиц услуг — личный кабинет', async () => {
       // Адрес называет стор, а не вызывающая страница: иначе он жил бы в двух
       // местах и разъехался бы на первом же переименовании маршрута.
-      stubSession(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+      stubSession(impersonatedMeResponse(athleteUser, 'person', adminUser.name));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
@@ -410,9 +406,7 @@ describe('Admin integration (Step 17.8)', () => {
     });
 
     it('у цели с лицом услуг — кабинет лица', async () => {
-      stubSession(
-        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
-      );
+      stubSession(impersonatedMeResponse(providerUser, 'person', adminUser.name, [PROVIDER_FACE]));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);

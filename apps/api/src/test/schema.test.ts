@@ -117,6 +117,28 @@ describe('Физические имена', () => {
 
     expect([...new Set(columns)].filter((column) => !existing.has(column))).toEqual([]);
   });
+
+  it('колонки role и индекса по ней в таблице пользователей нет', async () => {
+    // Шаг 35.24. Проверка идёт по БАЗЕ, а не по тексту схемы: текстовый сторож
+    // (`role-boundary.test.ts`) ловит возврат объявления, а сюда попадёт возврат
+    // самой колонки миграцией — например, откатом. Это разные ошибки.
+    const columns = await db.prisma.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = ${testSchemaName()} AND table_name = 'users'
+    `;
+    const names = columns.map((row) => row.column_name);
+
+    expect(names).not.toContain('role');
+    // Вид учётной записи — то, что осталось решать вместо роли.
+    expect(names).toContain('account_kind');
+
+    const indexes = await db.prisma.$queryRaw<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes
+      WHERE schemaname = ${testSchemaName()} AND tablename = 'users'
+    `;
+
+    expect(indexes.map((row) => row.indexname)).not.toContain('users_role_idx');
+  });
 });
 
 describe('Предикаты частичных индексов', () => {
@@ -174,7 +196,6 @@ describe('Ограничения работают, а не просто суще
         email: 'schema@test.local',
         phone: '+7 (900) 000-00-00',
         passwordHash: 'хеш-заглушка',
-        role: 'athlete',
         status: 'active',
       },
     });

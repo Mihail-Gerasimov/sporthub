@@ -7,13 +7,18 @@
  * — sec-head: eyebrow `Admin · Users` + Bowlby + sub `N пользователей · M показано`
  *   + sec-pill «обновлено сейчас» справа (статика);
  * — toolbar: search-input + lime-solid кнопка `Фильтры ⌃` (toggle ротация);
- * — filters-panel collapsible: grid 2-col Роль / Статус;
+ * — filters-panel collapsible: grid 2-col Лица услуг / Статус;
  * — user-card: grid `1fr 440px` на 1280+, 1-col на ≤1024;
  * — action-зона атлета — одна кнопка «Пересчитать рейтинг» (фаза 35, этап Э0a:
  *   ручное послабление санкций за неявки удалено вместе с самим механизмом);
  * — pagination client-side: 15 per page, pager всегда видим;
- * — admin фильтруются (как раньше), tag-бейджи «Новый/Ожидает» не вводим
- *   (ReliabilityBadge «Новый» этого достаточно).
+ * — служебные записи фильтруются (как раньше), tag-бейджи «Новый/Ожидает»
+ *   не вводим (ReliabilityBadge «Новый» этого достаточно).
+ *
+ * ⚠️ Шаг 35.24. Роли нет, и раздел больше не спрашивает «кем человек является».
+ * Всё, что он показывал ролью, выводится из ВЛАДЕНИЯ: есть клуб или карточка
+ * тренера — человек ведёт услуги, нет — просто занимается. Служебная запись
+ * отличается видом учётной записи, и он из владения не выводится.
  */
 'use client';
 
@@ -24,11 +29,16 @@ import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePassword
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { ROLE_LABELS, computeAthleteReliability, type ReliabilityResult } from '@sporthub/domain';
+import {
+  accountKindOf,
+  computeAthleteReliability,
+  isAdminKind,
+  type ReliabilityResult,
+} from '@sporthub/domain';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, Club, Trainer, User, UserRole } from '@sporthub/types';
+import type { Booking, Club, Trainer, User } from '@sporthub/types';
 
 type DashboardPageProps = {
   users: User[];
@@ -37,19 +47,17 @@ type DashboardPageProps = {
   bookings: Booking[];
 };
 
-type RoleFilter = 'all' | 'athlete' | 'provider';
+/** Отбор по владению лицами услуг — то, что раньше делал отбор по роли. */
+type FacesFilter = 'all' | 'with' | 'without';
 type StatusFilter = 'all' | 'active' | 'banned' | 'suspended';
 
 const PAGE_SIZE = 15;
 const MAX_VISIBLE_PAGE_BUTTONS = 5;
 
-// Bейдж роли: атлет/провайдер — lime-fill, админ — orange-fill
-type RoleTone = 'lime-fill' | 'orange-fill';
-const ROLE_TONES: Record<UserRole, RoleTone> = {
-  athlete: 'lime-fill',
-  club_owner: 'lime-fill',
-  trainer: 'lime-fill',
-  admin: 'orange-fill',
+// Подписи отбора по лицам услуг — один словарь на фильтр и на бейдж карточки.
+const FACES_LABELS: Record<Exclude<FacesFilter, 'all'>, string> = {
+  with: 'Ведёт услуги',
+  without: 'Занимается',
 };
 
 const STATUS_LABELS: Record<NonNullable<User['status']>, string> = {
@@ -116,32 +124,37 @@ const ICON_CHEV_RIGHT = (
   </svg>
 );
 
-/** Проверяет, соответствует ли роль пользователя фильтру */
-function matchesRoleFilter(role: UserRole, filter: RoleFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'athlete') return role === 'athlete';
-  if (filter === 'provider') return role === 'club_owner' || role === 'trainer';
-  return true;
+/**
+ * Сколько лиц услуг у человека — клубов плюс карточек тренера.
+ *
+ * ⚠️ Одно объявление на весь раздел: по нему считается и отбор, и бейдж,
+ * и строка статистики. Раньше на каждый из трёх вопросов отвечала роль,
+ * и ответы могли разъехаться — например, у роли `trainer` без карточки.
+ */
+function countServiceFaces(user: User, clubs: Club[], trainers: Trainer[]): number {
+  return getProviderClubs(clubs, user.id).length + getProviderTrainers(trainers, user.id).length;
 }
 
-/** Возвращает краткую статистику пользователя */
+/** Соответствует ли человек отбору по лицам услуг. */
+function matchesFacesFilter(faceCount: number, filter: FacesFilter): boolean {
+  if (filter === 'all') return true;
+
+  return filter === 'with' ? faceCount > 0 : faceCount === 0;
+}
+
+/** Краткая статистика: у ведущего услуги — лица, у прочих — активные записи. */
 function getUserStats(
   user: User,
   bookings: Booking[],
-  clubs: Club[],
-  trainers: Trainer[],
+  faceCount: number,
 ): { label: string; value: number } {
-  if (user.role === 'athlete') {
-    const activeBookings = getAthleteActiveFutureBookings({
-      athleteUserId: user.id,
-      bookings,
-    });
-    return { label: 'Активных записей', value: activeBookings.length };
+  if (faceCount > 0) {
+    return { label: 'Лиц услуг', value: faceCount };
   }
-  // provider (club_owner или trainer)
-  const providerClubs = getProviderClubs(clubs, user.id);
-  const providerTrainers = getProviderTrainers(trainers, user.id);
-  return { label: 'Публикаций', value: providerClubs.length + providerTrainers.length };
+
+  const activeBookings = getAthleteActiveFutureBookings({ athleteUserId: user.id, bookings });
+
+  return { label: 'Активных записей', value: activeBookings.length };
 }
 
 export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPageProps) {
@@ -151,7 +164,7 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [facesFilter, setFacesFilter] = useState<FacesFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -162,8 +175,8 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     setSearchQuery(value);
     setCurrentPage(1);
   };
-  const handleRoleChange = (value: RoleFilter) => {
-    setRoleFilter(value);
+  const handleFacesChange = (value: FacesFilter) => {
+    setFacesFilter(value);
     setCurrentPage(1);
   };
   const handleStatusChange = (value: StatusFilter) => {
@@ -171,8 +184,21 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
     setCurrentPage(1);
   };
 
-  // Исключаем admin из списка (как раньше — N3)
-  const nonAdminUsers = useMemo(() => users.filter((u) => u.role !== 'admin'), [users]);
+  // Исключаем служебные записи из списка (как раньше — N3). Признак берётся
+  // из вида учётной записи: роли, по которой это решалось, больше нет.
+  const nonAdminUsers = useMemo(() => users.filter((u) => !isAdminKind(accountKindOf(u))), [users]);
+
+  // Число лиц услуг на человека считается один раз на отрисовку: отбор, бейдж
+  // и строка статистики берут его отсюда, а не пересчитывают каждый по-своему.
+  const faceCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+
+    for (const user of nonAdminUsers) {
+      counts.set(user.id, countServiceFaces(user, clubs, trainers));
+    }
+
+    return counts;
+  }, [nonAdminUsers, clubs, trainers]);
 
   // Фильтрация
   const filteredUsers = useMemo(() => {
@@ -187,14 +213,16 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
           user.email.toLowerCase().includes(query),
       );
     }
-    if (roleFilter !== 'all') {
-      result = result.filter((user) => matchesRoleFilter(user.role, roleFilter));
+    if (facesFilter !== 'all') {
+      result = result.filter((user) =>
+        matchesFacesFilter(faceCounts.get(user.id) ?? 0, facesFilter),
+      );
     }
     if (statusFilter !== 'all') {
       result = result.filter((user) => (user.status ?? 'active') === statusFilter);
     }
     return result;
-  }, [nonAdminUsers, searchQuery, roleFilter, statusFilter]);
+  }, [nonAdminUsers, faceCounts, searchQuery, facesFilter, statusFilter]);
 
   // Pagination client-side
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
@@ -332,15 +360,15 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
       {showFilters ? (
         <div className="rounded-[14px] border border-line bg-card-2 p-[18px] sm:p-[18px_22px]">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FilterField label="Роль">
+            <FilterField label="Лица услуг">
               <FilterSelect
-                value={roleFilter}
-                active={roleFilter !== 'all'}
-                onChange={(v) => handleRoleChange(v as RoleFilter)}
+                value={facesFilter}
+                active={facesFilter !== 'all'}
+                onChange={(v) => handleFacesChange(v as FacesFilter)}
                 options={[
-                  { value: 'all', label: 'Все роли' },
-                  { value: 'athlete', label: 'Спортсмены' },
-                  { value: 'provider', label: 'Провайдеры' },
+                  { value: 'all', label: 'Все' },
+                  { value: 'without', label: 'Без лиц услуг' },
+                  { value: 'with', label: 'С лицами услуг' },
                 ]}
               />
             </FilterField>
@@ -369,13 +397,17 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
       ) : (
         <div className="flex flex-col gap-2.5">
           {pagedUsers.map((user) => {
-            const stats = getUserStats(user, bookings, clubs, trainers);
-            const reliability =
-              user.role === 'athlete' ? computeAthleteReliability(bookings, user.id) : null;
+            const faceCount = faceCounts.get(user.id) ?? 0;
+            const stats = getUserStats(user, bookings, faceCount);
+            // ⚠️ Надёжность считается КАЖДОМУ человеку, а не только «атлету»:
+            // владелец зала тоже ходит на занятия и тоже может не прийти.
+            // Прежде роль прятала его неявки от администратора совсем.
+            const reliability = computeAthleteReliability(bookings, user.id);
             return (
               <UserCard
                 key={user.id}
                 user={user}
+                faceCount={faceCount}
                 stats={stats}
                 reliability={reliability}
                 onImpersonate={() => handleImpersonate(user)}
@@ -438,6 +470,8 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
 
 type UserCardProps = {
   user: User;
+  /** Сколько у человека лиц услуг. Ноль — он только занимается сам. */
+  faceCount: number;
   stats: { label: string; value: number };
   reliability: ReliabilityResult | null;
   onImpersonate: () => void;
@@ -446,12 +480,13 @@ type UserCardProps = {
 
 function UserCard({
   user,
+  faceCount,
   stats,
   reliability,
   onImpersonate,
   onRecomputeReliability,
 }: UserCardProps) {
-  const isAthlete = user.role === 'athlete';
+  const leadsServices = faceCount > 0;
   const userStatus = user.status ?? 'active';
 
   // Блок «Учётные данные». Phase 33 Step 33.10: показа чужого пароля здесь
@@ -470,7 +505,9 @@ function UserCard({
           <h2 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
             {user.name}
           </h2>
-          <Badge tone={ROLE_TONES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
+          <Badge tone={leadsServices ? 'orange-fill' : 'lime-fill'}>
+            {leadsServices ? FACES_LABELS.with : FACES_LABELS.without}
+          </Badge>
           <StatusBadge status={userStatus} />
           {reliability ? <ReliabilityBadge reliability={reliability} compact showDetails /> : null}
         </div>
@@ -522,9 +559,10 @@ function UserCard({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {isAthlete ? (
-          <ButtonGhost onClick={onRecomputeReliability}>Пересчитать рейтинг</ButtonGhost>
-        ) : null}
+        {/* ⚠️ Пересчёт надёжности доступен по КАЖДОМУ человеку, а не только
+            «атлету»: неявки бывают у всех, кто записывается, а записываться
+            может любой вошедший (решение 5.1). */}
+        <ButtonGhost onClick={onRecomputeReliability}>Пересчитать рейтинг</ButtonGhost>
 
         <ButtonPrimary onClick={onImpersonate}>Войти как пользователь</ButtonPrimary>
       </div>

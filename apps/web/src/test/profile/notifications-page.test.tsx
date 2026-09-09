@@ -41,7 +41,7 @@ describe('NotificationsListPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     // Phase 27 Step 27.8: компонент теперь делает auth-guard. Настраиваем
     // athlete-сессию, чтобы guard пропустил рендер — все тесты в этом файле
-    // используют accountType="athlete".
+    // используют.
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: { id: 1, name: 'Test Athlete', email: 'test-athlete@sporthub.local' },
@@ -51,7 +51,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('рендерит плоский список уведомлений с заголовками и описаниями', () => {
-    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={seed} userId={1} />);
 
     expect(screen.getByText('Бронирование подтверждено')).toBeInTheDocument();
     expect(screen.getByText('Бронирование отклонено')).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('для пустого списка показывает «Пока нет уведомлений»', () => {
-    render(<NotificationsListPage notifications={[]} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={[]} userId={1} />);
 
     expect(screen.getByText(/пока нет уведомлений/i)).toBeInTheDocument();
   });
@@ -75,7 +75,7 @@ describe('NotificationsListPage', () => {
       ),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={seed} userId={1} />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 
@@ -111,7 +111,7 @@ describe('NotificationsListPage', () => {
       }),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={seed} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notification-item-1'));
 
@@ -133,7 +133,7 @@ describe('NotificationsListPage', () => {
       }),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} accountType="athlete" />);
+    render(<NotificationsListPage notifications={seed} userId={1} />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 

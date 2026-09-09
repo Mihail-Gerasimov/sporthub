@@ -13,7 +13,6 @@ import type { User } from '@sporthub/types';
 const user: User = {
   id: 1,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   name: 'Алексей',
   email: 'alexey@test',
   phone: '',
@@ -37,13 +36,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('рендерит группы (booking / links / reviews) для provider', () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="provider"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
 
     expect(screen.getByTestId('notification-preferences-editor')).toBeInTheDocument();
     expect(screen.getByTestId('notification-preferences-group-booking')).toBeInTheDocument();
@@ -79,13 +72,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('REQUIRED-типы имеют disabled input (нельзя отключить)', () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
 
     // REQUIRED_NOTIFICATION_TYPES: booking_confirmed и booking_cancelled_by_provider.
     // Phase 27 Step 27.3: оба адресованы athlete, рендерятся только в athlete-виде.
@@ -110,13 +97,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
 
     // Phase 27 Step 27.3: booking_completed адресован athlete, рендерится только
     // в athlete-виде. Проверяем именно этот путь для клика по non-required.
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
     const checkbox = screen.getByTestId(
       'notification-preferences-toggle-booking_completed',
     ) as HTMLInputElement;
@@ -151,13 +132,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -180,13 +155,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       }),
     );
 
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
     fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_completed'));
 
     await act(async () => {
@@ -200,13 +169,7 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
   });
 
   it('клик по REQUIRED toggle не вызывает fetch (disabled-ветка)', async () => {
-    render(
-      <UserNotificationPreferencesEditor
-        userId={user.id}
-        accountType="athlete"
-        notificationPreferences={{}}
-      />,
-    );
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
     // jsdom физически позволяет fireEvent.click на disabled input, но onChange
     // handler должен быть защищён от REQUIRED-типов через canDisableNotificationType.
     // booking_confirmed — athlete-адресованный REQUIRED-тип.

@@ -124,7 +124,6 @@ describe('Header', () => {
             id: 2,
             name: 'Марина Крылова',
             email: 'marina@studio.local',
-            role: 'club_owner',
             accountKind: 'person',
             faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
             capabilities: [],

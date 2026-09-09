@@ -53,7 +53,7 @@ const providerUser: AuthSessionUser = {
 const PROVIDER_FACE: ServiceFace = { kind: 'club', id: 3, name: 'CrossFit Garage' };
 
 /** Ответ «кто я» — ровно та форма, что приходит с сервера. */
-function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = []) {
+function meResponse(user: AuthSessionUser, accountKind: string, faces: ServiceFace[] = []) {
   return {
     ok: true,
     status: 200,
@@ -62,8 +62,7 @@ function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = 
         success: true,
         data: {
           ...user,
-          role,
-          accountKind: role === 'admin' ? 'admin' : 'person',
+          accountKind,
           faces,
           capabilities: [],
         },
@@ -74,7 +73,7 @@ function meResponse(user: AuthSessionUser, role: string, faces: ServiceFace[] = 
 /** Ответ «кто я» под работой от чужого лица: цель, признак и имя исполнителя. */
 function impersonatedMeResponse(
   target: AuthSessionUser,
-  role: string,
+  accountKind: string,
   actorName: string,
   faces: ServiceFace[] = [],
 ) {
@@ -86,8 +85,7 @@ function impersonatedMeResponse(
         success: true,
         data: {
           ...target,
-          role,
-          accountKind: 'person',
+          accountKind,
           faces,
           capabilities: [],
           impersonating: true,
@@ -156,7 +154,7 @@ describe('Admin auth store (Step 17.2)', () => {
       // ⚠️ Раньше подмена жила целиком в браузере: сервер продолжал видеть
       // администратора, то есть экран и настоящие права расходились.
       const fetchSpy = stubImpersonationServer(
-        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+        impersonatedMeResponse(athleteUser, 'person', adminUser.name),
       );
 
       act(() => {
@@ -184,7 +182,7 @@ describe('Admin auth store (Step 17.2)', () => {
       // в админской странице, и адрес кабинета жил в двух местах сразу.
       // Теперь его называет сам стор — по составу сессии цели.
       stubImpersonationServer(
-        impersonatedMeResponse(providerUser, 'club_owner', adminUser.name, [PROVIDER_FACE]),
+        impersonatedMeResponse(providerUser, 'person', adminUser.name, [PROVIDER_FACE]),
       );
 
       act(() => {
@@ -206,7 +204,7 @@ describe('Admin auth store (Step 17.2)', () => {
     });
 
     it('цель без лиц услуг уводит в личный кабинет', async () => {
-      stubImpersonationServer(impersonatedMeResponse(athleteUser, 'athlete', adminUser.name));
+      stubImpersonationServer(impersonatedMeResponse(athleteUser, 'person', adminUser.name));
 
       act(() => {
         useAuthStore.getState().adminLogin(adminUser);
@@ -385,7 +383,6 @@ describe('Admin auth store (Step 17.2)', () => {
 
       expect(state.isAuthenticated).toBe(true);
       expect(state.isAdmin).toBe(true);
-      expect(state.role).toBe('admin');
       expect(state.accountKind).toBe('admin');
       expect(state.user?.id).toBe(ADMIN_USER_ID);
       expect(state.status).toBe('ready');
@@ -398,7 +395,7 @@ describe('Admin auth store (Step 17.2)', () => {
       // полной перезагрузки, а администратор продолжал действовать от чужого лица
       // без единого признака на экране — то есть хуже, чем если бы её не было.
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        impersonatedMeResponse(athleteUser, 'athlete', adminUser.name),
+        impersonatedMeResponse(athleteUser, 'person', adminUser.name),
       );
 
       await act(async () => {
@@ -486,7 +483,7 @@ describe('Admin auth store (Step 17.2)', () => {
       // Роль и владение расходятся уже сейчас (раздел 4.6 плана фазы), поэтому
       // ответ считается по лицам: они и есть факт, а роль — надпись.
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        meResponse(providerUser, 'club_owner', [PROVIDER_FACE]),
+        meResponse(providerUser, 'person', [PROVIDER_FACE]),
       );
 
       await act(async () => {

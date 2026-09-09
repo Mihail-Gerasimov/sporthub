@@ -33,10 +33,10 @@ const SLOT_DATE = '2026-03-20';
  * Участники среза: атлеты 1 и 3 записываются, пользователь 2 управляет тренером
  * и потому служит адресатом уведомлений провайдера.
  */
-const user = (id: number, role: string) => ({
+const user = (id: number, accountKind: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   status: 'active',
   name: `Пользователь ${id}`,
   email: `u${id}@booking-service.test`,
@@ -72,7 +72,7 @@ describe('BookingService', () => {
     // и без этого следующий тест начинался бы на остатках предыдущего.
     await harness.writeMany({
       ...fixtureDictionaryCollections,
-      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'athlete')],
+      users: [user(1, 'person'), user(2, 'person'), user(3, 'person')],
       clubs: [],
       trainers: [
         {

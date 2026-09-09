@@ -174,7 +174,11 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
       {
         id: 1,
         createdAt: SEEDED_AT,
-        role: 'admin',
+        // ⚠️ Единственное место сида, где вид учётной записи указан явно.
+        // Из владения он не выводится: администратора назначают, и без этой
+        // строки после удаления роли (шаг 35.24) сид поднял бы площадку
+        // вообще без входа в служебную панель.
+        accountKind: 'admin',
         status: 'active',
         name: 'Администратор SportHub',
         email: 'admin@sporthub.local',
@@ -186,7 +190,6 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
       {
         id: 2,
         createdAt: SEEDED_AT,
-        role: 'club_owner',
         status: 'active',
         name: 'Ольга Владелец',
         email: 'owner@sporthub.local',
@@ -198,7 +201,6 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
       {
         id: 3,
         createdAt: SEEDED_AT,
-        role: 'trainer',
         status: 'active',
         name: 'Павел Тренеров',
         email: 'trainer@sporthub.local',
@@ -210,7 +212,6 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
       {
         id: 4,
         createdAt: SEEDED_AT,
-        role: 'athlete',
         status: 'active',
         name: 'Ирина Спортсменова',
         email: 'athlete@sporthub.local',
@@ -225,7 +226,6 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
         // отзывы, история и связи разошлись бы по двум учётным записям.
         id: 5,
         createdAt: SEEDED_AT,
-        role: 'club_owner',
         status: 'active',
         name: 'Егор Двулицев',
         email: 'both@sporthub.local',

@@ -218,7 +218,6 @@ const users: User[] = [
   {
     id: 1,
     createdAt: '2026-03-17T09:00:00.000Z',
-    role: 'athlete',
     name: 'Алексей Миронов',
     email: 'alexey@sporthub.local',
     phone: '+7 999 123-45-67',

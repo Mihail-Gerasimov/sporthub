@@ -25,7 +25,6 @@ import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test
 const OTHER_PROVIDER = {
   id: 4,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'club_owner',
   status: 'active',
   name: 'Чужой провайдер',
   email: 'other-provider@test.local',
@@ -375,7 +374,6 @@ describe('Маршруты CRM-заметок', () => {
     const clientB = {
       id: CLIENT_B,
       createdAt: '2026-01-01T00:00:00.000Z',
-      role: 'athlete',
       status: 'active',
       name: 'Клиент второго клуба',
       email: 'client-b@test.local',

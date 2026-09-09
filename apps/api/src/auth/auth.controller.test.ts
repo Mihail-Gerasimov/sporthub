@@ -24,10 +24,10 @@ const sessionCookie = (response: request.Response): string | undefined =>
     value.startsWith('sh-session='),
   );
 
-const user = (id: number, role: string, email: string) => ({
+const user = (id: number, accountKind: string, email: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   status: 'active',
   name: `Пользователь ${id}`,
   email,
@@ -45,8 +45,8 @@ describe('Маршруты входа и регистрации', () => {
 
   beforeEach(async () => {
     await harness.write('users', [
-      user(1, 'athlete', 'athlete@test.local'),
-      user(2, 'club_owner', 'owner@test.local'),
+      user(1, 'person', 'athlete@test.local'),
+      user(2, 'person', 'owner@test.local'),
       user(3, 'admin', 'admin@test.local'),
     ]);
   });
@@ -108,7 +108,7 @@ describe('Маршруты входа и регистрации', () => {
 
   it('заблокированный пользователь отвечает так же, как неизвестная почта', async () => {
     await harness.write('users', [
-      { ...user(1, 'athlete', 'athlete@test.local'), status: 'banned' },
+      { ...user(1, 'person', 'athlete@test.local'), status: 'banned' },
     ]);
 
     const response = await request(harness.app.getHttpServer())
@@ -232,7 +232,7 @@ describe('Маршруты входа и регистрации', () => {
     expect(sessionCookie(response)).toBeDefined();
   });
 
-  it('регистрация атлета создаёт пользователя со следующим номером', async () => {
+  it('регистрация создаёт человека со следующим номером', async () => {
     const response = await request(harness.app.getHttpServer()).post('/api/auth/register').send({
       name: 'Новый',
       email: 'new@test.local',
@@ -243,11 +243,13 @@ describe('Маршруты входа и регистрации', () => {
     expect(response.body.data.id).toBe(4);
 
     const stored =
-      await harness.read<{ id: number; role: string; password?: string; passwordHash: string }[]>(
-        'users',
-      );
+      await harness.read<
+        { id: number; accountKind?: string; password?: string; passwordHash: string }[]
+      >('users');
     expect(stored).toHaveLength(4);
-    expect(stored[3].role).toBe('athlete');
+    // ⚠️ Шаг 35.24. Регистрация заводит ЧЕЛОВЕКА, и никаким админом он стать
+    // не может: администратора назначают, а не получают формой регистрации.
+    expect(stored[3].accountKind).toBe('person');
     // Открытого пароля в записи нет вовсе, а хеш проверяется исходным паролем.
     expect(stored[3].password).toBeUndefined();
     expect(stored[3].passwordHash.startsWith('$argon2id$')).toBe(true);
@@ -255,7 +257,7 @@ describe('Маршруты входа и регистрации', () => {
   });
 
   // ⚠️ Шаг 35.22. Раньше регистрация «провайдера» создавала владельца клуба,
-  // а роль тренера не создавалась НИ ОДНИМ путём продукта — только сидом.
+  // а тренер не создавался НИ ОДНИМ путём продукта — только сидом.
   // Теперь регистрация заводит человека, а кем он станет, решает то, заведёт ли
   // он лицо услуг.
   it('регистрация заводит человека без лиц услуг', async () => {
@@ -314,7 +316,7 @@ describe('Сессии при смене пароля', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [user(1, 'athlete', 'athlete@test.local')]);
+    await harness.write('users', [user(1, 'person', 'athlete@test.local')]);
   });
 
   afterAll(async () => {
@@ -373,8 +375,8 @@ describe('Работа от чужого лица', () => {
 
   beforeEach(async () => {
     await harness.write('users', [
-      user(1, 'athlete', 'athlete@test.local'),
-      user(2, 'club_owner', 'owner@test.local'),
+      user(1, 'person', 'athlete@test.local'),
+      user(2, 'person', 'owner@test.local'),
       user(3, 'admin', 'admin@test.local'),
     ]);
   });
@@ -487,7 +489,7 @@ describe('Служебный вход администратора', () => {
 
   beforeEach(async () => {
     await harness.write('users', [
-      user(1, 'athlete', 'athlete@test.local'),
+      user(1, 'person', 'athlete@test.local'),
       user(3, 'admin', 'admin@test.local'),
     ]);
   });

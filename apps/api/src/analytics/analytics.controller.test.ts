@@ -32,7 +32,6 @@ describe('Сводка платформы', () => {
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           name: 'Атлет',
           email: 'a@t.local',
           phone: '',
@@ -42,7 +41,6 @@ describe('Сводка платформы', () => {
         {
           id: 2,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
           name: 'Провайдер',
           email: 'p@t.local',
           phone: '',
@@ -52,7 +50,7 @@ describe('Сводка платформы', () => {
         {
           id: 3,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'admin',
+          accountKind: 'admin',
           name: 'Админ',
           email: 'ad@t.local',
           phone: '',

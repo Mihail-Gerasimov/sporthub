@@ -113,7 +113,7 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: { id: 3, name: 'Admin', email: 'a@a.com', phone: '+7' },
-      role: 'admin',
+      accountKind: 'admin',
       accountKind: null,
       isAuthenticated: true,
       isAdmin: true,

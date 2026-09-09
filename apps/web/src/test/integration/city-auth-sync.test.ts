@@ -95,7 +95,6 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
       name: 'Марина',
       email: 'marina@test.ru',
       city: 'Москва',
-      role: 'club_owner',
       capabilities: [],
       impersonating: true,
       actorName: 'Admin',
@@ -129,7 +128,7 @@ describe('useSyncCityFromAuth (Step 19.9)', () => {
       name: 'Admin',
       email: 'admin@test.ru',
       city: 'Екатеринбург',
-      role: 'admin',
+      accountKind: 'admin',
       capabilities: [],
     });
 

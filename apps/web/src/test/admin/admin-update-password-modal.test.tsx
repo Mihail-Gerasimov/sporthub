@@ -205,7 +205,6 @@ describe('Карточка пользователя в админке', () => {
     {
       id: 1,
       createdAt: '2026-03-17T09:00:00.000Z',
-      role: 'athlete',
       status: 'active',
       name: 'Алексей Смирнов',
       email: 'alexey@sporthub.local',

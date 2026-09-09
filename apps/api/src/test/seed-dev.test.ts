@@ -8,7 +8,6 @@
 // есть что показать в каталоге и есть на что записаться.
 
 import { fixtureSports } from '@sporthub/fixtures';
-import { USER_ROLES } from '@sporthub/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { verifyPassword } from '../common/password';
@@ -70,10 +69,40 @@ describe('Справочники', () => {
 });
 
 describe('Учётные записи', () => {
-  it('есть по одной на каждую роль', async () => {
-    const users = await db.prisma.user.findMany({ orderBy: { id: 'asc' } });
+  it('есть по одной на каждый набор лиц услуг и ровно один администратор', async () => {
+    // ⚠️ Шаг 35.24. Прежде проверялось «по одной на каждую роль» — после удаления
+    // роли проверять стало нечего, а покрывать надо другое: сид обязан давать
+    // все пять наборов, по которым собирается кабинет.
+    const users = await db.prisma.user.findMany({
+      orderBy: { id: 'asc' },
+      include: { managedClubs: true, managedTrainers: true },
+    });
 
-    expect([...new Set(users.map((user) => user.role))].sort()).toEqual([...USER_ROLES].sort());
+    const shape = users.map((user) => ({
+      kind: user.accountKind,
+      clubs: user.managedClubs.length > 0,
+      cards: user.managedTrainers.length > 0,
+    }));
+
+    expect(shape).toEqual([
+      { kind: 'admin', clubs: false, cards: false },
+      { kind: 'person', clubs: true, cards: false },
+      { kind: 'person', clubs: false, cards: true },
+      { kind: 'person', clubs: false, cards: false },
+      // Пятый набор — и зал, и персоналки. В прежней модели он был невыразим:
+      // роль позволяла быть кем-то одним.
+      { kind: 'person', clubs: true, cards: true },
+    ]);
+  });
+
+  it('администратор один и он не потерялся при удалении роли', async () => {
+    // ⚠️ Главная проверка шага 35.24. Признак администратора — единственное,
+    // что не выводится из владения: потеряй его сид, и площадка поднимется
+    // без входа в служебную панель, а заметить это будет нечем.
+    const admins = await db.prisma.user.findMany({ where: { accountKind: 'admin' } });
+
+    expect(admins).toHaveLength(1);
+    expect(admins[0].email).toBe('admin@sporthub.local');
   });
 
   it('пароль лежит хешем и подходит к объявленному', async () => {

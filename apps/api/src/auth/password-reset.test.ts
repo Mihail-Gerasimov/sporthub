@@ -53,7 +53,6 @@ class CapturingMailer implements Mailer {
 const user = (id: number, email: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   status: 'active',
   name: `Пользователь ${id}`,
   email,

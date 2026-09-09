@@ -5,7 +5,7 @@
 // в лог приложения, а не проглатывается пустым обработчиком.
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { LogAction, LogEntityType, UserRole } from '@sporthub/types';
+import type { LogAction, LogEntityType } from '@sporthub/types';
 
 import type { LogsRepository } from '../repositories/crud.repository';
 import { LOGS_REPOSITORY } from '../repositories/crud.repository';

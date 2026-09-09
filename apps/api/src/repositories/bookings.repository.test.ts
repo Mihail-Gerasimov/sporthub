@@ -532,7 +532,6 @@ describe('BookingsRepository — реализация на базе', () => {
       await db.prisma.user.create({
         data: {
           id,
-          role: 'athlete',
           name: `Атлет ${id}`,
           email: `athlete${id}@test.local`,
           phone: '+7 (900) 000-00-00',

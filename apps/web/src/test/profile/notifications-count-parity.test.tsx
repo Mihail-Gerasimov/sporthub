@@ -37,7 +37,7 @@ import { NotificationBell } from '@/components/layout/NotificationBell';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
-import type { AuthAccountType, Notification } from '@sporthub/types';
+import type { Notification } from '@sporthub/types';
 
 /** Один человек: у него клуб, и он же сам ходит на занятия. */
 const PERSON_ID = 2;
@@ -140,21 +140,27 @@ const listedRows = (): HTMLElement[] => screen.queryAllByTestId(/^notification-i
 const listedUnreadRows = (): HTMLElement[] =>
   screen.queryAllByTestId(/^notification-item-unread-\d+$/);
 
-/** Открыть кабинет: колокольчик шапки и лента рисуются одним деревом. */
-async function openCabinet(accountType: AuthAccountType, feed: Notification[]): Promise<void> {
+/**
+ * Открыть кабинет: колокольчик шапки и лента рисуются одним деревом.
+ *
+ * ⚠️ Шаги 35.34 и 35.24. Кабинет больше не выбирается «типом учётной записи»:
+ * лента у человека одна, и что в ней показать, решает АДРЕСАТ уведомления,
+ * а не то, кем человек записан. Поэтому и параметра здесь нет.
+ */
+async function openCabinet(feed: Notification[]): Promise<void> {
   installFeedStub(feed);
 
   useAuthStore.setState({
     ...AUTH_STORE_DEFAULT_STATE,
     user: { id: PERSON_ID, name: 'Марина Крылова', email: 'marina@studio.local' },
-    accountType,
+    accountKind: 'person',
     isAuthenticated: true,
   });
 
   render(
     <>
       <NotificationBell />
-      <NotificationsListPage notifications={feed} userId={PERSON_ID} accountType={accountType} />
+      <NotificationsListPage notifications={feed} userId={PERSON_ID} />
     </>,
   );
 
@@ -174,12 +180,12 @@ describe('Уведомления: колокольчик и лента счит�
     vi.unstubAllGlobals();
   });
 
-  describe.each<{ title: string; accountType: AuthAccountType }>([
-    { title: 'кабинет лица услуг', accountKind: 'person' },
-    { title: 'личный кабинет', accountKind: 'person' },
-  ])('смешанная лента, $title', ({ accountType }) => {
+  // ⚠️ Прежде набор гонялся дважды — «кабинет лица услуг» и «личный кабинет», —
+  // и различал их тип учётной записи. Пути кода при этом уже был один: адресат
+  // уведомления решает всё сам (35.28a). Второй прогон проверял копию первого.
+  describe('смешанная лента', () => {
     it('в колокольчике столько же, сколько непрочитанных строк в ленте', async () => {
-      await openCabinet(accountType, MIXED_FEED);
+      await openCabinet(MIXED_FEED);
 
       // Главное утверждение набора. Человек видит две цифры об одном и том же
       // ящике: одну в шапке, другую — глазами, в ленте. Разойтись они не могут.
@@ -187,7 +193,7 @@ describe('Уведомления: колокольчик и лента счит�
     });
 
     it('лента показывает всё, что отдал сервер, — ни строкой меньше', async () => {
-      await openCabinet(accountType, MIXED_FEED);
+      await openCabinet(MIXED_FEED);
 
       // Вторая половина того же расхождения: прочитанные строки в счётчик
       // не входят, но пропасть из ленты тоже не должны. Без этой проверки
@@ -196,7 +202,7 @@ describe('Уведомления: колокольчик и лента счит�
     });
 
     it('число в колокольчике — то, что прислал сервер, а не пересчёт клиента', async () => {
-      await openCabinet(accountType, MIXED_FEED);
+      await openCabinet(MIXED_FEED);
 
       // Подпорка под главное утверждение. Без неё расхождение «лечилось» бы
       // тем, что браузер считает ОБЕ цифры по своей формуле: на экране сошлось,
@@ -209,7 +215,7 @@ describe('Уведомления: колокольчик и лента счит�
   it('контроль: на однородной ленте числа сходятся уже сегодня', async () => {
     // Без контроля набор был бы красным по построению, и по нему нельзя было бы
     // понять, чинит ли что-нибудь очередная правка.
-    await openCabinet('athlete', PERSONAL_FEED);
+    await openCabinet(PERSONAL_FEED);
 
     expect(badgeNumber()).toBe(listedUnreadRows().length);
     expect(listedRows()).toHaveLength(serverAnswer(PERSONAL_FEED).total);

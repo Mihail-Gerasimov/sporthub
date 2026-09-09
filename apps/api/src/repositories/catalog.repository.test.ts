@@ -493,7 +493,6 @@ describe('Репозитории каталога — реализация на 
       await db.prisma.user.create({
         data: {
           id,
-          role: 'club_owner',
           name: `Пользователь ${id}`,
           email: `user-${id}@example.com`,
           phone: '+7 900 000-00-00',

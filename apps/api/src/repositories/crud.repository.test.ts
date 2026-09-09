@@ -47,7 +47,6 @@ async function seedWorld(db: TestDatabase, world: World): Promise<void> {
     await db.prisma.user.create({
       data: {
         id,
-        role: 'athlete',
         name: `Пользователь ${id}`,
         email: `user${id}@test.local`,
         phone: '+7 (900) 000-00-00',
@@ -311,7 +310,6 @@ const reviewsContract = (createRepository: () => Promise<ReviewsRepository>) => 
 
 const usersContract = (createRepository: () => Promise<UsersRepository>) => {
   const newUser: Omit<User, 'id' | 'createdAt'> = {
-    role: 'athlete',
     name: 'Иван',
     email: 'ivan@test.local',
     phone: '+7 (900) 000-00-00',

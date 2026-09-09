@@ -1,6 +1,6 @@
 /**
  * Тесты доменной модели для admin-функционала (Step 17.1).
- * Проверяют: UserStatus тип, status? поле в User, admin-пользователь набора,
+ * Проверяют: UserStatus тип, status? поле в User, администратор набора,
  * константы USER_STATUSES.
  *
  * Phase 34 Step 34.48: проверка константы `MVP_ADMIN_USER_ID` убрана вместе
@@ -10,7 +10,7 @@
  */
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { User, UserRole, UserStatus } from '@sporthub/types';
+import type { AccountKind, User, UserStatus } from '@sporthub/types';
 import { USER_STATUSES } from '@sporthub/types';
 import { fixtureUsers } from '@sporthub/fixtures';
 
@@ -28,7 +28,6 @@ describe('Admin domain model (Step 17.1)', () => {
     const userWithoutStatus: User = {
       id: 99,
       createdAt: '2026-01-01T00:00:00.000Z',
-      role: 'athlete',
       name: 'Тест',
       email: 'test@test.local',
       phone: '+7 000 000 00 00',
@@ -39,8 +38,10 @@ describe('Admin domain model (Step 17.1)', () => {
     expect(userWithoutStatus.status).toBeUndefined();
   });
 
-  it('UserRole по-прежнему включает admin', () => {
-    expectTypeOf<'admin'>().toMatchTypeOf<UserRole>();
+  it('вид учётной записи по-прежнему включает admin', () => {
+    // ⚠️ Шаг 35.24: ролей нет. Различие администратора не выводится из владения,
+    // и живёт оно теперь в виде учётной записи — проверяем именно его.
+    expectTypeOf<'admin'>().toMatchTypeOf<AccountKind>();
   });
 
   // --- Константы ---
@@ -56,11 +57,11 @@ describe('Admin domain model (Step 17.1)', () => {
   // приезжает в базу при подготовке стенда.
 
   describe('admin-пользователь в общем наборе', () => {
-    it('набор содержит admin-пользователя с id=3 и role=admin', () => {
+    it('набор содержит администратора с id=3 и видом учётной записи admin', () => {
       const admin = fixtureUsers.find((user) => user.id === 3);
 
       expect(admin).toBeDefined();
-      expect(admin!.role).toBe('admin');
+      expect(admin!.accountKind).toBe('admin');
       expect(admin!.name).toBeTruthy();
       expect(admin!.email).toBeTruthy();
     });
@@ -73,16 +74,19 @@ describe('Admin domain model (Step 17.1)', () => {
       }
     });
 
-    it('существующие пользователи (athlete id=1, provider id=2) не затронуты', () => {
+    it('прочие люди набора — обычные люди, а не служебные записи', () => {
+      // ⚠️ Шаг 35.24. Прежде здесь сверялись роли — теперь сверять нечего:
+      // все, кроме администратора, заведены одинаково, а различает их только
+      // владение лицами услуг.
       const athlete = fixtureUsers.find((user) => user.id === 1);
       const provider = fixtureUsers.find((user) => user.id === 2);
 
       expect(athlete).toBeDefined();
-      expect(athlete!.role).toBe('athlete');
+      expect(athlete!.accountKind).toBeUndefined();
       expect(athlete!.name).toBe('Алексей Смирнов');
 
       expect(provider).toBeDefined();
-      expect(provider!.role).toBe('club_owner');
+      expect(provider!.accountKind).toBeUndefined();
       expect(provider!.name).toBe('Марина Крылова');
     });
   });

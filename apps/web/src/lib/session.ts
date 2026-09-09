@@ -14,7 +14,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import type { ServiceFace } from '@/lib/service-faces';
-import type { AccountKind, UserRole } from '@sporthub/types';
+import type { AccountKind } from '@sporthub/types';
 
 /** Внутренний адрес бэкенда: тот же, что у слоя доступа к данным. */
 const API_ORIGIN = process.env.SPORT_HUB_API_ORIGIN ?? 'http://localhost:3001';
@@ -29,8 +29,13 @@ export type SessionUser = {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
-  /** Вид учётной записи: человек или администратор (фаза 35). */
+  /**
+   * Вид учётной записи: человек или администратор (фаза 35).
+   *
+   * ⚠️ Роли здесь нет с шага 35.24: кем человек «является», ответ не сообщает,
+   * потому что такого свойства у него больше нет. Что он умеет — `capabilities`,
+   * чем управляет — `faces`.
+   */
   accountKind: AccountKind;
   /** Что положено этому виду. Интерфейс рисует по списку, а не угадывает. */
   capabilities: string[];

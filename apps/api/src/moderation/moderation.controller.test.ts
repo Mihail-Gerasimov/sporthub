@@ -32,7 +32,6 @@ describe('Маршруты модерации', () => {
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           name: 'Алексей',
           email: 'al@test.local',
           phone: '+7 (900) 000-00-01',
@@ -42,7 +41,6 @@ describe('Маршруты модерации', () => {
         {
           id: 2,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
           name: 'Марина',
           email: 'm@test.local',
           phone: '+7 (900) 000-00-02',
@@ -52,7 +50,7 @@ describe('Маршруты модерации', () => {
         {
           id: 3,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'admin',
+          accountKind: 'admin',
           name: 'Админ',
           email: 'a@test.local',
           phone: '+7 (900) 000-00-03',

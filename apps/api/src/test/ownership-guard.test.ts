@@ -35,7 +35,6 @@ const STRANGER_ID = 9;
 const stranger = {
   id: STRANGER_ID,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'club_owner',
   status: 'active',
   name: 'Посторонний',
   email: `user-${STRANGER_ID}@test.local`,

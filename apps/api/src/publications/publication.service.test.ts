@@ -58,10 +58,10 @@ const dayKey = (shiftDays: number): string =>
   new Date(Date.now() + shiftDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 /** Пользователь среза: 2 — провайдер-владелец, 1 — атлет, 3 — модератор. */
-const user = (id: number, role: string) => ({
+const user = (id: number, accountKind: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   status: 'active',
   name: `Пользователь ${id}`,
   email: `u${id}@publication-service.test`,
@@ -149,7 +149,7 @@ describe('PublicationService', () => {
   beforeEach(async () => {
     await harness.writeMany({
       ...fixtureDictionaryCollections,
-      users: [user(1, 'athlete'), user(2, 'club_owner'), user(3, 'admin')],
+      users: [user(1, 'person'), user(2, 'person'), user(3, 'admin')],
       clubs: [],
       trainers: [],
       offerings: [],

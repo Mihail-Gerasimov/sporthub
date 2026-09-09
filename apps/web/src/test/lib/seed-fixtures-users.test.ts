@@ -4,28 +4,41 @@
 // и читал `users.json` обратно. Каталога у фронта больше нет — данными владеет
 // бэкенд, — поэтому проверяется сам набор фикстур, единственный источник которого
 // теперь `@sporthub/fixtures`.
+//
+// ⚠️ Шаг 35.24. Прежде набор описывался ролями: «athlete id=1, club_owner id=2,
+// admin id=3, trainer id=4». Ролей больше нет, и описывать людей стало нечем,
+// кроме того, что о них правда: один назначен администратором, остальные —
+// обычные люди, а различает их ВЛАДЕНИЕ лицами услуг.
 import { describe, expect, it } from 'vitest';
 
-import { fixtureUsers } from '@sporthub/fixtures';
-import { USER_ROLES } from '@sporthub/types';
+import { fixtureClub, fixtureTrainer, fixtureUsers } from '@sporthub/fixtures';
+import { accountKindOf } from '@sporthub/domain';
 
 describe('Общий набор пользователей', () => {
-  it('содержит 4 записи: athlete id=1, club_owner id=2, admin id=3, trainer id=4', () => {
-    // Тренер добавлен на этапе Э8a фазы 34: до него роль существовала с фазы 4,
-    // но ни одного человека с ней в общем наборе не было — и ветка входа тренером
-    // не проверялась нигде.
+  it('содержит четверых: администратора и троих обычных людей', () => {
     expect(fixtureUsers).toHaveLength(4);
-    expect(fixtureUsers.map((user) => ({ id: user.id, role: user.role }))).toEqual([
-      { id: 1, role: 'athlete' },
-      { id: 2, role: 'club_owner' },
-      { id: 3, role: 'admin' },
-      { id: 4, role: 'trainer' },
+    expect(fixtureUsers.map((user) => ({ id: user.id, kind: accountKindOf(user) }))).toEqual([
+      { id: 1, kind: 'person' },
+      { id: 2, kind: 'person' },
+      { id: 3, kind: 'admin' },
+      { id: 4, kind: 'person' },
     ]);
   });
 
-  it('роли не повторяются — каждая сторона представлена ровно одним человеком', () => {
-    // Полнота проверяется по словарю ролей, а не по выписанному списку: новая роль
-    // обязана появиться и здесь, и словарь об этом напомнит сам.
-    expect(fixtureUsers.map((user) => user.role).sort()).toEqual([...USER_ROLES].sort());
+  it('администратор ровно один — его признак не выводится из владения', () => {
+    const admins = fixtureUsers.filter((user) => accountKindOf(user) === 'admin');
+
+    expect(admins.map((user) => user.id)).toEqual([3]);
+  });
+
+  it('лица услуг набора принадлежат одному человеку, а прочие людьми и остаются', () => {
+    // Ровно та проверка, которую роль подменяла собой: «провайдер» — это не признак
+    // у человека, а факт владения клубом и карточкой тренера.
+    expect(fixtureClub.managedByUserId).toBe(2);
+    expect(fixtureTrainer.managedByUserId).toBe(2);
+
+    const owners = new Set([fixtureClub.managedByUserId, fixtureTrainer.managedByUserId]);
+
+    expect([...owners]).toEqual([2]);
   });
 });

@@ -55,7 +55,6 @@ describe('Административные маршруты', () => {
         {
           id: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'athlete',
           name: 'Атлет',
           email: 'a@test.local',
           phone: '+7 (900) 000-00-01',
@@ -65,7 +64,6 @@ describe('Административные маршруты', () => {
         {
           id: 2,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'club_owner',
           name: 'Провайдер',
           email: 'p@test.local',
           phone: '+7 (900) 000-00-02',
@@ -75,7 +73,7 @@ describe('Административные маршруты', () => {
         {
           id: 3,
           createdAt: '2026-01-01T00:00:00.000Z',
-          role: 'admin',
+          accountKind: 'admin',
           name: 'Админ',
           email: 'ad@test.local',
           phone: '+7 (900) 000-00-03',

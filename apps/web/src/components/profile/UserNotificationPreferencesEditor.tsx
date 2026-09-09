@@ -39,15 +39,6 @@ interface Props {
   userId: number;
   /** Текущие preferences (опционально). Undefined → все типы включены по умолчанию. */
   notificationPreferences?: Partial<Record<NotificationType, boolean>>;
-  /**
-   * Тип кабинета.
-   *
-   * ⚠️ Шаг 35.28a: редактор им больше НЕ ПОЛЬЗУЕТСЯ. Настройки принадлежат
-   * человеку, а не роли: у человека с клубом бывают и записи, и связи, и отзывы,
-   * и прятать половину переключателей по роли больше не от чего. Поле оставлено
-   * необязательным до шага 35.34, снимающего `accountType` с вызывающих.
-   */
-  accountType?: 'athlete' | 'provider';
 }
 
 export function UserNotificationPreferencesEditor({ userId, notificationPreferences }: Props) {

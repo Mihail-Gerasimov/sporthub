@@ -163,7 +163,6 @@ describe('Атомарность публикации клуба', () => {
         email: PROVIDER.email,
         phone: PROVIDER.phone,
         passwordHash: PROVIDER.passwordHash,
-        role: 'club_owner',
         status: 'active',
       },
     });

@@ -58,7 +58,6 @@ const fixtureUsers: User[] = [
   {
     id: 1,
     createdAt: '2026-03-17T09:00:00.000Z',
-    role: 'athlete',
     status: 'active',
     name: 'Алексей Смирнов',
     email: 'alexey@sporthub.local',
@@ -69,7 +68,6 @@ const fixtureUsers: User[] = [
   {
     id: 2,
     createdAt: '2026-03-17T09:00:00.000Z',
-    role: 'club_owner',
     status: 'active',
     name: 'Марина Крылова',
     email: 'marina@studio.local',
@@ -171,7 +169,7 @@ describe('DashboardPage (Step 17.4)', () => {
       {
         id: 3,
         createdAt: '2026-04-07T09:00:00.000Z',
-        role: 'admin',
+        accountKind: 'admin',
         status: 'active',
         name: 'Администратор',
         email: 'admin@sporthub.local',
@@ -227,30 +225,34 @@ describe('DashboardPage (Step 17.4)', () => {
     renderDashboard();
 
     // Фильтры скрыты по умолчанию
-    expect(screen.queryByLabelText(/^роль$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/лица услуг/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
 
     // Фильтры видны
-    expect(screen.getByLabelText(/^роль$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/лица услуг/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/статус/i)).toBeInTheDocument();
   });
 
-  it('фильтр по роли athlete показывает только спортсменов', () => {
+  // ⚠️ Шаг 35.24. Отбор идёт по ВЛАДЕНИЮ лицами услуг, а не по роли: ролей нет,
+  // и «провайдер» — это не признак у человека, а факт владения клубом или
+  // карточкой тренера. Марина владеет клубом набора, Алексей — ничем.
+
+  it('фильтр «без лиц услуг» показывает только тех, у кого их нет', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'athlete' } });
+    fireEvent.change(screen.getByLabelText(/лица услуг/i), { target: { value: 'without' } });
 
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
     expect(screen.queryByText('Марина Крылова')).not.toBeInTheDocument();
   });
 
-  it('фильтр по роли provider показывает только провайдеров', () => {
+  it('фильтр «с лицами услуг» показывает только владельцев', () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'provider' } });
+    fireEvent.change(screen.getByLabelText(/лица услуг/i), { target: { value: 'with' } });
 
     expect(screen.queryByText('Алексей Смирнов')).not.toBeInTheDocument();
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
@@ -258,7 +260,7 @@ describe('DashboardPage (Step 17.4)', () => {
 
   // --- Комбинированный поиск ---
 
-  it('комбинация текстового поиска и фильтра по роли сужает выборку', () => {
+  it('комбинация текстового поиска и фильтра по лицам услуг сужает выборку', () => {
     renderDashboard();
 
     const searchInput = screen.getByPlaceholderText(/поиск/i);
@@ -270,31 +272,31 @@ describe('DashboardPage (Step 17.4)', () => {
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /фильтры/i }));
-    fireEvent.change(screen.getByLabelText(/^роль$/i), { target: { value: 'athlete' } });
+    fireEvent.change(screen.getByLabelText(/лица услуг/i), { target: { value: 'without' } });
 
-    // Только athlete
+    // Только тот, у кого лиц нет
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
     expect(screen.queryByText('Марина Крылова')).not.toBeInTheDocument();
   });
 
   // --- Статистика ---
 
-  it('показывает статистику для athlete: количество активных записей', () => {
+  it('у человека без лиц услуг показывает количество активных записей', () => {
     renderDashboard();
 
-    // Athlete id=1 имеет 1 active booking
+    // У пользователя 1 одна действующая запись и ни одного лица услуг.
     const athleteCard = screen.getByText('Алексей Смирнов').closest('article')!;
 
     expect(within(athleteCard).getByText(/активных записей/i)).toBeInTheDocument();
   });
 
-  it('показывает статистику для provider: количество публикаций', () => {
+  it('у владельца показывает количество лиц услуг', () => {
     renderDashboard();
 
-    // Provider id=2 имеет 1 club + 0 trainers = 1 публикация
+    // У пользователя 2 один клуб и ни одной карточки тренера — одно лицо.
     const providerCard = screen.getByText('Марина Крылова').closest('article')!;
 
-    expect(within(providerCard).getByText(/публикаций/i)).toBeInTheDocument();
+    expect(within(providerCard).getByText(/лиц услуг/i)).toBeInTheDocument();
   });
 
   // --- Empty state ---
@@ -329,7 +331,6 @@ describe('DashboardPage (Step 17.4)', () => {
       id: 1,
       name: 'Алексей Смирнов',
       email: 'alexey@sporthub.local',
-      role: 'athlete',
       capabilities: [],
       impersonating: true,
       actorName: 'Администратор SportHub',

@@ -5,14 +5,21 @@
 // не обращались). Один только предельный оставляет забытую вкладку открытой до конца
 // срока; один только по бездействию даёт вечную сессию тому, кто заходит каждый день.
 //
-// Значения разные по роли: у админа цена угнанной сессии несопоставима с ценой сессии
-// спортсмена, поэтому его забытая вкладка гаснет за сутки. Решение заказчика от 08.09.2026.
+// Значения разные по виду учётной записи: у администратора цена угнанной сессии
+// несопоставима с ценой сессии обычного человека, поэтому его забытая вкладка гаснет
+// за сутки. Решение заказчика от 08.09.2026.
 //
-// Тип `Record<UserRole, ...>` держит словарь полным: новая роль в `USER_ROLES` не соберётся,
-// пока ей не назначат политику. Это тот же приём, что в `role-labels.ts`, и здесь он важнее:
-// забытая подпись роли — косметика, забытый срок сессии — дыра в безопасности.
+// ⚠️ Шаг 35.24. Словарь ключуется видом учётной записи, а не ролью, и это не
+// переименование: сроки — единственное, где различие исполнителя решало по-настоящему,
+// и при уходе роли им проще всего было тихо разъехаться. Отдать администратору
+// умолчание значило бы растянуть его окно бездействия с суток до двух недель,
+// не уронив ни одного теста словаря.
+//
+// Тип `Record<AccountKind, ...>` держит словарь полным: новый вид в `ACCOUNT_KINDS`
+// не соберётся, пока ему не назначат политику. Забытая подпись — косметика,
+// забытый срок сессии — дыра в безопасности.
 
-import type { Session, UserRole } from '@sporthub/types';
+import type { AccountKind, Session } from '@sporthub/types';
 
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
@@ -29,17 +36,15 @@ export interface SessionLifetime {
 const ABSOLUTE_MS = 14 * DAY_MS;
 
 /**
- * Сроки жизни сессии по роли.
+ * Сроки жизни сессии по виду учётной записи.
  *
- * У обычных ролей срок бездействия равен предельному — отдельного порога нет, и это
- * осознанно: требовать от спортсмена перезаход чаще, чем раз в две недели, значит
- * получить не безопасность, а привычку хранить пароль в браузере. Единственная роль
- * с отдельным порогом — админ: сутки без действий, предельный срок общий.
+ * У человека срок бездействия равен предельному — отдельного порога нет, и это
+ * осознанно: требовать перезаход чаще, чем раз в две недели, значит получить
+ * не безопасность, а привычку хранить пароль в браузере. Отдельный порог ровно
+ * у одного вида — администратора: сутки без действий, предельный срок общий.
  */
-export const SESSION_POLICY: Record<UserRole, SessionLifetime> = {
-  athlete: { idleMs: ABSOLUTE_MS, absoluteMs: ABSOLUTE_MS },
-  trainer: { idleMs: ABSOLUTE_MS, absoluteMs: ABSOLUTE_MS },
-  club_owner: { idleMs: ABSOLUTE_MS, absoluteMs: ABSOLUTE_MS },
+export const SESSION_POLICY: Record<AccountKind, SessionLifetime> = {
+  person: { idleMs: ABSOLUTE_MS, absoluteMs: ABSOLUTE_MS },
   admin: { idleMs: DAY_MS, absoluteMs: ABSOLUTE_MS },
 };
 
@@ -57,12 +62,13 @@ export const SESSION_TOUCH_INTERVAL_MS = 5 * MINUTE_MS;
 /**
  * Что нужно знать о сессии, чтобы решить, жива ли она.
  *
- * Роль отдельным полем, потому что в самой сессии её нет и быть не должно: роль живёт
- * у пользователя и может измениться, а сессия хранит только привязку к нему. Проверяющий
- * (guard) и так поднимает пользователя вместе с сессией, так что лишнего чтения нет.
+ * Вид учётной записи отдельным полем, потому что в самой сессии его нет и быть
+ * не должно: он живёт у пользователя и может измениться, а сессия хранит только
+ * привязку к нему. Проверяющий (guard) и так поднимает пользователя вместе
+ * с сессией, так что лишнего чтения нет.
  */
 export type SessionExpiryCheck = Pick<Session, 'lastSeenAt' | 'expiresAt' | 'revokedAt'> & {
-  role: UserRole;
+  accountKind: AccountKind;
 };
 
 /**
@@ -71,8 +77,8 @@ export type SessionExpiryCheck = Pick<Session, 'lastSeenAt' | 'expiresAt' | 'rev
  * Считается один раз при выдаче и ложится в `expiresAt` — так смена политики не отбирает
  * вход у тех, кто уже вошёл, а проверка на каждом запросе остаётся сравнением двух дат.
  */
-export function sessionExpiryFor(role: UserRole, issuedAt: Date): Date {
-  return new Date(issuedAt.getTime() + SESSION_POLICY[role].absoluteMs);
+export function sessionExpiryFor(kind: AccountKind, issuedAt: Date): Date {
+  return new Date(issuedAt.getTime() + SESSION_POLICY[kind].absoluteMs);
 }
 
 /**
@@ -96,6 +102,7 @@ export function isSessionExpired(session: SessionExpiryCheck, now: Date): boolea
   }
 
   // Срок бездействия: от последнего обращения, а не от входа.
-  const idleDeadline = new Date(session.lastSeenAt).getTime() + SESSION_POLICY[session.role].idleMs;
+  const idleDeadline =
+    new Date(session.lastSeenAt).getTime() + SESSION_POLICY[session.accountKind].idleMs;
   return at >= idleDeadline;
 }

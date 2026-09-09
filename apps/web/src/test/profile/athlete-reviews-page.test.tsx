@@ -21,7 +21,6 @@ import type { Club, Review, Trainer, User } from '@sporthub/types';
 const athleteUser: User = {
   id: 1,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   name: 'Алексей Миронов',
   email: 'alexey@sporthub.local',
   phone: '+7 999 111-22-33',

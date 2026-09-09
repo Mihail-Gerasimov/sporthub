@@ -16,10 +16,10 @@ import {
 
 import { createTestHarness, type TestHarness } from '../test/harness';
 
-const user = (id: number, role: string) => ({
+const user = (id: number, accountKind: string) => ({
   id,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role,
+  accountKind,
   // Состояние обязательно: сессия неактивного пользователя не разбирается вовсе.
   status: 'active',
   name: `Пользователь ${id}`,
@@ -95,11 +95,11 @@ describe('Маршруты связей тренер↔клуб', () => {
       // Пользователь 6 — чужая пара публикаций со своей связью: на ней видно,
       // что список сужается до своих.
       users: [
-        user(1, 'athlete'),
-        user(2, 'club_owner'),
+        user(1, 'person'),
+        user(2, 'person'),
         user(3, 'admin'),
-        user(5, 'trainer'),
-        user(6, 'club_owner'),
+        user(5, 'person'),
+        user(6, 'person'),
       ],
       clubs: [club(1, 'Волна', 'volna', 2), club(2, 'Чужой клуб', 'chuzhoy', 6)],
       trainers: [

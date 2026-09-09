@@ -41,7 +41,6 @@ process.env.TZ = 'UTC';
 const providerUser: User = {
   id: 10,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'club_owner',
   name: 'Ирина Провайдер',
   email: 'provider@studio.local',
   phone: '+7 999 222-33-44',
@@ -52,7 +51,6 @@ const providerUser: User = {
 const athleteUser: User = {
   id: 1,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   name: 'Алексей Смирнов',
   email: 'alexey@sporthub.local',
   phone: '+7 999 111-22-33',
@@ -63,7 +61,6 @@ const athleteUser: User = {
 const athleteUser2: User = {
   id: 2,
   createdAt: '2026-01-01T00:00:00.000Z',
-  role: 'athlete',
   name: 'Ольга Петрова',
   email: 'olga@sporthub.local',
   phone: '+7 999 000-00-00',
