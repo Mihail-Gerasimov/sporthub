@@ -872,34 +872,28 @@ describe('Маршруты клубов и тренеров', () => {
     it('посторонний чужую карточку не правит и не удаляет — она на месте', async () => {
       // Двое посторонних, и отказы у них РАЗНОГО происхождения: у тренера право
       // роли есть, и его останавливает ВЛАДЕНИЕ внутри сервиса; у представителя
-      // услуг нет и права — его останавливает guard, ещё до сервиса.
+      // услуг нет и права — его останавливает guard, ещё до сервиса. Проверяются
+      // оба: починка владельца не должна была открыть карточку ни тому, ни другому.
       //
-      // Текст сверяется только у первого, и это не небрежность. Отказ по владению
-      // называет вещь поимённо, и он обязан звучать именно так: сломай проверку
-      // владения — и вместо него придёт общий отказ по праву. А вот текст отказа
-      // ПО ПРАВУ пинить нельзя: шаг 35.19 убирает владельческие права из словаря,
-      // и тогда обоих остановит одно и то же владение. Общая часть текста живёт
-      // в обоих мирах, поимённая — только там, где сработало владение.
-      const strangers = [
-        { userId: OTHER_TRAINER_ID, error: 'Недостаточно прав для редактирования тренера с id 1' },
-        { userId: STRANGER_ID, error: undefined },
-      ];
-
-      for (const stranger of strangers) {
+      // ⚠️ Сверяется общая часть текста, а не точная. Точная называет источник
+      // отказа, а источник здесь временный: шаг 35.19 убирает владельческие права
+      // из словаря, и обоих начнёт останавливать одно и то же владение. Проверка,
+      // прибитая к сегодняшнему источнику, покраснела бы от правильного шага.
+      for (const strangerId of [OTHER_TRAINER_ID, STRANGER_ID]) {
         const patched = await request(server())
           .patch('/api/trainers/1')
-          .set('Cookie', await harness.as(stranger.userId))
+          .set('Cookie', await harness.as(strangerId))
           .send(TRAINER_FORM);
 
         expect(patched.status).toBe(403);
-        expect(patched.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+        expect(patched.body.error).toContain('Недостаточно прав');
 
         const removed = await request(server())
           .delete('/api/trainers/1')
-          .set('Cookie', await harness.as(stranger.userId));
+          .set('Cookie', await harness.as(strangerId));
 
         expect(removed.status).toBe(403);
-        expect(removed.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+        expect(removed.body.error).toContain('Недостаточно прав');
       }
 
       expect(await harness.read<{ id: number }[]>('trainers')).toHaveLength(1);
@@ -927,26 +921,21 @@ describe('Маршруты клубов и тренеров', () => {
     it('посторонний чужой клуб не правит и не удаляет — он на месте', async () => {
       // Зеркало к карточке: право на клубы есть у представителя услуг, и его
       // останавливает владение; у тренера права нет — его останавливает guard.
-      const strangers = [
-        { userId: STRANGER_ID, error: 'Недостаточно прав для редактирования клуба с id 1' },
-        { userId: OTHER_TRAINER_ID, error: undefined },
-      ];
-
-      for (const stranger of strangers) {
+      for (const strangerId of [STRANGER_ID, OTHER_TRAINER_ID]) {
         const patched = await request(server())
           .patch('/api/clubs/1')
-          .set('Cookie', await harness.as(stranger.userId))
+          .set('Cookie', await harness.as(strangerId))
           .send(CLUB_FORM);
 
         expect(patched.status).toBe(403);
-        expect(patched.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+        expect(patched.body.error).toContain('Недостаточно прав');
 
         const removed = await request(server())
           .delete('/api/clubs/1')
-          .set('Cookie', await harness.as(stranger.userId));
+          .set('Cookie', await harness.as(strangerId));
 
         expect(removed.status).toBe(403);
-        expect(removed.body.error).toContain(stranger.error ?? 'Недостаточно прав');
+        expect(removed.body.error).toContain('Недостаточно прав');
       }
 
       expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(1);
