@@ -174,8 +174,54 @@ describe('ProviderPublicationsSection', () => {
     confirmMock.mockRestore();
   });
 
-  it('рендерит badge «Скрыто администратором» для hidden публикации', () => {
+  it('скрытие МОДЕРАТОРОМ: подпись называет модерацию и показывает причину', () => {
     const hiddenClub: Club[] = [
+      {
+        ...clubs[0],
+        status: 'hidden',
+        hideReason: 'Нарушение правил',
+        hiddenByUserId: 3,
+        hiddenAt: '2026-04-14T10:00:00.000Z',
+        hiddenKind: 'moderation',
+      },
+    ];
+
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} />);
+
+    expect(screen.getByText('Скрыто модератором')).toBeInTheDocument();
+    expect(screen.getByText('Нарушение правил')).toBeInTheDocument();
+  });
+
+  it('АРХИВ ВЛАДЕЛЬЦА: подпись не говорит про модератора и причину не показывает', () => {
+    // ⚠️ Дефект, найденный браузерным прогоном приёмки. Карточка называла ЛЮБОЕ
+    // скрытие «Скрыто администратором» — включая публикацию, которую владелец сам
+    // убрал в архив. Различение было сделано на сервере и покрыто тестами,
+    // а до этого экрана не дошло: главный класс ошибок фазы 35.
+    //
+    // Причина архива служебная («Убрано владельцем из каталога») и человеку ничего
+    // не сообщает: он и так знает, что убрал публикацию сам.
+    const archived: Club[] = [
+      {
+        ...clubs[0],
+        status: 'hidden',
+        hideReason: 'Убрано владельцем из каталога',
+        hiddenByUserId: 2,
+        hiddenAt: '2026-04-14T10:00:00.000Z',
+        hiddenKind: 'owner_archive',
+      },
+    ];
+
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={archived} trainers={[]} />);
+
+    expect(screen.getByText('Убрано владельцем')).toBeInTheDocument();
+    expect(screen.queryByText('Скрыто модератором')).not.toBeInTheDocument();
+    expect(screen.queryByText('Убрано владельцем из каталога')).not.toBeInTheDocument();
+  });
+
+  it('вид скрытия неизвестен — подпись строже, а не мягче', () => {
+    // Ошибаться надо в сторону модерации: выдать чужое скрытие за собственный
+    // архив хуже, чем наоборот.
+    const unknown: Club[] = [
       {
         ...clubs[0],
         status: 'hidden',
@@ -185,10 +231,9 @@ describe('ProviderPublicationsSection', () => {
       },
     ];
 
-    renderInFaceCabinet(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={unknown} trainers={[]} />);
 
-    expect(screen.getByText('Скрыто администратором')).toBeInTheDocument();
-    expect(screen.getByText('Нарушение правил')).toBeInTheDocument();
+    expect(screen.getByText('Скрыто модератором')).toBeInTheDocument();
   });
 
   it('кнопка «Редактировать» доступна для hidden публикации', () => {
@@ -215,6 +260,6 @@ describe('ProviderPublicationsSection', () => {
   it('НЕ показывает badge скрытия для published публикации', () => {
     renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
 
-    expect(screen.queryByText('Скрыто администратором')).not.toBeInTheDocument();
+    expect(screen.queryByText('Скрыто модератором')).not.toBeInTheDocument();
   });
 });

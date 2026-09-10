@@ -4,7 +4,8 @@
 import Link from 'next/link';
 
 import { Badge, Card } from '@/components/ui';
-import type { Club, EntityId, Trainer } from '@sporthub/types';
+import { HIDE_KIND_LABELS, HIDE_KIND_SHOWS_REASON } from '@sporthub/domain';
+import type { Club, EntityId, HideKindValue, Trainer } from '@sporthub/types';
 
 type ProviderPublicationsSectionProps = {
   clubs: Club[];
@@ -36,6 +37,7 @@ function PublicationCard({
   href,
   isHidden,
   hideReason,
+  hiddenKind,
   onEdit,
   onDelete,
 }: {
@@ -46,9 +48,23 @@ function PublicationCard({
   href: string;
   isHidden?: boolean;
   hideReason?: string;
+  /**
+   * Вид скрытия: архив владельца или работа модератора (шаг 36.12).
+   *
+   * ⚠️ Найдено браузерным прогоном приёмки. Карточка называла ЛЮБОЕ скрытие
+   * «Скрыто администратором» — в том числе публикацию, которую владелец сам убрал
+   * в архив. Правило различения было сделано на сервере и покрыто тестами,
+   * а до этого экрана не дошло: ровно тот класс, который фаза 35 назвала главным
+   * своим выводом.
+   */
+  hiddenKind?: HideKindValue;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  // Неизвестный вид трактуется как модерация: ошибиться надо в сторону более
+  // строгой подписи, а не выдать чужое скрытие за собственный архив.
+  const kind: HideKindValue = hiddenKind === 'owner_archive' ? 'owner_archive' : 'moderation';
+
   return (
     <Link
       href={href}
@@ -60,11 +76,17 @@ function PublicationCard({
         <Badge tone={type === 'Клуб' ? 'success' : 'outline'}>{type}</Badge>
       </div>
 
-      {/* Badge скрытия модератором */}
+      {/* Признак скрытия: подпись и показ причины различают архив и модерацию */}
       {isHidden && (
         <div className="mt-2 space-y-1">
-          <Badge tone="danger">Скрыто администратором</Badge>
-          {hideReason && <p className="text-xs text-danger">{hideReason}</p>}
+          <Badge tone={kind === 'owner_archive' ? 'outline' : 'danger'}>
+            {HIDE_KIND_LABELS[kind]}
+          </Badge>
+          {/* Причина архива служебная и человеку ничего не сообщает: он и так знает,
+              что убрал публикацию сам. У модерации причина — главное содержимое. */}
+          {HIDE_KIND_SHOWS_REASON[kind] && hideReason && (
+            <p className="text-xs text-danger">{hideReason}</p>
+          )}
         </div>
       )}
 
@@ -134,6 +156,7 @@ export function ProviderPublicationsSection({
               reviewCount={club.reviewCount}
               href={`/clubs/${club.slug}`}
               isHidden={club.status === 'hidden'}
+              hiddenKind={club.hiddenKind}
               hideReason={club.hideReason}
               onEdit={
                 onEdit
@@ -161,6 +184,7 @@ export function ProviderPublicationsSection({
               reviewCount={trainer.reviewCount}
               href={`/trainers/${trainer.slug}`}
               isHidden={trainer.status === 'hidden'}
+              hiddenKind={trainer.hiddenKind}
               hideReason={trainer.hideReason}
               onEdit={
                 onEdit
