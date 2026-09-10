@@ -8,9 +8,8 @@
 // window toggle (12m ↔ all), heatmap, completion/cancel/no_show rates, empty и
 // access-denied. ResponsiveContainer из recharts стабает в jsdom — мокаем ResizeObserver.
 import { fireEvent, screen } from '@testing-library/react';
+import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 
@@ -245,7 +244,7 @@ describe('ProviderStats (Step 25.11)', () => {
 
     const completed = makeBooking({ id: 501, status: 'completed' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[completed]}
         clubs={[club]}
@@ -262,6 +261,10 @@ describe('ProviderStats (Step 25.11)', () => {
     expect(screen.getByTestId('provider-stats-total-hours')).toHaveTextContent('1');
   });
 
+  // ⚠️ Кабинет — КАРТОЧКИ ТРЕНЕРА, а не клуба: обе услуги набора (Йога и Бокс)
+  // принадлежат карточке 5, и в кабинете клуба статистика по ним не считается
+  // вовсе. Это не подгонка под вывод: раздел лица обязан показывать метрики
+  // ровно того лица, чей кабинет открыт.
   it('per-offering toggle: выбор Йоги скрывает метрики Бокса', () => {
     authenticateProvider();
 
@@ -286,7 +289,7 @@ describe('ProviderStats (Step 25.11)', () => {
       sportId: 4,
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[yoga, box]}
         clubs={[]}
@@ -295,6 +298,7 @@ describe('ProviderStats (Step 25.11)', () => {
         schedule={[makeSchedule({ id: 1001 })]}
         sports={sports}
       />,
+      trainerFace(trainer.id, trainer.name),
     );
 
     // Изначально показана сумма по обоим offerings.
@@ -324,7 +328,7 @@ describe('ProviderStats (Step 25.11)', () => {
       date: '2026-04-10',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[oldBooking, recentBooking]}
         clubs={[club]}
@@ -349,7 +353,7 @@ describe('ProviderStats (Step 25.11)', () => {
 
     const b = makeBooking({ id: 501, status: 'completed' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[b]}
         clubs={[club]}
@@ -371,7 +375,7 @@ describe('ProviderStats (Step 25.11)', () => {
     );
     const noShow = makeBooking({ id: 900, status: 'no_show' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[...completed, noShow]}
         clubs={[club]}
@@ -395,7 +399,7 @@ describe('ProviderStats (Step 25.11)', () => {
       makeBooking({ id: 1200 + index, status: 'cancelled_by_provider' }),
     );
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[...completed, ...cancelled]}
         clubs={[club]}
@@ -412,7 +416,7 @@ describe('ProviderStats (Step 25.11)', () => {
   it('empty state: провайдер без клубов и тренеров видит empty-плашку', () => {
     authenticateProvider();
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         bookings={[]}
         clubs={[]}

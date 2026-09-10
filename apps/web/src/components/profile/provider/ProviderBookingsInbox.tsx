@@ -21,7 +21,8 @@ import {
   getBookingClubId,
   getBookingTrainerId,
 } from '@/lib/utils';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useCabinetFaces } from '@/components/profile/cabinet-context';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
   Booking,
@@ -126,7 +127,10 @@ export function ProviderBookingsInbox({
   users = [],
 }: ProviderBookingsInboxProps) {
   const user = useAuthStore((s) => s.user);
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
 

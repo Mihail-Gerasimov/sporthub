@@ -1,5 +1,6 @@
 // Тесты секции «Входящие записи» провайдер-кабинета (Step 12.6)
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { describe, expect, it } from 'vitest';
 
 import type { ProviderIncomingBooking } from '@/components/profile/provider-helpers';
@@ -44,7 +45,7 @@ const bookings: ProviderIncomingBooking[] = [
 
 describe('ProviderBookingsSection', () => {
   it('рендерит заголовок и карточки записей', () => {
-    render(<ProviderBookingsSection bookings={bookings} />);
+    renderInFaceCabinet(<ProviderBookingsSection bookings={bookings} />);
 
     expect(screen.getByText('Входящие записи')).toBeInTheDocument();
     expect(screen.getByText(/1 150/)).toBeInTheDocument();
@@ -52,7 +53,7 @@ describe('ProviderBookingsSection', () => {
   });
 
   it('отображает спортсмена, услугу, статус и дату каждой записи', () => {
-    render(<ProviderBookingsSection bookings={bookings} />);
+    renderInFaceCabinet(<ProviderBookingsSection bookings={bookings} />);
 
     expect(screen.getAllByText('Алексей Миронов')).toHaveLength(2);
     expect(screen.getByText('Групповая дорожка')).toBeInTheDocument();
@@ -64,7 +65,7 @@ describe('ProviderBookingsSection', () => {
   });
 
   it('отображает тип записи, контекст и работает как read-only карточка', () => {
-    render(<ProviderBookingsSection bookings={bookings} />);
+    renderInFaceCabinet(<ProviderBookingsSection bookings={bookings} />);
 
     expect(screen.getByText('Услуга клуба')).toBeInTheDocument();
     expect(screen.getByText('Услуга тренера')).toBeInTheDocument();
@@ -74,7 +75,7 @@ describe('ProviderBookingsSection', () => {
   });
 
   it('показывает пустое состояние при отсутствии записей', () => {
-    render(<ProviderBookingsSection bookings={[]} />);
+    renderInFaceCabinet(<ProviderBookingsSection bookings={[]} />);
 
     expect(screen.getByText(/Нет входящих записей/)).toBeInTheDocument();
   });

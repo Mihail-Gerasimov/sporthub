@@ -1,5 +1,6 @@
 // Тесты секции «Настройки профиля» провайдер-кабинета (Step 12.6)
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { describe, expect, it } from 'vitest';
 
 import { ProviderSettingsSection } from '@/components/profile/ProviderSettingsSection';
@@ -14,7 +15,7 @@ const user: AuthSessionUser = {
 
 describe('ProviderSettingsSection', () => {
   it('рендерит заголовок и данные пользователя', () => {
-    render(<ProviderSettingsSection user={user} />);
+    renderInFaceCabinet(<ProviderSettingsSection user={user} />);
 
     expect(screen.getByText('Настройки профиля')).toBeInTheDocument();
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
@@ -23,13 +24,13 @@ describe('ProviderSettingsSection', () => {
   });
 
   it('показывает пометку о read-only режиме', () => {
-    render(<ProviderSettingsSection user={user} />);
+    renderInFaceCabinet(<ProviderSettingsSection user={user} />);
 
     expect(screen.getByText(/Редактирование будет доступно позже/)).toBeInTheDocument();
   });
 
   it('отображает аватар-заглушку с первой буквой имени', () => {
-    render(<ProviderSettingsSection user={user} />);
+    renderInFaceCabinet(<ProviderSettingsSection user={user} />);
 
     expect(screen.getByText('М')).toBeInTheDocument();
   });
@@ -41,7 +42,7 @@ describe('ProviderSettingsSection', () => {
       email: 'test@test.ru',
     };
 
-    render(<ProviderSettingsSection user={userNoPhone} />);
+    renderInFaceCabinet(<ProviderSettingsSection user={userNoPhone} />);
 
     expect(screen.getByText('Не добавлен')).toBeInTheDocument();
   });

@@ -3,6 +3,7 @@
 // тест переписан на AthleteDashboard/ProviderDashboard, которые теперь
 // отображают город пользователя в шапке через testid'ы.
 import { render, screen } from '@testing-library/react';
+import { clubFace, renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -95,8 +96,14 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
       });
     });
 
+    // ⚠️ Кабинет — клуба 10, номер взят у `providerClub`. Умолчание помощника (клуб 1)
+    // этому набору не подходит: раздел не нашёл бы своё лицо и ушёл бы в пустой вид,
+    // где шапки с городом нет вовсе.
     it('отображает город из профиля с припиской «г.»', () => {
-      render(<ProviderDashboard clubs={[providerClub]} />);
+      renderInFaceCabinet(
+        <ProviderDashboard clubs={[providerClub]} />,
+        clubFace(providerClub.id, providerClub.name),
+      );
 
       expect(screen.getByTestId('provider-dashboard-city')).toHaveTextContent('г. Москва');
     });
@@ -108,7 +115,11 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
         faces: facesOf({ userId: baseUser.id, clubs: [providerClub] }),
       });
 
-      render(<ProviderDashboard clubs={[providerClub]} />);
+      // Тот же кабинет клуба 10 — город берётся из профиля человека, а не из лица.
+      renderInFaceCabinet(
+        <ProviderDashboard clubs={[providerClub]} />,
+        clubFace(providerClub.id, providerClub.name),
+      );
 
       expect(screen.getByTestId('provider-dashboard-city')).toHaveTextContent('не указан');
     });

@@ -9,9 +9,8 @@
 // Trainer-side: мои pending/confirmed/history + revoke own + request-link modal.
 // RevokeLinkWarningModal показывает число offerings, которые станут частными.
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { clubFace, renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 
@@ -151,7 +150,7 @@ describe('ProviderLinks (Step 25.12)', () => {
       initiatedBy: 'trainer',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub, foreignClub]}
         trainers={[myTrainer, foreignTrainer]}
@@ -177,7 +176,7 @@ describe('ProviderLinks (Step 25.12)', () => {
       initiatedBy: 'trainer',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub]}
         trainers={[foreignTrainer]}
@@ -213,7 +212,7 @@ describe('ProviderLinks (Step 25.12)', () => {
       initiatedBy: 'trainer',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub]}
         trainers={[foreignTrainer]}
@@ -259,7 +258,7 @@ describe('ProviderLinks (Step 25.12)', () => {
       coordinates: { lat: 0, lng: 0 },
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub]}
         trainers={[foreignTrainer]}
@@ -288,7 +287,7 @@ describe('ProviderLinks (Step 25.12)', () => {
     authenticateProvider();
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: { id: 999 } }, 201));
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub]}
         trainers={[foreignTrainer, anotherForeignTrainer]}
@@ -328,6 +327,10 @@ describe('ProviderLinks (Step 25.12)', () => {
     });
   });
 
+  // ⚠️ Три проверки ниже живут в кабинете КАРТОЧКИ ТРЕНЕРА (лицо `myTrainer`, номер 5).
+  // Секция «Связи моих тренеров» показывается только тогда, когда у открытого кабинета
+  // есть лицо-тренер; в кабинете клуба её нет и быть не должно — это разные кабинеты,
+  // а не два блока одного.
   it('trainer-side: показывает pending-запросы моих тренеров к чужим клубам', () => {
     authenticateProvider();
 
@@ -340,13 +343,14 @@ describe('ProviderLinks (Step 25.12)', () => {
       initiatedBy: 'trainer',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub, foreignClub]}
         trainers={[myTrainer, foreignTrainer]}
         links={[myTrainerPending]}
         offerings={[]}
       />,
+      trainerFace(myTrainer.id, myTrainer.name),
     );
 
     expect(screen.getByTestId('provider-links-trainer-side')).toBeInTheDocument();
@@ -366,13 +370,14 @@ describe('ProviderLinks (Step 25.12)', () => {
       initiatedBy: 'trainer',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub, foreignClub]}
         trainers={[myTrainer]}
         links={[myTrainerPending]}
         offerings={[]}
       />,
+      trainerFace(myTrainer.id, myTrainer.name),
     );
 
     fireEvent.click(screen.getByTestId('provider-links-cancel-own-402'));
@@ -386,13 +391,14 @@ describe('ProviderLinks (Step 25.12)', () => {
     authenticateProvider();
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: { id: 7 } }, 201));
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub, foreignClub]}
         trainers={[myTrainer]}
         links={[]}
         offerings={[]}
       />,
+      trainerFace(myTrainer.id, myTrainer.name),
     );
 
     fireEvent.click(screen.getByTestId('provider-links-request-button'));
@@ -448,7 +454,7 @@ describe('ProviderLinks (Step 25.12)', () => {
       coordinates: { lat: 0, lng: 0 },
     }));
 
-    render(
+    renderInFaceCabinet(
       <ProviderLinks
         clubs={[myClub]}
         trainers={[foreignTrainer]}
@@ -462,5 +468,76 @@ describe('ProviderLinks (Step 25.12)', () => {
 
     const modal = screen.getByTestId('provider-links-revoke-warning-modal');
     expect(modal.textContent).toMatch(/3/);
+  });
+});
+
+describe('Своё лицо не выдаётся за чужое', () => {
+  // ⚠️ Найдено при переводе разделов на адресный кабинет и было настоящим регрессом.
+  //
+  // «Чьи связи показывать» — вопрос ОТКРЫТОГО КАБИНЕТА. «Что считать своим» —
+  // вопрос ЧЕЛОВЕКА: собственная карточка тренера остаётся своей и тогда, когда
+  // открыт кабинет клуба. Смешав их, кандидаты стали отбираться по лицам кабинета —
+  // а там лицо ровно одно и одного вида, поэтому множество лиц ДРУГОГО вида пусто.
+  //
+  // Итог был замкнутым кругом: из кабинета карточки шлём запрос собственному клубу
+  // как «чужому», из кабинета клуба его же подтверждаем. Ровно та накрутка
+  // «сам себе», которую фаза закрывает в записях и отзывах.
+  //
+  // Связь своего со своим разрешена решением 22 и встаёт сразу подтверждённой —
+  // но заводится ЯВНО, а не под видом связи с посторонним.
+  beforeEach(() => {
+    authenticateProvider();
+  });
+
+  it('в кабинете КАРТОЧКИ тренера собственный клуб не предлагается как чужой', async () => {
+    renderInFaceCabinet(
+      <ProviderLinks
+        clubs={[myClub, foreignClub]}
+        trainers={[myTrainer, foreignTrainer]}
+        links={[]}
+        offerings={[]}
+      />,
+      trainerFace(myTrainer.id, myTrainer.name),
+    );
+
+    fireEvent.click(screen.getByTestId('provider-links-request-button'));
+
+    const options = await screen.findAllByTestId(/provider-links-request-club-option-/);
+    const names = options.map((node) => node.textContent ?? '');
+
+    expect(
+      names.some((name) => name.includes(myClub.name)),
+      'собственный клуб оказался в списке чужих, к которым можно запроситься',
+    ).toBe(false);
+    expect(
+      names.some((name) => name.includes(foreignClub.name)),
+      'настоящий чужой клуб пропал из списка — отбор стал слишком строгим',
+    ).toBe(true);
+  });
+
+  it('в кабинете КЛУБА собственная карточка не предлагается как внешняя', async () => {
+    renderInFaceCabinet(
+      <ProviderLinks
+        clubs={[myClub, foreignClub]}
+        trainers={[myTrainer, foreignTrainer]}
+        links={[]}
+        offerings={[]}
+      />,
+      clubFace(myClub.id, myClub.name),
+    );
+
+    fireEvent.click(screen.getByTestId('provider-links-invite-button'));
+
+    const options = await screen.findAllByTestId(/provider-links-invite-trainer-option-/);
+    const names = options.map((node) => node.textContent ?? '');
+
+    expect(
+      names.some((name) => name.includes(myTrainer.name)),
+      'собственная карточка тренера оказалась в списке внешних',
+    ).toBe(false);
+    expect(
+      names.some((name) => name.includes(foreignTrainer.name)),
+      'настоящий чужой тренер пропал из списка — отбор стал слишком строгим',
+    ).toBe(true);
   });
 });

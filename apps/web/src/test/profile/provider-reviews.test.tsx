@@ -1,5 +1,6 @@
 // Тесты секции «Отзывы» провайдер-кабинета (Step 12.6)
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { describe, expect, it } from 'vitest';
 
 import { ProviderReviewsSection } from '@/components/profile/ProviderReviewsSection';
@@ -26,7 +27,7 @@ const reviews: Review[] = [
 
 describe('ProviderReviewsSection', () => {
   it('рендерит заголовок и карточки отзывов', () => {
-    render(<ProviderReviewsSection reviews={reviews} />);
+    renderInFaceCabinet(<ProviderReviewsSection reviews={reviews} />);
 
     expect(screen.getByText('Отзывы на мои услуги')).toBeInTheDocument();
     expect(screen.getByText('Отличный бассейн!')).toBeInTheDocument();
@@ -34,7 +35,7 @@ describe('ProviderReviewsSection', () => {
   });
 
   it('отображает рейтинг и целевую сущность', () => {
-    render(<ProviderReviewsSection reviews={reviews} />);
+    renderInFaceCabinet(<ProviderReviewsSection reviews={reviews} />);
 
     // Тип сущности (клуб / тренер)
     expect(screen.getByText('Клуб')).toBeInTheDocument();
@@ -42,14 +43,14 @@ describe('ProviderReviewsSection', () => {
   });
 
   it('отображает дату отзыва', () => {
-    render(<ProviderReviewsSection reviews={reviews} />);
+    renderInFaceCabinet(<ProviderReviewsSection reviews={reviews} />);
 
     expect(screen.getByText(/18 марта/)).toBeInTheDocument();
     expect(screen.getByText(/19 марта/)).toBeInTheDocument();
   });
 
   it('показывает пустое состояние при отсутствии отзывов', () => {
-    render(<ProviderReviewsSection reviews={[]} />);
+    renderInFaceCabinet(<ProviderReviewsSection reviews={[]} />);
 
     expect(screen.getByText(/Нет отзывов/)).toBeInTheDocument();
   });

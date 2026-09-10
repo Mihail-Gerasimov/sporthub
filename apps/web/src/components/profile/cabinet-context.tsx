@@ -11,9 +11,9 @@
 // сами — иначе разбор адреса размножился бы по десятку файлов.
 'use client';
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
-import { PERSONAL_CABINET, type CabinetTarget } from '@/lib/service-faces';
+import { PERSONAL_CABINET, type CabinetTarget, type ServiceFace } from '@/lib/service-faces';
 
 /**
  * Умолчание — личный кабинет.
@@ -42,4 +42,28 @@ export function useCabinet(): CabinetTarget {
 /** Адрес открытого кабинета — от него собираются ссылки между разделами. */
 export function useCabinetPath(): string {
   return useCabinet().href;
+}
+
+/**
+ * Лица ОТКРЫТОГО кабинета — то, по чему разделы отбирают свои данные.
+ *
+ * ⚠️ Найдено браузерным прогоном 10.09.2026, и это была самая широкая дыра фазы.
+ * Семь клиентских разделов кабинета брали лица из СТОРА (`useAuthFaces`) — то есть
+ * ВСЕ лица человека, — и отбирали по ним публикации. В кабинете клуба Б показывались
+ * записи клуба А, «Мои клубы» перечисляли все восемнадцать клубов даже в кабинете
+ * карточки тренера, а «Публикации» и «Клиенты» выглядели одинаково у разных лиц.
+ *
+ * Серверный срез при этом был адресным: `loadFaceScope` спрашивает данные по лицу
+ * из адреса. То есть сервер отдавал правильное, а браузер показывал поверх него
+ * своё — тот же класс, что настройки уведомлений и лента: разделение сделано,
+ * до браузера не дошло.
+ *
+ * Кабинет лица отдаёт РОВНО ОДНО лицо — своё. Личный кабинет разделов услуг
+ * не показывает вовсе, поэтому там список пуст: пустой отбор означает «услуг
+ * не ведёт», а не «отбора нет».
+ */
+export function useCabinetFaces(): ServiceFace[] {
+  const cabinet = useCabinet();
+
+  return useMemo(() => (cabinet.face === null ? [] : [cabinet.face]), [cabinet]);
 }

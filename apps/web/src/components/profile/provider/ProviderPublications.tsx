@@ -16,7 +16,8 @@ import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useCabinetFaces } from '@/components/profile/cabinet-context';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
   Amenity,
@@ -86,7 +87,10 @@ export function ProviderPublications({
   workFormats = [],
 }: ProviderPublicationsProps) {
   const user = useAuthStore((s) => s.user);
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
   const addToast = useToastStore((state) => state.addToast);
   const router = useRouter();
 

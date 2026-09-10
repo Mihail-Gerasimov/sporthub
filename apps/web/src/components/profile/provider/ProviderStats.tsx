@@ -14,7 +14,8 @@ import { computeClubReliability, computeTrainerReliability } from '@sporthub/dom
 import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
 import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
 import { cn, findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useCabinetFaces } from '@/components/profile/cabinet-context';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
@@ -67,7 +68,10 @@ export function ProviderStats({
   sports = [],
 }: ProviderStatsProps) {
   const user = useAuthStore((s) => s.user);
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
 
   const [windowSetting, setWindowSetting] = useState<StatsWindow>(12);
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);

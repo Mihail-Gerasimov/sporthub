@@ -23,8 +23,8 @@ import {
   getDateKeyInTimeZone,
 } from '@/lib/utils';
 import { FACE_CABINET_TITLE } from '@/lib/service-faces';
-import { useCabinet } from '@/components/profile/cabinet-context';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useCabinet, useCabinetFaces } from '@/components/profile/cabinet-context';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type {
   Booking,
   Club,
@@ -119,7 +119,10 @@ export function ProviderDashboard({
   // ⚠️ Шаг 35.32. Кабинет открыт в контексте ЛИЦА услуг, и подпись называет
   // именно его: «CrossFit Garage», а не «кабинет провайдера». У кого лицо одно,
   // тот разницы не заметит; у кого их несколько — по подписи видит, где он.
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
   // ⚠️ Шаг 35.31. Какое лицо открыто, знает АДРЕС кабинета, а не состояние стора:
   // с адресными маршрутами это одно и то же лицо, но источник теперь один.
   // Отсюда же собираются ссылки на соседние разделы — они адресные тоже.

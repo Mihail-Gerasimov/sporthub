@@ -6,9 +6,8 @@
 // и то, что уведённому данные не запрашивались вообще.
 // Phase 25 Step 25.16: smoke-тесты ProviderFinance placeholder.
 import { screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { beforeEach, describe, expect, it } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 import { ProviderFinance } from '@/components/profile/provider/ProviderFinance';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
@@ -36,7 +35,7 @@ describe('ProviderFinance (Step 25.16)', () => {
       accountKind: 'person',
       isAuthenticated: true,
     });
-    render(<ProviderFinance />);
+    renderInFaceCabinet(<ProviderFinance />);
 
     expect(screen.getByTestId('provider-finance')).toBeInTheDocument();
     expect(screen.getByTestId('provider-finance-transactions')).toBeInTheDocument();

@@ -7,9 +7,8 @@
 // Smoke-тесты client-обёрток Step 25.14-A: ProviderPublications / ProviderReviews /
 // ProviderSettings. Проверяем access-gate и базовый рендер без падений.
 import { screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 // Phase 26 Step 26.4: ProviderPublications теперь использует useRouter для router.refresh
 // после delete/edit-success — тесту нужен моковый router, иначе invariant-падение.
@@ -53,7 +52,7 @@ describe('ProviderPublications (Step 25.14-A)', () => {
 
   it('рендерит раздел для провайдера', () => {
     authProvider();
-    render(<ProviderPublications clubs={[]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[]} trainers={[]} />);
     expect(screen.getByTestId('provider-publications')).toBeInTheDocument();
   });
 });
@@ -65,7 +64,7 @@ describe('ProviderReviews (Step 25.14-A)', () => {
 
   it('рендерит раздел для провайдера', () => {
     authProvider();
-    render(<ProviderReviews reviews={[]} clubs={[]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderReviews reviews={[]} clubs={[]} trainers={[]} />);
     expect(screen.getByTestId('provider-reviews')).toBeInTheDocument();
   });
 });
@@ -77,7 +76,7 @@ describe('ProviderSettings (Step 25.14-A)', () => {
 
   it('рендерит раздел для провайдера', () => {
     authProvider();
-    render(<ProviderSettings />);
+    renderInFaceCabinet(<ProviderSettings />);
     expect(screen.getByTestId('provider-settings')).toBeInTheDocument();
   });
 });

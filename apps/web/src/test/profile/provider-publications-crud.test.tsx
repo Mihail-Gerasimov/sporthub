@@ -4,9 +4,8 @@
 // открытие модалки) и delete (confirm + DELETE + toast). Существующий smoke-тест
 // access-denied в provider-publications-reviews-settings.test.tsx остаётся.
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({
   refreshMock: vi.fn(),
@@ -98,26 +97,49 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
 
-  it('правка предлагается по ВСЕМ своим лицам — и по клубу, и по карточке', () => {
-    // ⚠️ Шаг 35.34. Прежде здесь ожидалась ровно ОДНА кнопка: право роли
-    // отменяло второе владение, и владелец клуба своей карточки тренера
-    // не видел (дефект 4.6 № 1 в интерфейсном виде). Оба лица принадлежат
-    // одному человеку — оба и показываются.
+  // ⚠️ Прежняя единая проверка «правка предлагается по ВСЕМ своим лицам — и по клубу,
+  // и по карточке» разделена надвое, и это не косметика. Шаг 35.34 доказывал ею, что
+  // право роли больше не отменяет второе владение: владелец клуба видит и свою карточку
+  // тренера. Но с адресными кабинетами «оба лица в одном рендере» — это картина, которой
+  // в бою нет: у клуба свой кабинет, у карточки свой, и раздел показывает лицо ОТКРЫТОГО
+  // кабинета. Правило то же — «правку даёт владение, а не роль», — просто проверяется оно
+  // теперь по кабинету на каждое лицо. Контроль «чужое не своё» ниже остаётся общим.
+  it('в кабинете КЛУБА правка предлагается по клубу — и только по нему', () => {
     loginAsProvider();
-    render(<ProviderPublications clubs={[providerClub]} trainers={[providerTrainer]} />);
+    // Умолчание помощника (клуб 1) совпадает с номером `providerClub`.
+    renderInFaceCabinet(
+      <ProviderPublications clubs={[providerClub]} trainers={[providerTrainer]} />,
+    );
 
-    expect(screen.getAllByRole('button', { name: 'Редактировать' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Удалить' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Редактировать' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Удалить' })).toHaveLength(1);
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
-    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    // Карточка тренера того же человека сюда не попадает: у неё свой кабинет.
+    expect(screen.queryByText('Марина Соколова')).not.toBeInTheDocument();
     // Плашки «Редактирование через корневой кабинет» быть не должно
+    expect(screen.queryByText(/корневой кабинет/i)).not.toBeInTheDocument();
+  });
+
+  it('в кабинете КАРТОЧКИ ТРЕНЕРА правка предлагается по карточке — и только по ней', () => {
+    // Вторая половина того же правила: владение карточкой даёт правку и тогда,
+    // когда тот же человек владеет ещё и клубом.
+    loginAsProvider();
+    renderInFaceCabinet(
+      <ProviderPublications clubs={[providerClub]} trainers={[providerTrainer]} />,
+      trainerFace(providerTrainer.id, providerTrainer.name),
+    );
+
+    expect(screen.getAllByRole('button', { name: 'Редактировать' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Удалить' })).toHaveLength(1);
+    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    expect(screen.queryByText('Volna Aquatic Club')).not.toBeInTheDocument();
     expect(screen.queryByText(/корневой кабинет/i)).not.toBeInTheDocument();
   });
 
   it('чужие публикации в разделе не показываются', () => {
     // Контроль к проверке выше: показывается ВЛАДЕНИЕ, а не всё подряд.
     loginAsProvider();
-    render(
+    renderInFaceCabinet(
       <ProviderPublications
         clubs={[{ ...providerClub, id: 99, name: 'Чужой клуб', managedByUserId: 777 }]}
         trainers={[]}
@@ -132,7 +154,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     // ⚠️ Прежде кнопку прятало право роли, и завести себе карточку тренера
     // владелец клуба не мог вовсе. Решение заказчика 1: лицо заводит любой.
     loginAsProvider();
-    render(<ProviderPublications clubs={[]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[]} trainers={[]} />);
 
     expect(screen.getByRole('button', { name: 'Опубликовать клуб' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Опубликовать тренера' })).toBeInTheDocument();
@@ -170,7 +192,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     );
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
 
@@ -189,7 +211,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: true }, 200));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => {
@@ -209,7 +231,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -221,7 +243,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: false, error: 'Нет прав' }, 403));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => {
@@ -239,7 +261,7 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     fetchMock.mockResolvedValue(createJsonResponse({ success: false, error: 'Не найдено' }, 404));
     loginAsProvider();
 
-    render(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublications clubs={[providerClub]} trainers={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
 
     await waitFor(() => {

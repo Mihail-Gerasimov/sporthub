@@ -10,7 +10,8 @@ import {
   getProviderReviews,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useCabinetFaces } from '@/components/profile/cabinet-context';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Review, Trainer } from '@sporthub/types';
 
 type ProviderReviewsProps = {
@@ -24,7 +25,10 @@ export function ProviderReviews({ reviews = [], clubs = [], trainers = [] }: Pro
   // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
   // «кто я», а не по номеру владельца в карточке каталога: это поле из
   // публичной выдачи ушло.
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
 
   const providerReviews = useMemo(() => {
     const providerClubIds = getProviderClubs(clubs, faces).map((c) => c.id);

@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { startTransition, useMemo, useState } from 'react';
 
-import { useCabinetPath } from '@/components/profile/cabinet-context';
+import { useCabinetPath, useCabinetFaces } from '@/components/profile/cabinet-context';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -45,7 +45,10 @@ export function ProviderLinks({
   offerings = [],
 }: ProviderLinksProps) {
   const user = useAuthStore((s) => s.user);
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
   // ⚠️ Шаг 35.31. Ссылки на соседние разделы адресные: у клуба 3 и клуба 7
   // раздел публикаций один и тот же, а адрес у него разный.
   const cabinetPath = useCabinetPath();
@@ -59,6 +62,32 @@ export function ProviderLinks({
   const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
   const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
+  // ⚠️ Здесь ДВА разных вопроса, и путать их нельзя — на этом уже споткнулись.
+  //
+  // «Чьи связи показывать» — вопрос ОТКРЫТОГО КАБИНЕТА: в кабинете клуба видны
+  // связи этого клуба, и `providerClubs` выше отобраны по лицу кабинета.
+  //
+  // «Что считать СВОИМ» — вопрос ЧЕЛОВЕКА, а не кабинета. Собственная карточка
+  // тренера остаётся своей и тогда, когда открыт кабинет клуба. Отбор кандидатов
+  // по лицам кабинета давал замкнутый круг: в кабинете карточки множество своих
+  // клубов пусто, поэтому СОБСТВЕННЫЕ клубы человека попадали в список «чужих,
+  // к которым можно запроситься», — из кабинета карточки шлём запрос, из кабинета
+  // клуба его же подтверждаем. Ровно та накрутка «сам себе», которую фаза закрывает
+  // в записях и отзывах.
+  //
+  // Связь своего со своим разрешена решением 22 и заводится сразу подтверждённой —
+  // но заводится ЯВНО, а не под видом связи с посторонним.
+  const allFaces = useAuthFaces().faces;
+  const ownClubIdSet = useMemo(
+    () => new Set(getProviderClubs(clubs, allFaces).map((club) => club.id)),
+    [clubs, allFaces],
+  );
+  const ownTrainerIdSet = useMemo(
+    () => new Set(getProviderTrainers(trainers, allFaces).map((trainer) => trainer.id)),
+    [trainers, allFaces],
+  );
+
+  // Ниже — множества ОТКРЫТОГО КАБИНЕТА: ими отбираются показываемые связи.
   const myClubIdSet = useMemo(() => new Set(providerClubs.map((c) => c.id)), [providerClubs]);
   const myTrainerIdSet = useMemo(
     () => new Set(providerTrainers.map((t) => t.id)),
@@ -203,21 +232,31 @@ export function ProviderLinks({
     setRevokeConfirmLinkId(null);
   }
 
-  // Фильтр кандидатов в invite-модалке: все тренеры, кроме моих (invite внешних).
-  // Hooks должны вызываться до early-return, иначе react-hooks/rules-of-hooks.
+  // Кандидаты в приглашение: все тренеры, кроме СВОИХ.
+  //
+  // ⚠️ «Свои» считаются по всем лицам ЧЕЛОВЕКА (`ownTrainerIdSet`), а не по лицам
+  // открытого кабинета. В кабинете клуба множество своих карточек по кабинету пусто,
+  // и собственные карточки человека оказывались в списке «внешних тренеров»,
+  // которых предлагается пригласить.
+  //
+  // Hooks вызываются до early-return, иначе `react-hooks/rules-of-hooks`.
   const inviteTrainerOptions = useMemo(() => {
     const query = inviteSearch.trim().toLowerCase();
     return trainers.filter((trainer) => {
-      if (myTrainerIdSet.has(trainer.id)) return false;
+      if (ownTrainerIdSet.has(trainer.id)) return false;
       if (!query) return true;
       return trainer.name.toLowerCase().includes(query);
     });
-  }, [trainers, myTrainerIdSet, inviteSearch]);
+  }, [trainers, ownTrainerIdSet, inviteSearch]);
 
   // Фильтр клубов для request-модалки: чужие клубы, к которым у выбранного тренера
   // ещё нет active link'а (pending или confirmed).
+  //
+  // ⚠️ «Чужие» — то же самое с другой стороны: по всем лицам человека. В кабинете
+  // карточки тренера множество своих клубов по кабинету пусто, и собственные клубы
+  // попадали в список чужих, к которым предлагается запроситься.
   const requestClubOptions = useMemo(() => {
-    const foreignClubs = clubs.filter((c) => !myClubIdSet.has(c.id));
+    const foreignClubs = clubs.filter((c) => !ownClubIdSet.has(c.id));
     if (requestTrainerId === null) return foreignClubs;
 
     const activeForTrainer = new Set(
@@ -230,7 +269,7 @@ export function ProviderLinks({
         .map((l) => l.clubId),
     );
     return foreignClubs.filter((c) => !activeForTrainer.has(c.id));
-  }, [clubs, myClubIdSet, requestTrainerId, links]);
+  }, [clubs, ownClubIdSet, requestTrainerId, links]);
 
   // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
   // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает

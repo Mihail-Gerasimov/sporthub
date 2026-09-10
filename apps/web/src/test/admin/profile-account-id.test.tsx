@@ -6,6 +6,7 @@
  * data-testid="athlete-dashboard-account-id" / "provider-dashboard-account-id".
  */
 import { render, screen } from '@testing-library/react';
+import { clubFace, renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
@@ -68,7 +69,11 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
 
     // Dummy-клуб под `managedByUserId = PROVIDER_USER_ID`, чтобы Dashboard
     // не уходил в empty-state (там шапки с ID нет) и рендерил мета-инфо.
-    render(
+    //
+    // ⚠️ Кабинет — клуба 10, а не умолчания помощника (клуб 1): сводка отбирает
+    // публикации по лицу ОТКРЫТОГО кабинета, и с чужим номером она ушла бы ровно
+    // в тот пустой вид, которого набор избегает.
+    renderInFaceCabinet(
       <ProviderDashboard
         bookings={[]}
         clubs={[
@@ -97,6 +102,7 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
         links={[]}
         notifications={[]}
       />,
+      clubFace(10, 'Test'),
     );
 
     expect(screen.getByTestId('provider-dashboard-account-id')).toHaveTextContent(

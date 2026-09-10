@@ -8,9 +8,8 @@
 // провайдера, per-offering фильтр, reliability-фильтр, drawer с историей записей
 // и CRM-заметкой (POST создаёт, DELETE удаляет).
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 
@@ -230,7 +229,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
     const b1 = makeBooking({ id: 501, status: 'completed', userId: athleteUser.id });
     const b2 = makeBooking({ id: 502, status: 'completed', userId: athleteUser2.id });
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[b1, b2]}
         clubs={[club]}
@@ -246,6 +245,9 @@ describe('ProviderClients (Step 25.10-B)', () => {
     expect(screen.getByTestId('provider-clients-card-2')).toBeInTheDocument();
   });
 
+  // ⚠️ Кабинет — КАРТОЧКИ ТРЕНЕРА: обе записи набора сделаны на услуги карточки 5.
+  // Клиенты теперь при лице, а не при человеке, и в кабинете клуба этих клиентов
+  // не видно вовсе — их привёл не клуб.
   it('per-offering фильтр: выбор Йоги скрывает клиента с booking только на Бокс', () => {
     authenticateProvider();
 
@@ -272,7 +274,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
       sportId: 4,
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[yogaBooking, boxBooking]}
         clubs={[]}
@@ -282,6 +284,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
         users={[providerUser, athleteUser, athleteUser2]}
         notes={[]}
       />,
+      trainerFace(trainer.id, trainer.name),
     );
 
     expect(screen.getByTestId('provider-clients-card-1')).toBeInTheDocument();
@@ -325,7 +328,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
       ),
     ];
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[...normalBookings, ...dangerBookings]}
         clubs={[club]}
@@ -354,7 +357,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
     const b1 = makeBooking({ id: 501, status: 'completed', userId: athleteUser.id });
     const b2 = makeBooking({ id: 502, status: 'pending', userId: athleteUser.id });
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[b1, b2]}
         clubs={[club]}
@@ -385,7 +388,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
 
     const b1 = makeBooking({ id: 501, status: 'completed', userId: athleteUser.id });
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[b1]}
         clubs={[club]}
@@ -435,7 +438,7 @@ describe('ProviderClients (Step 25.10-B)', () => {
       note: 'Старая заметка',
     };
 
-    render(
+    renderInFaceCabinet(
       <ProviderClients
         bookings={[b1]}
         clubs={[club]}

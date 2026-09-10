@@ -10,9 +10,8 @@
 // прежние формулы совпадали с верными, и ошибка была невидима. Все ожидания записаны
 // моментом в UTC, а не той же формулой, по которой считает код.
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 
@@ -349,7 +348,7 @@ describe('Окно отметки исхода у провайдера (Step 33.
     authenticateProvider();
     freezeTimeAt('2026-08-22T12:00:00.000Z');
 
-    render(
+    renderInFaceCabinet(
       <ProviderDashboard
         clubs={[club]}
         trainers={trainers}
@@ -366,7 +365,7 @@ describe('Окно отметки исхода у провайдера (Step 33.
     authenticateProvider();
     freezeTimeAt('2026-08-22T12:00:00.000Z');
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -392,7 +391,7 @@ describe('Граница недели в сводке провайдера (Step
     authenticateProvider();
     freezeTimeAt('2026-08-22T12:00:00.000Z');
 
-    render(
+    renderInFaceCabinet(
       <ProviderDashboard
         clubs={[club]}
         trainers={trainers}
@@ -430,7 +429,7 @@ describe('Тепловая карта провайдера (Step 33.11)', () => 
       date: '2026-08-21',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         clubs={[club]}
         trainers={trainers}
@@ -483,7 +482,7 @@ describe('Окно «последние 12 месяцев» (Step 33.11)', () =>
     authenticateProvider();
     freezeTimeAt('2026-08-31T16:00:00.000Z');
 
-    render(
+    renderInFaceCabinet(
       <ProviderStats
         clubs={[club]}
         trainers={trainers}
@@ -515,7 +514,10 @@ describe('Даты визитов в разделе клиентов (Step 33.11
     authenticateProvider();
     freezeTimeAt('2026-08-22T12:00:00.000Z');
 
-    renderWithToast(
+    // ⚠️ Кабинет — клуба 1 (умолчание помощника совпадает с `club` набора). Раздел
+    // клиентов отбирает записи по лицу ОТКРЫТОГО кабинета: без кабинета лиц нет
+    // вовсе, и карточка клиента не появилась бы — проверка дат проверяла бы пустоту.
+    renderInFaceCabinet(
       <ProviderClients
         clubs={[club]}
         trainers={trainers}

@@ -1,5 +1,6 @@
 // Тесты секции «Мои публикации» провайдер-кабинета (Step 12.5 / Step 14.7 / Step 15.6)
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
@@ -50,7 +51,7 @@ const trainers: Trainer[] = [
 
 describe('ProviderPublicationsSection', () => {
   it('рендерит карточки клубов и тренеров с типом и рейтингом', () => {
-    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
 
     // Заголовок секции
     expect(screen.getByText('Мои публикации')).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('рендерит ссылки на детальные страницы', () => {
-    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
 
     const clubLink = screen.getByRole('link', { name: /Volna Aquatic Club/ });
     const trainerLink = screen.getByRole('link', { name: /Марина Соколова/ });
@@ -79,7 +80,7 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('показывает пустое состояние при отсутствии публикаций', () => {
-    render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
 
     expect(screen.getByTestId('provider-publications-empty')).toHaveTextContent(
       'У вас пока нет публикаций',
@@ -87,7 +88,9 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('после появления нового клуба в props сразу рендерит карточку публикации', () => {
-    const { rerender } = render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
+    const { rerender } = renderInFaceCabinet(
+      <ProviderPublicationsSection clubs={[]} trainers={[]} />,
+    );
 
     expect(screen.getByTestId('provider-publications-empty')).toBeInTheDocument();
 
@@ -98,7 +101,9 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('после появления нового тренера в props сразу рендерит карточку публикации', () => {
-    const { rerender } = render(<ProviderPublicationsSection clubs={[]} trainers={[]} />);
+    const { rerender } = renderInFaceCabinet(
+      <ProviderPublicationsSection clubs={[]} trainers={[]} />,
+    );
 
     expect(screen.getByTestId('provider-publications-empty')).toBeInTheDocument();
 
@@ -109,14 +114,14 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('корректно работает с только клубами', () => {
-    render(<ProviderPublicationsSection clubs={clubs} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={[]} />);
 
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
     expect(screen.queryByText('Марина Соколова')).not.toBeInTheDocument();
   });
 
   it('корректно работает с только тренерами', () => {
-    render(<ProviderPublicationsSection clubs={[]} trainers={trainers} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={[]} trainers={trainers} />);
 
     expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
     expect(screen.queryByText('Volna Aquatic Club')).not.toBeInTheDocument();
@@ -125,7 +130,9 @@ describe('ProviderPublicationsSection', () => {
   it('рендерит action «Редактировать» и прокидывает корректный entity-контекст', () => {
     const onEdit = vi.fn();
 
-    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} onEdit={onEdit} />);
+    renderInFaceCabinet(
+      <ProviderPublicationsSection clubs={clubs} trainers={trainers} onEdit={onEdit} />,
+    );
 
     const editButtons = screen.getAllByRole('button', { name: 'Редактировать' });
 
@@ -142,7 +149,9 @@ describe('ProviderPublicationsSection', () => {
     const onDelete = vi.fn();
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} onDelete={onDelete} />);
+    renderInFaceCabinet(
+      <ProviderPublicationsSection clubs={clubs} trainers={trainers} onDelete={onDelete} />,
+    );
 
     const deleteButtons = screen.getAllByRole('button', { name: 'Удалить' });
 
@@ -176,7 +185,7 @@ describe('ProviderPublicationsSection', () => {
       },
     ];
 
-    render(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} />);
 
     expect(screen.getByText('Скрыто администратором')).toBeInTheDocument();
     expect(screen.getByText('Нарушение правил')).toBeInTheDocument();
@@ -192,7 +201,9 @@ describe('ProviderPublicationsSection', () => {
       },
     ];
 
-    render(<ProviderPublicationsSection clubs={hiddenClub} trainers={[]} onEdit={onEdit} />);
+    renderInFaceCabinet(
+      <ProviderPublicationsSection clubs={hiddenClub} trainers={[]} onEdit={onEdit} />,
+    );
 
     const editButton = screen.getByRole('button', { name: 'Редактировать' });
 
@@ -202,7 +213,7 @@ describe('ProviderPublicationsSection', () => {
   });
 
   it('НЕ показывает badge скрытия для published публикации', () => {
-    render(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
+    renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
 
     expect(screen.queryByText('Скрыто администратором')).not.toBeInTheDocument();
   });

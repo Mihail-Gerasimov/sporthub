@@ -1,11 +1,10 @@
 // Тесты ProviderBookingsInbox (Step 25.9): 4 таба FSM, фильтры offering/sport,
 // FSM-действия confirm/reject/check-in, критичность <6h до конца окна check-in.
-// renderWithToast подмонтирует ToastStack — но мы проверяем только факт fetch-вызова
-// и корректность endpoint+payload, не сам toast-рендер.
+// `renderInFaceCabinet` подмонтирует ToastStack — но мы проверяем только факт
+// fetch-вызова и корректность endpoint+payload, не сам toast-рендер.
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { renderWithToast as render } from '@/test/helpers/render-with-toast';
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 
@@ -181,7 +180,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
   it('рендерит 4 таба FSM с лейблами', () => {
     authenticateProvider();
-    render(<ProviderBookingsInbox clubs={[club]} trainers={trainers} />);
+    renderInFaceCabinet(<ProviderBookingsInbox clubs={[club]} trainers={trainers} />);
 
     expect(screen.getByTestId('provider-bookings-tab-pending')).toBeInTheDocument();
     expect(screen.getByTestId('provider-bookings-tab-confirmed')).toBeInTheDocument();
@@ -201,7 +200,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       scheduleId: 1002,
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -236,7 +235,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       scheduleId: 1002,
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -261,7 +260,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
     const booking = makeBooking({ id: 501, status: 'pending' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -290,7 +289,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     authenticateProvider();
     const booking = makeBooking({ id: 501, status: 'pending' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -319,7 +318,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
     const booking = makeBooking({ id: 501, status: 'pending' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -351,7 +350,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
 
     const booking = makeBooking({ id: 501, status: 'pending' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -380,7 +379,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
     authenticateProvider();
     const booking = makeBooking({ id: 501, status: 'pending' });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -418,7 +417,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       date: '2026-04-21',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -459,7 +458,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       date: '2026-04-21',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -507,7 +506,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       date: '2026-04-20',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}
@@ -558,7 +557,7 @@ describe('ProviderBookingsInbox (Step 25.9)', () => {
       date: '2026-04-20',
     });
 
-    render(
+    renderInFaceCabinet(
       <ProviderBookingsInbox
         clubs={[club]}
         trainers={trainers}

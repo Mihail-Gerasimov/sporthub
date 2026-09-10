@@ -1,8 +1,7 @@
 // Тесты ProviderDashboard (Step 25.8): условный рендер club/trainer-side, empty,
 // per-offering KPI для multi-offering тренера, link-навигация KPI-карточек.
 // Read-only компонент (нет mutation → тосты/refresh не нужны), рендерим напрямую.
-import { render, screen, within } from '@testing-library/react';
-import type { ReactElement } from 'react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -15,10 +14,9 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import { CabinetProvider } from '@/components/profile/cabinet-context';
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
-import { faceCabinet } from '@/lib/service-faces';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { facesOf } from '@/test/helpers/service-faces';
 import type { Booking, Club, Offering, Review, Trainer, User } from '@sporthub/types';
 
@@ -112,21 +110,12 @@ function authenticateProvider() {
   });
 }
 
-/**
- * Отрисовать сводку ВНУТРИ кабинета лица.
- *
- * ⚠️ Обёртка обязательна, а не украшение. Без неё `useCabinet` отдаёт умолчание —
- * личный кабинет, — и ссылки KPI ведут в `/profile/me/*`. Тест без обёртки
- * проверял бы ровно то, чего в бою не бывает: сводка лица живёт только внутри
- * кабинета этого лица.
- */
-function renderInFaceCabinet(node: ReactElement, faceId = 1) {
-  return render(
-    <CabinetProvider cabinet={faceCabinet({ kind: 'club', id: faceId, name: 'Клуб' })}>
-      {node}
-    </CabinetProvider>,
-  );
-}
+// ⚠️ Своей обёртки у набора больше нет — она умела только кабинет клуба, а сводка
+// точно так же живёт в кабинете карточки тренера. Общий помощник `renderInFaceCabinet`
+// принимает любое лицо; умолчание у него — клуб 1, тот же, что в наборе.
+//
+// Обёртка обязательна, а не украшение: без неё `useCabinet` отдаёт личный кабинет,
+// лиц у него нет — сводка ушла бы в пустой вид, а ссылки KPI вели бы в `/profile/me/*`.
 
 describe('ProviderDashboard (Step 25.8)', () => {
   beforeEach(() => {
@@ -148,24 +137,47 @@ describe('ProviderDashboard (Step 25.8)', () => {
     expect(screen.queryByTestId('provider-dashboard-trainers')).not.toBeInTheDocument();
   });
 
+  // Кабинет — КАРТОЧКИ ТРЕНЕРА 10: секция тренеров показывается по лицу открытого
+  // кабинета, и в кабинете клуба её нет ни при каком наборе данных.
   it('only trainers: при 0 клубов и 1 тренере видна секция тренеров и не видна секция клубов', () => {
     authenticateProvider();
 
-    renderInFaceCabinet(<ProviderDashboard clubs={[]} trainers={[makeTrainer({ id: 10 })]} />);
+    renderInFaceCabinet(
+      <ProviderDashboard clubs={[]} trainers={[makeTrainer({ id: 10 })]} />,
+      trainerFace(10, 'Trainer 10'),
+    );
 
     expect(screen.getByTestId('provider-dashboard-trainers')).toBeInTheDocument();
     expect(screen.queryByTestId('provider-dashboard-clubs')).not.toBeInTheDocument();
   });
 
-  it('both sides: при 1 клубе + 1 тренере видны обе секции', () => {
+  // ⚠️ Прежняя проверка «both sides: при 1 клубе + 1 тренере видны обе секции»
+  // разделена надвое. Обе секции в одном рендере — картина прежнего кабинета «всех
+  // лиц человека»; в адресном кабинете так не бывает, и именно на этом держался
+  // дефект: кабинет клуба Б показывал лица клуба А. Правило после раздела строже
+  // прежнего: сводка показывает секцию СВОЕГО лица и НЕ показывает секцию чужого,
+  // даже когда оба лица принадлежат одному человеку и оба лежат в пропсах.
+  it('кабинет клуба: при 1 клубе + 1 тренере в пропсах видна только секция клубов', () => {
     authenticateProvider();
 
-    render(
+    renderInFaceCabinet(
       <ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[makeTrainer({ id: 10 })]} />,
     );
 
     expect(screen.getByTestId('provider-dashboard-clubs')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-dashboard-trainers')).not.toBeInTheDocument();
+  });
+
+  it('кабинет карточки тренера: при тех же пропсах видна только секция тренеров', () => {
+    authenticateProvider();
+
+    renderInFaceCabinet(
+      <ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[makeTrainer({ id: 10 })]} />,
+      trainerFace(10, 'Trainer 10'),
+    );
+
     expect(screen.getByTestId('provider-dashboard-trainers')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-dashboard-clubs')).not.toBeInTheDocument();
   });
 
   it('empty: у нового провайдера без публикаций — CTA «Опубликуйте первую услугу»', () => {
@@ -179,6 +191,8 @@ describe('ProviderDashboard (Step 25.8)', () => {
     expect(screen.queryByTestId('provider-dashboard-kpi')).not.toBeInTheDocument();
   });
 
+  // Кабинет — КАРТОЧКИ ТРЕНЕРА 10: разбивка по услугам считается для лица открытого
+  // кабинета, а услуги набора принадлежат карточке.
   it('per-offering KPI: тренер с 2 offerings → внутри trainer-карточки видны подсекции offerings', () => {
     authenticateProvider();
 
@@ -205,13 +219,14 @@ describe('ProviderDashboard (Step 25.8)', () => {
       },
     ];
 
-    render(
+    renderInFaceCabinet(
       <ProviderDashboard
         clubs={[]}
         trainers={[trainer]}
         offerings={offerings}
         bookings={bookings}
       />,
+      trainerFace(trainer.id, trainer.name),
     );
 
     const breakdown = screen.getByTestId(`provider-dashboard-trainer-offerings-${trainer.id}`);

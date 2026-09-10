@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 
-import { useCabinetPath } from '@/components/profile/cabinet-context';
+import { useCabinetPath, useCabinetFaces } from '@/components/profile/cabinet-context';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
 import { computeAthleteReliability, zonedDateTime } from '@sporthub/domain';
@@ -19,7 +19,7 @@ import {
   getBookingClubId,
   getBookingTrainerId,
 } from '@/lib/utils';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { APP_LIMITS } from '@sporthub/types';
 import type {
@@ -78,7 +78,10 @@ export function ProviderClients({
   notes = [],
 }: ProviderClientsProps) {
   const user = useAuthStore((s) => s.user);
-  const { faces } = useAuthFaces();
+  // ⚠️ Лица берутся у ОТКРЫТОГО КАБИНЕТА, а не у человека. Раздел кабинета клуба
+  // отбирает данные этого клуба; раньше здесь стоял список всех лиц из стора,
+  // и кабинет клуба Б показывал записи и публикации клуба А.
+  const faces = useCabinetFaces();
   // ⚠️ Шаг 35.31. Ссылки на соседние разделы адресные: у клуба 3 и клуба 7
   // раздел публикаций один и тот же, а адрес у него разный.
   const cabinetPath = useCabinetPath();
