@@ -19,7 +19,12 @@
 import Link from 'next/link';
 
 import { cn } from '@/lib/utils';
-import { faceCabinetPath, faceKey, type ServiceFaceKind } from '@/lib/service-faces';
+import {
+  faceCabinetPath,
+  faceKey,
+  isFaceArchived,
+  type ServiceFaceKind,
+} from '@/lib/service-faces';
 import { useAuthFaces } from '@/stores/useAuthStore';
 
 import { useCabinet } from './cabinet-context';
@@ -50,21 +55,38 @@ export function FaceSwitcher({ className }: { className?: string }) {
         {faces.map((face) => {
           const key = faceKey(face);
           const active = key === openKey;
+          // ⚠️ Архивированное лицо остаётся в списке — оно не удалено, и владелец
+          // должен иметь возможность вернуть его. Но выглядеть как живое оно
+          // не должно: без пометки человек не понимал, почему клуба нет в каталоге.
+          const archived = isFaceArchived(face);
 
           return (
             <Link
               key={key}
               href={faceCabinetPath(face)}
-              title={FACE_KIND_LABELS[face.kind]}
+              title={
+                archived
+                  ? `${FACE_KIND_LABELS[face.kind]} — убран из каталога`
+                  : FACE_KIND_LABELS[face.kind]
+              }
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'inline-flex min-h-11 items-center rounded-pill border px-4 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-4',
+                'inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-4',
                 active
                   ? 'border-transparent bg-lime text-ink focus-visible:ring-lime/30'
                   : 'border-line bg-panel text-ink hover:border-accent hover:text-accent focus-visible:ring-accent/15',
+                archived && !active && 'text-muted',
               )}
             >
               {face.name}
+              {archived ? (
+                <span
+                  data-testid={`profile-face-archived-${key}`}
+                  className="rounded-pill bg-warn/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-warn"
+                >
+                  В архиве
+                </span>
+              ) : null}
             </Link>
           );
         })}

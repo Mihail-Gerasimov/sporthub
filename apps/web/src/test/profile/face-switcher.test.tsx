@@ -110,3 +110,34 @@ describe('FaceSwitcher', () => {
     }
   });
 });
+
+describe('Архивированное лицо', () => {
+  const ARCHIVED: ServiceFace = { kind: 'club', id: 9, name: 'Убранный клуб', status: 'hidden' };
+
+  beforeEach(() => {
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  it('остаётся в переключателе — иначе вернуть публикацию будет неоткуда', () => {
+    // ⚠️ Архив — не удаление. Записи, отзывы и связи целы, публикацию можно вернуть;
+    // убрать лицо из списка значило бы отобрать у владельца доступ к собственному
+    // кабинету вместе с этой возможностью.
+    signIn([CLUB, ARCHIVED]);
+
+    renderIn(faceCabinet(CLUB));
+
+    expect(screen.getByRole('link', { name: /Убранный клуб/ })).toBeInTheDocument();
+  });
+
+  it('но помечено — молча оно выглядело бы живым', () => {
+    signIn([CLUB, ARCHIVED]);
+
+    renderIn(faceCabinet(CLUB));
+
+    expect(screen.getByTestId('profile-face-archived-club:9')).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('profile-face-archived-club:3'),
+      'живое лицо помечено архивным',
+    ).not.toBeInTheDocument();
+  });
+});

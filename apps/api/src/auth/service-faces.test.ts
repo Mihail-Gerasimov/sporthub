@@ -20,7 +20,23 @@ const OWNER_ID = 2;
 /** Человек без единого лица. */
 const ATHLETE_ID = 1;
 
-type Face = { kind: string; id: number; name: string };
+type Face = { kind: string; id: number; name: string; status?: string };
+
+/**
+ * Лица человека из ответа «кто я».
+ *
+ * Объявлен на модуль, а не внутри набора: тем же вопросом пользуются оба набора
+ * ниже, и вторая копия разошлась бы с первой на первой же правке контракта.
+ */
+async function facesOfIn(harness: TestHarness, userId: number): Promise<Face[]> {
+  const response = await request(harness.app.getHttpServer())
+    .get('/api/auth/me')
+    .set('Cookie', await harness.as(userId));
+
+  expect(response.status).toBe(200);
+
+  return ((response.body as { data?: { faces?: Face[] } }).data?.faces ?? []) as Face[];
+}
 
 describe('Лица услуг в ответе «кто я»', () => {
   let harness: TestHarness;
@@ -37,18 +53,8 @@ describe('Лица услуг в ответе «кто я»', () => {
     await harness.close();
   });
 
-  async function facesOf(userId: number): Promise<Face[]> {
-    const response = await request(harness.app.getHttpServer())
-      .get('/api/auth/me')
-      .set('Cookie', await harness.as(userId));
-
-    expect(response.status).toBe(200);
-
-    return ((response.body as { data?: { faces?: Face[] } }).data?.faces ?? []) as Face[];
-  }
-
   it('владелец получает свои лица, и обоих видов', async () => {
-    const faces = await facesOf(OWNER_ID);
+    const faces = await facesOfIn(harness, OWNER_ID);
 
     expect(faces.length, 'список лиц владельца пуст — кабинет лица не откроется').toBeGreaterThan(
       0,
@@ -66,7 +72,7 @@ describe('Лица услуг в ответе «кто я»', () => {
   it('каждое названное лицо принадлежит именно ему', async () => {
     // ⚠️ Главная половина проверки. Список, в который попали чужие лица, открывает
     // их кабинеты: адрес сверяется с этим же списком.
-    const faces = await facesOf(OWNER_ID);
+    const faces = await facesOfIn(harness, OWNER_ID);
 
     const clubs = await harness.read<{ id: number; managedByUserId?: number }[]>('clubs');
     const trainers = await harness.read<{ id: number; managedByUserId?: number }[]>('trainers');
@@ -92,20 +98,73 @@ describe('Лица услуг в ответе «кто я»', () => {
       clubs.filter((row) => row.managedByUserId === OWNER_ID).length +
       trainers.filter((row) => row.managedByUserId === OWNER_ID).length;
 
-    const faces = await facesOf(OWNER_ID);
+    const faces = await facesOfIn(harness, OWNER_ID);
 
     expect(faces.length, 'число лиц в ответе разошлось с базой').toBe(expected);
   });
 
   it('у человека без лиц список пуст', async () => {
-    expect(await facesOf(ATHLETE_ID)).toEqual([]);
+    expect(await facesOfIn(harness, ATHLETE_ID)).toEqual([]);
   });
 
   it('у лица есть имя — переключателю нечего показать без него', async () => {
-    const faces = await facesOf(OWNER_ID);
+    const faces = await facesOfIn(harness, OWNER_ID);
 
     for (const face of faces) {
       expect(String(face.name ?? ''), `у лица ${face.kind}:${face.id} пустое имя`).not.toBe('');
     }
+  });
+});
+
+describe('Статус лица в ответе «кто я»', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('auth-face-status');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany(fixtureCollections);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('лицо несёт свой статус — иначе архив от живого не отличить', async () => {
+    // ⚠️ Найдено полным браузерным прогоном (35.44a). Владелец, убравший своё лицо,
+    // не удаляет его: публикация уходит из каталога, а записи, отзывы и связи
+    // остаются. Значит лицо обязано остаться и в списке — вернуть его иначе неоткуда.
+    // Но остаться МОЛЧА оно не должно: кабинет архивированного клуба выглядел ровно
+    // как живой, и человек не понимал, почему клуба нигде не видно.
+    const clubs = await harness.read<{ id: number; managedByUserId?: number }[]>('clubs');
+    const own = clubs.find((club) => club.managedByUserId === OWNER_ID);
+
+    expect(own, 'в фикстурах нет клуба владельца').toBeDefined();
+
+    const response = await request(harness.app.getHttpServer())
+      .delete(`/api/clubs/${own?.id}`)
+      .set('Cookie', await harness.as(OWNER_ID));
+
+    expect([200, 204], `архивирование ответило ${response.status}`).toContain(response.status);
+
+    const faces = await facesOfIn(harness, OWNER_ID);
+    const archived = faces.find((face) => face.kind === 'club' && face.id === own?.id);
+
+    expect(archived, 'архивированное лицо пропало из списка').toBeDefined();
+    expect(
+      (archived as { status?: string })?.status,
+      'архивированное лицо не помечено убранным из каталога',
+    ).toBe('hidden');
+  });
+
+  it('живое лицо архивным не помечается', async () => {
+    // Контрольная группа: без неё «помечено» неотличимо от «помечены все».
+    const faces = await facesOfIn(harness, OWNER_ID);
+
+    expect(
+      faces.filter((face) => (face as { status?: string }).status === 'hidden'),
+      'живые лица помечены архивными',
+    ).toEqual([]);
   });
 });

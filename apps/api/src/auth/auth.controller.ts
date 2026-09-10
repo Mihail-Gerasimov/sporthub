@@ -33,7 +33,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { accountKindOf, capabilitiesOf, isAdminKind } from '@sporthub/domain';
-import type { AccountKind, User } from '@sporthub/types';
+import type { AccountKind, EntityStatus, User } from '@sporthub/types';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 
@@ -118,11 +118,25 @@ const registerSchema = z
  * Расширять `AuthUser` нельзя: его форма закреплена сверкой контрактов у входа
  * и регистрации, а лишнее поле там означало бы изменение обещания без нужды.
  */
-/** Лицо услуг: карточка тренера или клуб, которым человек управляет. */
+/**
+ * Лицо услуг: карточка тренера или клуб, которым человек управляет.
+ *
+ * ⚠️ Статус здесь не для порядка. Владелец, убравший своё лицо, не удаляет его —
+ * оно АРХИВИРУЕТСЯ (`hidden`, шаг 35.24a): из каталога уходит, а записи, отзывы
+ * и связи остаются, и вернуть лицо можно. Значит и в списке лиц оно обязано
+ * остаться — иначе владелец лишится доступа к собственному кабинету и не сможет
+ * ни восстановить публикацию, ни посмотреть её историю.
+ *
+ * Но остаться МОЛЧА оно не должно: кабинет архивированного лица выглядел ровно
+ * как живой, и человек не понимал, почему клуба нет в каталоге. Найдено полным
+ * браузерным прогоном (шаг 35.44a).
+ */
 export type ServiceFace = {
   kind: 'club' | 'trainer';
   id: number;
   name: string;
+  /** `hidden` — лицо убрано из каталога: архивировано владельцем или скрыто модерацией. */
+  status?: EntityStatus;
 };
 
 export type SessionProfile = AuthUser & {
@@ -339,11 +353,17 @@ export class AuthController {
     ]);
 
     return [
-      ...clubs.map((club) => ({ kind: 'club' as const, id: club.id, name: club.name })),
+      ...clubs.map((club) => ({
+        kind: 'club' as const,
+        id: club.id,
+        name: club.name,
+        status: club.status,
+      })),
       ...trainers.map((trainer) => ({
         kind: 'trainer' as const,
         id: trainer.id,
         name: trainer.name,
+        status: trainer.status,
       })),
     ];
   }

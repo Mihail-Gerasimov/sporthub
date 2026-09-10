@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, type ReactNode } from 'react';
 
-import { faceKey, type CabinetTarget } from '@/lib/service-faces';
+import { isFaceArchived, faceKey, type CabinetTarget } from '@/lib/service-faces';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 import { CabinetProvider } from './cabinet-context';
@@ -55,9 +55,24 @@ export function ProfileLayoutShell({
 
   const ariaLabel = face === null ? 'Разделы кабинета атлета' : 'Разделы кабинета провайдера';
 
+  // ⚠️ Убранное из каталога лицо обязано сказать об этом в САМОМ кабинете, а не
+  // только в переключателе: у человека с одним лицом переключателя нет вовсе,
+  // и без этой полосы кабинет архивированного клуба выглядел ровно как живой.
+  // Найдено полным браузерным прогоном (35.44a).
+  const archived = face !== null && isFaceArchived(face);
+
   return (
     <CabinetProvider cabinet={cabinet}>
       <div className="mx-auto w-full max-w-7xl px-4 py-4 md:py-6">
+        {archived ? (
+          <p
+            data-testid="profile-face-archived-notice"
+            className="mb-4 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn"
+          >
+            Публикация убрана из каталога. Записи, отзывы и связи сохранены — вернуть её можно из
+            раздела публикаций.
+          </p>
+        ) : null}
         {face === null ? null : <FaceSwitcher className="mb-4" />}
         <ProfileMobileNav items={items} ariaLabel={ariaLabel} className="mb-4" />
         <div className="md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:items-start md:gap-6">
