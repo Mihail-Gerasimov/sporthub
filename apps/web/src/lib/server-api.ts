@@ -219,6 +219,22 @@ export function faceOwnerQuery(face: ServiceFaceRef | undefined): {
 
 // --- Справочники ---------------------------------------------------------------
 
+/**
+ * Сколько публикаций ждёт повторной проверки (шаг 36.21).
+ *
+ * Спрашивается ровно счётчик: `limit=1` и число из ответа. Тянуть все публикации
+ * ради одного числа значило бы платить за признак ценой, растущей вместе с каталогом.
+ * Отбор — параметром запроса, под ним частичный индекс.
+ *
+ * Маршрут закрыт правом модерации, поэтому читатель у этой функции один — лейаут
+ * служебной панели, где проверка уже пройдена.
+ */
+export async function getAwaitingRecheckCount(): Promise<number> {
+  const page = await apiGet<{ total?: number }>('/publications?awaitingRecheck=true&limit=1');
+
+  return Number(page.total ?? 0);
+}
+
 export const getSports = (): Promise<Sport[]> => apiGet<Sport[]>('/sports');
 export const getCities = (): Promise<City[]> => apiGet<City[]>('/cities');
 export const getTags = (): Promise<Tag[]> => apiGet<Tag[]>('/tags');

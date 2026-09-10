@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 // Phase 28.10: jsdom не имплементирует window.matchMedia с
 // addEventListener('change', ...) — CardSlider использует это для
@@ -86,6 +86,23 @@ vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
         'или замокай fetch в самом тесте.',
     ),
   );
+});
+
+/**
+ * Признак «мы в тестовой среде React» — заново перед КАЖДЫМ тестом.
+ *
+ * ⚠️ Найдено в фазе 36. Testing Library ставит этот признак при загрузке, но любой
+ * набор, вызвавший `vi.unstubAllGlobals()`, снимает его вместе со своими подменами —
+ * и не возвращает. Для своего файла это безобидно (он уже отработал), а вот всем
+ * СЛЕДУЮЩИМ файлам в том же процессе достаётся среда без признака: React перестаёт
+ * выполнять эффекты при отрисовке, и тесты, ждущие запроса из `useEffect`, ловят
+ * таймаут.
+ *
+ * Ломается это самым неприятным образом: по одному файлу набор зелёный, в общей
+ * папке — красный, и причина не в нём. Именно так и было обнаружено.
+ */
+beforeEach(() => {
+  (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 });
 
 afterEach(() => {

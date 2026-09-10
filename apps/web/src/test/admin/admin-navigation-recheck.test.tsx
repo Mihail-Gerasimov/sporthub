@@ -14,11 +14,14 @@
 // и не была видна НИКОМУ. Ровно тот класс, который фаза 35 назвала своим главным
 // выводом, — и на нём же споткнулась эта фаза.
 //
-// Поэтому проверяется не «есть ли число в вёрстке», а ПОДКЛЮЧЕНИЕ: какой адрес
-// навигация дёргает и рисует ли она то, что ответил сервер.
+// ⚠️ Число приходит СВОЙСТВОМ от серверного лейаута, а не запрашивается навигацией
+// из браузера. Первая версия делала запрос в `useEffect` — и набор оказался хрупким:
+// по одному файлу зелёный, в общей папке красный, потому что соседний набор снимал
+// признак тестовой среды React (`vi.unstubAllGlobals`) и эффекты переставали
+// выполняться. Свойство от сервера убирает и лишний круг, и эту хрупкость разом.
 
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
 
@@ -27,72 +30,40 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('навигация служебной панели: признак повторной проверки', () => {
-  const fetchMock = vi.fn();
+  it('рисует число, которое дал сервер', () => {
+    render(<AdminNavigation awaitingRecheck={3} />);
 
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  const answer = (total: number) =>
-    new Response(JSON.stringify({ success: true, data: { items: [], total } }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-
-  it('спрашивает СЧЁТЧИК запросом, а не считает выдачу в браузере', async () => {
-    fetchMock.mockResolvedValue(answer(3));
-
-    render(<AdminNavigation />);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    const [url] = fetchMock.mock.calls[0];
-    const asked = String(url);
-
-    // Отбор — в адресе: под него есть частичный индекс, и отбирать должна база.
-    expect(asked).toContain('awaitingRecheck=true');
-    // И берётся именно число, а не выборка: тянуть все публикации ради счётчика —
-    // это цена, растущая вместе с каталогом.
-    expect(asked).toContain('limit=1');
-  });
-
-  it('рисует число, которое ответил сервер', async () => {
-    fetchMock.mockResolvedValue(answer(3));
-
-    render(<AdminNavigation />);
-
-    expect(await screen.findByText('3')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    // Подпись для экранного диктора называет, что это за число: «3» само по себе
+    // диктору ничего не сообщает.
     expect(screen.getByLabelText('Исправлено, ждёт проверки: 3')).toBeInTheDocument();
   });
 
-  it('нечего проверять — признака нет вовсе', async () => {
+  it('нечего проверять — признака нет вовсе', () => {
     // Иначе навигация носила бы вечный ноль и перестала бы что-либо сообщать.
-    fetchMock.mockResolvedValue(answer(0));
-
-    render(<AdminNavigation />);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
+    render(<AdminNavigation awaitingRecheck={0} />);
 
     expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Исправлено/)).not.toBeInTheDocument();
   });
 
-  it('несосчитавшийся признак не ломает навигацию', async () => {
-    // Признак — подсказка, а не содержание страницы: упавший запрос не имеет права
-    // унести с собой все пять разделов.
-    fetchMock.mockRejectedValue(new Error('сеть недоступна'));
+  it('признак стоит именно у «Модерации», а не у соседнего раздела', () => {
+    // Число рядом с «Логами» или «Финансами» сообщало бы неправду, и заметить
+    // это можно только проверкой места.
+    render(<AdminNavigation awaitingRecheck={2} />);
 
+    expect(screen.getByRole('link', { name: /Модерация/ })).toHaveTextContent('2');
+    expect(screen.getByRole('link', { name: 'Логи' })).not.toHaveTextContent('2');
+    expect(screen.getByRole('link', { name: 'Пользователи' })).not.toHaveTextContent('2');
+  });
+
+  it('без свойства навигация остаётся целой', () => {
+    // Признак — подсказка, а не содержание: его отсутствие не имеет права унести
+    // с собой пять разделов.
     render(<AdminNavigation />);
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
-
-    expect(screen.getByRole('link', { name: 'Модерация' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Модерация/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Пользователи' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Финансы' })).toBeInTheDocument();
   });
 });

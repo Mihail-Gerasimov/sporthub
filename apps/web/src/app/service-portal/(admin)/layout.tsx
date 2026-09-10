@@ -12,6 +12,7 @@ import Link from 'next/link';
 
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
+import { getAwaitingRecheckCount } from '@/lib/server-api';
 import { requireAdmin } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -32,12 +33,19 @@ export default async function AdminLayout({
   // осталась на месте и стоит ДО чтения данных: иначе гость получил бы сводку
   // площадки в потоке ответа, а плашка нарисовалась бы поверх.
   await requireAdmin();
+
+  // Признак повторной проверки считает СЕРВЕР и отдаёт свойством: страница и так
+  // собирается здесь, а второй поход из браузера ради одного числа — лишний круг.
+  // Ошибка счёта не имеет права унести с собой всю панель: признак — подсказка,
+  // а не содержание страницы.
+  const awaitingRecheck = await getAwaitingRecheckCount().catch(() => 0);
+
   return (
     <AdminGuard>
       <div className="w-full max-w-[1440px] px-4 py-7 sm:px-8">
         {/* Топ-полоса: навигация по разделам слева, «Открыть сайт» справа */}
         <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <AdminNavigation />
+          <AdminNavigation awaitingRecheck={awaitingRecheck} />
           <Link
             href="/"
             className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime lg:self-auto"

@@ -38,7 +38,26 @@ function isItemActive(pathname: string, href: string): boolean {
   return pathname.startsWith(`${href}/`);
 }
 
-export function AdminNavigation() {
+/**
+ * Навигация служебной панели.
+ *
+ * `awaitingRecheck` — сколько публикаций владельцы исправили и что ждёт повторной
+ * проверки (шаг 36.21). Число приходит СВОЙСТВОМ от серверного лейаута, а не
+ * запрашивается здесь: сервер и так собирает страницу, и второй поход из браузера
+ * ради одного числа — лишний круг и лишняя точка отказа.
+ *
+ * ⚠️ Признак живёт в собственной поверхности администратора, а не в колокольчике
+ * человека, и это не косметика. Найдено браузерным прогоном приёмки: план фазы
+ * обосновывал адресата уведомления словами «колокольчик показывается любому
+ * вошедшему, включая администратора». На деле `NotificationBell` для вида учётной
+ * записи `admin` возвращает `null` явной строкой, лента `/profile/me/notifications`
+ * закрыта `requirePerson()`, а в служебной панели колокольчика нет вовсе — то есть
+ * строка уведомления создавалась и не была видна НИКОМУ.
+ *
+ * Завести админу человеческую ленту ради одного типа значило бы боком отменить
+ * решение заказчика 13: он отстранён от базового набора человека намеренно.
+ */
+export function AdminNavigation({ awaitingRecheck = 0 }: { awaitingRecheck?: number }) {
   const pathname = usePathname();
 
   return (
@@ -60,6 +79,14 @@ export function AdminNavigation() {
                 )}
               >
                 {item.label}
+                {item.href === '/service-portal/moderation' && awaitingRecheck > 0 ? (
+                  <span
+                    className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] text-white"
+                    aria-label={`Исправлено, ждёт проверки: ${awaitingRecheck}`}
+                  >
+                    {awaitingRecheck}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
