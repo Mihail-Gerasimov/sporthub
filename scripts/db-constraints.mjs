@@ -36,6 +36,11 @@ export const INDEX_PREDICATES = {
   notifications_personal_unread_idx:
     'addressee_club_id IS NULL AND addressee_trainer_id IS NULL AND read_at IS NULL',
   sessions_active_idx: 'revoked_at IS NULL',
+  // Раздел модерации: «что исправили и ждёт повторной проверки» (шаг 36.22).
+  // Строк с признаком — единицы, публикаций — тысячи, поэтому индекс частичный,
+  // а не составной: составной хранил бы всю таблицу ради нескольких строк.
+  clubs_awaiting_recheck_idx: 'awaiting_recheck',
+  trainers_awaiting_recheck_idx: 'awaiting_recheck',
 };
 
 /**
@@ -184,6 +189,9 @@ export const PARTIAL_INDEXES = {
   /// Отзыв всех живых сессий пользователя: отозванные в индекс не попадают,
   /// а их со временем становится большинство.
   sessions_active_idx: { table: 'sessions', columns: 'user_id' },
+  /// Раздел модерации отбирает исправленные публикации ЗАПРОСОМ, а не в памяти.
+  clubs_awaiting_recheck_idx: { table: 'clubs', columns: 'hidden_at DESC' },
+  trainers_awaiting_recheck_idx: { table: 'trainers', columns: 'hidden_at DESC' },
 };
 
 /** Готовый SQL для миграции. */
