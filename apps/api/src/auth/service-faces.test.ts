@@ -53,7 +53,10 @@ describe('Лица услуг в ответе «кто я»', () => {
     expect(faces.length, 'список лиц владельца пуст — кабинет лица не откроется').toBeGreaterThan(
       0,
     );
-    expect(faces.some((face) => face.kind === 'club'), 'клубов в списке нет').toBe(true);
+    expect(
+      faces.some((face) => face.kind === 'club'),
+      'клубов в списке нет',
+    ).toBe(true);
     expect(
       faces.some((face) => face.kind === 'trainer'),
       'карточек тренера в списке нет',

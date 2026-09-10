@@ -12,6 +12,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { API_ROOT } from '../test/repo-root';
+
 /** Тексты, каждый из которых обязан встречаться в коде дословно. */
 // ⚠️ Фаза 34 сняла отсюда три текста, и это не потеря, а следствие:
 // «Некорректные данные лога» — маршрут записи в журнал с клиента удалён совсем;
@@ -96,7 +98,7 @@ const REQUIRED_MESSAGES = [
 ] as const;
 
 /** Все исходники бэкенда без тестов — в одну строку для поиска. */
-async function readSources(directory = path.join(process.cwd(), 'src')): Promise<string> {
+async function readSources(directory = path.join(API_ROOT, 'src')): Promise<string> {
   const entries = await readdir(directory, { withFileTypes: true });
   const parts: string[] = [];
 

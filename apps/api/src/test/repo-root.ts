@@ -39,3 +39,6 @@ function findRepoRoot(start: string): string {
 }
 
 export const REPO_ROOT = findRepoRoot(process.cwd());
+
+/** Корень пакета `apps/api`. Считается от корня репозитория, а не от места запуска. */
+export const API_ROOT = path.join(REPO_ROOT, 'apps', 'api');

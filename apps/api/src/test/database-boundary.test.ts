@@ -10,7 +10,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const API_ROOT = process.cwd();
+import { API_ROOT as ROOT_OF_API } from './repo-root';
+
+// Корень пакета выводится из корня репозитория, а не из места запуска.
+const API_ROOT = ROOT_OF_API;
 const WEB_ROOT = path.join(API_ROOT, '..', 'web', 'src');
 
 /** Слои, которым знать про клиент базы положено. */

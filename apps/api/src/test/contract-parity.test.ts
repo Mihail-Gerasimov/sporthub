@@ -39,7 +39,9 @@ import {
 import { createTestHarness, type TestHarness } from './harness';
 import { ISO_TIME_SHAPE, VOLATILE_KEYS, collectTimeShapes } from './time-shape';
 
-const SNAPSHOT_PATH = path.join(process.cwd(), '..', '..', 'contracts', 'contract-snapshot.json');
+import { REPO_ROOT } from './repo-root';
+
+const SNAPSHOT_PATH = path.join(REPO_ROOT, 'contracts', 'contract-snapshot.json');
 
 export function normalize(value: unknown): unknown {
   if (Array.isArray(value)) {
