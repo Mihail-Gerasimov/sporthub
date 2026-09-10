@@ -8,7 +8,9 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import type { Offering, Schedule } from '@sporthub/types';
 
-import { Public } from '../auth/access.decorators';
+import { AccessService } from '../access/access.service';
+import { CurrentUser, Public } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import {
   stripOptionalPublicationOwner,
   type PublicClub,
@@ -41,10 +43,16 @@ export type PublicSlotContext = {
 @Public()
 @Controller('schedule')
 export class SlotContextController {
-  constructor(private readonly slots: SlotContextService) {}
+  constructor(
+    private readonly slots: SlotContextService,
+    private readonly access: AccessService,
+  ) {}
 
   @Get(':id/context')
-  async findContext(@Param('id') rawId: string): Promise<PublicSlotContext> {
+  async findContext(
+    @Param('id') rawId: string,
+    @CurrentUser() session?: SessionContext,
+  ): Promise<PublicSlotContext> {
     const scheduleId = Number(rawId);
 
     if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
@@ -57,11 +65,57 @@ export class SlotContextController {
       throw new NotFoundError('Слот расписания не найден');
     }
 
+    // ⚠️ Шаг 36.16. Шестой путь к скрытой публикации, и самый незаметный:
+    // страница записи открыта гостю и отдаёт сразу три публикации — клуб-владельца,
+    // тренера и клуб-площадку. Проверки статуса здесь не было ВООБЩЕ, то есть
+    // скрытая публикация приходила гостю целиком через адрес слота.
+    //
+    // Правило то же самое, что у карточки, и берётся оттуда же: своего понятия
+    // видимости здесь не заводится.
+    await this.assertOwnersVisible(context, session);
+
     return {
       ...context,
       affiliatedClub: stripOptionalPublicationOwner(context.affiliatedClub),
       club: stripOptionalPublicationOwner(context.club),
       trainer: stripOptionalPublicationOwner(context.trainer),
     };
+  }
+
+  /**
+   * Виден ли слот: он виден ровно настолько, насколько видны его публикации.
+   *
+   * Скрыт клуб-владелец или тренер — слота для смотрящего не существует.
+   * Скрыт клуб-ПЛОЩАДКА — занятие всё равно принадлежит тренеру и остаётся
+   * видимым: площадка тут не владелец, а место. Разница не косметическая:
+   * закрыв слот по площадке, мы спрятали бы чужое занятие вместе с чужим залом.
+   */
+  private async assertOwnersVisible(
+    context: { club: { id: number; status?: string } | null; trainer: { id: number; status?: string } | null },
+    session: SessionContext | undefined,
+  ): Promise<void> {
+    const owners = [
+      context.club === null ? null : ({ kind: 'club', id: context.club.id, status: context.club.status } as const),
+      context.trainer === null
+        ? null
+        : ({ kind: 'trainer', id: context.trainer.id, status: context.trainer.status } as const),
+    ];
+
+    for (const owner of owners) {
+      if (owner === null || owner.status !== 'hidden') {
+        continue;
+      }
+
+      const visible = await this.access.canSeeHiddenPublication(
+        { kind: owner.kind, id: owner.id },
+        session?.user.id,
+      );
+
+      if (!visible) {
+        // Тот же текст, что у настоящего отсутствия: иначе разница в формулировке
+        // рассказала бы ровно то, что мы скрываем.
+        throw new NotFoundError('Слот расписания не найден');
+      }
+    }
   }
 }

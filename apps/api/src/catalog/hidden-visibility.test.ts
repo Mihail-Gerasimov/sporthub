@@ -183,6 +183,65 @@ describe('скрытая публикация: шесть путей отвеч�
     });
   }
 
+  it('контекст слота скрытой публикации гостю не отдаётся', async () => {
+    // ⚠️ Шестой путь и самый незаметный: страница записи открыта гостю и отдаёт
+    // сразу три публикации. Проверки статуса здесь не было ВООБЩЕ.
+    await harness.writeMany({
+      offerings: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          sportId: 1,
+          title: 'Тренировка',
+          description: 'Описание',
+          format: 'group',
+          price: 1000,
+          durationMinutes: 60,
+          capacity: 10,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+        },
+      ],
+      schedule: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          offeringId: 1,
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          sportId: 1,
+          title: 'Утро',
+          date: '2026-10-01',
+          startTime: '08:00',
+          endTime: '09:00',
+          durationMinutes: 60,
+          level: 'all_levels',
+          capacity: 10,
+          bookedCount: 0,
+          price: 1000,
+        },
+      ],
+    });
+
+    const guest = await request(server()).get('/api/schedule/1/context');
+    expect(guest.status).toBe(404);
+
+    const stranger = await request(server())
+      .get('/api/schedule/1/context')
+      .set('Cookie', await harness.as(STRANGER_ID));
+    expect(stranger.status).toBe(404);
+
+    // Владелец свой слот видит: без этого он не откроет собственное занятие.
+    const owner = await request(server())
+      .get('/api/schedule/1/context')
+      .set('Cookie', await harness.as(OWNER_ID));
+    expect(owner.status).toBe(200);
+  });
+
   it('отказ гостю — 404, а не 403: по 403 публикацию можно перечислить', async () => {
     const response = await request(server()).get('/api/clubs/1');
 
