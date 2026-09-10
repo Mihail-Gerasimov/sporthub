@@ -43,7 +43,9 @@ describe('счётчик публикаций, ждущих повторной �
 
   it('берёт `total` из КОНВЕРТА, а не из `data`', async () => {
     // Форма ответа — настоящая, снятая с живого маршрута.
-    fetchMock.mockResolvedValue(envelope({ success: true, data: [], total: 4, offset: 0, limit: 1 }));
+    fetchMock.mockResolvedValue(
+      envelope({ success: true, data: [], total: 4, offset: 0, limit: 1 }),
+    );
 
     expect(await getAwaitingRecheckCount()).toBe(4);
   });
