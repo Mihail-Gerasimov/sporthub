@@ -102,6 +102,33 @@ export class BackendUnavailableError extends Error {
  * Сбой не глушится: он поднимается наверх и доходит до границы ошибки Next,
  * которая показывает честное сообщение вместо пустой страницы.
  */
+/**
+ * Общее число строк из конверта постраничной выдачи.
+ *
+ * ⚠️ Заводится отдельно, потому что `apiGet` возвращает `data` и всё, что лежит
+ * РЯДОМ с ним в конверте, теряет. Постраничные маршруты кладут `total` вторым
+ * полем конверта — `{ success, data: [...], total, offset, limit }`, — и попытка
+ * прочитать его из `data` даёт `undefined`, то есть ВЕЧНЫЙ НОЛЬ.
+ *
+ * Найдено браузерным прогоном: счётчик в панели показывал ноль при непустой
+ * очереди, и по коду это выглядело правильным. Тест на компонент такое не ловит —
+ * он проверяет отрисовку числа, а не то, откуда оно взялось.
+ */
+async function apiGetTotal(path: string): Promise<number> {
+  const response = await fetch(`${API_ORIGIN}/api${path}`, {
+    cache: 'no-store',
+    headers: await sessionHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new BackendUnavailableError(path, response.status);
+  }
+
+  const body = (await response.json()) as { success?: boolean; total?: number };
+
+  return body.success === true ? Number(body.total ?? 0) : 0;
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   let response: Response;
 
@@ -230,9 +257,7 @@ export function faceOwnerQuery(face: ServiceFaceRef | undefined): {
  * служебной панели, где проверка уже пройдена.
  */
 export async function getAwaitingRecheckCount(): Promise<number> {
-  const page = await apiGet<{ total?: number }>('/publications?awaitingRecheck=true&limit=1');
-
-  return Number(page.total ?? 0);
+  return apiGetTotal('/publications?awaitingRecheck=true&limit=1');
 }
 
 export const getSports = (): Promise<Sport[]> => apiGet<Sport[]>('/sports');
