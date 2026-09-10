@@ -5,7 +5,7 @@ import { accountKindOf } from '@sporthub/domain';
 // состояния считается опубликованной — так устроены исходные данные.
 
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
-import type { CatalogOwnerType, Club, Trainer } from '@sporthub/types';
+import type { CatalogOwnerType, Club, HideKindValue, Trainer } from '@sporthub/types';
 
 import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
@@ -28,6 +28,16 @@ export type PublicationItem = {
   managedByUserId: number | undefined;
   hideReason?: string;
   hiddenAt?: string;
+  /**
+   * Вид скрытия: архив владельца или скрытие модератором (шаг 36.12).
+   *
+   * ⚠️ Раздел модерации без этого поля различал бы их только сравнением текста
+   * причины с константой — то есть не различал бы вовсе: владельцу достаточно
+   * вписать ту же строку руками.
+   */
+  hiddenKind?: HideKindValue;
+  /** Владелец исправил скрытую публикацию, она ждёт повторной проверки (36.20). */
+  awaitingRecheck?: boolean;
 };
 
 function clubToItem(club: Club): PublicationItem {
@@ -42,6 +52,8 @@ function clubToItem(club: Club): PublicationItem {
     managedByUserId: club.managedByUserId,
     hideReason: club.hideReason,
     hiddenAt: club.hiddenAt,
+    hiddenKind: club.hiddenKind,
+    awaitingRecheck: club.awaitingRecheck,
   };
 }
 
@@ -57,6 +69,8 @@ function trainerToItem(trainer: Trainer): PublicationItem {
     managedByUserId: trainer.managedByUserId,
     hideReason: trainer.hideReason,
     hiddenAt: trainer.hiddenAt,
+    hiddenKind: trainer.hiddenKind,
+    awaitingRecheck: trainer.awaitingRecheck,
   };
 }
 
@@ -261,6 +275,9 @@ export class PublicationsController {
     @Query('city') city?: string,
     @Query('sportId') rawSportId?: string,
     @Query('search') rawSearch?: string,
+    // ⚠️ Шаг 36.22. Параметр НЕОБЯЗАТЕЛЬНЫЙ: клиент, ничего о нём не знающий,
+    // обязан получить ровно ту же выдачу, что получал до выкатки.
+    @Query('awaitingRecheck') rawAwaitingRecheck?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
   ): Promise<TopLevelResult<PublicationItem[]>> {
@@ -269,6 +286,10 @@ export class PublicationsController {
     const cityFilter = city ?? '';
     const sportId = rawSportId ? Number(rawSportId) : null;
     const search = (rawSearch ?? '').trim().toLowerCase();
+    // Отбор включается ровно строкой `true`. «Ложь» и мусор означают одно и то же —
+    // отбора нет: среза «покажи всё, что проверять не надо» никто не спрашивает,
+    // и заводить его молча, из-за случайной строки в адресе, нельзя.
+    const onlyAwaitingRecheck = rawAwaitingRecheck === 'true';
     const offset = Math.max(0, Number(rawOffset ?? 0));
     const limit = Math.min(100, Math.max(1, Number(rawLimit ?? 50)));
 
@@ -283,6 +304,9 @@ export class PublicationsController {
       ...(cityFilter ? { city: cityFilter } : {}),
       ...(sportId ? { sportId } : {}),
       ...(search ? { search } : {}),
+      // Очередь повторной проверки уходит В ЗАПРОС: под неё заведён частичный
+      // индекс `clubs_awaiting_recheck_idx` / `trainers_awaiting_recheck_idx`.
+      ...(onlyAwaitingRecheck ? { awaitingRecheck: true } : {}),
     };
 
     // Ненужная половина не читается вовсе: при `type=club` таблица тренеров

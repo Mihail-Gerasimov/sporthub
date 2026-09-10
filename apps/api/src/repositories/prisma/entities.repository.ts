@@ -148,6 +148,11 @@ function buildPublicationWhere(
     }
   }
   if (filter.onlyHidden === true) where.status = 'hidden';
+  // ⚠️ Шаг 36.22. Очередь повторной проверки отбирается запросом по частичному
+  // индексу `WHERE awaiting_recheck`, а не перебором каталога в памяти.
+  // Отбор только «да»: `awaitingRecheck: false` означал бы «покажи всё, что
+  // проверять не надо» — среза с таким смыслом никто не спрашивает.
+  if (filter.awaitingRecheck === true) where.awaitingRecheck = true;
   if (filter.ids !== undefined) where.id = { in: filter.ids };
   if (filter.minRating !== undefined) where.rating = { gte: filter.minRating };
   // Город хранится строкой у самой публикации — под пару «город и состояние»

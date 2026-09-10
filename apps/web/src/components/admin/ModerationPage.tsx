@@ -17,10 +17,22 @@
  * Phase 34 Step 34.49: поле `moderatorId` из тела действий ушло. Кто скрыл
  * публикацию, сервер знает из сессии; до этого модератора называл браузер —
  * и в журнале оставался тот, кого он назвал.
+ *
+ * Phase 36 Step 36.22: у раздела появилась вторая очередь — публикации, которые
+ * модератор скрыл, а владелец уже исправил. Отбор по ней уходит В ЗАПРОС
+ * (`awaitingRecheck=true`), под него в базе заведён частичный индекс; отбирать
+ * признак в браузере нельзя — цена такого раздела росла бы вместе с каталогом.
+ *
+ * ⚠️ Две очереди легко спутать, поэтому подписи разведены словами, а не оттенком:
+ * «Новая, на проверке» — публикация, которую ещё ни разу не смотрели
+ * (`status === 'pending'`); «Исправлено, ждёт проверки» — скрытая модератором
+ * и починенная владельцем (`awaitingRecheck`). Прежняя подпись «На проверке»
+ * годилась и туда и сюда.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { City } from '@sporthub/types';
+import { HIDE_KIND_LABELS, isHideKind } from '@sporthub/domain';
+import type { City, HideKindValue } from '@sporthub/types';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +50,10 @@ interface PublicationItem {
   managedByUserId: number | undefined;
   hideReason?: string;
   hiddenAt?: string;
+  /** Вид скрытия: архив владельца или работа модератора (шаг 36.12). */
+  hiddenKind?: HideKindValue;
+  /** Владелец исправил скрытую публикацию, она ждёт повторной проверки. */
+  awaitingRecheck?: boolean;
 }
 
 interface ModerationPageProps {
@@ -109,6 +125,10 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   const [typeFilter, setTypeFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('');
   const [sportFilter, setSportFilter] = useState('');
+  // Очередь повторной проверки: `all` — весь раздел, `awaiting` — только то,
+  // что владельцы уже исправили. Отдельный отбор, а не значение состояния:
+  // признак живёт ПОВЕРХ скрытия, а не вместо него.
+  const [recheckFilter, setRecheckFilter] = useState('all');
   const [search, setSearch] = useState('');
 
   // Данные
@@ -129,6 +149,10 @@ export function ModerationPage({ sports }: ModerationPageProps) {
     if (cityFilter) params.set('city', cityFilter);
     if (sportFilter) params.set('sportId', sportFilter);
     if (search.trim()) params.set('search', search.trim());
+    // ⚠️ Отбор уходит В ЗАПРОС, а не отсеивается после ответа. Страница, которая
+    // просит всё и разбирается сама, выглядит на экране точно так же — и именно
+    // так фаза 35 потеряла разделение по лицам в семи разделах кабинета.
+    if (recheckFilter === 'awaiting') params.set('awaitingRecheck', 'true');
     params.set('offset', String(offset));
     params.set('limit', String(PAGE_SIZE));
 
@@ -142,7 +166,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, typeFilter, cityFilter, sportFilter, search, offset]);
+  }, [statusFilter, typeFilter, cityFilter, sportFilter, recheckFilter, search, offset]);
 
   useEffect(() => {
     fetchData();
@@ -151,7 +175,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   // Сброс offset при смене фильтров
   useEffect(() => {
     setOffset(0);
-  }, [statusFilter, typeFilter, cityFilter, sportFilter, search]);
+  }, [statusFilter, typeFilter, cityFilter, sportFilter, recheckFilter, search]);
 
   const handleHide = async (reason: string) => {
     if (!hideTarget) return;
@@ -223,7 +247,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
       </header>
 
       {/* Toolbar: search + 4 select */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,1fr))] xxl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,1fr))] xxl:grid-cols-[minmax(0,1.4fr)_repeat(5,minmax(0,1fr))]">
         <div
           className={cn(
             'relative col-span-1 sm:col-span-2 xl:col-span-1',
@@ -241,11 +265,13 @@ export function ModerationPage({ sports }: ModerationPageProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Поиск по названию..."
+            aria-label="Поиск по названию"
             className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm font-medium text-ink outline-none placeholder:text-disabled"
           />
         </div>
 
         <ToolbarSelect
+          ariaLabel="Статус публикации"
           value={statusFilter}
           active={statusFilter !== 'all'}
           onChange={setStatusFilter}
@@ -256,7 +282,24 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           ]}
         />
 
+        {/*
+         * Вторая очередь раздела. Она НЕ значение статуса: публикация, которую
+         * владелец исправил, остаётся скрытой — признак живёт поверх скрытия,
+         * и спрашивать их можно вместе.
+         */}
         <ToolbarSelect
+          ariaLabel="Повторная проверка"
+          value={recheckFilter}
+          active={recheckFilter !== 'all'}
+          onChange={setRecheckFilter}
+          options={[
+            { value: 'all', label: 'Все публикации' },
+            { value: 'awaiting', label: 'Исправленные, ждут проверки' },
+          ]}
+        />
+
+        <ToolbarSelect
+          ariaLabel="Тип публикации"
           value={typeFilter}
           active={typeFilter !== 'all'}
           onChange={setTypeFilter}
@@ -268,6 +311,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
         />
 
         <ToolbarSelect
+          ariaLabel="Город"
           value={cityFilter}
           active={cityFilter !== ''}
           onChange={setCityFilter}
@@ -278,6 +322,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
         />
 
         <ToolbarSelect
+          ariaLabel="Вид спорта"
           value={sportFilter}
           active={sportFilter !== ''}
           onChange={setSportFilter}
@@ -371,12 +416,22 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
 // --- Внутренние компоненты ---
 
+/**
+ * Селект тулбара.
+ *
+ * ⚠️ `ariaLabel` обязателен. Видимой подписи у селекта нет — её роль играет
+ * первый вариант («Все статусы»), и экранный диктор читал бы пять одинаковых
+ * «списков» подряд. Фаза 35 уже ловила дефект, видимый только в дереве
+ * доступности: подпись врала, а на экране всё выглядело правильно.
+ */
 function ToolbarSelect({
+  ariaLabel,
   value,
   active,
   onChange,
   options,
 }: {
+  ariaLabel: string;
   value: string;
   active: boolean;
   onChange: (value: string) => void;
@@ -390,6 +445,7 @@ function ToolbarSelect({
       )}
     >
       <select
+        aria-label={ariaLabel}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full cursor-pointer appearance-none bg-transparent py-3.5 pl-4 pr-9 text-[13px] font-semibold text-ink outline-none"
@@ -424,6 +480,15 @@ function ItemCard({
 }) {
   const isHidden = item.status === 'hidden';
   const isPending = item.status === 'pending';
+  // Признак повторной проверки: владелец исправил то, что скрыл модератор.
+  const isAwaitingRecheck = item.awaitingRecheck === true;
+  /**
+   * Подпись скрытия берётся из словаря `@sporthub/domain` по ПРИЗНАКУ вида,
+   * а не сравнением текста причины с константой: иначе владельцу достаточно
+   * вписать служебную строку руками, чтобы его архив выглядел работой модератора.
+   * Публикации, скрытые до появления признака, остаются с прежней подписью.
+   */
+  const hiddenLabel = isHideKind(item.hiddenKind) ? HIDE_KIND_LABELS[item.hiddenKind] : 'Скрыто';
   const dateLabel = new Date(item.createdAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'short',
@@ -441,12 +506,18 @@ function ItemCard({
             {item.type === 'club' ? 'Клуб' : 'Тренер'}
           </Badge>
           {isHidden ? (
-            <Badge tone="muted">Скрыто</Badge>
+            <Badge tone="muted">{hiddenLabel}</Badge>
           ) : isPending ? (
-            <Badge tone="gold">На проверке</Badge>
+            // ⚠️ «Новая», а не «На проверке»: рядом живёт вторая очередь —
+            // исправленные после скрытия. Прежняя подпись годилась обеим,
+            // и модератор не мог понять, какую именно очередь он смотрит.
+            <Badge tone="gold">Новая, на проверке</Badge>
           ) : (
             <Badge tone="lime-soft">Опубликовано</Badge>
           )}
+          {/* Признак идёт рядом со скрытием, а не вместо него: публикация
+              всё ещё вне каталога, но разбирательство уже сдвинулось. */}
+          {isAwaitingRecheck ? <Badge tone="gold">Исправлено, ждёт проверки</Badge> : null}
         </div>
         <p className="m-0 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-medium text-muted">
           {item.city && <span>{item.city}</span>}

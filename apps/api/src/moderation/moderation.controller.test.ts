@@ -481,6 +481,88 @@ describe('Маршруты модерации', () => {
     expect(response.body.total).toBe(3);
   });
 
+  // --- Очередь повторной проверки (шаг 36.22) ----------------------------------
+
+  /**
+   * Скрытая модератором публикация, которую владелец уже исправил.
+   *
+   * ⚠️ Признак ставится ЧЕРЕЗ репозиторий, а не подкладыванием строки в срез:
+   * так проверка идёт по тому же пути, что и правка публикации в бою, и вместе
+   * с ней проверяется, что колонка вообще пишется.
+   */
+  const markAwaitingRecheck = async (): Promise<void> => {
+    const clubs = harness.app.get<ClubsRepository>(CLUBS_REPOSITORY);
+
+    await clubs.update(1, {
+      status: 'hidden',
+      hideReason: 'Жалобы',
+      hiddenKind: 'moderation',
+      awaitingRecheck: true,
+    });
+  };
+
+  it('отбор «ждёт повторной проверки» отдаёт только исправленные', async () => {
+    // ⚠️ Отбор обязан уходить В ЗАПРОС: под него заведён частичный индекс
+    // `clubs_awaiting_recheck_idx`. Отсев после чтения выглядел бы так же,
+    // но дорожал бы вместе с каталогом — ровно то, что запрещает главное правило.
+    await markAwaitingRecheck();
+
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/publications?awaitingRecheck=true')
+      .set('Cookie', adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(
+      response.body.data.map((item: { type: string; id: number }) => `${item.type}-${item.id}`),
+    ).toEqual(['club-1']);
+    expect(response.body.total).toBe(1);
+  });
+
+  it('без параметра отбора выдача прежняя — старый клиент переживает выкатку', async () => {
+    // Параметр необязательный: клиент, ничего о нём не знающий, обязан получить
+    // ровно то же, что получал до выкатки.
+    await markAwaitingRecheck();
+
+    const all = await request(harness.app.getHttpServer())
+      .get('/api/publications')
+      .set('Cookie', adminCookie);
+    expect(all.body.data).toHaveLength(3);
+
+    // Явное «нет» — тоже не отбор, а его отсутствие.
+    const off = await request(harness.app.getHttpServer())
+      .get('/api/publications?awaitingRecheck=false')
+      .set('Cookie', adminCookie);
+    expect(off.body.data).toHaveLength(3);
+  });
+
+  it('элемент выдачи несёт вид скрытия и признак повторной проверки', async () => {
+    // Без этих полей раздел модерации не отличит архив владельца от своего же
+    // скрытия и не покажет, что публикацию уже исправили.
+    await markAwaitingRecheck();
+
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/publications?status=hidden')
+      .set('Cookie', adminCookie);
+
+    const item = response.body.data.find(
+      (row: { type: string; id: number }) => row.type === 'club' && row.id === 1,
+    );
+
+    expect(item).toMatchObject({ hiddenKind: 'moderation', awaitingRecheck: true });
+  });
+
+  it('отбор по повторной проверке складывается с отбором по типу', async () => {
+    // Условия обязаны СУЖАТЬ друг друга, а не заменять: иначе новый параметр
+    // тихо отменил бы уже существующий.
+    await markAwaitingRecheck();
+
+    const byTrainer = await request(harness.app.getHttpServer())
+      .get('/api/publications?awaitingRecheck=true&type=trainer')
+      .set('Cookie', adminCookie);
+
+    expect(byTrainer.body.data).toHaveLength(0);
+  });
+
   it('неизвестное действие отклоняется своим текстом', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/moderation')
