@@ -191,4 +191,40 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     // id=5 — месяц назад (link_revoked)
     expect(earlier).toContainElement(screen.getByTestId('notification-item-5'));
   });
+
+  it('надзорная вкладка не показывается, пока нет её строк', () => {
+    // ⚠️ Шаг 36.21 добавил четвёртую группу, и её единственный тип адресован
+    // АДМИНИСТРАТОРУ. На этой странице администратора не бывает — она закрыта
+    // `requirePerson()`, — и вкладка получалась вечно пустой у всех.
+    //
+    // Прятать её насовсем нельзя: строка, если она сюда попадёт, была бы видна
+    // в «Все» и неотфильтровываема. Поэтому решают ДАННЫЕ, а не формула.
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+
+    expect(screen.queryByTestId('notifications-filter-group-moderation')).not.toBeInTheDocument();
+    // Прочие вкладки на месте: правило сузило ровно одну.
+    expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-links')).toBeInTheDocument();
+    expect(screen.getByTestId('notifications-filter-group-reviews')).toBeInTheDocument();
+  });
+
+  it('появилась надзорная строка — появилась и вкладка', () => {
+    render(
+      <NotificationsListPage
+        notifications={[
+          ...fixtures,
+          {
+            id: 9001,
+            userId: 1,
+            type: 'publication_recheck_requested',
+            payload: { publicationName: 'Клуб' },
+            createdAt: '2026-04-22T11:00:00.000Z',
+          },
+        ]}
+        userId={1}
+      />,
+    );
+
+    expect(screen.getByTestId('notifications-filter-group-moderation')).toBeInTheDocument();
+  });
 });

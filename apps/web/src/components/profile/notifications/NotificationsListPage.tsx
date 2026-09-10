@@ -201,14 +201,6 @@ export function NotificationsListPage({
   // у атлета: у роли атлета связей не бывало. Ролей нет, у человека с клубом связи
   // есть, и спрятанная вкладка означала бы строки, которые видно в «Все»
   // и невозможно отфильтровать.
-  const visibleGroupKeys: readonly NotificationGroupKey[] = NOTIFICATION_GROUP_KEYS;
-
-  // Защита от stale activeGroup: если active-tab стал невидимым, сбрасываем на 'all'.
-  useEffect(() => {
-    if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
-      setActiveGroup('all');
-    }
-  }, [activeGroup, visibleGroupKeys]);
 
   // ⚠️ Шаг 35.28a. Отбора по формуле «тип → роль» здесь больше нет — ни здесь,
   // ни в счётчиках вкладок, ни в самом списке. Видимость строки решает её АДРЕСАТ,
@@ -236,6 +228,31 @@ export function NotificationsListPage({
     }
     return counts;
   }, [notifications]);
+
+  //
+  // ⚠️ Шаг 36.21 добавил четвёртую группу — надзорную. Её единственный тип адресован
+  // АДМИНИСТРАТОРУ, а на этой странице администратора не бывает: она закрыта
+  // `requirePerson()`. Вкладка получалась вечно пустой у всех.
+  //
+  // Прятать её насовсем нельзя по правилу выше — тогда строка, если она однажды
+  // сюда попадёт, будет видна в «Все» и неотфильтровываема. Поэтому решает
+  // не формула «кому положено», а сами ДАННЫЕ: вкладка появляется, когда в ленте
+  // есть хоть одна её строка.
+  const visibleGroupKeys: readonly NotificationGroupKey[] = useMemo(
+    () =>
+      NOTIFICATION_GROUP_KEYS.filter(
+        (group) => group !== 'moderation' || groupCounts[group] > 0,
+      ),
+    [groupCounts],
+  );
+
+  // Защита от stale activeGroup: если active-tab стал невидимым, сбрасываем на 'all'.
+  useEffect(() => {
+    if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
+      setActiveGroup('all');
+    }
+  }, [activeGroup, visibleGroupKeys]);
+
 
   // Фильтр — только то, что человек выбрал сам: группа и тоггл непрочитанных.
   const filtered = useMemo(() => {
