@@ -9,7 +9,12 @@
 // Поэтому здесь проверка идёт ОТ СТРАНИЦЫ, а не от компонента: рисуется настоящая
 // серверная страница `/profile/me/dashboard`, и вопрос к ней тот самый, который
 // задаёт человек, — «есть ли на этой странице кнопка завести лицо».
-
+//
+// ⚠️ Вторая проверка — про ИСТОЧНИК списка лиц (ловушка 18 файла фазы).
+// `useCabinetFaces()` отвечает на вопрос «чей это кабинет» и в личном кабинете
+// отдаёт пустой список. Если модалка возьмёт лица оттуда, выбор клуба-площадки
+// в форме тренера молча опустеет: заведение лица — вопрос ЧЕЛОВЕКА, и источник
+// здесь `useAuthFaces()`.
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -87,6 +92,52 @@ describe('Заведение лица услуг из личного кабин�
     expect(
       screen.getByRole('button', { name: 'Опубликовать карточку тренера' }),
     ).toBeInTheDocument();
+  });
+
+  // --- Шаг 36.31: источник списка лиц (ловушка 18, диверсия д-37) ---
+
+  it('в модалке тренера, открытой из личного кабинета, свой клуб предлагается площадкой', () => {
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { id: 7, name: 'Пётр Смирнов', email: 'petr@sporthub.local' },
+      accountKind: 'person',
+      isAuthenticated: true,
+      status: 'ready',
+      // Клуб уже заведён, карточки тренера ещё нет — человек заводит второе лицо.
+      faces: [{ kind: 'club', id: 4, name: 'Volna Aquatic Club' }],
+    });
+
+    // Раздел живёт в ЛИЧНОМ кабинете: там `useCabinetFaces()` отдаёт пустой список,
+    // и подмена источника обязана обрушить именно эту проверку.
+    renderInPersonalCabinet(<CreateFaceSection />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать карточку тренера' }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Volna Aquatic Club' })).toBeInTheDocument();
+  });
+
+  it('человеку без клубов выбор площадки предлагает только «без привязки»', () => {
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { id: 7, name: 'Пётр Смирнов', email: 'petr@sporthub.local' },
+      accountKind: 'person',
+      isAuthenticated: true,
+      status: 'ready',
+      faces: [],
+    });
+
+    renderInPersonalCabinet(<CreateFaceSection />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать карточку тренера' }));
+
+    // Единственный пункт — «Без привязки к клубу»: своих клубов у человека нет,
+    // а чужие в этот список не попадают ни при каких условиях. Считаются пункты
+    // ИМЕННО этого выбора: в форме есть и другие выпадающие списки.
+    const venueSelect = screen
+      .getByRole('option', { name: 'Без привязки к клубу' })
+      .closest('select');
+    expect(venueSelect?.querySelectorAll('option')).toHaveLength(1);
   });
 
   it('кнопка «Опубликовать клуб» открывает модалку клуба', () => {
