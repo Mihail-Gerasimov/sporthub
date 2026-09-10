@@ -13,6 +13,8 @@ import {
   SESSION_COOKIE_NAME_HOST,
   SESSION_COOKIE_NAME_PLAIN,
   SESSION_TOKEN_BYTES,
+  sessionCookieAttributes,
+  sessionCookieName,
 } from '@sporthub/domain/session-cookie';
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 import { NextRequest } from 'next/server';
@@ -163,6 +165,79 @@ describe('proxy: что решает', () => {
         ),
         `идентификатор из ${bytes} байт отбит`,
       ).toBeNull();
+    }
+  });
+});
+
+describe('proxy: гашение мусорной cookie (шаг 36.25)', () => {
+  /** Заголовки `Set-Cookie` ответа — так их видит браузер. */
+  const setCookies = (response: ReturnType<typeof proxy>): string[] =>
+    response.headers.getSetCookie();
+
+  /** Заголовок гашения для указанного имени. */
+  function clearingOf(response: ReturnType<typeof proxy>, name: string): string {
+    const header = setCookies(response).find((value) => value.startsWith(`${name}=`));
+
+    expect(
+      header,
+      `cookie «${name}» не гасится: ${setCookies(response).join(' | ')}`,
+    ).toBeDefined();
+
+    return header as string;
+  }
+
+  it('мусорная cookie гасится тем же набором признаков, каким её ставили', () => {
+    // ⚠️ Иначе браузер сочтёт это ДРУГОЙ cookie и оставит прежнюю живой:
+    // `Set-Cookie` уйдёт, ответ будет выглядеть правильным, а мусор останется
+    // и продолжит стоить увода на каждой странице.
+    const response = proxy(requestFor('/profile/me', { [SESSION_COOKIE_NAME_PLAIN]: 'x' }));
+    const header = clearingOf(response, SESSION_COOKIE_NAME_PLAIN);
+    const expected = sessionCookieAttributes(false);
+
+    expect(header).toMatch(/Path=\//i);
+    expect(header).toMatch(/HttpOnly/i);
+    expect(header).toMatch(new RegExp(`SameSite=${expected.sameSite}`, 'i'));
+    // Признак `Secure` на имени без префикса не ставится: по HTTP браузер такую
+    // cookie игнорирует целиком, и гашение молча не сработало бы в разработке.
+    expect(expected.secure).toBe(false);
+    expect(header).not.toMatch(/Secure/i);
+    // Значение затирается и срок уходит в прошлое — так cookie и удаляют.
+    expect(header).toMatch(/Max-Age=0|Expires=Thu, 01 Jan 1970/i);
+  });
+
+  it('защищённое имя гасится с Secure и Path=/ — без них браузер отвергнет заголовок', () => {
+    const response = proxy(
+      requestFor('/profile/me', { [SESSION_COOKIE_NAME_HOST]: 'never-issued' }),
+    );
+    const header = clearingOf(response, SESSION_COOKIE_NAME_HOST);
+
+    expect(sessionCookieAttributes(true).secure).toBe(true);
+    expect(header).toMatch(/Secure/i);
+    expect(header).toMatch(/Path=\//i);
+  });
+
+  it('мусор гасится и на странице входа в панель, куда мусорную cookie пускают', () => {
+    // Исключение `/service-portal` сохраняется, но мусор оттуда тоже уходит:
+    // иначе он остался бы жить и стоил бы увода на каждой другой странице.
+    const response = proxy(requestFor('/service-portal', { [SESSION_COOKIE_NAME_PLAIN]: 'x' }));
+
+    expect(response.headers.get('location')).toBeNull();
+    expect(clearingOf(response, SESSION_COOKIE_NAME_PLAIN)).toMatch(/Max-Age=0|Expires=/i);
+  });
+
+  it('гостю без cookie гасить нечего — увод остаётся пустым', () => {
+    // Ответ гостю — 307 в один байт, и он обязан таким остаться: лишний
+    // `Set-Cookie` на каждом заходе гостя это та же самая лишняя работа.
+    expect(setCookies(proxy(requestFor('/profile/me')))).toEqual([]);
+  });
+
+  it('годная по форме cookie не гасится — увольнять вошедших прокси не вправе', () => {
+    const issued = randomBytes(SESSION_TOKEN_BYTES).toString('base64url');
+
+    for (const secure of [true, false]) {
+      const response = proxy(requestFor('/profile/me', { [sessionCookieName(secure)]: issued }));
+
+      expect(setCookies(response)).toEqual([]);
     }
   });
 });

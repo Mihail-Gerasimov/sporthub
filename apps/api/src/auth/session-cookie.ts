@@ -12,7 +12,7 @@
 // в бою другое, и устаревшая копия во фронте разворачивала бы в бою всех вошедших.
 // Здесь остаётся то, что домену знать не положено: решение про окружение.
 
-import { sessionCookieName } from '@sporthub/domain';
+import { sessionCookieAttributes, sessionCookieName } from '@sporthub/domain';
 import type { Request, Response } from 'express';
 
 /**
@@ -33,16 +33,16 @@ export const SESSION_COOKIE_NAME = sessionCookieName(SECURE);
 /**
  * Настройки, общие для выдачи и очистки.
  *
+ * ⚠️ Шаг 36.25. Набор объявлен один раз в `@sporthub/domain`, потому что потребителей
+ * стало два: здесь cookie ставится и убирается, а прокси фронта гасит мусорную при
+ * уводе. Разъехавшись, наборы дали бы самый тихий отказ из возможных — браузер сличает
+ * cookie по имени, пути и домену и `Set-Cookie` с другим путём сочтёт другой cookie.
+ *
  * `sameSite: 'lax'` — запрос с чужого сайта не принесёт cookie на изменяющий метод.
  * Одного этого мало (переходы по ссылке `Lax` пропускает), поэтому изменяющие методы
  * дополнительно сверяют источник запроса — см. проверку `Origin`.
  */
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: SECURE,
-  sameSite: 'lax',
-  path: '/',
-} as const;
+const COOKIE_OPTIONS = sessionCookieAttributes(SECURE);
 
 /** Положить идентификатор сессии в ответ. */
 export function setSessionCookie(response: Response, token: string, expiresAt: Date): void {

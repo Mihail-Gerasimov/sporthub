@@ -38,7 +38,12 @@
 // экспортируемая функция называется `proxy`, рантайм всегда Node — задавать
 // его настройкой сегмента здесь запрещено.
 
-import { SESSION_COOKIE_NAMES, isSessionTokenShaped } from '@sporthub/domain/session-cookie';
+import {
+  SESSION_COOKIE_NAMES,
+  isSessionTokenShaped,
+  sessionCookieAttributes,
+  sessionCookieName,
+} from '@sporthub/domain/session-cookie';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
@@ -64,6 +69,34 @@ function hasShapedSessionCookie(request: NextRequest): boolean {
   });
 }
 
+/**
+ * Погасить cookie сессии, значение которой не похоже на выданное нами (шаг 36.25).
+ *
+ * ⚠️ Признаки берутся из общего объявления, а не выписываются здесь: браузер
+ * сличает cookie по имени, пути и домену, и `Set-Cookie` с другим путём он сочтёт
+ * ДРУГОЙ cookie — заголовок уйдёт, ответ будет выглядеть правильным, а мусор
+ * останется жить и продолжит стоить увода на каждой странице. У имени
+ * с префиксом `__Host-` без `Secure` и `Path=/` браузер отвергает заголовок вовсе.
+ *
+ * Признак `Secure` выводится не из окружения, а из самого имени: имена и режим
+ * связаны один к одному, поэтому оба варианта перебираются вместе с их режимом.
+ *
+ * Годная по форме cookie не гасится никогда: увольнять вошедших прокси не вправе —
+ * годность он не проверяет и проверить не может.
+ */
+function clearJunkSessionCookies(request: NextRequest, response: NextResponse): NextResponse {
+  for (const secure of [false, true]) {
+    const name = sessionCookieName(secure);
+    const cookie = request.cookies.get(name);
+
+    if (cookie === undefined || isSessionTokenShaped(cookie.value)) continue;
+
+    response.cookies.delete({ name, ...sessionCookieAttributes(secure) });
+  }
+
+  return response;
+}
+
 export function proxy(request: NextRequest): NextResponse {
   // Строка нашей формы — дальше решают лейауты и бэкенд. Годность здесь
   // не проверяется: пропуск ≠ доступ.
@@ -81,10 +114,15 @@ export function proxy(request: NextRequest): NextResponse {
   // Сама страница входа гостю нужна — на ней он и становится не гостем.
   // Завершающий слэш учитывается: `/service-portal/` — тот же адрес.
   if (pathname === SERVICE_PORTAL_LOGIN_PATH || pathname === `${SERVICE_PORTAL_LOGIN_PATH}/`) {
-    return NextResponse.next();
+    // Мусор гасится и здесь: иначе он пережил бы заход на страницу входа
+    // и продолжил бы стоить увода на каждой другой странице.
+    return clearJunkSessionCookies(request, NextResponse.next());
   }
 
-  return NextResponse.redirect(new URL(GUEST_DESTINATION, request.url));
+  return clearJunkSessionCookies(
+    request,
+    NextResponse.redirect(new URL(GUEST_DESTINATION, request.url)),
+  );
 }
 
 /**

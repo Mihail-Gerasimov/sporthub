@@ -19,6 +19,7 @@ import {
   SESSION_TOKEN_BYTES,
   SESSION_TOKEN_PATTERN,
   isSessionTokenShaped,
+  sessionCookieAttributes,
   sessionCookieName,
 } from './session-cookie';
 
@@ -95,5 +96,37 @@ describe('Форма идентификатора сессии', () => {
     expect(SESSION_TOKEN_PATTERN.source.startsWith('^')).toBe(true);
     expect(SESSION_TOKEN_PATTERN.source.endsWith('$')).toBe(true);
     expect(isSessionTokenShaped(`не наше ${stringOf(CURRENT_LENGTH, BASE64URL)}`)).toBe(false);
+  });
+});
+
+describe('Признаки cookie сессии', () => {
+  it('одинаковы у выдачи и у гашения — иначе браузер сочтёт их разными cookie', () => {
+    // Признаки объявлены один раз и на двух потребителей: бэкенд ставит и убирает
+    // cookie, прокси гасит мусорную при уводе. Разъехавшись, они дали бы самый
+    // тихий отказ из возможных — `Set-Cookie` уходит, а cookie остаётся живой.
+    expect(sessionCookieAttributes(false)).toEqual({
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+  });
+
+  it('у защищённого имени обязательны Secure и Path=/ — иначе префикс не работает', () => {
+    // Браузер ОТВЕРГАЕТ `Set-Cookie` с префиксом `__Host-` без `Secure` и `Path=/`
+    // целиком. То есть гашение без них не «частично сработает», а не сработает
+    // вовсе, и заметить это по коду нельзя.
+    const attributes = sessionCookieAttributes(true);
+
+    expect(sessionCookieName(true)).toBe(SESSION_COOKIE_NAME_HOST);
+    expect(attributes.secure).toBe(true);
+    expect(attributes.path).toBe('/');
+  });
+
+  it('cookie недоступна из JS и не уходит на чужой сайт изменяющим методом', () => {
+    for (const secure of [true, false]) {
+      expect(sessionCookieAttributes(secure).httpOnly).toBe(true);
+      expect(sessionCookieAttributes(secure).sameSite).toBe('lax');
+    }
   });
 });
