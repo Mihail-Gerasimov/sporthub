@@ -239,10 +239,24 @@ export const getTrainers = (): Promise<Trainer[]> =>
 
 export const getPublishedTrainers = (): Promise<Trainer[]> => apiGet<Trainer[]>('/trainers');
 
-export async function getClubById(id: EntityId): Promise<Club | null> {
-  const clubs = await getClubs();
+/**
+ * Клуб по номеру для ПУБЛИЧНОЙ поверхности — карточки тренера, где он значится
+ * площадкой занятий.
+ *
+ * Шаг 36.18. Раньше здесь поднимался ВЕСЬ каталог со скрытыми (`getClubs()`), и
+ * нужная строка искалась в памяти: и лишний трафик, и скрытая публикация на чужой
+ * публичной странице. Теперь это одна строка запросом — отбор делает маршрут.
+ *
+ * ⚠️ Скрытая площадка отсекается ЗДЕСЬ, а не только на бэкенде, и это не вторая
+ * проверка того же правила. Маршрут решает «кому видна скрытая публикация» и отдаёт
+ * тело владельцу и модератору; вопрос витрины другой — «что на ней место», и ответ
+ * на него один для всех: только опубликованное.
+ */
+export async function getPublishedClubById(id: EntityId): Promise<Club | null> {
+  const detail = await apiGetOptional<{ club: Club }>(`/clubs/${encodeURIComponent(String(id))}`);
+  const club = detail?.club ?? null;
 
-  return clubs.find((club) => club.id === id) ?? null;
+  return club === null || club.status === 'hidden' ? null : club;
 }
 
 export async function getTrainerById(id: EntityId): Promise<Trainer | null> {

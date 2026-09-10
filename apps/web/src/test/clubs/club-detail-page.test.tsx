@@ -145,7 +145,7 @@ describe('Club detail page', () => {
       // Раскодирование ссылки — работа бэкенда: он отвечает на закодированный адрес
       // той же карточкой. Здесь важно лишь, что страница до него доходит.
       [bySlug(encodedSlug)]: { club: cyrillicClub },
-      '/trainers?includeHidden=true': [],
+      '/trainers': [],
       '/offerings': [cyrillicOffering],
       '/schedule?ownerType=club&includeFull=true': [cyrillicSchedule],
       '/reviews': [],
@@ -202,7 +202,7 @@ describe('Club detail page', () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('start-swim-club')]: { club: minimalClub },
-      '/trainers?includeHidden=true': [],
+      '/trainers': [],
       '/offerings': [minimalOffering],
       '/schedule?ownerType=club&includeFull=true': [minimalSchedule],
       '/reviews': [],

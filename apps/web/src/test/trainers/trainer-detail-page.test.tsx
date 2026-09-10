@@ -145,7 +145,6 @@ describe('Trainer detail page', () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('ivan-belov')]: { trainer: minimalTrainer },
-      '/clubs?includeHidden=true': [],
       '/offerings': [minimalOffering],
       '/schedule?ownerType=all&includeFull=true': [minimalSchedule],
       '/reviews': [],

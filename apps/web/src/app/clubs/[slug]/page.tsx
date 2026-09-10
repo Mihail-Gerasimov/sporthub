@@ -7,13 +7,13 @@ import {
   getAmenities,
   getClubBySlug,
   getOfferings,
+  getPublishedTrainers,
   getReviews,
   getSchedule,
   getSpecialties,
   getSports,
   getTags,
   getTrainerClubLinks,
-  getTrainers,
 } from '@/lib/server-api';
 import { compareByCreatedAtDesc } from '@sporthub/domain';
 
@@ -51,7 +51,10 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
       getSpecialties(),
       getSports(),
       getTags(),
-      getTrainers(),
+      // Шаг 36.18: витрине клуба нужны ТОЛЬКО опубликованные тренеры. Прежний
+      // читатель слал `includeHidden=true` безусловно — наследство модели, где флаг
+      // ничего не ограничивал, — и скрытый тренер оставался на публичной странице.
+      getPublishedTrainers(),
       getSchedule(),
       getReviews(),
     ]);

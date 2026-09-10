@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation';
 import { TrainerDetailPageClient } from '@/components/trainers/TrainerDetailPageClient';
 import { HiddenPublicationNotice } from '@/components/ui/HiddenPublicationNotice';
 import {
-  getClubById,
   getOfferings,
+  getPublishedClubById,
   getReviews,
   getSchedule,
   getSpecialties,
@@ -95,8 +95,11 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     status: 'confirmed',
   });
   const affiliatedClubId = confirmedLinks[0]?.clubId;
+  // Шаг 36.18: площадка приходит ОДНОЙ строкой и только опубликованная. Раньше сюда
+  // поднимался весь каталог со скрытыми, и скрытый клуб оказывался на публичной
+  // карточке тренера.
   const affiliatedClub =
-    affiliatedClubId === undefined ? null : await getClubById(affiliatedClubId);
+    affiliatedClubId === undefined ? null : await getPublishedClubById(affiliatedClubId);
 
   return (
     <>

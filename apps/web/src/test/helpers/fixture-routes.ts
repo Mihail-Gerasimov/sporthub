@@ -61,6 +61,10 @@ export function createFixtureRoutes(): ApiRoutes {
     '/work-formats': fixtureWorkFormats,
     '/clubs': fixtureClubs,
     '/clubs?includeHidden=true': fixtureClubs,
+    // Клуб по номеру: карточка тренера спрашивает свою площадку ОДНОЙ строкой,
+    // а не выбирает её из каталога в памяти (шаг 36.18). Тело — детальное,
+    // такое же, как у адреса-ссылки.
+    [`/clubs/${fixtureClub.id}`]: { club: fixtureClub },
     '/trainers': fixtureTrainers,
     '/trainers?includeHidden=true': fixtureTrainers,
     '/offerings': fixtureOfferings,
