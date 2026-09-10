@@ -3,7 +3,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ScheduleSlotForm, ClubFormState, TrainerFormState } from '@sporthub/domain';
-import { publishClubSchema, publishTrainerSchema } from '@sporthub/domain';
+import {
+  editClubSchema,
+  editTrainerSchema,
+  publishClubSchema,
+  publishTrainerSchema,
+} from '@sporthub/domain';
 
 /* ========================================
    Shared form-state типы
@@ -113,10 +118,18 @@ describe('shared form-state типы (Step 15.1)', () => {
 });
 
 /* ========================================
-   Edit payload — та же Zod-схема, что и create
+   Edit payload — СВОЯ Zod-схема, отличается ровно одним полем
    ======================================== */
 
-describe('edit payload использует те же Zod-схемы, что и create (Step 15.1)', () => {
+// ⚠️ Шаг 36.10, смена контракта. Этот блок назывался «edit payload использует те же
+// Zod-схемы, что и create (full replace)» и был письменной фиксацией прежнего
+// поведения: правка обязана была прислать карточку целиком, включая расписание.
+// Кто его не прислал — терял слоты вместе с записями людей, причём с успешным ответом.
+//
+// Формально блок пережил бы правку зелёным: он удаляет `name`, а не расписание.
+// Это и есть худший исход — тест, который остался зелёным и перестал доказывать
+// заявленное. Поэтому он переписан, а не оставлен.
+describe('edit payload: своя схема, отличие ровно в расписании (Step 36.4)', () => {
   const validClubPayload = {
     name: 'FitZone Studio',
     city: 'Москва',
@@ -182,26 +195,41 @@ describe('edit payload использует те же Zod-схемы, что и 
     userId: 2,
   };
 
-  it('publishClubSchema принимает полный валидный payload (full replace)', () => {
+  it('схема создания принимает полный валидный payload', () => {
     const result = publishClubSchema.safeParse(validClubPayload);
     expect(result.success).toBe(true);
   });
 
-  it('publishClubSchema отклоняет partial payload без обязательных полей', () => {
-    const { name: _name, ...partial } = validClubPayload;
-    const result = publishClubSchema.safeParse(partial);
-    expect(result.success).toBe(false);
-  });
-
-  it('publishTrainerSchema принимает полный валидный payload (full replace)', () => {
-    const result = publishTrainerSchema.safeParse(validTrainerPayload);
+  it('схема правки принимает тот же полный payload', () => {
+    // Правка не стала частичной: клиент по-прежнему шлёт карточку целиком.
+    const result = editClubSchema.safeParse(validClubPayload);
     expect(result.success).toBe(true);
   });
 
-  it('publishTrainerSchema отклоняет partial payload без обязательных полей', () => {
+  it('обе схемы отклоняют payload без обязательных полей', () => {
+    const { name: _name, ...partial } = validClubPayload;
+
+    expect(publishClubSchema.safeParse(partial).success).toBe(false);
+    expect(editClubSchema.safeParse(partial).success).toBe(false);
+  });
+
+  it('РАСПИСАНИЕ — единственное отличие: обязательно в создании, необязательно в правке', () => {
+    // Вот ради этого утверждения блок и существует. Прежняя его версия говорила
+    // «схемы одинаковые», и это перестало быть правдой ровно в одном месте.
+    const { scheduleSlots: _slots, ...withoutSlots } = validClubPayload;
+
+    expect(publishClubSchema.safeParse(withoutSlots).success).toBe(false);
+    expect(editClubSchema.safeParse(withoutSlots).success).toBe(true);
+  });
+
+  it('схема тренера ведёт себя так же', () => {
     const { firstName: _firstName, ...partial } = validTrainerPayload;
-    const result = publishTrainerSchema.safeParse(partial);
-    expect(result.success).toBe(false);
+    expect(publishTrainerSchema.safeParse(partial).success).toBe(false);
+    expect(editTrainerSchema.safeParse(partial).success).toBe(false);
+
+    const { scheduleSlots: _slots, ...withoutSlots } = validTrainerPayload;
+    expect(publishTrainerSchema.safeParse(withoutSlots).success).toBe(false);
+    expect(editTrainerSchema.safeParse(withoutSlots).success).toBe(true);
   });
 
   it('edit payload не содержит slug, createdAt, status и других системных полей', () => {
