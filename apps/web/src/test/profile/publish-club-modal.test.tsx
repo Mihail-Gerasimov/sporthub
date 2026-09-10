@@ -372,7 +372,9 @@ describe('PublishClubModal', () => {
     // зелено и в том случае, если оно не шлётся НИКОГДА — то есть правку
     // расписания стало бы невозможно сохранить, и заметил бы это пользователь,
     // а не тест.
-    fetchMock.mockResolvedValue(createJsonResponse({ success: true, data: { club: { id: 1 } } }, 200));
+    fetchMock.mockResolvedValue(
+      createJsonResponse({ success: true, data: { club: { id: 1 } } }, 200),
+    );
 
     render(
       <PublishClubModal {...defaultProps} mode="edit" entityId={1} initialData={editInitialData} />,
