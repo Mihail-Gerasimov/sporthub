@@ -29,6 +29,8 @@
 
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
+  editClubSchema,
+  editTrainerSchema,
   publishClubSchema,
   publishTrainerSchema,
   accountCan,
@@ -252,7 +254,11 @@ export class ClubsController {
     @CurrentUser() session: SessionContext,
   ): Promise<unknown> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
-    const parsed = publishClubSchema.safeParse(rawBody);
+    // ⚠️ Схема ПРАВКИ, а не создания (шаг 36.6, решение заказчика 1). Отличие
+    // ровно одно: расписания может не быть, и тогда сервер его не трогает.
+    // Смягчить общую схему было нельзя — это разрешило бы создать публикацию
+    // без расписания, и она вышла бы в каталог нерабочей.
+    const parsed = editClubSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       throw new ValidationError(
@@ -486,7 +492,8 @@ export class TrainersController {
     @CurrentUser() session: SessionContext,
   ): Promise<unknown> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
-    const parsed = publishTrainerSchema.safeParse(rawBody);
+    // Схема ПРАВКИ — см. пояснение у правки клуба (шаг 36.6).
+    const parsed = editTrainerSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       throw new ValidationError(

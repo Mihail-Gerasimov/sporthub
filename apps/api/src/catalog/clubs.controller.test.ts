@@ -716,6 +716,57 @@ describe('Маршруты клубов и тренеров', () => {
       expect(response.body.data.club.name).toBe('Клуб 1 после правки');
     });
 
+    // --- Правка без расписания (шаг 36.6, решение заказчика 1) ---------------
+
+    it('правка без расписания проходит и расписание не трогает', async () => {
+      const { scheduleSlots: _absent, ...withoutSlots } = editForm;
+
+      const response = await request(server())
+        .patch('/api/clubs/1')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send({ ...withoutSlots, phone: '+7 (846) 111-11-11' });
+
+      expect(response.status).toBe(200);
+      // Ответ по-прежнему несёт расписание: клиент рисует карточку по нему же.
+      expect(response.body.data.schedules.length).toBeGreaterThan(0);
+    });
+
+    it('создание без расписания по-прежнему отклоняется', async () => {
+      // ⚠️ Граница между схемами. Послабление коснулось ПРАВКИ; создать
+      // публикацию без расписания нельзя — она вышла бы в каталог нерабочей.
+      const { scheduleSlots: _absent, ...withoutSlots } = CLUB_FORM;
+
+      const response = await request(server())
+        .post('/api/clubs')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send(withoutSlots);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Некорректные данные клуба');
+    });
+
+    it('правка с пустым расписанием отклоняется, а не сносит слоты', async () => {
+      const response = await request(server())
+        .patch('/api/clubs/1')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send({ ...editForm, scheduleSlots: [] });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('правка без расписания не роняет сверку направлений', async () => {
+      // ⚠️ Ловушка 2 фазы 36: `refine` разыменовывал расписание без проверки.
+      // Исключение из `refine` `safeParse` не ловит — наружу ушёл бы 500.
+      const { scheduleSlots: _absent, ...withoutSlots } = editForm;
+
+      const response = await request(server())
+        .patch('/api/clubs/1')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send(withoutSlots);
+
+      expect(response.status).not.toBe(500);
+    });
+
     it('правка чужой публикации запрещена', async () => {
       // Чужесть теперь определяется сессией: тело у чужого ровно то же, что
       // у владельца, — отличается только тот, кто вошёл.

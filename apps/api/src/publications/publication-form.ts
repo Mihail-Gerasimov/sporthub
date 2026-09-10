@@ -92,6 +92,17 @@ export type ClubForm = {
   }>;
 };
 
+/**
+ * Форма ПРАВКИ клуба (шаг 36.6, решение заказчика 1).
+ *
+ * Отличие от формы создания ровно одно: расписания может не быть. Отдельный тип,
+ * а не послабление в `ClubForm`, — по той же причине, по которой в домене две
+ * схемы: создание без расписания даёт нерабочую публикацию в каталоге.
+ */
+export type ClubEditForm = Omit<ClubForm, 'scheduleSlots'> & {
+  scheduleSlots?: ClubForm['scheduleSlots'];
+};
+
 export type TrainerForm = {
   firstName: string;
   lastName: string;
@@ -116,6 +127,11 @@ export type TrainerForm = {
   coordinates?: { lat: number; lng: number };
   cityCoordinates?: { lat: number; lng: number };
   scheduleSlots: ClubForm['scheduleSlots'];
+};
+
+/** Форма ПРАВКИ карточки тренера — то же послабление, что и у клуба (шаг 36.6). */
+export type TrainerEditForm = Omit<TrainerForm, 'scheduleSlots'> & {
+  scheduleSlots?: ClubForm['scheduleSlots'];
 };
 
 /** Клуб из формы — без идентификатора и метки времени, их проставит хранилище. */
@@ -218,9 +234,24 @@ export function trainerOfferingFromForm(
 }
 
 /** Слоты расписания из формы. Владелец и услуга проставляются сервисом. */
+/**
+ * Слоты из формы. Расписания в форме нет — возвращается `undefined`, и сервис
+ * читает это как «не трогать» (шаг 36.6). Пустой список сюда не подменяется:
+ * `[]` означало бы «убрать все слоты» вместе с записями людей.
+ */
 export function slotsFromForm(form: {
   scheduleSlots: ClubForm['scheduleSlots'];
-}): PublicationSlotInput[] {
+}): PublicationSlotInput[];
+export function slotsFromForm(form: {
+  scheduleSlots?: ClubForm['scheduleSlots'];
+}): PublicationSlotInput[] | undefined;
+export function slotsFromForm(form: {
+  scheduleSlots?: ClubForm['scheduleSlots'];
+}): PublicationSlotInput[] | undefined {
+  if (form.scheduleSlots === undefined) {
+    return undefined;
+  }
+
   return form.scheduleSlots.map((slot) => ({
     ...(slot.id !== undefined ? { id: slot.id } : {}),
     sportId: slot.sportId,
@@ -245,7 +276,7 @@ export function slotsFromForm(form: {
  * маппер собирал ровно этот набор полей, и порядок правки от него зависит —
  * иначе правка клуба стирала бы его картинки и меняла адрес-ссылку.
  */
-export function clubPatchFromForm(form: ClubForm): Partial<Club> {
+export function clubPatchFromForm(form: ClubEditForm): Partial<Club> {
   return {
     name: form.name,
     description: form.description,
@@ -266,7 +297,7 @@ export function clubPatchFromForm(form: ClubForm): Partial<Club> {
 }
 
 /** Правка услуги клуба. Координаты пишутся только если форма их дала. */
-export function clubOfferingPatchFromForm(form: ClubForm): Partial<Offering> {
+export function clubOfferingPatchFromForm(form: ClubEditForm): Partial<Offering> {
   return {
     ownerType: 'club',
     sportId: form.sportIds[0] ?? 0,
@@ -282,7 +313,7 @@ export function clubOfferingPatchFromForm(form: ClubForm): Partial<Offering> {
 }
 
 /** Правка тренера — тот же принцип, что и у клуба. */
-export function trainerPatchFromForm(form: TrainerForm): Partial<Trainer> {
+export function trainerPatchFromForm(form: TrainerEditForm): Partial<Trainer> {
   return {
     name: `${form.firstName} ${form.lastName}`,
     bio: form.bio,
@@ -301,7 +332,7 @@ export function trainerPatchFromForm(form: TrainerForm): Partial<Trainer> {
   } as Partial<Trainer>;
 }
 
-export function trainerOfferingPatchFromForm(form: TrainerForm): Partial<Offering> {
+export function trainerOfferingPatchFromForm(form: TrainerEditForm): Partial<Offering> {
   return {
     ownerType: 'trainer',
     sportId: form.sportIds[0] ?? 0,

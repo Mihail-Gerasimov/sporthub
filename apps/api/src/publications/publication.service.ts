@@ -31,7 +31,9 @@ import {
   trainerOfferingFromForm,
   trainerOfferingPatchFromForm,
   trainerPatchFromForm,
+  type ClubEditForm,
   type ClubForm,
+  type TrainerEditForm,
   type TrainerForm,
 } from './publication-form';
 import type {
@@ -715,7 +717,7 @@ export class PublicationService {
 
   /** Правка клуба из формы. Системные поля клуб сохраняет свои. */
   updateClubFromForm(
-    form: ClubForm,
+    form: ClubEditForm,
     clubId: number,
     userId: number,
   ): Promise<ClubPublicationResult> {
@@ -742,7 +744,7 @@ export class PublicationService {
   }
 
   updateTrainerFromForm(
-    form: TrainerForm,
+    form: TrainerEditForm,
     trainerId: number,
     userId: number,
   ): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
