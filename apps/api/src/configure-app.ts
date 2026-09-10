@@ -9,6 +9,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { checkRequestOrigin } from './common/origin-check';
+import { applySecurityHeaders } from './common/security-headers';
 
 /**
  * Общий префикс адресов. Совпадает с прежними адресами фронта (`/api/...`),
@@ -39,6 +40,11 @@ export function configureApp(app: INestApplication): INestApplication {
   // Ставить `true` нельзя: тогда приложение поверит любому `X-Forwarded-For`,
   // и адрес станет подделываемым — то есть ограничение частоты обходится заголовком.
   express.set('trust proxy', 1);
+
+  // Заголовки безопасности — ПЕРВЫМИ, до всех проверок: они нужны и на ответах
+  // с отказом. Ставит их тот, кто отвечает: правило во фронте до проксированного
+  // адреса не достаёт, и ответы API шли голыми.
+  express.use(applySecurityHeaders);
 
   // Изменяющий запрос с чужого сайта отбивается до всякой работы — вторая линия
   // к `SameSite=Lax` у cookie сессии.

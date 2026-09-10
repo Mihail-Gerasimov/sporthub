@@ -32,7 +32,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
-import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+import { fixtureCollections, fixtureDictionaryCollections } from '@sporthub/fixtures';
 import type { Booking } from '@sporthub/types';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
@@ -1238,5 +1238,70 @@ describe('Маршруты клубов и тренеров', () => {
 
       expect(await harness.read<{ id: number }[]>('clubs')).toHaveLength(1);
     });
+  });
+});
+
+describe('Уборка лица называет ИСХОД, а не отвечает «успех»', () => {
+  // ⚠️ Найдено прогоном чек-листа безопасности 10.09.2026. Исходов два, и они
+  // разные по необратимости: владелец лицо АРХИВИРУЕТ — публикация уходит
+  // из каталога, а записи, отзывы и связи целы и её можно вернуть; модератор
+  // СТИРАЕТ — поднимать нечего. Ответ `{ success: true }` называл оба одним
+  // словом, и клиент не мог ни показать верное сообщение, ни предложить возврат:
+  // чтобы узнать, что произошло, надо было идти в базу или в журнал.
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('publication-removal-outcome');
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({ ...fixtureCollections, bookings: [] });
+  });
+
+  it('владельцу отвечает «архивировано»', async () => {
+    const clubs = await harness.read<{ id: number; managedByUserId?: number }[]>('clubs');
+    const own = clubs.find((row) => row.managedByUserId === 2);
+
+    const response = await request(harness.app.getHttpServer())
+      .delete(`/api/clubs/${own?.id}`)
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(200);
+    expect(
+      (response.body as { data?: { outcome?: string } }).data?.outcome,
+      'ответ не называет исход — архив от стирания не отличить',
+    ).toBe('archived');
+  });
+
+  it('модератору отвечает «стёрто» — исход другой и назван другим словом', async () => {
+    // Контрольная группа: без неё «называет исход» неотличимо от «всегда пишет archived».
+    const clubs = await harness.read<{ id: number; managedByUserId?: number }[]>('clubs');
+    const foreign = clubs.find((row) => row.managedByUserId === 2);
+
+    const response = await request(harness.app.getHttpServer())
+      .delete(`/api/clubs/${foreign?.id}`)
+      .set('Cookie', await harness.as(3));
+
+    expect(response.status).toBe(200);
+    expect(
+      (response.body as { data?: { outcome?: string } }).data?.outcome,
+      'модератору отвечено как владельцу',
+    ).toBe('deleted');
+  });
+
+  it('карточка тренера называет исход тем же полем', async () => {
+    const trainers = await harness.read<{ id: number; managedByUserId?: number }[]>('trainers');
+    const own = trainers.find((row) => row.managedByUserId === 2);
+
+    const response = await request(harness.app.getHttpServer())
+      .delete(`/api/trainers/${own?.id}`)
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(200);
+    expect((response.body as { data?: { outcome?: string } }).data?.outcome).toBe('archived');
   });
 });

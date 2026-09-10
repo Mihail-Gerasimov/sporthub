@@ -48,7 +48,11 @@ import {
 import { CatalogQueryService } from './catalog-query.service';
 import type { PublicClub, PublicTrainer } from './public-view';
 import { LogService } from '../logs/log.service';
-import { type PublicationActor, PublicationService } from '../publications/publication.service';
+import {
+  type PublicationActor,
+  PublicationService,
+  type PublicationRemoval,
+} from '../publications/publication.service';
 
 /** Разбор идентификатора с текстом своего домена. */
 function parseId(raw: string, message: string): number {
@@ -72,6 +76,16 @@ function parseOptionalNumber(raw: string | undefined): number | undefined {
 
   return parsed;
 }
+
+/**
+ * Ответ на уборку лица услуг.
+ *
+ * ⚠️ Исход называется явно, потому что исходов два и они разные по необратимости:
+ * `archived` — публикация ушла из каталога, записи, отзывы и связи целы, вернуть
+ * можно; `deleted` — стёрта каскадом, поднимать нечего. Прежний ответ
+ * `{ success: true }` называл оба одним словом.
+ */
+type PublicationRemovalResult = { outcome: PublicationRemoval };
 
 @Controller('clubs')
 export class ClubsController {
@@ -285,7 +299,7 @@ export class ClubsController {
   async remove(
     @Param('id') rawId: string,
     @CurrentUser() session: SessionContext,
-  ): Promise<EmptyResult> {
+  ): Promise<PublicationRemovalResult> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
     const club = await this.query.findClub(clubId);
 
@@ -311,7 +325,16 @@ export class ClubsController {
       meta: { name: club?.name ?? 'unknown' },
     });
 
-    return EMPTY_RESULT;
+    // ⚠️ Исход возвращается КЛИЕНТУ, а не только пишется в журнал.
+    //
+    // Исходов два, и они разные по последствиям: владелец лицо АРХИВИРУЕТ —
+    // публикация уходит из каталога, а записи, отзывы и связи целы и её можно
+    // вернуть; модератор СТИРАЕТ — обратно ничего не поднимется. Ответ
+    // `{ success: true }` называл оба одним словом, и клиент не мог ни показать
+    // верное сообщение, ни предложить возврат: чтобы узнать, что произошло,
+    // приходилось идти в базу или в журнал. Найдено прогоном чек-листа
+    // безопасности 10.09.2026.
+    return { outcome };
   }
 }
 
@@ -508,7 +531,7 @@ export class TrainersController {
   async remove(
     @Param('id') rawId: string,
     @CurrentUser() session: SessionContext,
-  ): Promise<EmptyResult> {
+  ): Promise<PublicationRemovalResult> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
     const trainer = await this.query.findTrainer(trainerId);
 
@@ -524,7 +547,9 @@ export class TrainersController {
       meta: { name: trainer?.name ?? 'unknown' },
     });
 
-    return EMPTY_RESULT;
+    // Исход — как у клуба: архив владельца и стирание модератора различаются
+    // необратимостью, и клиент обязан знать, что именно произошло.
+    return { outcome };
   }
 }
 

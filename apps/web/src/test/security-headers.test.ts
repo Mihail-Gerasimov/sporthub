@@ -11,9 +11,28 @@ import nextConfig, { MAP_HOSTS } from '../../next.config';
 describe('Заголовки безопасности', () => {
   it('конфигурация отдаёт заголовки на все пути', async () => {
     const headers = await nextConfig.headers?.();
+    const sources = (headers ?? []).map((rule) => rule.source);
 
     expect(headers).toBeDefined();
-    expect(headers?.[0]?.source).toBe('/:path*');
+    expect(sources, 'общее правило для страниц исчезло').toContain('/:path*');
+  });
+
+  it('заголовки ответов API ставит БЭКЕНД, а не это правило', async () => {
+    // ⚠️ Найдено браузерным прогоном 10.09.2026. `/api/*` уходит в `rewrites()`,
+    // и правило `headers()` до переписанного адреса НЕ ДОСТАЁТ: ответы шли голыми —
+    // ни `nosniff`, ни запрета показа в рамке. Правило при этом выглядело работающим.
+    //
+    // Поэтому заголовки ответов API ставит тот, кто отвечает, — `configure-app.ts`
+    // бэкенда, и стережёт их рантаймовый сторож `security-headers-guard.test.ts`.
+    // Здесь закрепляется только то, что искать их надо там: иначе следующий
+    // читатель снова добавит сюда правило для `/api/*` и решит, что закрыл дыру.
+    const headers = await nextConfig.headers?.();
+    const apiRule = (headers ?? []).find((rule) => rule.source.startsWith('/api'));
+
+    expect(
+      apiRule,
+      'правило для /api вернулось во фронт — оно не действует на проксированные адреса',
+    ).toBeUndefined();
   });
 
   it('набор заголовков полон', async () => {

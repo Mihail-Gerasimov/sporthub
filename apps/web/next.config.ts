@@ -44,6 +44,15 @@ export const MAP_HOSTS = {
   tiles: 'https://*.maps.yandex.net',
   /** Поиск координат по адресу. */
   geocode: 'https://geocode-maps.yandex.ru',
+  /**
+   * Телеметрия карт.
+   *
+   * ⚠️ Поддомен, не покрытый маской плиток: `*.maps.yandex.net` его не включает.
+   * На отрисовку карты запрет не влияет — карта работает и без телеметрии, — но
+   * даёт плавающую красную строку в консоли, из-за которой браузерная проверка
+   * краснела через раз. Найдено прогоном чек-листа безопасности 10.09.2026.
+   */
+  telemetry: 'https://log.api-maps.yandex.ru',
 } as const;
 
 const SECURITY_HEADERS = [
@@ -57,7 +66,7 @@ const SECURITY_HEADERS = [
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${MAP_HOSTS.bundle}`,
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' ${MAP_HOSTS.api} ${MAP_HOSTS.bundle} ${MAP_HOSTS.tiles} ${MAP_HOSTS.geocode}`,
+      `connect-src 'self' ${MAP_HOSTS.api} ${MAP_HOSTS.bundle} ${MAP_HOSTS.tiles} ${MAP_HOSTS.geocode} ${MAP_HOSTS.telemetry}`,
       // Ни один сторонний сайт не вправе показать нашу страницу внутри себя.
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -94,6 +103,14 @@ const nextConfig: NextConfig = {
    */
   /** Заголовки безопасности — на каждую страницу и каждый ответ прокси. */
   async headers() {
+    // ⚠️ Правила для `/api/*` здесь НЕТ, и это решение, а не упущение.
+    // Маршруты `/api/*` уходят в `rewrites()`, и до переписанного адреса правило
+    // `headers()` не достаёт: попытка закрыть дыру здесь выглядит работающей
+    // и молча ничего не делает. Проверено прогоном 10.09.2026 — заголовки
+    // на ответах API не появились.
+    //
+    // Заголовки ответов API ставит тот, кто отвечает: `apps/api/src/configure-app.ts`,
+    // и стережёт их рантаймовый сторож `security-headers-guard.test.ts`.
     return [{ source: '/:path*', headers: SECURITY_HEADERS }];
   },
   async rewrites() {
