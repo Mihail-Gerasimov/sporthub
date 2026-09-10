@@ -231,12 +231,12 @@ export class ReviewsController {
    */
   @Post()
   async create(@Body() rawBody: unknown, @CurrentUser() session: SessionContext): Promise<Review> {
-    const parsed = createReviewSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      throw new ValidationError('Некорректные данные отзыва');
-    }
-
+    // ⚠️ Проверка стоит ДО разбора тела, и порядок здесь существенный. Она
+    // не зависит от тела вовсе: «человек ли это» известно из сессии. Стоя ниже,
+    // она отдавала администратору 400 со списком незаполненных полей — подсказку
+    // по форме, к которой у него доступа нет. Хуже другое: тест такого запрета
+    // легко зеленеет по 400, ни разу не дойдя до самой проверки, — ровно тот вид
+    // ложного зелёного, ради которого фаза завела «тихие» диверсии.
     // ⚠️ Шаг 35.18a, решение заказчика 13. Отзыв — действие человека площадки.
     // Администратор им не является: он надзор, а не пользователь. Раньше это
     // держалось правом `write_reviews`, которого у него не было; после снятия прав
@@ -244,6 +244,12 @@ export class ReviewsController {
     // из данных — и отзыв пройдёт.
     if (!hasHumanAbilities(accountKindOf(session.user))) {
       throw new ForbiddenError('Отзывы оставляют пользователи площадки');
+    }
+
+    const parsed = createReviewSchema.safeParse(rawBody);
+
+    if (!parsed.success) {
+      throw new ValidationError('Некорректные данные отзыва');
     }
 
     const { clubId, rating, text, trainerId } = parsed.data;
