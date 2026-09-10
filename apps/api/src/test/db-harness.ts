@@ -6,9 +6,18 @@
 //    чистит таблицы между кейсами. В соседнем проекте того же владельца общий адрес
 //    базы для тестов и разработки однажды стёр живые данные. Здесь тесты ходят
 //    только в `DATABASE_TEST_URL`, и попытка направить их в рабочую базу отбивается.
-// 2. **Своя схема на каждого исполнителя.** Vitest гоняет файлы в нескольких процессах;
+// 2. **Своя схема на каждый ФАЙЛ.** Vitest гоняет файлы в нескольких процессах;
 //    если они чистят одни и те же таблицы, тесты начинают ронять друг друга —
 //    и не постоянно, а через раз, что хуже стабильного падения.
+//
+//    ⚠️ Шаг 36.28. Прежде здесь было написано «на каждого исполнителя» — описание
+//    поведения Vitest 3. В Vitest 4 `VITEST_WORKER_ID` — сквозной счётчик по спекам,
+//    а не номер процесса, и схема выходит своя на ФАЙЛ (замерено: полный прогон
+//    создаёт 48 схем по числу файлов, трогающих базу). Расхождение прожило переезд
+//    версии незамеченным, и на нём был построен неверный диагноз мигающих тестов.
+// 3. **Явный бюджет соединений.** См. `TEST_CONNECTION_BUDGET` ниже: пул задаётся
+//    здесь, а не наследуется из `.env` разработчика, и обвязка не заводит своего
+//    второго пула к той же базе.
 
 import { execFile } from 'node:child_process';
 import path from 'node:path';
@@ -20,6 +29,45 @@ import { PrismaService, readDatabaseSettings } from '../storage/prisma.service';
 const run = promisify(execFile);
 
 const API_ROOT = path.join(__dirname, '..', '..');
+
+/**
+ * Бюджет соединений тестового прогона (шаг 36.28).
+ *
+ * Числа не подобраны, а посчитаны, и посчитаны в одном месте: пока бюджет жил
+ * комментарием, он разъезжался с кодом молча. Сторож — `connection-budget.test.ts`.
+ *
+ * `maxConnections` — потолок базы из `docker-compose.yml`; `workers` — `maxWorkers`
+ * из `vitest.config.ts`; `requiredHeadroom` — запас на всё, что ходит в ту же базу
+ * помимо прогона: поднятый `npm run dev`, открытый psql, второй прогон.
+ */
+export const TEST_CONNECTION_BUDGET = {
+  poolSize: 4,
+  workers: 2,
+  poolsPerFile: 1,
+  /** Потолок ЛОКАЛЬНОГО стенда: `.env` → `POSTGRES_MAX_CONNECTIONS`. Боевой — 30. */
+  maxConnections: 60,
+  /**
+   * Запас на всё, что ходит в ту же базу помимо прогона: контейнеры приложения
+   * (около семи), локальный `npm run dev` (до десяти), ручные psql и инструменты.
+   *
+   * ⚠️ Число не с потолка. Замер 10.09.2026: при 22 занятых извне соединениях прогон
+   * падал и после сужения пула до четырёх — потому что одного сужения мало,
+   * контейнеры держат своё. Сужение пула и потолок базы считаются вместе.
+   */
+  requiredHeadroom: 30,
+} as const;
+
+/**
+ * Размер пула в тестах.
+ *
+ * ⚠️ Задаётся ЗДЕСЬ, а не берётся из `apps/api/.env`. Там стоит боевое значение 10,
+ * которое никто не выбирал для тестов: два исполнителя по два пула давали пик 24
+ * при потолке 30, и прогон падал «случайным тестом», стоило кому-то занять
+ * ещё несколько соединений.
+ */
+export function testPoolSize(): number {
+  return TEST_CONNECTION_BUDGET.poolSize;
+}
 
 /**
  * Схема этого исполнителя. Номер даёт сам Vitest.
@@ -101,36 +149,40 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const service = new PrismaService(
     readDatabaseSettings({
       DATABASE_URL: testDatabaseUrl(schema),
-      DATABASE_POOL_SIZE: '2',
+      DATABASE_POOL_SIZE: String(testPoolSize()),
     } as NodeJS.ProcessEnv),
   );
   const prisma = service.client;
 
-  const tableNames = async (): Promise<string[]> => {
-    const rows = await prisma.$queryRaw<{ tablename: string }[]>`
-      SELECT tablename FROM pg_tables
-      WHERE schemaname = ${schema} AND tablename <> '_prisma_migrations'
-    `;
-
-    return rows.map((row) => row.tablename);
-  };
-
   return {
     prisma,
     service,
-    async truncateAll() {
-      const tables = await tableNames();
-
-      if (tables.length === 0) return;
-
-      // Одной командой: TRUNCATE ... CASCADE снимает вопрос порядка внешних ключей,
-      // RESTART IDENTITY возвращает счётчики, иначе номера поехали бы от теста к тесту.
-      const list = tables.map((table) => `"${schema}"."${table}"`).join(', ');
-
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
-    },
+    truncateAll: () => truncateSchema(prisma, schema),
     async close() {
       await service.onModuleDestroy();
     },
   };
+}
+
+/**
+ * Очистка всех таблиц схемы ЛЮБЫМ клиентом (шаг 36.27).
+ *
+ * Вынесена из `createTestDatabase`, чтобы обвязка приложения могла чистить схему
+ * клиентом самого приложения — и не заводить ради `TRUNCATE` второй пул к той же базе.
+ * Второй пул стоил двух соединений на каждый файл прогона и был половиной причины,
+ * по которой прогон упирался в `max_connections`.
+ */
+export async function truncateSchema(prisma: PrismaClient, schema: string): Promise<void> {
+  const rows = await prisma.$queryRaw<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = ${schema} AND tablename <> '_prisma_migrations'
+  `;
+
+  if (rows.length === 0) return;
+
+  // Одной командой: TRUNCATE ... CASCADE снимает вопрос порядка внешних ключей,
+  // RESTART IDENTITY возвращает счётчики, иначе номера поехали бы от теста к тесту.
+  const list = rows.map((row) => `"${schema}"."${row.tablename}"`).join(', ');
+
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
 }

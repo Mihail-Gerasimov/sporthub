@@ -18,7 +18,8 @@ import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { exportSourceShape } from '../storage/seed/export-source-shape';
 import { importSourceData } from '../storage/seed/import-from-files';
 import type { SourceData } from '../storage/seed/source-data';
-import { createTestDatabase } from './db-harness';
+import { PrismaService } from '../storage/prisma.service';
+import { testSchemaName, truncateSchema } from './db-harness';
 import { ensureTestSchema } from './db-setup';
 
 // Phase 33 Step 33.9: пароля открытым текстом в хранилище больше нет — тесты
@@ -146,28 +147,12 @@ function emptySource(): SourceData {
  *    создать приложение, исчезало бы при первой же дозаписи.
  */
 async function createDatabaseHarness(overrides: ProviderOverride[]): Promise<TestHarness> {
-  const db = await createTestDatabase();
-
-  // Стартовый срез пуст: наборы засеивают себя сами. Чистка обязательна: схема
-  // переживает прогон, и без неё набор начинался бы на остатках предыдущего —
-  // причём молча, потому что остатки выглядят как обычные данные.
-  await db.truncateAll();
-  await importSourceData({ client: db.prisma, source: emptySource(), recalculate: false });
-
-  const applyWrite = async (patch: Partial<Record<CollectionName, unknown>>): Promise<void> => {
-    const current = await exportSourceShape(db.prisma);
-
-    for (const [name, data] of Object.entries(patch)) {
-      current[SOURCE_FIELD[name as CollectionName]] = data as never;
-    }
-
-    await db.truncateAll();
-    // ⚠️ Пересчёт счётчиков выключен намеренно: обвязка обязана положить в базу ровно
-    // тот срез, который объявил набор. Иначе «слот занят целиком» превратился бы
-    // в «свободен», и одна и та же проверка на файлах и на базе проверяла бы разное.
-    await importSourceData({ client: db.prisma, source: current, recalculate: false });
-  };
-
+  // ⚠️ Шаг 36.27. Приложение поднимается ПЕРВЫМ, и дальше обвязка работает его же
+  // клиентом. Прежде здесь заводился второй пул (`createTestDatabase`) — ради
+  // `TRUNCATE` и чтения среза, то есть ради того, что умеет уже поднятое приложение.
+  // Два пула на файл при двух исполнителях давали пик 24 соединения при потолке 30,
+  // и прогон падал «случайным тестом», стоило кому-то занять ещё несколько.
+  //
   // Подмены накладываются на тот же модуль, что и в бою: собирается приложение
   // целиком, и заменяется ровно один провайдер по своему токену.
   const builder = overrides.reduce(
@@ -178,6 +163,30 @@ async function createDatabaseHarness(overrides: ProviderOverride[]): Promise<Tes
   const moduleRef = await builder.compile();
   const app = configureApp(moduleRef.createNestApplication());
   await app.init();
+
+  const schema = testSchemaName();
+  const prisma = app.get(PrismaService).client;
+  const truncateAll = (): Promise<void> => truncateSchema(prisma, schema);
+
+  // Стартовый срез пуст: наборы засеивают себя сами. Чистка обязательна: схема
+  // переживает прогон, и без неё набор начинался бы на остатках предыдущего —
+  // причём молча, потому что остатки выглядят как обычные данные.
+  await truncateAll();
+  await importSourceData({ client: prisma, source: emptySource(), recalculate: false });
+
+  const applyWrite = async (patch: Partial<Record<CollectionName, unknown>>): Promise<void> => {
+    const current = await exportSourceShape(prisma);
+
+    for (const [name, data] of Object.entries(patch)) {
+      current[SOURCE_FIELD[name as CollectionName]] = data as never;
+    }
+
+    await truncateAll();
+    // ⚠️ Пересчёт счётчиков выключен намеренно: обвязка обязана положить в базу ровно
+    // тот срез, который объявил набор. Иначе «слот занят целиком» превратился бы
+    // в «свободен», и одна и та же проверка на файлах и на базе проверяла бы разное.
+    await importSourceData({ client: prisma, source: current, recalculate: false });
+  };
 
   return {
     app,
@@ -190,7 +199,7 @@ async function createDatabaseHarness(overrides: ProviderOverride[]): Promise<Tes
       return applyWrite(collections);
     },
     async read<T>(name: string): Promise<T> {
-      const exported = await exportSourceShape(db.prisma);
+      const exported = await exportSourceShape(prisma);
 
       return exported[SOURCE_FIELD[name as CollectionName]] as T;
     },
@@ -224,8 +233,8 @@ async function createDatabaseHarness(overrides: ProviderOverride[]): Promise<Tes
       return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`;
     },
     async close() {
+      // Пул один и принадлежит приложению: закрывать больше нечего.
       await app.close();
-      await db.close();
     },
   };
 }
