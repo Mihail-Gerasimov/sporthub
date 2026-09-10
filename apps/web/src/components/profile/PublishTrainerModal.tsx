@@ -8,6 +8,7 @@ import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateTrainerForm } from '@/components/profile/publish-validation';
+import { scheduleChanged } from '@/components/profile/schedule-changes';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
@@ -141,7 +142,16 @@ function resolveInitialState(
 
 // ⚠️ Поля `userId` в теле больше нет. Владельца публикации сервер берёт из сессии;
 // до фазы 34 именно это число и решало, от чьего имени публикуется карточка.
-function buildTrainerPayload(form: TrainerFormState, entityId?: number) {
+// ⚠️ Шаг 36.9 — см. пояснение в `PublishClubModal`: при правке расписание
+// кладётся в тело только если его правили.
+function buildTrainerPayload(
+  form: TrainerFormState,
+  entityId?: number,
+  initialSlots?: TrainerFormState['scheduleSlots'],
+) {
+  const editing = entityId !== undefined;
+  const scheduleTouched = !editing || scheduleChanged(form.scheduleSlots, initialSlots);
+
   return {
     firstName: form.firstName,
     lastName: form.lastName,
@@ -164,15 +174,19 @@ function buildTrainerPayload(form: TrainerFormState, entityId?: number) {
     offeringLocation: form.offeringLocation,
     clubId: form.clubId,
     ...(form.coordinates ? { coordinates: form.coordinates } : {}),
-    scheduleSlots: form.scheduleSlots.map((slot) => {
-      if (entityId === undefined) {
-        const nextSlot = { ...slot };
-        delete nextSlot.id;
-        return nextSlot;
-      }
+    ...(scheduleTouched
+      ? {
+          scheduleSlots: form.scheduleSlots.map((slot) => {
+            if (entityId === undefined) {
+              const nextSlot = { ...slot };
+              delete nextSlot.id;
+              return nextSlot;
+            }
 
-      return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
-    }),
+            return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
+          }),
+        }
+      : {}),
     // Phase 24 Step 24.10: дополнительные услуги передаём как есть — Zod валидирует форму,
     // а контракты раскроют каждую карточку в offering + schedule[] в db.ts.
     ...(form.additionalOfferings && form.additionalOfferings.length > 0
@@ -364,7 +378,9 @@ export function PublishTrainerModal({
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildTrainerPayload(form, entityId ?? undefined)),
+        body: JSON.stringify(
+          buildTrainerPayload(form, entityId ?? undefined, initialData?.scheduleSlots),
+        ),
       });
       const body = (await response.json()) as PublishTrainerApiErrorBody;
 

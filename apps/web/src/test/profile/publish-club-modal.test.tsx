@@ -321,7 +321,7 @@ describe('PublishClubModal', () => {
     expect(screen.getByText('Укажите телефон')).toBeInTheDocument();
   });
 
-  it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
+  it('в режиме edit отправляет PATCH и НЕ шлёт нетронутое расписание', async () => {
     fetchMock.mockResolvedValue(
       createJsonResponse(
         {
@@ -355,11 +355,44 @@ describe('PublishClubModal', () => {
       }),
     );
     expect(payload.name).toBe('Volna Aquatic Club Premium');
-    expect(payload.scheduleSlots[0].id).toBe(15);
+    // ⚠️ Шаг 36.9, смена контракта. Прежде здесь проверялось `scheduleSlots[0].id === 15`:
+    // форма слала расписание ВСЕГДА, и правка одного названия проходила через
+    // замену расписания целиком. Записи людей уцелевали лишь потому, что номера
+    // слотов доезжали до сервера, — правильное поведение держалось на аккуратности.
+    // Теперь расписание, которого не касались, в тело не попадает вовсе.
+    expect(payload.scheduleSlots).toBeUndefined();
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     expect(defaultProps.onSuccess).toHaveBeenCalledWith(
       'Изменения клуба сохранены. Кабинет обновлён.',
     );
+  });
+
+  it('в режиме edit шлёт расписание, если его правили', async () => {
+    // Контрольная группа к тесту выше. Без неё «расписание не шлётся» было бы
+    // зелено и в том случае, если оно не шлётся НИКОГДА — то есть правку
+    // расписания стало бы невозможно сохранить, и заметил бы это пользователь,
+    // а не тест.
+    fetchMock.mockResolvedValue(createJsonResponse({ success: true, data: { club: { id: 1 } } }, 200));
+
+    render(
+      <PublishClubModal {...defaultProps} mode="edit" entityId={1} initialData={editInitialData} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Укажите цену данной тренировки'), {
+      target: { value: '1500' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(requestInit?.body));
+
+    expect(payload.scheduleSlots).toHaveLength(1);
+    expect(payload.scheduleSlots[0].id).toBe(15);
+    expect(payload.scheduleSlots[0].price).toBe('1500');
   });
 
   it('показывает ошибку API и не закрывает модалку', async () => {

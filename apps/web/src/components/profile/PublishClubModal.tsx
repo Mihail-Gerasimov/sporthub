@@ -7,6 +7,7 @@ import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
 import { validateClubForm } from '@/components/profile/publish-validation';
+import { scheduleChanged } from '@/components/profile/schedule-changes';
 import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
@@ -122,7 +123,19 @@ function resolveInitialState(
 // ⚠️ Поля `userId` в теле больше нет. Владельца публикации сервер берёт из сессии;
 // до фазы 34 именно это число и решало, от чьего имени публикуется клуб, —
 // то есть опубликовать клуб на чужое имя можно было правкой запроса.
-function buildClubPayload(form: ClubFormState, entityId?: number) {
+//
+// ⚠️ Шаг 36.9. При правке расписание кладётся в тело ТОЛЬКО если его правили.
+// До этой фазы форма слала его всегда, и сервер заменял расписание целиком —
+// то есть правка одного телефона проходила через удаление и пересоздание слотов.
+// Записи людей уцелевали лишь потому, что форма аккуратно слала номера слотов.
+function buildClubPayload(
+  form: ClubFormState,
+  entityId?: number,
+  initialSlots?: ClubFormState['scheduleSlots'],
+) {
+  const editing = entityId !== undefined;
+  const scheduleTouched = !editing || scheduleChanged(form.scheduleSlots, initialSlots);
+
   return {
     name: form.name,
     city: form.city,
@@ -138,15 +151,19 @@ function buildClubPayload(form: ClubFormState, entityId?: number) {
     telegram: form.telegram,
     facebook: form.facebook,
     ...(form.coordinates ? { coordinates: form.coordinates } : {}),
-    scheduleSlots: form.scheduleSlots.map((slot) => {
-      if (entityId === undefined) {
-        const nextSlot = { ...slot };
-        delete nextSlot.id;
-        return nextSlot;
-      }
+    ...(scheduleTouched
+      ? {
+          scheduleSlots: form.scheduleSlots.map((slot) => {
+            if (entityId === undefined) {
+              const nextSlot = { ...slot };
+              delete nextSlot.id;
+              return nextSlot;
+            }
 
-      return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
-    }),
+            return slot.id !== undefined ? { ...slot, id: slot.id } : { ...slot };
+          }),
+        }
+      : {}),
   };
 }
 
@@ -238,7 +255,9 @@ export function PublishClubModal({
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify(buildClubPayload(form, entityId ?? undefined)),
+        body: JSON.stringify(
+          buildClubPayload(form, entityId ?? undefined, initialData?.scheduleSlots),
+        ),
       });
       const body = (await response.json()) as PublishClubApiErrorBody;
 

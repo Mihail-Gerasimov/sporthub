@@ -409,7 +409,7 @@ describe('PublishTrainerModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('в режиме edit отправляет PATCH на entity endpoint и сохраняет slot id в payload', async () => {
+  it('в режиме edit отправляет PATCH и НЕ шлёт нетронутое расписание', async () => {
     // Phase 24 Step 24.9a: модалка на open'е делает GET /api/trainer-club-links (фоновый fetchLinks).
     // Разделяем fetch-mock: для links → пустой список, для trainer PATCH → success.
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -448,7 +448,9 @@ describe('PublishTrainerModal', () => {
     expect(patchCall?.[0]).toBe('/api/trainers/1');
     expect(patchCall?.[1]).toMatchObject({ method: 'PATCH' });
     expect(payload.firstName).toBe('Марина PRO');
-    expect(payload.scheduleSlots[0].id).toBe(1001);
+    // ⚠️ Шаг 36.9, смена контракта — см. пояснение в тестах модалки клуба.
+    // Прежде здесь проверялось `scheduleSlots[0].id === 1001`.
+    expect(payload.scheduleSlots).toBeUndefined();
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     expect(defaultProps.onSuccess).toHaveBeenCalledWith(
       'Изменения тренера сохранены. Кабинет обновлён.',
