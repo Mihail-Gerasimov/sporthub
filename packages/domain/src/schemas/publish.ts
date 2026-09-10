@@ -70,15 +70,52 @@ const publishClubBaseSchema = z.object({
   userId: z.number().int().positive('ID пользователя обязателен').optional(),
 });
 
+/**
+ * Сверка направлений: направление каждого слота выбрано в самой публикации.
+ *
+ * ⚠️ Шаг 36.4. Расписание читается ЧЕРЕЗ `?? []`, и это не перестраховка.
+ * В схеме правки поле необязательное; прямое разыменование давало бы исключение
+ * внутри `refine`, а `safeParse` исключения из `refine` не ловит — наружу ушёл бы
+ * 500 вместо 400. Одна проверка на обе схемы: смысл у неё один, и разъехаться
+ * двум копиям здесь незачем.
+ */
+const slotSportsBelongToPublication = (data: {
+  sportIds: number[];
+  scheduleSlots?: { sportId: number }[];
+}): boolean => (data.scheduleSlots ?? []).every((slot) => data.sportIds.includes(slot.sportId));
+
+/** Текст и адрес ошибки сверки направлений — общие для создания и правки. */
+const SLOT_SPORT_MISMATCH = {
+  message:
+    'В слотах используется направление, которое не выбрано в публикации. Поправьте слоты или добавьте направление.',
+  path: ['scheduleSlots'],
+};
+
 /** Схема публикации клуба с cross-field валидацией: slot.sportId ∈ sportIds */
 export const publishClubSchema = publishClubBaseSchema.refine(
-  (data) => data.scheduleSlots.every((slot) => data.sportIds.includes(slot.sportId)),
-  {
-    message:
-      'В слотах используется направление, которое не выбрано в публикации. Поправьте слоты или добавьте направление.',
-    path: ['scheduleSlots'],
-  },
+  slotSportsBelongToPublication,
+  SLOT_SPORT_MISMATCH,
 );
+
+/**
+ * Схема ПРАВКИ клуба (шаг 36.4, решение заказчика 1).
+ *
+ * Отличие от создания ровно одно: `scheduleSlots` необязателен. Поля нет —
+ * расписание не трогаем вовсе; поле есть — работает прежняя замена целиком.
+ * Пустой массив по-прежнему отклоняется: публикация без единого слота нерабочая,
+ * каким бы путём она такой ни стала.
+ *
+ * ⚠️ Смягчать общую схему было нельзя: это разрешило бы создать публикацию
+ * без расписания. Поэтому схем две, а не одна с послаблением.
+ */
+export const editClubSchema = publishClubBaseSchema
+  .extend({
+    scheduleSlots: z
+      .array(scheduleSlotSchema)
+      .min(1, 'Добавьте хотя бы один слот расписания')
+      .optional(),
+  })
+  .refine(slotSportsBelongToPublication, SLOT_SPORT_MISMATCH);
 
 /** Phase 24 Step 24.10: единая схема одной offering-карточки тренера (multi-offering).
  * attachmentMode='club' требует clubLinkId (id confirmed TrainerClubLink тренера).
@@ -156,16 +193,24 @@ const publishTrainerBaseSchema = z.object({
 
 /** Схема публикации тренера с cross-field валидацией: slot.sportId ∈ sportIds */
 export const publishTrainerSchema = publishTrainerBaseSchema.refine(
-  (data) => data.scheduleSlots.every((slot) => data.sportIds.includes(slot.sportId)),
-  {
-    message:
-      'В слотах используется направление, которое не выбрано в публикации. Поправьте слоты или добавьте направление.',
-    path: ['scheduleSlots'],
-  },
+  slotSportsBelongToPublication,
+  SLOT_SPORT_MISMATCH,
 );
+
+/** Схема ПРАВКИ карточки тренера — то же послабление, что и у клуба (шаг 36.4). */
+export const editTrainerSchema = publishTrainerBaseSchema
+  .extend({
+    scheduleSlots: z
+      .array(scheduleSlotSchema)
+      .min(1, 'Добавьте хотя бы один слот расписания')
+      .optional(),
+  })
+  .refine(slotSportsBelongToPublication, SLOT_SPORT_MISMATCH);
 
 export type PublishClubPayload = z.infer<typeof publishClubSchema>;
 export type PublishTrainerPayload = z.infer<typeof publishTrainerSchema>;
+export type EditClubPayload = z.infer<typeof editClubSchema>;
+export type EditTrainerPayload = z.infer<typeof editTrainerSchema>;
 
 /* ========================================
    Shared form-state типы для publish/edit модалок.
