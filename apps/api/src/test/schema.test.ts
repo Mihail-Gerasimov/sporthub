@@ -118,6 +118,44 @@ describe('Физические имена', () => {
     expect([...new Set(columns)].filter((column) => !existing.has(column))).toEqual([]);
   });
 
+  it('лицо услуг есть у того и только у того, кто им владеет (шаг 35.39)', async () => {
+    // ⚠️ Правило переноса фазы 35 звучит так: роль отбрасывается, лица выводятся
+    // из ВЛАДЕНИЯ. Проверять его по коду недостаточно — `facesOf` можно прочитать
+    // и убедиться, что он спрашивает владельца. Вопрос в другом: сходится ли это
+    // с тем, что реально лежит в базе после наката миграций.
+    //
+    // Расхождение здесь тихое в обе стороны: лицо с владельцем, которого нет,
+    // не покажется никому и будет выглядеть «пропавшим»; лицо, приписанное
+    // не тому, откроет ему чужой кабинет.
+    const orphanClubs = await db.prisma.$queryRaw<{ id: number }[]>`
+      SELECT c.id FROM clubs c
+      LEFT JOIN users u ON u.id = c.managed_by_user_id
+      WHERE c.managed_by_user_id IS NOT NULL AND u.id IS NULL
+    `;
+    const orphanTrainers = await db.prisma.$queryRaw<{ id: number }[]>`
+      SELECT t.id FROM trainers t
+      LEFT JOIN users u ON u.id = t.managed_by_user_id
+      WHERE t.managed_by_user_id IS NOT NULL AND u.id IS NULL
+    `;
+
+    expect(orphanClubs, 'клуб числится за несуществующим человеком').toEqual([]);
+    expect(orphanTrainers, 'карточка тренера числится за несуществующим человеком').toEqual([]);
+
+    // Обратная сторона: у служебной записи лиц быть не должно вовсе (решение 13).
+    // Администратор не человек площадки — заводить клуб ему нечем и незачем.
+    const adminFaces = await db.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count FROM (
+        SELECT managed_by_user_id FROM clubs
+        UNION ALL
+        SELECT managed_by_user_id FROM trainers
+      ) AS faces
+      JOIN users u ON u.id = faces.managed_by_user_id
+      WHERE u.account_kind = 'admin'
+    `;
+
+    expect(Number(adminFaces[0]?.count ?? 0), 'у служебной записи оказались лица услуг').toBe(0);
+  });
+
   it('колонки role и индекса по ней в таблице пользователей нет', async () => {
     // Шаг 35.24. Проверка идёт по БАЗЕ, а не по тексту схемы: текстовый сторож
     // (`role-boundary.test.ts`) ловит возврат объявления, а сюда попадёт возврат

@@ -1,71 +1,122 @@
 # E2E: Booking FSM (Phase 16 + Phase 24)
 
-**Role:** cross-role (athlete ↔ provider)
+**Role:** cross-face (человек-клиент ↔ владелец лица услуг)
 **Base URL:** http://localhost:3000
 **Preconditions:**
 
-- База поднята и засеяна: `npm run db:up`, затем `npm run db:seed` — у провайдера id=2
-  есть опубликованные клубы и слоты расписания в будущем
+- База поднята и засеяна: `npm run db:up`, затем `npm run db:seed` — у человека id=2
+  есть опубликованные клубы 1 «Ритм» и 2 «Баланс» и слоты расписания в будущем
 - Подняты оба процесса: бэкенд `npm run start --workspace @sporthub/api`, фронт `npm run dev --workspace @sporthub/web`
 - Записи в сиде отсутствуют; для изоляции сценария можно очистить таблицу `bookings`
   через `npm run db:psql`
+- Учётки из `apps/api/src/storage/seed/dev-seed.ts`, пароль — `DEV_PASSWORD`: id=4
+  `athlete@sporthub.local` (лиц нет), id=2 `owner@sporthub.local` (клубы 1 и 2),
+  id=3 `trainer@sporthub.local` (карточка тренера 1), id=1 `admin@sporthub.local`
 
-## Scenario: Создание pending и видимость в обоих ЛК
+⚠️ **Ролей нет (фаза 35).** «Клиент» и «сторона услуг» — это не роли, а положение
+в конкретной записи: клиент — `booking.userId`, сторона услуг — владелец слота. Один
+и тот же человек бывает и тем, и другим, поэтому все отказы ниже приходят от **владения**,
+а не от имени роли.
 
-**Role:** athlete (id=4, `athlete@sporthub.local`) → provider (id=2, `owner@sporthub.local`)
+⚠️ **Срез записей задаётся явно.** `GET /api/bookings` без параметров отдаёт свои записи
+как клиента; `?scope=owner` — записи публикаций человека (можно сузить до одного лица
+парой `faceType`+`faceId`); `?scope=clients` — история людей, которые к этим публикациям
+записывались; `?scope=all` — полный срез площадки, только под правом администратора.
 
-- [ ] **step-1** Login athlete, navigate на деталку клуба «Фитнес-центр «Ритм»» — expect блок расписания
+## Scenario: Создание pending и видимость в обоих кабинетах
+
+**Role:** id=4 (`athlete@sporthub.local`) → id=2 (`owner@sporthub.local`)
+
+- [ ] **step-1** Login id=4, navigate на деталку клуба «Фитнес-центр «Ритм»» — expect блок расписания
 - [ ] **step-2** Click слот → переход на `/booking/[scheduleId]`
 - [ ] **step-3** Click «Записаться» → expect success, переход в `/profile/athlete/dashboard`. Assert: в ответе `userId` — свой, из сессии; чужой `userId` в теле запроса сервер игнорирует
 - [ ] **step-4** Navigate `/profile/athlete/schedule` — expect карточка со статусом `pending`
-- [ ] **step-5** Logout, login provider, navigate `/profile/provider/bookings?tab=pending` — expect карточка с именем «Ирина Спортсменова»
+- [ ] **step-5** Logout, login id=2, navigate `/profile/provider/bookings?tab=pending` — expect карточка с именем «Ирина Спортсменова»
 
-## Scenario: Confirm / Reject провайдером
+## Scenario: Confirm / Reject владельцем лица
 
-**Role:** provider (id=2)
+**Role:** id=2
 
 - [ ] **step-1** Login, в `/profile/provider/bookings` tab pending — click «Подтвердить» → expect toast, статус `confirmed`
-- [ ] **step-2** Logout → login athlete → `/profile/athlete/notifications` — expect уведомление `booking_confirmed`
-- [ ] **step-3** Новый pending (повторить scenario 1) → provider click «Отклонить» — expect ОТКРЫТИЕ модалки `RejectBookingReasonModal` (Phase 27 Step 27.13), а НЕ моментальный POST. До submit'а никаких сетевых запросов
+- [ ] **step-2** Logout → login id=4 → `/profile/athlete/notifications` — expect уведомление `booking_confirmed`
+- [ ] **step-3** Новый pending (повторить scenario 1) → владелец лица click «Отклонить» — expect ОТКРЫТИЕ модалки `RejectBookingReasonModal` (Phase 27 Step 27.13), а НЕ моментальный POST. До submit'а никаких сетевых запросов
 - [ ] **step-3a** Заполнить textarea «Причина отказа» текстом «Время не подходит» → click «Отклонить» → expect toast «Запись отклонена», статус `rejected_by_provider`, body запроса `POST /api/bookings/[id]/reject` содержит `{ reason: "Время не подходит" }` — исполнитель берётся из сессии и в теле не передаётся
-- [ ] **step-3b** Logout → login athlete → `/profile/athlete/notifications` или dropdown колокольчика — expect карточка `booking_rejected` с описанием **«Причина: Время не подходит»** (Step 27.13)
-- [ ] **step-3c** Создать ещё один pending → provider click «Отклонить» → в модалке СРАЗУ click «Отклонить» (без ввода) → expect `rejected_by_provider`, body запроса без поля `reason`. Атлет в уведомлении видит fallback «Провайдер отклонил запись. Попробуйте другой слот.»
-- [ ] **step-3d** Создать ещё один pending → provider click «Отклонить» → в модалке click «Отмена» (или ESC, или клик вне модалки) → expect модалка закрылась, статус booking'а ОСТАЛСЯ `pending`, никакого POST не было
+- [ ] **step-3b** Logout → login id=4 → `/profile/athlete/notifications` или dropdown колокольчика — expect карточка `booking_rejected` с описанием **«Причина: Время не подходит»** (Step 27.13)
+- [ ] **step-3c** Создать ещё один pending → владелец click «Отклонить» → в модалке СРАЗУ click «Отклонить» (без ввода) → expect `rejected_by_provider`, body запроса без поля `reason`. Клиент в уведомлении видит fallback «Провайдер отклонил запись. Попробуйте другой слот.»
+- [ ] **step-3d** Создать ещё один pending → владелец click «Отклонить» → в модалке click «Отмена» (или ESC, или клик вне модалки) → expect модалка закрылась, статус booking'а ОСТАЛСЯ `pending`, никакого POST не было
 - [ ] **step-3e** После закрытия модалки в 3d — открыть её снова кликом «Отклонить» → expect textarea ПУСТАЯ (текст из предыдущей сессии не утёк, Step 27.13)
-- [ ] **step-3f** Тот же `POST /api/bookings/[id]/reject` под сессией **атлета** — 403: разбор заявок закрыт правом роли
+- [ ] **step-3f** Тот же `POST /api/bookings/[id]/reject` под сессией **клиента** (id=4) — 403
+      «Недостаточно прав для отклонения записи». ⚠️ Текст именно такой: разбор заявок больше
+      не закрыт правом роли, останавливает **владение слотом**. Общее «Недостаточно прав»
+      здесь означало бы, что вернулась проверка по роли
+
+## Scenario: Своя запись — решение принимает вторая сторона
+
+**Role:** id=2 (владелец клуба 1) сам записывается на своё занятие
+
+Записаться в свой зал **можно** (решение заказчика 16): владелец ходит на свои тренировки.
+А вот решать по этой записи он не вправе — иначе цепочка «сам записался → сам отметил
+посещение → сам написал отзыв» накручивает рейтинг. Полный список двенадцати точек
+«сам себе» — в `phase-35-identity.md`, здесь проверяются только переходы FSM.
+
+- [ ] **step-1** Login id=2, navigate `/booking/[scheduleId]` слота клуба 1 → «Записаться» —
+      expect **успех**, статус `pending`. Assert: строка записи создана, `userId = 2`
+- [ ] **step-2** `POST /api/bookings/[id]/confirm` под той же сессией — expect **403**
+      «Решение по своей записи принимает вторая сторона». Assert: статус в базе остался `pending`
+- [ ] **step-3** `POST /api/bookings/[id]/reject` под той же сессией — expect 403 тем же
+      текстом, статус не изменился
+- [ ] **step-4** Сдвинуть слот в прошлое, `POST /api/bookings/[id]/check-in` под той же
+      сессией — expect 403 тем же текстом. Assert: посещение не отмечено, надёжность не выросла
+- [ ] **step-5** Assert: своя запись в свой клуб видна **в обоих** срезах — в личном
+      (`GET /api/bookings`) как запись клиента и в `?scope=owner` как запись публикации
+- [ ] **step-6** Assert: в собственном списке клиентов (`GET /api/users?scope=clients`)
+      человека **нет** — себя в свою клиентскую базу запись не заводит
+
+## Scenario: Служебная запись не записывается
+
+**Role:** id=1 (`admin@sporthub.local`)
+
+- [ ] **step-1** `POST /api/bookings` под сессией админа — expect **403** «Запись доступна
+      только пользователям площадки» (решение 13: админ — отдельная единица, а не человек
+      с признаком). Assert: строка не создана
 
 ## Scenario: Check-in после слота
 
-**Role:** provider (id=2)
+**Role:** id=2
 
-- [ ] **step-1** Иметь confirmed booking на прошедший слот (сдвинуть дату слота в базе через `npm run db:psql` или подождать). Provider navigate `/profile/provider/bookings?tab=check-in`
+- [ ] **step-1** Иметь confirmed booking **чужого человека** (id=4) на прошедший слот
+      (сдвинуть дату слота в базе через `npm run db:psql` или подождать).
+      Navigate `/profile/provider/bookings?tab=check-in`
 - [ ] **step-2** Click «Пришёл» — expect `completed`, toast success
-- [ ] **step-3** Для другой записи — click «Не пришёл» → expect `no_show`, атлет получает уведомление `booking_no_show`
+- [ ] **step-3** Для другой записи — click «Не пришёл» → expect `no_show`, клиент получает уведомление `booking_no_show`
 - [ ] **step-4** 48+ часов после endAt без действий — при next-open страницы → статус автоматически `unmarked`
 
 ## Scenario: Auto-cancel pending за 1ч до слота
 
-**Role:** athlete → provider
+**Role:** id=4 → id=2
 
-- [ ] **step-1** Athlete создал pending на слот <1h вперёд (либо сдвинуть дату слота в базе)
-- [ ] **step-2** Навигация provider'а в `/profile/provider/bookings` или `/profile/athlete/schedule` — expect автопереходы прогнались (`runLazyTransitions` на `GET /api/bookings`), статус `cancelled_by_provider` (actor=system)
-- [ ] **step-3** Athlete: уведомление `booking_auto_expired` в колокольчике
-- [ ] **step-4** Provider: уведомление `booking_auto_expired_to_provider` в колокольчике
+- [ ] **step-1** id=4 создал pending на слот <1h вперёд (либо сдвинуть дату слота в базе)
+- [ ] **step-2** Навигация id=2 в `/profile/provider/bookings` или `/profile/athlete/schedule` — expect автопереходы прогнались (`runLazyTransitions` на `GET /api/bookings`), статус `cancelled_by_provider` (actor=system)
+- [ ] **step-3** id=4: уведомление `booking_auto_expired` в колокольчике
+- [ ] **step-4** id=2: уведомление `booking_auto_expired_to_provider` — expect оно лежит
+      **в ящике клуба** (`GET /api/notifications?clubId=1`), а не в личном ящике человека.
+      Assert: строка несёт колонку лица; в `?scope=personal` её нет
 
 ## Scenario: Отмены и late/on_time
 
-**Role:** athlete → provider
+**Role:** id=4 → id=2
 
 - [ ] **step-1** Booking создан с offering.cancellationPolicy=`free_until_24h`
-- [ ] **step-2** Athlete отменяет за 25 часов до слота → `cancelled_by_athlete`, `cancelReason=on_time`
+- [ ] **step-2** id=4 отменяет за 25 часов до слота → `cancelled_by_athlete`, `cancelReason=on_time`
 - [ ] **step-3** Создать новый booking, отменить за 2 часа до слота → `cancelReason=late`, в UI плашка «поздняя отмена»
-- [ ] **step-4** Provider отменяет confirmed → `cancelled_by_provider`, атлет получает уведомление
-- [ ] **step-5** Athlete пробует отменить **чужую** запись (`DELETE /api/bookings/[id]`) — 403, запись на месте
+- [ ] **step-4** id=2 отменяет confirmed → `cancelled_by_provider`, клиент получает уведомление
+- [ ] **step-5** id=4 пробует отменить **чужую** запись (`DELETE /api/bookings/[id]`) — 403
+      «Недостаточно прав для отмены записи», запись на месте
 
 ## Scenario: Snapshot cancellationPolicy
 
-**Role:** provider → athlete
+**Role:** id=2 → id=4
 
 - [ ] **step-1** Create booking с policy=`free_until_24h`
-- [ ] **step-2** Provider в edit offering меняет policy на `no_refund` → save
-- [ ] **step-3** Athlete отменяет эту бронь за 25 часов до слота — expect `cancelReason=on_time` (snapshot 24h сохранил старую политику, а не текущую `no_refund`)
+- [ ] **step-2** id=2 в edit offering меняет policy на `no_refund` → save
+- [ ] **step-3** id=4 отменяет эту бронь за 25 часов до слота — expect `cancelReason=on_time` (snapshot 24h сохранил старую политику, а не текущую `no_refund`)

@@ -1,13 +1,14 @@
-# E2E: Trainer ↔ Club Links (Phase 24 Step 24.8 + Phase 25 Step 25.12 + Phase 27 Steps 27.9/27.10/27.11)
+# E2E: Trainer ↔ Club Links (Phase 24 Step 24.8 + Phase 25 Step 25.12 + Phase 27 Steps 27.9/27.10/27.11 + Phase 35 Step 35.10)
 
-**Role:** cross-role (provider club-owner ↔ provider trainer-owner)
+**Role:** cross-face (владелец клуба ↔ владелец карточки тренера ↔ владелец обоих лиц)
 **Base URL:** http://localhost:3000
 **Preconditions:**
 
 - База поднята и засеяна (`npm run db:up`, `npm run db:seed`), подняты бэкенд `:3001` и фронт `:3000`
 - Учётки из сида `apps/api/src/storage/seed/dev-seed.ts`, пароль общий — `DEV_PASSWORD`:
-  club-owner id=2 `owner@sporthub.local` («Ольга Владелец», клубы 1 «Ритм» и 2),
-  trainer-owner id=3 `trainer@sporthub.local` («Павел Тренеров», карточка тренера id=1 «Мария Орлова»)
+  id=2 `owner@sporthub.local` («Ольга Владелец», клубы 1 «Ритм» и 2 «Баланс»),
+  id=3 `trainer@sporthub.local` («Павел Тренеров», карточка тренера id=1 «Мария Орлова»),
+  id=5 `both@sporthub.local` («Егор Двулицев», клуб id=3 «Свобода» **и** карточка тренера id=2)
 - В сиде уже есть **подтверждённая** связь id=1 (тренер 1 ↔ клуб 1, `initiatedBy: 'trainer'`),
   а на ней висит услуга id=3 «Пилатес — индивидуально» (`trainerClubLinkId=1`) — она даёт
   ненулевой счётчик в сценарии Revoke
@@ -16,9 +17,44 @@
 - ⚠️ Сторона заявки и решения берётся из **серверной сессии**: номер действующего в теле не передаётся,
   а названная в теле чужая сторона отклоняется
 
-## Scenario: Club-side приглашает тренера
+⚠️ **Ролей нет (фаза 35).** Сторона связи определяется **владением**: кто управляет
+названной карточкой — тот тренер, кто управляет клубом — тот клуб. Один человек бывает
+обеими сторонами, и это норма (решения 11 и 22), а не подделка.
 
-**Role:** provider club-owner (id=2)
+## Scenario: Своё со своим — сразу подтверждено
+
+**Role:** id=5 (`both@sporthub.local`), клуб 3 и карточка тренера 2 у одного человека
+
+Живой случай заказчика: у человека свой зал, и помимо сотрудников он сам ведёт там
+персоналки. Ждать нечего — запрос и подтверждение это одно и то же действие одного
+и того же человека (решение 22).
+
+- [ ] **step-1** Login `both@sporthub.local`, navigate `/profile/provider/links`
+- [ ] **step-2** Связать свой клуб 3 со своей карточкой 2: `POST /api/trainer-club-links`
+      с `{ trainerId: 2, clubId: 3 }` — expect **201**
+- [ ] **step-3** Assert: связь создана **сразу** в статусе `confirmed`, заполнены
+      `approvedAt` и `approvedByUserId = 5`. Состояния `pending` **не было ни на миг** —
+      проверять по строке в базе, а не по экрану
+- [ ] **step-4** Assert: `initiatedBy` — `trainer` (при владении обеими сторонами и без
+      явного указания сторона считается тренерской)
+- [ ] **step-5** Assert: **уведомлений не отправлено ни одного** — ни `link_requested`,
+      ни `link_approved`. Ни в личном ящике, ни в ящиках клуба и карточки
+      (`GET /api/notifications?clubId=3` и `?trainerId=2` — пусто)
+- [ ] **step-6** Navigate публичную карточку клуба 3 — тренер «Егор Двулицев» в секции
+      «Тренеры клуба». Navigate карточку тренера 2 — блок «Работает в клубе» с клубом 3.
+      ⚠️ Побочное следствие решения 22: связь публикуется **одним** нажатием, а не двумя
+- [ ] **step-7** Отвязка: `POST /api/trainer-club-links/<id>/revoke` под той же сессией —
+      expect 200, статус `revoked`, согласования никто не спрашивал
+- [ ] **step-8** ❓ Assert уведомления после разрыва: `revokedBy` вычисляется как `trainer`
+      (сторона тренера проверяется первой), и сторона, которая разорвала, уведомления
+      не получает — а вторая, то есть **клуб того же человека**, получает `link_revoked`
+      в свой ящик (`GET /api/notifications?clubId=3`). Создание своего со своим
+      не уведомляет никого, разрыв — уведомляет. Свериться с заказчиком, задумана ли
+      эта асимметрия
+
+## Scenario: Клуб приглашает чужого тренера
+
+**Role:** id=2 (клубы 1 и 2)
 
 - [ ] **step-1** Login `owner@sporthub.local`, navigate `/profile/provider/publications` → клуб опубликован (в сиде их два)
 - [ ] **step-2** Navigate `/profile/provider/links` → expect секция `provider-links-club-side`
@@ -30,36 +66,45 @@
   - созданная связь имеет `status: 'pending'`, `initiatedBy: 'club'` — сторону сервер определил
     по владению клубом из сессии;
   - в таб pending (club-side) появилась карточка, в её подписи — «Приглашён вами» (не «Запрос от тренера»);
-  - club-owner **НЕ** получает `link_requested` о собственном приглашении (в своей ленте уведомлений этого события нет).
+  - инициатор **НЕ** получает `link_requested` о собственном приглашении (в своей ленте уведомлений этого события нет).
 - [ ] **step-6** Тот же `POST /api/trainer-club-links` с **чужой** стороной в теле (`initiatedBy: 'trainer'`
       по не своему тренеру) — 403 «Недостаточно прав для отправки запроса», связь не создана.
+      ⚠️ Проверка осталась на месте и после снятия ролей: она закрывает подмену **чужой**
+      стороны, а разрешение из решения 22 касается только владения **обеими** сторонами
+- [ ] **step-7** `POST /api/trainer-club-links` по паре, где человеку не принадлежит **ни одна**
+      сторона — 403 тем же текстом
 
-## Scenario: Trainer-side принимает запрос
+## Scenario: Сторона тренера принимает запрос
 
-**Role:** provider trainer-owner (id=3)
+**Role:** id=3 (карточка тренера 1)
 
-- [ ] **step-1** Logout, login `trainer@sporthub.local`, navigate `/profile/provider/notifications` — expect уведомление `link_requested`. **Phase 27 Step 27.9:** если приглашение шло от клуба (Scenario 1 step-5), title у тренера должен быть **«Клуб приглашает к сотрудничеству»**, description — «Клуб предложил вам привязаться. Откройте раздел «Связи»…». Payload содержит `initiatedBy: 'club'`.
+- [ ] **step-1** Logout, login `trainer@sporthub.local`, navigate `/profile/provider/notifications` — expect уведомление `link_requested`. **Phase 27 Step 27.9:** если приглашение шло от клуба (Scenario выше, step-5), title у тренера должен быть **«Клуб приглашает к сотрудничеству»**, description — «Клуб предложил вам привязаться. Откройте раздел «Связи»…». Payload содержит `initiatedBy: 'club'`.
+      ⚠️ **Шаг 35.27:** уведомление адресовано **лицу**, а не человеку — assert, что строка
+      несёт колонку карточки тренера и видна в `GET /api/notifications?trainerId=1`
 - [ ] **step-2** **Phase 27 Step 27.11** — navigate `/profile/provider/links` → tab pending (trainer-side): видим карточку приглашения от клуба 2. В карточке:
   - подпись содержит **«Приглашение от клуба»** (не «Мой запрос»);
   - кнопки **«Подтвердить»** (`provider-links-approve-<id>`) и **«Отклонить»** (`provider-links-reject-<id>`) — НЕ «Отозвать»;
   - отсутствует `provider-links-cancel-own-<id>`.
-- [ ] **step-3** **Phase 27 Step 27.11** — click «Подтвердить» от тренера-владельца → expect:
+- [ ] **step-3** **Phase 27 Step 27.11** — click «Подтвердить» от владельца карточки → expect:
   - HTTP **200** от `POST /api/trainer-club-links/<id>/approve`. Тела у запроса нет вовсе: сторону решения сервер берёт из сессии;
   - статус link'а → `confirmed`, `approvedByUserId = 3`;
   - карточка перешла в tab confirmed;
-  - club-owner (инициатор) получает `link_approved` с payload `initiatedBy: 'club'` и title **«Тренер принял приглашение»** (dynamic copy, не «Клуб подтвердил связь»).
-- [ ] **step-3a** Контрольная проверка: тот же `approve` под сессией **клуба-инициатора** — 403 «Недостаточно прав для подтверждения связи». Решает сторона, противоположная инициатору, и клуб не может подтвердить собственное приглашение.
+  - инициатор получает `link_approved` в ящик клуба 2 с payload `initiatedBy: 'club'` и title **«Тренер принял приглашение»** (dynamic copy, не «Клуб подтвердил связь»).
+- [ ] **step-3a** Контрольная проверка: тот же `approve` под сессией **инициатора** — 403 «Недостаточно прав для подтверждения связи». Решает сторона, противоположная инициатору, и клуб не может подтвердить собственное приглашение чужому тренеру.
+      ⚠️ Здесь отказ остаётся отказом и после решения 22: стороны принадлежат **разным**
+      людям, исключение на них не распространяется
 - [ ] **step-4** Navigate публичную страницу клуба 2 — expect тренер «Мария Орлова» в секции «Тренеры клуба»
 - [ ] **step-5** Navigate публичную страницу тренера `/trainers/mariya-orlova` — expect блок «Работает в клубе» с клубом 2
 
 ## Scenario: Отказ от запроса
 
-**Role:** provider trainer-owner (id=3)
+**Role:** id=3
 
-- [ ] **step-1** **Phase 27 Step 27.11** — создать новый pending club-initiated (club-owner id=2 приглашает тренера 1). Login trainer-owner, `/profile/provider/links` → tab pending (trainer-side), click **«Отклонить»** (`provider-links-reject-<id>`). Expect HTTP **200** от `POST /api/trainer-club-links/<id>/reject`.
+- [ ] **step-1** **Phase 27 Step 27.11** — создать новый pending club-initiated (id=2 приглашает тренера 1). Login id=3, `/profile/provider/links` → tab pending (trainer-side), click **«Отклонить»** (`provider-links-reject-<id>`). Expect HTTP **200** от `POST /api/trainer-club-links/<id>/reject`.
 - [ ] **step-2** Expect статус `rejected`, `rejectedByUserId = 3`; в public-выдачах связи нет — гостю отдаются только подтверждённые.
-- [ ] **step-3** **Phase 27 Step 27.11** — club-owner (инициатор) получает `link_rejected` с payload `initiatedBy: 'club'` и title **«Тренер отклонил приглашение»** (dynamic copy, не «Клуб отклонил связь»).
-- [ ] **step-4** Симметричный кейс: trainer-initiated pending (тренер-владелец → чужой клуб) → club-owner отклоняет → trainer-owner получает уведомление с title **«Клуб отклонил связь»**.
+- [ ] **step-3** **Phase 27 Step 27.11** — инициатор получает `link_rejected` с payload `initiatedBy: 'club'` и title **«Тренер отклонил приглашение»** (dynamic copy, не «Клуб отклонил связь»).
+- [ ] **step-4** Симметричный кейс: trainer-initiated pending (владелец карточки → чужой клуб) → владелец клуба отклоняет → владелец карточки получает уведомление с title **«Клуб отклонил связь»**.
+- [ ] **step-5** Тот же `reject` со стороны инициатора — 403 «Недостаточно прав для отказа».
 
 ## Scenario: Revoke связи с warning-модалкой
 
@@ -71,13 +116,16 @@
   - статус link'а → `revoked`;
   - у услуги id=3 поле `trainerClubLinkId` очищено — она становится частной услугой тренера;
   - на публичной странице тренера услуга id=3 больше не отображается как проходящая в клубе «Ритм».
-- [ ] **step-4** Другая сторона получает уведомление `link_revoked`.
+- [ ] **step-4** Другая сторона получает уведомление `link_revoked` — **в ящик своего лица**,
+      а не в личный ящик человека. Сторона, которая разорвала, уведомления не получает.
+- [ ] **step-5** `POST /api/trainer-club-links/<id>/revoke` от человека, которому не принадлежит
+      ни одна сторона — 403 «Недостаточно прав для разрыва связи», связь на месте.
 
-## Scenario: Запрос со стороны тренера-провайдера к чужому клубу
+## Scenario: Запрос со стороны тренера к чужому клубу
 
-**Role:** provider trainer-owner (id=3)
+**Role:** id=3 (карточка тренера 1)
 
 - [ ] **step-1** В `/profile/provider/links` → кнопка «Запросить связь с клубом» → `RequestLinkModal`
-- [ ] **step-2** Expect в списке `foreignClubs` — клубы других провайдеров, у которых ещё нет active link с моим тренером
+- [ ] **step-2** Expect в списке `foreignClubs` — клубы других людей, у которых ещё нет active link с моим тренером
 - [ ] **step-3** Выбрать клуб 2, submit → `pending`, `initiatedBy: 'trainer'`
-- [ ] **step-4** club-owner id=2 получает `link_requested`, флоу approve/reject как в первых сценариях
+- [ ] **step-4** Владелец клуба id=2 получает `link_requested` в ящик клуба 2, флоу approve/reject как в сценариях выше

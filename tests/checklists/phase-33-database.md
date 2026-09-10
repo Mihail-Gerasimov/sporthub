@@ -1,5 +1,14 @@
 # E2E: Phase 33 — переезд на PostgreSQL + Prisma
 
+> 📌 **Историческая запись, не переписывается.** Это протокол завершённого прогона:
+> все шаги отмечены, отчёты лежат в `tests/reports/`. Модель площадки на момент прогона
+> была **ролевой** (`users.role`, тип кабинета при входе, карантин за неявки) — фаза 35
+> сняла роли и вырезала карантин. Поэтому ожидания ниже верны **для своего времени**
+> и как есть не перегоняются. Живые чек-листы под текущую модель — `auth.md`,
+> `profile-hub.md`, `booking-fsm.md`, `trainer-club-links.md`, `notifications.md`,
+> `reliability-quarantine.md`, `admin-panel.md`, `maps-publish.md`,
+> `phase-34-security.md`, `phase-35-identity.md`.
+
 **Role:** cross-role (guest → athlete → provider → admin)
 **Base URL:** http://localhost:3000
 **Preconditions:**
