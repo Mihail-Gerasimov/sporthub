@@ -240,9 +240,7 @@ export function NotificationsListPage({
   // есть хоть одна её строка.
   const visibleGroupKeys: readonly NotificationGroupKey[] = useMemo(
     () =>
-      NOTIFICATION_GROUP_KEYS.filter(
-        (group) => group !== 'moderation' || groupCounts[group] > 0,
-      ),
+      NOTIFICATION_GROUP_KEYS.filter((group) => group !== 'moderation' || groupCounts[group] > 0),
     [groupCounts],
   );
 
@@ -252,7 +250,6 @@ export function NotificationsListPage({
       setActiveGroup('all');
     }
   }, [activeGroup, visibleGroupKeys]);
-
 
   // Фильтр — только то, что человек выбрал сам: группа и тоггл непрочитанных.
   const filtered = useMemo(() => {
