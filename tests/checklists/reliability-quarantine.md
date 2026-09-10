@@ -32,7 +32,7 @@
 у владельца зала, который сам ходит на тренировки, есть и своя надёжность как клиента,
 и надёжность каждого своего лица. Это два разных расчёта, а не два вида пользователя.
 
-- [ ] **step-1** Подготовка: 4 completed у id=4 → login id=4, `/profile/athlete/dashboard` — expect reliability-секция «Новый пользователь» (isNewUser, badge=null)
+- [ ] **step-1** Подготовка: 4 completed у id=4 → login id=4, `/profile/me/dashboard` — expect reliability-секция «Новый пользователь» (isNewUser, badge=null)
 - [ ] **step-2** Seed: 5 completed + 0 no_show → refresh — expect completionRate=1.0, бейджа нет, цифры видны
 - [ ] **step-3** Seed: 9 completed + 1 no_show → 9/10=0.9 — бейдж отсутствует (граница `< 0.90` = false)
 - [ ] **step-4** Seed: 9 completed + 2 no_show → 9/11≈0.818 → `warning`
@@ -48,13 +48,13 @@
 что механизма больше нет ни в API, ни в интерфейсе.
 
 - [ ] **step-1** Seed: 3 `no_show` подряд в окне последних 30 дней у id=4 (без `completed` между ними)
-- [ ] **step-2** Login id=4, `/profile/athlete/dashboard` — expect верхнего красного баннера «Вы временно не можете создавать новые записи» НЕТ, кабинет обычный
+- [ ] **step-2** Login id=4, `/profile/me/dashboard` — expect верхнего красного баннера «Вы временно не можете создавать новые записи» НЕТ, кабинет обычный
 - [ ] **step-3** Открыть `/booking/[scheduleId]` свободного слота — expect кнопка «Подтвердить запись» активна, плашки запрета нет
 - [ ] **step-4** `POST /api/bookings` с этим слотом — expect **201**, запись создана (форма ответа общая: `{success: true, data: ...}`)
 - [ ] **step-5** Тот же кабинет — expect бейдж надёжности при этом опущен (3 неявки в знаменателе), то есть учёт неявок сохранён
 - [ ] **step-6** `POST /api/admin/users/4/lift-quarantine` под админом — expect **404**: маршрута ручного послабления больше нет
 - [ ] **step-7** Login admin, `/service-portal/dashboard` — у человека одна кнопка «Пересчитать рейтинг», отдельной кнопки послабления и красной плашки со сроком нет
-- [ ] **step-8** `/profile/athlete/notifications` и `/profile/athlete/settings` — expect вкладки
+- [ ] **step-8** `/profile/me/notifications` и `/profile/me/settings` — expect вкладки
       и секции «Дисциплина» нет; остаются «Записи», «Связи», «Отзывы» — и остаются они
       **у всех**, а не только у владельцев лиц (шаг 35.28a)
 - [ ] **step-9** `/service-portal/logs` — expect в фильтре действий нет записей о начале, окончании и снятии запрета
@@ -68,7 +68,7 @@
 - [ ] **step-3** Seed: 5 completed + 1 `rejected_by_provider` → 5/6≈0.833 → `warning`
 - [ ] **step-4** Добавить несколько `cancelled_by_athlete` — assert бейдж клуба НЕ меняется
 - [ ] **step-5** Navigate `/` и `/clubs/fitnes-centr-ritm` — expect compact `ReliabilityBadge` в блоке Rating, на детальной странице — развёрнутая секция «Надёжность»
-- [ ] **step-6** Логин id=2, `/profile/provider/dashboard` — expect такой же бейдж в секции «Мои клубы»
+- [ ] **step-6** Логин id=2, `/profile/club/1/dashboard` — expect такой же бейдж в секции «Мои клубы»
 
 ## Scenario: Сортировка и фильтр в каталоге
 
@@ -92,12 +92,13 @@
 
 - [ ] **step-1** `/` — карточки клубов/тренеров с compact-бейджем
 - [ ] **step-2** `/clubs/[slug]` и `/trainers/[slug]` — развёрнутый блок «Надёжность» с разбивкой completed/no_show/cancelled/rejected
-- [ ] **step-3** `/profile/athlete/dashboard` — свой reliability-бар. Открывается у **любого**
+- [ ] **step-3** `/profile/me/dashboard` — свой reliability-бар. Открывается у **любого**
       вошедшего человека, включая владельца лиц: личный кабинет есть у всех
-- [ ] **step-4** `/profile/provider/dashboard` — бейджи в «Мои клубы» / «Мои тренеры»
-- [ ] **step-5** `/profile/provider/stats` — KPI completion/no_show/cancel за 12 мес и всё время
+- [ ] **step-4** `/profile/club/1/dashboard` — бейдж в секции «Мои клубы»; `/profile/trainer/1/dashboard` — в «Мои тренеры». ⚠️ Кабинет принадлежит одному лицу: в каждом видно **своё** лицо, а не оба сразу
+- [ ] **step-5** `/profile/club/1/stats` — KPI completion/no_show/cancel за 12 мес и всё время. ⚠️ Раздел появляется только при наличии записей у лица
 - [ ] **step-6** `/service-portal/dashboard` — бейдж надёжности в карточке пользователя
       (колонки санкций больше нет)
-- [ ] **step-7** Login id=5 (клуб и карточка тренера) — у него виден и личный бейдж
-      в `/profile/athlete/dashboard`, и бейджи обоих лиц в кабинете лица. Assert: расчёты
-      независимы — неявка человека не роняет надёжность его клуба
+- [ ] **step-7** Login id=5 (клуб 3 и карточка тренера 2) — у него виден личный бейдж
+      в `/profile/me/dashboard`, бейдж клуба в `/profile/club/3/dashboard` и бейдж
+      карточки в `/profile/trainer/2/dashboard`. Assert: три расчёта независимы —
+      неявка человека не роняет надёжность его клуба

@@ -8,6 +8,9 @@
 - Подняты оба процесса: бэкенд `npm run start --workspace @sporthub/api` (`:3001`)
   и фронт `npm run dev --workspace @sporthub/web` (`:3000`)
 - Браузер стартует без cookie: сессии предыдущих прогонов не переносятся
+- ⚠️ Имя cookie сессии зависит от окружения: `sh-session` без `Secure`,
+  `__Host-sh-session` с ним (`SESSION_COOKIE_NAME` в `apps/api/src/auth/session-cookie.ts`).
+  В контейнерном контуре она приходит с `Secure` — по HTTP `curl` её вернуть надо руками
 
 ⚠️ **Ролей в продукте нет (фаза 35).** Учётки сида различаются не ролью, а **набором лиц
 услуг**: лицо — это карточка тренера или клуб. Учётки берутся из
@@ -21,9 +24,13 @@
 | 4   | `athlete@sporthub.local` «Ирина Спортсменова»   | нет                                           |
 | 5   | `both@sporthub.local` «Егор Двулицев»           | клуб 3 «Свобода» **и** карточка тренера 2     |
 
-⚠️ **Адреса кабинета в коде прежние:** личный — `/profile/athlete/*`, лицо услуг —
-`/profile/provider/*`. Адресных `/profile/me/*`, `/profile/club/[id]/*` из решения 5.8
-на диске пока нет; когда появятся, адреса в чек-листе меняются вместе с ними.
+⚠️ **Адреса кабинета адресные (шаг 35.31).** Личный — `/profile/me/*`; кабинет лица —
+`/profile/<вид>/<номер>/*`, где вид это `club` или `trainer`: `/profile/club/1/dashboard`,
+`/profile/trainer/1/dashboard`. Прежние адреса живы и уводят на новые: `/profile/athlete/*`
+отвечает **308** на `/profile/me/*` (соответствие одно для всех), `/profile/provider/*` —
+**307** на кабинет первого лица из сессии (назначение зависит от вошедшего, поэтому
+постоянным быть не может). Мусор в адресе (`/profile/venue/1`, `/profile/club/abc`)
+и чужой номер лица дают один и тот же ответ — увод на `/`.
 
 ## Scenario: Вход человеком без лиц
 
@@ -35,12 +42,13 @@
       типа кабинета в форме нет вовсе** — ни чипов «Спортсмен / Представитель услуг», ни
       блока «Тип аккаунта»; тело запроса `POST /api/auth/login` — ровно `{ email, password }`
 - [ ] **step-4** Submit — expect модалка закрылась, в Header видно имя «Ирина Спортсменова» и колокольчик
-- [ ] **step-5** Assert: личность живёт в серверной сессии — cookie `sh-session` выставлена
+- [ ] **step-5** Assert: личность живёт в серверной сессии — cookie сессии выставлена
       с флагом `HttpOnly` (из JS не читается), в `localStorage` личности нет вовсе,
       а `GET /api/auth/me` отдаёт `id=4`, `accountKind: 'person'`, **`faces: []`**
       и список `capabilities`. Поля `role` в ответе нет
-- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в `/profile/athlete` — лиц нет,
-      личный кабинет единственный
+- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в `/profile/me` — лиц нет,
+      личный кабинет единственный. Открыть её: `/profile/me` отвечает 307 на
+      `/profile/me/dashboard`
 
 ## Scenario: Вход человеком с лицами и перезалогин
 
@@ -53,8 +61,12 @@
 - [ ] **step-4** Submit — expect вход успешный, Header «Ольга Владелец»
 - [ ] **step-5** Assert `GET /api/auth/me`: `faces` — **два элемента** `{ kind: 'club', id, name }`
       (клубы 1 и 2), `accountKind: 'person'`
-- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в кабинет лица (`/profile/provider`),
-      подпись — имя активного лица, а не «Кабинет представителя спортивных услуг»
+- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в кабинет **активного лица** —
+      `/profile/club/1`, а не в общий `/profile/provider`. Подпись ссылки — имя лица
+      («Ритм»), а не «Кабинет представителя спортивных услуг»
+- [ ] **step-7** Прежний адрес: `/profile/provider/dashboard` — expect **307** на
+      `/profile/club/1/dashboard` (кабинет первого лица из сессии). Адрес закладки
+      и письма не отдаёт 404
 
 ## Scenario: Человек с двумя разными лицами
 
@@ -65,12 +77,17 @@
 - [ ] **step-1** Login `both@sporthub.local` — вход прошёл, Header «Егор Двулицев»
 - [ ] **step-2** Assert `GET /api/auth/me`: в `faces` **два элемента разного вида** —
       `{ kind: 'club' }` и `{ kind: 'trainer' }`
-- [ ] **step-3** Navigate `/profile/provider/dashboard` — expect переключатель лиц
-      (`FaceSwitcher`) виден, заголовок «Кабинет лица», подписи вида — «Клуб»
-      и «Карточка тренера»
-- [ ] **step-4** Logout, login `trainer@sporthub.local` (id=3, одно лицо), navigate тот же
-      адрес — expect переключателя **нет в разметке вовсе** (не скрыт стилями): лицо одно,
-      выбирать не из чего
+- [ ] **step-3** Navigate `/profile/club/3/dashboard` — expect переключатель лиц
+      (`data-testid="profile-face-switcher"`) виден, над ним подпись «Кабинет лица»,
+      у кнопок `title` — «Клуб» и «Карточка тренера»
+- [ ] **step-4** Click по второму лицу в переключателе — expect адрес сменился на
+      `/profile/trainer/2/dashboard`: кабинет принадлежит лицу, и номер стоит в адресе
+- [ ] **step-5** Logout, login `trainer@sporthub.local` (id=3, одно лицо), navigate
+      `/profile/trainer/1/dashboard` — expect переключателя **нет в разметке вовсе**
+      (не скрыт стилями): лицо одно, выбирать не из чего
+- [ ] **step-6** Под id=3 navigate `/profile/club/3/dashboard` (чужое лицо) — expect
+      увели на `/`. Тот же ответ даёт `/profile/venue/1` и `/profile/club/99999`:
+      по разнице ответов посторонний перебирал бы номера
 
 ## Scenario: Валидация на логине
 
@@ -120,5 +137,8 @@
       см. `src/components/admin/ImpersonationBanner.tsx`
 - [ ] **step-4** Assert: колокольчика у служебной записи в Header **нет** — уведомляться
       не о чем, базового набора человека у админа нет (решение 13)
-- [ ] **step-5** Navigate `/profile/athlete/dashboard` под админом — expect увели на главную `/`:
-      личного кабинета у служебной записи нет
+- [ ] **step-5** Navigate `/profile/me/dashboard` под админом — expect увели на главную `/`
+      (`requirePerson()`): личного кабинета у служебной записи нет. Прежний адрес
+      `/profile/athlete/dashboard` приводит туда же — сначала 308, потом увод
+- [ ] **step-6** Navigate `/profile/provider/dashboard` под админом — expect увели
+      на главную `/`: лиц у служебной записи нет, вести некуда

@@ -22,6 +22,10 @@
 как клиента; `?scope=owner` — записи публикаций человека (можно сузить до одного лица
 парой `faceType`+`faceId`); `?scope=clients` — история людей, которые к этим публикациям
 записывались; `?scope=all` — полный срез площадки, только под правом администратора.
+У человека **без лиц** `?scope=owner` и `?scope=clients` отвечают **403 «Недостаточно
+прав»**, а не пустым списком: пустой ответ читается как «записей пока нет» и прячет то,
+что спрашивать было нечего (шаг 35.19b). Чужое лицо в паре — 403 «Недостаточно прав»;
+половина пары — 400 «Некорректные параметры запроса» (проверено `curl`'ом 10.09.2026).
 
 ## Scenario: Создание pending и видимость в обоих кабинетах
 
@@ -29,19 +33,19 @@
 
 - [ ] **step-1** Login id=4, navigate на деталку клуба «Фитнес-центр «Ритм»» — expect блок расписания
 - [ ] **step-2** Click слот → переход на `/booking/[scheduleId]`
-- [ ] **step-3** Click «Записаться» → expect success, переход в `/profile/athlete/dashboard`. Assert: в ответе `userId` — свой, из сессии; чужой `userId` в теле запроса сервер игнорирует
-- [ ] **step-4** Navigate `/profile/athlete/schedule` — expect карточка со статусом `pending`
-- [ ] **step-5** Logout, login id=2, navigate `/profile/provider/bookings?tab=pending` — expect карточка с именем «Ирина Спортсменова»
+- [ ] **step-3** Click «Записаться» → expect success, переход в `/profile/me/dashboard`. Assert: в ответе `userId` — свой, из сессии; чужой `userId` в теле запроса сервер игнорирует
+- [ ] **step-4** Navigate `/profile/me/schedule` — expect карточка со статусом `pending`
+- [ ] **step-5** Logout, login id=2, navigate `/profile/club/1/bookings?tab=pending` — expect карточка с именем «Ирина Спортсменова». ⚠️ Адрес адресный: записи в нём — записи **клуба 1**, а не всех клубов человека (`loadFaceScope`)
 
 ## Scenario: Confirm / Reject владельцем лица
 
 **Role:** id=2
 
-- [ ] **step-1** Login, в `/profile/provider/bookings` tab pending — click «Подтвердить» → expect toast, статус `confirmed`
-- [ ] **step-2** Logout → login id=4 → `/profile/athlete/notifications` — expect уведомление `booking_confirmed`
+- [ ] **step-1** Login, в `/profile/club/1/bookings` tab pending — click «Подтвердить» → expect toast, статус `confirmed`
+- [ ] **step-2** Logout → login id=4 → `/profile/me/notifications` — expect уведомление `booking_confirmed`
 - [ ] **step-3** Новый pending (повторить scenario 1) → владелец лица click «Отклонить» — expect ОТКРЫТИЕ модалки `RejectBookingReasonModal` (Phase 27 Step 27.13), а НЕ моментальный POST. До submit'а никаких сетевых запросов
 - [ ] **step-3a** Заполнить textarea «Причина отказа» текстом «Время не подходит» → click «Отклонить» → expect toast «Запись отклонена», статус `rejected_by_provider`, body запроса `POST /api/bookings/[id]/reject` содержит `{ reason: "Время не подходит" }` — исполнитель берётся из сессии и в теле не передаётся
-- [ ] **step-3b** Logout → login id=4 → `/profile/athlete/notifications` или dropdown колокольчика — expect карточка `booking_rejected` с описанием **«Причина: Время не подходит»** (Step 27.13)
+- [ ] **step-3b** Logout → login id=4 → `/profile/me/notifications` или dropdown колокольчика — expect карточка `booking_rejected` с описанием **«Причина: Время не подходит»** (Step 27.13)
 - [ ] **step-3c** Создать ещё один pending → владелец click «Отклонить» → в модалке СРАЗУ click «Отклонить» (без ввода) → expect `rejected_by_provider`, body запроса без поля `reason`. Клиент в уведомлении видит fallback «Провайдер отклонил запись. Попробуйте другой слот.»
 - [ ] **step-3d** Создать ещё один pending → владелец click «Отклонить» → в модалке click «Отмена» (или ESC, или клик вне модалки) → expect модалка закрылась, статус booking'а ОСТАЛСЯ `pending`, никакого POST не было
 - [ ] **step-3e** После закрытия модалки в 3d — открыть её снова кликом «Отклонить» → expect textarea ПУСТАЯ (текст из предыдущей сессии не утёк, Step 27.13)
@@ -86,7 +90,7 @@
 
 - [ ] **step-1** Иметь confirmed booking **чужого человека** (id=4) на прошедший слот
       (сдвинуть дату слота в базе через `npm run db:psql` или подождать).
-      Navigate `/profile/provider/bookings?tab=check-in`
+      Navigate `/profile/club/1/bookings?tab=check-in`
 - [ ] **step-2** Click «Пришёл» — expect `completed`, toast success
 - [ ] **step-3** Для другой записи — click «Не пришёл» → expect `no_show`, клиент получает уведомление `booking_no_show`
 - [ ] **step-4** 48+ часов после endAt без действий — при next-open страницы → статус автоматически `unmarked`
@@ -96,7 +100,7 @@
 **Role:** id=4 → id=2
 
 - [ ] **step-1** id=4 создал pending на слот <1h вперёд (либо сдвинуть дату слота в базе)
-- [ ] **step-2** Навигация id=2 в `/profile/provider/bookings` или `/profile/athlete/schedule` — expect автопереходы прогнались (`runLazyTransitions` на `GET /api/bookings`), статус `cancelled_by_provider` (actor=system)
+- [ ] **step-2** Навигация id=2 в `/profile/club/1/bookings` или `/profile/me/schedule` — expect автопереходы прогнались (`runLazyTransitions` на `GET /api/bookings`), статус `cancelled_by_provider` (actor=system)
 - [ ] **step-3** id=4: уведомление `booking_auto_expired` в колокольчике
 - [ ] **step-4** id=2: уведомление `booking_auto_expired_to_provider` — expect оно лежит
       **в ящике клуба** (`GET /api/notifications?clubId=1`), а не в личном ящике человека.

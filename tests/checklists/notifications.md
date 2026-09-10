@@ -36,19 +36,20 @@
 - [ ] **step-1** Login, navigate `/` — expect bell-icon в Header виден
 - [ ] **step-2** Создать уведомление (например через booking: записаться и дождаться confirm от владельца лица из отдельного сценария) → expect badge увеличился
 - [ ] **step-3** Click на колокольчик — expect dropdown с последними 5 уведомлениями, в title/description `getNotificationCopy()` текст
-- [ ] **step-4** Phase 27 Step 27.6 — click по любому непрочитанному элементу dropdown: (1) POST `/api/notifications/[id]/read`; (2) badge уменьшается на 1 (или исчезает); (3) dropdown закрывается; (4) `router.push` на `/profile/athlete/notifications`. Проверить через `browser_evaluate` что `window.location.pathname === '/profile/athlete/notifications'`
-- [ ] **step-5** Click «Все уведомления» в шапке dropdown — expect тоже redirect на `/profile/athlete/notifications` (тот же target, без mark-as-read)
+- [ ] **step-4** Phase 27 Step 27.6 — click по любому непрочитанному элементу dropdown: (1) POST `/api/notifications/[id]/read`; (2) badge уменьшается на 1 (или исчезает); (3) dropdown закрывается; (4) `router.push` на `/profile/me/notifications`. Проверить через `browser_evaluate` что `window.location.pathname === '/profile/me/notifications'`
+- [ ] **step-5** Click «Все уведомления» в шапке dropdown — expect тоже redirect на `/profile/me/notifications` (тот же target, без mark-as-read)
 - [ ] **step-6** **Шаг 35.36.** Assert у id=4 колокольчик на месте, хотя лиц у человека нет:
       уведомления есть у всякого вошедшего. Logout, login id=1 (админ) — колокольчика
       в Header **нет вовсе**: у служебной записи ни записей, ни отзывов
 - [ ] **step-7** Logout, login id=2 (есть лица) — click «Все уведомления» ведёт в
-      `/profile/provider/notifications`: адрес берётся у кабинета активного лица
+      `/profile/club/1/notifications`: адрес берётся у кабинета **активного лица**,
+      и номер лица стоит в пути
 
 ## Scenario: `NotificationsListPage` — вкладки это темы, а не роли
 
 **Role:** id=4 → id=2
 
-- [ ] **step-1** Login id=4, navigate `/profile/athlete/notifications` — expect **4 tab'а**
+- [ ] **step-1** Login id=4, navigate `/profile/me/notifications` — expect **4 tab'а**
       фильтров: `Все`, `Записи`, `Связи`, `Отзывы`.
       ⚠️ **Шаг 35.28a:** вкладка `Связи` больше **не** прячется у человека без лиц —
       вкладки это темы, а не роли получателя, и спрятанная вкладка означала бы строки,
@@ -61,7 +62,7 @@
 - [ ] **step-4** Click «Только непрочитанные» — прочитанные исчезают
 - [ ] **step-5** Assert уведомления разложены по bucket'ам `Сегодня` / `Вчера` / `Эта неделя` / `Раньше`
 - [ ] **step-6** Click «Отметить всё как прочитанное» — expect тост success, все без индикаторов
-- [ ] **step-7** Logout, login id=2, navigate `/profile/provider/notifications` — expect
+- [ ] **step-7** Logout, login id=2, navigate `/profile/club/1/notifications` — expect
       **те же 4 tab'а**. Assert: набор вкладок у человека с лицами и без лиц одинаковый —
       различие теперь только в содержимом
 
@@ -100,15 +101,25 @@
       раскладываются по двум **разным** ящикам (`?clubId=3` и `?trainerId=2`), а не
       в один общий
 
-⚠️ Интерфейс страницы уведомлений ящик лица пока **не** запрашивает: `NotificationsListPage`
-и `POST /api/notifications/read-all` ходят без параметров лица, то есть показывают и гасят
-объединённый ящик. Шаги 3–7 этого сценария проверяются через API.
+- [ ] **step-12** Открыть `/profile/club/3/notifications` и `/profile/me/notifications` —
+      содержимое **разное**: в кабинете клуба только его строки, в личном только личные
+- [ ] **step-13** «Отметить всё как прочитанное» в кабинете клуба 3 — ящики остальных лиц
+      и личный **целы**: сверить `?clubId=` каждого другого лица и `?scope=personal`
+
+⚠️ **Здесь было расхождение, закрытое 10.09.2026 (шаг 35.47a).** Раздельные ящики
+существовали у API с шага 35.28, а страница кабинета продолжала спрашивать ленту
+ЧЕЛОВЕКА целиком: у владельца трёх клубов все три кабинета показывали одну кучу,
+а кнопка «Отметить всё» гасила её целиком. Ровно та ошибка, ради которой затевалась
+фаза 34 — серверная часть написана и покрыта, а вызова из браузера нет ни одного.
+Тесты этого не видели, потому что смотрели на API. Закрыто двумя тестами
+**подключения** в `profile-page-requests.test.ts`: они проверяют, какой адрес страница
+на самом деле дёргает.
 
 ## Scenario: Редактор preferences (`UserNotificationPreferencesEditor`)
 
 **Role:** id=4 → id=2
 
-- [ ] **step-1** Login id=4, navigate `/profile/athlete/settings` — expect **3 группы**:
+- [ ] **step-1** Login id=4, navigate `/profile/me/settings` — expect **3 группы**:
       «Записи», «Связи», «Отзывы». Группы «Дисциплина» больше нет — санкции за неявки
       отменены (этап Э0a)
 - [ ] **step-2** **Шаг 35.28a.** Assert: в группе «Записи» показаны **все** типы группы,
@@ -120,15 +131,19 @@
 - [ ] **step-4** Click по `booking_completed` (non-required) — после ~500ms expect toast «Настройки уведомлений сохранены»
 - [ ] **step-5** Phase 27 Step 27.0 — `browser_navigate` на ту же страницу (refresh) → assert галочка `booking_completed` **осталась снятой**: настройка сохранена в базе, а не только в состоянии страницы
 - [ ] **step-6** Создать событие типа `booking_completed` (через check-in владельцем лица с пред-подготовленным слотом в прошлом) → expect уведомление НЕ появляется у человека — ни в dropdown, ни на странице `/notifications`, ни в badge (Phase 27 Step 27.2 — единый фильтр)
-- [ ] **step-7** Logout, login id=2, `/profile/provider/settings` — expect **те же 3 группы**
+- [ ] **step-7** Logout, login id=2, `/profile/club/1/settings` — expect **те же 3 группы**
       и тот же набор чекбоксов. Assert: набор настроек у человека с лицами и без лиц
       одинаковый — отключать можно всё, кроме двух обязательных
-- [ ] **step-8** ❓ **Настройки на лицо (решение 5.9).** Схема базы к этому готова:
-      в `user_notification_preferences` есть `face_club_id` / `face_trainer_id`
-      и три частичных уникальных индекса. Но `PATCH /api/users/:id/notification-preferences`
-      параметра лица **не принимает**, а чтение по лицу не фильтрует — заглушить один клуб,
-      не заглушая остальные, сейчас нельзя. Шаг оставлен вопросом: доделывается ли API
-      в этой фазе или переносится
+- [ ] **step-8** **Настройки на лицо (решение 5.9, шаг 35.29).** Ящик настроек называется
+      парой `faceType`+`faceId`: у чтения — в строке запроса, у записи — в теле. - `GET /api/users/2/notification-preferences` — **личные** настройки человека; - `GET /api/users/2/notification-preferences?faceType=club&faceId=1` — настройки
+      клуба 1. Assert: наборы **разные**, личный и клубный не смешиваются; - `PATCH /api/users/2/notification-preferences` с телом
+      `{ faceType: 'club', faceId: 1, preferences: { booking_requested: false } }` —
+      заглушает **только** клуб 1; - тот же `GET` по клубу 2 — `booking_requested` там **остался включён**; - `?faceType=club&faceId=<чужой клуб>` — **403** «Недостаточно прав для чтения
+      настроек этого лица»; на `PATCH` — «Недостаточно прав для чтения настроек
+      этого лица» тем же правилом (одна проверка `requireOwnFace` на чтение и запись); - половина пары (`?faceType=club` без номера) — **400** «Некорректные данные запроса»
+- [ ] **step-9** Обязательные типы и на лице обязательны: `PATCH` с
+      `{ faceType: 'club', faceId: 1, preferences: { booking_confirmed: false } }` —
+      ключ отбрасывается молча, отказа нет, но и выключенным тип не становится
 
 ## Scenario: Владелец лица получает booking-уведомления
 
@@ -136,33 +151,44 @@
 
 - [ ] **step-1** Login id=4, записаться на слот клуба id=2 через POST /api/bookings (или через UI). Клиент в теле не передаётся — сервер берёт его из сессии
 - [ ] **step-2** Logout, login id=2 — expect колокольчик **+1**, в dropdown уведомление `booking_requested` с title «Новая запись на ваш слот»
-- [ ] **step-3** Navigate `/profile/provider/notifications` → tab `Записи` — expect уведомление в сегодняшнем bucket'е
+- [ ] **step-3** Navigate `/profile/club/1/notifications` → tab `Записи` — expect уведомление в сегодняшнем bucket'е
 - [ ] **step-4** Logout, login id=4 → отменить pending/confirmed запись → logout, login id=2 — expect новое уведомление `booking_cancelled_by_athlete_to_provider` («Клиент отменил запись») в ящике того клуба, чей был слот
 - [ ] **step-5** Имитировать auto-expire: создать pending на слот с `startTime < now + 1h` → открыть любую страницу кабинета лица (её загрузка ходит в `GET /api/bookings`, а он запускает ленивые переходы `runLazyTransitions` на бэкенде) → expect 2 уведомления: `booking_auto_expired` (человеку-клиенту, без лица) + `booking_auto_expired_to_provider` (в ящик лица). Прогон в ручном режиме подтверждён, для MCP нужна правильная подготовка slot в сиде
 - [ ] **step-6** Владелец лица сам отменил confirmed — expect ЕМУ уведомление НЕ пришло (он инициатор, достаточно UI-toast)
-- [ ] **step-7** В `/profile/provider/settings` → группа «Записи» — expect чекбоксы
+- [ ] **step-7** В `/profile/club/1/settings` → группа «Записи» — expect чекбоксы
       `Новая запись на ваш слот`, `Клиент отменил запись`, `Запись авто-отменена`,
       все не-REQUIRED
-- [ ] **step-8** Phase 27 Step 27.2 — отключить `booking_requested` → создать новый pending от id=4 → вернуться к id=2. Expect: уведомление НЕ появляется **ни в одном** из трёх мест — в dropdown, на `/profile/provider/notifications`, **и badge-счётчик не растёт**. Проверяются все три места сразу: фильтр отключённых типов один, и расхождение между ними означало бы, что какой-то из потребителей его обходит
+- [ ] **step-8** Phase 27 Step 27.2 — отключить `booking_requested` → создать новый pending от id=4 → вернуться к id=2. Expect: уведомление НЕ появляется **ни в одном** из трёх мест — в dropdown, на `/profile/club/1/notifications`, **и badge-счётчик не растёт**. Проверяются все три места сразу: фильтр отключённых типов один, и расхождение между ними означало бы, что какой-то из потребителей его обходит
 
 ## Scenario: Счётчики сводки и колокольчика
 
 **Role:** id=2
 
-- [ ] **step-1** Login id=2, navigate `/profile/provider/dashboard` — assert KPI
+- [ ] **step-1** Login id=2, navigate `/profile/club/1/dashboard` — assert KPI
       «Непрочитанные» (`provider-dashboard-unread`) считает строки, у которых **заполнено
       лицо** (`addresseeType`), то есть непрочитанное **лиц** человека
 - [ ] **step-2** Assert колокольчик в Header считает **весь** ящик человека
       (`GET /api/notifications/unread-count` без параметров) — и личные строки тоже
-- [ ] **step-3** ❓ Завести человеку одно личное непрочитанное (например `booking_confirmed`
-      по своей записи) и сравнить числа — они разойдутся. Это ловушка 7.8 фазы 35:
-      свериться с заказчиком, задумано ли расхождение или сводка должна считать то же,
-      что колокольчик
+- [ ] **step-3** Завести человеку одно **личное** непрочитанное (например `booking_confirmed`
+      по своей записи к чужому тренеру) и сравнить числа: колокольчик **больше** сводки
+      ровно на эту строку. ⚠️ Расхождение **задумано** (шаг 35.37, ловушка 7.6): сводка
+      кабинета услуг считает только строки с заполненным лицом, и запись человека
+      к чужому тренеру к кабинету услуг отношения не имеет
+- [ ] **step-4** У владельца двух клубов KPI «Непрочитанные» в кабинете клуба 1
+      и в кабинете клуба 2 — **разные** числа, каждое равно своему ящику.
+      ⚠️ Правилось дважды, и первый раз мало: сначала сводка считала все непрочитанные
+      человека, включая личные; потом отбор сузился до «есть адресат» — то есть до всех
+      лиц СРАЗУ, и оба кабинета показывали одно число. Теперь считается ровно тот ящик,
+      чей кабинет открыт (`cabinet.face`), и число под подписью совпадает с тем, что
+      человек увидит, перейдя в раздел уведомлений ЭТОГО кабинета
+- [ ] **step-5** Ловушка 7.8 сама по себе: открыть `/profile/me/notifications` и сверить
+      число непрочитанных в ленте с числом в колокольчике — они **совпадают**. Отбора
+      по формуле «тип → роль получателя» в браузере больше нет (шаг 35.28a)
 
 ## Scenario: Toast-стек на действиях
 
 **Role:** id=2
 
-- [ ] **step-1** Login, в `/profile/provider/bookings` выполнить любое действие (confirm/reject/check-in/cancel) — expect toast внизу справа
+- [ ] **step-1** Login, в `/profile/club/1/bookings` выполнить любое действие (confirm/reject/check-in/cancel) — expect toast внизу справа
 - [ ] **step-2** Assert toast auto-dismiss через ~4 секунды
 - [ ] **step-3** Быстро выполнить 3 действия подряд — expect 3 toast'а стекаются, уникальные id

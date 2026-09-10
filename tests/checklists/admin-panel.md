@@ -41,9 +41,11 @@
       пользователи площадки». Assert: рейтинг публикации не изменился
 - [ ] **step-3** `POST /api/clubs` и `POST /api/trainers` под сессией админа — expect 403
       «Публикации заводят пользователи площадки». Assert: ни клуб, ни карточка не появились
-- [ ] **step-4** Assert в Header админа нет колокольчика, а `/profile/athlete/dashboard`
-      и `/profile/provider/dashboard` уводят на главную: кабинета у служебной записи
-      нет ни одного
+- [ ] **step-4** Assert в Header админа нет колокольчика, а `/profile/me/dashboard`
+      и `/profile/club/1/dashboard` уводят на главную: кабинета у служебной записи
+      нет ни одного. Прежние адреса приводят туда же: `/profile/athlete/dashboard` —
+      308 на `/profile/me/dashboard`, дальше увод; `/profile/provider/dashboard` —
+      сразу увод, потому что лиц нет и вести некуда
 - [ ] **step-5** Контрольная группа под сессией id=4: `POST /api/bookings` — 201,
       `POST /api/clubs` — 201. `POST /api/reviews` без посещения — 403, но текстом
       «Оставить отзыв можно только после посещения занятия», а **не** «Отзывы оставляют
@@ -52,7 +54,7 @@
 
 ## Scenario: Работа от чужого лица
 
-- [ ] **step-1** В таблице выбрать id=2 → click «Войти как» → expect `POST /api/auth/impersonate/2` и redirect на `/profile/provider/dashboard`
+- [ ] **step-1** В таблице выбрать id=2 → click «Войти как пользователь» → expect `POST /api/auth/impersonate/2` и redirect в кабинет **первого лица цели** — `/profile/club/1` (`selectPrimaryCabinet`). У цели без лиц адрес был бы `/profile/me`
 - [ ] **step-2** Assert `ImpersonationBanner`: «Вы работаете от имени Ольга Владелец» и кнопка «Вернуться в панель»
 - [ ] **step-3** Все действия id=2 работают под его владением. Assert: в журнале исполнителем записан **админ**, а не id=2 — сессия помнит обе личности
 - [ ] **step-4** Click «Вернуться в панель» → expect `POST /api/auth/impersonate/stop`, возврат в admin dashboard с admin-правами
@@ -62,9 +64,10 @@
       `npm run db:psql`, поле `account_kind`) и вызвать
       `POST /api/auth/impersonate/<его id>` — expect 403 «Нельзя работать от лица
       администратора»
-- [ ] **step-7** Работа от лица id=5 (клуб **и** карточка тренера) — expect кабинет лица
-      открылся с переключателем на оба лица: имперсонизация переносит владение целиком,
-      а не «одну роль»
+- [ ] **step-7** Работа от лица id=5 (клуб 3 **и** карточка тренера 2) — expect увели
+      в `/profile/club/3`, и в кабинете виден переключатель на оба лица: имперсонизация
+      переносит владение целиком, а не «одну роль». Assert: `/profile/trainer/2/dashboard`
+      под этой же сессией тоже открывается
 
 ## Scenario: Логи активности
 
@@ -74,7 +77,10 @@
       учётной записи — «Человек» или «Администратор». Строки, записанные до фазы 35,
       подписаны прежними именами ролей и **читаемы** — журнал хранит исторический снимок,
       и переписывать его значило бы его подделывать
-      (словарь прошлого — `LEGACY_ROLE_LABELS` в `packages/domain/src/account-kind.ts`)
+      (подпись собирает `actorLabel` из `packages/domain/src/account-kind.ts`: сначала
+      нынешние `ACCOUNT_KIND_LABELS`, затем закрытый словарь прошлого `LEGACY_ROLE_LABELS`
+      — `athlete` → «Спортсмен», `club_owner` → «Провайдер», `trainer` → «Тренер», —
+      и только потом сама строка)
 - [ ] **step-3** Для строки booking click «История FSM» — expect `BookingStatusHistoryDrawer` с полной statusHistory
 - [ ] **step-4** Assert автопoллинг обновляет ленту при mutation-событии в другой вкладке
 
@@ -104,7 +110,7 @@
   - hero «Лидер каталога / Клуб» — если hidden-клуб был лидером, теперь другой
   - маркер клуба на карте (`<MapSection>`) — если карта рендерится, маркер исчез
 - [ ] **step-4** Navigate `/clubs/[slug]` скрытой — expect `HiddenPublicationNotice` или 403/404
-- [ ] **step-5** Logout admin, login владельца скрытой публикации → `/profile/provider/publications` — expect badge «Скрыто модератором» на карточке
+- [ ] **step-5** Logout admin, login владельца скрытой публикации → `/profile/club/<номер скрытого клуба>/publications` — expect badge «Скрыто модератором» на карточке
 - [ ] **step-6** Admin click «Показать» — expect статус `published`
 - [ ] **step-7** Владелец правит скрытую публикацию (PATCH) → скрытие снимается: статус `published`, причина и метка модератора очищены
 
