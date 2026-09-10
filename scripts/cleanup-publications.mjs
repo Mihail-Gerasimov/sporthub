@@ -60,6 +60,7 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
   // база унесёт записи молча, и опись этого не увидит. Именно поэтому они здесь.
   const bookingsWhere = `owner_club_id = ANY(${clubs}) OR owner_trainer_id = ANY(${trainers}) OR venue_club_id = ANY(${clubs}) OR conducted_by_trainer_id = ANY(${trainers})`;
   const reviewsWhere = `club_id = ANY(${clubs}) OR trainer_id = ANY(${trainers})`;
+  const linksWhere = `club_id = ANY(${clubs}) OR trainer_id = ANY(${trainers})`;
 
   return [
     // Уведомления уходят ПЕРВЫМИ: их предикат смотрит в записи и отзывы,
@@ -93,8 +94,17 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
     {
       label: 'logs',
       table: 'logs',
+      // ⚠️ Уточнение решения 17. Журнал ссылается не только на публикации:
+      // строки про удаляемые ЗАПИСИ и СВЯЗИ после уборки указывают в никуда
+      // ровно так же. Оставить их — значит оставить те самые сироты, ради
+      // которых уборка и затевается. Подзапросы, а не список номеров: записи
+      // и связи удаляются в этой же транзакции, и их номера здесь неизвестны.
       where: `(entity_type = 'club' AND entity_id = ANY(${clubs}))
-        OR (entity_type = 'trainer' AND entity_id = ANY(${trainers}))`,
+        OR (entity_type = 'trainer' AND entity_id = ANY(${trainers}))
+        OR (entity_type = 'booking' AND entity_id IN (
+              SELECT id FROM ${at('bookings')} WHERE ${bookingsWhere}))
+        OR (entity_type = 'link' AND entity_id IN (
+              SELECT id FROM ${at('trainer_club_links')} WHERE ${linksWhere}))`,
     },
     {
       label: 'provider_client_notes',
@@ -112,7 +122,7 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
     {
       label: 'trainer_club_links',
       table: 'trainer_club_links',
-      where: `club_id = ANY(${clubs}) OR trainer_id = ANY(${trainers})`,
+      where: linksWhere,
     },
     {
       label: 'schedule',
