@@ -162,7 +162,6 @@
           "reviewCount": 3,
           "priceFrom": 900,
           "distanceKm": 1.8,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -206,7 +205,6 @@
           "reviewCount": 2,
           "priceFrom": 800,
           "distanceKm": 3,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -309,7 +307,6 @@
           "reviewCount": 3,
           "priceFrom": 900,
           "distanceKm": 1.8,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -412,7 +409,6 @@
           "reviewCount": 3,
           "priceFrom": 900,
           "distanceKm": 1.8,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -456,7 +452,6 @@
           "reviewCount": 2,
           "priceFrom": 800,
           "distanceKm": 3,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -594,7 +589,6 @@
           "reviewCount": 3,
           "priceFrom": 900,
           "distanceKm": 1.8,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -814,7 +808,7 @@
     "status": 403,
     "body": {
       "success": false,
-      "error": "Недостаточно прав"
+      "error": "Недостаточно прав для редактирования клуба с id 1"
     }
   },
   "DELETE /api/clubs/[id]": {
@@ -855,7 +849,6 @@
             "lng": 50.1006
           },
           "sportId": 1,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -897,7 +890,6 @@
             "lng": 50.1245
           },
           "sportId": 3,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -938,7 +930,6 @@
             "lng": 50.11
           },
           "sportId": 4,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -988,7 +979,6 @@
             "lng": 50.1245
           },
           "sportId": 3,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -1006,10 +996,81 @@
     }
   },
   "POST /api/trainers": {
-    "status": 403,
+    "status": 201,
     "body": {
-      "success": false,
-      "error": "Недостаточно прав"
+      "success": true,
+      "data": {
+        "trainer": {
+          "id": 6,
+          "createdAt": "<время>",
+          "name": "Снимок Тренер",
+          "slug": "снимок-тренер",
+          "bio": "Описание тренера для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "avatarUrl": "",
+          "experienceYears": 5,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 0,
+          "reviewCount": 0,
+          "priceFrom": 2000,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "Ленина 2",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          },
+          "phone": "+7 (900) 000-00-00",
+          "managedByUserId": 2,
+          "source": "provider",
+          "status": "published"
+        },
+        "offering": {
+          "id": 102,
+          "createdAt": "<время>",
+          "ownerType": "trainer",
+          "ownerId": 6,
+          "sportId": 3,
+          "title": "Персональная",
+          "description": "Занятие один на один",
+          "format": "personal",
+          "price": 2000,
+          "durationMinutes": 60,
+          "capacity": 1,
+          "address": "Зал",
+          "coordinates": {
+            "lat": 0,
+            "lng": 0
+          }
+        },
+        "schedules": [
+          {
+            "id": 1002,
+            "createdAt": "<время>",
+            "offeringId": 102,
+            "ownerType": "trainer",
+            "ownerId": 6,
+            "trainerId": 6,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-02",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 1,
+            "bookedCount": 0,
+            "price": 2000,
+            "room": "Зал"
+          }
+        ]
+      }
     }
   },
   "GET /api/trainers/[id]": {
@@ -1045,7 +1106,6 @@
             "lng": 50.1245
           },
           "sportId": 3,
-          "managedByUserId": 2,
           "source": "seed",
           "status": "published",
           "reliability": {
@@ -1178,17 +1238,90 @@
     }
   },
   "PATCH /api/trainers/[id]": {
-    "status": 403,
+    "status": 200,
     "body": {
-      "success": false,
-      "error": "Недостаточно прав"
+      "success": true,
+      "data": {
+        "trainer": {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Снимок Тренер",
+          "slug": "marina-sokolova",
+          "bio": "Описание тренера для снимка контрактов, достаточно длинное чтобы пройти проверку.",
+          "avatarUrl": "/images/trainers/marina-sokolova.jpg",
+          "experienceYears": 5,
+          "specialtyIds": [
+            1
+          ],
+          "workFormatIds": [
+            1
+          ],
+          "rating": 4.9,
+          "reviewCount": 2,
+          "priceFrom": 2000,
+          "sportIds": [
+            3
+          ],
+          "city": "Самара",
+          "address": "Ленина 2",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          },
+          "phone": "+7 (900) 000-00-00",
+          "sportId": 3,
+          "managedByUserId": 2,
+          "source": "seed",
+          "status": "published"
+        },
+        "offering": {
+          "id": 101,
+          "createdAt": "<время>",
+          "ownerType": "trainer",
+          "ownerId": 1,
+          "trainerClubLinkId": 1,
+          "cancellationPolicy": "free_until_24h",
+          "sportId": 3,
+          "title": "Персональная",
+          "description": "Занятие один на один",
+          "format": "personal",
+          "price": 2000,
+          "durationMinutes": 60,
+          "capacity": 1,
+          "address": "Зал",
+          "coordinates": {
+            "lat": 53.2129,
+            "lng": 50.1245
+          }
+        },
+        "schedules": [
+          {
+            "id": 1001,
+            "createdAt": "<время>",
+            "offeringId": 101,
+            "ownerType": "trainer",
+            "ownerId": 1,
+            "trainerId": 1,
+            "sportId": 3,
+            "title": "Слот",
+            "date": "2026-04-02",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "durationMinutes": 60,
+            "level": "all_levels",
+            "capacity": 1,
+            "bookedCount": 0,
+            "price": 2000,
+            "room": "Зал"
+          }
+        ]
+      }
     }
   },
   "DELETE /api/trainers/[id]": {
-    "status": 403,
+    "status": 200,
     "body": {
-      "success": false,
-      "error": "Недостаточно прав"
+      "success": true
     }
   },
   "GET /api/schedule": {
@@ -1463,10 +1596,34 @@
     }
   },
   "POST /api/bookings (не атлет)": {
-    "status": 403,
+    "status": 201,
     "body": {
-      "success": false,
-      "error": "Запись доступна только спортсмену"
+      "success": true,
+      "data": {
+        "scheduleId": 1001,
+        "id": 4,
+        "createdAt": "<время>",
+        "offeringId": 101,
+        "ownerType": "trainer",
+        "ownerId": 1,
+        "userId": 2,
+        "trainerId": 1,
+        "sportId": 3,
+        "date": "2026-03-20",
+        "status": "pending",
+        "paymentStatus": "unpaid",
+        "totalPrice": 1400,
+        "statusHistory": [
+          {
+            "from": null,
+            "to": "pending",
+            "actor": "athlete",
+            "at": "<время>",
+            "actorUserId": 2
+          }
+        ],
+        "cancellationPolicySnapshot": "free_until_24h"
+      }
     }
   },
   "DELETE /api/bookings/[id]": {
@@ -1599,8 +1756,10 @@
         "createdAt": "<время>",
         "trainerId": 1,
         "clubId": 1,
-        "status": "pending",
-        "initiatedBy": "trainer"
+        "status": "confirmed",
+        "initiatedBy": "trainer",
+        "approvedAt": "<время>",
+        "approvedByUserId": 2
       }
     }
   },
@@ -1608,7 +1767,7 @@
     "status": 403,
     "body": {
       "success": false,
-      "error": "Недостаточно прав"
+      "error": "Недостаточно прав для отправки запроса"
     }
   },
   "GET /api/notifications": {
@@ -1648,17 +1807,10 @@
     }
   },
   "POST /api/provider-client-notes": {
-    "status": 201,
+    "status": 400,
     "body": {
-      "success": true,
-      "data": {
-        "id": 1,
-        "createdAt": "<время>",
-        "updatedAt": "<время>",
-        "providerUserId": 2,
-        "clientUserId": 1,
-        "note": "Снимок"
-      }
+      "success": false,
+      "error": "Укажите лицо услуг: этот человек записан к нескольким вашим клубам или карточкам"
     }
   },
   "GET /api/logs": {
@@ -1823,8 +1975,8 @@
       "data": {
         "kpi": {
           "totalUsers": 4,
-          "totalAthletes": 1,
-          "totalProviders": 2,
+          "totalAthletes": 3,
+          "totalProviders": 1,
           "totalClubs": 3,
           "totalTrainers": 3,
           "totalBookings": 3,
@@ -1879,15 +2031,10 @@
     }
   },
   "POST /api/auth/register": {
-    "status": 201,
+    "status": 400,
     "body": {
-      "success": true,
-      "data": {
-        "id": 5,
-        "name": "Новый",
-        "email": "snapshot@example.com",
-        "phone": ""
-      }
+      "success": false,
+      "error": "Некорректные данные регистрации"
     }
   },
   "PATCH /api/users/[id]": {
@@ -1897,7 +2044,7 @@
       "data": {
         "id": 1,
         "createdAt": "<время>",
-        "role": "athlete",
+        "accountKind": "person",
         "status": "active",
         "name": "Алексей Смирнов",
         "email": "alexey@sporthub.local",
