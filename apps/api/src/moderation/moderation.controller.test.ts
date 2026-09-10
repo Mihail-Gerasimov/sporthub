@@ -174,7 +174,12 @@ describe('Маршруты модерации', () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/moderation')
       .set('Cookie', adminCookie)
-      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Убрано владельцем из каталога' });
+      .send({
+        action: 'hide',
+        entityType: 'club',
+        entityId: 1,
+        reason: 'Убрано владельцем из каталога',
+      });
 
     expect(response.status).toBe(200);
     // Причина ровно та, что прислали, а вид — всё равно модерация.
@@ -213,6 +218,125 @@ describe('Маршруты модерации', () => {
       .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Новая жалоба' });
 
     expect(response.body.data.awaitingRecheck).toBe(false);
+  });
+
+  // --- Запрет скрытия при живых записях (шаг 36.19, решение заказчика 14) -------
+
+  /**
+   * Живая запись на клуб 1.
+   *
+   * ⚠️ День занятия считается от СЕГОДНЯ, а не вписан числом: запрет смотрит
+   * на будущее, и вписанная дата однажды станет прошлым — проверка запрета молча
+   * перестанет проверять запрет.
+   */
+  const seedUpcomingBooking = async (status = 'confirmed', shiftDays = 3): Promise<void> => {
+    const day = new Date(Date.now() + shiftDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await harness.writeMany({
+      offerings: [
+        {
+          id: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          sportId: 3,
+          title: 'Тренировка',
+          description: 'Описание',
+          format: 'group',
+          price: 1000,
+          durationMinutes: 60,
+          capacity: 10,
+          address: 'ул. Ленина, 1',
+          coordinates: { lat: 53.2, lng: 50.1 },
+        },
+      ],
+      schedule: [
+        {
+          id: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+          offeringId: 1,
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          sportId: 3,
+          title: 'Утро',
+          date: day,
+          startTime: '08:00',
+          endTime: '09:00',
+          durationMinutes: 60,
+          level: 'all_levels',
+          capacity: 10,
+          bookedCount: 1,
+          price: 1000,
+        },
+      ],
+      bookings: [
+        {
+          id: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+          scheduleId: 1,
+          ownerType: 'club',
+          ownerId: 1,
+          clubId: 1,
+          userId: 1,
+          sportId: 3,
+          date: day,
+          status,
+          paymentStatus: 'unpaid',
+          totalPrice: 1000,
+        },
+      ],
+    });
+
+    // ⚠️ Обвязка пересобирает базу на каждой записи и гасит выданные сессии.
+    // Cookie выдаётся ЗАНОВО после засева, иначе запрос придёт гостем и упрётся
+    // в 401 — то есть проверка запрета зеленела бы по чужой причине.
+    adminCookie = await harness.as(3);
+  };
+
+  it('скрыть публикацию с живой будущей записью нельзя — 409 с числом', async () => {
+    // ⚠️ Тот же запрет, что у уборки лица, и по той же причине: скрытая публикация
+    // исчезает из каталога, но уже созданную запись не отменяет — человек придёт
+    // к закрытой двери. Право модерации даёт трогать чужую вещь, а не отменять
+    // чужое занятие молча.
+    await seedUpcomingBooking();
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Жалобы' });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/записаны люди \(1\)/);
+
+    // Отказ обязан быть отказом: публикация осталась в каталоге.
+    const clubs = await harness.read<{ id: number; status?: string }[]>('clubs');
+    expect(clubs.find((club) => club.id === 1)?.status).not.toBe('hidden');
+  });
+
+  it('отменённая запись скрытию не мешает', async () => {
+    // Счётчик общий с запретом удаления слота (36.8): считай он отменённые —
+    // ошибка удвоилась бы сразу в двух местах.
+    await seedUpcomingBooking('cancelled_by_user');
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Жалобы' });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('прошедшая запись скрытию не мешает', async () => {
+    await seedUpcomingBooking('confirmed', -3);
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Жалобы' });
+
+    expect(response.status).toBe(200);
   });
 
   it('владелец клуба модерировать не может — 403', async () => {

@@ -12,6 +12,7 @@ import type { SessionContext } from '../auth/session.service';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
 import { NotFoundError, ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
+import { PublicationService } from '../publications/publication.service';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 
@@ -89,6 +90,7 @@ export class ModerationController {
     @Inject(CLUBS_REPOSITORY) private readonly clubs: ClubsRepository,
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     private readonly logs: LogService,
+    private readonly publications: PublicationService,
   ) {}
 
   // Право проверяет guard: модерация закрыта для всех, кроме тех, кому она положена.
@@ -173,11 +175,18 @@ export class ModerationController {
 
     if (entityType === 'club') {
       await this.requireClub(entityId);
+      // ⚠️ Шаг 36.19, решение заказчика 14. Тот же запрет, что у уборки лица:
+      // скрытая публикация исчезает из каталога, но уже созданную запись не отменяет,
+      // и человек узнает о беде, придя к закрытой двери. Проверка ОДНА на оба повода
+      // и живёт в сервисе публикаций — вторая копия здесь разошлась бы с первой
+      // при первой же правке набора действующих статусов.
+      await this.publications.assertCanHide({ kind: 'club', id: entityId });
 
       return this.clubs.update(entityId, patch);
     }
 
     await this.requireTrainer(entityId);
+    await this.publications.assertCanHide({ kind: 'trainer', id: entityId });
 
     return this.trainers.update(entityId, patch);
   }
