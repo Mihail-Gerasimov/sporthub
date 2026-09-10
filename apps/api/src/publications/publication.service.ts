@@ -496,7 +496,9 @@ export class PublicationService {
    */
   async assertCanHide(owner: { kind: 'club' | 'trainer'; id: number }): Promise<void> {
     const filter =
-      owner.kind === 'club' ? { clubIds: [owner.id], trainerIds: [] } : { clubIds: [], trainerIds: [owner.id] };
+      owner.kind === 'club'
+        ? { clubIds: [owner.id], trainerIds: [] }
+        : { clubIds: [], trainerIds: [owner.id] };
 
     await this.assertNoUpcomingBookings(
       filter,

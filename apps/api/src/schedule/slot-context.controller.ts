@@ -91,11 +91,16 @@ export class SlotContextController {
    * закрыв слот по площадке, мы спрятали бы чужое занятие вместе с чужим залом.
    */
   private async assertOwnersVisible(
-    context: { club: { id: number; status?: string } | null; trainer: { id: number; status?: string } | null },
+    context: {
+      club: { id: number; status?: string } | null;
+      trainer: { id: number; status?: string } | null;
+    },
     session: SessionContext | undefined,
   ): Promise<void> {
     const owners = [
-      context.club === null ? null : ({ kind: 'club', id: context.club.id, status: context.club.status } as const),
+      context.club === null
+        ? null
+        : ({ kind: 'club', id: context.club.id, status: context.club.status } as const),
       context.trainer === null
         ? null
         : ({ kind: 'trainer', id: context.trainer.id, status: context.trainer.status } as const),
