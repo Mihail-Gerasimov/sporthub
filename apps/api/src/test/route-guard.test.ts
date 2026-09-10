@@ -21,7 +21,7 @@ import { fixtureCollections } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from './harness';
 
-type RouteRecord = { method: 'get' | 'post' | 'patch' | 'delete'; path: string };
+import { collectRoutes, type RouteRecord } from './app-routes';
 
 /**
  * Маршруты, открытые для гостя. Каждый — с причиной.
@@ -71,31 +71,6 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'post /api/geocode': 'Карта на публичных страницах; открыт под пределом частоты.',
   'post /api/suggest': 'Подсказки адреса до входа; открыт под пределом частоты.',
 };
-
-/** Таблица маршрутов у самого приложения — как в стороже утечки паролей. */
-function collectRoutes(app: INestApplication): RouteRecord[] {
-  const instance = app.getHttpAdapter().getInstance() as unknown as {
-    router?: { stack?: unknown[] };
-    _router?: { stack?: unknown[] };
-  };
-  const stack = (instance.router ?? instance._router)?.stack ?? [];
-  const routes: RouteRecord[] = [];
-
-  for (const layer of stack as { route?: { path: string; methods: Record<string, boolean> } }[]) {
-    if (!layer.route) continue;
-
-    for (const [method, enabled] of Object.entries(layer.route.methods)) {
-      if (!enabled) continue;
-      if (method !== 'get' && method !== 'post' && method !== 'patch' && method !== 'delete') {
-        continue;
-      }
-
-      routes.push({ method, path: layer.route.path });
-    }
-  }
-
-  return routes;
-}
 
 /** Подставить в путь любые значения параметров: до данных вызов дойти не должен. */
 function fillParams(path: string): string {

@@ -28,36 +28,10 @@ import { fixtureCollections } from '@sporthub/fixtures';
 
 import { createTestHarness, type TestHarness } from './harness';
 
+import { collectRoutes, type RouteRecord } from './app-routes';
+
 /** Поле, которого в публичном ответе быть не должно. */
 const OWNER_KEY = 'managedByUserId';
-
-type RouteRecord = { method: 'get' | 'post' | 'patch' | 'delete'; path: string };
-
-/**
- * Таблица маршрутов из самого приложения — как в стороже утечки паролей.
- * Список в тесте отстал бы от кода в первый же день.
- */
-function collectRoutes(app: INestApplication): RouteRecord[] {
-  const instance = app.getHttpAdapter().getInstance() as unknown as {
-    router?: { stack?: unknown[] };
-    _router?: { stack?: unknown[] };
-  };
-  const stack = (instance.router ?? instance._router)?.stack ?? [];
-  const routes: RouteRecord[] = [];
-
-  for (const layer of stack as { route?: { path: string; methods: Record<string, boolean> } }[]) {
-    if (!layer.route) continue;
-
-    for (const [method, enabled] of Object.entries(layer.route.methods)) {
-      if (!enabled) continue;
-      if (method !== 'get') continue;
-
-      routes.push({ method, path: layer.route.path });
-    }
-  }
-
-  return routes;
-}
 
 /** Путь до найденного поля — чтобы отчёт назвал место, а не только маршрут. */
 function findOwnerFields(value: unknown, path = 'body'): string[] {

@@ -24,7 +24,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const ROOT = path.join(process.cwd(), '..', '..');
+import { REPO_ROOT } from './repo-root';
+
+// Корень ищется по признаку, а не отсчётом уровней от места запуска.
+const ROOT = REPO_ROOT;
 
 /** Что ищем. Оба написания — механизм назывался так и в коде, и в комментариях. */
 const FORBIDDEN = [

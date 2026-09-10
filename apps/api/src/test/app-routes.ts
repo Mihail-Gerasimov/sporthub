@@ -58,7 +58,5 @@ export function collectRoutes(app: INestApplication): RouteRecord[] {
  * действует над тем, что создаёт сам, и владельца у предмета ещё нет.
  */
 export function mutatingRoutesWithParam(app: INestApplication): RouteRecord[] {
-  return collectRoutes(app).filter(
-    (route) => route.method !== 'get' && route.path.includes(':'),
-  );
+  return collectRoutes(app).filter((route) => route.method !== 'get' && route.path.includes(':'));
 }

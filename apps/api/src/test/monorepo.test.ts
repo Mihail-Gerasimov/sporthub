@@ -10,7 +10,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const ROOT = path.join(process.cwd(), '..', '..');
+import { REPO_ROOT } from './repo-root';
+
+// Корень ищется по признаку, а не отсчётом уровней от места запуска.
+const ROOT = REPO_ROOT;
 
 async function readRootPackage(): Promise<{ workspaces: string[] }> {
   return JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8')) as {

@@ -15,6 +15,19 @@
  * ⚠️ Список маршрутов берётся у РАБОТАЮЩЕГО приложения, а не выписывается руками —
  * тот же приём, что в `route-guard.test.ts`. Маршрут, написанный завтра, попадёт
  * под сторожа сам.
+ *
+ * ⚠️ Как именно попадёт — и почему не «вызовом с пустым телом». Диверсия d-33
+ * (новый изменяющий маршрут `PATCH /api/clubs/:id/nickname` без единой проверки)
+ * сторожа НЕ покрасила: заявление в этом комментарии было, а таблица маршрутов
+ * не читалась вовсе — `CASES` были выписаны руками. Ровно та ошибка, ради которой
+ * фаза завела «тихие» диверсии, только в самом стороже.
+ *
+ * Позвать незнакомый маршрут вслепую нельзя: без настоящего тела отказ придёт
+ * от РАЗБОРА (400), а не от владения, и сторож зеленел бы по чужой причине —
+ * см. соседнее замечание про `check-in`. Поэтому обход требует не вызова,
+ * а РЕШЕНИЯ: каждый изменяющий маршрут с параметром обязан быть либо описан
+ * в `CASES` настоящим телом, либо назван в `NOT_ABOUT_OWNERSHIP` с причиной.
+ * Забыть нельзя — незнакомый маршрут краснит сторожа и называет себя.
  */
 
 import type { INestApplication } from '@nestjs/common';
@@ -23,6 +36,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureCollections } from '@sporthub/fixtures';
 
+import { mutatingRoutesWithParam, routeKey } from './app-routes';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from './harness';
 
 /**
@@ -148,6 +162,25 @@ const CASES: readonly OwnershipCase[] = [
     body: { outcome: 'completed' },
   },
   { what: 'удаление чужой записи', method: 'delete', path: '/api/bookings/1' },
+  // ⚠️ Связи клуба и тренера — тоже владение: решение по заявке принимает владелец
+  // НАЗВАННОЙ стороны. Попали в сторожа не выбором автора, а обходом таблицы
+  // маршрутов: до диверсии d-33 их здесь не было вовсе.
+  {
+    what: 'подтверждение чужой связи клуба и тренера',
+    method: 'post',
+    path: '/api/trainer-club-links/1/approve',
+  },
+  {
+    what: 'отклонение чужой связи клуба и тренера',
+    method: 'post',
+    path: '/api/trainer-club-links/1/reject',
+    body: { reason: 'Причина отказа, достаточно длинная для схемы.' },
+  },
+  {
+    what: 'разрыв чужой связи клуба и тренера',
+    method: 'post',
+    path: '/api/trainer-club-links/1/revoke',
+  },
 ];
 
 /**
@@ -158,6 +191,39 @@ const CASES: readonly OwnershipCase[] = [
  * который зелен по чужой причине.
  */
 const REFUSAL_CODES = [401, 403, 404];
+
+/**
+ * Изменяющие маршруты с параметром, к владению отношения не имеющие.
+ *
+ * У каждого — причина, и она обязана быть про предмет, а не про удобство:
+ * «здесь нечем владеть» или «здесь владение спрашивается о другом». Строка
+ * без причины — это молчаливое исключение, то есть та самая дыра.
+ */
+const NOT_ABOUT_OWNERSHIP: Record<string, string> = {
+  'post /api/auth/impersonate/:id':
+    'Работа от чужого лица — вопрос административного полномочия, а не владения; закрыт `use_admin_tools`.',
+  'post /api/bookings/:id/cancel':
+    'Отменяют обе стороны сделки. Владение здесь выбирает СТОРОНУ отмены, а не право её сделать; проверено в стороже «сам себе», точка 6.',
+  'delete /api/bookings/:id':
+    'Отмена клиентом своей же записи. Владение проверяет сервис по номеру человека, предмет тот же — проверено ниже в `CASES`.',
+  'patch /api/users/:id':
+    'Своя учётная запись: цель всегда сам вошедший, чужой номер отвергается сравнением с сессией.',
+  'patch /api/users/:id/notification-preferences':
+    'Свои настройки. Чужое ЛИЦО закрыто отдельно — `users/notification-preferences-face.test.ts`.',
+  'post /api/notifications/:id/read':
+    'Чужое уведомление недостижимо: отбор идёт по адресату, а не по номеру строки.',
+  'patch /api/provider-client-notes/:id':
+    'Заметка живёт при лице; владение спрашивается в маршруте и проверено в стороже «сам себе», точка 9.',
+  'delete /api/provider-client-notes/:id': 'То же основание, что у правки заметки.',
+  'delete /api/admin/bookings/:id':
+    'Административное удаление записи: полномочие `manage_any_booking`, владения у администратора нет по определению.',
+  'post /api/admin/trainer-club-links/:id/force-revoke':
+    'Разрыв связи властью площадки — он и нужен затем, что своей связь администратору не является.',
+  'post /api/admin/users/:id/password':
+    'Смена чужого пароля администратором: полномочие `manage_any_user`.',
+  'post /api/admin/users/:id/recompute-reliability':
+    'Пересчёт надёжности площадкой: административное полномочие, предмет чужой всегда.',
+};
 
 async function callAs(
   app: INestApplication,
@@ -211,6 +277,41 @@ describe('Сторож владения', () => {
   it('список действий не пуст', () => {
     // Санити: пустой список превратил бы сторожа в зелёную пустышку.
     expect(CASES.length).toBeGreaterThan(0);
+  });
+
+  it('каждый изменяющий маршрут с параметром либо проверен, либо объяснён', async () => {
+    // ⚠️ Сердце сторожа и ответ на диверсию d-33. Таблица берётся у ПРИЛОЖЕНИЯ,
+    // поэтому маршрут, написанный завтра, попадает сюда сам — и красит сторожа,
+    // пока автор не решит, про владение он или нет.
+    const routes = mutatingRoutesWithParam(harness.app);
+
+    expect(routes.length, 'таблица маршрутов пуста — сторож ничего не обходит').toBeGreaterThan(10);
+
+    // Путь у описанного действия конкретный (`/api/clubs/1`), у маршрута —
+    // с параметром (`/api/clubs/:id`). Сводим к одному виду: числа в пути
+    // становятся параметром.
+    const covered = new Set(
+      CASES.map((testCase) => `${testCase.method} ${testCase.path.replace(/\/\d+/g, '/:id')}`),
+    );
+
+    const unexplained = routes
+      .map(routeKey)
+      .filter((key) => !covered.has(key) && NOT_ABOUT_OWNERSHIP[key] === undefined);
+
+    expect(
+      unexplained,
+      `изменяющие маршруты без решения о владении: ${unexplained.join(', ')}. ` +
+        'Добавьте действие в CASES с настоящим телом — или причину в NOT_ABOUT_OWNERSHIP.',
+    ).toEqual([]);
+  });
+
+  it('в объяснениях нет строк про несуществующие маршруты', async () => {
+    // Иначе список исключений превращается в кладбище: маршрут переименовали,
+    // строка осталась, и следующий с тем же именем проходит молча.
+    const live = new Set(mutatingRoutesWithParam(harness.app).map(routeKey));
+    const stale = Object.keys(NOT_ABOUT_OWNERSHIP).filter((key) => !live.has(key));
+
+    expect(stale, `объяснения для исчезнувших маршрутов: ${stale.join(', ')}`).toEqual([]);
   });
 
   for (const testCase of CASES) {
