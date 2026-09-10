@@ -36,17 +36,17 @@
 
 **Role:** id=4, `athlete@sporthub.local` / `sporthub123`
 
-- [ ] **step-1** Navigate `/` — expect кнопка «Войти» в Header'е
-- [ ] **step-2** Click «Войти» — expect модалка открылась, активна вкладка «Вход»
-- [ ] **step-3** Fill email=`athlete@sporthub.local`, password=`sporthub123`. Assert: **выбора
+- [x] **step-1** Navigate `/` — expect кнопка «Войти» в Header'е
+- [x] **step-2** Click «Войти» — expect модалка открылась, активна вкладка «Вход»
+- [x] **step-3** Fill email=`athlete@sporthub.local`, password=`sporthub123`. Assert: **выбора
       типа кабинета в форме нет вовсе** — ни чипов «Спортсмен / Представитель услуг», ни
       блока «Тип аккаунта»; тело запроса `POST /api/auth/login` — ровно `{ email, password }`
-- [ ] **step-4** Submit — expect модалка закрылась, в Header видно имя «Ирина Спортсменова» и колокольчик
-- [ ] **step-5** Assert: личность живёт в серверной сессии — cookie сессии выставлена
+- [x] **step-4** Submit — expect модалка закрылась, в Header видно имя «Ирина Спортсменова» и колокольчик
+- [x] **step-5** Assert: личность живёт в серверной сессии — cookie сессии выставлена
       с флагом `HttpOnly` (из JS не читается), в `localStorage` личности нет вовсе,
       а `GET /api/auth/me` отдаёт `id=4`, `accountKind: 'person'`, **`faces: []`**
       и список `capabilities`. Поля `role` в ответе нет
-- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в `/profile/me` — лиц нет,
+- [x] **step-6** Assert: ссылка кабинета в Header ведёт в `/profile/me` — лиц нет,
       личный кабинет единственный. Открыть её: `/profile/me` отвечает 307 на
       `/profile/me/dashboard`
 
@@ -54,17 +54,17 @@
 
 **Role:** id=2, `owner@sporthub.local` / `sporthub123` (два клуба)
 
-- [ ] **step-1** Login как id=4 через POST `/api/auth/login` (см. scenario выше)
-- [ ] **step-2** Click «Выйти» в Header — expect имя исчезло, Header показывает «Войти».
+- [x] **step-1** Login как id=4 через POST `/api/auth/login` (см. scenario выше)
+- [x] **step-2** Click «Выйти» в Header — expect имя исчезло, Header показывает «Войти».
       Assert: cookie сессии очищена, повтор её прежнего значения доступа не даёт
-- [ ] **step-3** Open AuthModal, вкладка «Вход», email=`owner@sporthub.local`, password=`sporthub123`
-- [ ] **step-4** Submit — expect вход успешный, Header «Ольга Владелец»
-- [ ] **step-5** Assert `GET /api/auth/me`: `faces` — **два элемента** `{ kind: 'club', id, name }`
+- [x] **step-3** Open AuthModal, вкладка «Вход», email=`owner@sporthub.local`, password=`sporthub123`
+- [x] **step-4** Submit — expect вход успешный, Header «Ольга Владелец»
+- [x] **step-5** Assert `GET /api/auth/me`: `faces` — **два элемента** `{ kind: 'club', id, name }`
       (клубы 1 и 2), `accountKind: 'person'`
-- [ ] **step-6** Assert: ссылка кабинета в Header ведёт в кабинет **активного лица** —
+- [x] **step-6** Assert: ссылка кабинета в Header ведёт в кабинет **активного лица** —
       `/profile/club/1`, а не в общий `/profile/provider`. Подпись ссылки — имя лица
       («Ритм»), а не «Кабинет представителя спортивных услуг»
-- [ ] **step-7** Прежний адрес: `/profile/provider/dashboard` — expect **307** на
+- [x] **step-7** Прежний адрес: `/profile/provider/dashboard` — expect **307** на
       `/profile/club/1/dashboard` (кабинет первого лица из сессии). Адрес закладки
       и письма не отдаёт 404
 
@@ -74,18 +74,18 @@
 
 Живой случай заказчика, ради которого затевалась фаза: свой зал плюс персоналки.
 
-- [ ] **step-1** Login `both@sporthub.local` — вход прошёл, Header «Егор Двулицев»
-- [ ] **step-2** Assert `GET /api/auth/me`: в `faces` **два элемента разного вида** —
+- [x] **step-1** Login `both@sporthub.local` — вход прошёл, Header «Егор Двулицев»
+- [x] **step-2** Assert `GET /api/auth/me`: в `faces` **два элемента разного вида** —
       `{ kind: 'club' }` и `{ kind: 'trainer' }`
-- [ ] **step-3** Navigate `/profile/club/3/dashboard` — expect переключатель лиц
+- [x] **step-3** Navigate `/profile/club/3/dashboard` — expect переключатель лиц
       (`data-testid="profile-face-switcher"`) виден, над ним подпись «Кабинет лица»,
       у кнопок `title` — «Клуб» и «Карточка тренера»
-- [ ] **step-4** Click по второму лицу в переключателе — expect адрес сменился на
+- [x] **step-4** Click по второму лицу в переключателе — expect адрес сменился на
       `/profile/trainer/2/dashboard`: кабинет принадлежит лицу, и номер стоит в адресе
-- [ ] **step-5** Logout, login `trainer@sporthub.local` (id=3, одно лицо), navigate
+- [x] **step-5** Logout, login `trainer@sporthub.local` (id=3, одно лицо), navigate
       `/profile/trainer/1/dashboard` — expect переключателя **нет в разметке вовсе**
       (не скрыт стилями): лицо одно, выбирать не из чего
-- [ ] **step-6** Под id=3 navigate `/profile/club/3/dashboard` (чужое лицо) — expect
+- [x] **step-6** Под id=3 navigate `/profile/club/3/dashboard` (чужое лицо) — expect
       увели на `/`. Тот же ответ даёт `/profile/venue/1` и `/profile/club/99999`:
       по разнице ответов посторонний перебирал бы номера
 
@@ -93,15 +93,15 @@
 
 **Role:** guest
 
-- [ ] **step-1** AuthModal, вход `notexisting@test` / `x` — expect 401 «Неверная почта или пароль».
+- [x] **step-1** AuthModal, вход `notexisting@test` / `x` — expect 401 «Неверная почта или пароль».
       Тем же ответом отвечает и верная почта с неверным паролем: сообщение одно на все отказы,
       иначе форма становится перечислителем заведённых почт
-- [ ] **step-2** `POST /api/auth/login` с телом `{ email, password, accountType: 'athlete' }` —
+- [x] **step-2** `POST /api/auth/login` с телом `{ email, password, accountType: 'athlete' }` —
       expect **400** «Некорректные данные запроса»: схема входа `.strict()`, типов кабинета
       больше нет и лишнее поле схема не принимает
-- [ ] **step-3** Вход `admin@sporthub.local` / `sporthub123` из обычной модалки — expect 403
+- [x] **step-3** Вход `admin@sporthub.local` / `sporthub123` из обычной модалки — expect 403
       «Администраторы входят через /service-portal»
-- [ ] **step-4** `POST /api/auth/login` с телом
+- [x] **step-4** `POST /api/auth/login` с телом
       `{ email: 'athlete@sporthub.local', password, portal: 'service' }` — expect 403
       «Служебный вход только для администраторов».
       Assert: обычного человека служебный признак не пускает, а не просто игнорируется
@@ -110,35 +110,35 @@
 
 **Role:** guest → человек
 
-- [ ] **step-1** AuthModal, вкладка «Регистрация». Assert: полей ровно четыре — имя, почта,
+- [x] **step-1** AuthModal, вкладка «Регистрация». Assert: полей ровно четыре — имя, почта,
       телефон, пароль. **Выбора типа учётной записи нет вовсе**, кнопка отправки
       не заблокирована ожиданием такого выбора
-- [ ] **step-2** Заполнить email=`test-e2e-<timestamp>@local`, password=`qwerty1`, name=«Тест»,
+- [x] **step-2** Заполнить email=`test-e2e-<timestamp>@local`, password=`qwerty1`, name=«Тест»,
       телефон. Submit — expect залогинен сразу, Header показывает имя
-- [ ] **step-3** Assert `GET /api/auth/me`: `accountKind: 'person'`, **`faces: []`** — регистрация
+- [x] **step-3** Assert `GET /api/auth/me`: `accountKind: 'person'`, **`faces: []`** — регистрация
       заводит человека, лицо услуг заводится потом отдельным действием
-- [ ] **step-4** `POST /api/auth/register` с полем `accountType` — expect **400**
+- [x] **step-4** `POST /api/auth/register` с полем `accountType` — expect **400**
       «Некорректные данные регистрации»: схема `.strict()`
 - [ ] **step-5** Повторная регистрация на тот же email — expect ошибка «Email уже зарегистрирован» (409)
-- [ ] **step-6** Logout + login этим же email — expect вход проходит (пользователь сохранён
+- [x] **step-6** Logout + login этим же email — expect вход проходит (пользователь сохранён
       в базе и переживает рестарт процессов)
 
 ## Scenario: Вход админом
 
 **Role:** admin (id=1, `admin@sporthub.local` / `sporthub123`)
 
-- [ ] **step-1** Navigate `/service-portal` — expect страница служебного входа
-- [ ] **step-2** Fill email и password — expect redirect в `/service-portal/dashboard`.
+- [x] **step-1** Navigate `/service-portal` — expect страница служебного входа
+- [x] **step-2** Fill email и password — expect redirect в `/service-portal/dashboard`.
       Assert: тело запроса несёт **явный** признак `portal: 'service'` — служебность входа
       выражена полем, а не отсутствием поля
-- [ ] **step-3** Assert Header показывает «Администратор SportHub / Администратор» + ссылку
+- [x] **step-3** Assert Header показывает «Администратор SportHub / Администратор» + ссылку
       «Панель управления» + кнопку «Выйти». `ImpersonationBanner` в этом сценарии **НЕ**
       рендерится — он появляется только при работе от чужого лица,
       см. `src/components/admin/ImpersonationBanner.tsx`
-- [ ] **step-4** Assert: колокольчика у служебной записи в Header **нет** — уведомляться
+- [x] **step-4** Assert: колокольчика у служебной записи в Header **нет** — уведомляться
       не о чем, базового набора человека у админа нет (решение 13)
-- [ ] **step-5** Navigate `/profile/me/dashboard` под админом — expect увели на главную `/`
+- [x] **step-5** Navigate `/profile/me/dashboard` под админом — expect увели на главную `/`
       (`requirePerson()`): личного кабинета у служебной записи нет. Прежний адрес
       `/profile/athlete/dashboard` приводит туда же — сначала 308, потом увод
-- [ ] **step-6** Navigate `/profile/provider/dashboard` под админом — expect увели
+- [x] **step-6** Navigate `/profile/provider/dashboard` под админом — expect увели
       на главную `/`: лиц у служебной записи нет, вести некуда

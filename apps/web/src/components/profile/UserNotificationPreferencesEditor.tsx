@@ -8,6 +8,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useCabinet } from '@/components/profile/cabinet-context';
+import type { ServiceFace } from '@/lib/service-faces';
 import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import { Badge, Card } from '@/components/ui';
 import {
@@ -41,6 +43,25 @@ interface Props {
   notificationPreferences?: Partial<Record<NotificationType, boolean>>;
 }
 
+/**
+ * Ящик, чьи настройки правит редактор, — в виде параметров запроса.
+ *
+ * ⚠️ Найдено браузерным прогоном 10.09.2026. Настройки на лицо появились шагом 35.29,
+ * а редактор о лицах не знал: в кабинете КЛУБА он правил ЛИЧНЫЙ ящик человека.
+ * Владелец трёх клубов не мог заглушить один — галочка внутри кабинета клуба
+ * гасила тип у всех лиц сразу. Тот же класс, что и лента уведомлений: разделение
+ * сделано на сервере, а до браузера не дошло.
+ *
+ * Ящик берётся у ОТКРЫТОГО КАБИНЕТА, а не выбирается отдельным переключателем:
+ * в кабинете клуба правятся настройки этого клуба, в личном — личные. Второй
+ * выбор рядом с уже существующим адресом означал бы две правды об одном.
+ */
+function mailboxQuery(face: ServiceFace | null): string {
+  if (face === null) return '';
+
+  return `?faceType=${face.kind}&faceId=${face.id}`;
+}
+
 export function UserNotificationPreferencesEditor({ userId, notificationPreferences }: Props) {
   // ⚠️ Шаг 35.28a. Группы показываются все: какие уведомления человеку приходят,
   // решает его владение лицами, а не роль. Прежде группа «Связи» пряталась у атлета,
@@ -58,6 +79,9 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addToast = useToastStore((state) => state.addToast);
+  // Ящик берётся у открытого кабинета: в кабинете клуба правятся настройки клуба,
+  // в личном — личные. `null` — личный кабинет.
+  const face = useCabinet().face;
 
   // Phase 26 hotfix: при mount подтягиваем актуальные prefs через GET.
   // AuthSessionUser в store не содержит notificationPreferences (session-only),
@@ -68,7 +92,9 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
     let cancelled = false;
     const loadPrefs = async () => {
       try {
-        const response = await fetch(`/api/users/${userId}/notification-preferences`);
+        const response = await fetch(
+          `/api/users/${userId}/notification-preferences${mailboxQuery(face)}`,
+        );
         if (!response.ok) return;
         const body = (await response.json()) as {
           success?: boolean;
@@ -89,7 +115,7 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
     return () => {
       cancelled = true;
     };
-  }, [userId, notificationPreferences]);
+  }, [userId, notificationPreferences, face]);
 
   // Группировка типов по NOTIFICATION_TYPE_GROUP — результат стабилен, считаем 1 раз.
   const typesByGroup = useMemo<Record<NotificationGroupKey, NotificationType[]>>(() => {
@@ -118,11 +144,19 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
 
   const savePrefs = async (nextPrefs: Partial<Record<NotificationType, boolean>>) => {
     try {
-      const response = await fetch(`/api/users/${userId}/notification-preferences`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preferences: nextPrefs }),
-      });
+      const response = await fetch(
+        `/api/users/${userId}/notification-preferences${mailboxQuery(face)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            preferences: nextPrefs,
+            // Пара «вид + номер» называется целиком или не называется вовсе:
+            // половина отвергается разбором.
+            ...(face === null ? {} : { faceType: face.kind, faceId: face.id }),
+          }),
+        },
+      );
       if (!response.ok) {
         addToast({ message: 'Не удалось сохранить настройки уведомлений', tone: 'error' });
         return;

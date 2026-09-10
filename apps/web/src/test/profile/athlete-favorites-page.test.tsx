@@ -84,7 +84,7 @@ describe('AthleteFavorites (Step 25.6)', () => {
         reviews={reviews}
         bookings={[]}
         trainers={[]}
-        users={[athleteUser]}
+        favoriteClubIds={athleteUser.favoriteClubIds}
       />,
     );
 

@@ -134,7 +134,10 @@ describe('getAthleteFavorites', () => {
       clubs,
       reviews,
       trainers,
-      users,
+      // ⚠️ Избранное приходит списком номеров, а не поиском себя среди всех
+      // пользователей: список площадки закрыт правом администратора, и раздел
+      // из него читать больше не может.
+      favoriteClubIds: users[0].favoriteClubIds,
     });
 
     expect(favorites.clubs.map((club) => club.name)).toEqual([
@@ -160,12 +163,7 @@ describe('getAthleteFavorites', () => {
       clubs,
       reviews: [],
       trainers,
-      users: [
-        {
-          ...users[0],
-          favoriteClubIds: [],
-        },
-      ],
+      favoriteClubIds: [],
     });
 
     expect(favorites.clubs).toEqual([]);

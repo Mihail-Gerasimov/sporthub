@@ -1,7 +1,6 @@
 // Server page избранного атлета (Step 25.6): тянет clubs/trainers/bookings/reviews/users/specialties,
 // пропускает в client-обёртку AthleteFavorites, которая применяет access-gate и фильтры.
 import { AthleteFavorites } from '@/components/profile/athlete/AthleteFavorites';
-import type { User } from '@sporthub/types';
 
 import { readSession } from '@/lib/session';
 import {
@@ -36,7 +35,11 @@ export default async function AthleteFavoritesRoute() {
       reviews={reviews}
       specialties={specialties}
       trainers={trainers}
-      users={viewer === null ? [] : [viewer as unknown as User]}
+      // ⚠️ Передаётся ровно то, что нужно разделу, — список избранных клубов.
+      // Раньше здесь стоял профиль, приведённый `as unknown as User`: приведение
+      // молча скрывало, что у профиля из сессии нет `favoriteClubIds`, и раздел
+      // падал у любого вошедшего. Через `unknown` типу проверять нечего.
+      favoriteClubIds={viewer?.favoriteClubIds ?? []}
     />
   );
 }

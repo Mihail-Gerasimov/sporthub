@@ -32,7 +32,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { isNotificationTypeEnabled, accountCan, accountKindOf } from '@sporthub/domain';
+import { canDisableNotificationType, accountCan, accountKindOf } from '@sporthub/domain';
 import type { Notification, NotificationType } from '@sporthub/types';
 import { z } from 'zod';
 
@@ -130,8 +130,10 @@ export class NotificationsController {
     // Лимит не назван — берётся умолчание; назван больше потолка — срезается.
     const limit = rawLimitValue === undefined ? DEFAULT_LIMIT : Math.min(rawLimitValue, MAX_LIMIT);
 
-    const excludeTypes = await this.disabledTypes(userId);
+    // ⚠️ Ящик определяется ДО настроек: настройки берутся того ящика, чью ленту
+    // показываем. Обратный порядок давал бы личные настройки на ленту лица.
     const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
+    const excludeTypes = await this.disabledTypes(userId, mailbox);
     const inMailbox = mailbox === undefined ? {} : { mailbox };
 
     // Страница, общее число и непрочитанные — тремя запросами и параллельно.
@@ -164,8 +166,8 @@ export class NotificationsController {
     @Query('trainerId') rawTrainerId?: string,
   ): Promise<{ unreadCount: number }> {
     const userId = session.user.id;
-    const excludeTypes = await this.disabledTypes(userId);
     const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
+    const excludeTypes = await this.disabledTypes(userId, mailbox);
 
     return {
       unreadCount: await this.notifications.count({
@@ -314,15 +316,41 @@ export class NotificationsController {
    * вообще есть решение, и превращается в список для условия запроса. Пользователя
    * нет — списка нет: лента показывается целиком, как и раньше.
    */
-  private async disabledTypes(userId: number): Promise<string[]> {
-    const user = await this.users.findById(userId);
-    const preferences = user?.notificationPreferences;
+  /**
+   * Типы, выключенные для ОТКРЫТОГО ящика.
+   *
+   * ⚠️ Найдено браузерным прогоном 10.09.2026, и это была дыра в готовой на вид
+   * работе. Настройки на лицо появились шагом 35.29: маршрут их принимал, база
+   * хранила, чтение отдавало обратно. А применения не было — здесь читались только
+   * ЛИЧНЫЕ строки. Владелец глушил уведомления клуба, настройка сохранялась,
+   * возвращалась при следующем открытии — и ничего не меняла ни в ленте,
+   * ни в счётчике, ни в колокольчике.
+   *
+   * Ящик у настроек был, применения у ящика — нет.
+   *
+   * Теперь спрашивается ящик, чью ленту показывают: настройки лица действуют
+   * на ленту лица, личные — на личную. Ящик не назван (общая лента человека) —
+   * действуют личные: другого разумного умолчания нет, а показать всё подряд,
+   * игнорируя настройки вовсе, значило бы вернуть ту же дыру с другой стороны.
+   */
+  private async disabledTypes(
+    userId: number,
+    mailbox: NotificationMailbox | undefined,
+  ): Promise<string[]> {
+    // ⚠️ Ящик у ленты и ящик у настроек описаны РАЗНЫМИ типами: у ленты
+    // `{ kind: 'personal' }` — законное значение, у настроек личный ящик выражен
+    // отсутствием лица. Перевод здесь один и явный, чтобы «личный» не превратился
+    // молча в «любой».
+    const face =
+      mailbox === undefined || mailbox.kind === 'personal'
+        ? undefined
+        : ({ type: mailbox.kind, id: mailbox.id } as const);
+    const preferences = await this.users.findNotificationPreferences(userId, face);
+    const types = Object.keys(preferences) as NotificationType[];
 
-    if (!user || !preferences) return [];
-
-    return (Object.keys(preferences) as NotificationType[]).filter(
-      (type) => !isNotificationTypeEnabled(user, type),
-    );
+    // Обязательные типы выключить нельзя — их отбрасывает запись настроек,
+    // но проверка стоит и здесь: правило одно, а мест применения два.
+    return types.filter((type) => preferences[type] === false && canDisableNotificationType(type));
   }
 }
 

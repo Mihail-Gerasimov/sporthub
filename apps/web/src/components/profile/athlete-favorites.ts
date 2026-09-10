@@ -1,5 +1,5 @@
 import { CANCELLED_BOOKING_STATUSES } from '@sporthub/domain';
-import type { Booking, Club, Review, Trainer, User } from '@sporthub/types';
+import type { Booking, Club, Review, Trainer } from '@sporthub/types';
 
 export type AthleteFavoriteTrainer = Trainer & {
   reasonLabel: string;
@@ -16,7 +16,19 @@ type GetAthleteFavoritesInput = {
   clubs: Club[];
   reviews: Review[];
   trainers: Trainer[];
-  users: User[];
+  /**
+   * Избранные клубы человека — списком номеров, а не поиском себя в списке всех.
+   *
+   * ⚠️ Раньше сюда приходил `users: User[]`, и функция искала в нём себя, чтобы
+   * прочитать поле. Список всех пользователей площадки закрыли правом администратора
+   * (фаза 34), страница стала подсовывать вместо него профиль из сессии через
+   * приведение `as unknown as User` — а у профиля этого поля не было, и раздел
+   * падал у любого вошедшего на попытке пройтись по `undefined`.
+   *
+   * Приведение молчало, потому что через `unknown` тип проверять нечего. Здесь
+   * запрашивается ровно то, что нужно, — и подсунуть не то больше не выйдет.
+   */
+  favoriteClubIds: readonly number[];
 };
 
 type TrainerScore = {
@@ -42,7 +54,7 @@ export function getAthleteFavorites({
   clubs,
   reviews,
   trainers,
-  users,
+  favoriteClubIds,
 }: GetAthleteFavoritesInput): AthleteFavorites {
   if (athleteUserId === null) {
     return {
@@ -51,16 +63,6 @@ export function getAthleteFavorites({
     };
   }
 
-  const athleteUser = users.find((user) => user.id === athleteUserId);
-
-  if (!athleteUser) {
-    return {
-      clubs: [],
-      trainers: [],
-    };
-  }
-
-  const favoriteClubIds = athleteUser.favoriteClubIds;
   const favoriteClubs = favoriteClubIds
     .map((favoriteClubId) => clubs.find((club) => club.id === favoriteClubId) ?? null)
     .filter((club): club is Club => club !== null);

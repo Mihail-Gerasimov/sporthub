@@ -6,7 +6,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CabinetProvider } from '@/components/profile/cabinet-context';
 import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
+import { PERSONAL_CABINET, faceCabinet, type ServiceFace } from '@/lib/service-faces';
 import { useToastStore } from '@/stores/useToastStore';
 import type { User } from '@sporthub/types';
 
@@ -180,5 +182,98 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Настройки правятся в ящике ОТКРЫТОГО кабинета', () => {
+  // ⚠️ Найдено браузерным прогоном 10.09.2026. Настройки на лицо появились
+  // шагом 35.29, а редактор о лицах не знал: в кабинете КЛУБА он правил ЛИЧНЫЙ
+  // ящик человека. Владелец трёх клубов не мог заглушить один — галочка внутри
+  // кабинета клуба гасила тип у всех лиц сразу.
+  //
+  // Проверяется ПОДКЛЮЧЕНИЕ: какой адрес и какое тело редактор на самом деле шлёт.
+  const CLUB: ServiceFace = { kind: 'club', id: 3, name: 'CrossFit Garage' };
+
+  let calls: { url: string; body: unknown }[] = [];
+
+  beforeEach(() => {
+    // ⚠️ Отправка настроек отложена на полсекунды, чтобы не слать запрос
+    // на каждый клик. Без подменённых часов тест ждал бы её по-настоящему.
+    vi.useFakeTimers();
+    calls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({
+          url: String(url),
+          body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
+        });
+
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: { notificationPreferences: {} } }),
+        } as unknown as Response;
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const renderIn = (cabinet: Parameters<typeof CabinetProvider>[0]['cabinet']) =>
+    render(
+      <CabinetProvider cabinet={cabinet}>
+        <UserNotificationPreferencesEditor userId={2} />
+      </CabinetProvider>,
+    );
+
+  it('в кабинете лица настройки читаются У ЭТОГО ЛИЦА', async () => {
+    renderIn(faceCabinet(CLUB));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const read = calls.find((call) => call.body === undefined);
+
+    expect(read, 'редактор не сходил за настройками').toBeDefined();
+    expect(read?.url, `ящик лица не назван: ${read?.url}`).toContain('faceType=club');
+    expect(read?.url).toContain('faceId=3');
+  });
+
+  it('в личном кабинете ящик не называется вовсе', async () => {
+    // Обратная половина: личные настройки — это отсутствие лица, а не отдельное имя.
+    renderIn(PERSONAL_CABINET);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const read = calls.find((call) => call.body === undefined);
+
+    expect(read?.url, `в личном кабинете назван ящик лица: ${read?.url}`).not.toContain('faceType');
+  });
+
+  it('сохранение в кабинете лица называет пару «вид + номер» целиком', async () => {
+    // Половина пары отвергается разбором — назвать надо обе или ни одной.
+    renderIn(faceCabinet(CLUB));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByTestId('notification-preferences-toggle-booking_requested'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    const saved = calls.find((call) => call.body !== undefined);
+
+    expect(saved, 'редактор не сохранил настройку').toBeDefined();
+    expect(saved?.body).toMatchObject({ faceType: 'club', faceId: 3 });
   });
 });

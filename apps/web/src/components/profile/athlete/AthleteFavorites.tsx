@@ -16,7 +16,8 @@ type AthleteFavoritesProps = {
   clubs?: Club[];
   reviews?: Review[];
   trainers?: Trainer[];
-  users?: User[];
+  /** Избранные клубы человека — приходят с сервера ответом «кто я». */
+  favoriteClubIds?: readonly number[];
   specialties?: Specialty[];
 };
 
@@ -25,7 +26,7 @@ export function AthleteFavorites({
   clubs = [],
   reviews = [],
   trainers = [],
-  users = [],
+  favoriteClubIds = [],
   specialties = [],
 }: AthleteFavoritesProps) {
   const user = useAuthStore((state) => state.user);
@@ -53,9 +54,9 @@ export function AthleteFavorites({
         clubs,
         reviews: athleteReviews,
         trainers,
-        users,
+        favoriteClubIds,
       }),
-    [athleteUserId, athleteBookings, clubs, athleteReviews, trainers, users],
+    [athleteUserId, athleteBookings, clubs, athleteReviews, trainers, favoriteClubIds],
   );
 
   // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх

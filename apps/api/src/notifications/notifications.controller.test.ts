@@ -10,7 +10,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { fixtureDictionaryCollections } from '@sporthub/fixtures';
+import { fixtureCollections, fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
@@ -647,5 +647,131 @@ describe('Постраничность ленты по умолчанию (ша�
       .set('Cookie', await harness.as(1));
 
     expect((response.body as { data?: { items?: unknown[] } }).data?.items?.length).toBe(7);
+  });
+});
+
+describe('Настройки уведомлений ПРИМЕНЯЮТСЯ к своему ящику', () => {
+  let harness: TestHarness;
+  let cookie: string;
+  let clubId: number;
+
+  const OWNER_ID = 2;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-preferences-applied');
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    // ⚠️ Одним вызовом: каждая запись пересобирает базу и гасит выданные сессии,
+    // поэтому cookie берётся строго ПОСЛЕ засева, а уведомления едут вместе
+    // с фикстурами, а не отдельной записью.
+    const own = (fixtureCollections.clubs ?? []).find((row) => row.managedByUserId === OWNER_ID);
+
+    if (own === undefined) throw new Error('в фикстурах нет клуба владельца');
+
+    clubId = own.id;
+
+    await harness.writeMany({
+      ...fixtureCollections,
+      notifications: [
+        {
+          id: 9001,
+          createdAt: '2026-05-01T10:00:00.000Z',
+          userId: OWNER_ID,
+          type: 'review_created',
+          payload: {},
+          addresseeType: 'club',
+          addresseeId: clubId,
+        },
+        {
+          id: 9002,
+          createdAt: '2026-05-01T10:00:00.000Z',
+          userId: OWNER_ID,
+          type: 'review_created',
+          payload: {},
+        },
+      ],
+    });
+
+    cookie = await harness.as(OWNER_ID);
+  });
+
+  /** Сколько строк отдаёт лента названного ящика. */
+  async function feedSize(query: string): Promise<number> {
+    const response = await request(harness.app.getHttpServer())
+      .get(`/api/notifications${query}`)
+      .set('Cookie', cookie);
+
+    expect(response.status).toBe(200);
+
+    return (response.body as { data?: { items?: unknown[] } }).data?.items?.length ?? 0;
+  }
+
+  /** Выключить тип в названном ящике. */
+  async function disable(face?: { faceType: string; faceId: number }): Promise<void> {
+    await request(harness.app.getHttpServer())
+      .patch(`/api/users/${OWNER_ID}/notification-preferences`)
+      .set('Cookie', cookie)
+      .send({ preferences: { review_created: false }, ...(face ?? {}) })
+      .expect(200);
+  }
+
+  it('настройка ЛИЦА глушит ленту этого лица', async () => {
+    // ⚠️ Найдено браузерным прогоном 10.09.2026. Настройки на лицо появились
+    // шагом 35.29: маршрут принимал, база хранила, чтение отдавало обратно —
+    // а применения не было: отбор читал только ЛИЧНЫЕ строки. Владелец глушил
+    // клуб, настройка сохранялась, возвращалась при следующем открытии
+    // и не меняла ничего ни в ленте, ни в счётчике, ни в колокольчике.
+    const before = await feedSize(`?clubId=${clubId}`);
+
+    expect(before, 'подготовка не удалась: в ящике лица пусто').toBeGreaterThan(0);
+
+    await disable({ faceType: 'club', faceId: clubId });
+
+    expect(
+      await feedSize(`?clubId=${clubId}`),
+      'настройка лица не подействовала на ленту лица',
+    ).toBe(before - 1);
+  });
+
+  it('настройка ЛИЦА не глушит личный ящик', async () => {
+    // Обратная половина: без неё «подействовало» неотличимо от «выключило всем».
+    const before = await feedSize('?scope=personal');
+
+    expect(before, 'подготовка не удалась: личный ящик пуст').toBeGreaterThan(0);
+
+    await disable({ faceType: 'club', faceId: clubId });
+
+    expect(await feedSize('?scope=personal'), 'настройка лица погасила личный ящик').toBe(before);
+  });
+
+  it('личная настройка не глушит ленту лица', async () => {
+    // И третья сторона того же: ящики не протекают ни в одну сторону.
+    const before = await feedSize(`?clubId=${clubId}`);
+
+    await disable();
+
+    expect(await feedSize(`?clubId=${clubId}`), 'личная настройка погасила ящик лица').toBe(before);
+  });
+
+  it('счётчик непрочитанных слушает те же настройки, что и лента', async () => {
+    // ⚠️ Разойдясь, они дают «в колокольчике 3, в списке 0»: цифра есть,
+    // а строк под ней нет.
+    await disable({ faceType: 'club', faceId: clubId });
+
+    const feed = await request(harness.app.getHttpServer())
+      .get(`/api/notifications?clubId=${clubId}`)
+      .set('Cookie', cookie);
+    const counter = await request(harness.app.getHttpServer())
+      .get(`/api/notifications/unread-count?clubId=${clubId}`)
+      .set('Cookie', cookie);
+
+    expect((counter.body as { data?: { unreadCount?: number } }).data?.unreadCount).toBe(
+      (feed.body as { data?: { unreadCount?: number } }).data?.unreadCount,
+    );
   });
 });
