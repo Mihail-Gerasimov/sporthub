@@ -12,12 +12,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Booking, Club, Trainer, User } from '@sporthub/types';
+import type { Booking } from '@sporthub/types';
 
 import { renderWithToast, resetToasts } from '@/test/helpers/render-with-toast';
 
 import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
 import { DashboardPage } from '@/components/admin/DashboardPage';
+import type { AdminUser } from '@/lib/server-api';
 import {
   GENERATED_PASSWORD_LENGTH,
   PASSWORD_ALPHABET,
@@ -201,7 +202,9 @@ describe('Модалка выдачи пароля', () => {
 });
 
 describe('Карточка пользователя в админке', () => {
-  const users: User[] = [
+  // ⚠️ Шаг 35.20a. Число лиц услуг приходит ответом маршрута, а не считается
+  // разделом по каталогу: каталог сюда больше не грузится.
+  const users: AdminUser[] = [
     {
       id: 1,
       createdAt: '2026-03-17T09:00:00.000Z',
@@ -211,6 +214,7 @@ describe('Карточка пользователя в админке', () => {
       phone: '+7 (927) 000-10-10',
       passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$c29sdA$aGFzaA',
       favoriteClubIds: [],
+      serviceFaceCount: 0,
     },
   ];
 
@@ -224,14 +228,7 @@ describe('Карточка пользователя в админке', () => {
   });
 
   it('не показывает ни пароль, ни его хеш и не предлагает их раскрыть', () => {
-    render(
-      <DashboardPage
-        users={users}
-        clubs={[] as Club[]}
-        trainers={[] as Trainer[]}
-        bookings={[] as Booking[]}
-      />,
-    );
+    render(<DashboardPage users={users} bookings={[] as Booking[]} />);
 
     const credentials = screen.getByTestId('user-credentials-1');
 

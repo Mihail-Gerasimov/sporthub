@@ -23,6 +23,7 @@ import {
   getDateKeyInTimeZone,
 } from '@/lib/utils';
 import { FACE_CABINET_TITLE } from '@/lib/service-faces';
+import { useCabinet } from '@/components/profile/cabinet-context';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import type {
   Booking,
@@ -118,20 +119,20 @@ export function ProviderDashboard({
   // ⚠️ Шаг 35.32. Кабинет открыт в контексте ЛИЦА услуг, и подпись называет
   // именно его: «CrossFit Garage», а не «кабинет провайдера». У кого лицо одно,
   // тот разницы не заметит; у кого их несколько — по подписи видит, где он.
-  const { activeFace } = useAuthFaces();
-  const cabinetTitle = activeFace?.name ?? FACE_CABINET_TITLE;
+  const { faces } = useAuthFaces();
+  // ⚠️ Шаг 35.31. Какое лицо открыто, знает АДРЕС кабинета, а не состояние стора:
+  // с адресными маршрутами это одно и то же лицо, но источник теперь один.
+  // Отсюда же собираются ссылки на соседние разделы — они адресные тоже.
+  const cabinet = useCabinet();
+  const cabinetPath = cabinet.href;
+  const cabinetTitle = cabinet.face?.name ?? FACE_CABINET_TITLE;
 
-  const providerUserId = user?.id ?? null;
-
-  const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
-  );
-
-  const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
-  );
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло — по нему кто угодно строил карту владельцев,
+  // скачав каталог одним запросом.
+  const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
+  const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
   const clubIdSet = useMemo(() => new Set(providerClubs.map((c) => c.id)), [providerClubs]);
   const trainerIdSet = useMemo(
@@ -286,7 +287,7 @@ export function ProviderDashboard({
         </p>
         <div className="mt-6">
           <Link
-            href="/profile/provider/publications"
+            href={`${cabinetPath}/publications`}
             className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-ink transition-colors hover:bg-accent/90"
           >
             Перейти к публикации
@@ -337,35 +338,35 @@ export function ProviderDashboard({
           label="Ожидают подтверждения"
           value={pendingBookings.length}
           caption="Pending-заявки атлетов"
-          href="/profile/provider/bookings?tab=pending"
+          href={`${cabinetPath}/bookings?tab=pending`}
         />
         <KpiCard
           testid="provider-dashboard-pending-links"
           label="Заявки на привязку"
           value={totalPendingLinks}
           caption="Ожидающие ссылки тренер↔клуб"
-          href="/profile/provider/links"
+          href={`${cabinetPath}/links`}
         />
         <KpiCard
           testid="provider-dashboard-approaching-checkin"
           label="Check-in истекает"
           value={approachingCheckInCount}
           caption="Меньше 6ч до конца окна (48ч после слота)"
-          href="/profile/provider/bookings?tab=check-in"
+          href={`${cabinetPath}/bookings?tab=check-in`}
         />
         <KpiCard
           testid="provider-dashboard-unread"
           label="Непрочитанные"
           value={unreadCount}
           caption="Новых уведомлений"
-          href="/profile/provider/notifications"
+          href={`${cabinetPath}/notifications`}
         />
         <KpiCard
           testid="provider-dashboard-rating"
           label="Рейтинг"
           value={averageRating}
           caption="Средний балл отзывов"
-          href="/profile/provider/reviews"
+          href={`${cabinetPath}/reviews`}
         />
       </section>
 
@@ -465,25 +466,25 @@ export function ProviderDashboard({
       {/* Quick actions. */}
       <div className="flex flex-wrap gap-3" data-testid="provider-dashboard-quick-actions">
         <Link
-          href="/profile/provider/publications"
+          href={`${cabinetPath}/publications`}
           className="inline-flex min-h-12 items-center justify-center rounded-pill bg-accent px-5 text-sm font-semibold text-ink transition-colors hover:bg-accent/90"
         >
           Опубликовать новое
         </Link>
         <Link
-          href="/profile/provider/bookings"
+          href={`${cabinetPath}/bookings`}
           className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Все записи
         </Link>
         <Link
-          href="/profile/provider/clients"
+          href={`${cabinetPath}/clients`}
           className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Мои клиенты
         </Link>
         <Link
-          href="/profile/provider/stats"
+          href={`${cabinetPath}/stats`}
           className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Статистика

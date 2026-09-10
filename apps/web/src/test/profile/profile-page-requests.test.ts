@@ -16,6 +16,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 
+import { WEB_ROOT } from '../web-root';
+
 /** Кто вошёл. Серверная страница узнаёт это только из сессии. */
 let signedInUserId: string | undefined;
 
@@ -142,7 +144,7 @@ describe('Запросы серверных страниц кабинетов', 
       ];
 
       for (const file of files) {
-        const text = await readFile(path.join(process.cwd(), file), 'utf8');
+        const text = await readFile(path.join(WEB_ROOT, file), 'utf8');
 
         expect({ file, usesLoader: /loadProviderScope/.test(text) }).toEqual({
           file,

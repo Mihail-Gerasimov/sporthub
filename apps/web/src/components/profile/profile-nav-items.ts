@@ -1,14 +1,25 @@
-// Data-driven пункты навигации ЛК (Step 25.2).
-// Набор разделов зависит от фактических данных: у провайдера может не быть ни одной
-// публикации и ни одной записи, и показывать ему пустые разделы незачем.
+// Разделы кабинета: какие показывать и куда они ведут.
 //
 // ⚠️ Фаза 35, шаги 35.33–35.34. Раздел показывается по ВЛАДЕНИЮ, и только по нему.
 // Фаза 34 добавляла сюда права роли вторым условием («право И наличие публикаций»);
 // прав `manage_own_clubs` и `manage_own_trainer_profile` больше нет — они исчезли
-// вместе с ролями. Осталось одно условие, и оно единственное осмысленное: у кого
-// есть клубы, тому нужен раздел клубов; у кого карточка — раздел карточки;
-// у кого оба — оба. Это и есть живой случай заказчика: свой зал плюс персоналки.
-import type { Club, Trainer } from '@sporthub/types';
+// вместе с ролями.
+//
+// ⚠️ Шаг 35.31. Кабинет теперь принадлежит ОДНОМУ лицу, и это меняет здесь две
+// вещи. Первая: адреса разделов собираются от адреса кабинета, а не пишутся
+// строками, — у клуба 3 и клуба 7 разделы одинаковые, а адреса разные. Вторая:
+// «чем человек владеет» больше не список, а одно лицо: у кого зал и своя карточка
+// тренера, у того ДВА кабинета, а не один со смешанными разделами. Живой случай
+// заказчика («свой зал плюс персоналки») выражается двумя адресами, и каждый
+// из них можно дать ссылкой отдельно.
+import {
+  cabinetSectionPath,
+  faceCabinetPath,
+  PERSONAL_CABINET_PATH,
+  type CabinetTarget,
+  type ServiceFace,
+  type ServiceFaceKind,
+} from '@/lib/service-faces';
 
 /** Один пункт сайдбар-навигации внутри кабинета. */
 export interface ProfileNavItem {
@@ -20,84 +31,97 @@ export interface ProfileNavItem {
   href: string;
 }
 
-const ATHLETE_NAV_ITEMS: ProfileNavItem[] = [
-  { key: 'dashboard', label: 'Обзор', href: '/profile/athlete/dashboard' },
-  { key: 'schedule', label: 'Расписание', href: '/profile/athlete/schedule' },
-  { key: 'stats', label: 'Статистика', href: '/profile/athlete/stats' },
-  { key: 'favorites', label: 'Избранное', href: '/profile/athlete/favorites' },
-  { key: 'reviews', label: 'Отзывы', href: '/profile/athlete/reviews' },
-  { key: 'notifications', label: 'Уведомления', href: '/profile/athlete/notifications' },
-  { key: 'settings', label: 'Настройки', href: '/profile/athlete/settings' },
-];
+/** Раздел до того, как к нему приделали адрес кабинета. */
+type NavSection = { key: string; label: string; section: string };
 
-/** Набор разделов атлета фиксированный — одинаков для всех авторизованных атлетов. */
-export function getAthleteNavItems(): ProfileNavItem[] {
-  return ATHLETE_NAV_ITEMS.slice();
+/** Собрать пункт: адрес — это адрес кабинета плюс имя раздела. */
+function navItem(cabinetPath: string, section: NavSection): ProfileNavItem {
+  return {
+    key: section.key,
+    label: section.label,
+    href: cabinetSectionPath(cabinetPath, section.section),
+  };
 }
 
-export interface ProviderNavInput {
-  providerClubs: Club[];
-  providerTrainers: Trainer[];
-  hasProviderBookings: boolean;
+const PERSONAL_SECTIONS: NavSection[] = [
+  { key: 'dashboard', label: 'Обзор', section: 'dashboard' },
+  { key: 'schedule', label: 'Расписание', section: 'schedule' },
+  { key: 'stats', label: 'Статистика', section: 'stats' },
+  { key: 'favorites', label: 'Избранное', section: 'favorites' },
+  { key: 'reviews', label: 'Отзывы', section: 'reviews' },
+  { key: 'notifications', label: 'Уведомления', section: 'notifications' },
+  { key: 'settings', label: 'Настройки', section: 'settings' },
+];
+
+/** Набор разделов человека фиксированный — одинаков у всех вошедших. */
+export function getPersonalNavItems(): ProfileNavItem[] {
+  return PERSONAL_SECTIONS.map((section) => navItem(PERSONAL_CABINET_PATH, section));
 }
 
 /**
- * Виды лиц услуг: свой раздел кабинета и свой список сущностей.
+ * Раздел публикации у каждого вида лица свой: клуб ведёт список залов, тренер —
+ * одну свою карточку. Адрес раздела при этом общий: страница одна.
  *
- * Таблица, а не цепочка условий, ровно по главному правилу: третий вид публикации
- * (площадка, мероприятие — что угодно) добавляется СТРОКОЙ здесь, а не правкой
- * условия, потом подписи, потом порядка. Адрес у разделов пока общий: страница
- * одна и показывает то, чем человек управляет.
+ * Словарь, а не цепочка условий, ровно по главному правилу: третий вид лица
+ * (площадка, мероприятие) добавляется СТРОКОЙ здесь, а не правкой условия,
+ * потом подписи, потом порядка.
  */
-const PUBLICATION_SECTIONS: {
-  item: ProfileNavItem;
-  own: (input: ProviderNavInput) => readonly unknown[];
-}[] = [
-  {
-    item: { key: 'publications', label: 'Публикации', href: '/profile/provider/publications' },
-    own: (input) => input.providerClubs,
-  },
-  {
-    item: { key: 'trainer-profile', label: 'Моя карточка', href: '/profile/provider/publications' },
-    own: (input) => input.providerTrainers,
-  },
+const FACE_PUBLICATION_SECTION: Record<ServiceFaceKind, NavSection> = {
+  club: { key: 'publications', label: 'Публикации', section: 'publications' },
+  trainer: { key: 'trainer-profile', label: 'Моя карточка', section: 'publications' },
+};
+
+/** Разделы, которые появляются только когда у лица есть записи. */
+const FACE_BOOKING_SECTIONS: NavSection[] = [
+  { key: 'bookings', label: 'Бронирования', section: 'bookings' },
+  { key: 'clients', label: 'Клиенты', section: 'clients' },
+  { key: 'stats', label: 'Статистика', section: 'stats' },
 ];
 
-/**
- * Набор разделов провайдера условный:
- * раздел публикаций своего вида появляется при наличии таких публикаций,
- * Links/Reviews — вместе с ним, Bookings/Clients/Stats — при наличии bookings
- * (с защитой: без публикаций booking невозможен).
- */
-export function getProviderNavItems(input: ProviderNavInput): ProfileNavItem[] {
-  const ownSections = PUBLICATION_SECTIONS.filter((section) => section.own(input).length > 0);
-  const hasPublications = ownSections.length > 0;
-  const showBookingSections = hasPublications && input.hasProviderBookings;
+/** Разделы, которые есть у лица всегда. */
+const FACE_ALWAYS_SECTIONS: NavSection[] = [
+  { key: 'links', label: 'Связи', section: 'links' },
+  { key: 'reviews', label: 'Отзывы', section: 'reviews' },
+  { key: 'finance', label: 'Финансы', section: 'finance' },
+  { key: 'notifications', label: 'Уведомления', section: 'notifications' },
+  { key: 'settings', label: 'Настройки', section: 'settings' },
+];
 
-  const items: ProfileNavItem[] = [
-    { key: 'dashboard', label: 'Обзор', href: '/profile/provider/dashboard' },
+export interface FaceNavInput {
+  /** Лицо, чей это кабинет. Оно есть всегда: без него адреса кабинета не существует. */
+  face: ServiceFace;
+  /** Есть ли у лица записи. Пока их нет, разделам про них показывать нечего. */
+  hasBookings: boolean;
+}
+
+/**
+ * Набор разделов кабинета лица.
+ *
+ * ⚠️ Проверки «а есть ли публикация» здесь больше нет, и это не упрощение,
+ * а следствие адресного маршрута: в кабинет лица нельзя попасть, не владея этим
+ * лицом, — `requireOwner` в лейауте уводит раньше. Публикация существует
+ * по построению, и условие про неё было бы недостижимой веткой.
+ */
+export function getFaceNavItems({ face, hasBookings }: FaceNavInput): ProfileNavItem[] {
+  const cabinetPath = faceCabinetPath(face);
+  const sections: NavSection[] = [
+    { key: 'dashboard', label: 'Обзор', section: 'dashboard' },
+    FACE_PUBLICATION_SECTION[face.kind],
+    ...(hasBookings ? FACE_BOOKING_SECTIONS : []),
+    ...FACE_ALWAYS_SECTIONS,
   ];
 
-  items.push(...ownSections.map((section) => section.item));
+  return sections.map((section) => navItem(cabinetPath, section));
+}
 
-  if (showBookingSections) {
-    items.push({ key: 'bookings', label: 'Бронирования', href: '/profile/provider/bookings' });
-    items.push({ key: 'clients', label: 'Клиенты', href: '/profile/provider/clients' });
-    items.push({ key: 'stats', label: 'Статистика', href: '/profile/provider/stats' });
-  }
-
-  if (hasPublications) {
-    items.push({ key: 'links', label: 'Связи', href: '/profile/provider/links' });
-    items.push({ key: 'reviews', label: 'Отзывы', href: '/profile/provider/reviews' });
-  }
-
-  items.push({ key: 'finance', label: 'Финансы', href: '/profile/provider/finance' });
-  items.push({
-    key: 'notifications',
-    label: 'Уведомления',
-    href: '/profile/provider/notifications',
-  });
-  items.push({ key: 'settings', label: 'Настройки', href: '/profile/provider/settings' });
-
-  return items;
+/**
+ * Разделы открытого кабинета — по нему самому.
+ *
+ * Одна точка входа для макета: он не должен знать, какой кабинет открыт, — это
+ * знает сам кабинет (`face === null` — личный, иначе кабинет лица).
+ */
+export function getCabinetNavItems(cabinet: CabinetTarget, hasBookings: boolean): ProfileNavItem[] {
+  return cabinet.face === null
+    ? getPersonalNavItems()
+    : getFaceNavItems({ face: cabinet.face, hasBookings });
 }

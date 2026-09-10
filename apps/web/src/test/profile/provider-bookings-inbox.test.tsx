@@ -21,6 +21,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderBookingsInbox } from '@/components/profile/provider/ProviderBookingsInbox';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@sporthub/types';
 
 // Фиксируем TZ до любых Date-операций, чтобы `new Date('YYYY-MM-DDTHH:mm:ss')` без
@@ -148,6 +149,8 @@ function authenticateProvider() {
     user: providerUser,
     accountKind: 'person',
     isAuthenticated: true,
+    // ⚠️ Шаг 35.20a. Лица приезжают ответом «кто я», не из каталога.
+    faces: facesOf({ userId: providerUser.id, clubs: [club], trainers }),
   });
 }
 

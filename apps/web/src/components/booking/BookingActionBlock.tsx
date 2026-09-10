@@ -7,6 +7,12 @@
  * записи, не ограничен. */
 
 import Link from 'next/link';
+
+import {
+  cabinetSectionPath,
+  DEFAULT_CABINET_SECTION,
+  PERSONAL_CABINET_PATH,
+} from '@/lib/service-faces';
 import { startTransition, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -171,7 +177,7 @@ export function BookingActionBlock({
     if (hasExistingBooking) {
       return (
         <Link
-          href="/profile/athlete/dashboard"
+          href={cabinetSectionPath(PERSONAL_CABINET_PATH, DEFAULT_CABINET_SECTION)}
           className="inline-flex min-h-12 w-full items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Перейти в ЛК

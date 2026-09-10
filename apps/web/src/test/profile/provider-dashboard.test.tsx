@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 import type { Booking, Club, Offering, Review, Trainer, User } from '@sporthub/types';
 
 const NOW = new Date('2026-04-22T12:00:00.000Z');
@@ -97,6 +98,14 @@ function authenticateProvider() {
     user: providerUser,
     accountKind: 'person',
     isAuthenticated: true,
+    // ⚠️ Шаг 35.20a. Свои публикации кабинет отбирает по ЛИЦАМ услуг из ответа
+    // «кто я»: номер владельца из публичной выдачи каталога ушёл. Здесь
+    // перечислены все лица, которыми набор пользуется, — клуб 1 и карточка 10.
+    faces: facesOf({
+      userId: providerUser.id,
+      clubs: [makeClub({ id: 1 })],
+      trainers: [makeTrainer({ id: 10 })],
+    }),
   });
 }
 

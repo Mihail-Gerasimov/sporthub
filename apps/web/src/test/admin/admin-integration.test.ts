@@ -398,7 +398,7 @@ describe('Admin integration (Step 17.8)', () => {
 
       await act(async () => {
         expect(await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID)).toBe(
-          '/profile/athlete',
+          '/profile/me',
         );
       });
 
@@ -414,7 +414,7 @@ describe('Admin integration (Step 17.8)', () => {
 
       await act(async () => {
         expect(await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID)).toBe(
-          '/profile/provider',
+          '/profile/club/3',
         );
       });
     });

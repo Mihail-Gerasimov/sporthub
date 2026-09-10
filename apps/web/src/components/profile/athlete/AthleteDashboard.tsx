@@ -17,7 +17,11 @@ import {
 import { Badge, Card, ReliabilityBadge } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
 import { computeAthleteReliability } from '@sporthub/domain';
-import { PERSONAL_CABINET_TITLE } from '@/lib/service-faces';
+import {
+  cabinetSectionPath,
+  PERSONAL_CABINET_PATH,
+  PERSONAL_CABINET_TITLE,
+} from '@/lib/service-faces';
 import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Schedule, Trainer } from '@sporthub/types';
 import { findBookingSlot } from '@/lib/utils';
@@ -310,7 +314,7 @@ export function AthleteDashboard({
           Найти тренировку
         </Link>
         <Link
-          href="/profile/athlete/schedule"
+          href={cabinetSectionPath(PERSONAL_CABINET_PATH, 'schedule')}
           className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
         >
           Моё расписание

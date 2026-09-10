@@ -36,6 +36,7 @@ import { ProviderClients } from '@/components/profile/provider/ProviderClients';
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
 import { ProviderStats } from '@/components/profile/provider/ProviderStats';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer, User } from '@sporthub/types';
 
 // Токио на пять часов впереди Самары. Любая формула, считающая по поясу процесса,
@@ -165,6 +166,8 @@ function authenticateProvider() {
     user: providerUser,
     accountKind: 'person',
     isAuthenticated: true,
+    // ⚠️ Шаг 35.20a. Лица приезжают ответом «кто я», не из каталога.
+    faces: facesOf({ userId: providerUser.id, clubs: [club] }),
   });
 }
 

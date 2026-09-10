@@ -12,6 +12,7 @@ import {
 } from '@/lib/utils';
 import type { Booking, Club, Review, Schedule, Trainer, User } from '@sporthub/types';
 import { PROVIDER_BOOKING_STATUS_LABELS } from '@/components/profile/booking-status-labels';
+import type { ServiceFace, ServiceFaceKind } from '@/lib/service-faces';
 
 /** Сводка KPI провайдера для дэшборда */
 export type ProviderSummary = {
@@ -130,14 +131,38 @@ function getProviderBookingLocationLabel({
   return `${baseLabel} · ${slot.room}`;
 }
 
-/** Клубы, управляемые провайдером */
-export function getProviderClubs(clubs: Club[], providerUserId: number): Club[] {
-  return clubs.filter((club) => club.managedByUserId === providerUserId);
+/**
+ * Клубы человека — по его лицам услуг.
+ *
+ * ⚠️ Шаг 35.20a. Раньше отбор шёл по `managedByUserId` из каталога: фронт
+ * сравнивал номер владельца в каждой карточке с номером вошедшего. Это поле
+ * из публичной выдачи ушло — по нему любой желающий строил карту «эти лица
+ * принадлежат одному человеку», скачав каталог одним запросом.
+ *
+ * Теперь источник владения один и он серверный: список лиц приезжает ответом
+ * «кто я» (`faces`, шаг 35.21), а здесь по нему отбираются карточки. Отбор
+ * идёт по НОМЕРАМ лиц нужного вида — клуб 3 и карточка тренера 3 это разные
+ * вещи с одинаковым номером, и путать их нельзя.
+ *
+ * Пустой список лиц даёт пустую выдачу — это и означает «человек услуг
+ * не ведёт», а не «отбора нет».
+ */
+export function getProviderClubs(clubs: Club[], faces: readonly ServiceFace[]): Club[] {
+  const ownClubIds = faceIdsOfKind(faces, 'club');
+
+  return clubs.filter((club) => ownClubIds.has(club.id));
 }
 
-/** Тренеры, управляемые провайдером */
-export function getProviderTrainers(trainers: Trainer[], providerUserId: number): Trainer[] {
-  return trainers.filter((trainer) => trainer.managedByUserId === providerUserId);
+/** Карточки тренера того же человека — тем же отбором по лицам. */
+export function getProviderTrainers(trainers: Trainer[], faces: readonly ServiceFace[]): Trainer[] {
+  const ownTrainerIds = faceIdsOfKind(faces, 'trainer');
+
+  return trainers.filter((trainer) => ownTrainerIds.has(trainer.id));
+}
+
+/** Номера лиц одного вида. Множество, а не массив: отбор идёт по вхождению. */
+function faceIdsOfKind(faces: readonly ServiceFace[], kind: ServiceFaceKind): Set<number> {
+  return new Set(faces.filter((face) => face.kind === kind).map((face) => face.id));
 }
 
 /** Входящие записи на клубы и тренеров провайдера */

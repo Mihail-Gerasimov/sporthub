@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 
+import { useCabinetPath } from '@/components/profile/cabinet-context';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
 import { computeAthleteReliability, zonedDateTime } from '@sporthub/domain';
@@ -18,7 +19,7 @@ import {
   getBookingClubId,
   getBookingTrainerId,
 } from '@/lib/utils';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { APP_LIMITS } from '@sporthub/types';
 import type {
@@ -77,10 +78,12 @@ export function ProviderClients({
   notes = [],
 }: ProviderClientsProps) {
   const user = useAuthStore((s) => s.user);
+  const { faces } = useAuthFaces();
+  // ⚠️ Шаг 35.31. Ссылки на соседние разделы адресные: у клуба 3 и клуба 7
+  // раздел публикаций один и тот же, а адрес у него разный.
+  const cabinetPath = useCabinetPath();
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
-
-  const providerUserId = user?.id ?? null;
 
   const [entityFilter, setEntityFilter] = useState<string>(ALL_VALUE);
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);
@@ -90,14 +93,12 @@ export function ProviderClients({
   const [noteDraft, setNoteDraft] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
-  );
-  const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
-  );
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло — по нему кто угодно строил карту владельцев,
+  // скачав каталог одним запросом.
+  const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
+  const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
   const clubIdSet = useMemo(() => new Set(providerClubs.map((c) => c.id)), [providerClubs]);
   const trainerIdSet = useMemo(
@@ -366,7 +367,7 @@ export function ProviderClients({
           </p>
           <div className="mt-5">
             <Link
-              href="/profile/provider/publications"
+              href={`${cabinetPath}/publications`}
               className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
             >
               Опубликовать услугу

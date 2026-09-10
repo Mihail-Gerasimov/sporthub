@@ -260,7 +260,7 @@ describe('useAuthStore', () => {
     expect(selectPrimaryCabinet(useAuthStore.getState())).toMatchObject({
       key: 'club:3',
       title: 'CrossFit Garage',
-      href: '/profile/provider',
+      href: '/profile/club/3',
     });
   });
 

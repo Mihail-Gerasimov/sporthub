@@ -173,15 +173,29 @@ const dataCalls = (stub: ApiStub): string[] =>
 /**
  * Закрытые зоны: свой лейаут, свои допущенные и свои чужие.
  *
- * ⚠️ После Э5 кабинет лица станет адресным (`/profile/club/[id]`,
- * `/profile/trainer/[id]`), и к «чужим» добавится случай, которого сегодня
- * не выразить: владелец ДРУГОГО лица. Правило тут же станет строже —
- * «владелец именно этого лица», — а форма набора не изменится.
+ * ⚠️ Шаг 35.31 сделал кабинет лица адресным, и предсказанный здесь случай
+ * стал выразим: «владелец ДРУГОГО лица». Он и есть главная новая проверка —
+ * до адресного маршрута кабинет пускал по правилу «есть хотя бы одно лицо»,
+ * то есть владелец клуба 1 открывал кабинет клуба 3, ему не принадлежащего,
+ * и никакой тест этого поймать не мог: адреса, по которому это выражается,
+ * не существовало.
  */
+/**
+ * Номер лица, которым владеет ЧУЖОЙ человек.
+ *
+ * Карточка `SOLO_TRAINER_CARD` принадлежит `CARD_OWNER`. Для владельца клубов
+ * это чужое лицо, и попытка открыть его кабинет обязана кончаться тем же, чем
+ * попытка гостя.
+ */
+const OTHER_PERSONS_FACE = { faceKind: 'trainer', faceId: String(SOLO_TRAINER_CARD.id) };
+
+/** Своё лицо владельца клубов — контрольная группа к предыдущему. */
+const OWN_FACE = { faceKind: 'club', faceId: '1' };
+
 const GUARDED_AREAS = [
   {
-    title: 'личный кабинет человека (/profile/athlete)',
-    load: () => import('@/app/profile/athlete/layout'),
+    title: 'личный кабинет человека (/profile/me)',
+    load: () => import('@/app/profile/me/layout'),
     // Раздел человека: записи, отзывы, избранное. Есть у любого вошедшего,
     // и наличие лиц услуг тут ни при чём — владелец клуба тоже ходит на йогу.
     allowed: [PERSON, CLUB_OWNER, CARD_OWNER, ROLE_WITHOUT_FACES],
@@ -189,13 +203,25 @@ const GUARDED_AREAS = [
     denied: [ADMIN],
   },
   {
-    title: 'кабинет лица услуг (/profile/provider)',
-    // Владелец клубов управляет клубами 1–3 и карточками 1, 3, 5 — на нём лейаут
-    // действительно грузит срез кабинета, и «данных не запрашивали» становится
-    // проверяемым утверждением, а не пустым.
-    load: () => import('@/app/profile/provider/layout'),
-    allowed: [CLUB_OWNER, CARD_OWNER],
-    denied: [PERSON, ROLE_WITHOUT_FACES, ADMIN],
+    // Кабинет КОНКРЕТНОГО лица — клуба 1, которым владеет `CLUB_OWNER`.
+    // На нём лейаут действительно грузит срез кабинета, и «данных не запрашивали»
+    // становится проверяемым утверждением, а не пустым.
+    title: 'кабинет лица услуг (/profile/club/1)',
+    load: () => import('@/app/profile/[faceKind]/[faceId]/layout'),
+    params: OWN_FACE,
+    allowed: [CLUB_OWNER],
+    // ⚠️ `CARD_OWNER` здесь среди ЧУЖИХ, и это новое. Лицо у него есть — своё,
+    // но не это. До адресного маршрута он проходил бы наравне с владельцем.
+    denied: [PERSON, ROLE_WITHOUT_FACES, ADMIN, CARD_OWNER],
+  },
+  {
+    // Второй адрес того же лейаута: чужая карточка тренера. Владелец клубов
+    // сюда не должен попадать, хотя лиц у него больше всех на площадке.
+    title: 'кабинет ЧУЖОГО лица (/profile/trainer/99)',
+    load: () => import('@/app/profile/[faceKind]/[faceId]/layout'),
+    params: OTHER_PERSONS_FACE,
+    allowed: [CARD_OWNER],
+    denied: [CLUB_OWNER, PERSON, ROLE_WITHOUT_FACES, ADMIN],
   },
   {
     title: 'сервисная панель',
@@ -218,13 +244,22 @@ describe('Закрытые зоны: проверка доступа на сер
     visitor = null;
   });
 
-  describe.each(GUARDED_AREAS)('$title', ({ load, allowed, denied }) => {
+  describe.each(GUARDED_AREAS)('$title', (area) => {
+    const { load, allowed, denied } = area;
+    // Адресный лейаут ждёт номер лица; безадресные его не читают вовсе.
+    const props = () => ({
+      children: null,
+      ...('params' in area ? { params: Promise.resolve(area.params) } : {}),
+    });
+
     it('гостя уводит на главную и данных не запрашивает вовсе', async () => {
       visitor = null;
       stub = installStub();
       const { default: Layout } = await load();
 
-      await expect(Layout({ children: null })).rejects.toThrow(/NEXT_REDIRECT/);
+      await expect((Layout as (p: unknown) => Promise<unknown>)(props())).rejects.toThrow(
+        /NEXT_REDIRECT/,
+      );
 
       expect(redirects).toEqual(['/']);
       expect(dataCalls(stub)).toEqual([]);
@@ -240,7 +275,9 @@ describe('Закрытые зоны: проверка доступа на сер
         stub = installStub();
         const { default: Layout } = await load();
 
-        await expect(Layout({ children: null })).rejects.toThrow(/NEXT_REDIRECT/);
+        await expect((Layout as (p: unknown) => Promise<unknown>)(props())).rejects.toThrow(
+          /NEXT_REDIRECT/,
+        );
 
         expect(redirects).toEqual(['/']);
         expect(dataCalls(stub)).toEqual([]);
@@ -254,7 +291,7 @@ describe('Закрытые зоны: проверка доступа на сер
       stub = installStub();
       const { default: Layout } = await load();
 
-      await expect(Layout({ children: null })).resolves.toBeTruthy();
+      await expect((Layout as (p: unknown) => Promise<unknown>)(props())).resolves.toBeTruthy();
       expect(redirects).toEqual([]);
     });
   });
@@ -266,12 +303,32 @@ describe('Закрытые зоны: проверка доступа на сер
     // самоисполняющимися, и падать должно здесь, а не молча нигде.
     visitor = CLUB_OWNER;
     stub = installStub();
-    const { default: ProviderProfileLayout } = await import('@/app/profile/provider/layout');
+    const { default: FaceCabinetLayout } = await import('@/app/profile/[faceKind]/[faceId]/layout');
 
-    await ProviderProfileLayout({ children: null });
+    await FaceCabinetLayout({ children: null, params: Promise.resolve(OWN_FACE) });
 
-    expect(dataCalls(stub).some((call) => call.startsWith('/clubs'))).toBe(true);
-    expect(dataCalls(stub).some((call) => call.startsWith('/bookings'))).toBe(true);
+    expect(
+      dataCalls(stub).length,
+      'лейаут кабинета лица перестал ходить за данными',
+    ).toBeGreaterThan(0);
+  });
+
+  it('мусор в адресе лица уводит так же, как чужое лицо, и данных не трогает', async () => {
+    // ⚠️ Разный ответ на «нет такого вида лица» и «лицо чужое» превратил бы адрес
+    // в перечислитель: перебирая номера, посторонний узнавал бы, какие лица есть.
+    visitor = CLUB_OWNER;
+    stub = installStub();
+    const { default: FaceCabinetLayout } = await import('@/app/profile/[faceKind]/[faceId]/layout');
+
+    await expect(
+      FaceCabinetLayout({
+        children: null,
+        params: Promise.resolve({ faceKind: 'venue', faceId: '1' }),
+      }),
+    ).rejects.toThrow(/NEXT_REDIRECT/);
+
+    expect(redirects).toEqual(['/']);
+    expect(dataCalls(stub)).toEqual([]);
   });
 
   it('проверка стоит ПЕРЕД загрузкой среза кабинета, а не после неё', async () => {
@@ -280,9 +337,11 @@ describe('Закрытые зоны: проверка доступа на сер
     // и публикации кабинета к этому моменту уже были бы прочитаны и отданы.
     visitor = PERSON;
     stub = installStub();
-    const { default: ProviderProfileLayout } = await import('@/app/profile/provider/layout');
+    const { default: FaceCabinetLayout } = await import('@/app/profile/[faceKind]/[faceId]/layout');
 
-    await expect(ProviderProfileLayout({ children: null })).rejects.toThrow(/NEXT_REDIRECT/);
+    await expect(
+      FaceCabinetLayout({ children: null, params: Promise.resolve(OWN_FACE) }),
+    ).rejects.toThrow(/NEXT_REDIRECT/);
 
     expect(stub.calls).toEqual(['/auth/me']);
   });

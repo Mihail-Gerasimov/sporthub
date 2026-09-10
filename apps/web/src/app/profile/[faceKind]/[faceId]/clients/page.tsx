@@ -1,10 +1,11 @@
-// Server page раздела «Клиенты» провайдера (Step 25.10-B). Параллельный маршрут
-// к корню /profile/provider — агрегация уникальных клиентов и CRM-заметок.
+// Server page раздела «Клиенты» кабинета лица (Step 25.10-B): агрегация уникальных
+// клиентов и CRM-заметок.
 //
-// Срез — с историей клиентов: список собирается из записей провайдера, а бейдж
+// Срез — с историей клиентов: список собирается из записей лица, а бейдж
 // надёжности рядом с именем обязан отражать всю историю человека.
 import { ProviderClients } from '@/components/profile/provider/ProviderClients';
-import { loadProviderScopeWithClientHistory } from '@/lib/provider-scope';
+import { loadFaceScopeWithClientHistory } from '@/lib/face-scope';
+import { requireFaceCabinetParams, type FaceCabinetParams } from '@/lib/face-cabinet-params';
 import {
   getAllProviderClientNotes,
   getOfferings,
@@ -14,9 +15,10 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProviderClientsRoute() {
+export default async function FaceClientsRoute({ params }: { params: Promise<FaceCabinetParams> }) {
+  const face = await requireFaceCabinetParams(params);
   const [{ bookings, clubs, trainers }, offerings, schedule, users, notes] = await Promise.all([
-    loadProviderScopeWithClientHistory(),
+    loadFaceScopeWithClientHistory(face.kind, face.id),
     getOfferings(),
     getSchedule({ ownerType: 'all' }),
     getClientUsers(),

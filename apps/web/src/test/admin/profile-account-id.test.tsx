@@ -61,6 +61,9 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
       },
       accountKind: 'person',
       isAuthenticated: true,
+      // ⚠️ Шаг 35.20a. Кабинет лица отбирает свои публикации по ЛИЦАМ
+      // из ответа «кто я»: номер владельца из публичной выдачи каталога ушёл.
+      faces: [{ kind: 'club', id: 10, name: 'Test' }],
     });
 
     // Dummy-клуб под `managedByUserId = PROVIDER_USER_ID`, чтобы Dashboard

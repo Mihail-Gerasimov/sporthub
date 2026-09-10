@@ -4,6 +4,13 @@
 'use client';
 
 import Link from 'next/link';
+
+import {
+  cabinetSectionPath,
+  DEFAULT_CABINET_SECTION,
+  PERSONAL_CABINET_PATH,
+  PROFILE_ROOT,
+} from '@/lib/service-faces';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
@@ -72,9 +79,12 @@ const mobileNavItems: ReadonlyArray<{
     ),
   },
   {
-    href: '/profile/athlete/dashboard',
+    href: cabinetSectionPath(PERSONAL_CABINET_PATH, DEFAULT_CABINET_SECTION),
     label: 'Профиль',
-    matchPaths: ['/profile/athlete', '/profile/provider'],
+    // ⚠️ Шаг 35.31. Подсвечиваем по корню `/profile`, а не по двум прежним
+    // адресам: кабинетов теперь столько, сколько у человека лиц, плюс личный,
+    // и перечислять их здесь значило бы держать второй список адресов.
+    matchPaths: [PROFILE_ROOT],
     glyph: (
       <>
         <circle cx="12" cy="8.5" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.7" />

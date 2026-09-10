@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardPage } from '@/components/admin/DashboardPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { renderWithToast } from '@/test/helpers/render-with-toast';
-import type { Booking, Club, Trainer, User } from '@sporthub/types';
+import type { AdminUser } from '@/lib/server-api';
+import type { Booking } from '@sporthub/types';
 
 // Номера пользователей стенда. Раньше они приезжали константами из стора —
 // фронт знал наперёд, кто атлет, провайдер и администратор. Теперь это просто
@@ -21,7 +22,10 @@ vi.mock('next/navigation', () => ({
 
 const fetchMock = vi.fn();
 
-const fixtureAthlete: User = {
+// ⚠️ Шаг 35.20a. Число лиц услуг приходит ответом маршрута (`serviceFaceCount`),
+// а не считается разделом по каталогу: `managedByUserId` из публичной выдачи
+// ушёл, и каталог сюда больше не грузится. У атлета лиц нет, у Марины — одно.
+const fixtureAthlete: AdminUser = {
   id: 1,
   createdAt: '2026-03-17T09:00:00.000Z',
   status: 'active',
@@ -30,9 +34,10 @@ const fixtureAthlete: User = {
   phone: '',
   passwordHash: 'x',
   favoriteClubIds: [],
+  serviceFaceCount: 0,
 };
 
-const fixtureProvider: User = {
+const fixtureProvider: AdminUser = {
   id: 2,
   createdAt: '2026-03-17T09:00:00.000Z',
   status: 'active',
@@ -41,10 +46,8 @@ const fixtureProvider: User = {
   phone: '',
   passwordHash: 'x',
   favoriteClubIds: [],
+  serviceFaceCount: 1,
 };
-
-const baseClubs: Club[] = [];
-const baseTrainers: Trainer[] = [];
 
 function makeBooking(overrides: Partial<Booking>): Booking {
   return {
@@ -64,15 +67,8 @@ function makeBooking(overrides: Partial<Booking>): Booking {
   };
 }
 
-function renderDashboard(props: { users: User[]; bookings?: Booking[] }) {
-  return renderWithToast(
-    <DashboardPage
-      users={props.users}
-      clubs={baseClubs}
-      trainers={baseTrainers}
-      bookings={props.bookings ?? []}
-    />,
-  );
+function renderDashboard(props: { users: AdminUser[]; bookings?: Booking[] }) {
+  return renderWithToast(<DashboardPage users={props.users} bookings={props.bookings ?? []} />);
 }
 
 describe('DashboardPage — колонка надёжности и её действия', () => {

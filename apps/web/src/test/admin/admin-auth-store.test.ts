@@ -191,7 +191,7 @@ describe('Admin auth store (Step 17.2)', () => {
 
       await act(async () => {
         expect(await useAuthStore.getState().startImpersonation(PROVIDER_USER_ID)).toBe(
-          '/profile/provider',
+          '/profile/club/3',
         );
       });
 
@@ -212,7 +212,7 @@ describe('Admin auth store (Step 17.2)', () => {
 
       await act(async () => {
         expect(await useAuthStore.getState().startImpersonation(ATHLETE_USER_ID)).toBe(
-          '/profile/athlete',
+          '/profile/me',
         );
       });
     });

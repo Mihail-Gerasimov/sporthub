@@ -9,6 +9,7 @@ import {
   getProviderSummary,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
+import { facesOf } from '@/test/helpers/service-faces';
 
 // --- Фикстуры ---
 
@@ -255,31 +256,55 @@ const reviews: Review[] = [
 
 const PROVIDER_USER_ID = 2;
 
+/**
+ * Лица услуг этого человека — тем же составом, каким их отдаёт ответ «кто я».
+ *
+ * ⚠️ Шаг 35.20a. Раньше отбор шёл по `managedByUserId` в карточке каталога;
+ * поле из публичной выдачи ушло, и владение приходит с сервера списком лиц.
+ */
+const PROVIDER_FACES = facesOf({ userId: PROVIDER_USER_ID, clubs, trainers });
+
 // --- Тесты ---
 
 describe('getProviderClubs', () => {
-  it('возвращает клубы провайдера по managedByUserId', () => {
-    const result = getProviderClubs(clubs, PROVIDER_USER_ID);
+  it('возвращает клубы человека по его лицам услуг', () => {
+    const result = getProviderClubs(clubs, PROVIDER_FACES);
 
     expect(result.map((c) => c.id)).toEqual([1, 2]);
   });
 
-  it('возвращает пустой массив если нет управляемых клубов', () => {
-    const result = getProviderClubs(clubs, 999);
+  it('возвращает пустой массив, когда лиц услуг нет', () => {
+    const result = getProviderClubs(clubs, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('лицо-тренер не приводит клуб с тем же номером', () => {
+    // ⚠️ Клуб 1 и карточка тренера 1 — разные вещи с одинаковым номером.
+    // Отбор без учёта ВИДА лица притащил бы в кабинет чужой клуб.
+    const result = getProviderClubs(clubs, [{ kind: 'trainer', id: 1, name: 'Марина Соколова' }]);
 
     expect(result).toEqual([]);
   });
 });
 
 describe('getProviderTrainers', () => {
-  it('возвращает тренеров провайдера по managedByUserId', () => {
-    const result = getProviderTrainers(trainers, PROVIDER_USER_ID);
+  it('возвращает карточки тренера человека по его лицам услуг', () => {
+    const result = getProviderTrainers(trainers, PROVIDER_FACES);
 
     expect(result.map((t) => t.id)).toEqual([1, 3]);
   });
 
-  it('возвращает пустой массив если нет управляемых тренеров', () => {
-    const result = getProviderTrainers(trainers, 999);
+  it('возвращает пустой массив, когда лиц услуг нет', () => {
+    const result = getProviderTrainers(trainers, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('лицо-клуб не приводит карточку тренера с тем же номером', () => {
+    const result = getProviderTrainers(trainers, [
+      { kind: 'club', id: 1, name: 'Volna Aquatic Club' },
+    ]);
 
     expect(result).toEqual([]);
   });

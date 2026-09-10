@@ -8,9 +8,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardPage } from '@/components/admin/DashboardPage';
+import type { AdminUser } from '@/lib/server-api';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, Club, Trainer, User } from '@sporthub/types';
+import type { Booking } from '@sporthub/types';
 
 /**
  * Стенд сессии: маршрут имперсонизации отвечает согласием или отказом,
@@ -54,7 +55,11 @@ vi.mock('next/navigation', () => ({
 
 // --- Фикстуры ---
 
-const fixtureUsers: User[] = [
+// ⚠️ Шаг 35.20a. Число лиц услуг приходит ОТВЕТОМ маршрута (`serviceFaceCount`),
+// а не считается разделом по каталогу: `managedByUserId` из публичной выдачи
+// ушёл, и каталог сюда больше не грузится вовсе. Здесь у Марины одно лицо,
+// у Алексея — ни одного.
+const fixtureUsers: AdminUser[] = [
   {
     id: 1,
     createdAt: '2026-03-17T09:00:00.000Z',
@@ -64,6 +69,7 @@ const fixtureUsers: User[] = [
     phone: '+7 (927) 000-10-10',
     passwordHash: 'sporthub123',
     favoriteClubIds: [],
+    serviceFaceCount: 0,
   },
   {
     id: 2,
@@ -74,36 +80,9 @@ const fixtureUsers: User[] = [
     phone: '+7 (927) 000-20-20',
     passwordHash: 'sporthub123',
     favoriteClubIds: [],
+    serviceFaceCount: 1,
   },
 ];
-
-const fixtureClubs: Club[] = [
-  {
-    id: 1,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    name: 'Тестовый клуб',
-    slug: 'test-club',
-    description: 'Описание',
-    shortDescription: 'Описание',
-    city: 'Самара',
-    address: 'ул. Тестовая, 1',
-    phone: '+7 000 000 00 00',
-    coordinates: { lat: 0, lng: 0 },
-    sportIds: [1],
-    imageUrls: [],
-    amenityIds: [],
-    tagIds: [],
-    rating: 0,
-    reviewCount: 0,
-    priceFrom: 0,
-    distanceKm: 0,
-    managedByUserId: 2,
-    source: 'provider',
-    status: 'published',
-  },
-];
-
-const fixtureTrainers: Trainer[] = [];
 
 const fixtureBookings: Booking[] = [
   {
@@ -123,17 +102,10 @@ const fixtureBookings: Booking[] = [
   },
 ];
 
-function renderDashboard(overrides?: {
-  users?: User[];
-  clubs?: Club[];
-  trainers?: Trainer[];
-  bookings?: Booking[];
-}) {
+function renderDashboard(overrides?: { users?: AdminUser[]; bookings?: Booking[] }) {
   return render(
     <DashboardPage
       users={overrides?.users ?? fixtureUsers}
-      clubs={overrides?.clubs ?? fixtureClubs}
-      trainers={overrides?.trainers ?? fixtureTrainers}
       bookings={overrides?.bookings ?? fixtureBookings}
     />,
   );
@@ -164,7 +136,7 @@ describe('DashboardPage (Step 17.4)', () => {
   });
 
   it('не показывает admin-пользователя в списке', () => {
-    const usersWithAdmin: User[] = [
+    const usersWithAdmin: AdminUser[] = [
       ...fixtureUsers,
       {
         id: 3,
@@ -176,6 +148,7 @@ describe('DashboardPage (Step 17.4)', () => {
         phone: '',
         passwordHash: 'admin',
         favoriteClubIds: [],
+        serviceFaceCount: 0,
       },
     ];
 
@@ -342,7 +315,7 @@ describe('DashboardPage (Step 17.4)', () => {
     fireEvent.click(buttons[0]);
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/profile/athlete');
+      expect(mockPush).toHaveBeenCalledWith('/profile/me');
     });
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/auth/impersonate/1', { method: 'POST' });

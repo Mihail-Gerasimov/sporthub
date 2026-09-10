@@ -14,7 +14,7 @@ import { computeClubReliability, computeTrainerReliability } from '@sporthub/dom
 import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
 import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
 import { cn, findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import type { Booking, Club, Offering, Schedule, Sport, Trainer } from '@sporthub/types';
 
 const ALL_VALUE = '__all__';
@@ -67,20 +67,17 @@ export function ProviderStats({
   sports = [],
 }: ProviderStatsProps) {
   const user = useAuthStore((s) => s.user);
-
-  const providerUserId = user?.id ?? null;
+  const { faces } = useAuthFaces();
 
   const [windowSetting, setWindowSetting] = useState<StatsWindow>(12);
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);
 
-  const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
-  );
-  const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
-  );
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло — по нему кто угодно строил карту владельцев,
+  // скачав каталог одним запросом.
+  const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
+  const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
   const clubIdSet = useMemo(() => new Set(providerClubs.map((c) => c.id)), [providerClubs]);
   const trainerIdSet = useMemo(

@@ -22,7 +22,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const WEB_ROOT = process.cwd();
+import { WEB_ROOT as ROOT_FROM_SIGN } from '../web-root';
+
+// Корень ищется по признаку, а не берётся из каталога запуска.
+const WEB_ROOT = ROOT_FROM_SIGN;
 
 /** Поля, которыми клиент раньше объявлял свою личность. */
 const IDENTITY_FIELDS = ['userId', 'adminUserId', 'providerUserId', 'moderatorId', 'actorId'];

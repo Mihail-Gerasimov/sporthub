@@ -1,25 +1,32 @@
-// Layout кабинета атлета: монтирует ProfileLayoutShell вокруг всех подмаршрутов /profile/athlete/*.
+// Лейаут личного кабинета человека: всё, что есть у любого вошедшего, —
+// записи, отзывы, избранное, уведомления, настройки.
 //
 // ⚠️ Здесь стоит СЕРВЕРНАЯ проверка входа (фаза 34). До неё кабинет открывался
 // кому угодно: страница рисовалась целиком, данные уезжали в поток ответа,
 // и уже поверх них показывалась плашка «нет доступа» — то есть данные у гостя
 // были, их просто не показывали.
 //
-// Проверка в лейауте, а не в каждой странице: подмаршрутов у кабинета девять,
+// Проверка в лейауте, а не в каждой странице: подмаршрутов у кабинета семь,
 // и забыть один из них — вопрос времени.
+//
+// ⚠️ Шаг 35.31. Адрес переехал с `/profile/athlete` на `/profile/me`: прежнее
+// имя досталось от роли, которой больше нет. Номера в адресе нет и не будет —
+// человек в сессии ровно один, «чужого себя» в адресе не выразить, и сверять
+// тут нечего. Ровно поэтому кабинет ЛИЦА адресный, а этот — нет.
 import type { ReactNode } from 'react';
 
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
+import { PERSONAL_CABINET } from '@/lib/service-faces';
 import { requirePerson } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AthleteProfileLayout({ children }: { children: ReactNode }) {
+export default async function PersonalCabinetLayout({ children }: { children: ReactNode }) {
   // ⚠️ Шаг 35.34. Пускает не роль, а сам факт входа: записи, отзывы и избранное
   // есть у любого человека — и у того, кто держит клуб, тоже. Отказ остаётся
   // ровно один: служебная запись, у которой базового набора человека нет
   // (решение 5.2). Проверка стоит ДО отрисовки, а не плашкой поверх неё.
   await requirePerson();
 
-  return <ProfileLayoutShell variant="athlete">{children}</ProfileLayoutShell>;
+  return <ProfileLayoutShell cabinet={PERSONAL_CABINET}>{children}</ProfileLayoutShell>;
 }

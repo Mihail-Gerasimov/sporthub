@@ -231,7 +231,7 @@ describe('Impersonation flow (Step 17.5)', () => {
       expect(screen.queryByRole('link', { name: /панель управления/i })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
         'href',
-        '/profile/athlete',
+        '/profile/me',
       );
     });
   });

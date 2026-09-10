@@ -1,105 +1,77 @@
-// Клиентский wrapper layout'а /profile/*: собирает data-driven nav items, рендерит
-// sidebar (desktop) + mobile-drawer + слот под children (серверную страницу раздела).
+// Клиентская обёртка лейаута `/profile/**`: собирает разделы открытого кабинета,
+// рисует sidebar (desktop) и mobile-drawer вокруг серверной страницы раздела.
+//
+// ⚠️ Шаг 35.31. Обёртка больше не гадает, какой кабинет открыт, по типу учётной
+// записи или по списку лиц: кабинет приезжает готовым от серверного лейаута,
+// который взял лицо из адреса и сверил владение. До этого шага кабинет лица был
+// один на все лица человека, разделы считались по всему их списку, а адрес
+// не нёс номера — сверять было нечего.
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 
-import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
-import type { Booking, Club, Trainer } from '@sporthub/types';
+import { faceKey, type CabinetTarget } from '@/lib/service-faces';
+import { useAuthStore } from '@/stores/useAuthStore';
 
+import { CabinetProvider } from './cabinet-context';
 import { FaceSwitcher } from './FaceSwitcher';
 import { ProfileBreadcrumb } from './ProfileBreadcrumb';
-import { getAthleteNavItems, getProviderNavItems, type ProfileNavItem } from './profile-nav-items';
+import { getCabinetNavItems, type ProfileNavItem } from './profile-nav-items';
 import { ProfileMobileNav } from './ProfileMobileNav';
 import { ProfileSidebar } from './ProfileSidebar';
 
-type ProfileLayoutVariant = 'athlete' | 'provider';
-
 interface ProfileLayoutShellProps {
-  variant: ProfileLayoutVariant;
-  /** Данные для условных provider-разделов. Для athlete layout не используются. */
-  clubs?: Club[];
-  trainers?: Trainer[];
-  bookings?: Booking[];
+  /** Открытый кабинет: личный человека либо кабинет конкретного лица. */
+  cabinet: CabinetTarget;
+  /**
+   * Есть ли у лица записи. Считает серверный лейаут по своему же срезу —
+   * от этого зависит, показывать ли разделы про записи.
+   */
+  hasBookings?: boolean;
   children: ReactNode;
 }
 
 export function ProfileLayoutShell({
-  variant,
-  clubs = [],
-  trainers = [],
-  bookings = [],
+  cabinet,
+  hasBookings = false,
   children,
 }: ProfileLayoutShellProps) {
-  const user = useAuthStore((state) => state.user);
-  // ⚠️ Шаг 35.34. Разделы строятся от ЛИЦ, а не от типа учётной записи.
-  // Пускать сюда или нет, решил серверный лейаут — и решил до похода
-  // за данными. Здесь остаётся только вопрос «какие разделы показать».
-  const { faces } = useAuthFaces();
+  const setActiveFace = useAuthStore((state) => state.setActiveFace);
+  const face = cabinet.face;
 
-  const items = useMemo<ProfileNavItem[]>(() => {
-    if (!user || user.id === undefined) {
-      return [];
-    }
+  // ⚠️ Лицо кабинета задаёт АДРЕС, а не переключатель. Стор о нём узнаёт отсюда:
+  // по активному лицу шапка решает, куда ведёт аватар, — и без этой строки она
+  // вела бы в кабинет другого лица, чем тот, который человек сейчас открыл.
+  useEffect(() => {
+    if (face === null) return;
 
-    // Личный кабинет: набор разделов один и тот же у всех — записи, отзывы,
-    // избранное есть у любого человека, и лица услуг тут ни при чём.
-    if (variant === 'athlete') {
-      return getAthleteNavItems();
-    }
+    setActiveFace(faceKey(face));
+  }, [face, setActiveFace]);
 
-    // Кабинет лица: разделы появляются от того, чем человек управляет.
-    if (faces.length === 0) {
-      return [];
-    }
+  const items = useMemo<ProfileNavItem[]>(
+    () => getCabinetNavItems(cabinet, hasBookings),
+    [cabinet, hasBookings],
+  );
 
-    const userId = user.id;
-    const providerClubs = getProviderClubs(clubs, userId);
-    const providerTrainers = getProviderTrainers(trainers, userId);
-    const providerClubIds = new Set(providerClubs.map((club) => club.id));
-    const providerTrainerIds = new Set(providerTrainers.map((trainer) => trainer.id));
-    const hasProviderBookings = bookings.some((booking) => {
-      if (booking.ownerId === undefined) {
-        return false;
-      }
-
-      if (booking.ownerType === 'club') {
-        return providerClubIds.has(booking.ownerId);
-      }
-
-      if (booking.ownerType === 'trainer') {
-        return providerTrainerIds.has(booking.ownerId);
-      }
-
-      return false;
-    });
-
-    return getProviderNavItems({
-      providerClubs,
-      providerTrainers,
-      hasProviderBookings,
-    });
-  }, [user, faces, variant, clubs, trainers, bookings]);
-
-  const ariaLabel =
-    variant === 'athlete' ? 'Разделы кабинета атлета' : 'Разделы кабинета провайдера';
+  const ariaLabel = face === null ? 'Разделы кабинета атлета' : 'Разделы кабинета провайдера';
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-4 md:py-6">
-      {variant === 'provider' ? <FaceSwitcher className="mb-4" /> : null}
-      <ProfileMobileNav items={items} ariaLabel={ariaLabel} className="mb-4" />
-      <div className="md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:items-start md:gap-6">
-        <ProfileSidebar
-          items={items}
-          ariaLabel={ariaLabel}
-          className="hidden md:sticky md:top-28 md:flex md:self-start"
-        />
-        <div className="min-w-0">
-          <ProfileBreadcrumb items={items} variant={variant} />
-          {children}
+    <CabinetProvider cabinet={cabinet}>
+      <div className="mx-auto w-full max-w-7xl px-4 py-4 md:py-6">
+        {face === null ? null : <FaceSwitcher className="mb-4" />}
+        <ProfileMobileNav items={items} ariaLabel={ariaLabel} className="mb-4" />
+        <div className="md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:items-start md:gap-6">
+          <ProfileSidebar
+            items={items}
+            ariaLabel={ariaLabel}
+            className="hidden md:sticky md:top-28 md:flex md:self-start"
+          />
+          <div className="min-w-0">
+            <ProfileBreadcrumb items={items} cabinetPath={cabinet.href} />
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+    </CabinetProvider>
   );
 }

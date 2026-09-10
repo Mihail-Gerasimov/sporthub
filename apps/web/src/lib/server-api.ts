@@ -12,6 +12,7 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
+import type { ServiceFaceRef } from '@/lib/service-faces';
 import type {
   Amenity,
   Booking,
@@ -183,6 +184,39 @@ function query(params: Record<string, string | number | boolean | undefined>): s
   return text === '' ? '' : `?${text}`;
 }
 
+/**
+ * Лицо услуг в строке запроса. Пара «вид + номер» либо ничего.
+ *
+ * ⚠️ Оба поля или ни одного — это требование маршрута, а не вежливость: половина
+ * пары для него опечатка клиента, а не «отбора нет». Собрано в одном месте,
+ * потому что лицом сужается не одна выдача.
+ */
+function faceQuery(face: ServiceFaceRef | undefined): Record<string, string | number> {
+  return face === undefined ? {} : { faceType: face.kind, faceId: face.id };
+}
+
+/**
+ * Лицо услуг как ВЛАДЕЛЕЦ предмета: `clubId` либо `trainerId`.
+ *
+ * ⚠️ Это другой отбор, чем `faceQuery`. Тот сужает срез кабинета целиком и
+ * проходит проверку владения; этот отбирает предметы конкретного клуба или
+ * конкретной карточки — им пользуются публичные выдачи отзывов и связей,
+ * где владение ни при чём.
+ *
+ * Словарь, а не `if`: третий вид лица добавляется сюда строкой.
+ */
+const FACE_OWNER_PARAM: Record<ServiceFaceRef['kind'], 'clubId' | 'trainerId'> = {
+  club: 'clubId',
+  trainer: 'trainerId',
+};
+
+export function faceOwnerQuery(face: ServiceFaceRef | undefined): {
+  clubId?: EntityId;
+  trainerId?: EntityId;
+} {
+  return face === undefined ? {} : { [FACE_OWNER_PARAM[face.kind]]: face.id };
+}
+
 // --- Справочники ---------------------------------------------------------------
 
 export const getSports = (): Promise<Sport[]> => apiGet<Sport[]>('/sports');
@@ -280,6 +314,14 @@ export type GetBookingsOptions = {
   userId?: EntityId;
   clubId?: EntityId;
   trainerId?: EntityId;
+  /**
+   * Лицо услуг, которым сужается срез кабинета (маршрут принимает пару с шага 35.27a).
+   *
+   * ⚠️ Это НЕ то же, что `clubId` / `trainerId`. Те отбирают записи, где клуб или
+   * тренер участвует хоть как-нибудь — в том числе чужой; лицо сужает сам срез
+   * кабинета и проходит проверку владения на бэкенде.
+   */
+  face?: ServiceFaceRef;
   scheduleId?: EntityId;
   /** Набор статусов; на проводе — перечисление через запятую. */
   status?: readonly BookingStatus[];
@@ -351,11 +393,12 @@ export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
  * того режима правом администратора он стал ещё и отказом для провайдера.
  */
 export const getClientBookings = (
-  options: Pick<GetBookingsOptions, 'status' | 'dateFrom' | 'dateTo'> = {},
+  options: Pick<GetBookingsOptions, 'face' | 'status' | 'dateFrom' | 'dateTo'> = {},
 ): Promise<Booking[]> =>
   apiGet<Booking[]>(
     `/bookings${query({
       scope: 'clients',
+      ...faceQuery(options.face),
       status: options.status === undefined ? undefined : options.status.join(','),
       dateFrom: options.dateFrom,
       dateTo: options.dateTo,
@@ -384,6 +427,7 @@ export const getOwnPublicationBookings = (
   apiGet<Booking[]>(
     `/bookings${query({
       scope: 'owner',
+      ...faceQuery(options.face),
       scheduleId: options.scheduleId,
       status: options.status === undefined ? undefined : options.status.join(','),
       dateFrom: options.dateFrom,
@@ -412,7 +456,17 @@ export function mergeBookingsById(...chunks: Booking[][]): Booking[] {
 
 // --- Прочие коллекции -----------------------------------------------------------
 
-export const getReviews = (): Promise<Review[]> => apiGet<Review[]>('/reviews');
+/**
+ * Отзывы. Без отбора — все; с лицом — только его.
+ *
+ * ⚠️ Шаг 35.31. Кабинет лица берёт отзывы ЭТОГО лица, а не все отзывы площадки,
+ * чтобы отобрать своё в памяти. Раньше страница отзывов кабинета скачивала
+ * выдачу целиком: её цена росла вместе с числом отзывов всех клубов сразу.
+ */
+export type GetReviewsOptions = { clubId?: EntityId; trainerId?: EntityId };
+
+export const getReviews = (options: GetReviewsOptions = {}): Promise<Review[]> =>
+  apiGet<Review[]>(`/reviews${query(options)}`);
 
 /**
  * Люди площадки. Без признака — весь список, и он под правом администратора.
@@ -423,7 +477,18 @@ export const getReviews = (): Promise<Review[]> => apiGet<Review[]>('/reviews');
  */
 export const getClientUsers = (): Promise<User[]> => apiGet<User[]>('/users?scope=clients');
 
-export const getUsers = (): Promise<User[]> => apiGet<User[]>('/users');
+/**
+ * Человек площадки в админском списке: карточка плюс число его лиц услуг.
+ *
+ * ⚠️ Шаг 35.20a. Число приезжает ОТВЕТОМ, а не считается здесь по каталогу:
+ * номер владельца (`managedByUserId`) из публичной выдачи ушёл — по нему кто
+ * угодно строил карту «эти лица принадлежат одному человеку», скачав каталог
+ * одним запросом. Админу владельцы положены по праву `manage_any_user`, и он
+ * узнаёт их своим маршрутом, а не условным полем в публичном.
+ */
+export type AdminUser = User & { serviceFaceCount: number };
+
+export const getUsers = (): Promise<AdminUser[]> => apiGet<AdminUser[]>('/users');
 
 export async function getUserById(id: EntityId): Promise<User | null> {
   const users = await getUsers();

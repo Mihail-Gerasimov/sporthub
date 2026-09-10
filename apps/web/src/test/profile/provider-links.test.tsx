@@ -27,6 +27,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderLinks } from '@/components/profile/provider/ProviderLinks';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 import type { Club, Offering, Trainer, TrainerClubLink, User } from '@sporthub/types';
 
 process.env.TZ = 'UTC';
@@ -107,6 +108,13 @@ function authenticateProvider() {
     user: providerUser,
     accountKind: 'person',
     isAuthenticated: true,
+    // ⚠️ Шаг 35.20a. Лица приезжают ответом «кто я»; чужие публикации в список
+    // не попадают — их отбрасывает тот же отбор по владельцу, что и на сервере.
+    faces: facesOf({
+      userId: providerUser.id,
+      clubs: [myClub, foreignClub],
+      trainers: [myTrainer, foreignTrainer, anotherForeignTrainer],
+    }),
   });
 }
 

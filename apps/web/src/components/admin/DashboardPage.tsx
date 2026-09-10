@@ -28,22 +28,20 @@ import { useRouter } from 'next/navigation';
 import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
-import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import {
   accountKindOf,
   computeAthleteReliability,
   isAdminKind,
   type ReliabilityResult,
 } from '@sporthub/domain';
+import type { AdminUser } from '@/lib/server-api';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { Booking, Club, Trainer, User } from '@sporthub/types';
+import type { Booking, User } from '@sporthub/types';
 
 type DashboardPageProps = {
-  users: User[];
-  clubs: Club[];
-  trainers: Trainer[];
+  users: AdminUser[];
   bookings: Booking[];
 };
 
@@ -124,17 +122,6 @@ const ICON_CHEV_RIGHT = (
   </svg>
 );
 
-/**
- * Сколько лиц услуг у человека — клубов плюс карточек тренера.
- *
- * ⚠️ Одно объявление на весь раздел: по нему считается и отбор, и бейдж,
- * и строка статистики. Раньше на каждый из трёх вопросов отвечала роль,
- * и ответы могли разъехаться — например, у роли `trainer` без карточки.
- */
-function countServiceFaces(user: User, clubs: Club[], trainers: Trainer[]): number {
-  return getProviderClubs(clubs, user.id).length + getProviderTrainers(trainers, user.id).length;
-}
-
 /** Соответствует ли человек отбору по лицам услуг. */
 function matchesFacesFilter(faceCount: number, filter: FacesFilter): boolean {
   if (filter === 'all') return true;
@@ -157,7 +144,7 @@ function getUserStats(
   return { label: 'Активных записей', value: activeBookings.length };
 }
 
-export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPageProps) {
+export function DashboardPage({ users, bookings }: DashboardPageProps) {
   const router = useRouter();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
   const addToast = useToastStore((s) => s.addToast);
@@ -188,17 +175,19 @@ export function DashboardPage({ users, clubs, trainers, bookings }: DashboardPag
   // из вида учётной записи: роли, по которой это решалось, больше нет.
   const nonAdminUsers = useMemo(() => users.filter((u) => !isAdminKind(accountKindOf(u))), [users]);
 
-  // Число лиц услуг на человека считается один раз на отрисовку: отбор, бейдж
-  // и строка статистики берут его отсюда, а не пересчитывают каждый по-своему.
-  const faceCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-
-    for (const user of nonAdminUsers) {
-      counts.set(user.id, countServiceFaces(user, clubs, trainers));
-    }
-
-    return counts;
-  }, [nonAdminUsers, clubs, trainers]);
+  // Число лиц услуг на человека приходит ОТВЕТОМ маршрута, а не считается здесь.
+  //
+  // ⚠️ Шаг 35.20a. Раньше раздел скачивал весь каталог и сверял `managedByUserId`
+  // каждой публикации с номером человека. Это поле из публичной выдачи ушло:
+  // по нему кто угодно строил карту «эти лица принадлежат одному человеку»
+  // одним запросом. Админу владельцы положены (право `manage_any_user`), и он
+  // получает их СВОИМ маршрутом — `GET /api/users` считает лица группировкой
+  // в базе. Отбор, бейдж и строка статистики берут число отсюда, из одной карты,
+  // а не пересчитывают каждый по-своему.
+  const faceCounts = useMemo(
+    () => new Map(nonAdminUsers.map((user) => [user.id, user.serviceFaceCount])),
+    [nonAdminUsers],
+  );
 
   // Фильтрация
   const filteredUsers = useMemo(() => {

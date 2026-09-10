@@ -16,7 +16,7 @@ import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
 import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
   Amenity,
@@ -86,10 +86,9 @@ export function ProviderPublications({
   workFormats = [],
 }: ProviderPublicationsProps) {
   const user = useAuthStore((s) => s.user);
+  const { faces } = useAuthFaces();
   const addToast = useToastStore((state) => state.addToast);
   const router = useRouter();
-
-  const providerUserId = user?.id ?? null;
 
   // --- State модалок и edit-режима ---
   const [isClubModalOpen, setIsClubModalOpen] = useState(false);
@@ -114,14 +113,12 @@ export function ProviderPublications({
   // тренера, своей карточки не видел: право на неё было только у роли `trainer`.
   // Это и был дефект 4.6 № 1 в интерфейсном виде. Теперь показывается то, чем
   // человек владеет, и ничего сверх.
-  const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
-  );
-  const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
-  );
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло — по нему кто угодно строил карту владельцев,
+  // скачав каталог одним запросом.
+  const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
+  const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
   // Для trainer-модалки показываем все клубы провайдера + (в edit-режиме) текущий affiliated клуб,
   // даже если он чужой — иначе селект не сможет показать текущее значение.

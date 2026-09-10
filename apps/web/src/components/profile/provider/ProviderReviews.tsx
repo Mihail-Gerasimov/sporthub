@@ -10,7 +10,7 @@ import {
   getProviderReviews,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import type { Club, Review, Trainer } from '@sporthub/types';
 
 type ProviderReviewsProps = {
@@ -21,15 +21,16 @@ type ProviderReviewsProps = {
 
 export function ProviderReviews({ reviews = [], clubs = [], trainers = [] }: ProviderReviewsProps) {
   const user = useAuthStore((s) => s.user);
-
-  const providerUserId = user?.id ?? null;
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло.
+  const { faces } = useAuthFaces();
 
   const providerReviews = useMemo(() => {
-    if (providerUserId === null) return [];
-    const providerClubIds = getProviderClubs(clubs, providerUserId).map((c) => c.id);
-    const providerTrainerIds = getProviderTrainers(trainers, providerUserId).map((t) => t.id);
+    const providerClubIds = getProviderClubs(clubs, faces).map((c) => c.id);
+    const providerTrainerIds = getProviderTrainers(trainers, faces).map((t) => t.id);
     return getProviderReviews(reviews, providerClubIds, providerTrainerIds);
-  }, [reviews, clubs, trainers, providerUserId]);
+  }, [reviews, clubs, trainers, faces]);
 
   // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
   // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает

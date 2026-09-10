@@ -8,8 +8,14 @@
  * статусам сужать почти нечего: два правила вместе читают пять статусов из восьми.
  * Размен вышел бы плохой — третий набор статусов, который обязан следовать сразу
  * за правилами домена, ради пятой части выдачи.
+ *
+ * ⚠️ Шаг 35.20a. Каталог здесь больше НЕ читается. Он был нужен ровно затем,
+ * чтобы посчитать лица услуг у каждого человека сверкой `managedByUserId`
+ * с номером владельца; поле из публичной выдачи ушло, а число лиц приходит
+ * ответом `GET /api/users` — его считает база группировкой. Раздел перестал
+ * скачивать весь каталог ради двух счётчиков.
  */
-import { getBookings, getClubs, getTrainers, getUsers } from '@/lib/server-api';
+import { getBookings, getUsers } from '@/lib/server-api';
 import { DashboardPage } from '@/components/admin/DashboardPage';
 
 export const dynamic = 'force-dynamic';
@@ -19,12 +25,7 @@ export const metadata = {
 };
 
 export default async function DashboardRoute() {
-  const [users, clubs, trainers, bookings] = await Promise.all([
-    getUsers(),
-    getClubs(),
-    getTrainers(),
-    getBookings(),
-  ]);
+  const [users, bookings] = await Promise.all([getUsers(), getBookings()]);
 
-  return <DashboardPage users={users} clubs={clubs} trainers={trainers} bookings={bookings} />;
+  return <DashboardPage users={users} bookings={bookings} />;
 }

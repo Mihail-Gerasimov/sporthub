@@ -21,7 +21,7 @@ import {
   getBookingClubId,
   getBookingTrainerId,
 } from '@/lib/utils';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type {
   Booking,
@@ -126,10 +126,10 @@ export function ProviderBookingsInbox({
   users = [],
 }: ProviderBookingsInboxProps) {
   const user = useAuthStore((s) => s.user);
+  const { faces } = useAuthFaces();
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
 
-  const providerUserId = user?.id ?? null;
   const [tab, setTab] = useState<InboxTab>('pending');
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);
   const [sportFilter, setSportFilter] = useState<string>(ALL_VALUE);
@@ -138,14 +138,12 @@ export function ProviderBookingsInbox({
   // EnrichedBooking хранит контекст (имя атлета, id) для submit'а.
   const [rejectingItem, setRejectingItem] = useState<EnrichedBooking | null>(null);
 
-  const providerClubs = useMemo(
-    () => (providerUserId === null ? [] : getProviderClubs(clubs, providerUserId)),
-    [clubs, providerUserId],
-  );
-  const providerTrainers = useMemo(
-    () => (providerUserId === null ? [] : getProviderTrainers(trainers, providerUserId)),
-    [trainers, providerUserId],
-  );
+  // ⚠️ Шаг 35.20a. Свои публикации отбираются по ЛИЦАМ услуг из ответа
+  // «кто я», а не по номеру владельца в карточке каталога: это поле из
+  // публичной выдачи ушло — по нему кто угодно строил карту владельцев,
+  // скачав каталог одним запросом.
+  const providerClubs = useMemo(() => getProviderClubs(clubs, faces), [clubs, faces]);
+  const providerTrainers = useMemo(() => getProviderTrainers(trainers, faces), [trainers, faces]);
 
   const clubIdSet = useMemo(() => new Set(providerClubs.map((c) => c.id)), [providerClubs]);
   const trainerIdSet = useMemo(

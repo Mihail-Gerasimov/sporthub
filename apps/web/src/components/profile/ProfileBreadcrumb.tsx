@@ -7,14 +7,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { cabinetSectionPath, DEFAULT_CABINET_SECTION } from '@/lib/service-faces';
+
 import type { ProfileNavItem } from './profile-nav-items';
 
 interface Props {
   items: ProfileNavItem[];
-  variant: 'athlete' | 'provider';
+  /**
+   * Адрес открытого кабинета: `/profile/me` либо `/profile/club/3`.
+   *
+   * ⚠️ Шаг 35.31. Раньше здесь стоял вид кабинета, из которого адрес собирался
+   * строкой. У адресного кабинета так не выйдет: в нём есть номер лица, и без
+   * него ссылка «Обзор» вела бы в кабинет без адреса.
+   */
+  cabinetPath: string;
 }
 
-export function ProfileBreadcrumb({ items, variant }: Props) {
+export function ProfileBreadcrumb({ items, cabinetPath }: Props) {
   const pathname = usePathname();
 
   // Пустые items = ответ «кто я» ещё в пути либо лиц услуг нет вовсе. Sidebar
@@ -35,7 +44,7 @@ export function ProfileBreadcrumb({ items, variant }: Props) {
     return null;
   }
 
-  const dashboardHref = `/profile/${variant}/dashboard`;
+  const dashboardHref = cabinetSectionPath(cabinetPath, DEFAULT_CABINET_SECTION);
 
   return (
     <nav

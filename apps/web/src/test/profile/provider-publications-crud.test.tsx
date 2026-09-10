@@ -20,6 +20,7 @@ vi.mock('next/navigation', () => ({
 
 import { ProviderPublications } from '@/components/profile/provider/ProviderPublications';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 import type { Club, Trainer } from '@sporthub/types';
 
 // ⚠️ Фаза 35, шаг 35.34. Прав вошедшего в разделе больше нет: `manage_own_clubs`
@@ -72,6 +73,10 @@ function loginAsProvider() {
     user: { id: 2, name: 'Марина', email: 'marina@studio.local' },
     accountKind: 'person',
     isAuthenticated: true,
+    // ⚠️ Шаг 35.20a. Свои лица приезжают ответом «кто я», а не выводятся
+    // из каталога: номер владельца из публичной выдачи ушёл. Чужой клуб 99
+    // в списке лиц отсутствует — на этом и держится проверка «чужое не своё».
+    faces: facesOf({ userId: 2, clubs: [providerClub], trainers: [providerTrainer] }),
   });
 }
 

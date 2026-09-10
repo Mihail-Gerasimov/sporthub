@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '@/stores/useAuthStore';
+import { facesOf } from '@/test/helpers/service-faces';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -87,6 +88,10 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
         accountKind: 'person',
         isAdmin: false,
         isImpersonating: false,
+        // ⚠️ Шаг 35.20a. Кабинет лица отбирает свои публикации по ЛИЦАМ
+        // из ответа «кто я»: номер владельца из каталога ушёл. Без лица
+        // сводка ушла бы в пустой вид, где шапки с городом нет.
+        faces: facesOf({ userId: baseUser.id, clubs: [providerClub] }),
       });
     });
 
@@ -100,6 +105,7 @@ describe('Город в профиле (Step 19.8 → Phase 26 Step 26.5)', () =
       useAuthStore.setState({
         user: { ...baseUser, city: undefined },
         accountKind: 'person',
+        faces: facesOf({ userId: baseUser.id, clubs: [providerClub] }),
       });
 
       render(<ProviderDashboard clubs={[providerClub]} />);
