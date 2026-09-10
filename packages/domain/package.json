@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./session-cookie": {
+      "types": "./dist/session-cookie.d.ts",
+      "default": "./dist/session-cookie.js"
     }
   },
   "scripts": {

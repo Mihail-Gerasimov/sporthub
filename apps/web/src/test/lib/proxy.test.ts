@@ -7,6 +7,13 @@
 //
 // ⚠️ Помощник называется `unstable_doesMiddlewareMatch` даже в Next 16, где сам
 // файл уже переименован в `proxy`: имя помощника за переименованием не пошло.
+import { randomBytes } from 'node:crypto';
+
+import {
+  SESSION_COOKIE_NAME_HOST,
+  SESSION_COOKIE_NAME_PLAIN,
+  SESSION_TOKEN_BYTES,
+} from '@sporthub/domain/session-cookie';
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
@@ -27,6 +34,12 @@ function requestFor(pathname: string, cookies: Record<string, string> = {}): Nex
 function matches(url: string): boolean {
   return unstable_doesMiddlewareMatch({ config, url });
 }
+
+/**
+ * Значение, какое бэкенд и правда выдаёт: 32 случайных байта в `base64url`.
+ * Число байт берётся из доменного объявления, а не переписывается сюда числом.
+ */
+const ISSUED = randomBytes(SESSION_TOKEN_BYTES).toString('base64url');
 
 describe('proxy: где запускается', () => {
   it('совпадает с закрытыми разделами и их подстраницами', () => {
@@ -76,15 +89,19 @@ describe('proxy: что решает', () => {
 
   it('пропускает запрос с cookie сессии', () => {
     expect(
-      proxy(requestFor('/profile/athlete', { 'sh-session': 'x' })).headers.get('location'),
+      proxy(requestFor('/profile/athlete', { [SESSION_COOKIE_NAME_PLAIN]: ISSUED })).headers.get(
+        'location',
+      ),
     ).toBeNull();
   });
 
   it('знает и защищённое имя cookie, которым сессия ставится по HTTPS', () => {
-    // В бою cookie называется `__Host-sh-session`. Знай proxy только имя из
-    // разработки — в бою он разворачивал бы всех вошедших, а прогон был бы зелёным.
+    // В бою имя несёт префикс `__Host-`. Знай proxy только имя из разработки —
+    // в бою он разворачивал бы всех вошедших, а прогон был бы зелёным.
     expect(
-      proxy(requestFor('/profile/athlete', { '__Host-sh-session': 'x' })).headers.get('location'),
+      proxy(requestFor('/profile/athlete', { [SESSION_COOKIE_NAME_HOST]: ISSUED })).headers.get(
+        'location',
+      ),
     ).toBeNull();
   });
 
@@ -92,7 +109,9 @@ describe('proxy: что решает', () => {
     // Сознательная граница: подпись значения здесь не проверяется и проверена
     // быть не может. Пропуск ≠ доступ, и тест это фиксирует, чтобы никто
     // не принял proxy за авторизацию.
-    const response = proxy(requestFor('/profile/provider', { 'sh-session': 'never-issued' }));
+    const response = proxy(
+      requestFor('/profile/provider', { [SESSION_COOKIE_NAME_PLAIN]: ISSUED }),
+    );
 
     expect(response.headers.get('location')).toBeNull();
   });

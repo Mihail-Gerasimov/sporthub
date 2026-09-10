@@ -17,6 +17,11 @@ export * from './text-normalization';
 export * from './trainer-sports';
 export * from './schemas/publish';
 export * from './time';
+export * from './hide-kind';
 export * from './link-status';
 export * from './session-policy';
+// ⚠️ Реэкспорт для тех, кому общий вход и так нужен (бэкенд). У прокси фронта
+// вход СВОЙ — `@sporthub/domain/session-cookie`: общий тянет `zod` схемами
+// публикации, а прокси выполняется на каждом обращении к закрытым разделам.
+export * from './session-cookie';
 export * from './password-reset-policy';
