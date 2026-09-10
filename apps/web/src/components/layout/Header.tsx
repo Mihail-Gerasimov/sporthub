@@ -129,7 +129,13 @@ export function Header() {
                 ) : null}
               </div>
 
-              {/* Аватар — пилюля 44×44 с инициалом, ссылка в кабинет */}
+              {/* Аватар — пилюля 44×44 с инициалом, ссылка в кабинет.
+                  ⚠️ Подпись доступности НАЗЫВАЕТ ТО, КУДА ВЕДЁТ. Прежнее «Перейти
+                  в личный кабинет» осталось от времён, когда кабинет был один;
+                  теперь ссылка ведёт в кабинет ПОСЛЕДНЕГО ОТКРЫТОГО ЛИЦА, и человек
+                  с экранным диктором слышал «личный кабинет», а попадал в клуб.
+                  Личный кабинет в модели фазы 35 — это `/profile/me`, другой адрес.
+                  Найдено прогоном через Playwright MCP 10.09.2026. */}
               {isAdminDirect ? (
                 <Link
                   href="/service-portal/dashboard"
@@ -141,7 +147,7 @@ export function Header() {
               ) : cabinetHref ? (
                 <Link
                   href={cabinetHref}
-                  aria-label="Перейти в личный кабинет"
+                  aria-label={`Перейти в кабинет: ${primaryCabinet?.title ?? 'мой профиль'}`}
                   className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] font-display text-[16px] uppercase text-[var(--ui-ink)] no-underline transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
                 >
                   {accountInitial}

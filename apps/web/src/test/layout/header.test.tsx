@@ -62,7 +62,7 @@ describe('Header', () => {
 
     expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
     expect(screen.getByText('CrossFit Garage')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Перейти в кабинет/ })).toHaveAttribute(
       'href',
       '/profile/club/3',
     );
@@ -79,7 +79,7 @@ describe('Header', () => {
 
     render(<Header />);
 
-    expect(screen.getByRole('link', { name: 'Перейти в личный кабинет' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Перейти в кабинет/ })).toHaveAttribute(
       'href',
       '/profile/me',
     );
