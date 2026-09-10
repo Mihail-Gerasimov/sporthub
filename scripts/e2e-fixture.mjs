@@ -15,6 +15,8 @@
 // создаваться — то есть прогон перестал бы быть повторяемым.
 import { execFileSync } from 'node:child_process';
 
+import { cleanupStatements, publicationCleanupPlan } from './cleanup-publications.mjs';
+
 /**
  * Признак прогона. По нему всё созданное потом и сносится.
  *
@@ -77,6 +79,17 @@ export function seedRunUsers() {
  * ⚠️ Порядок обязателен и продиктован схемой: `Booking.user` и `Review.user` —
  * `onDelete: Restrict`, база не даст удалить человека, у которого есть запись
  * или отзыв. Поэтому сначала листья, потом публикации, потом люди.
+ *
+ * ⚠️ Сам каскад «лист → корень» живёт не здесь, а в `cleanup-publications.mjs`:
+ * тот же порядок слово в слово нужен разовой уборке мусора прежних прогонов
+ * (этап Э7 фазы 36), а вторая копия разъехалась бы с первой молча. Здесь остаётся
+ * только отбор — номера публикаций, выведенные из метки прогона, — и то,
+ * что к публикациям отношения не имеет: следы самих людей.
+ *
+ * ⚠️ Уведомления и журнал про публикации прогона сносит общая опись. Отбор
+ * по `user_id`/`actor_id` их не покрывает: уведомление о клубе прогона могло
+ * прийти постороннему, а строку журнала мог написать не он. Пока этого не было,
+ * каждый прогон оставлял за собой сирот.
  */
 export function cleanupRun() {
   const ids = psql(`SELECT id FROM users WHERE email LIKE '${RUN_TAG}-%';`)
@@ -86,51 +99,38 @@ export function cleanupRun() {
   if (ids.length === 0) return { users: 0, clubs: 0, trainers: 0 };
 
   const list = ids.join(',');
-  const ownPublications = `
-    (SELECT id FROM clubs WHERE managed_by_user_id IN (${list}) OR name LIKE '${RUN_TAG}%')
-  `;
-  const ownTrainers = `
-    (SELECT id FROM trainers WHERE managed_by_user_id IN (${list}) OR name LIKE '${RUN_TAG}%')
-  `;
+  const idsOf = (table) =>
+    psql(
+      `SELECT id FROM ${table} WHERE managed_by_user_id IN (${list}) OR name LIKE '${RUN_TAG}%';`,
+    )
+      .split('\n')
+      .filter(Boolean)
+      .map(Number);
 
-  // Листья: всё, что ссылается на людей и публикации прогона.
+  const clubIds = idsOf('clubs');
+  const trainerIds = idsOf('trainers');
+
+  // Публикации прогона со всем, что на них висит, — общей описью.
+  for (const statement of cleanupStatements(publicationCleanupPlan({ clubIds, trainerIds }))) {
+    psql(statement);
+  }
+
+  // Следы самих людей: они могли записаться и на чужую публикацию, и без этих
+  // строк база не отдаст удалить человека (`Restrict` на записи и отзыве).
   psql(`DELETE FROM notifications WHERE user_id IN (${list});`);
   psql(
     `DELETE FROM provider_client_notes WHERE provider_user_id IN (${list}) OR client_user_id IN (${list});`,
   );
-  psql(
-    `DELETE FROM reviews WHERE user_id IN (${list}) OR club_id IN ${ownPublications} OR trainer_id IN ${ownTrainers};`,
-  );
-  // ⚠️ У записи владелец лежит парой колонок (`owner_club_id` / `owner_trainer_id`),
-  // а зал занятия — третьей (`venue_club_id`): тренерское занятие в чужом зале
-  // принадлежит тренеру, а идёт в клубе. Пропустить `venue_club_id` значило бы
-  // оставить записи, которые не дадут удалить клуб.
-  psql(
-    `DELETE FROM bookings WHERE user_id IN (${list}) OR owner_club_id IN ${ownPublications} OR owner_trainer_id IN ${ownTrainers} OR venue_club_id IN ${ownPublications};`,
-  );
-  psql(
-    `DELETE FROM trainer_club_links WHERE club_id IN ${ownPublications} OR trainer_id IN ${ownTrainers};`,
-  );
-  psql(
-    `DELETE FROM schedule WHERE owner_club_id IN ${ownPublications} OR owner_trainer_id IN ${ownTrainers} OR venue_club_id IN ${ownPublications};`,
-  );
-  psql(
-    `DELETE FROM offerings WHERE owner_club_id IN ${ownPublications} OR owner_trainer_id IN ${ownTrainers} OR venue_club_id IN ${ownPublications};`,
-  );
+  psql(`DELETE FROM reviews WHERE user_id IN (${list});`);
+  psql(`DELETE FROM bookings WHERE user_id IN (${list});`);
   psql(`DELETE FROM logs WHERE actor_id IN (${list});`);
   psql(`DELETE FROM sessions WHERE user_id IN (${list});`);
 
-  const clubs = psql(
-    `WITH d AS (DELETE FROM clubs WHERE id IN ${ownPublications} RETURNING 1) SELECT count(*) FROM d;`,
-  );
-  const trainers = psql(
-    `WITH d AS (DELETE FROM trainers WHERE id IN ${ownTrainers} RETURNING 1) SELECT count(*) FROM d;`,
-  );
   const users = psql(
     `WITH d AS (DELETE FROM users WHERE id IN (${list}) RETURNING 1) SELECT count(*) FROM d;`,
   );
 
-  return { users: Number(users), clubs: Number(clubs), trainers: Number(trainers) };
+  return { users: Number(users), clubs: clubIds.length, trainers: trainerIds.length };
 }
 
 /** Прочитать что-нибудь из базы: проверки смотрят в данные, а не в ответ маршрута. */
