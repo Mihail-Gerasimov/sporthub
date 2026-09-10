@@ -147,12 +147,25 @@ export const options = {
     profile_athlete: ['p(95)<1500'],
     profile_provider: ['p(95)<2000'],
     profile_admin: ['p(95)<3000'],
-    // Лента лица и список лиц (фаза 35). Порог жёстче кабинетных: это те два
-    // запроса, которые ходят на КАЖДОЙ странице кабинета, а не раз за сессию.
-    ...(ONLY === 'mailbox' || ONLY === '' ? { profile_mailbox: ['p(95)<800'] } : {}),
+    // Лента лица, личный ящик и список лиц (фаза 35). Порог жёстче кабинетных:
+    // это те запросы, которые ходят на КАЖДОЙ странице кабинета, а не раз за сессию.
+    //
+    // ⚠️ 150 мс, а не 800. Замер шага 35.45 дал p(95) = 6.8 мс на пределе стенда,
+    // и порог в 800 мс не поймал бы даже стократное ухудшение — то есть не поймал
+    // бы ничего. Порог, который невозможно нарушить, — это отсутствие порога.
+    // Двадцатикратный запас к измеренному оставлен намеренно: он покрывает разброс
+    // машин, но регресс на порядок краснеет.
+    ...(ONLY === 'mailbox' || ONLY === '' ? { profile_mailbox: ['p(95)<150'] } : {}),
     // Ровно один успех на все одновременные запросы к слоту с одним местом.
-    // Порог объявляется только тогда, когда гонка вообще гоняется.
-    ...(ONLY === 'profiles' ? {} : { race_won: ['count==1'], race_unexpected: ['count==0'] }),
+    //
+    // ⚠️ Порог объявляется, только когда гонка ДЕЙСТВИТЕЛЬНО гоняется. Прежнее
+    // условие («всё, кроме profiles») навешивало его и на профиль ящиков, где гонки
+    // нет вовсе, — прогон неизбежно заканчивался «порог не выполнен» на метрике,
+    // которая не могла набрать ни одного значения. Красный по причине, не имеющей
+    // отношения к замеру, обесценивает сам замер: на него перестают смотреть.
+    ...(ONLY === 'race' || ONLY === ''
+      ? { race_won: ['count==1'], race_unexpected: ['count==0'] }
+      : {}),
   },
 };
 
@@ -161,7 +174,11 @@ const JSON_HEADERS = { headers: { 'Content-Type': 'application/json' } };
 function track(trend, response, label) {
   trend.add(response.timings.duration);
 
-  const failed = response.status >= 400;
+  // ⚠️ Отказ соединения — тоже отказ. k6 отдаёт таким ответам `status === 0`,
+  // и проверка «>= 400» их пропускала: доля ошибок показывала 0.00% при 16%
+  // оборванных запросов в сводке HTTP. Замер выглядел безупречным ровно там,
+  // где сервер переставал отвечать.
+  const failed = response.status === 0 || response.status >= 400;
   failures.add(failed);
 
   // Метка на каждый запрос: без неё «5% ошибок» не отвечает на вопрос, ЧТО падает.
@@ -181,6 +198,45 @@ function body(response) {
 }
 
 /** Атлет: смотрит каталог, открывает карточку, читает своё расписание. */
+/**
+ * Подготовка прогона: один вход на весь тест.
+ *
+ * ⚠️ Почему в `setup`, а не в теле профиля. Нагрузка на ящики — про ЧТЕНИЕ, а вход
+ * стоит дорого по построению (argon2id) и ограничен по частоте: 5 попыток на пару
+ * «адрес + почта», дальше нарастающая блокировка. Сорок виртуальных пользователей,
+ * входящих одновременно с одного адреса, упираются в ограничитель — и замер
+ * превращается в замер ограничителя. В жизни человек уже вошёл и просто ходит
+ * по кабинету; `setup` это и воспроизводит.
+ *
+ * ⚠️ Cookie передаётся ЗАГОЛОВКОМ. Приложение ставит `__Host-sh-session` с признаком
+ * `Secure`, а нагрузка идёт по HTTP — хранилище k6 такую cookie отбрасывает молча.
+ * Из-за этого «кто я» отвечал 401, лиц приезжало ноль, цикл по ящикам не выполнялся
+ * НИ РАЗУ, а профиль оставался зелёным: проверка смотрела `Array.isArray(faces)`,
+ * а пустой массив — тоже массив.
+ */
+export function setup() {
+  if (ONLY !== 'mailbox') return {};
+
+  const email = __ENV.MAILBOX_EMAIL || 'both@sporthub.local';
+  const password = __ENV.LOGIN_PASSWORD || 'sporthub123';
+  const login = http.post(
+    `${API}/api/auth/login`,
+    JSON.stringify({ email, password }),
+    JSON_HEADERS,
+  );
+
+  if (login.status !== 200) {
+    throw new Error(`нагрузка на ящики: вход ${email} ответил ${login.status}`);
+  }
+
+  const raw = String(login.headers['Set-Cookie'] || login.headers['set-cookie'] || '');
+  const match = raw.match(/(__Host-sh-session|sh-session)=([^;]+)/);
+
+  if (match === null) throw new Error('нагрузка на ящики: сервер не выдал cookie сессии');
+
+  return { cookie: `${match[1]}=${match[2]}` };
+}
+
 export function athlete() {
   track(athleteLatency, http.get(`${API}/api/sports`), 'sports');
 
@@ -282,39 +338,46 @@ export function login() {
  * и получает лица, затем берёт ленту текущего лица. Меряется вся цепочка, потому
  * что дорогой может оказаться любая её часть, а страница ждёт всю.
  */
-export function mailbox() {
-  const email = __ENV.MAILBOX_EMAIL || 'both@sporthub.local';
-  const password = __ENV.LOGIN_PASSWORD || 'sporthub123';
-
-  const login = http.post(`${API}/api/auth/login`, JSON.stringify({ email, password }), {
-    headers: { 'Content-Type': 'application/json' },
-    tags: { profile: 'mailbox' },
-  });
-
-  if (login.status !== 200) {
-    track(mailboxLatency, login, 'mailbox:login');
-
-    return;
-  }
-
-  const me = track(mailboxLatency, http.get(`${API}/api/auth/me`), 'mailbox:me');
+/**
+ * Кабинет лица: три запроса, ровно как их делает открытие страницы.
+ *
+ * ⚠️ Первая редакция обходила ВСЕ лица человека за итерацию. На живой базе
+ * у испытуемого их двадцать — получалось двадцать один запрос на итерацию, чего
+ * в жизни не бывает: кабинет открыт у ОДНОГО лица и спрашивает ОДИН ящик.
+ * Замер при этом упирался в отказы соединения (четверть запросов, `max` до пяти
+ * секунд) и мерил не отзывчивость ящика, а предел стенда.
+ *
+ * Три запроса — это и есть то, что названо в шаге 35.45: список лиц («кто я»),
+ * лента по лицу и личный ящик.
+ */
+export function mailbox(data) {
+  const auth = { headers: { Cookie: data.cookie }, tags: { profile: 'mailbox' } };
+  const me = track(mailboxLatency, http.get(`${API}/api/auth/me`, auth), 'mailbox:me');
   const faces = body(me)?.data?.faces ?? [];
 
   check(me, {
-    'лица приезжают ответом «кто я»': () => Array.isArray(faces),
+    // ⚠️ Проверяется НЕПУСТОТА, а не тип. Пустой список означает, что запрос ниже
+    // не выполнится и профиль ничего не измерит, оставшись зелёным.
+    'лица приезжают ответом «кто я»': () => Array.isArray(faces) && faces.length > 0,
   });
 
-  // Ящик каждого лица — по одному запросу, как это делает кабинет.
-  for (const face of faces) {
+  if (faces.length > 0) {
+    // Лицо выбирается по номеру итерации, а не первое: иначе весь прогон читал бы
+    // один и тот же ящик, и попадание в кеш выдало бы себя за отзывчивость.
+    const face = faces[__ITER % faces.length];
     const key = face.kind === 'club' ? 'clubId' : 'trainerId';
 
     track(
       mailboxLatency,
-      http.get(`${API}/api/notifications?${key}=${face.id}`),
+      http.get(`${API}/api/notifications?${key}=${face.id}`, auth),
       `mailbox:${face.kind}`,
     );
   }
 
   // Личный ящик: он есть у всех, в том числе у человека без лиц.
-  track(mailboxLatency, http.get(`${API}/api/notifications?scope=personal`), 'mailbox:personal');
+  track(
+    mailboxLatency,
+    http.get(`${API}/api/notifications?scope=personal`, auth),
+    'mailbox:personal',
+  );
 }

@@ -51,6 +51,21 @@ import { USERS_REPOSITORY } from '../repositories/crud.repository';
 /** Верхняя граница страницы. Больше сотни маршрут не отдаёт никогда. */
 const MAX_LIMIT = 100;
 
+/**
+ * Страница по умолчанию — когда клиент лимит не назвал.
+ *
+ * ⚠️ Найдено нагрузкой шага 35.45. Потолок был, но применялся только к ЗАДАННОМУ
+ * лимиту: клиент, не назвавший его, получал ленту ЦЕЛИКОМ. Постраничность при этом
+ * существовала и работала — просто по умолчанию была выключена, и цена запроса
+ * росла вместе с историей человека. У испытуемого 66 уведомлений давали 12 КБ;
+ * за год активной жизни это мегабайты на каждое открытие кабинета.
+ *
+ * Умолчание равно потолку намеренно: клиенту, который лимит не называл, отдаётся
+ * ровно столько, сколько маршрут в принципе готов отдать за раз. Общее число едет
+ * рядом (`total`) — дочитать остальное есть чем.
+ */
+const DEFAULT_LIMIT = MAX_LIMIT;
+
 const deleteSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1),
 });
@@ -112,8 +127,8 @@ export class NotificationsController {
     const onlyUnread = unreadOnly === 'true' || unreadOnly === '1';
     const offset = optionalNumber(rawOffset) ?? 0;
     const rawLimitValue = optionalNumber(rawLimit);
-    const limit =
-      rawLimitValue !== undefined && rawLimitValue > MAX_LIMIT ? MAX_LIMIT : rawLimitValue;
+    // Лимит не назван — берётся умолчание; назван больше потолка — срезается.
+    const limit = rawLimitValue === undefined ? DEFAULT_LIMIT : Math.min(rawLimitValue, MAX_LIMIT);
 
     const excludeTypes = await this.disabledTypes(userId);
     const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
@@ -132,7 +147,7 @@ export class NotificationsController {
         unreadOnly: onlyUnread,
         excludeTypes,
         offset,
-        ...(limit === undefined ? {} : { limit }),
+        limit,
       }),
       this.notifications.count({ userId, ...inMailbox, unreadOnly: onlyUnread, excludeTypes }),
       this.notifications.count({ userId, ...inMailbox, unreadOnly: true, excludeTypes }),

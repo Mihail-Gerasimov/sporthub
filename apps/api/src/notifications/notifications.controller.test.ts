@@ -567,3 +567,85 @@ describe('Ящики лиц', () => {
     expect(response.body.error).toBe('Некорректные параметры запроса');
   });
 });
+
+describe('Постраничность ленты по умолчанию (шаг 35.45)', () => {
+  let harness: TestHarness;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-default-limit');
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    // Уведомлений заведомо больше потолка: иначе «страница ограничена» нечем
+    // отличить от «их просто мало».
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Алексей',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      // ⚠️ Метка времени собирается своя: общий помощник рассчитан на девять строк
+      // (`2026-02-0${id}`) и на сто пятидесяти даёт несуществующую дату.
+      notifications: Array.from({ length: 150 }, (_, index) => ({
+        id: index + 1,
+        createdAt: new Date(Date.UTC(2026, 1, 1, 0, index)).toISOString(),
+        userId: 1,
+        type: 'booking_created',
+        payload: {},
+      })),
+      ...fixtureDictionaryCollections,
+    });
+  });
+
+  it('лента без лимита отдаёт СТРАНИЦУ, а не всю историю', async () => {
+    // ⚠️ Найдено нагрузкой. Потолок в сто строк существовал, но применялся только
+    // к ЗАДАННОМУ лимиту: клиент, не назвавший его, получал ленту целиком, и цена
+    // запроса росла вместе с историей человека. Постраничность была — просто
+    // по умолчанию выключена.
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications')
+      .set('Cookie', await harness.as(1));
+
+    expect(response.status).toBe(200);
+    expect(
+      (response.body as { data?: { items?: unknown[] } }).data?.items?.length,
+      'лента без лимита вернула больше страницы',
+    ).toBe(100);
+  });
+
+  it('общее число едет рядом — дочитать остальное есть чем', async () => {
+    // Страница без общего числа превращает постраничность в обрезание: клиент
+    // не знает, есть ли что дальше.
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications')
+      .set('Cookie', await harness.as(1));
+
+    expect((response.body as { data?: { total?: number } }).data?.total).toBe(150);
+  });
+
+  it('названный лимит больше потолка срезается до потолка', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications?limit=500')
+      .set('Cookie', await harness.as(1));
+
+    expect((response.body as { data?: { items?: unknown[] } }).data?.items?.length).toBe(100);
+  });
+
+  it('названный лимит меньше потолка соблюдается', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications?limit=7')
+      .set('Cookie', await harness.as(1));
+
+    expect((response.body as { data?: { items?: unknown[] } }).data?.items?.length).toBe(7);
+  });
+});
