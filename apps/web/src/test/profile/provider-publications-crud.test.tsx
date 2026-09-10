@@ -150,14 +150,22 @@ describe('ProviderPublications CRUD (Step 26.4)', () => {
     expect(screen.queryByRole('button', { name: 'Редактировать' })).not.toBeInTheDocument();
   });
 
-  it('завести лицо услуг может любой вошедший — обе кнопки на месте', () => {
-    // ⚠️ Прежде кнопку прятало право роли, и завести себе карточку тренера
-    // владелец клуба не мог вовсе. Решение заказчика 1: лицо заводит любой.
+  it('кнопок заведения лица в кабинете лица НЕТ — их место в личном кабинете', () => {
+    // ⚠️ Шаг 36.32. Заведение лица — действие ЧЕЛОВЕКА, и место у него одно:
+    // `/profile/me/dashboard`. Проверка нужна именно на отсутствие: без неё
+    // «перенесли» и «продублировали» неотличимы, а два места заведения — это
+    // две формы, которые разъедутся при первой же правке.
+    //
+    // Раздел кабинета лица остаётся разделом ПРАВКИ: «Редактировать» и «Удалить»
+    // на месте, и это проверяют соседние тесты набора.
     loginAsProvider();
     renderInFaceCabinet(<ProviderPublications clubs={[]} trainers={[]} />);
 
-    expect(screen.getByRole('button', { name: 'Опубликовать клуб' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Опубликовать тренера' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Опубликовать клуб' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Опубликовать тренера' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Опубликовать карточку тренера' }),
+    ).not.toBeInTheDocument();
   });
 
   it('клик «Редактировать» на клубе шлёт GET /api/clubs/1 и открывает модалку', async () => {

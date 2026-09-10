@@ -1,9 +1,14 @@
 // Phase 25 Step 25.14 → Phase 26 Step 26.4: client-обёртка над
-// ProviderPublicationsSection для /profile/provider/publications. Теперь содержит
-// полный CRUD: edit-bootstrap через /api/clubs/[id] и /api/trainers/[id] + открытие
-// PublishClubModal / PublishTrainerModal; delete через window.confirm + DELETE.
-// Переезд state/handlers сделан без сквозных изменений — логика зеркально
-// повторяет ProviderProfilePage (финальная дедупликация корневого — в Step 26.5).
+// ProviderPublicationsSection для раздела публикаций в кабинете ЛИЦА.
+// Содержит правку (edit-bootstrap через /api/clubs/[id] и /api/trainers/[id] +
+// открытие PublishClubModal / PublishTrainerModal) и уборку публикации.
+//
+// ⚠️ Шаг 36.32. ЗАВЕДЕНИЯ лица здесь больше нет, и это не сокращение возможностей,
+// а перенос: завести клуб или карточку тренера — действие ЧЕЛОВЕКА, а не лица,
+// и место у него одно — личный кабинет (`CreateFaceSection`). Пока кнопки стояли
+// тут, первое лицо завести было нечем: в кабинет лица не попасть, не имея лица.
+// Держать их в обоих местах нельзя — две формы заведения разъедутся при первой
+// же правке, и заметит это не разработчик, а человек.
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -13,7 +18,6 @@ import { getProviderClubs, getProviderTrainers } from '@/components/profile/prov
 import { ProviderPublicationsSection } from '@/components/profile/ProviderPublicationsSection';
 import { PublishClubModal } from '@/components/profile/PublishClubModal';
 import { PublishTrainerModal } from '@/components/profile/PublishTrainerModal';
-import { Button, Card } from '@/components/ui';
 import { mapClubToFormState, mapTrainerToFormState } from '@/lib/contracts/reverse-mapping';
 import type { ClubFormState, TrainerFormState } from '@sporthub/domain';
 import { useCabinetFaces } from '@/components/profile/cabinet-context';
@@ -42,8 +46,6 @@ type ProviderPublicationsProps = {
   specialties?: Specialty[];
   workFormats?: WorkFormat[];
 };
-
-type PublishModalMode = 'create' | 'edit';
 
 type TrainerClubOption = {
   id: EntityId;
@@ -97,8 +99,6 @@ export function ProviderPublications({
   // --- State модалок и edit-режима ---
   const [isClubModalOpen, setIsClubModalOpen] = useState(false);
   const [isTrainerModalOpen, setIsTrainerModalOpen] = useState(false);
-  const [clubModalMode, setClubModalMode] = useState<PublishModalMode>('create');
-  const [trainerModalMode, setTrainerModalMode] = useState<PublishModalMode>('create');
   const [clubEditEntityId, setClubEditEntityId] = useState<EntityId | null>(null);
   const [trainerEditEntityId, setTrainerEditEntityId] = useState<EntityId | null>(null);
   const [clubInitialData, setClubInitialData] = useState<ClubFormState | null>(null);
@@ -145,40 +145,17 @@ export function ProviderPublications({
     });
   }
 
-  function invalidatePendingEditBootstrap() {
-    editBootstrapRequestIdRef.current += 1;
-  }
-
   function resetClubModalState() {
     setIsClubModalOpen(false);
-    setClubModalMode('create');
     setClubEditEntityId(null);
     setClubInitialData(null);
   }
 
   function resetTrainerModalState() {
     setIsTrainerModalOpen(false);
-    setTrainerModalMode('create');
     setTrainerEditEntityId(null);
     setTrainerInitialData(null);
     setTrainerEditClubOption(null);
-  }
-
-  function handleOpenCreateClubModal() {
-    invalidatePendingEditBootstrap();
-    setClubModalMode('create');
-    setClubEditEntityId(null);
-    setClubInitialData(null);
-    setIsClubModalOpen(true);
-  }
-
-  function handleOpenCreateTrainerModal() {
-    invalidatePendingEditBootstrap();
-    setTrainerModalMode('create');
-    setTrainerEditEntityId(null);
-    setTrainerInitialData(null);
-    setTrainerEditClubOption(null);
-    setIsTrainerModalOpen(true);
   }
 
   async function handleDeletePublication(entityType: 'club' | 'trainer', entityId: EntityId) {
@@ -234,7 +211,6 @@ export function ProviderPublications({
           return;
         }
 
-        setClubModalMode('edit');
         setClubEditEntityId(entityId);
         setClubInitialData(mapClubToFormState(club, primaryOffering, schedule));
         setIsClubModalOpen(true);
@@ -273,7 +249,6 @@ export function ProviderPublications({
 
       const primarySchedule = schedule.filter((slot) => slot.offeringId === primaryOffering.id);
 
-      setTrainerModalMode('edit');
       setTrainerEditEntityId(entityId);
       setTrainerInitialData(
         mapTrainerToFormState(
@@ -317,26 +292,12 @@ export function ProviderPublications({
         onDelete={handleDeletePublication}
       />
 
-      {/*
-        ⚠️ Шаг 35.34. Кнопки заведения показываются всем: лицо услуг заводит любой
-        вошедший (решение заказчика 1). Прежде их прятало право роли, и завести
-        себе карточку тренера владелец клуба не мог вовсе. Ограничение на
-        заведение (модерация, оплата) — вопрос будущей фазы, и это будет условие
-        на один маршрут, а не новая роль.
-      */}
-      <Card className="flex flex-wrap gap-3 p-4 sm:p-6">
-        <Button onClick={handleOpenCreateClubModal}>Опубликовать клуб</Button>
-        <Button variant="outline" onClick={handleOpenCreateTrainerModal}>
-          Опубликовать тренера
-        </Button>
-      </Card>
-
       {/* Publish-модалки */}
       <PublishClubModal
         open={isClubModalOpen}
         onClose={resetClubModalState}
         onSuccess={handlePublishSuccess}
-        mode={clubModalMode}
+        mode="edit"
         entityId={clubEditEntityId}
         initialData={clubInitialData}
         sports={sports}
@@ -348,7 +309,7 @@ export function ProviderPublications({
         onClose={resetTrainerModalState}
         onSuccess={handlePublishSuccess}
         clubs={trainerModalClubOptions}
-        mode={trainerModalMode}
+        mode="edit"
         entityId={trainerEditEntityId}
         initialData={trainerInitialData}
         sports={sports}
