@@ -16,6 +16,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, testSchemaName, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
 
+import { NOTIFICATION_TYPE_GROUP } from '@sporthub/domain';
+
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'prisma', 'schema.prisma');
 
 /** Генератор ограничений: путь до него и форма того, что он объявляет. */
@@ -116,6 +118,32 @@ describe('Физические имена', () => {
     const existing = new Set(rows.map((row) => row.column_name));
 
     expect([...new Set(columns)].filter((column) => !existing.has(column))).toEqual([]);
+  });
+
+  it('в настройках уведомлений нет типов вне словаря', async () => {
+    // ⚠️ Найдено браузерным прогоном 10.09.2026. Шаг 35.3a вырезал санкции за неявки,
+    // но СТРОКИ настроек с их типами остались в базе и уезжали в выдачу
+    // `GET /api/users`. Имена типов здесь не называются намеренно: их отсутствие
+    // в исходниках стережёт отдельный сторож, и упоминание ослабило бы его —
+    // а миграция, убравшая эти строки (10.09.2026), называет их там, где это
+    // уместно, и объясняет почему.
+    //
+    // Проверка идёт по БАЗЕ против СЛОВАРЯ — то есть ищет не два известных имени,
+    // а любое расхождение. Следующий вырезанный механизм оставит такой же след,
+    // и найдётся он сам, а не через год и не браузером.
+    const rows = await db.prisma.$queryRaw<{ type: string }[]>`
+      SELECT DISTINCT type FROM user_notification_preferences
+    `;
+    // ⚠️ Словарь берётся из `NOTIFICATION_TYPE_GROUP`: он объявлен как
+    // `Record<NotificationType, …>`, то есть полон по построению — забыть тип
+    // в нём нельзя, не сломав сборку. Отдельного плоского списка типов в проекте
+    // нет, и заводить его ради теста значило бы завести второе место правды.
+    const known = new Set<string>(Object.keys(NOTIFICATION_TYPE_GROUP));
+    const orphans = rows.map((row) => row.type).filter((type) => !known.has(type));
+
+    expect(orphans, `настройки уведомлений с типами вне словаря: ${orphans.join(', ')}`).toEqual(
+      [],
+    );
   });
 
   it('лицо услуг есть у того и только у того, кто им владеет (шаг 35.39)', async () => {

@@ -387,6 +387,49 @@ describe('Работа от чужого лица', () => {
 
   const server = () => harness.app.getHttpServer();
 
+  it('работа от чужого лица оставляет след в журнале — от НАСТОЯЩЕГО администратора', async () => {
+    // ⚠️ Найдено браузерным прогоном 10.09.2026, и это была дыра по существу.
+    // Ради этого следа имперсонизацию и переносили на сервер в фазе 34: пока она
+    // жила в браузере, запись в журнале зависела от добросовестности клиента.
+    // Перенесли — а записывать забыли: подпись `admin_impersonate_start` лежала
+    // в словаре и в интерфейсе журнала, писать её было некому, и действия под
+    // чужим именем не отличались от действий самого человека.
+    await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3))
+      .expect(200);
+
+    const logs =
+      await harness.read<{ action: string; actorId: number; entityId: number }[]>('logs');
+    const started = logs.filter((row) => row.action === 'admin_impersonate_start');
+
+    expect(started, 'начало работы от чужого лица не попало в журнал').toHaveLength(1);
+    // Исполнитель — администратор, а НЕ тот, от чьего лица начали работать:
+    // иначе запись сообщала бы то, что и так видно, и прятала бы того, кого стережёт.
+    expect(started[0]?.actorId, 'журнал записал цель вместо администратора').toBe(3);
+    expect(started[0]?.entityId, 'в журнале не названа цель').toBe(1);
+  });
+
+  it('возврат к себе тоже попадает в журнал — иначе не видно, когда работа кончилась', async () => {
+    const start = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3));
+    const cookie = (start.headers['set-cookie'] as unknown as string[])?.find((value) =>
+      value.startsWith('sh-session='),
+    );
+
+    await request(server())
+      .post('/api/auth/impersonate/stop')
+      .set('Cookie', cookie as string)
+      .expect(200);
+
+    const logs = await harness.read<{ action: string; actorId: number }[]>('logs');
+    const stopped = logs.filter((row) => row.action === 'admin_impersonate_stop');
+
+    expect(stopped, 'возврат к себе не попал в журнал').toHaveLength(1);
+    expect(stopped[0]?.actorId).toBe(3);
+  });
+
   it('администратор начинает работу от лица пользователя', async () => {
     const start = await request(server())
       .post('/api/auth/impersonate/1')

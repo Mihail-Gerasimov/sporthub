@@ -54,6 +54,7 @@ import { RateLimit } from '../common/rate-limit';
 import { CurrentUser, Public, Requires } from './access.decorators';
 import { LoginAttemptsService } from './login-attempts.service';
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from './session-cookie';
+import { LogService } from '../logs/log.service';
 import { SessionService, type SessionContext } from './session.service';
 
 /**
@@ -186,6 +187,9 @@ export class AuthController {
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     private readonly sessions: SessionService,
     private readonly loginAttempts: LoginAttemptsService,
+    // ⚠️ Журнал нужен работе от чужого лица. Ради этого следа её и переносили
+    // на сервер в фазе 34 — а записи не было вовсе (найдено прогоном 10.09.2026).
+    private readonly logs: LogService,
   ) {}
 
   /**
@@ -398,6 +402,17 @@ export class AuthController {
 
     setSessionCookie(response, token, new Date(session.expiresAt));
 
+    // Возврат к себе — вторая половина следа. Без неё в журнале видно, что работа
+    // от чужого лица началась, но не видно, когда закончилась: всё, что человек
+    // делал потом, читалось бы как продолжение чужой сессии.
+    await this.logs.record({
+      action: 'admin_impersonate_stop',
+      actorId: context.actor.id,
+      actorRole: accountKindOf(context.actor),
+      entityType: 'user',
+      entityId: context.session.impersonatedUserId,
+    });
+
     return await this.toProfile(context.actor);
   }
 
@@ -460,6 +475,23 @@ export class AuthController {
     });
 
     setSessionCookie(response, token, new Date(session.expiresAt));
+
+    // ⚠️ След в журнале — смысл всей серверной имперсонизации. Пока его не было,
+    // действия под чужим именем не отличались от действий самого человека:
+    // подпись `admin_impersonate_start` жила в словаре и в интерфейсе журнала,
+    // а писать её было некому.
+    //
+    // Исполнитель — НАСТОЯЩИЙ администратор (`context.actor`), а не тот, от чьего
+    // лица начали работать: иначе запись сообщала бы ровно то, что и так видно,
+    // и прятала бы того, кого стережёт.
+    await this.logs.record({
+      action: 'admin_impersonate_start',
+      actorId: context.actor.id,
+      actorRole: accountKindOf(context.actor),
+      entityType: 'user',
+      entityId: targetId,
+      meta: { targetEmail: target.email },
+    });
 
     return await this.toProfile(target);
   }
