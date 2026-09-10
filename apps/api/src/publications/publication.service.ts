@@ -116,6 +116,23 @@ export type PublicationActor = { kind: 'owner'; userId: number } | { kind: 'mode
 export type PublicationRemoval = 'archived' | 'deleted';
 
 /**
+ * Текст отказа «сначала разберитесь с людьми» — ОДНО объявление на все поводы.
+ *
+ * Поводов уже два: убрать лицо (шаг 35.24a) и убрать занятие из расписания
+ * (шаг 36.8). Смысл у отказа один, и второй экземпляр текста разъехался бы
+ * с первым при первой же правке формулировки.
+ *
+ * ⚠️ Текст обязан объяснять причину и называть следующий шаг: «нельзя» без
+ * причины владелец прочитает как поломку приложения и напишет в поддержку.
+ */
+function bookingsInTheWayMessage(action: string, count: number): string {
+  return (
+    `Нельзя ${action}: на ближайшие занятия записаны люди (${count}). ` +
+    'Сначала отмените эти записи — участники получат уведомления — и повторите.'
+  );
+}
+
+/**
  * Причина скрытия, которую ставит сам владелец.
  *
  * Объявлена ОДИН раз и здесь: её читает карточка публикации в разделе модерации,
@@ -477,11 +494,40 @@ export class PublicationService {
     });
 
     if (upcoming > 0) {
-      // Текст обязан объяснять причину и называть следующий шаг: «нельзя» без
-      // причины владелец прочитает как поломку приложения и напишет в поддержку.
+      throw new ConflictError(bookingsInTheWayMessage(`убрать ${label}`, upcoming));
+    }
+  }
+
+  /**
+   * Запрет удалять слот, на который записаны люди (шаг 36.8, решение заказчика 2).
+   *
+   * ⚠️ Прежде такой слот удалялся, а записи на него отменялись «от имени
+   * провайдера»: человек получал отмену, которую никто не заказывал, а надёжность
+   * провайдера падала за его же правку формы. Правило то же, что у запрета убирать
+   * лицо, и повод тот же — сначала разберись с людьми.
+   *
+   * Считает база: один `count` на ВЕСЬ набор удаляемых слотов. Перебор по слоту
+   * дал бы столько запросов, сколько слотов убирают за раз.
+   */
+  private async assertNoUpcomingBookingsOnSlots(slotIds: number[]): Promise<void> {
+    if (slotIds.length === 0) {
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const upcoming = await this.bookings.count({
+      scheduleId: slotIds,
+      status: [...ACTIVE_BOOKING_STATUSES],
+      dateFrom: today,
+    });
+
+    if (upcoming > 0) {
       throw new ConflictError(
-        `Нельзя убрать ${label}: на ближайшие занятия записаны люди (${upcoming}). ` +
-          'Сначала отмените эти записи — участники получат уведомления — и повторите.',
+        bookingsInTheWayMessage(
+          slotIds.length === 1 ? 'убрать это занятие из расписания' : 'убрать эти занятия из расписания',
+          upcoming,
+        ),
       );
     }
   }
@@ -561,8 +607,19 @@ export class PublicationService {
   ): Promise<Schedule[]> {
     const existing = await this.schedule.findByOfferingId(offeringId);
     const existingById = new Map(existing.map((slot) => [slot.id, slot]));
-    const keptIds = new Set<number>();
+    const keptIds = new Set<number>(
+      slots.map((slot) => slot.id).filter((id): id is number => id !== undefined),
+    );
     const result: Schedule[] = [];
+
+    // Слоты, которых в теле не оказалось, — кандидаты на удаление.
+    const removed = existing.filter((slot) => !keptIds.has(slot.id)).map((slot) => slot.id);
+
+    // ⚠️ Шаг 36.8, решение заказчика 2. Проверка стоит ДО единой правки, а не перед
+    // самим удалением: отказ обязан быть отказом целиком. Правка идёт в одной
+    // транзакции и откатилась бы в любом случае, но полагаться на откат там, где
+    // можно просто не начинать, — значит проверять последствия вместо причины.
+    await this.assertNoUpcomingBookingsOnSlots(removed);
 
     for (const input of slots) {
       if (input.id !== undefined) {
@@ -573,7 +630,6 @@ export class PublicationService {
           throw new NotFoundError(`Слот ${label} с id ${input.id} не найден`);
         }
 
-        keptIds.add(input.id);
         // Занятые места принадлежат записям, а не форме: правка расписания
         // не имеет права их обнулять, иначе слот «освободится» под уже
         // существующими бронями.
@@ -593,8 +649,6 @@ export class PublicationService {
         .map((slot) => this.buildSlot(slot, { offeringId, ...owner })),
     );
     result.push(...created);
-
-    const removed = existing.filter((slot) => !keptIds.has(slot.id)).map((slot) => slot.id);
 
     // ⚠️ Перед удалением слота его записи надо отменить, а не бросить.
     //

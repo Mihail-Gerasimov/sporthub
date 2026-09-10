@@ -368,6 +368,134 @@ describe('PublicationService', () => {
     expect(stored.map((item) => item.id).sort()).toEqual(schedules.map((item) => item.id).sort());
   });
 
+  // --- Удаление слота с живыми записями (шаг 36.8, решение заказчика 2) --------
+  //
+  // ⚠️ Смысл запрета — тот же, что у запрета убирать лицо: дело не в целостности
+  // данных, а в людях. Раньше слот, которого нет в теле, удалялся, а записи на него
+  // отменялись «от имени провайдера» — то есть человек получал отмену, которую
+  // никто не заказывал, а надёжность провайдера падала за его же правку формы.
+
+  it('удаление слота с будущей записью отклоняется с числом записей', async () => {
+    const { club, offering, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    await bookings.insert({
+      scheduleId: schedules[1].id,
+      ownerType: 'club',
+      ownerId: club.id,
+      clubId: club.id,
+      userId: 1,
+      sportId: 1,
+      date: dayKey(3),
+      status: 'confirmed',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+    } as never);
+
+    await expect(
+      service.updateClub({
+        clubId: club.id,
+        userId: 2,
+        club: {},
+        offering: {},
+        // Второго слота в теле нет — прежде это означало бы его удаление.
+        slots: [{ ...slot({ title: 'Первый' }), id: schedules[0].id }],
+      }),
+    ).rejects.toThrow(/записаны люди \(1\)/);
+
+    // Отказ обязан быть отказом: слот на месте, запись цела.
+    expect(await schedule.findByOfferingId(offering.id)).toHaveLength(2);
+    const stored = await bookings.findAll();
+    expect(stored[0].status).toBe('confirmed');
+  });
+
+  it('прошедшая запись удалению слота не мешает', async () => {
+    // Занятие состоялось — держать из-за него слот незачем. Запись остаётся
+    // в истории человека, ссылка на слот снимается.
+    const { club, offering, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    await bookings.insert({
+      scheduleId: schedules[1].id,
+      ownerType: 'club',
+      ownerId: club.id,
+      clubId: club.id,
+      userId: 1,
+      sportId: 1,
+      date: dayKey(-3),
+      status: 'completed',
+      paymentStatus: 'paid',
+      totalPrice: 1000,
+    } as never);
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: {},
+      offering: {},
+      slots: [{ ...slot({ title: 'Первый' }), id: schedules[0].id }],
+    });
+
+    expect(await schedule.findByOfferingId(offering.id)).toHaveLength(1);
+  });
+
+  it('отменённая запись удалению слота не мешает', async () => {
+    const { club, offering, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    await bookings.insert({
+      scheduleId: schedules[1].id,
+      ownerType: 'club',
+      ownerId: club.id,
+      clubId: club.id,
+      userId: 1,
+      sportId: 1,
+      date: dayKey(3),
+      status: 'cancelled_by_user',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+    } as never);
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: {},
+      offering: {},
+      slots: [{ ...slot({ title: 'Первый' }), id: schedules[0].id }],
+    });
+
+    expect(await schedule.findByOfferingId(offering.id)).toHaveLength(1);
+  });
+
+  it('слот без записей удаляется по-прежнему', async () => {
+    // Контрольная группа: без неё запрет был бы зелен и в случае, когда правка
+    // расписания сломана целиком.
+    const { club, offering, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: {},
+      offering: {},
+      slots: [{ ...slot({ title: 'Первый' }), id: schedules[0].id }],
+    });
+
+    expect(await schedule.findByOfferingId(offering.id)).toHaveLength(1);
+  });
+
   it('перенос даты слота тянет за собой даты записей', async () => {
     const { club, schedules } = await createClub();
     await bookings.insert({
