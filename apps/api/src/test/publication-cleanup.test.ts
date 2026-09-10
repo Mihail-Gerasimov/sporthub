@@ -262,6 +262,12 @@ async function seedFixture(): Promise<Fixture> {
     venueClubId: garbageClub.id,
   });
   const liveSlot = await slot({ offeringId: liveOffering.id, ownerClubId: liveClub.id });
+  // Занятие живого тренера, которое идёт в зале мусорного клуба.
+  const venueOnlySlot = await slot({
+    offeringId: liveOffering.id,
+    ownerTrainerId: liveTrainer.id,
+    venueClubId: garbageClub.id,
+  });
 
   const booking = (data: {
     scheduleId: number;
@@ -294,6 +300,17 @@ async function seedFixture(): Promise<Fixture> {
     offeringId: liveOffering.id,
     ownerClubId: liveClub.id,
   });
+  // ⚠️ Ради этой записи фикстура и заведена именно такой. Владелец — ЖИВАЯ карточка
+  // тренера, зал — мусорный клуб. Отбор по владельцу её не видит, а внешний ключ
+  // `bookings.venue_club_id` — `ON DELETE CASCADE`: удаление клуба унесёт её молча.
+  // Пропуск колонки в отборе не помешает удалить клуб (как считалось раньше) —
+  // он сделает потерю НЕВИДИМОЙ, и поймать это можно только по общему числу строк.
+  const venueOnlyBooking = await booking({
+    scheduleId: venueOnlySlot.id,
+    offeringId: liveOffering.id,
+    ownerTrainerId: liveTrainer.id,
+    venueClubId: garbageClub.id,
+  });
 
   await db.prisma.bookingStatusTransition.createMany({
     data: [
@@ -312,6 +329,12 @@ async function seedFixture(): Promise<Fixture> {
       },
       {
         bookingId: liveBooking.id,
+        toStatus: 'pending',
+        actor: 'athlete',
+        at: new Date('2026-08-01T00:00:00.000Z'),
+      },
+      {
+        bookingId: venueOnlyBooking.id,
         toStatus: 'pending',
         actor: 'athlete',
         at: new Date('2026-08-01T00:00:00.000Z'),
@@ -546,6 +569,9 @@ describe('Пробный прогон уборки публикаций (36.37)'
 
     expect(survivors.clubs).toBe(1);
     expect(survivors.trainers).toBe(1);
+    // Из трёх записей уходят две: своя запись мусорной карточки и запись живого
+    // тренера, у которой залом был мусорный клуб. Вторую унесёт каскад — и опись
+    // обязана назвать её заранее, иначе потеря останется невидимой.
     expect(survivors.bookings).toBe(1);
     expect(survivors.reviews).toBe(1);
   });
@@ -595,7 +621,7 @@ describe('Пробный прогон уборки публикаций (36.37)'
 
     expect(await db.prisma.club.count()).toBe(2);
     expect(await db.prisma.trainer.count()).toBe(2);
-    expect(await db.prisma.booking.count()).toBe(2);
+    expect(await db.prisma.booking.count()).toBe(3);
   });
 });
 
