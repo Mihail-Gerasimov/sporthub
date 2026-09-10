@@ -79,6 +79,14 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
         `payload->>'trainerId' = ANY(${trainersText})`,
         `(payload->>'entityType' = 'club' AND payload->>'entityId' = ANY(${clubsText}))`,
         `(payload->>'entityType' = 'trainer' AND payload->>'entityId' = ANY(${trainersText}))`,
+        // ⚠️ Четвёртая форма ссылки, найденная браузерным прогоном приёмки.
+        // Уведомление о повторной проверке (шаг 36.21) называет публикацию парой
+        // `publicationType` + `publicationId`, а опись разбирала только три формы —
+        // и оставляла сироту после каждого прогона. Форм ссылки в `payload` четыре
+        // потому, что типы уведомлений писались разными фазами; сводить их к одной —
+        // отдельная работа, а не задача уборки.
+        `(payload->>'publicationType' = 'club' AND payload->>'publicationId' = ANY(${clubsText}))`,
+        `(payload->>'publicationType' = 'trainer' AND payload->>'publicationId' = ANY(${trainersText}))`,
         `payload->>'bookingId' IN (SELECT id::text FROM ${at('bookings')} WHERE ${bookingsWhere})`,
         `payload->>'reviewId' IN (SELECT id::text FROM ${at('reviews')} WHERE ${reviewsWhere})`,
         // Ящик лица: эти строки уходят и каскадом, но удалить их здесь дешевле,
