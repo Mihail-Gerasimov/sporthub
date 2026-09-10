@@ -15,7 +15,7 @@ import type { NotificationType, User } from '@sporthub/types';
 //
 // ⚠️ Фаза 35: группа — это ТЕМА уведомления («записи», «связи», «отзывы»),
 // а не его получатель. Кому строка видна, решает адресат, и решает это сервер.
-export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'reviews'] as const;
+export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'reviews', 'moderation'] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
 
 // ⚠️ Фаза 35, шаг 35.28a. Здесь жила модель видимости «тип уведомления → роль
@@ -51,6 +51,9 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   // Phase 29 Step 29.4: review-уведомления — отдельная группа 'reviews'.
   review_received_by_provider: 'reviews',
   review_published_for_athlete: 'reviews',
+  // Шаг 36.21: надзор. Группа своя, а не 'booking': тема у неё другая, и человеку,
+  // который отключил уведомления о записях, надзорные приходить не перестают.
+  publication_recheck_requested: 'moderation',
 };
 
 /**

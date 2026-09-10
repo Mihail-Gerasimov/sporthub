@@ -27,6 +27,8 @@ const GROUP_TITLES: Record<NotificationGroupKey, string> = {
   links: 'Связи',
   // Phase 29 Step 29.4: уведомления при отзывах.
   reviews: 'Отзывы',
+  // Шаг 36.21: надзор — уведомления администратору о повторной проверке.
+  moderation: 'Модерация',
 };
 
 /** Задержка между кликом по чекбоксу и реальным PATCH — чтобы не спамить сеть при быстрых изменениях. */
@@ -124,6 +126,9 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
       links: [],
       // Phase 29 Step 29.4: новая группа отзывов.
       reviews: [],
+      // Шаг 36.21: надзор. У обычного человека эта группа пуста — уведомление
+      // адресовано администратору, — и пустая вкладка ему не рисуется.
+      moderation: [],
     };
     for (const [type, group] of Object.entries(NOTIFICATION_TYPE_GROUP) as Array<
       [NotificationType, NotificationGroupKey]

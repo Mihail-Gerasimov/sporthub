@@ -88,6 +88,8 @@ const GROUP_LABELS: Record<GroupFilter, string> = {
   // Phase 29 Step 29.4: tab «Отзывы» — для review-уведомлений
   // (получено провайдером + опубликовано автором).
   reviews: 'Отзывы',
+  // Шаг 36.21: надзор — уведомления администратору о повторной проверке.
+  moderation: 'Модерация',
 };
 
 const BUCKET_ORDER: readonly DateBucket[] = ['today', 'yesterday', 'thisWeek', 'earlier'];
@@ -225,6 +227,7 @@ export function NotificationsListPage({
       booking: 0,
       links: 0,
       reviews: 0,
+      moderation: 0,
     };
     for (const n of notifications) {
       counts.all += 1;

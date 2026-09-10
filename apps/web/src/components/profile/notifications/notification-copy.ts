@@ -129,6 +129,18 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
         : 'Отзыв добавлен в общий список.',
     };
   },
+  // Шаг 36.21: надзор. Владелец исправил публикацию, которую скрыл модератор,
+  // и она ушла на повторную проверку. Единственное уведомление, адресованное
+  // администратору: раньше в его ящике не было ни одной строки.
+  publication_recheck_requested: (payload) => {
+    const name = typeof payload.publicationName === 'string' ? payload.publicationName : '';
+    return {
+      title: 'Владелец исправил скрытую публикацию',
+      description: name
+        ? `«${name}» ждёт повторной проверки.`
+        : 'Публикация ждёт повторной проверки.',
+    };
+  },
 };
 
 export function getNotificationCopy(

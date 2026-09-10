@@ -560,6 +560,58 @@ describe('PublicationService', () => {
     expect(result.club.awaitingRecheck).toBe(true);
   });
 
+  it('правка скрытой модератором уведомляет ТОГО, КТО СКРЫЛ', async () => {
+    // ⚠️ Адресат — конкретный человек, разбиравшийся с публикацией, а не «все
+    // администраторы». Механизм существующий: колокольчик показывается любому
+    // вошедшему, просто до этой фазы админу никто не писал.
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: 'жалоба',
+      hiddenByUserId: 3,
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'moderation',
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    const stored = await harness.read<{ userId: number; type: string }[]>('notifications');
+    const recheck = stored.filter((item) => item.type === 'publication_recheck_requested');
+
+    expect(recheck).toHaveLength(1);
+    expect(recheck[0].userId).toBe(3);
+  });
+
+  it('правка архива владельца модератора не беспокоит', async () => {
+    // Обратная сторона: письмо о том, что человек вернул из архива СВОЮ публикацию,
+    // надзору не нужно и только приучает не читать уведомления.
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: OWNER_ARCHIVE_REASON,
+      hiddenByUserId: 2,
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'owner_archive',
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    const stored = await harness.read<{ type: string }[]>('notifications');
+    expect(stored.filter((item) => item.type === 'publication_recheck_requested')).toHaveLength(0);
+  });
+
   it('правка публикации, убранной ВЛАДЕЛЬЦЕМ в архив, возвращает её в каталог', async () => {
     const { club } = await createClub();
     await clubs.update(club.id, {

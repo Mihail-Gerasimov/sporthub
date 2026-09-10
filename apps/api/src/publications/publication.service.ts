@@ -59,6 +59,7 @@ import {
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
 import { BookingService } from '../bookings/booking.service';
+import { NotificationService } from '../notifications/notification.service';
 
 /** Слот в запросе на публикацию: без id — новый, с id — правка существующего. */
 export type PublicationSlotInput = Omit<Schedule, 'id' | 'createdAt'> & {
@@ -199,6 +200,8 @@ export class PublicationService {
     // Отмена записей на удаляемый слот делается сервисом записей: у него
     // правила переходов, история, пересчёт мест и уведомления.
     private readonly bookingService: BookingService,
+    // Уведомление модератору о правке скрытой публикации (шаг 36.21).
+    private readonly notifications: NotificationService,
   ) {}
 
   // --- Создание ---------------------------------------------------------------
@@ -302,9 +305,16 @@ export class PublicationService {
 
     this.assertNoDuplicateSlotIds(input.slots, 'клуба');
 
+    const hiddenPatch = hiddenStatePatchOnEdit(current);
     const club = await this.clubs.update(input.clubId, {
       ...input.club,
-      ...hiddenStatePatchOnEdit(current),
+      ...hiddenPatch,
+    });
+
+    await this.notifyModeratorOfRecheck(hiddenPatch, current, {
+      kind: 'club',
+      id: input.clubId,
+      name: club.name,
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
@@ -355,9 +365,16 @@ export class PublicationService {
 
     this.assertNoDuplicateSlotIds(input.slots, 'тренера');
 
+    const hiddenPatch = hiddenStatePatchOnEdit(current);
     const trainer = await this.trainers.update(input.trainerId, {
       ...input.trainer,
-      ...hiddenStatePatchOnEdit(current),
+      ...hiddenPatch,
+    });
+
+    await this.notifyModeratorOfRecheck(hiddenPatch, current, {
+      kind: 'trainer',
+      id: input.trainerId,
+      name: trainer.name,
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
@@ -419,6 +436,44 @@ export class PublicationService {
    * Возвращает то, что на самом деле произошло: журналу нужно записать событие,
    * а не намерение.
    */
+  /**
+   * Известить модератора, что владелец исправил скрытую публикацию (шаг 36.21).
+   *
+   * ⚠️ Адресат — тот, КТО СКРЫЛ. Это точнее, чем «всем администраторам»: разбирался
+   * с публикацией конкретный человек, и продолжать разбирательство ему.
+   *
+   * ⚠️ Это НЕ «базовый набор человека», от которого администратор отстранён
+   * решением 13. Это служебный инструмент надзора, и механизм для него уже есть:
+   * колокольчик показывается любому вошедшему, включая администратора, — просто
+   * до этой фазы ему никто не писал, и в базе у него было ноль строк.
+   *
+   * ⚠️ Отправка — ПОСЛЕ коммита. Уведомление о правке, которая не сохранилась, —
+   * ложь, и она хуже молчания.
+   *
+   * Если скрывший неизвестен (строка из прошлого без номера), уведомление
+   * не отправляется: раздел модерации всё равно показывает признак, и молчание
+   * здесь честнее, чем письмо в никуда.
+   */
+  private async notifyModeratorOfRecheck(
+    patch: Partial<Club> & Partial<Trainer>,
+    current: Pick<Club, 'hiddenByUserId'>,
+    publication: { kind: 'club' | 'trainer'; id: number; name: string },
+  ): Promise<void> {
+    if (patch.awaitingRecheck !== true || current.hiddenByUserId === undefined) {
+      return;
+    }
+
+    const moderatorId = current.hiddenByUserId;
+
+    await this.transactions.afterCommit(async () => {
+      await this.notifications.notify({ userId: moderatorId }, 'publication_recheck_requested', {
+        publicationType: publication.kind,
+        publicationId: publication.id,
+        publicationName: publication.name,
+      });
+    });
+  }
+
   /**
    * Можно ли скрыть публикацию прямо сейчас (шаг 36.19, решение заказчика 14).
    *
