@@ -33,13 +33,12 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
 
   const trainer = await getTrainerBySlug(slug);
 
+  // Шаг 36.17, симметрично карточке клуба. Владения страница НЕ считает: кому видна
+  // скрытая публикация, решил маршрут. Гостю и постороннему он отвечает 404, и это
+  // обычное «нет такой страницы». Пришло тело — смотрящий (владелец или модератор)
+  // имеет право его видеть: карточка рисуется целиком, состояние объясняет плашка.
   if (!trainer) {
     notFound();
-  }
-
-  // Скрытая публикация — показываем уведомление вместо контента
-  if (trainer.status === 'hidden') {
-    return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
   /* Параллельная загрузка всех связанных данных */
@@ -100,16 +99,21 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     affiliatedClubId === undefined ? null : await getClubById(affiliatedClubId);
 
   return (
-    <TrainerDetailPageClient
-      affiliatedClub={affiliatedClub}
-      offerings={trainerOfferings}
-      reviewAuthors={reviewAuthors}
-      reviews={trainerReviews}
-      schedule={trainerSchedule}
-      specialties={specialties}
-      sports={trainerSports}
-      trainer={trainer}
-      reliability={reliability}
-    />
+    <>
+      {trainer.status === 'hidden' ? (
+        <HiddenPublicationNotice kind={trainer.hiddenKind} reason={trainer.hideReason} />
+      ) : null}
+      <TrainerDetailPageClient
+        affiliatedClub={affiliatedClub}
+        offerings={trainerOfferings}
+        reviewAuthors={reviewAuthors}
+        reviews={trainerReviews}
+        schedule={trainerSchedule}
+        specialties={specialties}
+        sports={trainerSports}
+        trainer={trainer}
+        reliability={reliability}
+      />
+    </>
   );
 }

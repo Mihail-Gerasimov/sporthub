@@ -35,13 +35,13 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
 
   const club = await getClubBySlug(slug);
 
+  // Шаг 36.17. Владения страница НЕ считает и `managedByUserId` не спрашивает:
+  // кому видна скрытая публикация, решил маршрут. Гостю и постороннему он отвечает
+  // 404 — тем же кодом, что и на несуществующий клуб, — и здесь это обычный «нет
+  // такой страницы». Пришло тело — значит смотрящий (владелец или модератор) имеет
+  // право его видеть, и карточка рисуется целиком, а состояние объясняет плашка.
   if (!club) {
     notFound();
-  }
-
-  // Скрытая публикация — показываем уведомление вместо контента
-  if (club.status === 'hidden') {
-    return <HiddenPublicationNotice backHref="/" backLabel="Вернуться в каталог" />;
   }
 
   const [amenities, offerings, specialties, sports, tags, trainers, schedule, reviews] =
@@ -91,17 +91,22 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
   }, {});
 
   return (
-    <ClubDetailPageClient
-      amenities={amenities}
-      club={club}
-      reviewAuthors={reviewAuthors}
-      reviews={clubReviews}
-      schedule={clubSchedule}
-      specialties={specialties}
-      sports={clubSports}
-      tags={tags}
-      trainers={clubTrainers}
-      reliability={reliability}
-    />
+    <>
+      {club.status === 'hidden' ? (
+        <HiddenPublicationNotice kind={club.hiddenKind} reason={club.hideReason} />
+      ) : null}
+      <ClubDetailPageClient
+        amenities={amenities}
+        club={club}
+        reviewAuthors={reviewAuthors}
+        reviews={clubReviews}
+        schedule={clubSchedule}
+        specialties={specialties}
+        sports={clubSports}
+        tags={tags}
+        trainers={clubTrainers}
+        reliability={reliability}
+      />
+    </>
   );
 }
