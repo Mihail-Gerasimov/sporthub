@@ -33,11 +33,24 @@
 
 import type { Club, EntityId, Trainer } from '@sporthub/types';
 
+/**
+ * Поля, которых в публичной выдаче быть не должно.
+ *
+ * `managedByUserId` — фаза 35: по каталогу нельзя построить карту «эти лица
+ * одного человека».
+ *
+ * `awaitingRecheck` — шаг 36.21: признак надзорный, он говорит «модератор
+ * ещё не посмотрел исправление». Каталогу он не нужен ни при каком статусе,
+ * а на живой публикации ещё и шумит значением `false` в каждой карточке.
+ * Разделу модерации он приходит своим маршрутом, где владение уже проверено.
+ */
+const HIDDEN_FROM_PUBLIC = ['managedByUserId', 'awaitingRecheck'] as const;
+
 /** Клуб в публичной выдаче. */
-export type PublicClub = Omit<Club, 'managedByUserId'>;
+export type PublicClub = Omit<Club, (typeof HIDDEN_FROM_PUBLIC)[number]>;
 
 /** Карточка тренера в публичной выдаче. */
-export type PublicTrainer = Omit<Trainer, 'managedByUserId'>;
+export type PublicTrainer = Omit<Trainer, (typeof HIDDEN_FROM_PUBLIC)[number]>;
 
 /**
  * Убрать номер владельца из публикации.
@@ -45,17 +58,17 @@ export type PublicTrainer = Omit<Trainer, 'managedByUserId'>;
  * Обобщённая, а не две одинаковых: клуб и карточка тренера различаются всем,
  * кроме этого поля, и второй экземпляр той же строки разъехался бы с первым.
  */
-export function stripPublicationOwner<T extends { managedByUserId?: EntityId }>(
-  entity: T,
-): Omit<T, 'managedByUserId'> {
-  const { managedByUserId: _owner, ...publicView } = entity;
+export function stripPublicationOwner<
+  T extends { managedByUserId?: EntityId; awaitingRecheck?: boolean },
+>(entity: T): Omit<T, (typeof HIDDEN_FROM_PUBLIC)[number]> {
+  const { managedByUserId: _owner, awaitingRecheck: _recheck, ...publicView } = entity;
 
   return publicView;
 }
 
 /** То же для необязательной публикации: `null` остаётся `null`. */
-export function stripOptionalPublicationOwner<T extends { managedByUserId?: EntityId }>(
-  entity: T | null,
-): Omit<T, 'managedByUserId'> | null {
+export function stripOptionalPublicationOwner<
+  T extends { managedByUserId?: EntityId; awaitingRecheck?: boolean },
+>(entity: T | null): Omit<T, (typeof HIDDEN_FROM_PUBLIC)[number]> | null {
   return entity === null ? null : stripPublicationOwner(entity);
 }
