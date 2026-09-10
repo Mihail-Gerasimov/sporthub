@@ -244,6 +244,130 @@ describe('PublicationService', () => {
     expect(stored.map((item) => item.title).sort()).toEqual(['Первый изменённый', 'Третий']);
   });
 
+  // --- Правка без расписания (шаг 36.5, решение заказчика 1) -------------------
+  //
+  // ⚠️ Различие между «нет поля» и «пустой массив» здесь принципиальное и стоит
+  // чужих записей. Пустой массив означает «убрать все слоты» — и записи на них
+  // отменяются от имени провайдера, портя его же надёжность. Отсутствие поля
+  // означает «не трогать вовсе». До этой фазы отличить одно от другого было
+  // нечем: схема требовала расписание всегда, и клиент, приславший карточку
+  // без него, терял расписание молча и с успешным ответом.
+
+  it('правка без расписания не трогает слоты', async () => {
+    const { club, offering, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { phone: '+7 (846) 111-11-11' },
+      offering: {},
+      slots: undefined,
+    });
+
+    const stored = await schedule.findByOfferingId(offering.id);
+    expect(stored).toHaveLength(2);
+    expect(stored.map((item) => item.id).sort()).toEqual(schedules.map((item) => item.id).sort());
+  });
+
+  it('правка без расписания возвращает существующее расписание', async () => {
+    // Форма ответа не меняется: клиент рисует карточку по нему же. Отдать пустой
+    // список было бы тихой ложью — расписание на месте, а на экране его нет.
+    const { club, schedules } = await service.createClub({
+      club: clubInput,
+      offering: offeringInput,
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+    });
+
+    const result = await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { phone: '+7 (846) 111-11-11' },
+      offering: {},
+      slots: undefined,
+    });
+
+    expect(result.schedules.map((item) => item.id).sort()).toEqual(
+      schedules.map((item) => item.id).sort(),
+    );
+  });
+
+  it('правка без расписания не отменяет записи людей', async () => {
+    const { club, schedules } = await createClub();
+    await bookings.insert({
+      scheduleId: schedules[0].id,
+      ownerType: 'club',
+      ownerId: club.id,
+      clubId: club.id,
+      userId: 1,
+      sportId: 1,
+      date: dayKey(3),
+      status: 'confirmed',
+      paymentStatus: 'unpaid',
+      totalPrice: 1000,
+    } as never);
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { phone: '+7 (846) 111-11-11' },
+      offering: {},
+      slots: undefined,
+    });
+
+    const stored = await bookings.findAll();
+    expect(stored).toHaveLength(1);
+    expect(stored[0].status).toBe('confirmed');
+    expect(stored[0].scheduleId).toBe(schedules[0].id);
+  });
+
+  it('пустой массив слотов по-прежнему означает «убрать все»', async () => {
+    // Сторож границы: послабление коснулось ОТСУТСТВИЯ поля, а не пустого списка.
+    // Если однажды одно начнёт подменять другое, этот тест покраснеет.
+    const { club, offering } = await createClub();
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: {},
+      offering: {},
+      slots: [],
+    });
+
+    expect(await schedule.findByOfferingId(offering.id)).toHaveLength(0);
+  });
+
+  it('правка карточки тренера без расписания не трогает слоты', async () => {
+    const { trainer, offering, schedules } = await service.createTrainer({
+      trainer: {
+        name: 'Пётр',
+        slug: 'petr-edit-without-slots',
+        bio: 'Био',
+        experienceYears: 5,
+        managedByUserId: 2,
+      } as unknown as Omit<Trainer, 'id' | 'createdAt'>,
+      offering: { ...offeringInput, ownerType: 'trainer' as const },
+      slots: [slot({ title: 'Первый' }), slot({ title: 'Второй' })],
+      clubId: null,
+      userId: 2,
+    });
+
+    await service.updateTrainer({
+      trainerId: trainer.id,
+      userId: 2,
+      trainer: { phone: '+7 (846) 222-22-22' },
+      offering: {},
+      slots: undefined,
+    });
+
+    const stored = await schedule.findByOfferingId(offering.id);
+    expect(stored).toHaveLength(2);
+    expect(stored.map((item) => item.id).sort()).toEqual(schedules.map((item) => item.id).sort());
+  });
+
   it('перенос даты слота тянет за собой даты записей', async () => {
     const { club, schedules } = await createClub();
     await bookings.insert({

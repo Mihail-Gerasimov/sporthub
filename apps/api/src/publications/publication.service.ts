@@ -74,7 +74,17 @@ export type UpdateClubInput = {
   userId: number;
   club: Partial<Club>;
   offering: Partial<Offering>;
-  slots: PublicationSlotInput[];
+  /**
+   * Расписание правки (шаг 36.5, решение заказчика 1).
+   *
+   * ⚠️ `undefined` и `[]` означают РАЗНОЕ, и различие стоит чужих записей.
+   * `undefined` — «расписание не присылали, не трогать вовсе». `[]` — «убрать
+   * все слоты», и записи на них будут отменены от имени провайдера. До этой
+   * фазы поле было обязательным, и клиент, правивший один телефон, обязан был
+   * прислать расписание целиком: не прислал — потерял его молча, с успешным
+   * ответом.
+   */
+  slots?: PublicationSlotInput[];
 };
 
 export type ClubPublicationResult = {
@@ -244,12 +254,7 @@ export class PublicationService {
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
-    const schedules = await this.syncSlots(
-      input.slots,
-      offering.id,
-      { clubId: input.clubId },
-      input.userId,
-    );
+    const schedules = await this.applySlots(input.slots, offering.id, { clubId: input.clubId }, input.userId);
 
     return { club, offering: updatedOffering, schedules };
   }
@@ -259,7 +264,8 @@ export class PublicationService {
     userId: number;
     trainer: Partial<Trainer>;
     offering: Partial<Offering>;
-    slots: PublicationSlotInput[];
+    /** См. `UpdateClubInput.slots`: `undefined` — не трогать, `[]` — убрать все. */
+    slots?: PublicationSlotInput[];
   }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
     return this.transactions.runInTransaction(() => this.updateTrainerInner(input));
   }
@@ -269,7 +275,7 @@ export class PublicationService {
     userId: number;
     trainer: Partial<Trainer>;
     offering: Partial<Offering>;
-    slots: PublicationSlotInput[];
+    slots?: PublicationSlotInput[];
   }): Promise<{ trainer: Trainer; offering: Offering; schedules: Schedule[] }> {
     const current = await this.trainers.findById(input.trainerId);
 
@@ -303,7 +309,7 @@ export class PublicationService {
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
-    const schedules = await this.syncSlots(
+    const schedules = await this.applySlots(
       input.slots,
       offering.id,
       { trainerId: input.trainerId },
@@ -492,8 +498,8 @@ export class PublicationService {
     }
   }
 
-  private assertNoDuplicateSlotIds(slots: PublicationSlotInput[], label: string): void {
-    const ids = slots.map((slot) => slot.id).filter((id): id is number => id !== undefined);
+  private assertNoDuplicateSlotIds(slots: PublicationSlotInput[] | undefined, label: string): void {
+    const ids = (slots ?? []).map((slot) => slot.id).filter((id): id is number => id !== undefined);
 
     if (new Set(ids).size !== ids.length) {
       throw new ValidationError(`В payload редактирования ${label} есть повторяющиеся id слотов`);
@@ -514,6 +520,29 @@ export class PublicationService {
       ...(owner.clubId !== undefined ? { clubId: owner.clubId } : {}),
       ...(owner.trainerId !== undefined ? { trainerId: owner.trainerId } : {}),
     } as Omit<Schedule, 'id' | 'createdAt'>;
+  }
+
+  /**
+   * Развилка правки расписания (шаг 36.5, решение заказчика 1).
+   *
+   * Расписания во входе нет — не трогаем его вовсе и отдаём существующее:
+   * форма ответа не меняется, клиент рисует карточку по ней же, и пустой список
+   * был бы тихой ложью — расписание на месте, а на экране его нет.
+   *
+   * Расписание есть — работает прежняя замена целиком, включая удаление того,
+   * чего в теле не оказалось.
+   */
+  private async applySlots(
+    slots: PublicationSlotInput[] | undefined,
+    offeringId: number,
+    owner: { clubId?: number; trainerId?: number },
+    actorUserId?: number,
+  ): Promise<Schedule[]> {
+    if (slots === undefined) {
+      return this.schedule.findByOfferingId(offeringId);
+    }
+
+    return this.syncSlots(slots, offeringId, owner, actorUserId);
   }
 
   /**
