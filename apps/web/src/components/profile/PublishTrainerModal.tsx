@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { AdditionalOfferingsEditor } from '@/components/profile/AdditionalOfferingsEditor';
 import { AddressGeocoder } from '@/components/profile/AddressGeocoder';
 import { CitySuggestInput } from '@/components/profile/CitySuggestInput';
 import { PublishModalShell } from '@/components/profile/PublishModalShell';
@@ -13,7 +12,7 @@ import { ScheduleSlotsEditor } from '@/components/profile/ScheduleSlotsEditor';
 import { TagSelector } from '@/components/profile/TagSelector';
 import type { TagSelectorItem } from '@/components/profile/TagSelector';
 import { Button, Input, Select } from '@/components/ui';
-import type { TrainerFormState, TrainerOfferingFormItem } from '@sporthub/domain';
+import type { TrainerFormState } from '@sporthub/domain';
 import type { TrainerClubLink } from '@sporthub/types';
 
 /** Минимальная информация о клубе для select-привязки */
@@ -108,8 +107,7 @@ type PublishTrainerApiErrorBody = {
   success?: boolean;
 };
 
-/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами.
- * Phase 25 Step 25.1a: клонируем также additionalOfferings (включая каждый scheduleSlots). */
+/** Глубоко клонирует form-state, чтобы edit/open не шарили ссылки между рендерами. */
 function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
   return {
     ...form,
@@ -117,14 +115,6 @@ function cloneTrainerFormState(form: TrainerFormState): TrainerFormState {
     sportIds: [...form.sportIds],
     workFormatIds: [...form.workFormatIds],
     scheduleSlots: form.scheduleSlots.map((slot) => ({ ...slot })),
-    ...(form.additionalOfferings !== undefined
-      ? {
-          additionalOfferings: form.additionalOfferings.map((item) => ({
-            ...item,
-            scheduleSlots: item.scheduleSlots.map((slot) => ({ ...slot })),
-          })),
-        }
-      : {}),
   };
 }
 
@@ -187,11 +177,6 @@ function buildTrainerPayload(
           }),
         }
       : {}),
-    // Phase 24 Step 24.10: дополнительные услуги передаём как есть — Zod валидирует форму,
-    // а контракты раскроют каждую карточку в offering + schedule[] в db.ts.
-    ...(form.additionalOfferings && form.additionalOfferings.length > 0
-      ? { additionalOfferings: form.additionalOfferings }
-      : {}),
   };
 }
 
@@ -239,10 +224,6 @@ export function PublishTrainerModal({
   const [linkPendingAction, setLinkPendingAction] = useState(false);
   const [linkActionError, setLinkActionError] = useState<string | null>(null);
   const [linkRequestClubId, setLinkRequestClubId] = useState<number | null>(null);
-  // Phase 24 Step 24.10c: все confirmed links тренера — для attachmentMode='club' select
-  // в AdditionalOfferingsEditor (multi-offering).
-  const [confirmedLinks, setConfirmedLinks] = useState<TrainerClubLink[]>([]);
-
   // Загружаем актуальные link'и тренера в edit-режиме при открытии.
   // trainerId = entityId; публичные статусы отображаются на основе response.
   const fetchLinks = useCallback(async () => {
@@ -258,7 +239,6 @@ export function PublishTrainerModal({
       const active =
         body.data.find((link) => link.status === 'pending' || link.status === 'confirmed') ?? null;
       setCurrentLink(active);
-      setConfirmedLinks(body.data.filter((link) => link.status === 'confirmed'));
       // Последняя неактивная — для подсказки «Отправить новый запрос».
       const lastInactive =
         body.data.find((link) => link.status === 'rejected' || link.status === 'revoked') ?? null;
@@ -864,29 +844,6 @@ export function PublishTrainerModal({
           {errors.scheduleSlots ? (
             <p className="mt-2 text-xs text-red-500">{errors.scheduleSlots}</p>
           ) : null}
-        </section>
-
-        <hr className="border-line" />
-
-        {/* Phase 24 Step 24.10c: Доп. услуги (multi-offering) */}
-        <section>
-          <h3 className="font-display text-lg font-semibold text-ink">Дополнительные услуги</h3>
-          <p className="mt-1 text-sm text-muted">
-            Добавьте отдельные услуги: каждая может быть частной или «в клубе» при подтверждённой
-            связи.
-          </p>
-          <div className="mt-3">
-            <AdditionalOfferingsEditor
-              items={form.additionalOfferings ?? []}
-              onChange={(next) => {
-                setForm((prev) => ({ ...prev, additionalOfferings: next }));
-              }}
-              confirmedLinks={confirmedLinks}
-              clubsById={new Map(clubs.map((c) => [c.id, c.name]))}
-              sportOptions={sports}
-              trainerSportIds={form.sportIds}
-            />
-          </div>
         </section>
 
         <hr className="border-line" />

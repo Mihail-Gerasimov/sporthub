@@ -70,7 +70,6 @@ type TrainerEditBootstrapResponse = {
     affiliatedClub?: Pick<Club, 'id' | 'name'> | null;
     primaryOffering?: Offering | null;
     schedule?: Schedule[];
-    additionalOfferings?: Array<{ offering: Offering; schedules: Schedule[] }>;
   };
 };
 
@@ -230,7 +229,6 @@ export function ProviderPublications({
       const trainer = result.data?.trainer;
       const primaryOffering = result.data?.primaryOffering;
       const schedule = result.data?.schedule;
-      const additionalOfferings = result.data?.additionalOfferings ?? [];
       const trainerLinks = linksResult.success ? (linksResult.data ?? []) : [];
 
       if (
@@ -251,13 +249,7 @@ export function ProviderPublications({
 
       setTrainerEditEntityId(entityId);
       setTrainerInitialData(
-        mapTrainerToFormState(
-          trainer,
-          primaryOffering,
-          primarySchedule,
-          additionalOfferings,
-          trainerLinks,
-        ),
+        mapTrainerToFormState(trainer, primaryOffering, primarySchedule, trainerLinks),
       );
       setTrainerEditClubOption(
         result.data?.affiliatedClub
