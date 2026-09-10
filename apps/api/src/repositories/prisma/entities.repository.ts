@@ -94,6 +94,10 @@ const CLUB_PLAIN_FIELDS = [
   'distanceKm',
   'source',
   'status',
+  // Признак «исправлено, ждёт повторной проверки» (шаг 36.20). Поле обычное,
+  // не стираемое: у него есть значение по умолчанию, и «нет значения» для него
+  // означает false, а не «не трогать».
+  'awaitingRecheck',
 ] as const satisfies readonly (keyof Club)[];
 
 /** Поля клуба, которые правка вправе стереть. */
@@ -106,6 +110,10 @@ const CLUB_ERASABLE_FIELDS = [
   'managedByUserId',
   'hideReason',
   'hiddenByUserId',
+  // ⚠️ Шаг 36.12. Вид скрытия обязан гаситься вместе с прочими полями скрытия.
+  // Иначе на возвращённой в каталог публикации остался бы признак «скрыто
+  // модератором», и раздел модерации показывал бы её вечно.
+  'hiddenKind',
 ] as const satisfies readonly (keyof Club)[];
 
 /**
@@ -190,6 +198,8 @@ export class PrismaClubsRepository implements ClubsRepository {
       hideReason: row.hideReason ?? undefined,
       hiddenByUserId: row.hiddenByUserId ?? undefined,
       hiddenAt: toOptionalIsoString(row.hiddenAt),
+      hiddenKind: (row.hiddenKind as Club['hiddenKind']) ?? undefined,
+      awaitingRecheck: row.awaitingRecheck,
     });
   }
 
@@ -295,6 +305,8 @@ export class PrismaClubsRepository implements ClubsRepository {
         hideReason: club.hideReason,
         hiddenByUserId: club.hiddenByUserId,
         hiddenAt: club.hiddenAt === undefined ? null : new Date(club.hiddenAt),
+        hiddenKind: club.hiddenKind ?? null,
+        awaitingRecheck: club.awaitingRecheck ?? false,
         sports: { create: idsOf(club.sportIds).map((sportId) => ({ sportId })) },
         tags: { create: idsOf(club.tagIds).map((tagId) => ({ tagId })) },
         amenities: { create: idsOf(club.amenityIds).map((amenityId) => ({ amenityId })) },
@@ -461,6 +473,8 @@ const TRAINER_PLAIN_FIELDS = [
   'priceFrom',
   'source',
   'status',
+  // Признак повторной проверки — см. пояснение у клуба (шаг 36.20).
+  'awaitingRecheck',
 ] as const satisfies readonly (keyof Trainer)[];
 
 const TRAINER_ERASABLE_FIELDS = [
@@ -480,6 +494,8 @@ const TRAINER_ERASABLE_FIELDS = [
   'managedByUserId',
   'hideReason',
   'hiddenByUserId',
+  // См. пояснение у клуба: вид скрытия гасится вместе с прочими полями (шаг 36.12).
+  'hiddenKind',
 ] as const satisfies readonly (keyof Trainer)[];
 
 @Injectable()
@@ -539,6 +555,8 @@ export class PrismaTrainersRepository implements TrainersRepository {
       hideReason: row.hideReason ?? undefined,
       hiddenByUserId: row.hiddenByUserId ?? undefined,
       hiddenAt: toOptionalIsoString(row.hiddenAt),
+      hiddenKind: (row.hiddenKind as Club['hiddenKind']) ?? undefined,
+      awaitingRecheck: row.awaitingRecheck,
     });
   }
 
@@ -632,6 +650,8 @@ export class PrismaTrainersRepository implements TrainersRepository {
         hideReason: trainer.hideReason,
         hiddenByUserId: trainer.hiddenByUserId,
         hiddenAt: trainer.hiddenAt === undefined ? null : new Date(trainer.hiddenAt),
+        hiddenKind: trainer.hiddenKind ?? null,
+        awaitingRecheck: trainer.awaitingRecheck ?? false,
         sports: { create: sportIds.map((sportId) => ({ sportId })) },
         specialties: {
           create: idsOf(trainer.specialtyIds).map((specialtyId) => ({ specialtyId })),

@@ -44,7 +44,7 @@ import {
 } from '../repositories/entities.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 import type { PublicationSlotInput } from './publication.service';
-import { PublicationService } from './publication.service';
+import { OWNER_ARCHIVE_REASON, PublicationService } from './publication.service';
 
 /**
  * День со сдвигом от сегодняшнего, ключом `YYYY-MM-DD`.
@@ -523,7 +523,72 @@ describe('PublicationService', () => {
     expect((await bookings.findAll())[0].date).toBe('2026-05-01');
   });
 
-  it('правка скрытой публикации снимает скрытие', async () => {
+  // --- Правка скрытой публикации (шаг 36.20, решение заказчика 15) -------------
+  //
+  // ⚠️ Смена продуктового поведения. Прежде ЛЮБАЯ правка снимала скрытие: владелец
+  // нажимал «Сохранить» — и публикация возвращалась в каталог. То есть модерация
+  // обходилась одним нажатием, и решение модератора не стоило ничего.
+  //
+  // Теперь развилка проходит по ВИДУ скрытия, а не по факту:
+  //   скрыл модератор → остаётся скрытой, уходит на повторную проверку;
+  //   убрал сам владелец → правка возвращает в каталог, как и раньше.
+  //
+  // Второе — не послабление, а сохранение существующего пути: другой кнопки
+  // «вернуть из архива» у владельца нет, и без этой ветки архив стал бы билетом
+  // в один конец, чего никто не просил.
+
+  it('правка публикации, скрытой МОДЕРАТОРОМ, не снимает скрытие', async () => {
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: 'жалоба',
+      hiddenByUserId: 3,
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'moderation',
+    });
+
+    const result = await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    expect(result.club.status).toBe('hidden');
+    expect(result.club.hideReason).toBe('жалоба');
+    expect(result.club.awaitingRecheck).toBe(true);
+  });
+
+  it('правка публикации, убранной ВЛАДЕЛЬЦЕМ в архив, возвращает её в каталог', async () => {
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: OWNER_ARCHIVE_REASON,
+      hiddenByUserId: 2,
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'owner_archive',
+    });
+
+    const result = await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    expect(result.club.status).toBe('published');
+    expect(result.club.hideReason).toBeUndefined();
+    expect(result.club.hiddenKind).toBeUndefined();
+    expect(result.club.awaitingRecheck).toBe(false);
+  });
+
+  it('скрытая без вида считается скрытой МОДЕРАТОРОМ — отказ закрывается, а не открывается', async () => {
+    // Осторожная сторона развилки. После миграции строк без вида не остаётся,
+    // но если такая появится, ошибиться надо в сторону сохранения скрытия:
+    // «вернули в каталог то, что прятал модератор» — дефект, а «не вернули
+    // из архива» — неудобство, которое видно и лечится вторым нажатием.
     const { club } = await createClub();
     await clubs.update(club.id, {
       status: 'hidden',
@@ -540,8 +605,22 @@ describe('PublicationService', () => {
       slots: [],
     });
 
+    expect(result.club.status).toBe('hidden');
+  });
+
+  it('правка НЕскрытой публикации признака повторной проверки не ставит', async () => {
+    const { club } = await createClub();
+
+    const result = await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Просто правка' },
+      offering: {},
+      slots: [],
+    });
+
     expect(result.club.status).toBe('published');
-    expect(result.club.hideReason).toBeUndefined();
+    expect(result.club.awaitingRecheck).toBe(false);
   });
 
   it('слот с неизвестным id отклоняется', async () => {

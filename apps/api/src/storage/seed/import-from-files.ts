@@ -375,7 +375,7 @@ async function applySequenceStarts(
 }
 
 /** Сколько строк оказалось в базе — считает сама база, а не скрипт. */
-async function countRows(client: PrismaClient, rows: PreparedRows): Promise<TableCount[]> {
+export async function countRows(client: PrismaClient, rows: PreparedRows): Promise<TableCount[]> {
   const pairs: {
     collection: string;
     table: string;
@@ -598,6 +598,12 @@ export function formatImportReport(report: ImportReport, labels: ReportLabels = 
 
   lines.push('');
   lines.push('НУМЕРАЦИЯ ПРОДОЛЖИТСЯ С');
+
+  if (report.sequences.length === 0) {
+    // Пустой список — не пропуск, а свойство записи по естественным ключам:
+    // номера раздаёт база, и поднимать ей нечего (шаг 36.33).
+    lines.push('  — номера выдаёт база, счётчики не трогались');
+  }
 
   for (const item of report.sequences) {
     lines.push(`  · ${item.table}: ${item.next}${item.reason ? ` (${item.reason})` : ''}`);

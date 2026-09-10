@@ -370,6 +370,15 @@ model Club {
   hiddenAt       DateTime? @map("hidden_at")
   hiddenByUserId Int?      @map("hidden_by_user_id")
 
+  /// Вид скрытия: 'owner_archive' | 'moderation'. Словарь — `HIDE_KINDS` в packages/domain.
+  /// Шаг 36.12: прежде архив владельца и скрытие модератором писали одни и те же поля,
+  /// и различить их можно было только по тексту причины — то есть по содержимому,
+  /// которое владелец волен написать сам.
+  hiddenKind String? @map("hidden_kind") @db.VarChar(32)
+
+  /// Владелец исправил скрытую публикацию — она ждёт повторной проверки (шаг 36.20).
+  awaitingRecheck Boolean @default(false) @map("awaiting_recheck")
+
   managedByUser User? @relation("ClubManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
   hiddenByUser  User? @relation("ClubHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
 
@@ -456,6 +465,12 @@ model Trainer {
   hideReason     String?   @map("hide_reason") @db.Text
   hiddenAt       DateTime? @map("hidden_at")
   hiddenByUserId Int?      @map("hidden_by_user_id")
+
+  /// Вид скрытия — см. одноимённое поле у клуба (шаг 36.12).
+  hiddenKind String? @map("hidden_kind") @db.VarChar(32)
+
+  /// Владелец исправил скрытую карточку — ждёт повторной проверки (шаг 36.20).
+  awaitingRecheck Boolean @default(false) @map("awaiting_recheck")
 
   managedByUser User?  @relation("TrainerManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
   hiddenByUser  User?  @relation("TrainerHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)

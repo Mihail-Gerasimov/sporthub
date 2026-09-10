@@ -140,6 +140,49 @@ function bookingsInTheWayMessage(action: string, count: number): string {
  */
 export const OWNER_ARCHIVE_REASON = 'Убрано владельцем из каталога';
 
+/**
+ * Что делать со скрытием, когда владелец правит публикацию (шаг 36.20, решение 15).
+ *
+ * ⚠️ Смена продуктового поведения. Прежде правка снимала скрытие ВСЕГДА: владелец
+ * нажимал «Сохранить» — и публикация возвращалась в каталог. То есть модерация
+ * обходилась одним нажатием, а решение модератора не стоило ничего.
+ *
+ * Развилка проходит по ВИДУ скрытия, а не по факту:
+ *
+ * - скрыл модератор → публикация остаётся скрытой и получает признак «исправлено,
+ *   ждёт повторной проверки». Модератор узнаёт об этом уведомлением;
+ * - убрал сам владелец → правка возвращает в каталог, как и раньше. Это не
+ *   послабление, а сохранение существующего пути: другой кнопки «вернуть из архива»
+ *   у владельца нет, и без этой ветки архив стал бы билетом в один конец.
+ *
+ * ⚠️ Скрытая БЕЗ вида считается работой модератора. После миграции таких строк
+ * не остаётся, но ошибаться здесь надо в сторону сохранения скрытия: «вернули
+ * в каталог то, что прятал модератор» — дефект, а «не вернули из архива» —
+ * неудобство, которое видно и лечится вторым нажатием.
+ */
+function hiddenStatePatchOnEdit(
+  current: Pick<Club, 'status' | 'hiddenKind'>,
+): Partial<Club> & Partial<Trainer> {
+  if (current.status !== 'hidden') {
+    return {};
+  }
+
+  if (current.hiddenKind === 'owner_archive') {
+    return {
+      status: 'published',
+      hideReason: undefined,
+      hiddenByUserId: undefined,
+      hiddenAt: undefined,
+      hiddenKind: undefined,
+      awaitingRecheck: false,
+    };
+  }
+
+  // Скрытие сохраняется целиком: и статус, и причина, и кто скрыл. Меняется одно —
+  // модерация узнаёт, что публикацию исправили.
+  return { awaitingRecheck: true };
+}
+
 @Injectable()
 export class PublicationService {
   constructor(
@@ -259,21 +302,18 @@ export class PublicationService {
 
     this.assertNoDuplicateSlotIds(input.slots, 'клуба');
 
-    // Правка снимает скрытие: модератор прячет публикацию, автор её исправляет.
     const club = await this.clubs.update(input.clubId, {
       ...input.club,
-      ...(current.status === 'hidden'
-        ? {
-            status: 'published',
-            hideReason: undefined,
-            hiddenByUserId: undefined,
-            hiddenAt: undefined,
-          }
-        : {}),
+      ...hiddenStatePatchOnEdit(current),
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
-    const schedules = await this.applySlots(input.slots, offering.id, { clubId: input.clubId }, input.userId);
+    const schedules = await this.applySlots(
+      input.slots,
+      offering.id,
+      { clubId: input.clubId },
+      input.userId,
+    );
 
     return { club, offering: updatedOffering, schedules };
   }
@@ -317,14 +357,7 @@ export class PublicationService {
 
     const trainer = await this.trainers.update(input.trainerId, {
       ...input.trainer,
-      ...(current.status === 'hidden'
-        ? {
-            status: 'published',
-            hideReason: undefined,
-            hiddenByUserId: undefined,
-            hiddenAt: undefined,
-          }
-        : {}),
+      ...hiddenStatePatchOnEdit(current),
     });
 
     const updatedOffering = await this.offerings.update(offering.id, input.offering);
@@ -460,6 +493,11 @@ export class PublicationService {
       hideReason: OWNER_ARCHIVE_REASON,
       hiddenByUserId: userId,
       hiddenAt: new Date().toISOString(),
+      // ⚠️ Шаг 36.12. Именно ЭТО отличает архив владельца от скрытия модератором,
+      // а не текст причины: причина — содержимое поля, и владелец волен написать
+      // в неё что угодно. Плашка на карточке читает признак, не строку.
+      hiddenKind: 'owner_archive' as const,
+      awaitingRecheck: false,
     };
   }
 
@@ -525,7 +563,9 @@ export class PublicationService {
     if (upcoming > 0) {
       throw new ConflictError(
         bookingsInTheWayMessage(
-          slotIds.length === 1 ? 'убрать это занятие из расписания' : 'убрать эти занятия из расписания',
+          slotIds.length === 1
+            ? 'убрать это занятие из расписания'
+            : 'убрать эти занятия из расписания',
           upcoming,
         ),
       );

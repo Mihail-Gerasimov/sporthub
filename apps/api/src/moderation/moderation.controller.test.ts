@@ -9,6 +9,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
+import type { ClubsRepository } from '../repositories/entities.repository';
+import { CLUBS_REPOSITORY } from '../repositories/entities.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
 describe('Маршруты модерации', () => {
@@ -161,6 +163,56 @@ describe('Маршруты модерации', () => {
 
     expect(response.body.data.status).toBe('published');
     expect(response.body.data.hideReason).toBeUndefined();
+  });
+
+  // --- Вид скрытия (шаг 36.12) --------------------------------------------------
+
+  it('скрытие модератором помечается видом «moderation»', async () => {
+    // ⚠️ Прежде вид скрытия выводился из ТЕКСТА причины: если он совпадал
+    // со служебной строкой владельца — считалось архивом. То есть владелец мог
+    // выдать чужое скрытие за свой архив, просто вписав ту же причину.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Убрано владельцем из каталога' });
+
+    expect(response.status).toBe(200);
+    // Причина ровно та, что прислали, а вид — всё равно модерация.
+    expect(response.body.data).toMatchObject({
+      hideReason: 'Убрано владельцем из каталога',
+      hiddenKind: 'moderation',
+    });
+  });
+
+  it('восстановление гасит и вид скрытия, и признак повторной проверки', async () => {
+    // Забытый признак оставил бы живую публикацию в разделе модерации навсегда,
+    // а забытый вид — показал бы плашку на возвращённой карточке.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Жалобы' });
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'unhide', entityType: 'club', entityId: 1 });
+
+    expect(response.body.data.hiddenKind).toBeUndefined();
+    expect(response.body.data.awaitingRecheck).toBe(false);
+  });
+
+  it('повторное скрытие сбрасывает признак повторной проверки', async () => {
+    // Новая причина начинает разбирательство заново: прежнее «исправлено»
+    // к ней отношения не имеет.
+    const clubs = harness.app.get<ClubsRepository>(CLUBS_REPOSITORY);
+    await clubs.update(1, { awaitingRecheck: true });
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Новая жалоба' });
+
+    expect(response.body.data.awaitingRecheck).toBe(false);
   });
 
   it('владелец клуба модерировать не может — 403', async () => {

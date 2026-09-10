@@ -161,6 +161,14 @@ export class ModerationController {
       hideReason: reason,
       hiddenByUserId: moderatorId,
       hiddenAt: new Date().toISOString(),
+      // ⚠️ Шаг 36.12. Вид скрытия — признак, а не вывод из текста причины.
+      // Прежде архив владельца писал те же четыре поля, и различить их можно было
+      // только сравнением причины с константой: стоило владельцу вписать ту же
+      // строку руками — и его архив выглядел бы работой модератора.
+      hiddenKind: 'moderation' as const,
+      // Скрытие начинает разбирательство заново: прежний признак «исправлено,
+      // ждёт проверки» к новой причине отношения не имеет.
+      awaitingRecheck: false,
     };
 
     if (entityType === 'club') {
@@ -180,6 +188,11 @@ export class ModerationController {
       hideReason: undefined,
       hiddenByUserId: undefined,
       hiddenAt: undefined,
+      // ⚠️ Оба новых поля гасятся здесь же. Забытый признак «ждёт повторной
+      // проверки» оставил бы живую публикацию в разделе модерации навсегда,
+      // а забытый вид скрытия — показал бы плашку на возвращённой карточке.
+      hiddenKind: undefined,
+      awaitingRecheck: false,
     };
 
     if (entityType === 'club') {
