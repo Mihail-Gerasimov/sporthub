@@ -105,14 +105,64 @@ describe('proxy: что решает', () => {
     ).toBeNull();
   });
 
-  it('не проверяет годность cookie — это работа лейаутов и бэкенда', () => {
-    // Сознательная граница: подпись значения здесь не проверяется и проверена
-    // быть не может. Пропуск ≠ доступ, и тест это фиксирует, чтобы никто
-    // не принял proxy за авторизацию.
+  it('не проверяет ГОДНОСТЬ cookie — это работа лейаутов и бэкенда', () => {
+    // Сознательная граница, и шаг 36.24 её НЕ сдвинул. Живая ли сессия, чья она
+    // и не отозвана ли — здесь неизвестно и непроверяемо: в базе лежит sha256,
+    // а сходить за ответом «кто я» отсюда нельзя. Строка нашей формы, никогда
+    // никому не выдававшаяся, проходит — и это правильно.
+    // Пропуск ≠ доступ; тест стоит здесь, чтобы никто не принял proxy за авторизацию.
+    const neverIssued = randomBytes(SESSION_TOKEN_BYTES).toString('base64url');
     const response = proxy(
-      requestFor('/profile/provider', { [SESSION_COOKIE_NAME_PLAIN]: ISSUED }),
+      requestFor('/profile/provider', { [SESSION_COOKIE_NAME_PLAIN]: neverIssued }),
     );
 
     expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('но отбивает заведомо не наш ФОРМАТ — веткой гостя, а не отказом', () => {
+    // Шаг 36.24. Мусорная строка стоила полной отрисовки страницы: прокси её
+    // пропускал, Next поднимал маршрут, лейаут шёл на бэкенд за «кто я»,
+    // получал 401 и уводил — отдав перед этим 12–18 КБ каркаса.
+    //
+    // ⚠️ Реакция — увод, а не отказ. Если проверка однажды ошибётся, цена —
+    // «всех разлогинило»: редирект лечится входом, 400 не лечится ничем.
+    for (const junk of ['x', 'never-issued', 'session-7', 'привет', 'a'.repeat(200)]) {
+      const response = proxy(requestFor('/profile/athlete', { [SESSION_COOKIE_NAME_PLAIN]: junk }));
+
+      expect(response.status, `мусор «${junk}» прошёл прокси`).toBe(307);
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/');
+    }
+  });
+
+  it('мусорная cookie не запирает человека вне страницы входа в панель', () => {
+    // ⚠️ Мусор обязан идти ТОЙ ЖЕ веткой гостя, включая исключение
+    // `/service-portal`. Иначе испорченная cookie заперла бы человека снаружи,
+    // и починить это из браузера он бы не смог: страница входа уводила бы сама себя.
+    expect(
+      proxy(requestFor('/service-portal', { [SESSION_COOKIE_NAME_PLAIN]: 'x' })).headers.get(
+        'location',
+      ),
+    ).toBeNull();
+    expect(
+      proxy(
+        requestFor('/service-portal/', { [SESSION_COOKIE_NAME_HOST]: 'never-issued' }),
+      ).headers.get('location'),
+    ).toBeNull();
+  });
+
+  it('форма проверяется ДИАПАЗОНОМ длины, а не точным числом', () => {
+    // ⚠️ «Ровно столько, сколько сейчас» ломается не в ту сторону: смена числа
+    // байт в выдаче заставила бы прокси отбрасывать НОВЫЕ сессии — все и сразу,
+    // в момент выкатки, — тогда как старые продолжали бы работать.
+    for (const bytes of [16, SESSION_TOKEN_BYTES, 64]) {
+      const token = randomBytes(bytes).toString('base64url');
+
+      expect(
+        proxy(requestFor('/profile/athlete', { [SESSION_COOKIE_NAME_PLAIN]: token })).headers.get(
+          'location',
+        ),
+        `идентификатор из ${bytes} байт отбит`,
+      ).toBeNull();
+    }
   });
 });
