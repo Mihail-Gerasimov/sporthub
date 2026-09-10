@@ -50,7 +50,7 @@ describe('словарь видов скрытия', () => {
   it('чужое значение видом скрытия не считается', () => {
     expect(isHideKind('moderation')).toBe(true);
     expect(isHideKind('owner_archive')).toBe(true);
-    expect(isHideKind('quarantine')).toBe(false);
+    expect(isHideKind('archived_by_robot')).toBe(false);
     expect(isHideKind(undefined)).toBe(false);
     expect(isHideKind(null)).toBe(false);
   });

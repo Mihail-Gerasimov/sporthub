@@ -397,9 +397,25 @@ describe('Маршруты клубов и тренеров', () => {
 
       const visible = await request(server()).get('/api/clubs');
       expect(visible.body.data.map((item: { id: number }) => item.id)).toEqual([1]);
+    });
+
+    it('флаг «показать скрытые» гостю ничего не открывает', async () => {
+      // ⚠️ Шаг 36.14, смена обещания. Прежде здесь стояло
+      // `expect(all.body.data).toHaveLength(2)` — то есть набор ФИКСИРОВАЛ дыру
+      // как правильное поведение: запрос без cookie получал скрытую публикацию
+      // вместе с `hideReason` и номером скрывшего её администратора. Проверено
+      // на живом приложении 10.09.2026.
+      //
+      // Тест переписан на новое обещание, а не «починен»: молча перевёрнутое
+      // утверждение выглядит одинаково и в честном виде, и в подогнанном.
+      await harness.write('clubs', [club(1), club(3, { status: 'hidden' })]);
 
       const all = await request(server()).get('/api/clubs?includeHidden=true');
-      expect(all.body.data).toHaveLength(2);
+
+      // Не отказ, а сужение выдачи: фронт слал этот флаг безусловно, и 403
+      // превратил бы публичные страницы в 500 у гостя.
+      expect(all.status).toBe(200);
+      expect(all.body.data.map((item: { id: number }) => item.id)).toEqual([1]);
     });
 
     it('неизвестная сортировка тренеров отклоняется', async () => {
