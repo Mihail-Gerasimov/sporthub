@@ -12,7 +12,8 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import type { CatalogOwnerType, Schedule } from '@sporthub/types';
 
-import { Public } from '../auth/access.decorators';
+import { CurrentUser, Public } from '../auth/access.decorators';
+import type { SessionContext } from '../auth/session.service';
 import { ValidationError } from '../common/domain-error';
 import type { ScheduleRepository } from '../repositories/entities.repository';
 import { SCHEDULE_REPOSITORY } from '../repositories/entities.repository';
@@ -65,6 +66,7 @@ export class ScheduleController {
     @Query('sportId') rawSportId?: string,
     @Query('date') rawDate?: string,
     @Query('includeFull') includeFull?: string,
+    @CurrentUser() session?: SessionContext,
   ): Promise<ScheduleSlotWithAvailability[]> {
     const ownerType = optionalText(rawOwnerType);
 
@@ -99,6 +101,14 @@ export class ScheduleController {
       sportId,
       date,
       onlyWithFreeSeats: includeFull !== 'true',
+      // ⚠️ Шаг 36.13a. Публичный список расписания — СЕДЬМОЙ путь к скрытой публикации,
+      // и до приёмки он был открыт: гость получал слоты скрытого клуба с названием,
+      // датой, ценой и числом мест, тогда как контекст того же слота отвечал 404.
+      // Два публичных маршрута про одно занятие говорили разное.
+      excludeHiddenOwners: true,
+      // Владелец видит свои слоты и скрытыми: без этого кабинет потерял бы расписание
+      // публикации, которую как раз и надо чинить.
+      includeHiddenOwnedBy: session?.user.id,
       order: 'dateTime',
     });
 

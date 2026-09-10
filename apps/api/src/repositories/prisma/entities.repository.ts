@@ -879,6 +879,28 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     if (filter.sportId !== undefined) conditions.push({ sportId: filter.sportId });
     if (filter.date !== undefined) conditions.push({ date: fromDateKey(filter.date) });
 
+    if (filter.excludeHiddenOwners === true) {
+      // ⚠️ Шаг 36.13a, седьмой путь к скрытой публикации. Условие ставится СВЯЗЬЮ:
+      // Prisma разворачивает его в подзапрос по владельцу, то есть отбор делает база.
+      // Отбор после чтения означал бы, что цена запроса растёт вместе с расписанием
+      // площадки, а отдавали бы мы всё равно меньше.
+      //
+      // Владелец у слота ровно один из двух, и второй при этом `null`, поэтому
+      // условие на отсутствующую связь обязано пропускать строку: `is: null` —
+      // не «скрыто», а «этого владельца нет».
+      const visible = (owner: 'ownerClub' | 'ownerTrainer'): Record<string, unknown> => ({
+        OR: [
+          { [owner]: { is: null } },
+          { [owner]: { status: { not: 'hidden' } } },
+          ...(filter.includeHiddenOwnedBy === undefined
+            ? []
+            : [{ [owner]: { managedByUserId: filter.includeHiddenOwnedBy } }]),
+        ],
+      });
+
+      conditions.push(visible('ownerClub'), visible('ownerTrainer'));
+    }
+
     if (filter.onlyWithFreeSeats === true) {
       // ⚠️ Сравнение двух КОЛОНОК одной строки, а не колонки со значением. Обычное
       // условие Prisma так не умеет, и вариантов было два: сырой запрос через

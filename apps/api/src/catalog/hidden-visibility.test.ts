@@ -183,9 +183,8 @@ describe('скрытая публикация: шесть путей отвеч�
     });
   }
 
-  it('контекст слота скрытой публикации гостю не отдаётся', async () => {
-    // ⚠️ Шестой путь и самый незаметный: страница записи открыта гостю и отдаёт
-    // сразу три публикации. Проверки статуса здесь не было ВООБЩЕ.
+  /** Услуга и слот скрытого клуба — предмет проверки шестого и седьмого путей. */
+  const seedSlot = async (): Promise<void> => {
     await harness.writeMany({
       offerings: [
         {
@@ -227,6 +226,13 @@ describe('скрытая публикация: шесть путей отвеч�
       ],
     });
 
+  };
+
+  it('контекст слота скрытой публикации гостю не отдаётся', async () => {
+    // ⚠️ Шестой путь и самый незаметный: страница записи открыта гостю и отдаёт
+    // сразу три публикации. Проверки статуса здесь не было ВООБЩЕ.
+    await seedSlot();
+
     const guest = await request(server()).get('/api/schedule/1/context');
     expect(guest.status).toBe(404);
 
@@ -240,6 +246,28 @@ describe('скрытая публикация: шесть путей отвеч�
       .get('/api/schedule/1/context')
       .set('Cookie', await harness.as(OWNER_ID));
     expect(owner.status).toBe(200);
+  });
+
+  it('публичный список расписания не отдаёт слоты скрытой публикации', async () => {
+    // ⚠️ СЕДЬМОЙ путь, найденный браузерным прогоном приёмки. Шесть были закрыты,
+    // а этот статуса владельца не смотрел вовсе: гость получал слоты скрытого клуба
+    // с названием, датой, ценой и числом мест. При этом контекст ТОГО ЖЕ слота
+    // отвечал 404 — два публичных маршрута про одно занятие говорили разное.
+    await seedSlot();
+
+    const guest = await request(server()).get('/api/schedule?ownerType=all&includeFull=true');
+    expect(guest.body.data).toHaveLength(0);
+
+    const stranger = await request(server())
+      .get('/api/schedule?ownerType=all&includeFull=true')
+      .set('Cookie', await harness.as(STRANGER_ID));
+    expect(stranger.body.data).toHaveLength(0);
+
+    // Владелец своё расписание видит: иначе он не починит публикацию.
+    const owner = await request(server())
+      .get('/api/schedule?ownerType=all&includeFull=true')
+      .set('Cookie', await harness.as(OWNER_ID));
+    expect(owner.body.data).toHaveLength(1);
   });
 
   it('отказ гостю — 404, а не 403: по 403 публикацию можно перечислить', async () => {
