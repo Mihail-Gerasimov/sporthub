@@ -128,13 +128,30 @@ export async function requirePerson(): Promise<SessionUser> {
   return user;
 }
 
-/** Кабинет лица услуг: пускает того, кто этим лицом управляет. */
-export async function requireOwner(kind: 'club' | 'trainer', id: number): Promise<SessionUser> {
+/**
+ * Кабинет лица услуг: пускает того, кто этим лицом управляет, и отдаёт САМО ЛИЦО.
+ *
+ * ⚠️ Почему возвращается лицо, а не только человек. Первая редакция отдавала
+ * `SessionUser`, и лейаут искал лицо вторым действием — `findFaceByRef`, — с
+ * собственной веткой «не нашли, уводим». Комментарий у той ветки честно говорил
+ * «сюда попасть нельзя, `requireOwner` уже увёл бы», и это было правдой ровно
+ * до диверсии: снятие ЭТОЙ проверки тесты не заметили, потому что уводила ВТОРАЯ.
+ * Две проверки одного и того же — не двойная защита, а маска: пока цела вторая,
+ * снятие первой не видно ни тесту, ни ревью.
+ *
+ * Теперь решение одно. Лицо приходит отсюда, и получить его, минуя сверку,
+ * неоткуда — вызывающему нечего искать во второй раз.
+ */
+export async function requireOwner(
+  kind: 'club' | 'trainer',
+  id: number,
+): Promise<{ user: SessionUser; face: ServiceFace }> {
   const user = await requireSession();
+  const face = user.faces.find((item) => item.kind === kind && item.id === id);
 
-  if (!user.faces.some((face) => face.kind === kind && face.id === id)) redirect('/');
+  if (face === undefined) redirect('/');
 
-  return user;
+  return { user, face };
 }
 
 /**

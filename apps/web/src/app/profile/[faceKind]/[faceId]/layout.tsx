@@ -22,7 +22,7 @@ import { redirect } from 'next/navigation';
 import { ProfileLayoutShell } from '@/components/profile/ProfileLayoutShell';
 import { loadFaceScope } from '@/lib/face-scope';
 import type { FaceCabinetParams } from '@/lib/face-cabinet-params';
-import { faceCabinet, findFaceByRef, parseFaceCabinetParams } from '@/lib/service-faces';
+import { faceCabinet, parseFaceCabinetParams } from '@/lib/service-faces';
 import { requireOwner } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -43,12 +43,11 @@ export default async function FaceCabinetLayout({ children, params }: FaceCabine
   // ⚠️ Единственная проверка владения кабинетом, и она серверная. Список лиц
   // приезжает тем же ответом «кто я», которым проверяется вход, — поэтому она
   // укладывается в один запрос и ни одного похода за данными не стоит.
-  const user = await requireOwner(ref.kind, ref.id);
-  const face = findFaceByRef(user.faces, ref);
-
-  // Сюда попасть нельзя: `requireOwner` уже увёл бы. Проверка стоит ради типа —
-  // ниже нужно имя лица, а не только его номер.
-  if (face === null) redirect('/');
+  // ⚠️ Одно решение о доступе, и лицо приходит из него же. Раньше здесь стояли
+  // две проверки подряд — сверка владения и поиск лица со своей веткой «уводим», —
+  // и вторая маскировала снятие первой: диверсия «убрать `requireOwner`» тестов
+  // не покрасила, потому что уводил поиск лица. Искать нечего: сверка и есть поиск.
+  const { face } = await requireOwner(ref.kind, ref.id);
 
   const scope = await loadFaceScope(ref.kind, ref.id);
 
