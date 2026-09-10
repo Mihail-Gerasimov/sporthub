@@ -54,9 +54,16 @@ vi.mock('@/lib/session', () => ({
   readSession: async () => (signedInUserId === undefined ? null : sessionUser()),
   requireSession: async () => sessionUser(),
   requirePerson: async () => sessionUser(),
-  requireOwner: async () => sessionUser(),
+  // ⚠️ Шаг 35.31: проверка владения отдаёт САМО ЛИЦО, а не только человека.
+  requireOwner: async () => ({ user: sessionUser(), face: sessionUser().faces[0] }),
   requireAdmin: async () => sessionUser(),
 }));
+
+/** Номер лица, чей кабинет открыт в проверках ниже. */
+const FACE_PARAMS = Promise.resolve({ faceKind: 'club', faceId: '1' });
+
+/** Отрисовать страницу кабинета лица: ей нужен номер лица из адреса. */
+const withFace = () => ({ params: FACE_PARAMS });
 
 /** Запросы записей, которые сделала страница. */
 const bookingCalls = (stub: ApiStub) => stub.calls.filter((call) => call.startsWith('/bookings'));
@@ -74,57 +81,62 @@ describe('Запросы серверных страниц кабинетов', 
     signedInUserId = undefined;
   });
 
-  describe('кабинет атлета', () => {
-    it('спрашивает записи только своего атлета', async () => {
+  describe('личный кабинет человека', () => {
+    it('спрашивает записи только вошедшего', async () => {
       signedInUserId = '1';
-      const { default: AthleteScheduleRoute } = await import('@/app/profile/athlete/schedule/page');
+      const { default: ScheduleRoute } = await import('@/app/profile/me/schedule/page');
 
-      await AthleteScheduleRoute();
+      await ScheduleRoute();
 
       expect(bookingCalls(stub)).toEqual(['/bookings?userId=1']);
     });
 
     it('у гостя записей не спрашивает вовсе', async () => {
-      const { default: AthleteScheduleRoute } = await import('@/app/profile/athlete/schedule/page');
+      const { default: ScheduleRoute } = await import('@/app/profile/me/schedule/page');
 
-      await AthleteScheduleRoute();
+      await ScheduleRoute();
 
       expect(bookingCalls(stub)).toEqual([]);
     });
   });
 
-  describe('кабинет провайдера', () => {
+  describe('кабинет лица услуг', () => {
     it('спрашивает записи своих публикаций одним запросом и ни одной чужой', async () => {
       signedInUserId = '2';
-      const { default: ProviderStatsRoute } = await import('@/app/profile/provider/stats/page');
+      const { default: FaceStatsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/stats/page');
 
-      await ProviderStatsRoute();
+      await FaceStatsRoute(withFace());
 
       // ⚠️ Раньше здесь стоял веер: по запросу на каждую свою публикацию, и в каждом
       // `scope=all`. Публикации перечислял сам фронт, то есть их номера ехали
       // на бэкенд снаружи, а полный срез площадки после закрытия правом
       // администратора стал отвечать отказом — кабинет перестал открываться.
       // Теперь публикации находит бэкенд по владельцу сессии, и запрос ровно один.
-      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner']);
+      // Срез спрашивается ПО ЛИЦУ: у владельца трёх клубов кабинет каждого
+      // показывает свои записи, а не общую кучу.
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner&faceType=club&faceId=1']);
     });
 
     it('у гостя записей не спрашивает вовсе', async () => {
-      const { default: ProviderStatsRoute } = await import('@/app/profile/provider/stats/page');
+      const { default: FaceStatsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/stats/page');
 
-      await ProviderStatsRoute();
+      await FaceStatsRoute(withFace());
 
       expect(bookingCalls(stub)).toEqual([]);
     });
 
     it('макет спрашивает то же самое, что и страница, и ничего сверх', async () => {
       signedInUserId = '2';
-      const { default: ProviderProfileLayout } = await import('@/app/profile/provider/layout');
+      const { default: FaceCabinetLayout } =
+        await import('@/app/profile/[faceKind]/[faceId]/layout');
 
-      await ProviderProfileLayout({ children: null });
+      await FaceCabinetLayout({ children: null, params: FACE_PARAMS });
 
       // Макет решает по записям, показывать ли раздел «Записи», — и ему нужен
       // ровно тот же срез, что и странице. Отсюда общий загрузчик.
-      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner']);
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner&faceType=club&faceId=1']);
     });
 
     it('ни макет, ни страницы не ходят за записями мимо общего загрузчика', async () => {
@@ -136,17 +148,17 @@ describe('Запросы серверных страниц кабинетов', 
       // рендера Next, а тут функции маршрутов вызываются напрямую. Поэтому стережём
       // то, что проверяемо, — отсутствие обходных путей.
       const files = [
-        'src/app/profile/provider/layout.tsx',
-        'src/app/profile/provider/dashboard/page.tsx',
-        'src/app/profile/provider/stats/page.tsx',
-        'src/app/profile/provider/bookings/page.tsx',
-        'src/app/profile/provider/clients/page.tsx',
+        'src/app/profile/[faceKind]/[faceId]/layout.tsx',
+        'src/app/profile/[faceKind]/[faceId]/dashboard/page.tsx',
+        'src/app/profile/[faceKind]/[faceId]/stats/page.tsx',
+        'src/app/profile/[faceKind]/[faceId]/bookings/page.tsx',
+        'src/app/profile/[faceKind]/[faceId]/clients/page.tsx',
       ];
 
       for (const file of files) {
         const text = await readFile(path.join(WEB_ROOT, file), 'utf8');
 
-        expect({ file, usesLoader: /loadProviderScope/.test(text) }).toEqual({
+        expect({ file, usesLoader: /loadFaceScope/.test(text) }).toEqual({
           file,
           usesLoader: true,
         });
@@ -159,10 +171,10 @@ describe('Запросы серверных страниц кабинетов', 
 
     it('обзор берёт уведомления своего пользователя, а не ленту всей площадки', async () => {
       signedInUserId = '2';
-      const { default: ProviderDashboardRoute } =
-        await import('@/app/profile/provider/dashboard/page');
+      const { default: FaceDashboardRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/dashboard/page');
 
-      await ProviderDashboardRoute();
+      await FaceDashboardRoute(withFace());
 
       // ⚠️ Обзору нужно ОДНО число — сколько у провайдера непрочитанных. Раньше ради
       // него запрашивалась лента ВСЕЙ площадки (`scope=all`) и фильтровалась в памяти:
@@ -179,11 +191,11 @@ describe('Запросы серверных страниц кабинетов', 
       // лишние данные». Проверяются все четыре страницы кабинета и макет.
       signedInUserId = '2';
       const routes = [
-        '@/app/profile/provider/layout',
-        '@/app/profile/provider/dashboard/page',
-        '@/app/profile/provider/stats/page',
-        '@/app/profile/provider/bookings/page',
-        '@/app/profile/provider/clients/page',
+        '@/app/profile/[faceKind]/[faceId]/layout',
+        '@/app/profile/[faceKind]/[faceId]/dashboard/page',
+        '@/app/profile/[faceKind]/[faceId]/stats/page',
+        '@/app/profile/[faceKind]/[faceId]/bookings/page',
+        '@/app/profile/[faceKind]/[faceId]/clients/page',
       ];
 
       for (const route of routes) {
@@ -193,7 +205,7 @@ describe('Запросы серверных страниц кабинетов', 
 
         const { default: Route } = await import(route);
 
-        await Route({ children: null });
+        await Route({ children: null, params: FACE_PARAMS });
 
         expect({ route, all: stub.calls.filter((call) => call.includes('scope=all')) }).toEqual({
           route,
@@ -204,16 +216,17 @@ describe('Запросы серверных страниц кабинетов', 
 
     it('раздел клиентов берёт историю СВОИХ клиентов, а не срез площадки', async () => {
       signedInUserId = '2';
-      const { default: ProviderClientsRoute } = await import('@/app/profile/provider/clients/page');
+      const { default: FaceClientsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/clients/page');
 
-      await ProviderClientsRoute();
+      await FaceClientsRoute(withFace());
 
       // Бейдж надёжности клиента считается по всей его истории, поэтому к записям
       // публикаций добавляется история тех же людей — срез `scope=clients` по трём
       // статусам из восьми, тем, которые читает расчёт.
       const calls = bookingCalls(stub);
       expect(calls).toContain(
-        '/bookings?scope=clients&status=completed%2Cno_show%2Ccancelled_by_athlete',
+        '/bookings?scope=clients&faceType=club&faceId=1&status=completed%2Cno_show%2Ccancelled_by_athlete',
       );
       // ⚠️ Срез всей площадки закрыт правом администратора: провайдер получил бы
       // на него отказ, и страница упала бы целиком. Ни в каком виде его тут быть
@@ -224,14 +237,14 @@ describe('Запросы серверных страниц кабинетов', 
 
     it('раздел записей берёт тот же срез клиентов, что и раздел клиентов', async () => {
       signedInUserId = '2';
-      const { default: ProviderBookingsRoute } =
-        await import('@/app/profile/provider/bookings/page');
+      const { default: FaceBookingsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/bookings/page');
 
-      await ProviderBookingsRoute();
+      await FaceBookingsRoute(withFace());
 
       const calls = bookingCalls(stub);
       expect(calls).toContain(
-        '/bookings?scope=clients&status=completed%2Cno_show%2Ccancelled_by_athlete',
+        '/bookings?scope=clients&faceType=club&faceId=1&status=completed%2Cno_show%2Ccancelled_by_athlete',
       );
       expect(calls.filter((call) => call.includes('scope=all&status'))).toEqual([]);
     });
@@ -239,9 +252,10 @@ describe('Запросы серверных страниц кабинетов', 
     it('у гостя истории клиентов не спрашивает вовсе', async () => {
       // Кто такой «этот провайдер», знает только сессия: без неё спрашивать нечего,
       // и запрос не должен уходить «на всякий случай».
-      const { default: ProviderClientsRoute } = await import('@/app/profile/provider/clients/page');
+      const { default: FaceClientsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/clients/page');
 
-      await ProviderClientsRoute();
+      await FaceClientsRoute(withFace());
 
       expect(bookingCalls(stub)).toEqual([]);
     });

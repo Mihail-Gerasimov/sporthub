@@ -2,6 +2,7 @@
 // per-offering KPI для multi-offering тренера, link-навигация KPI-карточек.
 // Read-only компонент (нет mutation → тосты/refresh не нужны), рендерим напрямую.
 import { render, screen, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -14,7 +15,9 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+import { CabinetProvider } from '@/components/profile/cabinet-context';
 import { ProviderDashboard } from '@/components/profile/provider/ProviderDashboard';
+import { faceCabinet } from '@/lib/service-faces';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { facesOf } from '@/test/helpers/service-faces';
 import type { Booking, Club, Offering, Review, Trainer, User } from '@sporthub/types';
@@ -109,6 +112,22 @@ function authenticateProvider() {
   });
 }
 
+/**
+ * Отрисовать сводку ВНУТРИ кабинета лица.
+ *
+ * ⚠️ Обёртка обязательна, а не украшение. Без неё `useCabinet` отдаёт умолчание —
+ * личный кабинет, — и ссылки KPI ведут в `/profile/me/*`. Тест без обёртки
+ * проверял бы ровно то, чего в бою не бывает: сводка лица живёт только внутри
+ * кабинета этого лица.
+ */
+function renderInFaceCabinet(node: ReactElement, faceId = 1) {
+  return render(
+    <CabinetProvider cabinet={faceCabinet({ kind: 'club', id: faceId, name: 'Клуб' })}>
+      {node}
+    </CabinetProvider>,
+  );
+}
+
 describe('ProviderDashboard (Step 25.8)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -123,7 +142,7 @@ describe('ProviderDashboard (Step 25.8)', () => {
   it('only clubs: при 1 клубе и 0 тренеров видна секция клубов и не видна секция тренеров', () => {
     authenticateProvider();
 
-    render(<ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[]} />);
 
     expect(screen.getByTestId('provider-dashboard-clubs')).toBeInTheDocument();
     expect(screen.queryByTestId('provider-dashboard-trainers')).not.toBeInTheDocument();
@@ -132,7 +151,7 @@ describe('ProviderDashboard (Step 25.8)', () => {
   it('only trainers: при 0 клубов и 1 тренере видна секция тренеров и не видна секция клубов', () => {
     authenticateProvider();
 
-    render(<ProviderDashboard clubs={[]} trainers={[makeTrainer({ id: 10 })]} />);
+    renderInFaceCabinet(<ProviderDashboard clubs={[]} trainers={[makeTrainer({ id: 10 })]} />);
 
     expect(screen.getByTestId('provider-dashboard-trainers')).toBeInTheDocument();
     expect(screen.queryByTestId('provider-dashboard-clubs')).not.toBeInTheDocument();
@@ -152,7 +171,7 @@ describe('ProviderDashboard (Step 25.8)', () => {
   it('empty: у нового провайдера без публикаций — CTA «Опубликуйте первую услугу»', () => {
     authenticateProvider();
 
-    render(<ProviderDashboard clubs={[]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderDashboard clubs={[]} trainers={[]} />);
 
     expect(screen.getByTestId('provider-dashboard-empty')).toBeInTheDocument();
     expect(screen.getByText(/Опубликуйте первую услугу/i)).toBeInTheDocument();
@@ -226,25 +245,25 @@ describe('ProviderDashboard (Step 25.8)', () => {
       },
     ];
 
-    render(<ProviderDashboard clubs={[club]} trainers={[]} reviews={reviews} />);
+    renderInFaceCabinet(<ProviderDashboard clubs={[club]} trainers={[]} reviews={reviews} />);
 
     const card = screen.getByTestId('provider-dashboard-rating');
     expect(card).toHaveTextContent('4.5');
     expect(card).toHaveTextContent(/Рейтинг/i);
 
     const link = screen.getByTestId('provider-dashboard-rating-link');
-    expect(link).toHaveAttribute('href', '/profile/provider/reviews');
+    expect(link).toHaveAttribute('href', '/profile/club/1/reviews');
   });
 
-  it('link навигация: pending-bookings KPI-карточка оборачивается в Link на /profile/provider/bookings', () => {
+  it('link навигация: pending-bookings KPI-карточка ведёт в раздел записей ЭТОГО лица', () => {
     authenticateProvider();
 
-    render(<ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[]} />);
+    renderInFaceCabinet(<ProviderDashboard clubs={[makeClub({ id: 1 })]} trainers={[]} />);
 
     const link = screen.getByTestId('provider-dashboard-pending-bookings-link');
-    expect(link).toHaveAttribute('href', '/profile/provider/bookings?tab=pending');
+    expect(link).toHaveAttribute('href', '/profile/club/1/bookings?tab=pending');
 
     const linksLink = screen.getByTestId('provider-dashboard-pending-links-link');
-    expect(linksLink).toHaveAttribute('href', '/profile/provider/links');
+    expect(linksLink).toHaveAttribute('href', '/profile/club/1/links');
   });
 });

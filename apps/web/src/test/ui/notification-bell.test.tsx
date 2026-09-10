@@ -144,7 +144,7 @@ describe('NotificationBell', () => {
     expect(screen.queryByTestId('notification-bell-badge')).not.toBeInTheDocument();
   });
 
-  it('по клику открывает dropdown с последними уведомлениями и ссылкой «Все уведомления» в кабинет атлета', async () => {
+  it('по клику открывает dropdown с последними уведомлениями и ссылкой «Все уведомления» в личный кабинет', async () => {
     mockFetchByRoute({
       unreadCount: 2,
       items: [
@@ -190,7 +190,7 @@ describe('NotificationBell', () => {
     expect(screen.getByText(/бронирование отклонено/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Все уведомления' })).toHaveAttribute(
       'href',
-      '/profile/athlete/notifications',
+      '/profile/me/notifications',
     );
   });
 
@@ -219,7 +219,7 @@ describe('NotificationBell', () => {
 
     expect(screen.getByRole('link', { name: 'Все уведомления' })).toHaveAttribute(
       'href',
-      '/profile/provider/notifications',
+      '/profile/club/3/notifications',
     );
     expect(screen.getByText(/нет новых уведомлений/i)).toBeInTheDocument();
   });
@@ -276,7 +276,7 @@ describe('NotificationBell', () => {
     expect(String(listCall?.[0])).not.toContain('userId');
 
     // Навигация на полную страницу уведомлений.
-    expect(routerPushMock).toHaveBeenCalledWith('/profile/athlete/notifications');
+    expect(routerPushMock).toHaveBeenCalledWith('/profile/me/notifications');
 
     // Dropdown закрылся.
     expect(screen.queryByTestId('notification-bell-dropdown')).not.toBeInTheDocument();

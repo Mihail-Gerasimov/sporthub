@@ -216,7 +216,7 @@ describe('BookingActionBlock', () => {
 
     expect(screen.getByRole('link', { name: 'Перейти в ЛК' })).toHaveAttribute(
       'href',
-      '/profile/athlete/dashboard',
+      '/profile/me/dashboard',
     );
     expect(screen.queryByRole('button', { name: 'Подтвердить запись' })).not.toBeInTheDocument();
   });
@@ -292,7 +292,7 @@ describe('BookingActionBlock', () => {
 
     expect(screen.getByRole('link', { name: 'Перейти в ЛК' })).toHaveAttribute(
       'href',
-      '/profile/athlete/dashboard',
+      '/profile/me/dashboard',
     );
     expect(refreshMock).toHaveBeenCalledTimes(1);
   });
