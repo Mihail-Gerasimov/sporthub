@@ -197,6 +197,12 @@ describe('Маршруты модерации', () => {
       .set('Cookie', adminCookie)
       .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'Жалобы' });
 
+    // ⚠️ Признак выставляется ЯВНО, а не подразумевается. Дыра, найденная диверсией
+    // д-35: без этой строки набор снимал скрытие с публикации, у которой признака
+    // и не было, — и «unhide его гасит» зеленело, ничего не проверяя.
+    const clubs = harness.app.get<ClubsRepository>(CLUBS_REPOSITORY);
+    await clubs.update(1, { awaitingRecheck: true });
+
     const response = await request(harness.app.getHttpServer())
       .post('/api/moderation')
       .set('Cookie', adminCookie)
