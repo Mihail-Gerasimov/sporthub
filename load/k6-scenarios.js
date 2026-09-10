@@ -19,6 +19,12 @@ import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
 const API = __ENV.API || 'http://localhost:3001';
+/**
+ * Адрес ФРОНТА (шаг 36.43). Отличается от `API` намеренно: цена отказа мусорной cookie
+ * платится отрисовкой страницы, а страницы рисует фронт. Меряя её на бэкенде,
+ * мы мерили бы не то место.
+ */
+const WEB = __ENV.WEB || 'http://localhost:3000';
 const VUS = Number(__ENV.VUS || 40);
 const DURATION = __ENV.DURATION || '2m';
 const ONLY = __ENV.ONLY || '';
@@ -33,6 +39,12 @@ const athleteLatency = new Trend('profile_athlete', true);
 const providerLatency = new Trend('profile_provider', true);
 const adminLatency = new Trend('profile_admin', true);
 const mailboxLatency = new Trend('profile_mailbox', true);
+/** Отказ гостю без cookie — та цена, ниже которой отказ стоить не может (шаг 36.43). */
+const guestTurnLatency = new Trend('turn_guest', true);
+/** Отказ с мусорной cookie. Должен сравняться с гостевым — в этом весь шаг. */
+const junkTurnLatency = new Trend('turn_junk', true);
+/** Размер тела ответа при уводе: до фазы 36 он был 12–18 КБ вместо одного байта. */
+const junkBodyBytes = new Trend('turn_junk_bytes');
 const failures = new Rate('error_rate');
 const failuresByStep = new Counter('failures_by_step');
 
@@ -128,6 +140,28 @@ const mailboxScenario = {
   },
 };
 
+/**
+ * Мусорная cookie (шаг 36.43).
+ *
+ * Отдельным профилем, потому что мерить надо не страницу, а ЦЕНУ ОТКАЗА. До фазы 36
+ * любая строка в cookie заставляла сервер нарисовать страницу целиком (12–18 КБ
+ * в контейнере), сходить на бэкенд за «кто я» и только потом увести. Гость без cookie
+ * при этом получал ответ в один байт.
+ *
+ * Профиль гоняет оба случая ПОДРЯД в одной итерации и сравнивает их между собой:
+ * абсолютные миллисекунды зависят от машины, а вот разница между «гость» и «мусор»
+ * — нет. Если починка работает, разницы нет.
+ */
+const junkCookieScenario = {
+  junk_cookie: {
+    executor: 'constant-vus',
+    vus: VUS,
+    duration: DURATION,
+    exec: 'junkCookie',
+    tags: { profile: 'junk_cookie' },
+  },
+};
+
 const scenarios =
   ONLY === 'race'
     ? raceScenario
@@ -137,7 +171,9 @@ const scenarios =
         ? mailboxScenario
         : ONLY === 'profiles'
           ? profileScenarios
-          : { ...profileScenarios, ...raceScenario, ...mailboxScenario };
+          : ONLY === 'junk'
+            ? junkCookieScenario
+            : { ...profileScenarios, ...raceScenario, ...mailboxScenario };
 
 export const options = {
   scenarios,
@@ -380,4 +416,35 @@ export function mailbox(data) {
     http.get(`${API}/api/notifications?scope=personal`, auth),
     'mailbox:personal',
   );
+}
+
+/**
+ * Мусорная cookie против гостя (шаг 36.43).
+ *
+ * Оба запроса идут в одной итерации и по одному адресу — различается только cookie.
+ * Меряется не абсолютная отзывчивость, а РАЗНИЦА: она не зависит ни от машины,
+ * ни от нагрузки соседних профилей.
+ *
+ * ⚠️ Переходы не выполняются (`redirects: 0`): нас интересует цена самого отказа,
+ * а не страницы, на которую уводят. Пройди k6 по переходу — он замерил бы главную.
+ */
+export function junkCookie() {
+  const options = { redirects: 0, tags: { profile: 'junk_cookie' } };
+
+  const guest = http.get(`${WEB}/profile/me`, options);
+  track(guestTurnLatency, guest, 'turn:guest');
+
+  const junk = http.get(`${WEB}/profile/me`, {
+    ...options,
+    headers: { Cookie: 'sh-session=never-issued-value' },
+  });
+  track(junkTurnLatency, junk, 'turn:junk');
+  junkBodyBytes.add(junk.body ? junk.body.length : 0);
+
+  check(junk, {
+    'мусорная cookie уводит, а не пускает': (r) => r.status === 307 || r.status === 302,
+    // ⚠️ Главная проверка шага: тело отказа не должно быть страницей.
+    // Один байт — столько же, сколько получает гость.
+    'тело отказа не является отрисованной страницей': (r) => (r.body ? r.body.length : 0) < 100,
+  });
 }
