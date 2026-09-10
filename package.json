@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "eslint": "^9",
+    "playwright": "^1.63.0",
     "prettier": "^3.8.1",
     "typescript": "^5",
     "vitest": "^4.1.0"
