@@ -1,25 +1,35 @@
-// Phase 24 Step 24.7: страница уведомлений атлета — плоский список с mark-read.
-// Server Component, dynamic='force-dynamic': читаем актуальный notifications.json
-// на каждый запрос (чтобы router.refresh обновлял индикаторы).
-// Phase 34: адресат ленты берётся из СЕРВЕРНОЙ СЕССИИ (`readSession`). До неё
-// он приходил из cookie, которую писал сам браузер, — то есть страницу чужих
-// уведомлений можно было открыть, поправив одно число в браузере.
+// Уведомления ЛИЧНОГО кабинета человека.
+//
+// ⚠️ Шаг 35.47a. Спрашивается именно ЛИЧНЫЙ ящик (`scope=personal`), а не лента
+// человека целиком. Разница видна у того, у кого есть лица услуг: без указания
+// ящика сюда попадали бы заявки на запись в его клуб — они адресованы клубу,
+// и место им в кабинете клуба, а не среди собственных тренировок.
+//
+// Личность приходит из СЕРВЕРНОЙ СЕССИИ: до фазы 34 она бралась из cookie, которую
+// писал сам браузер, и страницу чужих уведомлений открывали правкой одного числа.
 import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AthleteNotificationsRoute() {
+const PERSONAL_MAILBOX = { scope: 'personal' } as const;
+
+export default async function PersonalNotificationsRoute() {
   const userId = (await readSession())?.id ?? null;
-  // Phase 27 Step 27.2: applyPreferences=true — SSR-страница уважает отключённые
-  // пользователем типы (согласованность с dropdown колокольчика и badge-счётчиком).
+  // `applyPreferences` оставлен: страница уважает выключенные типы, как и колокольчик.
   const notifications =
-    userId !== null ? await getNotifications({ userId, applyPreferences: true }) : [];
+    userId !== null
+      ? await getNotifications({ userId, applyPreferences: true, mailbox: PERSONAL_MAILBOX })
+      : [];
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-      <NotificationsListPage notifications={notifications} userId={userId ?? undefined} />
+      <NotificationsListPage
+        notifications={notifications}
+        userId={userId ?? undefined}
+        mailbox={PERSONAL_MAILBOX}
+      />
     </div>
   );
 }

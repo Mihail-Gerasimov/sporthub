@@ -40,8 +40,30 @@ import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
 
+import type { ServiceFaceRef } from '@/lib/service-faces';
+
+/**
+ * Ящик, который открыт: личный или названного лица.
+ *
+ * ⚠️ Нужен «прочитать всё» (шаг 35.47a). Без него уборка шла по ВСЕМУ человеку:
+ * человек, открывший кабинет одного клуба и нажавший «отметить всё», гасил заодно
+ * ящики двух других клубов и свой личный. Бэкенд область понимал с 35.28 — назвать
+ * её из браузера было нечем.
+ */
+export type NotificationsMailbox = { scope: 'personal' } | ServiceFaceRef;
+
+/** Ящик в виде строки запроса — так его называет бэкенд. */
+function mailboxQuery(mailbox: NotificationsMailbox | undefined): string {
+  if (mailbox === undefined) return '';
+  if ('scope' in mailbox) return `?scope=${mailbox.scope}`;
+
+  return mailbox.kind === 'club' ? `?clubId=${mailbox.id}` : `?trainerId=${mailbox.id}`;
+}
+
 export interface NotificationsListPageProps {
   notifications: Notification[];
+  /** Открытый ящик. Не задан — вся лента человека (прежнее поведение). */
+  mailbox?: NotificationsMailbox;
   /**
    * Чья это лента. Приходит из СЕРВЕРНОЙ СЕССИИ страницы, а не из браузера.
    *
@@ -116,6 +138,7 @@ export function getDateBucket(iso: string, now: Date): DateBucket {
 export function NotificationsListPage({
   notifications: initial,
   userId,
+  mailbox,
 }: NotificationsListPageProps) {
   // Phase 29 Step 29.2: список читаем из стора. Server-prop `initial` — seed:
   // при mount синхронизируем стор и впоследствии страница работает с ним
@@ -342,7 +365,12 @@ export function NotificationsListPage({
     try {
       // ⚠️ До фазы 34 этот маршрут не проверял НИЧЕГО: прислал чужой номер —
       // пометил прочитанными чужие уведомления. Тела у него больше нет.
-      const response = await fetch('/api/notifications/read-all', { method: 'POST' });
+      // ⚠️ Уборка идёт по ОТКРЫТОМУ ящику. До шага 35.47a область не называлась,
+      // и «отметить всё» в кабинете одного клуба гасило ящики остальных лиц
+      // и личный заодно — то есть кнопка делала больше, чем обещала подписью.
+      const response = await fetch(`/api/notifications/read-all${mailboxQuery(mailbox)}`, {
+        method: 'POST',
+      });
       if (!response.ok) {
         rollbackMarkAllReadInStore(optimisticallyMarkedIds);
         addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
@@ -355,7 +383,7 @@ export function NotificationsListPage({
     } finally {
       setMarkingAll(false);
     }
-  }, [markingAll, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
+  }, [markingAll, mailbox, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
 
   // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти
   // rules-of-hooks (нельзя менять количество хуков между рендерами).

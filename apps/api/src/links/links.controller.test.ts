@@ -268,6 +268,50 @@ describe('Маршруты связей тренер↔клуб', () => {
       expect(ownPair.filter((link) => link.status === 'confirmed')).toHaveLength(1);
     });
 
+    it('разрыв своего со своим тоже не уведомляет никого', async () => {
+      // ⚠️ Найдено проверкой чек-листов (35.47a), и это была настоящая асимметрия:
+      // создание связи своего со своим уведомлений не слало, а разрыв — слал.
+      // Порядок проверок назначал разорвавшей стороной тренера, и клуб ТОГО ЖЕ
+      // человека получал `link_revoked`: письмо самому себе о собственном действии.
+      const created = await post('/trainer-club-links', asOwner, { trainerId: 1, clubId: 1 });
+
+      expect(created.status).toBe(201);
+
+      const revoked = await post(`/trainer-club-links/${created.body.data.id}/revoke`, asOwner, {});
+
+      expect(revoked.status).toBe(200);
+
+      const notifications = await harness.read<{ type: string }[]>('notifications');
+
+      expect(
+        notifications.filter((item) => item.type === 'link_revoked'),
+        'человек получил уведомление о собственном разрыве собственной связи',
+      ).toHaveLength(0);
+    });
+
+    it('разрыв связи с ЧУЖОЙ стороной вторую сторону по-прежнему извещает', async () => {
+      // Контрольная группа: без неё «не уведомляем» неотличимо от «сломали
+      // уведомления о разрыве вообще».
+      const created = await post('/trainer-club-links', asOwner, {
+        trainerId: 3,
+        clubId: 1,
+        initiatedBy: 'club',
+      });
+
+      expect(created.status).toBe(201);
+
+      const revoked = await post(`/trainer-club-links/${created.body.data.id}/revoke`, asOwner, {});
+
+      expect(revoked.status).toBe(200);
+
+      const notifications = await harness.read<{ type: string }[]>('notifications');
+
+      expect(
+        notifications.filter((item) => item.type === 'link_revoked').length,
+        'чужую сторону о разрыве не известили',
+      ).toBeGreaterThan(0);
+    });
+
     it('связь с ЧУЖОЙ стороной по-прежнему ждёт подтверждения', async () => {
       // Контрольная группа: без неё «сразу подтверждено» неотличимо от
       // «подтверждается вообще всё».

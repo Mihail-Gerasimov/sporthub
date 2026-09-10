@@ -512,7 +512,30 @@ export type GetNotificationsOptions = {
   offset?: number;
   limit?: number;
   applyPreferences?: boolean;
+  /**
+   * Ящик, который спрашивают (шаг 35.47a).
+   *
+   * ⚠️ Появился не для красоты. Уведомления переехали на ЛИЦО ещё в 35.27, и бэкенд
+   * умеет отдавать ящик каждого лица отдельно — а страница кабинета продолжала
+   * спрашивать ленту ЧЕЛОВЕКА целиком. То есть у владельца трёх клубов все три
+   * кабинета показывали одну и ту же кучу.
+   *
+   * Ровно та ошибка, ради которой затевалась фаза 34: серверная часть написана
+   * и покрыта тестами, а вызова из браузера нет ни одного, и снаружи разделения
+   * не существует.
+   *
+   * Не задан — ящик человека целиком (прежнее поведение, старый клиент цел).
+   */
+  mailbox?: { scope: 'personal' } | ServiceFaceRef;
 };
+
+/** Ящик в виде параметров строки запроса — так его называет бэкенд. */
+function mailboxQuery(mailbox: GetNotificationsOptions['mailbox']) {
+  if (mailbox === undefined) return {};
+  if ('scope' in mailbox) return { scope: mailbox.scope };
+
+  return mailbox.kind === 'club' ? { clubId: mailbox.id } : { trainerId: mailbox.id };
+}
 
 export async function getNotifications(
   options: GetNotificationsOptions = {},
@@ -525,6 +548,7 @@ export async function getNotifications(
           unreadOnly: options.unreadOnly,
           offset: options.offset,
           limit: options.limit,
+          ...mailboxQuery(options.mailbox),
         })}`;
 
   const payload = await apiGet<{ items: Notification[] }>(path);

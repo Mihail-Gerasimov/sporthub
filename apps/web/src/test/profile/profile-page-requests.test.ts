@@ -185,6 +185,48 @@ describe('Запросы серверных страниц кабинетов', 
       expect(notificationCalls.some((url) => url.includes('scope=all'))).toBe(false);
     });
 
+    it('раздел уведомлений спрашивает ЯЩИК ЛИЦА, а не ленту человека', async () => {
+      // ⚠️ Найдено проверкой чек-листов (35.47a) и стоило фазе повторения её же
+      // главного урока. Адресат уведомления стал лицом в 35.27, бэкенд научился
+      // отдавать ящик каждого лица в 35.28, всё покрыто тестами — а страница
+      // кабинета продолжала спрашивать ленту ЧЕЛОВЕКА целиком. Снаружи разделения
+      // не существовало: у владельца трёх клубов все три кабинета показывали кучу.
+      //
+      // Тесты этого не видели, потому что смотрели на API. Здесь проверяется
+      // ПОДКЛЮЧЕНИЕ: какой адрес страница на самом деле дёргает.
+      signedInUserId = '2';
+      const { default: FaceNotificationsRoute } =
+        await import('@/app/profile/[faceKind]/[faceId]/notifications/page');
+
+      await FaceNotificationsRoute(withFace());
+
+      const calls = stub.calls.filter((call) => call.startsWith('/notifications'));
+
+      expect(calls, 'страница уведомлений лица не сходила за уведомлениями').not.toEqual([]);
+      expect(
+        calls.every((call) => call.includes('clubId=1')),
+        `ящик лица не назван: ${calls.join(', ')}`,
+      ).toBe(true);
+    });
+
+    it('личный раздел уведомлений спрашивает ЛИЧНЫЙ ящик', async () => {
+      // Обратная половина: без указания ящика сюда попадали бы заявки на запись
+      // в его же клуб — они адресованы клубу, а не человеку.
+      signedInUserId = '2';
+      const { default: PersonalNotificationsRoute } =
+        await import('@/app/profile/me/notifications/page');
+
+      await PersonalNotificationsRoute();
+
+      const calls = stub.calls.filter((call) => call.startsWith('/notifications'));
+
+      expect(calls, 'личный раздел уведомлений не сходил за уведомлениями').not.toEqual([]);
+      expect(
+        calls.every((call) => call.includes('scope=personal')),
+        `личный ящик не назван: ${calls.join(', ')}`,
+      ).toBe(true);
+    });
+
     it('ни одна страница кабинета не просит полного среза площадки', async () => {
       // ⚠️ Сторож всего разбора: `?scope=all` закрыт правом администратора, и любая
       // его форма на странице провайдера — это 403 и упавшая страница, а не «просто

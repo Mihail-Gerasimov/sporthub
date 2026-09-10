@@ -260,7 +260,17 @@ export class LinkService {
       throw new ForbiddenError('Недостаточно прав для разрыва связи');
     }
 
-    return this.applyRevoke(link, userId, revokedBy, { notifyBothSides: false });
+    // ⚠️ Шаг 35.47a, решение заказчика 22. Обе стороны у одного человека — уведомлять
+    // некого: связь своего со своим и создаётся без уведомлений, разрывать её
+    // с уведомлением было бы половиной правила. Асимметрия была настоящей: порядок
+    // проверок назначал разорвавшей стороной тренера, и клуб ТОГО ЖЕ человека
+    // получал `link_revoked` — письмо самому себе о собственном действии.
+    const bothSidesMine = isTrainerManager && isClubManager;
+
+    return this.applyRevoke(link, userId, revokedBy, {
+      notifyBothSides: false,
+      notifyNobody: bothSidesMine,
+    });
   }
 
   /** Административный разрыв: права стороны не требуются, уведомляются обе. */
@@ -332,7 +342,10 @@ export class LinkService {
     link: TrainerClubLink,
     userId: number,
     revokedBy: LinkRevoker,
-    options: { notifyBothSides: boolean },
+    // `notifyNobody` — обе стороны принадлежат одному человеку (решение 22).
+    // Оно старше `notifyBothSides`: административный разрыв извещает обе стороны
+    // намеренно, а разрыв своего со своим не извещает никого.
+    options: { notifyBothSides: boolean; notifyNobody?: boolean },
   ): Promise<{ link: TrainerClubLink; revokedBy: LinkRevoker; detachedCount: number }> {
     const updated = await this.links.update(link.id, {
       status: 'revoked',
@@ -364,12 +377,14 @@ export class LinkService {
     const trainerFace = faceRecipient('trainer', trainer);
     const clubFace = faceRecipient('club', club);
 
-    if ((options.notifyBothSides || revokedBy !== 'trainer') && trainerFace !== null) {
-      await this.notifications.notify(trainerFace, 'link_revoked', payload);
-    }
+    if (options.notifyNobody !== true) {
+      if ((options.notifyBothSides || revokedBy !== 'trainer') && trainerFace !== null) {
+        await this.notifications.notify(trainerFace, 'link_revoked', payload);
+      }
 
-    if ((options.notifyBothSides || revokedBy !== 'club') && clubFace !== null) {
-      await this.notifications.notify(clubFace, 'link_revoked', payload);
+      if ((options.notifyBothSides || revokedBy !== 'club') && clubFace !== null) {
+        await this.notifications.notify(clubFace, 'link_revoked', payload);
+      }
     }
 
     return { link: updated, revokedBy, detachedCount };
