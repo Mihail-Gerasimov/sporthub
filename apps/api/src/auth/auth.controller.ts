@@ -97,8 +97,6 @@ const registerSchema = z
     name: z.string().trim().min(2, 'Имя минимум 2 символа'),
     email: z.string().email('Некорректный email'),
     password: z.string().min(6, 'Пароль минимум 6 символов'),
-    // ДИВЕРСИЯ d-11: тип учётной записи вернулся в регистрацию.
-    accountType: z.enum(['athlete', 'provider']).optional(),
     phone: z.string().optional(),
     city: z.string().optional(),
   })
