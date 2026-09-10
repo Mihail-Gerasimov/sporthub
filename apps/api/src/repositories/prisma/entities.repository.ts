@@ -133,7 +133,20 @@ function buildPublicationWhere(
 ): Record<string, unknown> | undefined {
   const where: Record<string, unknown> = {};
 
-  if (filter.excludeHidden === true) where.status = { not: 'hidden' };
+  if (filter.excludeHidden === true) {
+    // ⚠️ Шаг 36.14. Владелец видит СВОИ скрытые публикации и в общей выдаче:
+    // иначе кабинет не покажет ему, что публикация спрятана, и чинить будет нечего.
+    // Условие идёт в запрос одним `OR`, а не отбором после чтения.
+    where.OR =
+      filter.includeHiddenOwnedBy === undefined
+        ? undefined
+        : [{ status: { not: 'hidden' } }, { managedByUserId: filter.includeHiddenOwnedBy }];
+
+    if (where.OR === undefined) {
+      delete where.OR;
+      where.status = { not: 'hidden' };
+    }
+  }
   if (filter.onlyHidden === true) where.status = 'hidden';
   if (filter.ids !== undefined) where.id = { in: filter.ids };
   if (filter.minRating !== undefined) where.rating = { gte: filter.minRating };

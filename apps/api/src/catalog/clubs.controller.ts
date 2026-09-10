@@ -38,6 +38,7 @@ import {
   hasHumanAbilities,
 } from '@sporthub/domain';
 
+import { AccessService } from '../access/access.service';
 import { CurrentUser, OrOwnerOf, Public, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
@@ -89,13 +90,83 @@ function parseOptionalNumber(raw: string | undefined): number | undefined {
  */
 type PublicationRemovalResult = { outcome: PublicationRemoval };
 
+/**
+ * Отказ по видимости скрытой публикации (шаг 36.13, решения заказчика 3–5).
+ *
+ * ⚠️ Именно **404**, а не 403. Отказ по правам сообщает, что публикация существует,
+ * и по нему её можно перечислить; для того, кто её видеть не должен, её не существует
+ * вовсе. Текст — тот же, что у настоящего отсутствия: иначе разница в формулировке
+ * рассказала бы ровно то, что мы скрываем.
+ *
+ * ⚠️ Проверка стоит ПОСЛЕ загрузки публикации по необходимости — раньше неоткуда
+ * узнать её статус и владельца, — но ДО возврата тела наружу. Данные не попадают
+ * в поток ответа ни при каком исходе.
+ */
+/**
+ * Учитывать ли флаг «показать скрытые» (шаг 36.14, решение заказчика 3).
+ *
+ * ⚠️ Флаг был открыт кому угодно. Проверено на живом приложении 10.09.2026:
+ * гость получал скрытые публикации вместе с `hideReason`, `hiddenByUserId`
+ * (номером администратора) и `hiddenAt`.
+ *
+ * ⚠️ Названный отказ 403 здесь ЗАПРЕЩЁН, и это не мягкость. `server-api.ts` во фронте
+ * слал этот флаг БЕЗУСЛОВНО, и через него ходили публичная страница клуба, страница
+ * тренера и разделы личного кабинета: отказ превратил бы их в 500 у гостя. Такое
+ * уже случалось и записано в коде — `links.controller.ts:126-129`, «закрыв маршрут
+ * целиком, фаза сломала публичную витрину».
+ *
+ * Поэтому для не-модератора флаг **сужает выдачу до опубликованных**, а не отказывает:
+ * старый клиент переживает выкатку, чего Главное правило и требует от параметров API.
+ * Вторая половина решения — во фронте: публичные страницы флаг больше не шлют вовсе.
+ */
+async function mayIncludeHidden(
+  access: AccessService,
+  includeHidden: string | undefined,
+  session: SessionContext | undefined,
+): Promise<boolean> {
+  if (includeHidden !== 'true' || session === undefined) {
+    return false;
+  }
+
+  return access.isAdmin(session.user.id);
+}
+
+async function assertVisible(
+  access: AccessService,
+  entity: { status?: string } | null | undefined,
+  owner: { kind: 'club'; id: number } | { kind: 'trainer'; id: number },
+  session: SessionContext | undefined,
+  notFoundMessage: string,
+): Promise<void> {
+  if (entity === null || entity === undefined) {
+    throw new NotFoundError(notFoundMessage);
+  }
+
+  if (entity.status !== 'hidden') {
+    return;
+  }
+
+  if (!(await access.canSeeHiddenPublication(owner, session?.user.id))) {
+    throw new NotFoundError(notFoundMessage);
+  }
+}
+
 @Controller('clubs')
 export class ClubsController {
   constructor(
     private readonly query: CatalogQueryService,
     private readonly publications: PublicationService,
     private readonly logs: LogService,
+    private readonly access: AccessService,
   ) {}
+
+  /** См. `mayIncludeHidden`: флаг «показать скрытые» учитывается только модератору. */
+  private mayIncludeHidden(
+    includeHidden: string | undefined,
+    session: SessionContext | undefined,
+  ): Promise<boolean> {
+    return mayIncludeHidden(this.access, includeHidden, session);
+  }
 
   // Открыто гостю: список клубов с фильтрами — это сама витрина площадки.
   // Человек должен найти свой клуб и решить, стоит ли ради него заводить учётку;
@@ -110,6 +181,7 @@ export class ClubsController {
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
+    @CurrentUser() session?: SessionContext,
   ): Promise<PublicClub[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
@@ -128,9 +200,11 @@ export class ClubsController {
       sportId: parseOptionalNumber(sportId),
       search: search?.trim() || undefined,
       minRating: rating,
-      // Скрытые публикации нужны личным кабинетам и админскому разделу:
-      // владелец должен видеть, что его публикация спрятана.
-      includeHidden: includeHidden === 'true',
+      includeHidden: await this.mayIncludeHidden(includeHidden, session),
+      // Владелец видит свои скрытые публикации и в общей выдаче: кабинет читает
+      // каталог этим же маршрутом, и без этого исключения он показал бы владельцу
+      // на одну публикацию меньше, чем у него есть.
+      includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
     });
 
     // Надёжность считается ОДНИМ запросом-агрегатом и едет вместе с карточками:
@@ -172,14 +246,21 @@ export class ClubsController {
   // мессенджера — на такой переход входа быть не может.
   @Public()
   @Get('by-slug/:slug')
-  async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
+  async findOneBySlug(
+    @Param('slug') slug: string,
+    @CurrentUser() session?: SessionContext,
+  ): Promise<unknown> {
     const club = await this.query.findClubBySlug(slug);
 
-    if (!club) {
-      throw new NotFoundError('Клуб не найден');
-    }
+    await assertVisible(
+      this.access,
+      club,
+      { kind: 'club', id: club?.id ?? 0 },
+      session,
+      'Клуб не найден',
+    );
 
-    return this.query.getClubDetail(club.id);
+    return this.query.getClubDetail(club!.id);
   }
 
   // Открыто гостю: карточка клуба — расписание, услуги, отзывы, адрес на карте.
@@ -187,13 +268,25 @@ export class ClubsController {
   // значит закрывать площадку.
   @Public()
   @Get(':id')
-  async findOne(@Param('id') rawId: string): Promise<unknown> {
+  async findOne(
+    @Param('id') rawId: string,
+    @CurrentUser() session?: SessionContext,
+  ): Promise<unknown> {
     const clubId = parseId(rawId, 'Некорректный идентификатор клуба');
-    const detail = await this.query.getClubDetail(clubId);
+    // Приведение к известной форме: сервис объявляет ответ как `unknown`,
+    // а статус публикации нужен здесь и лежит в нём же. Отдельным запросом
+    // за статусом идти незачем — это те же строки, только вторым чтением.
+    const detail = (await this.query.getClubDetail(clubId)) as {
+      club?: { status?: string };
+    } | null;
 
-    if (!detail) {
-      throw new NotFoundError('Клуб не найден');
-    }
+    await assertVisible(
+      this.access,
+      detail === null ? null : detail.club,
+      { kind: 'club', id: clubId },
+      session,
+      'Клуб не найден',
+    );
 
     return detail;
   }
@@ -350,7 +443,16 @@ export class TrainersController {
     private readonly query: CatalogQueryService,
     private readonly publications: PublicationService,
     private readonly logs: LogService,
+    private readonly access: AccessService,
   ) {}
+
+  /** См. `mayIncludeHidden`: флаг «показать скрытые» учитывается только модератору. */
+  private mayIncludeHidden(
+    includeHidden: string | undefined,
+    session: SessionContext | undefined,
+  ): Promise<boolean> {
+    return mayIncludeHidden(this.access, includeHidden, session);
+  }
 
   // Открыто гостю: та же витрина, только тренеры. Подбор тренера идёт до входа,
   // а не после.
@@ -364,6 +466,7 @@ export class TrainersController {
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
+    @CurrentUser() session?: SessionContext,
   ): Promise<PublicTrainer[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
@@ -376,7 +479,8 @@ export class TrainersController {
       // Оба имени параметра поддерживаются — так было до переноса.
       clubId: parseOptionalNumber(affiliatedClubId) ?? parseOptionalNumber(clubId),
       sportId: parseOptionalNumber(sportId),
-      includeHidden: includeHidden === 'true',
+      includeHidden: await this.mayIncludeHidden(includeHidden, session),
+      includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
     });
 
     // То же для тренеров: один запрос-агрегат на всю выдачу.
@@ -415,27 +519,44 @@ export class TrainersController {
   // Открыто гостю: адрес-ссылка тренера — та же ссылка из поиска и переписки.
   @Public()
   @Get('by-slug/:slug')
-  async findOneBySlug(@Param('slug') slug: string): Promise<unknown> {
+  async findOneBySlug(
+    @Param('slug') slug: string,
+    @CurrentUser() session?: SessionContext,
+  ): Promise<unknown> {
     const trainer = await this.query.findTrainerBySlug(slug);
 
-    if (!trainer) {
-      throw new NotFoundError('Тренер не найден');
-    }
+    await assertVisible(
+      this.access,
+      trainer,
+      { kind: 'trainer', id: trainer?.id ?? 0 },
+      session,
+      'Тренер не найден',
+    );
 
-    return this.query.getTrainerDetail(trainer.id);
+    return this.query.getTrainerDetail(trainer!.id);
   }
 
   // Открыто гостю: карточка тренера — специализации, цены, свободные слоты.
   // Гость выбирает, к кому идти, и только потом заводит учётку ради записи.
   @Public()
   @Get(':id')
-  async findOne(@Param('id') rawId: string): Promise<unknown> {
+  async findOne(
+    @Param('id') rawId: string,
+    @CurrentUser() session?: SessionContext,
+  ): Promise<unknown> {
     const trainerId = parseId(rawId, 'Некорректный идентификатор тренера');
-    const detail = await this.query.getTrainerDetail(trainerId);
+    // См. пояснение у карточки клуба: форма ответа объявлена как `unknown`.
+    const detail = (await this.query.getTrainerDetail(trainerId)) as {
+      trainer?: { status?: string };
+    } | null;
 
-    if (!detail) {
-      throw new NotFoundError('Тренер не найден');
-    }
+    await assertVisible(
+      this.access,
+      detail === null ? null : detail.trainer,
+      { kind: 'trainer', id: trainerId },
+      session,
+      'Тренер не найден',
+    );
 
     return detail;
   }

@@ -208,13 +208,17 @@ export class CatalogQueryService {
     sportId?: number;
     search?: string;
     minRating?: number;
+    /** Все скрытые — только модератору (шаг 36.14). */
     includeHidden?: boolean;
+    /** Скрытые ЭТОГО владельца — его кабинету. Условие уходит в запрос. */
+    includeHiddenOwnedBy?: number;
   }): Promise<PublicClub[]> {
     // Вид спорта и рейтинг — условия запроса: под них есть связующая таблица
     // и индекс с рейтингом в ключе. Раньше оба отсеивались уже после того, как
     // из базы поднялась вся таблица публикаций.
     let clubs = await this.clubs.findAll({
       excludeHidden: !filter.includeHidden,
+      includeHiddenOwnedBy: filter.includeHiddenOwnedBy,
       sportId: filter.sportId,
       minRating: filter.minRating,
     });
@@ -248,6 +252,7 @@ export class CatalogQueryService {
     clubId?: number;
     sportId?: number;
     includeHidden?: boolean;
+    includeHiddenOwnedBy?: number;
   }): Promise<PublicTrainer[]> {
     // Тренеры клуба — только через подтверждённую связь. Номера берутся ПЕРВЫМ
     // запросом и уходят условием во второй: раньше поднимались все тренеры
@@ -265,6 +270,7 @@ export class CatalogQueryService {
 
     const trainers = await this.trainers.findAll({
       excludeHidden: !filter.includeHidden,
+      includeHiddenOwnedBy: filter.includeHiddenOwnedBy,
       ids,
       sportId: filter.sportId,
     });

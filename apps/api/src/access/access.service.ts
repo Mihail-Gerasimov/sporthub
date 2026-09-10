@@ -207,6 +207,45 @@ export class AccessService {
       : this.isManagerOfTrainer(face.id, userId);
   }
 
+  /**
+   * Кому видна СКРЫТАЯ публикация (шаг 36.13, решения заказчика 3–5).
+   *
+   * Одно правило на все шесть путей к публикации: карточка по номеру, карточка
+   * по адресу-ссылке, список каталога, флаг `includeHidden`, контекст слота
+   * и список тренеров клуба. Второго понятия владения здесь НЕ заводится —
+   * прецедент фазы 35: две проверки владения в лейауте, из которых вторая
+   * маскировала снятие первой.
+   *
+   * - гость и посторонний — не видят;
+   * - владелец — видит, иначе не сможет починить свою публикацию;
+   * - модератор — видит, это его работа.
+   *
+   * ⚠️ Отказ гостю — **404, а не 403**. Отказ по правам сообщает, что публикация
+   * существует; для того, кто её видеть не должен, её не существует вовсе.
+   * Решение принимает вызывающий, но текст и код обязаны быть одинаковыми
+   * на всех шести путях.
+   *
+   * ⚠️ Опубликованная публикация видна всем и всегда: правило спрашивают только
+   * про скрытую, и оно не имеет права ничего сужать сверх этого.
+   */
+  async canSeeHiddenPublication(
+    owner: { kind: 'club'; id: number } | { kind: 'trainer'; id: number },
+    userId: number | undefined,
+  ): Promise<boolean> {
+    // Гость. Сессии нет — и разговаривать не о чем.
+    if (userId === undefined) {
+      return false;
+    }
+
+    if (await this.isAdmin(userId)) {
+      return true;
+    }
+
+    return owner.kind === 'club'
+      ? this.isManagerOfClub(owner.id, userId)
+      : this.isManagerOfTrainer(owner.id, userId);
+  }
+
   async isManagerOfClub(clubId: number, userId: number): Promise<boolean> {
     const club = await this.clubs.findById(clubId);
 
