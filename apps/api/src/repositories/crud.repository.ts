@@ -11,6 +11,7 @@
 import type {
   LogAction,
   LogEntry,
+  NotificationType,
   PasswordResetToken,
   ProviderClientNote,
   Review,
@@ -173,6 +174,31 @@ export interface UsersRepository {
   countPlatformUsers(): Promise<{ total: number; providers: number; admins: number }>;
   insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
   update(id: number, patch: Partial<User>): Promise<User>;
+  /**
+   * Настройки уведомлений одного ящика (шаг 35.29).
+   *
+   * ⚠️ Отдельная пара методов, а не поле в `Partial<User>`, и это не вкусовщина.
+   * Настройки перестали быть свойством ЧЕЛОВЕКА: у владельца трёх клубов их
+   * четыре набора — свой и по одному на каждое лицо. Протащить лицо через `update`
+   * значило бы дописать к правке пользователя параметр, к пользователю не
+   * относящийся, и следующий, кому понадобится ещё один ящик, дописал бы второй.
+   *
+   * `face` не задано — личный ящик человека. Это же значение отдаёт
+   * `User.notificationPreferences`: там ровно личные строки, лица туда не
+   * подмешиваются (см. отбор в `USER_RELATIONS`).
+   *
+   * Проверку владения лицом методы не делают: их дело — хранилище. Спрашивает
+   * маршрут, у `AccessService`, до вызова.
+   */
+  findNotificationPreferences(
+    userId: number,
+    face?: ServiceFaceRef,
+  ): Promise<Partial<Record<NotificationType, boolean>>>;
+  setNotificationPreferences(
+    userId: number,
+    preferences: Partial<Record<NotificationType, boolean>>,
+    face?: ServiceFaceRef,
+  ): Promise<Partial<Record<NotificationType, boolean>>>;
 }
 
 /**

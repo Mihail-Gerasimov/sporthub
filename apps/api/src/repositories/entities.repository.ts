@@ -89,10 +89,26 @@ export type PublicationStatusFilter = {
   search?: string;
 };
 
+/**
+ * Сколько публикаций у одного владельца. Строка на владельца, а не на публикацию.
+ *
+ * ⚠️ Шаг 35.20a. Считать это чтением таблицы публикаций нельзя: админский
+ * список людей строит строку на КАЖДОГО человека площадки, и «поднять весь
+ * каталог и посчитать в памяти» дорожало бы вместе с каталогом, а не
+ * с выдачей. Группировку делает база — по тем самым индексам
+ * `clubs_managed_by_user_id_idx` и `trainers_managed_by_user_id_idx`.
+ *
+ * Владельцы без публикаций в ответе отсутствуют: их не с чем группировать,
+ * а потребитель читает такой случай как ноль.
+ */
+export type PublicationsByOwner = { userId: number; count: number };
+
 export interface ClubsRepository {
   findAll(filter?: PublicationStatusFilter): Promise<Club[]>;
   findById(id: number): Promise<Club | null>;
   findBySlug(slug: string): Promise<Club | null>;
+  /** Число клубов у каждого владельца — группировкой, а не чтением таблицы. */
+  countByOwner(): Promise<PublicationsByOwner[]>;
   insert(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club>;
   update(id: number, patch: Partial<Club>): Promise<Club>;
   remove(id: number): Promise<void>;
@@ -102,6 +118,8 @@ export interface TrainersRepository {
   findAll(filter?: PublicationStatusFilter): Promise<Trainer[]>;
   findById(id: number): Promise<Trainer | null>;
   findBySlug(slug: string): Promise<Trainer | null>;
+  /** То же для карточек тренера: строка на владельца. */
+  countByOwner(): Promise<PublicationsByOwner[]>;
   insert(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer>;
   update(id: number, patch: Partial<Trainer>): Promise<Trainer>;
   remove(id: number): Promise<void>;

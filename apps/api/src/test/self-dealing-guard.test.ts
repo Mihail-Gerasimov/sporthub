@@ -42,6 +42,65 @@ const ADMIN_ID = 3;
  */
 const SELF_BOOKING_ID = 900;
 
+/**
+ * Слот клуба 1, закончившийся два часа назад.
+ *
+ * ⚠️ Заводится ради точки 5. Слоты фикстур лежат в будущем, и check-in по ним
+ * отказывал по СРОКУ («доступен только после окончания слота»), а не по владению —
+ * тест был зелен по чужой причине. Здесь слот уже закончился, но 48-часовое окно
+ * ещё открыто, то есть до проверки «сам себе» дело доходит по-настоящему.
+ */
+const PAST_SLOT_ID = 901;
+
+/** Время слота, сдвинутое относительно текущего момента. */
+function slotAt(offsetHoursFromNow: number, durationMinutes = 60) {
+  const start = new Date(Date.now() + offsetHoursFromNow * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return {
+    date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+    startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+    endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+  };
+}
+
+const pastSlot = {
+  id: PAST_SLOT_ID,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  ownerType: 'club' as const,
+  ownerId: 1,
+  clubId: 1,
+  offeringId: 1,
+  sportId: 3,
+  title: 'Занятие, которое уже прошло',
+  durationMinutes: 60,
+  level: 'all_levels',
+  capacity: 5,
+  bookedCount: 1,
+  price: 1100,
+  ...slotAt(-3),
+};
+
+/** Запись владельца на этот прошедший слот — предмет точки 5. */
+const PAST_BOOKING_ID = 902;
+
+const pastSelfBooking = {
+  id: PAST_BOOKING_ID,
+  createdAt: '2026-03-17T09:00:00.000Z',
+  scheduleId: PAST_SLOT_ID,
+  offeringId: 1,
+  ownerType: 'club' as const,
+  ownerId: 1,
+  userId: OWNER_ID,
+  clubId: 1,
+  sportId: 3,
+  date: pastSlot.date,
+  status: 'confirmed' as const,
+  paymentStatus: 'unpaid' as const,
+  totalPrice: 1100,
+};
+
 const selfBooking = {
   id: SELF_BOOKING_ID,
   createdAt: '2026-03-17T09:00:00.000Z',
@@ -74,7 +133,8 @@ describe('Сторож «сам себе»', () => {
     // сессии, поэтому cookie берутся строго после засева.
     await harness.writeMany({
       ...fixtureCollections,
-      bookings: [...fixtureCollections.bookings, selfBooking],
+      schedule: [...(fixtureCollections.schedule ?? []), pastSlot],
+      bookings: [...fixtureCollections.bookings, selfBooking, pastSelfBooking],
     });
 
     ownerCookie = await harness.as(OWNER_ID);
@@ -139,17 +199,19 @@ describe('Сторож «сам себе»', () => {
     it('точка 5: отметить себе посещение — отказ, статус не изменился', async () => {
       // ⚠️ Здесь рвётся цепочка накрутки рейтинга: без отметки посещения
       // не будет и права на отзыв.
+      // ⚠️ Слот УЖЕ ЗАКОНЧИЛСЯ и окно ещё открыто: иначе отказ пришёл бы по сроку,
+      // а не по владению, и тест был бы зелен при полностью снятой проверке.
       const response = await request(harness.app.getHttpServer())
-        .post(`/api/bookings/${SELF_BOOKING_ID}/check-in`)
+        .post(`/api/bookings/${PAST_BOOKING_ID}/check-in`)
         .set('Cookie', ownerCookie)
         .send({ outcome: 'completed' });
 
-      // ⚠️ Сегодня отказ приходит по СРОКУ («check-in доступен только после окончания
-      // слота»), а не по владению: слот в фикстурах ещё не начался. Значит тест зелен
-      // по чужой причине. Настоящую силу он наберёт вместе с проверкой «сам себе» —
-      // тогда отказ придёт раньше проверки срока, и текст станет другим.
-      expect(response.status, 'владелец отметил себе посещение').not.toBe(200);
-      expect(await bookingStatus(SELF_BOOKING_ID), 'статус записи изменился').toBe('pending');
+      expect(response.status, 'владелец отметил себе посещение').toBe(403);
+      expect(
+        String((response.body as { error?: string }).error ?? ''),
+        'отказ пришёл не от правила «сам себе»',
+      ).toMatch(/вторая сторона/i);
+      expect(await bookingStatus(PAST_BOOKING_ID), 'статус записи изменился').toBe('confirmed');
     });
 
     it('точка 6: отмена своей записи владельцем слота не выдаётся за отмену клиентом', async () => {
@@ -161,13 +223,15 @@ describe('Сторож «сам себе»', () => {
         .set('Cookie', ownerCookie)
         .send({});
 
-      if (response.status !== 200) return;
-
-      const status = await bookingStatus(SELF_BOOKING_ID);
-
-      expect(status, 'отмена владельцем записана как отмена клиентом').not.toBe(
-        'cancelled_by_athlete',
-      );
+      // ⚠️ Раньше тест молча выходил, если ответ не 200, — то есть при отказе
+      // не проверял вообще ничего. Отмена своей записи владельцем слота разрешена
+      // (запретить её значило бы запереть запись навсегда), и спор здесь только
+      // о СТОРОНЕ: она обязана быть стороной услуг.
+      expect(response.status, 'владелец не смог отменить запись на своём занятии').toBe(200);
+      expect(
+        await bookingStatus(SELF_BOOKING_ID),
+        'отмена владельцем записана как отмена клиентом',
+      ).toBe('cancelled_by_provider');
     });
 
     it('контрольная группа: чужую запись владелец решает нормально', async () => {

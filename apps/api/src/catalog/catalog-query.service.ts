@@ -45,6 +45,12 @@ import {
   SCHEDULE_REPOSITORY,
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
+import {
+  stripOptionalPublicationOwner,
+  stripPublicationOwner,
+  type PublicClub,
+  type PublicTrainer,
+} from './public-view';
 
 /** Надёжность публикаций одной выдачи: отдельно клубы, отдельно тренеры. */
 export interface ReliabilityByOwner {
@@ -191,12 +197,19 @@ export class CatalogQueryService {
     await this.cities.findOrCreateByName({ name, coordinates });
   }
 
+  /**
+   * Публичный список клубов.
+   *
+   * ⚠️ Тип выдачи — `PublicClub`, а не `Club`, и это не косметика: номер
+   * владельца из публичного каталога убран (шаг 35.20a), а компилятор не даст
+   * вернуть отсюда полную сущность и вернуть поле обратно случайно.
+   */
   async findPublishedClubs(filter: {
     sportId?: number;
     search?: string;
     minRating?: number;
     includeHidden?: boolean;
-  }): Promise<Club[]> {
+  }): Promise<PublicClub[]> {
     // Вид спорта и рейтинг — условия запроса: под них есть связующая таблица
     // и индекс с рейтингом в ключе. Раньше оба отсеивались уже после того, как
     // из базы поднялась вся таблица публикаций.
@@ -227,14 +240,15 @@ export class CatalogQueryService {
       });
     }
 
-    return clubs;
+    return clubs.map(stripPublicationOwner);
   }
 
+  /** Публичный список тренеров. Номер владельца убран, как и у клубов. */
   async findPublishedTrainers(filter: {
     clubId?: number;
     sportId?: number;
     includeHidden?: boolean;
-  }): Promise<Trainer[]> {
+  }): Promise<PublicTrainer[]> {
     // Тренеры клуба — только через подтверждённую связь. Номера берутся ПЕРВЫМ
     // запросом и уходят условием во второй: раньше поднимались все тренеры
     // платформы и отсеивались по множеству в памяти.
@@ -249,11 +263,13 @@ export class CatalogQueryService {
       ids = [...new Set(confirmed.map((link) => link.trainerId))];
     }
 
-    return this.trainers.findAll({
+    const trainers = await this.trainers.findAll({
       excludeHidden: !filter.includeHidden,
       ids,
       sportId: filter.sportId,
     });
+
+    return trainers.map(stripPublicationOwner);
   }
 
   /** Детальная карточка клуба: тренеры через связи, расписание и отзывы по времени. */
@@ -283,12 +299,18 @@ export class CatalogQueryService {
       ]);
 
     return {
-      club: { ...club, reliability: reliability.clubs.get(clubId) },
+      // Номер владельца убран и у самого клуба, и у его тренеров (шаг 35.20a):
+      // карточка клуба — такая же публичная выдача, как и список каталога,
+      // а тренеры клуба принадлежат другим людям, и их владельцев тут тем более
+      // сообщать нечему.
+      club: { ...stripPublicationOwner(club), reliability: reliability.clubs.get(clubId) },
       primaryOffering,
       sports,
       // Порядок «сначала с высоким рейтингом» остаётся в памяти намеренно: тренеров
       // у клуба единицы, а условие отбора у них — номера, не рейтинг.
-      trainers: [...clubTrainers].sort((left, right) => right.rating - left.rating),
+      trainers: [...clubTrainers]
+        .sort((left, right) => right.rating - left.rating)
+        .map(stripPublicationOwner),
       schedule: slots,
       // Отзывы приходят из запроса уже «свежие первыми», с тай-брейкером по номеру.
       reviews: allReviews,
@@ -315,11 +337,17 @@ export class CatalogQueryService {
       ]);
 
     const venueClubId = confirmed[0]?.clubId;
-    const affiliatedClub =
-      venueClubId === undefined ? null : await this.clubs.findById(venueClubId);
+    // Клуб-площадка тем более чужой: он принадлежит другому человеку,
+    // и его владельца публичная карточка тренера сообщать не должна.
+    const affiliatedClub = stripOptionalPublicationOwner(
+      venueClubId === undefined ? null : await this.clubs.findById(venueClubId),
+    );
 
     return {
-      trainer: { ...trainer, reliability: reliability.trainers.get(trainerId) },
+      trainer: {
+        ...stripPublicationOwner(trainer),
+        reliability: reliability.trainers.get(trainerId),
+      },
       affiliatedClub,
       // Дубли ключей сохранены намеренно: на них завязан прежний фронт.
       club: affiliatedClub,

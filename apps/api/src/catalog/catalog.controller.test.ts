@@ -265,6 +265,50 @@ describe('Клиенты провайдера', () => {
     expect(response.status).toBe(403);
   });
 
+  // ⚠️ Шаг 35.20a. Число лиц услуг у каждого человека приезжает АДМИНСКИМ
+  // маршрутом, а не условным полем публичного каталога: `managedByUserId` из
+  // публичной выдачи убран, и админскому разделу считать лица стало нечем.
+  //
+  // Проверок три, и все три нужны. Первая — что число вообще приходит и оно
+  // ВЕРНОЕ: присутствие поля зелено и тогда, когда в нём лежит ноль у всех.
+  // Вторая — что оно приходит по строке на человека, включая тех, у кого лиц
+  // нет: пропуск ключа читался бы как «не посчитали». Третья — что режим
+  // клиентов его НЕ несёт: провайдеру знать, сколько лиц у его клиента, незачем.
+  it('админский список несёт число лиц услуг у каждого человека', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/users')
+      .set('Cookie', await harness.as(3));
+
+    expect(response.status).toBe(200);
+
+    const byId = new Map<number, number>(
+      (response.body.data as { id: number; serviceFaceCount: number }[]).map((user) => [
+        user.id,
+        user.serviceFaceCount,
+      ]),
+    );
+
+    // В общем срезе фикстур человеку 2 принадлежат два клуба и три карточки.
+    expect(byId.get(2)).toBe(5);
+    // Человек без лиц получает ноль, а не отсутствующий ключ.
+    expect(byId.get(1)).toBe(0);
+    for (const user of response.body.data as Record<string, unknown>[]) {
+      expect(user).toHaveProperty('serviceFaceCount');
+    }
+  });
+
+  it('режим клиентов числа лиц не несёт', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/users?scope=clients')
+      .set('Cookie', await harness.as(2));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThan(0);
+    for (const client of response.body.data as Record<string, unknown>[]) {
+      expect(client).not.toHaveProperty('serviceFaceCount');
+    }
+  });
+
   it('гостю не отдаётся ничего', async () => {
     expect(
       (await request(harness.app.getHttpServer()).get('/api/users?scope=clients')).status,

@@ -35,7 +35,6 @@ import {
   accountKindOf,
   hasHumanAbilities,
 } from '@sporthub/domain';
-import type { Club, Trainer } from '@sporthub/types';
 
 import { CurrentUser, OrOwnerOf, Public, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
@@ -47,6 +46,7 @@ import {
   ValidationError,
 } from '../common/domain-error';
 import { CatalogQueryService } from './catalog-query.service';
+import type { PublicClub, PublicTrainer } from './public-view';
 import { LogService } from '../logs/log.service';
 import { type PublicationActor, PublicationService } from '../publications/publication.service';
 
@@ -94,7 +94,7 @@ export class ClubsController {
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
-  ): Promise<Club[]> {
+  ): Promise<PublicClub[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
     }
@@ -327,7 +327,7 @@ export class TrainersController {
     @Query('dir') dir?: string,
     @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
-  ): Promise<Trainer[]> {
+  ): Promise<PublicTrainer[]> {
     if (sort !== undefined && sort !== 'reliability') {
       throw new ValidationError('Некорректные параметры запроса');
     }

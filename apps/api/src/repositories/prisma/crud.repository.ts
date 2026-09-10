@@ -407,8 +407,34 @@ type UserRow = {
 const USER_RELATIONS = {
   // Позиции у избранного нет (решение 6.4), порядок восстанавливается по номеру клуба.
   favoriteClubs: { orderBy: { clubId: 'asc' } },
-  notificationPreferences: { orderBy: { type: 'asc' } },
+  // ⚠️ Шаг 35.29: ТОЛЬКО личные строки. С появлением настроек на лицо в этой
+  // таблице живут четыре набора одного человека, а `toUser` схлопывает их по типу
+  // уведомления — без отбора настройка клуба перезаписала бы личную, и человек
+  // увидел бы в своих настройках чужой ящик. Настройки лица берутся отдельным
+  // методом, по имени.
+  notificationPreferences: {
+    where: { faceClubId: null, faceTrainerId: null },
+    orderBy: { type: 'asc' },
+  },
 } as const;
+
+/**
+ * Ссылка на лицо в виде двух колонок — перевод из пары «вид + номер».
+ *
+ * Объявлен один раз: перевод нужен и отбору, и записи, и удалению, а повторить
+ * его трижды значило бы завести три места, где можно ошибиться половиной пары.
+ * Лицо не названо — обе колонки пусты, и это ЛИЧНЫЙ ящик человека, а не «любой».
+ */
+function faceColumns(face: ServiceFaceRef | undefined): {
+  faceClubId: number | null;
+  faceTrainerId: number | null;
+} {
+  if (face === undefined) return { faceClubId: null, faceTrainerId: null };
+
+  return face.type === 'club'
+    ? { faceClubId: face.id, faceTrainerId: null }
+    : { faceClubId: null, faceTrainerId: face.id };
+}
 
 @Injectable()
 export class PrismaUsersRepository implements UsersRepository {
@@ -582,7 +608,14 @@ export class PrismaUsersRepository implements UsersRepository {
     await this.client.user.update({ where: { id }, data });
 
     await this.syncFavorites(id, existing.favoriteClubs, patch.favoriteClubIds);
-    await this.syncPreferences(id, existing.notificationPreferences, patch.notificationPreferences);
+    // Через правку пользователя правится только ЛИЧНЫЙ ящик: `existing` собран
+    // с отбором `USER_RELATIONS`, лиц там нет.
+    await this.syncPreferences(
+      id,
+      existing.notificationPreferences,
+      patch.notificationPreferences,
+      undefined,
+    );
 
     const updated = await this.client.user.findUnique({ where: { id }, include: USER_RELATIONS });
 
@@ -616,10 +649,47 @@ export class PrismaUsersRepository implements UsersRepository {
    * написан рядом: убрать пропавшие типы, записать новые и изменившиеся,
    * не трогая те, у которых значение осталось прежним.
    */
+  /** Настройки одного ящика: личного, если лицо не названо (шаг 35.29). */
+  async findNotificationPreferences(
+    userId: number,
+    face?: ServiceFaceRef,
+  ): Promise<Partial<Record<NotificationType, boolean>>> {
+    const rows = await this.client.userNotificationPreference.findMany({
+      where: { userId, ...faceColumns(face) },
+      orderBy: { type: 'asc' },
+      select: { type: true, enabled: true },
+    });
+
+    const preferences: Partial<Record<NotificationType, boolean>> = {};
+
+    for (const row of rows) {
+      preferences[row.type as NotificationType] = row.enabled;
+    }
+
+    return preferences;
+  }
+
+  /** Записать настройки одного ящика и вернуть их же, как они легли. */
+  async setNotificationPreferences(
+    userId: number,
+    preferences: Partial<Record<NotificationType, boolean>>,
+    face?: ServiceFaceRef,
+  ): Promise<Partial<Record<NotificationType, boolean>>> {
+    const previous = await this.client.userNotificationPreference.findMany({
+      where: { userId, ...faceColumns(face) },
+      select: { type: true, enabled: true },
+    });
+
+    await this.syncPreferences(userId, previous, preferences, face);
+
+    return this.findNotificationPreferences(userId, face);
+  }
+
   private async syncPreferences(
     userId: number,
     previous: { type: string; enabled: boolean }[],
     next: Partial<Record<NotificationType, boolean>> | undefined,
+    face: ServiceFaceRef | undefined,
   ): Promise<void> {
     if (next === undefined) return;
 
@@ -630,15 +700,15 @@ export class PrismaUsersRepository implements UsersRepository {
 
     const removed = [...before.keys()].filter((type) => !after.has(type));
 
-    // ⚠️ Шаг 35.29. Правится ЛИЧНАЯ настройка — та, у которой лица нет.
-    // Настройки лиц живут в тех же строках с заполненной колонкой лица, и стирать
-    // их вместе с личными нельзя: человек, выключивший уведомления себе, не просил
-    // включать обратно уведомления своего клуба.
-    const personalScope = { userId, faceClubId: null, faceTrainerId: null };
+    // ⚠️ Шаг 35.29. Правится РОВНО ОДИН ящик — тот, чьё лицо названо, или личный,
+    // если не названо. Настройки соседних ящиков лежат в этой же таблице, и стирать
+    // их заодно нельзя: человек, выключивший уведомления себе, не просил включать
+    // обратно уведомления своего клуба.
+    const scope = { userId, ...faceColumns(face) };
 
     if (removed.length > 0) {
       await this.client.userNotificationPreference.deleteMany({
-        where: { ...personalScope, type: { in: removed } },
+        where: { ...scope, type: { in: removed } },
       });
     }
 
@@ -650,13 +720,13 @@ export class PrismaUsersRepository implements UsersRepository {
       // Поэтому «найти и обновить, иначе создать» — двумя запросами. Настройки
       // сохраняются редко, и цена этой честности неразличима.
       const existing = await this.client.userNotificationPreference.findFirst({
-        where: { ...personalScope, type },
+        where: { ...scope, type },
         select: { id: true },
       });
 
       if (existing === null) {
         await this.client.userNotificationPreference.create({
-          data: { userId, type, enabled },
+          data: { ...scope, type, enabled },
         });
         continue;
       }

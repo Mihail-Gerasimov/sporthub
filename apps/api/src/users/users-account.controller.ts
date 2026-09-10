@@ -11,11 +11,12 @@
 // Ответ всё равно очищается от него: хеш наружу не отдаётся никогда — он
 // пригоден для перебора офлайн, и «это же не пароль» тут не оправдание.
 
-import { Body, Controller, Get, Inject, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Query } from '@nestjs/common';
 import { REQUIRED_NOTIFICATION_TYPES } from '@sporthub/domain';
-import type { NotificationType, User } from '@sporthub/types';
+import type { NotificationType, ServiceFaceRef, User } from '@sporthub/types';
 import { z } from 'zod';
 
+import { AccessService } from '../access/access.service';
 import { CurrentUser } from '../auth/access.decorators';
 import { SessionService, type SessionContext } from '../auth/session.service';
 import { ForbiddenError, UnauthorizedError, ValidationError } from '../common/domain-error';
@@ -43,7 +44,40 @@ const patchSchema = z
     { message: 'Для смены пароля нужен текущий пароль', path: ['currentPassword'] },
   );
 
-const preferencesSchema = z.object({ preferences: z.record(z.string(), z.boolean()) }).strict();
+/**
+ * Ящик, о котором спрашивают, — из строки запроса (шаг 35.29).
+ *
+ * Оба поля приходят строками: строка запроса чисел не знает. Разбор объявлен
+ * рядом со схемой тела, чтобы у чтения и записи было одно понятие «ящик».
+ */
+const faceQuerySchema = z
+  .object({
+    faceType: z.enum(['club', 'trainer']).optional(),
+    faceId: z.coerce.number().int().positive().optional(),
+  })
+  .refine((value) => (value.faceType === undefined) === (value.faceId === undefined), {
+    message: 'Лицо услуг называется парой: вид и номер',
+    path: ['faceId'],
+  });
+
+/**
+ * Настройки уведомлений (шаг 35.29).
+ *
+ * ⚠️ Лицо необязательно, и это не поблажка старому клиенту, а смысл: у человека
+ * есть личные настройки — они и правятся, когда лицо не названо. Владелец трёх
+ * клубов глушит один, назвав его; свои личные — не называя ничего.
+ */
+const preferencesSchema = z
+  .object({
+    preferences: z.record(z.string(), z.boolean()),
+    faceType: z.enum(['club', 'trainer']).optional(),
+    faceId: z.number().int().positive().optional(),
+  })
+  .strict()
+  .refine((value) => (value.faceType === undefined) === (value.faceId === undefined), {
+    message: 'Лицо услуг называется парой: вид и номер',
+    path: ['faceId'],
+  });
 
 /** Пользователь без хеша пароля. Ровно то, что уходит наружу. */
 export type SafeUser = Omit<User, 'passwordHash'>;
@@ -74,6 +108,9 @@ export class UserAccountController {
   constructor(
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
     private readonly sessions: SessionService,
+    // Владение лицом спрашивается у общего сервиса: настройки чужого клуба
+    // человек править не должен.
+    private readonly access: AccessService,
   ) {}
 
   @Patch(':id')
@@ -155,6 +192,7 @@ export class UserAccountController {
   @Get(':id/notification-preferences')
   async readPreferences(
     @Param('id') rawId: string,
+    @Query() rawQuery: unknown,
     @CurrentUser() session: SessionContext,
   ): Promise<{ notificationPreferences: Partial<Record<NotificationType, boolean>> }> {
     const targetId = parseUserId(rawId, 'Некорректный id');
@@ -163,8 +201,50 @@ export class UserAccountController {
       throw new ForbiddenError('Недостаточно прав для чтения чужих настроек');
     }
 
-    // Тот же пользователь, что и в сессии, — он уже прочитан guard'ом.
-    return { notificationPreferences: session.user.notificationPreferences ?? {} };
+    const face = await this.requireOwnFace(rawQuery, session);
+
+    // Лицо не названо — личный ящик. Он уже прочитан guard'ом вместе с сессией,
+    // и второй запрос за тем же незачем.
+    if (face === undefined) {
+      return { notificationPreferences: session.user.notificationPreferences ?? {} };
+    }
+
+    return {
+      notificationPreferences: await this.users.findNotificationPreferences(targetId, face),
+    };
+  }
+
+  /**
+   * Разобрать имя ящика и убедиться, что он свой.
+   *
+   * Объявлено один раз для чтения и записи: без этого «настройки чужого клуба»
+   * закрывались бы в одном маршруте и оставались открытыми в другом — ровно тот
+   * вид дыры, который фаза 34 находила по два десятка раз.
+   */
+  private async requireOwnFace(
+    raw: unknown,
+    session: SessionContext,
+  ): Promise<ServiceFaceRef | undefined> {
+    const parsed = faceQuerySchema.safeParse(raw ?? {});
+
+    if (!parsed.success) {
+      throw new ValidationError('Некорректные данные запроса');
+    }
+
+    const { faceType, faceId } = parsed.data;
+
+    if (faceType === undefined || faceId === undefined) return undefined;
+
+    const owns =
+      faceType === 'club'
+        ? await this.access.isManagerOfClub(faceId, session.user.id)
+        : await this.access.isManagerOfTrainer(faceId, session.user.id);
+
+    if (!owns) {
+      throw new ForbiddenError('Недостаточно прав для чтения настроек этого лица');
+    }
+
+    return { type: faceType, id: faceId };
   }
 
   @Patch(':id/notification-preferences')
@@ -184,6 +264,13 @@ export class UserAccountController {
       throw new ForbiddenError('Недостаточно прав для редактирования чужих настроек');
     }
 
+    // ⚠️ Настройки лица правит только его владелец. Без этой проверки человек
+    // заглушил бы уведомления чужого клуба, назвав его номер.
+    const face = await this.requireOwnFace(
+      { faceType: parsed.data.faceType, faceId: parsed.data.faceId },
+      session,
+    );
+
     // Обязательные типы отбрасываются молча: отключить их нельзя,
     // но и ошибкой попытка не считается.
     const sanitized: Partial<Record<NotificationType, boolean>> = {};
@@ -194,9 +281,13 @@ export class UserAccountController {
       sanitized[key as NotificationType] = value;
     }
 
-    const updated = await this.users.update(targetId, { notificationPreferences: sanitized });
-
-    return { notificationPreferences: updated.notificationPreferences ?? {} };
+    return {
+      notificationPreferences: await this.users.setNotificationPreferences(
+        targetId,
+        sanitized,
+        face,
+      ),
+    };
   }
 }
 

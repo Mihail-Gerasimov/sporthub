@@ -469,6 +469,100 @@ describe('Маршруты клубов и тренеров', () => {
     });
   });
 
+  // Номер владельца в публичную выдачу не уходит — ни гостю, ни вошедшему.
+  //
+  // ⚠️ Шаг 35.20a. `managedByUserId` — это связь лица услуг с человеком, и до
+  // этого шага она приезжала в каждой карточке каталога. Одним запросом
+  // к `GET /api/clubs` скачивалась готовая карта «эти лица принадлежат одному
+  // человеку»: посторонний связывал зал, карточку тренера и второй зал одного
+  // владельца, ничего не подбирая. Постороннему этот номер не нужен ни для
+  // чего — аффилиация показывается ПОДТВЕРЖДЁННОЙ связью тренер↔клуб.
+  //
+  // Проверки идут парами «гость + вошедший» намеренно: поле убрано ДЛЯ ВСЕХ,
+  // а не спрятано от гостя. Условная выдача одного маршрута разным людям — это
+  // именно то, на чём ошибаются незаметно: тест на гостя остался бы зелёным,
+  // даже если бы владельцу и постороннему поле продолжало уезжать.
+  describe('номер владельца не уходит в публичную выдачу', () => {
+    it('каталог клубов не отдаёт номер владельца гостю', async () => {
+      const response = await request(server()).get('/api/clubs');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(2);
+      for (const item of response.body.data as Record<string, unknown>[]) {
+        expect(item).not.toHaveProperty('managedByUserId');
+      }
+    });
+
+    it('каталог тренеров не отдаёт номер владельца гостю', async () => {
+      const response = await request(server()).get('/api/trainers');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      for (const item of response.body.data as Record<string, unknown>[]) {
+        expect(item).not.toHaveProperty('managedByUserId');
+      }
+    });
+
+    it('карточка клуба не отдаёт номер владельца — ни свой, ни у своих тренеров', async () => {
+      const response = await request(server()).get('/api/clubs/1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.club).not.toHaveProperty('managedByUserId');
+      expect(JSON.stringify(response.body.data)).not.toContain('managedByUserId');
+    });
+
+    it('карточка тренера не отдаёт номер владельца — ни свой, ни у клуба-площадки', async () => {
+      const response = await request(server()).get('/api/trainers/1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.trainer).not.toHaveProperty('managedByUserId');
+      expect(JSON.stringify(response.body.data)).not.toContain('managedByUserId');
+    });
+
+    it('выдача по адресу-ссылке ведёт себя так же', async () => {
+      const club = await request(server()).get('/api/clubs/by-slug/club-1');
+      const trainer = await request(server()).get('/api/trainers/by-slug/marina-sokolova');
+
+      expect(JSON.stringify(club.body.data)).not.toContain('managedByUserId');
+      expect(JSON.stringify(trainer.body.data)).not.toContain('managedByUserId');
+    });
+
+    it('поле убрано и для владельца, и для администратора — выдача одна на всех', async () => {
+      for (const userId of [OWNER_ID, ADMIN_ID]) {
+        const cookie = await harness.as(userId);
+        const clubs = await request(server())
+          .get('/api/clubs?includeHidden=true')
+          .set('Cookie', cookie);
+        const trainers = await request(server())
+          .get('/api/trainers?includeHidden=true')
+          .set('Cookie', cookie);
+
+        expect(clubs.status, `клубы, пользователь ${userId}`).toBe(200);
+        expect(JSON.stringify(clubs.body.data), `клубы, пользователь ${userId}`).not.toContain(
+          'managedByUserId',
+        );
+        expect(trainers.status, `тренеры, пользователь ${userId}`).toBe(200);
+        expect(JSON.stringify(trainers.body.data), `тренеры, пользователь ${userId}`).not.toContain(
+          'managedByUserId',
+        );
+      }
+    });
+
+    it('свои лица человек берёт из ответа «кто я», а не из каталога', async () => {
+      // Контрольная группа: поле ушло, но узнать свои публикации по-прежнему
+      // можно — иначе кабинет остался бы без данных, и «утечка закрыта»
+      // означало бы «функциональность потеряна».
+      const cookie = await harness.as(OWNER_ID);
+      const me = await request(server()).get('/api/auth/me').set('Cookie', cookie);
+
+      expect(me.status).toBe(200);
+      expect(me.body.data.faces).toEqual([
+        { kind: 'club', id: 1, name: 'Клуб 1' },
+        { kind: 'club', id: 2, name: 'Клуб 2' },
+      ]);
+    });
+  });
+
   // Надёжность публикации приходит ВМЕСТЕ с карточкой.
   //
   // ⚠️ Это не украшение выдачи, а починка: бейдж надёжности считал фронт и забирал

@@ -39,6 +39,7 @@ import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import type { Prisma } from '../../storage/prisma-client/client';
 import type {
   ClubsRepository,
+  PublicationsByOwner,
   PublicationStatusFilter,
   ScheduleFilter,
   ScheduleRepository,
@@ -227,6 +228,28 @@ export class PrismaClubsRepository implements ClubsRepository {
     });
 
     return row === null ? null : PrismaClubsRepository.toClub(row);
+  }
+
+  /**
+   * Число клубов у каждого владельца.
+   *
+   * ⚠️ Шаг 35.20a. Считает база группировкой: наружу приезжает по строке
+   * на владельца, а не вся таблица клубов. Публикации без владельца
+   * (исходные данные площадки) в счёт не идут — владельца у них нет,
+   * и приписывать их некому.
+   */
+  async countByOwner(): Promise<PublicationsByOwner[]> {
+    const rows = await this.client.club.groupBy({
+      by: ['managedByUserId'],
+      where: { managedByUserId: { not: null } },
+      _count: { _all: true },
+    });
+
+    return rows
+      .filter(
+        (row): row is typeof row & { managedByUserId: number } => row.managedByUserId !== null,
+      )
+      .map((row) => ({ userId: row.managedByUserId, count: row._count._all }));
   }
 
   async insert(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club> {
@@ -548,6 +571,21 @@ export class PrismaTrainersRepository implements TrainersRepository {
     });
 
     return row === null ? null : PrismaTrainersRepository.toTrainer(row);
+  }
+
+  /** То же для карточек тренера — той же группировкой по владельцу. */
+  async countByOwner(): Promise<PublicationsByOwner[]> {
+    const rows = await this.client.trainer.groupBy({
+      by: ['managedByUserId'],
+      where: { managedByUserId: { not: null } },
+      _count: { _all: true },
+    });
+
+    return rows
+      .filter(
+        (row): row is typeof row & { managedByUserId: number } => row.managedByUserId !== null,
+      )
+      .map((row) => ({ userId: row.managedByUserId, count: row._count._all }));
   }
 
   async insert(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer> {

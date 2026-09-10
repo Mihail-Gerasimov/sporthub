@@ -101,6 +101,36 @@ export class AccessService {
    * Пустые наборы означают ровно «публикаций нет»: фильтры записей понимают это
    * как «не подходит никто», а не как «отбора нет».
    */
+  /**
+   * Сколько лиц услуг у каждого человека площадки — по строке на человека.
+   *
+   * ⚠️ Шаг 35.20a. Нужно ровно одному потребителю — админскому списку людей:
+   * он показывает, ведёт ли человек услуги, и сколько у него лиц. До этого шага
+   * он считал это САМ, скачивая публичный каталог и сверяя `managedByUserId`
+   * с номером человека, — то есть держался на том самом поле, которое из
+   * публичной выдачи уходит.
+   *
+   * Считает база, двумя группировками. Читать каталог целиком нельзя ни по
+   * цене (строка на каждого человека площадки), ни по смыслу: клубы и карточки
+   * тренера — разные таблицы, и складывать их обязан тот, кто знает, что «лицо
+   * услуг» — это и то, и другое. Третий вид лица добавится сюда одной строкой.
+   *
+   * Люди без лиц в карте отсутствуют — потребитель читает это как ноль.
+   */
+  async countServiceFacesByUser(): Promise<Map<number, number>> {
+    const [clubs, trainers] = await Promise.all([
+      this.clubs.countByOwner(),
+      this.trainers.countByOwner(),
+    ]);
+    const counts = new Map<number, number>();
+
+    for (const row of [...clubs, ...trainers]) {
+      counts.set(row.userId, (counts.get(row.userId) ?? 0) + row.count);
+    }
+
+    return counts;
+  }
+
   async getManagedPublicationIds(userId: number): Promise<OwnerIdFilter> {
     const [clubs, trainers] = await Promise.all([
       this.clubs.findAll({ managedByUserId: userId }),
