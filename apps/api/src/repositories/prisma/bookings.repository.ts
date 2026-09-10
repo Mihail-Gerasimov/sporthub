@@ -208,7 +208,14 @@ export class PrismaBookingsRepository implements BookingsRepository {
     const conditions: Record<string, unknown>[] = [];
 
     if (filter.userId !== undefined) conditions.push({ userId: filter.userId });
-    if (filter.scheduleId !== undefined) conditions.push({ scheduleId: filter.scheduleId });
+    if (filter.scheduleId !== undefined) {
+      // Один номер или набор — условие одно и то же по смыслу (шаг 36.7).
+      conditions.push(
+        Array.isArray(filter.scheduleId)
+          ? { scheduleId: { in: filter.scheduleId } }
+          : { scheduleId: filter.scheduleId },
+      );
+    }
 
     if (filter.status !== undefined) {
       const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
@@ -303,7 +310,11 @@ export class PrismaBookingsRepository implements BookingsRepository {
     if (filter.userId !== undefined) parts.push(Prisma.sql`user_id = ${filter.userId}`);
 
     if (filter.scheduleId !== undefined) {
-      parts.push(Prisma.sql`schedule_id = ${filter.scheduleId}`);
+      parts.push(
+        Array.isArray(filter.scheduleId)
+          ? inValues(Prisma.sql`schedule_id`, filter.scheduleId)
+          : Prisma.sql`schedule_id = ${filter.scheduleId}`,
+      );
     }
 
     if (filter.status !== undefined) {

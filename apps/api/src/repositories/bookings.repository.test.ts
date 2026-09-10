@@ -89,6 +89,32 @@ const bookingsContract = (createRepository: () => Promise<BookingsRepository>) =
     expect(await bookings.findMany({ status: ['pending', 'confirmed'] })).toHaveLength(2);
   });
 
+  it('отбор по слоту принимает набор номеров', async () => {
+    // Шаг 36.7. Правка расписания удаляет сразу несколько слотов, и спросить
+    // «есть ли на них живые записи» надо ОДНИМ запросом. Перебор по слоту
+    // дал бы столько запросов, сколько слотов в форме, — то есть цена проверки
+    // росла бы вместе с расписанием.
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+    await bookings.insert({ ...base, scheduleId: 2002 });
+    await bookings.insert({ ...base, scheduleId: 4004 });
+
+    expect(await bookings.findMany({ scheduleId: [1001, 2002] })).toHaveLength(2);
+    expect(await bookings.count({ scheduleId: [1001, 2002] })).toBe(2);
+  });
+
+  it('пустой набор слотов не отбирает ничего', async () => {
+    // ⚠️ Граница, на которой легко получить обратное. Пустой набор означает
+    // «слотов не названо» — значит и записей по ним нет. Если он превратится
+    // в «условия нет», проверка живых записей начнёт считать ВСЕ записи
+    // публикации и запретит правку там, где запрещать нечего.
+    const bookings = await createRepository();
+    await bookings.insert({ ...base });
+
+    expect(await bookings.findMany({ scheduleId: [] })).toHaveLength(0);
+    expect(await bookings.count({ scheduleId: [] })).toBe(0);
+  });
+
   it('отбор по клубу покрывает И владельца, И площадку', async () => {
     const bookings = await createRepository();
     await bookings.insert({ ...base });
