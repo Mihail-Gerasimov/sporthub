@@ -556,10 +556,21 @@ describe('Маршруты клубов и тренеров', () => {
       const me = await request(server()).get('/api/auth/me').set('Cookie', cookie);
 
       expect(me.status).toBe(200);
-      expect(me.body.data.faces).toEqual([
+      // ⚠️ У лица есть ещё и `status` (шаг 35.44a): архивированное лицо остаётся
+      // в списке, но обязано отличаться от живого. Сверяются вид, номер и имя —
+      // то, из чего кабинет строит адрес и подпись.
+      expect(
+        (me.body.data.faces as { kind: string; id: number; name: string }[]).map(
+          ({ kind, id, name }) => ({ kind, id, name }),
+        ),
+      ).toEqual([
         { kind: 'club', id: 1, name: 'Клуб 1' },
         { kind: 'club', id: 2, name: 'Клуб 2' },
       ]);
+      // Живые лица архивными не помечены — иначе кабинет предупреждал бы зря.
+      expect(
+        (me.body.data.faces as { status?: string }[]).every((face) => face.status !== 'hidden'),
+      ).toBe(true);
     });
   });
 
