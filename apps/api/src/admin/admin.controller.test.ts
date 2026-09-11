@@ -316,6 +316,69 @@ describe('Административные маршруты', () => {
     });
   });
 
+  // --- Шаг 37.36: необратимое стирание записи видно очереди надзора ------------------
+
+  it('стирание чужой записи кладёт строку в ОЧЕРЕДЬ НАДЗОРА и называет занятие и дату', async () => {
+    // ⚠️ Строка переживает свой предмет: записи после удаления нет, и сходить
+    // за названием занятия по номеру уже некуда. Поэтому проверяется не факт
+    // отправки, а СОДЕРЖИМОЕ — ровно те поля, которыми событие названо в ленте.
+    await request(harness.app.getHttpServer())
+      .delete('/api/admin/bookings/1')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const rows = await oversight('oversight_booking_hard_deleted');
+
+    expect(rows, 'стирание записи не дошло до очереди надзора').toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+    expect(rows[0]?.userId, 'надзорная строка приехала человеку в личный ящик').toBeUndefined();
+    expect(rows[0]?.payload).toMatchObject({
+      subjectType: 'booking',
+      subjectId: 1,
+      slotTitle: 'Слот',
+      date: '2026-03-18',
+      athleteUserId: 1,
+      actorUserId: 3,
+    });
+
+    // И сама запись действительно стёрта: событие называет то, чего уже нет.
+    expect(await harness.read<unknown[]>('bookings')).toHaveLength(0);
+  });
+
+  it('обычная отмена записи надзорной строки не порождает', async () => {
+    // ⚠️ Обратная половина: отмена — обычное действие участника сделки, и обе
+    // стороны о ней уже извещены. Надзор заведён под то, о чём не узнаёт НИКТО.
+    const response = await request(harness.app.getHttpServer())
+      .delete('/api/bookings/1')
+      .set('Cookie', athleteCookie);
+
+    expect(response.status).toBe(200);
+    expect(await oversight('oversight_booking_hard_deleted')).toEqual([]);
+  });
+
+  it('стирание записи при трёх администраторах даёт ОДНУ строку', async () => {
+    await withThreeAdmins();
+
+    await request(harness.app.getHttpServer())
+      .delete('/api/admin/bookings/1')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const rows = await oversight('oversight_booking_hard_deleted');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+  });
+
+  it('несостоявшееся стирание строки не порождает', async () => {
+    await request(harness.app.getHttpServer())
+      .delete('/api/admin/bookings/99')
+      .set('Cookie', adminCookie)
+      .expect(404);
+
+    expect(await oversight('oversight_booking_hard_deleted')).toEqual([]);
+  });
+
   it('несуществующая запись — 404', async () => {
     const response = await request(harness.app.getHttpServer())
       .delete('/api/admin/bookings/99')
