@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCabinet } from '@/components/profile/cabinet-context';
 import type { ServiceFace } from '@/lib/service-faces';
 import { getNotificationCopy } from '@/lib/notification-copy';
+import { NOTIFICATION_GROUP_LABELS } from '@/lib/notification-groups';
 import { Badge, Card } from '@/components/ui';
 import {
   NOTIFICATION_GROUP_KEYS,
@@ -22,14 +23,14 @@ import {
 import { useToastStore } from '@/stores/useToastStore';
 import type { NotificationType } from '@sporthub/types';
 
-const GROUP_TITLES: Record<NotificationGroupKey, string> = {
-  booking: 'Записи',
-  links: 'Связи',
-  // Phase 29 Step 29.4: уведомления при отзывах.
-  reviews: 'Отзывы',
-  // Шаг 36.21: надзор — уведомления администратору о повторной проверке.
-  moderation: 'Модерация',
-};
+/**
+ * Подписи тем — те же, что у вкладок ленты.
+ *
+ * ⚠️ Второго словаря подписей здесь больше нет (шаг 37.23): он уже разошёлся
+ * с лентой один раз. Надзорные темы в редакторе не появляются вовсе — не потому,
+ * что их отсюда вычёркивают, а потому что настраивать в них нечего (см. ниже).
+ */
+const GROUP_TITLES = NOTIFICATION_GROUP_LABELS;
 
 /** Задержка между кликом по чекбоксу и реальным PATCH — чтобы не спамить сеть при быстрых изменениях. */
 const DEBOUNCE_MS = 500;
@@ -65,10 +66,6 @@ function mailboxQuery(face: ServiceFace | null): string {
 }
 
 export function UserNotificationPreferencesEditor({ userId, notificationPreferences }: Props) {
-  // ⚠️ Шаг 35.28a. Группы показываются все: какие уведомления человеку приходят,
-  // решает его владение лицами, а не роль. Прежде группа «Связи» пряталась у атлета,
-  // и человек с клубом не мог настроить то, что ему приходит.
-  const visibleGroups: readonly NotificationGroupKey[] = NOTIFICATION_GROUP_KEYS;
   // Локальный draft preferences — инициализируется фактическим состоянием user.
   // Для отсутствующих ключей isNotificationTypeEnabled вернёт true по дефолту.
   const [prefs, setPrefs] = useState<Partial<Record<NotificationType, boolean>>>(() => {
@@ -121,22 +118,47 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
 
   // Группировка типов по NOTIFICATION_TYPE_GROUP — результат стабилен, считаем 1 раз.
   const typesByGroup = useMemo<Record<NotificationGroupKey, NotificationType[]>>(() => {
-    const map: Record<NotificationGroupKey, NotificationType[]> = {
-      booking: [],
-      links: [],
-      // Phase 29 Step 29.4: новая группа отзывов.
-      reviews: [],
-      // Шаг 36.21: надзор. У обычного человека эта группа пуста — уведомление
-      // адресовано администратору, — и пустая вкладка ему не рисуется.
-      moderation: [],
-    };
+    // Карта собирается ИЗ СЛОВАРЯ тем: забытая тема означала бы `undefined.push`.
+    const map = Object.fromEntries(
+      NOTIFICATION_GROUP_KEYS.map((group) => [group, [] as NotificationType[]]),
+    ) as Record<NotificationGroupKey, NotificationType[]>;
+
     for (const [type, group] of Object.entries(NOTIFICATION_TYPE_GROUP) as Array<
       [NotificationType, NotificationGroupKey]
     >) {
       map[group].push(type);
     }
+
     return map;
   }, []);
+
+  // ⚠️ Шаг 35.28a. Группы показываются все: какие уведомления человеку приходят,
+  // решает его владение лицами, а не роль. Прежде группа «Связи» пряталась у атлета,
+  // и человек с клубом не мог настроить то, что ему приходит.
+  //
+  // ⚠️ Шаг 37.23. «Все» — это все, В КОТОРЫХ ЕСТЬ ЧТО НАСТРАИВАТЬ. Прежде здесь
+  // стоял весь словарь без оговорок, и человеку рисовалась ПУСТАЯ секция «Модерация»
+  // с галочкой, которую он не мог получить никогда: единственный тип в ней адресован
+  // администратору. Комментарий рядом утверждал, что у обычного человека группа
+  // пуста, — это была неправда, и тесты про четвёртую секцию просто не спрашивали.
+  //
+  // Показываются темы, которые ЭТОТ ЯЩИК может получить. Редактор правит ящик
+  // ЧЕЛОВЕКА — личный или ящик лица, — а надзорные темы адресованы общей очереди
+  // администраторов: человеку в неё не попасть ни при каких настройках.
+  //
+  // ⚠️ Это не возврат к формуле «кому что положено», от которой ушёл шаг 35.28a.
+  // Та формула гадала по РОЛИ получателя, которой больше нет. Здесь же свойство
+  // самой страницы: она открыта только человеку и правит только человеческий ящик.
+  //
+  // ⚠️ Обязательные типы из ПОКАЗАННЫХ тем остаются видимыми и выключенными:
+  // «вы это получите всегда» — полезный ответ, а спрятанная строка ответа не даёт.
+  const visibleGroups: readonly NotificationGroupKey[] = useMemo(
+    () =>
+      NOTIFICATION_GROUP_KEYS.filter(
+        (group) => !group.startsWith('oversight_') && typesByGroup[group].length > 0,
+      ),
+    [typesByGroup],
+  );
 
   // Подчищаем зависший debounce-таймер при размонтировании, чтобы не слать stale PATCH.
   useEffect(() => {
