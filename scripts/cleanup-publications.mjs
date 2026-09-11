@@ -32,7 +32,7 @@ function intArray(ids) {
   return `ARRAY[${ids.map((id) => Number(id)).join(',')}]::int[]`;
 }
 
-/** Тот же список, но текстом: `payload->>'clubId'` отдаёт строку, а не число. */
+/** Тот же список, но текстом: `payload->>'subjectId'` отдаёт строку, а не число. */
 function textArray(ids) {
   return `ARRAY[${ids.map((id) => `'${Number(id)}'`).join(',')}]::text[]`;
 }
@@ -63,32 +63,40 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
   const linksWhere = `club_id = ANY(${clubs}) OR trainer_id = ANY(${trainers})`;
 
   return [
-    // Уведомления уходят ПЕРВЫМИ: их предикат смотрит в записи и отзывы,
-    // которых через два оператора уже не будет.
+    // Уведомления уходят ПЕРВЫМИ: их предикат смотрит в записи, отзывы и связи,
+    // которых через несколько операторов уже не будет.
     //
-    // ⚠️ Внешнего ключа на публикацию у `payload` нет — ссылка живёт числом
-    // внутри jsonb. Каскад её не видит, и после уборки строка превратилась бы
-    // в ссылку в никуда (решение заказчика 16). Разбираются все формы ссылки:
-    // прямая (`clubId` / `trainerId`), парная (`entityType` + `entityId`)
-    // и косвенная — через запись или отзыв удаляемой публикации.
+    // ⚠️ Внешнего ключа на предмет у `payload` нет — ссылка живёт числом внутри
+    // jsonb. Каскад её не видит, и после уборки строка превратилась бы в ссылку
+    // в никуда (решение заказчика 16).
+    //
+    // ⚠️ Шаг 36.51. Форм ссылки было ЧЕТЫРЕ — по одной на фазу, которая заводила
+    // тип уведомления, — и разбирать приходилось все: прямой номер (`clubId` /
+    // `trainerId`), пару `entityType` + `entityId`, пару `publicationType` +
+    // `publicationId` и косвенную ссылку через `bookingId` / `reviewId`. Четвёртую
+    // опись сначала ПРОПУСТИЛА, и каждый прогон оставлял сироту. Теперь форма одна:
+    // пара `subjectType` + `subjectId`, словарь видов предмета —
+    // `NOTIFICATION_SUBJECT_TYPES` в `packages/types`. Прежние строки переведены
+    // миграцией `20260911120000_notification_subject`, разбирать вторую форму
+    // больше незачем.
+    //
+    // ⚠️ Вид предмета, добавленный в словарь, обязан появиться и здесь — это
+    // стережёт `apps/api/src/test/notification-subject-guard.test.ts`.
     {
       label: 'notifications',
       table: 'notifications',
       where: [
-        `payload->>'clubId' = ANY(${clubsText})`,
-        `payload->>'trainerId' = ANY(${trainersText})`,
-        `(payload->>'entityType' = 'club' AND payload->>'entityId' = ANY(${clubsText}))`,
-        `(payload->>'entityType' = 'trainer' AND payload->>'entityId' = ANY(${trainersText}))`,
-        // ⚠️ Четвёртая форма ссылки, найденная браузерным прогоном приёмки.
-        // Уведомление о повторной проверке (шаг 36.21) называет публикацию парой
-        // `publicationType` + `publicationId`, а опись разбирала только три формы —
-        // и оставляла сироту после каждого прогона. Форм ссылки в `payload` четыре
-        // потому, что типы уведомлений писались разными фазами; сводить их к одной —
-        // отдельная работа, а не задача уборки.
-        `(payload->>'publicationType' = 'club' AND payload->>'publicationId' = ANY(${clubsText}))`,
-        `(payload->>'publicationType' = 'trainer' AND payload->>'publicationId' = ANY(${trainersText}))`,
-        `payload->>'bookingId' IN (SELECT id::text FROM ${at('bookings')} WHERE ${bookingsWhere})`,
-        `payload->>'reviewId' IN (SELECT id::text FROM ${at('reviews')} WHERE ${reviewsWhere})`,
+        // Предмет — сама публикация: номера известны списком.
+        `(payload->>'subjectType' = 'club' AND payload->>'subjectId' = ANY(${clubsText}))`,
+        `(payload->>'subjectType' = 'trainer' AND payload->>'subjectId' = ANY(${trainersText}))`,
+        // Предмет живёт в другой таблице: номера берутся подзапросом — записи,
+        // отзывы и связи удаляются этой же уборкой, и списка их номеров нет.
+        `(payload->>'subjectType' = 'booking' AND payload->>'subjectId' IN (
+              SELECT id::text FROM ${at('bookings')} WHERE ${bookingsWhere}))`,
+        `(payload->>'subjectType' = 'review' AND payload->>'subjectId' IN (
+              SELECT id::text FROM ${at('reviews')} WHERE ${reviewsWhere}))`,
+        `(payload->>'subjectType' = 'link' AND payload->>'subjectId' IN (
+              SELECT id::text FROM ${at('trainer_club_links')} WHERE ${linksWhere}))`,
         // Ящик лица: эти строки уходят и каскадом, но удалить их здесь дешевле,
         // чем считать дважды и вычитать пересечение.
         `addressee_club_id = ANY(${clubs})`,

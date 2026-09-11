@@ -18,6 +18,8 @@
 //
 // Запуск: `npm run db:seed` из корня репозитория.
 
+import { readNotificationSubject } from '@sporthub/domain';
+
 import type { PrismaClient } from '../prisma-client/client';
 import { prepareRows, type ChangeLog, type PreparedRows } from './prepare';
 import type { SourceData } from './source-data';
@@ -55,9 +57,12 @@ export function bookingSequenceStart(source: SourceData): number {
   const referenced: number[] = [];
 
   for (const notification of source.notifications) {
-    const bookingId = (notification.payload as { bookingId?: unknown }).bookingId;
+    // Ссылка на предмет — одна форма на все типы (шаг 36.51): пара «вид + номер».
+    // До него здесь читался ключ `bookingId`, и читатель обязан был знать, какой
+    // из четырёх форм тип уведомления называет свой предмет.
+    const subject = readNotificationSubject(notification.payload);
 
-    if (typeof bookingId === 'number') referenced.push(bookingId);
+    if (subject?.subjectType === 'booking') referenced.push(subject.subjectId);
   }
 
   for (const entry of source.logs) {

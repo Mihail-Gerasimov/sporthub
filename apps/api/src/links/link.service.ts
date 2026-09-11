@@ -7,7 +7,7 @@
 // При разрыве связи услуги тренера, привязанные к ней, становятся частными:
 // иначе публичные страницы продолжали бы показывать «в клубе X».
 
-import { isActiveLinkStatus } from '@sporthub/domain';
+import { isActiveLinkStatus, notificationPayload } from '@sporthub/domain';
 import { Inject, Injectable } from '@nestjs/common';
 import type { TrainerClubLink } from '@sporthub/types';
 
@@ -144,12 +144,11 @@ export class LinkService {
         : faceRecipient('club', club);
 
     if (notified !== null) {
-      await this.notifications.notify(notified, 'link_requested', {
-        linkId: link.id,
-        trainerId: input.trainerId,
-        clubId: input.clubId,
-        initiatedBy,
-      });
+      await this.notifications.notify(
+        notified,
+        'link_requested',
+        notificationPayload('link_requested', 'link', link.id, { initiatedBy }),
+      );
     }
 
     // Номер уведомлённого человека остаётся частью ответа сервиса: на него
@@ -184,12 +183,7 @@ export class LinkService {
       approvedByUserId: userId,
     });
 
-    await this.notifyInitiator(link, 'link_approved', {
-      linkId,
-      trainerId: link.trainerId,
-      clubId: link.clubId,
-      initiatedBy: link.initiatedBy,
-    });
+    await this.notifyInitiator(link, 'link_approved', { initiatedBy: link.initiatedBy });
 
     return { link: updated, approverIsClub };
   }
@@ -216,13 +210,7 @@ export class LinkService {
       rejectionReason: reason,
     });
 
-    await this.notifyInitiator(link, 'link_rejected', {
-      linkId,
-      trainerId: link.trainerId,
-      clubId: link.clubId,
-      reason,
-      initiatedBy: link.initiatedBy,
-    });
+    await this.notifyInitiator(link, 'link_rejected', { reason, initiatedBy: link.initiatedBy });
 
     return { link: updated, rejectorIsClub };
   }
@@ -317,10 +305,15 @@ export class LinkService {
     }
   }
 
+  /**
+   * Ответ инициатору заявки. Предмет уведомления — САМА СВЯЗЬ, и называет его
+   * этот метод, а не вызывающий: иначе форму ссылки пришлось бы повторять
+   * в каждом месте решения, а повторённое расходится.
+   */
   private async notifyInitiator(
     link: TrainerClubLink,
     type: 'link_approved' | 'link_rejected',
-    payload: Record<string, unknown>,
+    extra: Record<string, unknown>,
   ): Promise<void> {
     const [trainer, club] = await Promise.all([
       this.trainers.findById(link.trainerId),
@@ -333,7 +326,11 @@ export class LinkService {
         : faceRecipient('club', club);
 
     if (notified !== null) {
-      await this.notifications.notify(notified, type, payload);
+      await this.notifications.notify(
+        notified,
+        type,
+        notificationPayload(type, 'link', link.id, extra),
+      );
     }
   }
 
@@ -365,12 +362,7 @@ export class LinkService {
       this.trainers.findById(link.trainerId),
       this.clubs.findById(link.clubId),
     ]);
-    const payload = {
-      linkId: link.id,
-      trainerId: link.trainerId,
-      clubId: link.clubId,
-      revokedBy,
-    };
+    const payload = notificationPayload('link_revoked', 'link', link.id, { revokedBy });
 
     // Разрыв связи получают ЛИЦА сторон: та, что разорвала, — только когда
     // разрыв пришёл со стороны администратора.

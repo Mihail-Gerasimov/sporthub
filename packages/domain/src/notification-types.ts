@@ -6,7 +6,14 @@
 // ⚠️ Фаза 35, этап Э0a: группа санкций за неявки и три её типа удалены вместе
 // с самим механизмом. Удаление типов группу за собой не уносит — её пришлось
 // убрать отдельно, иначе в настройках осталась бы пустая вкладка.
-import type { NotificationType, User } from '@sporthub/types';
+import { NOTIFICATION_SUBJECT_TYPES } from '@sporthub/types';
+import type {
+  EntityId,
+  NotificationSubject,
+  NotificationSubjectType,
+  NotificationType,
+  User,
+} from '@sporthub/types';
 
 // Phase 29 Step 29.4: добавлена группа 'reviews' для уведомлений по отзывам
 // (получено провайдером + опубликовано автором). UI-фильтр группы появится
@@ -89,4 +96,96 @@ export function isNotificationTypeEnabled(
   // Если ключа нет в map — default true.
   if (!(type in prefs)) return true;
   return prefs[type] !== false;
+}
+
+// --- Шаг 36.51: предмет уведомления ---------------------------------------------
+
+/**
+ * Какой ПРЕДМЕТ называет уведомление каждого типа.
+ *
+ * ⚠️ Словарь, а не догадка по имени типа. До этого шага предмет назывался в
+ * `payload` четырьмя разными формами — по одной на фазу, которая тип заводила, —
+ * и каждому читателю приходилось разбирать все четыре. Уборка публикаций одну
+ * из форм пропустила и оставляла сироту после каждого прогона.
+ *
+ * Объявление здесь же, рядом с группами: добавление типа уведомления — это
+ * правка ОДНОГО файла, а не семи. Тип `Record<NotificationType, …>` не даст
+ * забыть новый тип — сборка не пройдёт.
+ *
+ * Список, а не одно значение: у надзорного уведомления предмет — публикация,
+ * а публикация бывает и клубом, и карточкой тренера.
+ */
+export const NOTIFICATION_TYPE_SUBJECT = {
+  // Записи: предмет — сама запись, а не клуб или тренер, у которых она стоит.
+  // Через запись читатель дойдёт и до публикации, а обратно — нет.
+  booking_confirmed: ['booking'],
+  booking_rejected: ['booking'],
+  booking_cancelled_by_athlete: ['booking'],
+  booking_cancelled_by_provider: ['booking'],
+  booking_completed: ['booking'],
+  booking_no_show: ['booking'],
+  booking_auto_expired: ['booking'],
+  booking_requested: ['booking'],
+  booking_cancelled_by_athlete_to_provider: ['booking'],
+  booking_auto_expired_to_provider: ['booking'],
+  // Связи: предмет — сама связь. Стороны выводятся из неё.
+  link_requested: ['link'],
+  link_approved: ['link'],
+  link_rejected: ['link'],
+  link_revoked: ['link'],
+  // Отзывы: предмет — отзыв. Лицо, о котором он написан, читается из отзыва.
+  review_received_by_provider: ['review'],
+  review_published_for_athlete: ['review'],
+  // Надзор: предмет — сама публикация, и она бывает двух видов.
+  publication_recheck_requested: ['club', 'trainer'],
+} as const satisfies Record<NotificationType, readonly NotificationSubjectType[]>;
+
+/** Виды предмета, допустимые для типа уведомления. Считается из словаря выше. */
+export type NotificationSubjectOf<T extends NotificationType> =
+  (typeof NOTIFICATION_TYPE_SUBJECT)[T][number];
+
+/**
+ * Собрать `payload` уведомления: ссылка на предмет одной формой плюс всё
+ * остальное, что нужно тексту.
+ *
+ * ⚠️ Зачем тип уведомления первым аргументом, если в результат он не попадает.
+ * Он связывает вид предмета с типом на этапе СБОРКИ: назвать запись клубом
+ * (`notificationPayload('booking_confirmed', 'club', …)`) не получится — проект
+ * не соберётся. Проверка не рантаймовая намеренно: уведомление — побочный
+ * эффект, и падение построителя уронило бы саму запись на тренировку.
+ *
+ * ⚠️ Построитель не проверяет `extra` на прежние формы: это стережёт
+ * `apps/api/src/test/notification-subject-guard.test.ts` — он обходит ВСЕ места
+ * отправки в исходниках, включая те, которые появятся после этого шага.
+ */
+export function notificationPayload<T extends NotificationType>(
+  type: T,
+  subjectType: NotificationSubjectOf<T>,
+  subjectId: EntityId,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { subjectType, subjectId, ...extra };
+}
+
+/**
+ * Прочитать ссылку на предмет из `payload`.
+ *
+ * Читателей формы двое: уборка публикаций (она ходит в базу запросом и разбирает
+ * ту же пару в SQL) и счётчик номеров записей при переносе данных. Разбора
+ * прежних форм здесь нет намеренно: строки, написанные до шага 36.51, переведены
+ * в одну форму миграцией `20260911120000_notification_subject`, и второй формы
+ * в данных не осталось. Разбор «на всякий случай» означал бы, что четвёртая
+ * форма живёт дальше — только уже в коде читателя.
+ */
+export function readNotificationSubject(
+  payload: Record<string, unknown>,
+): NotificationSubject | null {
+  const subjectType = payload.subjectType;
+  const subjectId = payload.subjectId;
+
+  if (typeof subjectId !== 'number') return null;
+
+  if (!NOTIFICATION_SUBJECT_TYPES.includes(subjectType as NotificationSubjectType)) return null;
+
+  return { subjectType: subjectType as NotificationSubjectType, subjectId };
 }

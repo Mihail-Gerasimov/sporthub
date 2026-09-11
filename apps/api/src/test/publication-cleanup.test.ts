@@ -359,34 +359,47 @@ async function seedFixture(): Promise<Fixture> {
     },
   });
 
-  // Уведомления: ссылка на публикацию живёт числом внутри jsonb, каскад её не видит.
+  // Уведомления: ссылка на предмет живёт числом внутри jsonb, каскад её не видит.
+  //
+  // ⚠️ Шаг 36.51. Форма ссылки ОДНА — пара `subjectType` + `subjectId`; прежние
+  // четыре переведены миграцией. Здесь нарочно представлены все виды предмета:
+  // связь, запись, отзыв и сама публикация — уборка обязана дойти до каждого.
   await db.prisma.notification.createMany({
     data: [
+      // Предмет — связь мусорных клуба и тренера: до шага уборка находила такую
+      // строку по номерам сторон, а по номеру самой связи — не находила вовсе.
       {
         userId: owner.id,
         type: 'link_requested',
-        payload: { linkId: link.id, clubId: garbageClub.id, trainerId: garbageTrainer.id },
+        payload: { subjectType: 'link', subjectId: link.id, initiatedBy: 'trainer' },
       },
-      { userId: client.id, type: 'booking_confirmed', payload: { bookingId: venueBooking.id } },
+      {
+        userId: client.id,
+        type: 'booking_confirmed',
+        payload: { subjectType: 'booking', subjectId: venueBooking.id },
+      },
       {
         userId: owner.id,
         type: 'review_received_by_provider',
-        payload: {
-          reviewId: garbageReview.id,
-          entityType: 'club',
-          entityId: garbageClub.id,
-          rating: 5,
-        },
+        payload: { subjectType: 'review', subjectId: garbageReview.id, rating: 5 },
       },
       {
         userId: owner.id,
         type: 'booking_requested',
         addresseeClubId: garbageClub.id,
-        payload: { bookingId: venueBooking.id },
+        payload: { subjectType: 'booking', subjectId: venueBooking.id },
       },
-      // Контроль: уведомление живого клуба и живой записи остаётся.
-      { userId: client.id, type: 'booking_confirmed', payload: { bookingId: liveBooking.id } },
-      { userId: owner.id, type: 'link_requested', payload: { clubId: liveClub.id } },
+      // Контроль: уведомление живой записи и живого клуба остаётся.
+      {
+        userId: client.id,
+        type: 'booking_confirmed',
+        payload: { subjectType: 'booking', subjectId: liveBooking.id },
+      },
+      {
+        userId: owner.id,
+        type: 'publication_recheck_requested',
+        payload: { subjectType: 'club', subjectId: liveClub.id, publicationName: 'Живой клуб' },
+      },
     ],
   });
 
@@ -677,10 +690,13 @@ describe('Общая опись уборки — одна на всех (36.36)'
     const notifications = plan.find((entry) => entry.label === 'notifications');
     const logs = plan.find((entry) => entry.label === 'logs');
 
-    // Ссылка на публикацию живёт внутри jsonb и в полиморфной паре журнала —
+    // Ссылка на предмет живёт внутри jsonb и в полиморфной паре журнала —
     // ни та, ни другая каскадом не уходят (решения заказчика 16 и 17).
-    expect(notifications?.where).toContain("payload->>'clubId'");
-    expect(notifications?.where).toContain("payload->>'bookingId'");
+    //
+    // ⚠️ Форма ссылки одна (шаг 36.51): пара «вид + номер». Что уборка знает про
+    // КАЖДЫЙ вид предмета из словаря, стережёт `notification-subject-guard.test.ts`.
+    expect(notifications?.where).toContain("payload->>'subjectType' = 'club'");
+    expect(notifications?.where).toContain("payload->>'subjectType' = 'booking'");
     expect(logs?.where).toContain("entity_type = 'club'");
     expect(logs?.where).toContain("entity_type = 'trainer'");
   });

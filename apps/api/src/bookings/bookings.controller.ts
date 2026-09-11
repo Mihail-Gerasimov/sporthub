@@ -32,6 +32,7 @@ import {
   accountCan,
   accountKindOf,
   hasHumanAbilities,
+  notificationPayload,
 } from '@sporthub/domain';
 import type { Booking, BookingStatus } from '@sporthub/types';
 import { BOOKING_STATUSES } from '@sporthub/types';
@@ -341,11 +342,14 @@ export class BookingsController {
         : faceRecipient('club', context?.club);
 
     if (face !== null) {
-      await this.notifications.notify(face, 'booking_requested', {
-        bookingId: booking.id,
-        scheduleId: booking.scheduleId,
-        athleteUserId: booking.userId,
-      });
+      await this.notifications.notify(
+        face,
+        'booking_requested',
+        notificationPayload('booking_requested', 'booking', booking.id, {
+          scheduleId: booking.scheduleId,
+          athleteUserId: booking.userId,
+        }),
+      );
     }
 
     return booking;

@@ -21,7 +21,12 @@
 // Потолок числа отзывов адресату — число завершённых записей к нему же.
 
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
-import { COMPLETED_BOOKING_STATUSES, accountKindOf, hasHumanAbilities } from '@sporthub/domain';
+import {
+  COMPLETED_BOOKING_STATUSES,
+  accountKindOf,
+  hasHumanAbilities,
+  notificationPayload,
+} from '@sporthub/domain';
 import type { Review } from '@sporthub/types';
 import { APP_LIMITS } from '@sporthub/types';
 import { z } from 'zod';
@@ -316,24 +321,24 @@ export class ReviewsController {
     // Отзыв самому себе теоретически возможен через инструменты разработчика —
     // провайдеру в этом случае уведомление не уходит.
     if (face !== null && face.managedByUserId !== userId) {
-      await this.notifications.notify(face, 'review_received_by_provider', {
-        reviewId: review.id,
-        entityType,
-        entityId,
-        fromUserId: userId,
-        authorName: user.name,
-        rating,
-        entityName,
-      });
+      await this.notifications.notify(
+        face,
+        'review_received_by_provider',
+        notificationPayload('review_received_by_provider', 'review', review.id, {
+          fromUserId: userId,
+          authorName: user.name,
+          rating,
+          entityName,
+        }),
+      );
     }
 
     // А подтверждение публикации — самому автору, человеку.
-    await this.notifications.notify({ userId }, 'review_published_for_athlete', {
-      reviewId: review.id,
-      entityType,
-      entityId,
-      entityName,
-    });
+    await this.notifications.notify(
+      { userId },
+      'review_published_for_athlete',
+      notificationPayload('review_published_for_athlete', 'review', review.id, { entityName }),
+    );
 
     return review;
   }

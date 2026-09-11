@@ -3,7 +3,7 @@
 // Часть типов-перечислений выводится из словарей-массивов в ./constants:
 // список значений объявлен там ровно один раз, тип — его проекция.
 // Импорт type-only, поэтому во время выполнения связи между модулями нет.
-import type { LOG_ACTIONS, LOG_ENTITY_TYPES } from './constants';
+import type { LOG_ACTIONS, LOG_ENTITY_TYPES, NOTIFICATION_SUBJECT_TYPES } from './constants';
 
 export type EntityId = number;
 export type ISODateString = string;
@@ -568,6 +568,25 @@ export type NotificationType =
   // Phase 29 Step 29.4: уведомления при создании отзыва — обоим участникам.
   | 'review_received_by_provider' // владельцу клуба/тренера: «получен новый отзыв»
   | 'review_published_for_athlete'; // автору отзыва: «ваш отзыв опубликован»
+
+/**
+ * Вид предмета, о котором написано уведомление. Проекция словаря
+ * `NOTIFICATION_SUBJECT_TYPES` — список значений объявлен там один раз.
+ */
+export type NotificationSubjectType = (typeof NOTIFICATION_SUBJECT_TYPES)[number];
+
+/**
+ * Ссылка на предмет уведомления — ОДНА форма на все типы (шаг 36.51).
+ *
+ * Пара «вид + номер», а не свой ключ на каждый вид: у ссылки всегда ровно один
+ * предмет, и читателю не приходится разбирать, какой из четырёх форм его назвали.
+ * Внешнего ключа у неё нет и быть не может — `payload` полиморфен; поэтому
+ * уборка публикаций разбирает эту пару явно (решение заказчика 16).
+ */
+export interface NotificationSubject {
+  subjectType: NotificationSubjectType;
+  subjectId: EntityId;
+}
 
 /**
  * In-app уведомление пользователю. Создаётся хелпером notify() из Step 24.5

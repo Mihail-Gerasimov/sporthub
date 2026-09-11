@@ -9,7 +9,7 @@
 // их снимками. Здесь то же самое выражено через репозитории внутри транзакции,
 // поэтому в фазе базы вызывающий код не меняется вовсе.
 
-import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
+import { ACTIVE_BOOKING_STATUSES, notificationPayload } from '@sporthub/domain';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Club, Offering, Schedule, Trainer } from '@sporthub/types';
 
@@ -466,11 +466,13 @@ export class PublicationService {
     const moderatorId = current.hiddenByUserId;
 
     await this.transactions.afterCommit(async () => {
-      await this.notifications.notify({ userId: moderatorId }, 'publication_recheck_requested', {
-        publicationType: publication.kind,
-        publicationId: publication.id,
-        publicationName: publication.name,
-      });
+      await this.notifications.notify(
+        { userId: moderatorId },
+        'publication_recheck_requested',
+        notificationPayload('publication_recheck_requested', publication.kind, publication.id, {
+          publicationName: publication.name,
+        }),
+      );
     });
   }
 

@@ -16,6 +16,7 @@ import {
   getBookedCountDelta,
   getSlotEndAt,
   getSlotStartAt,
+  notificationPayload,
   type DisciplineConfig,
   validateTransition,
 } from '@sporthub/domain';
@@ -421,23 +422,31 @@ export class BookingService {
 
     switch (transition.to) {
       case 'confirmed':
-        await this.notifications.notify({ userId: athleteId }, 'booking_confirmed', {
-          bookingId: booking.id,
-        });
+        await this.notifications.notify(
+          { userId: athleteId },
+          'booking_confirmed',
+          notificationPayload('booking_confirmed', 'booking', booking.id),
+        );
         break;
 
       case 'rejected_by_provider':
-        await this.notifications.notify({ userId: athleteId }, 'booking_rejected', {
-          bookingId: booking.id,
-          reason: transition.reason,
-        });
+        await this.notifications.notify(
+          { userId: athleteId },
+          'booking_rejected',
+          notificationPayload('booking_rejected', 'booking', booking.id, {
+            reason: transition.reason,
+          }),
+        );
         break;
 
       case 'cancelled_by_athlete': {
-        await this.notifications.notify({ userId: athleteId }, 'booking_cancelled_by_athlete', {
-          bookingId: booking.id,
-          cancelReason: booking.cancelReason,
-        });
+        await this.notifications.notify(
+          { userId: athleteId },
+          'booking_cancelled_by_athlete',
+          notificationPayload('booking_cancelled_by_athlete', 'booking', booking.id, {
+            cancelReason: booking.cancelReason,
+          }),
+        );
 
         // Отмена приходит ЛИЦУ, у которого сорвалось занятие, а не в общую кучу
         // его владельца.
@@ -446,11 +455,10 @@ export class BookingService {
           await this.notifications.notify(
             providerFace,
             'booking_cancelled_by_athlete_to_provider',
-            {
-              bookingId: booking.id,
+            notificationPayload('booking_cancelled_by_athlete_to_provider', 'booking', booking.id, {
               athleteUserId: booking.userId,
               cancelReason: booking.cancelReason,
-            },
+            }),
           );
         }
         break;
@@ -458,35 +466,44 @@ export class BookingService {
 
       case 'cancelled_by_provider': {
         const bySystem = transition.actor === 'system';
+        const cancelType = bySystem ? 'booking_auto_expired' : 'booking_cancelled_by_provider';
+
         await this.notifications.notify(
           { userId: athleteId },
-          bySystem ? 'booking_auto_expired' : 'booking_cancelled_by_provider',
-          { bookingId: booking.id },
+          cancelType,
+          notificationPayload(cancelType, 'booking', booking.id),
         );
 
         // Провайдера извещаем только при автоотмене: ручную он инициировал сам.
         if (bySystem) {
           const providerFace = await this.resolveProviderFace(booking);
           if (providerFace !== null) {
-            await this.notifications.notify(providerFace, 'booking_auto_expired_to_provider', {
-              bookingId: booking.id,
-              athleteUserId: booking.userId,
-            });
+            await this.notifications.notify(
+              providerFace,
+              'booking_auto_expired_to_provider',
+              notificationPayload('booking_auto_expired_to_provider', 'booking', booking.id, {
+                athleteUserId: booking.userId,
+              }),
+            );
           }
         }
         break;
       }
 
       case 'completed':
-        await this.notifications.notify({ userId: athleteId }, 'booking_completed', {
-          bookingId: booking.id,
-        });
+        await this.notifications.notify(
+          { userId: athleteId },
+          'booking_completed',
+          notificationPayload('booking_completed', 'booking', booking.id),
+        );
         break;
 
       case 'no_show':
-        await this.notifications.notify({ userId: athleteId }, 'booking_no_show', {
-          bookingId: booking.id,
-        });
+        await this.notifications.notify(
+          { userId: athleteId },
+          'booking_no_show',
+          notificationPayload('booking_no_show', 'booking', booking.id),
+        );
         break;
 
       // `unmarked` — служебный финал, атлету не сообщается.
