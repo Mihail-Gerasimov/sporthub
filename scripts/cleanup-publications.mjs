@@ -253,7 +253,29 @@ export function peopleCleanupPlan({ userIds = [], subjects = [], schema = '' } =
           ),
       ].join('\n        OR '),
     },
-    { label: 'logs', table: 'logs', where: `actor_id = ANY(${users})` },
+    {
+      label: 'logs',
+      table: 'logs',
+      where: [
+        `actor_id = ANY(${users})`,
+        // ⚠️ И записи о НАЗВАННЫХ предметах — по той же причине, что у уведомлений
+        // (шаг 37.65). Исполнителем действия над публикацией прогона мог быть живой
+        // администратор: его номер в списке людей прогона не значится, а предмета
+        // уже нет в таблице — ни по одному признаку строка не находится.
+        //
+        // Без этого каждый прогон навсегда оставлял бы в журнале живой площадки
+        // свои `publish_delete`, `admin_password_change` и `admin_hard_delete_booking`.
+        // ⚠️ Отбор ТОЛЬКО парой «тип + номер»: `entity_id` полиморфен, и число 13
+        // в нём значит клуб, тренера или запись в зависимости от `entity_type`
+        // (решение заказчика 17 фазы 36).
+        ...subjects
+          .filter((subject) => subject.ids.length > 0)
+          .map(
+            (subject) =>
+              `(entity_type = '${subject.type}' AND entity_id = ANY(${intArray(subject.ids)}))`,
+          ),
+      ].join('\n        OR '),
+    },
   ].map((entry) => ({ ...entry, qualified: at(entry.table) }));
 }
 

@@ -691,6 +691,30 @@ describe('Общая опись уборки — одна на всех (36.36)'
     expect(fixtureSource).toContain('cleanupPlans({ clubIds, trainerIds, userIds, subjects })');
   });
 
+  it('названные предметы убираются И из журнала, не только из уведомлений', async () => {
+    // ⚠️ Нашлось после второго браузерного прогона: он оставил в живом журнале
+    // 66 строк. Исполнителем действий над публикациями прогона был ЖИВОЙ
+    // администратор — его номера в списке людей прогона нет, — а самих публикаций
+    // уже не существует. Ни по одному признаку строка не находилась, и каждый
+    // прогон навсегда добавлял бы свои `publish_delete` в журнал площадки.
+    const module = (await import(
+      pathToFileURL(path.join(REPO_ROOT, 'scripts', 'cleanup-publications.mjs')).href
+    )) as CleanupModule;
+    const plans = module.cleanupPlans({
+      clubIds: [],
+      trainerIds: [],
+      userIds: [3],
+      subjects: [{ type: 'club', ids: [256] }],
+    });
+    const logs = plans.filter((entry) => entry.label === 'logs');
+    const where = logs.map((entry) => entry.where).join('\n');
+
+    // ⚠️ Отбор ТОЛЬКО парой «тип + номер»: `entity_id` полиморфен, и по одному
+    // номеру уборка снесла бы чужое (решение заказчика 17 фазы 36).
+    expect(where).toContain("entity_type = 'club'");
+    expect(where).toContain('entity_id = ANY');
+  });
+
   it('своего отбора уведомлений у фикстуры не осталось', () => {
     // Та самая копия: пока она была, ключом уборки у фикстуры оставался ВЛАДЕЛЕЦ,
     // а у общей описи — ПРЕДМЕТ, и они расходились на каждом новом виде адресата.
