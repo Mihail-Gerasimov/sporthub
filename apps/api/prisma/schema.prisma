@@ -195,6 +195,10 @@ model User {
   bookingTransitions BookingStatusTransition[]
 
   notifications           Notification[]
+  /// Строки очереди надзора, которые этот человек разобрал (шаг 37.6).
+  /// Обратная сторона `Notification.readBy`; при удалении человека гасится
+  /// в NULL, а не уносит строки.
+  notificationsResolved   Notification[]               @relation("NotificationReadBy")
   notificationPreferences UserNotificationPreference[]
   favoriteClubs           UserFavoriteClub[]
 
@@ -838,9 +842,20 @@ model Notification {
   payload Json @map("payload")
 
   /// NULL — непрочитано; 66 из 93 прочитаны.
+  /// ⚠️ В очереди надзора (фаза 37) это поле означает «этим ЗАНЯЛИСЬ», а не
+  /// «на это посмотрели»: у общей очереди прочтение и разбор — одно событие.
   readAt DateTime? @map("read_at")
 
+  /// Кто разобрал — только для очереди надзора: в личном ящике разбирающий
+  /// и владелец один человек, и поле остаётся пустым (шаг 37.6).
+  /// SET NULL, а не каскад: запись о разборе обязана пережить увольнение
+  /// занимавшегося, иначе удаление администратора вернуло бы в очередь
+  /// давно разобранные строки.
+  readByUserId Int? @map("read_by_user_id")
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  readBy User? @relation("NotificationReadBy", fields: [readByUserId], references: [id], onDelete: SetNull)
 
   /// Удаление лица уносит его ящик: без лица уведомление о нём нечитаемо.
   addresseeClub    Club?    @relation("NotificationAddresseeClub", fields: [addresseeClubId], references: [id], onDelete: Cascade)
