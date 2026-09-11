@@ -91,12 +91,17 @@ export function seedRunUsers() {
  * прийти постороннему, а строку журнала мог написать не он. Пока этого не было,
  * каждый прогон оставлял за собой сирот.
  */
-export function cleanupRun() {
+export function cleanupRun({ subjects = [] } = {}) {
   const ids = psql(`SELECT id FROM users WHERE email LIKE '${RUN_TAG}-%';`)
     .split('\n')
     .filter(Boolean);
 
-  if (ids.length === 0) return { users: 0, clubs: 0, trainers: 0 };
+  // ⚠️ Пустой прогон всё равно обязан убрать названные предметы. Надзорная строка
+  // про СТЁРТУЮ публикацию не привязана ни к кому: ни владельца, ни живого предмета
+  // у неё нет, и найти её по спискам номеров нельзя — номеров больше не существует.
+  // Поэтому выход «людей прогона нет — убирать нечего» действует только когда
+  // и предметов не названо.
+  if (ids.length === 0 && subjects.length === 0) return { users: 0, clubs: 0, trainers: 0 };
 
   const list = ids.join(',');
   const idsOf = (table) =>
@@ -120,7 +125,18 @@ export function cleanupRun() {
   // на оба плана.
   const userIds = list.split(',').map(Number);
 
-  for (const statement of cleanupStatements(cleanupPlans({ clubIds, trainerIds, userIds }))) {
+  // ⚠️ `subjects` — номера того, что прогон СТЁР по ходу дела, запомненные ДО удаления.
+  //
+  // Прогон, который стирает публикацию или запись, ОБЯЗАН их передать:
+  //
+  //   cleanupRun({ subjects: [{ type: 'club', ids: [256, 257] }, { type: 'booking', ids: [1417] }] })
+  //
+  // Иначе надзорная строка про стирание останется в живой базе навсегда: искать её
+  // не по чему — владельца у неё нет, а предмета уже нет в таблице. Найдено
+  // браузерным прогоном фазы 37 (шаг 37.61).
+  for (const statement of cleanupStatements(
+    cleanupPlans({ clubIds, trainerIds, userIds, subjects }),
+  )) {
     psql(statement);
   }
 
