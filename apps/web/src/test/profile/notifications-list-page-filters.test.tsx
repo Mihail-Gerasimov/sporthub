@@ -39,14 +39,14 @@ const fixtures: Notification[] = [
     createdAt: '2026-04-22T10:00:00.000Z',
     userId: 1,
     type: 'booking_requested',
-    payload: { bookingId: 501 },
+    payload: { subjectType: 'booking', subjectId: 501 },
   },
   {
     id: 2,
     createdAt: '2026-04-22T09:00:00.000Z',
     userId: 1,
     type: 'link_requested',
-    payload: { linkId: 10 },
+    payload: { subjectType: 'link', subjectId: 10 },
   },
   // Вчера — booking_cancelled_by_athlete_to_provider, прочитанное
   {
@@ -54,7 +54,7 @@ const fixtures: Notification[] = [
     createdAt: '2026-04-21T10:00:00.000Z',
     userId: 1,
     type: 'booking_cancelled_by_athlete_to_provider',
-    payload: { bookingId: 502 },
+    payload: { subjectType: 'booking', subjectId: 502 },
     readAt: '2026-04-21T15:00:00.000Z',
   },
   // Эта неделя (понедельник 2026-04-20) — booking_auto_expired_to_provider
@@ -63,7 +63,7 @@ const fixtures: Notification[] = [
     createdAt: '2026-04-20T10:00:00.000Z',
     userId: 1,
     type: 'booking_auto_expired_to_provider',
-    payload: { bookingId: 503 },
+    payload: { subjectType: 'booking', subjectId: 503 },
   },
   // Раньше — link_revoked
   {
@@ -71,7 +71,7 @@ const fixtures: Notification[] = [
     createdAt: '2026-03-15T10:00:00.000Z',
     userId: 1,
     type: 'link_revoked',
-    payload: { linkId: 11 },
+    payload: { subjectType: 'link', subjectId: 11 },
   },
 ];
 
@@ -83,7 +83,7 @@ const athleteFixtures: Notification[] = [
     createdAt: '2026-04-22T10:00:00.000Z',
     userId: 1,
     type: 'booking_confirmed',
-    payload: { bookingId: 701 },
+    payload: { subjectType: 'booking', subjectId: 701 },
   },
   {
     id: 11,

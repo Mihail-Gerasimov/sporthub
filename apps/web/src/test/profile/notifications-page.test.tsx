@@ -21,7 +21,7 @@ const seed: Notification[] = [
     createdAt: '2026-04-20T12:00:00.000Z',
     userId: 1,
     type: 'booking_confirmed',
-    payload: { bookingId: 501 },
+    payload: { subjectType: 'booking', subjectId: 501 },
   },
   {
     id: 2,

@@ -153,14 +153,14 @@ describe('NotificationBell', () => {
           createdAt: '2026-04-20T12:00:00.000Z',
           userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
-          payload: { bookingId: 501 },
+          payload: { subjectType: 'booking', subjectId: 501 },
         },
         {
           id: 9,
           createdAt: '2026-04-19T12:00:00.000Z',
           userId: ATHLETE_USER_ID,
           type: 'booking_rejected',
-          payload: { bookingId: 502 },
+          payload: { subjectType: 'booking', subjectId: 502 },
         },
       ],
     });
@@ -235,7 +235,7 @@ describe('NotificationBell', () => {
           createdAt: '2026-04-22T12:00:00.000Z',
           userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
-          payload: { bookingId: 777 },
+          payload: { subjectType: 'booking', subjectId: 777 },
         },
       ],
     });
