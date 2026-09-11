@@ -15,7 +15,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
-import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
+import {
+  DEMO_PASSWORD,
+  DEMO_PASSWORD_HASH,
+  createTestHarness,
+  type TestHarness,
+} from '../test/harness';
 
 /**
  * Все маршруты раздела разом.
@@ -213,6 +218,54 @@ describe('Административные маршруты', () => {
     providerCookie = await harness.as(2);
   });
 
+  /** Строки надзорной очереди — то, что администратор увидит в своей ленте. */
+  type StoredNotification = {
+    userId?: number;
+    addresseeKind: string;
+    type: string;
+    payload: Record<string, unknown>;
+  };
+
+  const oversight = async (type: string): Promise<StoredNotification[]> =>
+    (await harness.read<StoredNotification[]>('notifications')).filter((row) => row.type === type);
+
+  /** Тот же набор людей, но администраторов трое: событие от этого не удваивается. */
+  const withThreeAdmins = async (): Promise<void> => {
+    const users =
+      await harness.read<{ id: number; email: string; name: string; accountKind?: string }[]>(
+        'users',
+      );
+
+    await harness.writeMany({
+      users: [
+        ...users,
+        {
+          id: 4,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 2',
+          email: 'ad2@test.local',
+          phone: '+7 (900) 000-00-04',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 5,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 3',
+          email: 'ad3@test.local',
+          phone: '+7 (900) 000-00-05',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: [],
+    });
+
+    adminCookie = await harness.as(3);
+  };
+
   afterAll(async () => {
     await harness.close();
   });
@@ -370,6 +423,96 @@ describe('Административные маршруты', () => {
     // Слово `password` в самой строке законно — так называется действие;
     // запрещено оно именно в данных события, куда пароль и мог бы просочиться.
     expect(JSON.stringify(logs.map((entry) => entry.meta)).toLowerCase()).not.toContain('password');
+  });
+
+  // --- Шаг 37.35: смена чужого пароля видна очереди надзора ------------------------
+
+  it('смена чужого пароля кладёт строку в ОЧЕРЕДЬ НАДЗОРА, а не в чей-то личный ящик', async () => {
+    // ⚠️ Проверяется адресат, а не факт отправки. Личная строка с пустым владельцем
+    // отвечает тем же 200 и выглядит отправленной — но очередь видят все
+    // администраторы, а личный ящик не видит никто.
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' })
+      .expect(200);
+
+    const rows = await oversight('oversight_password_changed_by_admin');
+
+    expect(rows, 'смена чужого пароля не дошла до очереди надзора').toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+    expect(rows[0]?.userId, 'надзорная строка приехала человеку в личный ящик').toBeUndefined();
+    // Текст ленты читает имя и почту; предмет назван одной формой — через построитель.
+    expect(rows[0]?.payload).toMatchObject({
+      subjectType: 'user',
+      subjectId: 1,
+      targetName: 'Атлет',
+      targetEmail: 'a@test.local',
+      actorUserId: 3,
+      actorName: 'Админ',
+    });
+  });
+
+  it('в надзорную строку не попадает ни пароль, ни его хеш', async () => {
+    // Та же обратная половина, что и у журнала: строка живёт дольше пароля
+    // и читается шире — всеми администраторами сразу.
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' });
+
+    const written = JSON.stringify(await oversight('oversight_password_changed_by_admin'));
+
+    expect(written).not.toContain('fresh-password-99');
+    expect(written).not.toContain('$argon2');
+  });
+
+  it('смена СВОЕГО пароля надзорной строки не порождает', async () => {
+    // ⚠️ Критерий очереди — «о событии должен узнать не его участник, а площадка».
+    // Человек, меняющий свой пароль, и есть участник: надзирать тут не за чем,
+    // а строка на каждую смену утопила бы очередь тем же, чем её утопил бы вход.
+    const response = await request(harness.app.getHttpServer())
+      .patch('/api/users/1')
+      .set('Cookie', athleteCookie)
+      .send({ password: 'свой-новый-пароль', currentPassword: DEMO_PASSWORD });
+
+    expect(response.status).toBe(200);
+    expect(await oversight('oversight_password_changed_by_admin')).toEqual([]);
+  });
+
+  it('смена чужого пароля при трёх администраторах даёт ОДНУ строку', async () => {
+    // Копии по числу администраторов сломали бы разбор: «этим занялись» стало бы
+    // личным, и второй не увидел бы, что первый уже взялся.
+    await withThreeAdmins();
+
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' })
+      .expect(200);
+
+    const rows = await oversight('oversight_password_changed_by_admin');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+  });
+
+  it('отказ сменить пароль строки не порождает', async () => {
+    // Уведомление следует за СВЕРШИВШИМСЯ действием: отправка до проверок дала бы
+    // надзору событие, которого не было.
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/99/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' })
+      .expect(404);
+
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: '123' })
+      .expect(400);
+
+    expect(await oversight('oversight_password_changed_by_admin')).toEqual([]);
   });
 
   it('короткий пароль — 400', async () => {

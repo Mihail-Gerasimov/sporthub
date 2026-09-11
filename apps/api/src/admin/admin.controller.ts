@@ -1,4 +1,4 @@
-import { accountKindOf } from '@sporthub/domain';
+import { accountKindOf, notificationPayload } from '@sporthub/domain';
 // Административные маршруты.
 //
 // Каждый проверяет роль администратора по хранилищу, а не по слову клиента, —
@@ -29,6 +29,7 @@ import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { LinkService } from '../links/link.service';
 import { LogService } from '../logs/log.service';
+import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -58,6 +59,11 @@ export class AdminController {
     private readonly access: AccessService,
     private readonly links: LinkService,
     private readonly logs: LogService,
+    // ⚠️ Шаги 37.35–37.37. Очередь надзора. Журнал ждёт, пока в него заглянут;
+    // уведомление приходит само. Три действия этого раздела — смена чужого пароля,
+    // необратимое стирание чужой записи и принудительный разрыв чужой связи —
+    // сегодня не видны НИКОМУ, кроме того, кто их совершил.
+    private readonly notifications: NotificationService,
   ) {}
 
   @Delete('bookings/:id')
@@ -188,6 +194,33 @@ export class AdminController {
         changedByUserId: session.actor.id,
       },
     });
+
+    // ⚠️ Шаг 37.35. Строка уходит в ОБЩУЮ ОЧЕРЕДЬ надзора — после того, как пароль
+    // уже записан. Транзакции здесь нет: смена пароля — одна запись, и возврат
+    // из неё означает «свершилось». Уведомить раньше значило бы сообщить надзору
+    // о смене, которой могло и не случиться.
+    //
+    // Владельцу учётной записи это письмо НЕ адресовано: он узнаёт о смене тем,
+    // что его пароль перестал подходить, а очередь надзора отвечает на другой
+    // вопрос — «кто из администраторов что сделал». Исполнителю письма тоже нет:
+    // у очереди адресат один на всех, и строка про своё же действие ему не письмо,
+    // а запись в общем списке, которую он и закроет.
+    //
+    // Имя и почта — то же, что в журнале, и по той же причине: событие обязано
+    // называть человека, а не только его номер. Читатель не пойдёт за ними
+    // вторым запросом — учётной записи к моменту чтения может уже не быть.
+    await this.notifications.notify(
+      supervisionRecipient,
+      'oversight_password_changed_by_admin',
+      notificationPayload('oversight_password_changed_by_admin', 'user', targetUserId, {
+        targetName: target.name,
+        targetEmail: target.email,
+        // Исполнитель — второй половиной события: «чей пароль» без «кем сменён»
+        // очереди надзора бесполезно.
+        actorUserId: session.actor.id,
+        actorName: session.actor.name,
+      }),
+    );
 
     return EMPTY_RESULT;
   }
