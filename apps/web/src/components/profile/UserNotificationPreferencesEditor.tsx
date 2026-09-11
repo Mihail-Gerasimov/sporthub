@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCabinet } from '@/components/profile/cabinet-context';
 import type { ServiceFace } from '@/lib/service-faces';
-import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
+import { getNotificationCopy } from '@/lib/notification-copy';
 import { Badge, Card } from '@/components/ui';
 import {
   NOTIFICATION_GROUP_KEYS,

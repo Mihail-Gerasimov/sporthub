@@ -23,18 +23,33 @@
  * `notifications-toggle-selection`, `notification-delete-{id}`,
  * `notification-checkbox-{id}`, `notifications-bulk-delete`,
  * `notifications-delete-confirm`.
+ *
+ * ⚠️ Шаг 37.39. Чистые части ленты уехали в `lib`: вёдра по дате и их подписи
+ * (`notification-buckets`), подписи тем (`notification-groups`), тексты
+ * уведомлений (`notification-copy`). Причина — надзорная лента администратора
+ * фазы 37: она живёт в служебной панели и переиспользовать этот каркас не может,
+ * а завести вторую копию общего значило бы повторить расхождение, случавшееся
+ * в этом домене трижды за две фазы. Здесь остаётся то, что и правда про кабинет:
+ * ящик, режим выбора, модалка удаления и сама разметка.
  */
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
 import { Modal } from '@/components/ui/Modal';
 import {
   NOTIFICATION_GROUP_KEYS,
   NOTIFICATION_TYPE_GROUP,
   type NotificationGroupKey,
 } from '@sporthub/domain';
+import {
+  BUCKET_LABELS,
+  BUCKET_ORDER,
+  getDateBucket,
+  type DateBucket,
+} from '@/lib/notification-buckets';
+import { getNotificationCopy } from '@/lib/notification-copy';
+import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/notification-groups';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -78,29 +93,14 @@ export interface NotificationsListPageProps {
   userId?: number;
 }
 
-type GroupFilter = 'all' | NotificationGroupKey;
-type DateBucket = 'today' | 'yesterday' | 'thisWeek' | 'earlier';
-
-const GROUP_LABELS: Record<GroupFilter, string> = {
-  all: 'Все',
-  booking: 'Записи',
-  links: 'Связи',
-  // Phase 29 Step 29.4: tab «Отзывы» — для review-уведомлений
-  // (получено провайдером + опубликовано автором).
-  reviews: 'Отзывы',
-  // Шаг 36.21: надзор — уведомления администратору о повторной проверке.
-  moderation: 'Модерация',
-};
-
-const BUCKET_ORDER: readonly DateBucket[] = ['today', 'yesterday', 'thisWeek', 'earlier'];
-const BUCKET_LABELS: Record<DateBucket, string> = {
-  today: 'Сегодня',
-  yesterday: 'Вчера',
-  thisWeek: 'Эта неделя',
-  earlier: 'Раньше',
-};
-
-/** Полный формат даты-времени для карточки уведомления. */
+/**
+ * Полный формат даты-времени для карточки уведомления.
+ *
+ * ⚠️ Шаг 37.39. Вёдра по дате, их подписи и подписи тем уехали в `lib`: те же
+ * части нужны надзорной ленте администратора, а она живёт в служебной панели.
+ * Форматтер даты остаётся здесь до шага 37.40 — там он сведётся с форматтером
+ * колокольчика в один модуль.
+ */
 function formatFullDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString('ru-RU', {
@@ -113,28 +113,6 @@ function formatFullDate(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-/**
- * Определяет дата-bucket для createdAt относительно now. Работает в UTC для
- * детерминизма в тестах и на сервере (вне зависимости от TZ хоста). Понедельник
- * считается началом недели — соответствует locale-соглашениям проекта.
- */
-export function getDateBucket(iso: string, now: Date): DateBucket {
-  const ts = new Date(iso).getTime();
-  const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const yesterdayStart = todayStart - msPerDay;
-
-  // Понедельник = начало недели. getUTCDay(): 0=Вс..6=Сб → daysToMonday.
-  const nowDay = now.getUTCDay();
-  const daysToMonday = nowDay === 0 ? 6 : nowDay - 1;
-  const weekStart = todayStart - daysToMonday * msPerDay;
-
-  if (ts >= todayStart) return 'today';
-  if (ts >= yesterdayStart) return 'yesterday';
-  if (ts >= weekStart) return 'thisWeek';
-  return 'earlier';
 }
 
 export function NotificationsListPage({
@@ -161,7 +139,7 @@ export function NotificationsListPage({
 
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
-  const [activeGroup, setActiveGroup] = useState<GroupFilter>('all');
+  const [activeGroup, setActiveGroup] = useState<NotificationGroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
 
   // Phase 29 Step 29.3: режим выбора нескольких уведомлений и подтверждение
@@ -213,8 +191,8 @@ export function NotificationsListPage({
   // Счётчики групп считаются от оригинального списка, без учёта текущих фильтров.
   // Считается ВСЁ, что прислал сервер: он уже отобрал ящик, и второй раз решать
   // «наше ли это уведомление» браузеру нечем и незачем.
-  const groupCounts = useMemo<Record<GroupFilter, number>>(() => {
-    const counts: Record<GroupFilter, number> = {
+  const groupCounts = useMemo<Record<NotificationGroupFilter, number>>(() => {
+    const counts: Record<NotificationGroupFilter, number> = {
       all: 0,
       booking: 0,
       links: 0,
@@ -489,7 +467,7 @@ export function NotificationsListPage({
                   : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
               }`}
             >
-              {GROUP_LABELS[group]}
+              {NOTIFICATION_GROUP_LABELS[group]}
               <span className="ml-1.5 inline-block rounded-pill bg-canvas/40 px-1.5 text-[10px] font-semibold">
                 {groupCounts[group]}
               </span>

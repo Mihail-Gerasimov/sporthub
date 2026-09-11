@@ -27,7 +27,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getNotificationCopy } from '@/components/profile/notifications/notification-copy';
+import { getNotificationCopy } from '@/lib/notification-copy';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { PERSONAL_CABINET_PATH } from '@/lib/service-faces';
