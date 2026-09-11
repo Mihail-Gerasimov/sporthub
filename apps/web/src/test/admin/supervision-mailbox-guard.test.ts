@@ -50,9 +50,34 @@ const MAILBOX_REQUEST =
 /** Ящик назван: константой очереди надзора либо прямо в параметрах адреса. */
 const NAMES_SUPERVISION = /SUPERVISION_MAILBOX|scope=supervision|['"]supervision['"]/;
 
+/**
+ * ЧУЖОЙ ящик, названный на поверхности панели.
+ *
+ * ⚠️ Второе правило сторожа, и оно появилось из диверсии, которую первая редакция
+ * НЕ покраснила. Диверсия меняла ящик страницы надзора на личный — а строка
+ * импорта `SUPERVISION_MAILBOX` оставалась на месте, и сторож считал ящик
+ * названным. То есть проверял он наличие СЛОВА в файле, а не то, что этим словом
+ * назван запрос.
+ *
+ * Человеческого ящика у администратора не бывает (решение 13 фазы 35), поэтому
+ * его имя на этой поверхности — само по себе нарушение, а не альтернатива.
+ */
+const NAMES_HUMAN_MAILBOX = /scope=personal|['"]personal['"]|clubId|trainerId|PERSONAL_MAILBOX/;
+
 /** Текст файла без комментариев — иначе это пояснение попало бы под запрет. */
 function codeOnly(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+/**
+ * Текст без строк импорта.
+ *
+ * ⚠️ Импорт — это не называние ящика. Файл, который импортировал константу
+ * и спросил ленту чем-то другим, обязан краснеть: именно так первая редакция
+ * сторожа пропустила диверсию.
+ */
+function withoutImports(code: string): string {
+  return code.replace(/^\s*import[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
 }
 
 /** Поверхность служебной панели? */
@@ -71,9 +96,14 @@ function isAdminSurface(relativePath: string): boolean {
 export function asksMailboxWithoutNaming(relativePath: string, text: string): boolean {
   if (!isAdminSurface(relativePath)) return false;
 
-  const code = codeOnly(text);
+  const code = withoutImports(codeOnly(text));
 
   if (!MAILBOX_REQUEST.test(code)) return false;
+
+  // Чужой ящик на поверхности панели — нарушение само по себе, даже если рядом
+  // назван и надзорный: два ящика в одном запросе означают, что какой-то из них
+  // лишний, и заметить это можно только здесь.
+  if (NAMES_HUMAN_MAILBOX.test(code)) return true;
 
   return !NAMES_SUPERVISION.test(code);
 }
@@ -177,6 +207,29 @@ describe('Сторож: панель не зовёт ленту без ящик�
         "await fetch('/api/notifications/unread-count');",
       ),
     ).toBe(false);
+
+    // ⚠️ Диверсия, которую первая редакция сторожа НЕ покраснила: ящик подменён
+    // на личный, а импорт надзорной константы остался на месте.
+    expect(
+      asksMailboxWithoutNaming(
+        path.join('src', 'app', 'service-portal', '(admin)', 'notifications', 'page.tsx'),
+        [
+          "import { SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';",
+          "const feed = await getNotifications({ mailbox: { scope: 'personal' }, limit: 15 });",
+        ].join('\n'),
+      ),
+    ).toBe(true);
+
+    // Один импорт ящиком не называет: запрос спрашивает что-то другое.
+    expect(
+      asksMailboxWithoutNaming(
+        path.join('src', 'components', 'admin', 'AdminNotificationsPage.tsx'),
+        [
+          "import { SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';",
+          'const response = await fetch(`/api/notifications?offset=${offset}`);',
+        ].join('\n'),
+      ),
+    ).toBe(true);
 
     // Пояснение в комментарии под запрет не попадает.
     expect(
