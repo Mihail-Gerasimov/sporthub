@@ -126,6 +126,9 @@ describe('Маршруты модерации', () => {
         },
       ],
       logs: [],
+      // ⚠️ Уведомления переносятся пустыми вместе со срезом: без этого надзорные
+      // строки копятся между проверками, и «создалась одна» зеленеет на второй.
+      notifications: [],
     });
 
     adminCookie = await harness.as(3);
@@ -148,6 +151,50 @@ describe('Маршруты модерации', () => {
 
     const logs = await harness.read<{ action: string }[]>('logs');
     expect(logs[0].action).toBe('moderation_hide');
+  });
+
+  it('скрытие уходит В ОЧЕРЕДЬ НАДЗОРА — с причиной и с тем, кто скрыл', async () => {
+    // ⚠️ Шаг 37.31. Двое администраторов, не зная о решениях друг друга, способны
+    // отменять их по очереди, и обнаружится это только по жалобе владельца.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' });
+
+    const rows = await harness.read<
+      {
+        addresseeKind: string;
+        userId?: number;
+        type: string;
+        payload: Record<string, unknown>;
+      }[]
+    >('notifications');
+    const oversight = rows.filter((row) => row.type === 'oversight_publication_hidden');
+
+    expect(oversight).toHaveLength(1);
+    expect(oversight[0].addresseeKind).toBe('supervision');
+    // У очереди владельца-человека нет: строка переживёт увольнение скрывшего.
+    expect(oversight[0].userId).toBeUndefined();
+    expect(oversight[0].payload.reason).toBe('жалоба');
+    expect(oversight[0].payload.subjectType).toBe('club');
+    expect(oversight[0].payload.subjectId).toBe(1);
+  });
+
+  it('ВОЗВРАТ публикации надзорной строки не порождает', async () => {
+    // Обратная сторона: очередь надзора — про то, что требует внимания, а снятие
+    // ограничения внимания не требует. Полный след обоих действий — в журнале.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' });
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'unhide', entityType: 'club', entityId: 1 });
+
+    const rows = await harness.read<{ type: string }[]>('notifications');
+
+    expect(rows.filter((row) => row.type === 'oversight_publication_hidden')).toHaveLength(1);
   });
 
   it('восстановление снимает состояние и причину', async () => {

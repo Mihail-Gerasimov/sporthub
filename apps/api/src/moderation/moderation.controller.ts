@@ -1,4 +1,4 @@
-import { accountKindOf } from '@sporthub/domain';
+import { notificationPayload, accountKindOf } from '@sporthub/domain';
 // Модерация публикаций и сводный список для админского раздела.
 //
 // Скрытие ставит причину, восстановление её снимает. Публикация без явного
@@ -12,6 +12,7 @@ import type { SessionContext } from '../auth/session.service';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
 import { NotFoundError, ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
+import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
 import { PublicationService } from '../publications/publication.service';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
@@ -105,6 +106,8 @@ export class ModerationController {
     @Inject(TRAINERS_REPOSITORY) private readonly trainers: TrainersRepository,
     private readonly logs: LogService,
     private readonly publications: PublicationService,
+    // Очередь надзора: о скрытии публикации должен узнать не только тот, кто скрыл.
+    private readonly notifications: NotificationService,
   ) {}
 
   // Право проверяет guard: модерация закрыта для всех, кроме тех, кому она положена.
@@ -162,6 +165,26 @@ export class ModerationController {
           ? { name: entity.name, reason: (reason as string).trim() }
           : { name: entity.name },
     });
+
+    // ⚠️ Шаг 37.31. Скрытие публикации уходит в ОБЩУЮ ОЧЕРЕДЬ НАДЗОРА, а не
+    // отдельному человеку. Причина не в удобстве: двое администраторов, не зная
+    // о решениях друг друга, способны отменять их по очереди — и обнаружится это
+    // только по жалобе владельца.
+    //
+    // ⚠️ Возврат публикации (`unhide`) строки НЕ порождает: это снятие ограничения,
+    // а не его наложение, и очередь надзора не журнал — она про то, что требует
+    // внимания. Полный след обоих действий по-прежнему в журнале.
+    if (action === 'hide') {
+      await this.notifications.notify(
+        supervisionRecipient,
+        'oversight_publication_hidden',
+        notificationPayload('oversight_publication_hidden', owner, entityId, {
+          publicationName: entity.name,
+          reason: (reason as string).trim(),
+          hiddenByUserId: moderatorId,
+        }),
+      );
+    }
 
     return entity;
   }
