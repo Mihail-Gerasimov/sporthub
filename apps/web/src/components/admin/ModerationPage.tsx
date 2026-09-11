@@ -28,12 +28,33 @@
  * (`status === 'pending'`); «Исправлено, ждёт проверки» — скрытая модератором
  * и починенная владельцем (`awaitingRecheck`). Прежняя подпись «На проверке»
  * годилась и туда и сюда.
+ *
+ * Phase 37 Step 37.54: весь отбор раздела переехал В АДРЕС. До этого шага раздел
+ * не принимал параметров адреса вовсе — фильтры жили в локальном состоянии,
+ * и быстрый переход из надзорной ленты («публикация скрыта» → карточка этой
+ * публикации) построить было не из чего.
+ *
+ * ⚠️ Переехал ВЕСЬ отбор, а не только номер публикации, и это не расширение
+ * работы. Часть отбора в адресе и часть в памяти — это два источника правды:
+ * они расходятся молча, и раздел после «назад» показывает не то, что в адресе.
+ * Разбор адреса — одна функция на раздел (`lib/moderation-filters`).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { HIDE_KIND_LABELS, isHideKind } from '@sporthub/domain';
 import type { City, HideKindValue } from '@sporthub/types';
 import { Skeleton } from '@/components/ui/Skeleton';
+import {
+  MODERATION_DEFAULT_FILTERS,
+  MODERATION_PAGE_SIZE,
+  isFocusedPublication,
+  moderationAddressQuery,
+  moderationRequestQuery,
+  parseModerationFilters,
+  type ModerationFilters,
+} from '@/lib/moderation-filters';
 import { cn } from '@/lib/utils';
 
 import { HideReasonModal } from './HideReasonModal';
@@ -60,9 +81,21 @@ interface ModerationPageProps {
   sports: Array<{ id: number; name: string }>;
 }
 
-// Phase 28.19: единый PAGE_SIZE с Logs/Users
-const PAGE_SIZE = 15;
+// Phase 28.19: единый PAGE_SIZE с Logs/Users.
+// Шаг 37.54: объявлен в `lib/moderation-filters` — оттуда же собирается смещение
+// в запросе, и двух разных представлений о размере страницы быть не должно.
+const PAGE_SIZE = MODERATION_PAGE_SIZE;
 const MAX_VISIBLE_PAGE_BUTTONS = 5;
+
+/**
+ * Задержка перед тем, как поиск попадёт в адрес.
+ *
+ * ⚠️ Набор текста — не шаг навигации. Без задержки каждая буква правила бы адрес,
+ * то есть звала бы навигацию и поход за страницей раздела; в истории браузера
+ * оставалось бы по записи на букву. Отбор при этом всё равно уходит в запрос —
+ * задержан момент, а не место отбора.
+ */
+const SEARCH_DEBOUNCE_MS = 300;
 
 // SVG иконки
 const ICON_SEARCH = (
@@ -109,6 +142,17 @@ const ICON_CHEV_RIGHT = (
 );
 
 export function ModerationPage({ sports }: ModerationPageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  /**
+   * Отбор раздела приходит из адреса и только из него: своего состояния
+   * у фильтров нет. Поэтому «назад» в браузере возвращает не только адрес,
+   * но и выдачу, а ссылкой на раздел можно поделиться.
+   */
+  const filters = useMemo(() => parseModerationFilters(searchParams), [searchParams]);
+
   const [cities, setCities] = useState<City[]>([]);
 
   useEffect(() => {
@@ -120,44 +164,101 @@ export function ModerationPage({ sports }: ModerationPageProps) {
       .catch(() => {});
   }, []);
 
-  // Фильтры
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [cityFilter, setCityFilter] = useState('');
-  const [sportFilter, setSportFilter] = useState('');
-  // Очередь повторной проверки: `all` — весь раздел, `awaiting` — только то,
-  // что владельцы уже исправили. Отдельный отбор, а не значение состояния:
-  // признак живёт ПОВЕРХ скрытия, а не вместо него.
-  const [recheckFilter, setRecheckFilter] = useState('all');
-  const [search, setSearch] = useState('');
-
   // Данные
   const [items, setItems] = useState<PublicationItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Модалка скрытия
   const [hideTarget, setHideTarget] = useState<PublicationItem | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  /**
+   * Свежий отбор для отложенных правок (поиск с задержкой).
+   *
+   * ⚠️ Без него отложенная правка накладывалась бы на снимок отбора, каким он был
+   * в момент нажатия клавиши: человек за эти 300 мс мог переключить селект,
+   * и правка вернула бы прежнее значение — молча.
+   */
+  const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  /**
+   * Перевести раздел на новый отбор. Меняется АДРЕС — выдача идёт за ним.
+   *
+   * `replace` — для набора текста: правка адреса на каждую букву превратила бы
+   * кнопку «назад» в откат по одному символу.
+   */
+  const applyFilters = useCallback(
+    (patch: Partial<ModerationFilters>, mode: 'push' | 'replace' = 'push') => {
+      // Любая правка отбора возвращает на первую страницу и снимает наводку
+      // из уведомления: человек уже смотрит раздел, а не пришедшую публикацию.
+      const next: ModerationFilters = { ...filtersRef.current, page: 1, focusId: null, ...patch };
+      const query = moderationAddressQuery(next);
+      const href = query ? `${pathname}?${query}` : pathname;
+
+      if (mode === 'replace') router.replace(href);
+      else router.push(href);
+    },
+    [pathname, router],
+  );
+
+  /**
+   * Черновик поля поиска. Само поле остаётся отзывчивым, а в адрес значение
+   * уезжает с задержкой; `committedSearchRef` отличает наш собственный ответ
+   * адреса от чужой правки (переход по ссылке, «назад»), чтобы не затирать
+   * недописанное слово.
+   */
+  const [searchDraft, setSearchDraft] = useState(filters.search);
+  const committedSearchRef = useRef(filters.search);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressSearch = filters.search;
+
+  useEffect(() => {
+    if (addressSearch === committedSearchRef.current) return;
+
+    committedSearchRef.current = addressSearch;
+    setSearchDraft(addressSearch);
+  }, [addressSearch]);
+
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    },
+    [],
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchDraft(value);
+
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+      searchTimerRef.current = setTimeout(() => {
+        committedSearchRef.current = value;
+        applyFilters({ search: value }, 'replace');
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [applyFilters],
+  );
+
+  /**
+   * Адрес запроса собирается из отбора одной функцией.
+   *
+   * ⚠️ Весь отбор и постраничность — В ЗАПРОСЕ, а не после ответа. Страница,
+   * которая просит всё и разбирается сама, выглядит на экране точно так же —
+   * и именно так фаза 35 потеряла разделение по лицам в семи разделах кабинета.
+   */
+  const requestQuery = moderationRequestQuery(filters);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    if (typeFilter !== 'all') params.set('type', typeFilter);
-    if (cityFilter) params.set('city', cityFilter);
-    if (sportFilter) params.set('sportId', sportFilter);
-    if (search.trim()) params.set('search', search.trim());
-    // ⚠️ Отбор уходит В ЗАПРОС, а не отсеивается после ответа. Страница, которая
-    // просит всё и разбирается сама, выглядит на экране точно так же — и именно
-    // так фаза 35 потеряла разделение по лицам в семи разделах кабинета.
-    if (recheckFilter === 'awaiting') params.set('awaitingRecheck', 'true');
-    params.set('offset', String(offset));
-    params.set('limit', String(PAGE_SIZE));
 
     try {
-      const res = await fetch(`/api/publications?${params.toString()}`);
+      const res = await fetch(`/api/publications?${requestQuery}`);
       const json = await res.json();
       if (json.success) {
         setItems(json.data);
@@ -166,16 +267,11 @@ export function ModerationPage({ sports }: ModerationPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, typeFilter, cityFilter, sportFilter, recheckFilter, search, offset]);
+  }, [requestQuery]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Сброс offset при смене фильтров
-  useEffect(() => {
-    setOffset(0);
-  }, [statusFilter, typeFilter, cityFilter, sportFilter, recheckFilter, search]);
 
   const handleHide = async (reason: string) => {
     if (!hideTarget) return;
@@ -218,7 +314,23 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  // Страница — из адреса, смещение считается от неё (и так же — в запросе).
+  const currentPage = filters.page;
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
+  /**
+   * Публикация, ради которой пришли из уведомления.
+   *
+   * ⚠️ Это НЕ отбор в памяти: отбор сделал сервер по номеру в запросе, здесь
+   * только ответ на вопрос «дошла ли она до выдачи». Не дошла (стёрта, другого
+   * вида, маршрут номера не знает) — раздел говорит об этом вслух, а не показывает
+   * молча не ту страницу.
+   */
+  const focusedItem =
+    filters.focusId === null
+      ? null
+      : (items.find((item) => isFocusedPublication(filters, item)) ?? null);
+  const focusMissing = filters.focusId !== null && !loading && focusedItem === null;
 
   const visiblePageNumbers = useMemo(() => {
     const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
@@ -262,8 +374,8 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           </span>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchDraft}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Поиск по названию..."
             aria-label="Поиск по названию"
             className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm font-medium text-ink outline-none placeholder:text-disabled"
@@ -272,9 +384,9 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
         <ToolbarSelect
           ariaLabel="Статус публикации"
-          value={statusFilter}
-          active={statusFilter !== 'all'}
-          onChange={setStatusFilter}
+          value={filters.status}
+          active={filters.status !== 'all'}
+          onChange={(value) => applyFilters({ status: value as ModerationFilters['status'] })}
           options={[
             { value: 'all', label: 'Все статусы' },
             { value: 'published', label: 'Опубликовано' },
@@ -289,9 +401,9 @@ export function ModerationPage({ sports }: ModerationPageProps) {
          */}
         <ToolbarSelect
           ariaLabel="Повторная проверка"
-          value={recheckFilter}
-          active={recheckFilter !== 'all'}
-          onChange={setRecheckFilter}
+          value={filters.recheck}
+          active={filters.recheck !== 'all'}
+          onChange={(value) => applyFilters({ recheck: value as ModerationFilters['recheck'] })}
           options={[
             { value: 'all', label: 'Все публикации' },
             { value: 'awaiting', label: 'Исправленные, ждут проверки' },
@@ -300,9 +412,9 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
         <ToolbarSelect
           ariaLabel="Тип публикации"
-          value={typeFilter}
-          active={typeFilter !== 'all'}
-          onChange={setTypeFilter}
+          value={filters.type}
+          active={filters.type !== 'all'}
+          onChange={(value) => applyFilters({ type: value as ModerationFilters['type'] })}
           options={[
             { value: 'all', label: 'Все типы' },
             { value: 'club', label: 'Клубы' },
@@ -312,9 +424,9 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
         <ToolbarSelect
           ariaLabel="Город"
-          value={cityFilter}
-          active={cityFilter !== ''}
-          onChange={setCityFilter}
+          value={filters.city}
+          active={filters.city !== ''}
+          onChange={(value) => applyFilters({ city: value })}
           options={[
             { value: '', label: 'Все города' },
             ...cities.map((c) => ({ value: c.name, label: c.name })),
@@ -323,15 +435,37 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
         <ToolbarSelect
           ariaLabel="Вид спорта"
-          value={sportFilter}
-          active={sportFilter !== ''}
-          onChange={setSportFilter}
+          value={filters.sportId}
+          active={filters.sportId !== ''}
+          onChange={(value) => applyFilters({ sportId: value })}
           options={[
             { value: '', label: 'Все виды спорта' },
             ...sports.map((s) => ({ value: String(s.id), label: s.name })),
           ]}
         />
       </div>
+
+      {/*
+       * Полоса наводки: раздел открыт ссылкой из уведомления, и это сказано вслух.
+       * Без неё модератор видит выдачу из одной строки и не понимает, почему
+       * раздел «пустой», — а если предмет не дошёл, не понимает и этого.
+       */}
+      {filters.focusId !== null ? (
+        <aside className="flex flex-col gap-2.5 rounded-[16px] border border-lime bg-lime-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="m-0 text-[13px] font-medium leading-[1.5] text-ink">
+            {focusMissing
+              ? `Публикация №${filters.focusId} в выдаче не видна: возможно, её уже стёрли.`
+              : `Показана публикация №${filters.focusId} — переход из уведомления.`}
+          </p>
+          <button
+            type="button"
+            onClick={() => applyFilters(MODERATION_DEFAULT_FILTERS)}
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border-2 border-lime bg-bg px-5 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime sm:w-auto"
+          >
+            Весь раздел
+          </button>
+        </aside>
+      ) : null}
 
       {/* Список публикаций */}
       {loading ? (
@@ -350,6 +484,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
             <ItemCard
               key={`${item.type}-${item.id}`}
               item={item}
+              focused={item === focusedItem}
               actionLoading={actionLoading}
               onHide={() => setHideTarget(item)}
               onUnhide={() => handleUnhide(item)}
@@ -376,8 +511,8 @@ export function ModerationPage({ sports }: ModerationPageProps) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           <PageButton
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+            disabled={currentPage <= 1}
+            onClick={() => applyFilters({ page: Math.max(1, currentPage - 1) })}
             ariaLabel="Предыдущая страница"
           >
             {ICON_CHEV_LEFT}
@@ -386,7 +521,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
             <PageButton
               key={page}
               active={page === currentPage}
-              onClick={() => setOffset((page - 1) * PAGE_SIZE)}
+              onClick={() => applyFilters({ page })}
               ariaLabel={`Страница ${page}`}
             >
               {page}
@@ -394,7 +529,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           ))}
           <PageButton
             disabled={currentPage >= totalPages}
-            onClick={() => setOffset(offset + PAGE_SIZE)}
+            onClick={() => applyFilters({ page: currentPage + 1 })}
             ariaLabel="Следующая страница"
           >
             {ICON_CHEV_RIGHT}
@@ -469,11 +604,14 @@ function ToolbarSelect({
 
 function ItemCard({
   item,
+  focused,
   actionLoading,
   onHide,
   onUnhide,
 }: {
   item: PublicationItem;
+  /** Та самая публикация, ради которой перешли из уведомления. */
+  focused: boolean;
   actionLoading: boolean;
   onHide: () => void;
   onUnhide: () => void;
@@ -496,7 +634,12 @@ function ItemCard({
   });
 
   return (
-    <article className="grid grid-cols-1 items-center gap-x-4 gap-y-3.5 rounded-[16px] border border-line bg-card p-[18px] sm:p-[18px_22px] xl:grid-cols-[1fr_220px]">
+    <article
+      className={cn(
+        'grid grid-cols-1 items-center gap-x-4 gap-y-3.5 rounded-[16px] border bg-card p-[18px] sm:p-[18px_22px] xl:grid-cols-[1fr_220px]',
+        focused ? 'border-lime' : 'border-line',
+      )}
+    >
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <h3 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
@@ -518,6 +661,9 @@ function ItemCard({
           {/* Признак идёт рядом со скрытием, а не вместо него: публикация
               всё ещё вне каталога, но разбирательство уже сдвинулось. */}
           {isAwaitingRecheck ? <Badge tone="gold">Исправлено, ждёт проверки</Badge> : null}
+          {/* Бейдж наводки — рядом с состоянием, а не вместо него: он говорит,
+              ПОЧЕМУ эта строка здесь, и ничего не сообщает о самой публикации. */}
+          {focused ? <Badge tone="lime-fill">Из уведомления</Badge> : null}
         </div>
         <p className="m-0 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-medium text-muted">
           {item.city && <span>{item.city}</span>}
