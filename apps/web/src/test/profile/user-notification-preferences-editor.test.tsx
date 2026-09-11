@@ -7,8 +7,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CabinetProvider } from '@/components/profile/cabinet-context';
+import { ProviderSettings } from '@/components/profile/provider/ProviderSettings';
 import { UserNotificationPreferencesEditor } from '@/components/profile/UserNotificationPreferencesEditor';
 import { PERSONAL_CABINET, faceCabinet, type ServiceFace } from '@/lib/service-faces';
+import { renderInFaceCabinet } from '@/test/helpers/cabinet';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { User } from '@sporthub/types';
 
@@ -275,5 +278,78 @@ describe('Настройки правятся в ящике ОТКРЫТОГО �
 
     expect(saved, 'редактор не сохранил настройку').toBeDefined();
     expect(saved?.body).toMatchObject({ faceType: 'club', faceId: 3 });
+  });
+});
+
+describe('Настройка названа обещанием на будущее (шаг 36.52)', () => {
+  // ⚠️ Решение заказчика 22: настройки применяются при ОТПРАВКЕ, а не при чтении.
+  // Выключенный тип больше не создаёт строки вовсе — значит галочка означает
+  // «больше мне такое не присылать», а не «спрятать в том числе старое».
+  // Цена названа и принята: пропущенное не вернётся, даже если включить обратно.
+  // Человек обязан узнать это со страницы, а не из отчёта о фазе.
+  beforeEach(() => {
+    // Редактор при монтировании сам идёт за настройками — ответ подменяем,
+    // иначе в тесте висел бы настоящий запрос.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ success: true, data: { notificationPreferences: {} } }),
+      })),
+    );
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { id: 2, name: 'Марина', email: 'marina@test.local' },
+      accountKind: 'person',
+      isAuthenticated: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  it('пояснение говорит, что настройка действует на НОВЫЕ уведомления', () => {
+    render(<UserNotificationPreferencesEditor userId={2} notificationPreferences={{}} />);
+
+    const text = screen.getByTestId('notification-preferences-editor').textContent ?? '';
+
+    expect(text, `пояснение не говорит про новые уведомления: «${text}»`).toMatch(
+      /действует на новые уведомления/i,
+    );
+  });
+
+  it('пояснение говорит, что уже пришедшее остаётся в ленте', () => {
+    // Обратная половина обещания: без неё человек решит, что галочка чистит ленту.
+    render(<UserNotificationPreferencesEditor userId={2} notificationPreferences={{}} />);
+
+    const text = screen.getByTestId('notification-preferences-editor').textContent ?? '';
+
+    expect(text, `про уже пришедшее не сказано: «${text}»`).toMatch(/останутся в ленте/i);
+  });
+
+  it('англицизма «bell» на русской странице нет', () => {
+    render(<UserNotificationPreferencesEditor userId={2} notificationPreferences={{}} />);
+
+    const text = screen.getByTestId('notification-preferences-editor').textContent ?? '';
+
+    expect(text, `англицизм остался: «${text}»`).not.toMatch(/bell/i);
+    expect(text).toMatch(/колокольчик/i);
+  });
+
+  // ⚠️ ТЕСТ ПОДКЛЮЧЕНИЯ. Главный вывод фазы 35: сделано на сервере, покрыто
+  // тестами, до браузера не дошло. Проверка компонента в одиночку этого класса
+  // не ловит — поэтому раздел настроек отрисовывается ЦЕЛИКОМ, тем же путём,
+  // каким его видит человек: /profile/<вид>/<номер>/settings.
+  it('текст виден на экране раздела настроек кабинета, а не только в компоненте', () => {
+    renderInFaceCabinet(<ProviderSettings />);
+
+    const screenText = screen.getByTestId('provider-settings').textContent ?? '';
+
+    expect(screenText, 'раздел настроек не показал пояснение про новые уведомления').toMatch(
+      /действует на новые уведомления/i,
+    );
+    expect(screenText).toMatch(/останутся в ленте/i);
   });
 });
