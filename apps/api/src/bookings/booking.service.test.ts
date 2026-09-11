@@ -347,6 +347,63 @@ describe('BookingService', () => {
       expect(forProvider.map((item) => item.type)).toContain('booking_auto_expired_to_provider');
     });
 
+    // ⚠️ Шаг 37.28. `booking_auto_expire` два года стоял в словаре без писателя:
+    // событие настоящее и даже уведомляло обе стороны, а в журнал не попадало.
+    // Проверяются оба конца разом — иначе починка одного молча ломает другой.
+    it('автоотмена и уведомляет обе стороны, и оставляет строку журнала', async () => {
+      const booking = await service.create({ scheduleId: 100, userId: 1 });
+
+      await service.transition({
+        bookingId: booking.id,
+        to: 'cancelled_by_provider',
+        actor: 'system',
+        reason: 'auto_cancel_pending_expired',
+      });
+
+      const forAthlete = await notifications.findMany({ userId: 1 });
+      const forProvider = await notifications.findMany({ userId: 2 });
+
+      expect(forAthlete.map((item) => item.type)).toContain('booking_auto_expired');
+      expect(forProvider.map((item) => item.type)).toContain('booking_auto_expired_to_provider');
+
+      const logs =
+        await harness.read<
+          { action: string; actorRole: string; entityId: number; meta?: Record<string, unknown> }[]
+        >('logs');
+      const expired = logs.filter((entry) => entry.action === 'booking_auto_expire');
+
+      expect(expired).toHaveLength(1);
+      expect(expired[0]).toMatchObject({
+        // Исполнитель — площадка, а не человек: строка обязана говорить это прямо,
+        // иначе автоотмена читалась бы как решение провайдера.
+        actorRole: 'system',
+        entityId: booking.id,
+        meta: {
+          athleteUserId: 1,
+          scheduleId: 100,
+          date: SLOT_DATE,
+          ownerType: 'trainer',
+          ownerId: 5,
+          from: 'pending',
+          reason: 'auto_cancel_pending_expired',
+        },
+      });
+    });
+
+    it('ручная отмена провайдером строки автоотмены не пишет', async () => {
+      const booking = await service.create({ scheduleId: 100, userId: 1 });
+
+      await service.transition({
+        bookingId: booking.id,
+        to: 'cancelled_by_provider',
+        actor: 'provider',
+      });
+
+      const logs = await harness.read<{ action: string }[]>('logs');
+
+      expect(logs.filter((entry) => entry.action === 'booking_auto_expire')).toHaveLength(0);
+    });
+
     it('служебный финал атлету не сообщается', async () => {
       const booking = await service.create({ scheduleId: 100, userId: 1 });
       await service.transition({

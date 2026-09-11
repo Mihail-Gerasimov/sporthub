@@ -171,6 +171,7 @@ export class BookingService {
     // Уведомления — после записи и вне транзакции: сбой рассылки не должен
     // откатывать смену статуса.
     await this.dispatchNotifications(updated, transition);
+    await this.recordSystemTransition(updated, transition);
 
     return updated;
   }
@@ -537,7 +538,50 @@ export class BookingService {
       default:
         break;
     }
+  }
 
-    void this.logs;
+  /**
+   * Запись в журнал о переходе, который совершила САМА ПЛОЩАДКА (шаг 37.28).
+   *
+   * Переходы по решению человека пишет тот, кто их принял, — контроллер записей:
+   * там есть сессия, а значит есть настоящий исполнитель. У автоперехода
+   * исполнителя-человека нет, и писать его было некому: значение
+   * `booking_auto_expire` стояло в словаре с подписью и тоном в админке,
+   * а событий система не производила. Уведомления при этом уходили обеим сторонам —
+   * то есть событие происходило и было видно всем, кроме журнала.
+   *
+   * ⚠️ ПОЧЕМУ ИСПОЛНИТЕЛЬ — УЧАСТНИК ЗАПИСИ. `logs.actor_id` — обязательная
+   * ссылка на живого человека (внешний ключ с `RESTRICT`), и системного
+   * пользователя в базе нет. Из тех, кого база примет, участник записи — тот,
+   * о ком событие и говорит, поэтому номер ставится его. Правду о том, КТО
+   * действовал, несёт `actorRole: 'system'`, а данные события — `meta`.
+   * Честное закрытие — колонка, допускающая пустоту; это миграция и решение
+   * заказчика, и до тех пор расхождение названо здесь, а не спрятано.
+   */
+  private async recordSystemTransition(
+    booking: Booking,
+    transition: BookingStatusTransition,
+  ): Promise<void> {
+    // Пишется ровно один вид автоперехода — тот, у которого есть значение
+    // в словаре. Автопростановка «не отмечено» (`unmarked`) своего значения
+    // не имеет, и выдумывать ей его здесь, мимоходом, нельзя.
+    if (transition.actor !== 'system' || transition.to !== 'cancelled_by_provider') return;
+
+    await this.logs.record({
+      action: 'booking_auto_expire',
+      actorId: booking.userId,
+      actorRole: 'system',
+      entityType: 'booking',
+      entityId: booking.id,
+      meta: {
+        athleteUserId: booking.userId,
+        scheduleId: booking.scheduleId,
+        date: booking.date,
+        from: transition.from,
+        ...(transition.reason === undefined ? {} : { reason: transition.reason }),
+        ...(booking.ownerType === undefined ? {} : { ownerType: booking.ownerType }),
+        ...(booking.ownerId === undefined ? {} : { ownerId: booking.ownerId }),
+      },
+    });
   }
 }
