@@ -57,6 +57,37 @@ import type { Notification } from '@sporthub/types';
  */
 export const SUPERVISION_PAGE_SIZE = 15;
 
+/** Максимум видимых номеров страниц — как в «Логах»: пагинатор не разбухает. */
+const MAX_VISIBLE_PAGE_BUTTONS = 5;
+
+const ICON_CHEV_LEFT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+);
+
+const ICON_CHEV_RIGHT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    className="h-3.5 w-3.5"
+  >
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 /**
  * Вкладки тем очереди: «Все» плюс надзорные темы домена.
  *
@@ -133,6 +164,10 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
 
   const [activeGroup, setActiveGroup] = useState<NotificationGroupFilter>('all');
   const [state, setState] = useState<SupervisionState>('unresolved');
+  // Срез страницы. Меняется листанием и обнуляется сменой отбора: остаться
+  // на пятой странице отбора, в котором две страницы, — значит показать пустоту
+  // и назвать её «событий нет».
+  const [offset, setOffset] = useState(0);
 
   // Посев остаётся у страницы: серверные данные получила она. В сторе живут
   // только строки — счётчики он считать не умеет и не должен.
@@ -159,7 +194,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
       params.set(key, value);
     }
 
-    params.set('offset', '0');
+    params.set('offset', String(offset));
     params.set('limit', String(SUPERVISION_PAGE_SIZE));
 
     setLoading(true);
@@ -183,7 +218,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
     } finally {
       setLoading(false);
     }
-  }, [activeGroup, state, addToast, setNotificationsInStore]);
+  }, [activeGroup, state, offset, addToast, setNotificationsInStore]);
 
   // ⚠️ Первый проход пропускается намеренно: эту самую страницу уже принёс сервер,
   // и повторный запрос на монтировании был бы вторым походом за тем же самым.
@@ -198,6 +233,26 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
 
     void load();
   }, [load]);
+
+  // ⚠️ Число страниц считается от `total` — от числа СЕРВЕРА, а не от длины
+  // выданной страницы. Счёт по выданному дал бы вечную «одну страницу»: пятнадцать
+  // строк делятся на пятнадцать ровно всегда. Это форма дефекта фазы 36 «счётчик
+  // читал число не оттуда», и увидеть её можно только на второй странице.
+  const currentPage = Math.floor(offset / SUPERVISION_PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / SUPERVISION_PAGE_SIZE));
+
+  // Видимый ряд номеров вокруг текущей страницы — как в «Логах».
+  const visiblePageNumbers = useMemo(() => {
+    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
+    let start = Math.max(1, currentPage - half);
+    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
+    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
+    const pages: number[] = [];
+
+    for (let page = start; page <= end; page += 1) pages.push(page);
+
+    return pages;
+  }, [currentPage, totalPages]);
 
   // Группировка по дате — теми же вёдрами, что в ленте кабинета. Внутри ведра
   // от свежего к старому.
@@ -261,7 +316,10 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
                 role="tab"
                 aria-selected={isActive}
                 data-testid={`supervision-group-${group}`}
-                onClick={() => setActiveGroup(group)}
+                onClick={() => {
+                  setActiveGroup(group);
+                  setOffset(0);
+                }}
                 className={cn(
                   'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
                   isActive
@@ -291,7 +349,10 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
                 type="button"
                 aria-pressed={isActive}
                 data-testid={`supervision-state-${value}`}
-                onClick={() => setState(value)}
+                onClick={() => {
+                  setState(value);
+                  setOffset(0);
+                }}
                 className={cn(
                   'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
                   isActive
@@ -336,7 +397,93 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
           ))}
         </div>
       )}
+
+      {/* Постраничность — по образцу «Логов»: пагинатор виден всегда */}
+      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs font-medium text-muted" data-testid="supervision-page-range">
+          {total === 0 ? (
+            'Показано 0 из 0'
+          ) : (
+            <>
+              Показано{' '}
+              <strong className="font-bold tabular-nums text-ink">
+                {offset + 1}–{Math.min(offset + items.length, total)}
+              </strong>{' '}
+              из <strong className="font-bold tabular-nums text-ink">{total}</strong>
+            </>
+          )}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <PageButton
+            disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - SUPERVISION_PAGE_SIZE))}
+            ariaLabel="Предыдущая страница"
+          >
+            {ICON_CHEV_LEFT}
+          </PageButton>
+          {visiblePageNumbers.map((page) => (
+            <PageButton
+              key={page}
+              active={page === currentPage}
+              onClick={() => setOffset((page - 1) * SUPERVISION_PAGE_SIZE)}
+              ariaLabel={`Страница ${page}`}
+            >
+              {page}
+            </PageButton>
+          ))}
+          <PageButton
+            disabled={offset + SUPERVISION_PAGE_SIZE >= total}
+            onClick={() => setOffset(offset + SUPERVISION_PAGE_SIZE)}
+            ariaLabel="Следующая страница"
+          >
+            {ICON_CHEV_RIGHT}
+          </PageButton>
+        </div>
+      </div>
     </div>
+  );
+}
+
+/**
+ * Кнопка пагинатора.
+ *
+ * ⚠️ Названный долг, а не недосмотр. Такая же кнопка объявлена в `LogsPage`,
+ * `DashboardPage` и `ModerationPage` — это ЧЕТВЁРТАЯ копия, и правило проекта
+ * требует убирать дубль там же, где он найден. Убрать его этой работой нельзя:
+ * два из трёх файлов правит параллельная работа, и общий пагинатор пришлось бы
+ * заводить, не имея возможности перевести на него ни одного прежнего читателя.
+ * Вынос в общий `AdminPager` — отдельная правка, и она записана в отчёт.
+ */
+function PageButton({
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+  ariaLabel,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        active
+          ? 'border-lime bg-lime text-ink'
+          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
