@@ -5,6 +5,7 @@
 // пользователя), остаётся сервисным — иначе в фазе базы такой фильтр не станет
 // обычным `where` и слой протечёт.
 
+import type { NotificationGroupKey } from '@sporthub/domain';
 import type {
   CatalogOwnerType,
   NewNotification,
@@ -61,37 +62,76 @@ export interface OfferingsRepository {
 export type NotificationMailbox = { kind: 'personal' } | { kind: CatalogOwnerType; id: number };
 
 /**
- * Отбор ленты уведомлений. Все поля необязательные.
+ * КОГО читаем. Третьего состояния «никого» здесь нет — и это главное свойство типа.
+ *
+ * ⚠️ Зачем union, а не пара необязательных полей (шаг 37.14). До фазы 37 `userId`
+ * был необязательным, и «отбор без адресата» выражался пустым объектом. В Prisma
+ * `undefined` — это ОТСУТСТВИЕ УСЛОВИЯ, поэтому `markAllRead({})` означало
+ * «погасить ленту всей площадки», и отвечало на это 200. Комментарий рядом
+ * предупреждал, что так делать не надо; тип — не предупреждает, а не даёт.
+ *
+ * Варианта два: человек (со своим ящиком или объединённым срезом) и общая очередь
+ * надзора, у которой человека нет вовсе. Поля `never` делают union исключающим:
+ * смешать очередь с владельцем нельзя даже случайно.
+ */
+export type NotificationsAudience =
+  | {
+      userId: number;
+      /**
+       * Ящик, который читаем. Без него выдача идёт по `userId` — это объединённый
+       * ящик человека: и его личные уведомления, и уведомления всех его лиц.
+       *
+       * ⚠️ Ящик лица определяется КОЛОНКОЙ ЛИЦА, а не владельцем: «прочитать всё»
+       * в ящике одного клуба не имеет права погасить ящики остальных лиц человека.
+       */
+      mailbox?: NotificationMailbox;
+      supervision?: never;
+    }
+  | {
+      /** Общая очередь надзора: одна на всех администраторов, владельца нет. */
+      supervision: true;
+      userId?: never;
+      mailbox?: never;
+    };
+
+/**
+ * Отбор ленты уведомлений.
  *
  * ⚠️ Шаг 36.50. Поля `excludeTypes` здесь БОЛЬШЕ НЕТ. Оно переводило настройки
  * человека в условие запроса — и этот перевод повторяли трое читателей, расходясь
  * втроём. Теперь настройка решает при ОТПРАВКЕ (`NotificationService.notify`):
  * выключенного типа в базе нет, и прятать при чтении нечего.
  */
-export interface NotificationsFilter {
-  userId?: number;
-  /**
-   * Ящик, который читаем. Без него выдача идёт по `userId` — это объединённый
-   * ящик человека: и его личные уведомления, и уведомления всех его лиц.
-   *
-   * ⚠️ Ящик лица определяется КОЛОНКОЙ ЛИЦА, а не владельцем: «прочитать всё»
-   * в ящике одного клуба не имеет права погасить ящики остальных лиц человека.
-   */
-  mailbox?: NotificationMailbox;
+export type NotificationsFilter = NotificationsAudience & {
   unreadOnly?: boolean;
+  /**
+   * Тема ленты — отбор УХОДИТ В ЗАПРОС (шаг 37.18).
+   *
+   * В человеческой ленте он до сих пор делался в памяти поверх выданной страницы
+   * с потолком в 100 строк: для личного ящика это сходило с рук, для общей очереди
+   * означало бы «честно ровно до 101-й строки».
+   */
+  group?: NotificationGroupKey;
   /** Отобрать только эти уведомления. Пустой список означает «ни одного». */
   ids?: number[];
   offset?: number;
   limit?: number;
-}
+};
 
 /**
  * Отбор для счётчика: та же лента без постраничности — резать счётчику нечего.
+ *
  * Адресат обязателен: счётчик по всей платформе не нужен никому и был бы запросом
- * без границ.
+ * без границ. Обязательность держит `NotificationsAudience`, а не отдельное поле.
+ *
+ * ⚠️ `Omit` применяется к каждому варианту union'а отдельно: по union он
+ * не распределяется и схлопнул бы варианты в один объект — вместе с различением
+ * пропал бы и весь смысл.
  */
-export type NotificationsCountFilter = Omit<NotificationsFilter, 'offset' | 'limit'> & {
-  userId: number;
+export type NotificationsCountFilter = NotificationsAudience & {
+  unreadOnly?: boolean;
+  group?: NotificationGroupKey;
+  ids?: number[];
 };
 
 /**
@@ -101,13 +141,24 @@ export type NotificationsCountFilter = Omit<NotificationsFilter, 'offset' | 'lim
  * «прочитать всё» — это про ящик целиком, и сузить его чем-то ещё значило бы
  * оставить в нём непрочитанное, показав ноль.
  */
-export type NotificationsScope = Pick<NotificationsFilter, 'mailbox'> & { userId: number };
+export type NotificationsScope = NotificationsAudience;
 
 export interface NotificationsRepository {
   findMany(filter: NotificationsFilter): Promise<Notification[]>;
   count(filter: NotificationsCountFilter): Promise<number>;
   insert(notification: NewNotification): Promise<Notification>;
-  markRead(id: number): Promise<Notification>;
+  /**
+   * Отметить строку разобранной.
+   *
+   * ⚠️ `readByUserId` обязателен (шаг 37.17): в общей очереди `read_at` говорит
+   * «кто-то занялся» и не говорит кто, а это половина ответа. В личном ящике
+   * разбирающий и владелец — один человек, и подпись там не хранится.
+   *
+   * ⚠️ Разбор ставится ОДИН раз и не перезаписывается: повторная отметка возвращает
+   * строку как есть. Иначе занявшимся в общей очереди оказывался бы нажавший
+   * последним, а не тот, кто взял дело.
+   */
+  markRead(id: number, readByUserId: number): Promise<Notification>;
   /**
    * Пометить прочитанными весь ящик разом.
    *
@@ -115,6 +166,6 @@ export interface NotificationsRepository {
    * клуба гасила бы ящики всех остальных лиц человека — массово, необратимо
    * и в один клик.
    */
-  markAllRead(scope: NotificationsScope): Promise<number>;
+  markAllRead(scope: NotificationsScope, readByUserId: number): Promise<number>;
   removeMany(ids: number[]): Promise<number>;
 }

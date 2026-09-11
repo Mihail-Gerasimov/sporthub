@@ -64,6 +64,23 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
 };
 
 /**
+ * Типы уведомлений одной темы — единственное объявление на весь проект (шаг 37.18).
+ *
+ * ⚠️ Считается ИЗ словаря `NOTIFICATION_TYPE_GROUP`, а не выписывается вторым
+ * списком. Второй список — это второе место, где можно забыть новый тип, и забыть
+ * его молча: отбор просто не показал бы строк, которые обязан показывать.
+ *
+ * Нужно серверу: отбор ленты по теме уходит в ЗАПРОС. В человеческой ленте он
+ * до сих пор делался в памяти поверх выданной страницы с потолком в 100 строк —
+ * для общей очереди надзора это означало бы «честно ровно до 101-й строки».
+ */
+export function notificationTypesOfGroup(group: NotificationGroupKey): NotificationType[] {
+  return (Object.keys(NOTIFICATION_TYPE_GROUP) as NotificationType[]).filter(
+    (type) => NOTIFICATION_TYPE_GROUP[type] === group,
+  );
+}
+
+/**
  * Типы уведомлений, которые нельзя отключить — критичные для пользователя.
  * booking_confirmed — атлет должен знать, что провайдер подтвердил запись.
  * booking_cancelled_by_provider — атлет должен знать, что провайдер отменил его запись.

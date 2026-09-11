@@ -17,6 +17,7 @@
 // 3. **Владелец услуги — пара взаимоисключающих колонок** (см. `./owner-columns.ts`).
 
 import { Injectable } from '@nestjs/common';
+import { notificationTypesOfGroup } from '@sporthub/domain';
 import type { NotificationAddresseeKind } from '@sporthub/domain';
 import type {
   CatalogOwnerType,
@@ -35,6 +36,7 @@ import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import type {
   NotificationMailbox,
+  NotificationsAudience,
   NotificationsCountFilter,
   NotificationsFilter,
   NotificationsRepository,
@@ -575,15 +577,38 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
    * тоже не могли уехать в запрос: срез по уже отфильтрованному в памяти набору
    * невозможно выразить `LIMIT`ом. Пустой список отключённых типов условия не даёт.
    */
-  private static where(filter: NotificationsFilter): Prisma.NotificationWhereInput {
+  private static where(
+    filter: NotificationsFilter | NotificationsCountFilter,
+  ): Prisma.NotificationWhereInput {
     return {
-      userId: filter.userId,
-      ...(filter.mailbox === undefined
-        ? {}
-        : PrismaNotificationsRepository.mailboxWhere(filter.mailbox)),
+      ...PrismaNotificationsRepository.audienceWhere(filter),
       readAt: filter.unreadOnly === true ? null : undefined,
+      // Тема ленты — условие ЗАПРОСА, а не отбор выданной страницы (шаг 37.18).
+      // Отбор в памяти был бы честен ровно до потолка выдачи, то есть до 101-й строки.
+      type: filter.group === undefined ? undefined : { in: notificationTypesOfGroup(filter.group) },
       // Пустой список `ids` означает «ни одного», и `IN ()` даёт ровно это.
       id: filter.ids === undefined ? undefined : { in: filter.ids },
+    };
+  }
+
+  /**
+   * Условие адресата: кого читаем.
+   *
+   * ⚠️ Ветвление ОБЯЗАТЕЛЬНО, и его нельзя свести к `userId: filter.userId`.
+   * В Prisma `undefined` — это отсутствие условия: у очереди надзора владельца нет,
+   * и прежняя форма отдала бы ей всю таблицу целиком. Тип не даёт собрать отбор
+   * без адресата, а эта функция не даёт потерять его при сборке запроса.
+   */
+  private static audienceWhere(audience: NotificationsAudience): Prisma.NotificationWhereInput {
+    if (audience.supervision === true) {
+      return { addresseeKind: 'supervision' };
+    }
+
+    return {
+      userId: audience.userId,
+      ...(audience.mailbox === undefined
+        ? {}
+        : PrismaNotificationsRepository.mailboxWhere(audience.mailbox)),
     };
   }
 
@@ -621,22 +646,35 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     return PrismaNotificationsRepository.toNotification(created);
   }
 
-  async markRead(id: EntityId): Promise<Notification> {
+  async markRead(id: EntityId, readByUserId: number): Promise<Notification> {
     const current = await this.client.notification.findUnique({ where: { id } });
 
     if (current === null) {
       throw new Error('Уведомление не найдено');
     }
 
-    const updated = await this.client.notification.update({
-      where: { id },
-      data: { readAt: new Date() },
+    // ⚠️ Условная запись ОДНИМ запросом (шаг 37.17). Прежде здесь стояли
+    // `findUnique` и безусловный `update` вне транзакции: второй клик переписывал
+    // и время, и подпись, и занявшимся оказывался нажавший последним. `updateMany`
+    // с условием «ещё не разобрано» проверяет и пишет в один приём — гонке
+    // негде поместиться.
+    const { count } = await this.client.notification.updateMany({
+      where: { id, readAt: null },
+      data: { readAt: new Date(), readByUserId },
     });
+
+    // ⚠️ Ноль затронутых строк — это «уже разобрано», и это НЕ ошибка: повторный
+    // клик по своей прочитанной строке — обычное дело. Важно другое: подпись
+    // и время НЕ перезаписываются, иначе занявшимся в общей очереди оказывался бы
+    // нажавший последним. Возвращается текущее состояние, каким бы оно ни было.
+    void count;
+
+    const updated = await this.client.notification.findUniqueOrThrow({ where: { id } });
 
     return PrismaNotificationsRepository.toNotification(updated);
   }
 
-  async markAllRead(scope: NotificationsScope): Promise<number> {
+  async markAllRead(scope: NotificationsScope, readByUserId: number): Promise<number> {
     // Одним запросом: чтение ленты целиком ради пометки прочитанным дало бы
     // столько же работы, сколько её отрисовка, и разъехалось бы при гонке.
     //
@@ -644,13 +682,15 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     // гасить ровно то, что человек видит перед собой, и ни строкой больше.
     const { count } = await this.client.notification.updateMany({
       where: {
-        userId: scope.userId,
-        ...(scope.mailbox === undefined
-          ? {}
-          : PrismaNotificationsRepository.mailboxWhere(scope.mailbox)),
+        ...PrismaNotificationsRepository.audienceWhere(scope),
         readAt: null,
       },
-      data: { readAt: new Date() },
+      data: {
+        readAt: new Date(),
+        // Подпись ставится и при массовой отметке: в общей очереди «разобрал
+        // кто-то» — половина ответа. У человеческого ящика она остаётся пустой.
+        readByUserId: scope.supervision === true ? readByUserId : null,
+      },
     });
 
     return count;
