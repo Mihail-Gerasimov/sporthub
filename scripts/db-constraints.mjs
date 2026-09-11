@@ -15,6 +15,7 @@ import {
   ACTIVE_LINK_STATUSES,
   NOTIFICATION_ADDRESSEE_KINDS,
   NOTIFICATION_ADDRESSEE_SHAPE,
+  SYSTEM_ACTOR_ROLE,
 } from '@sporthub/domain';
 
 /** Набор состояний в виде списка для SQL: `'pending','confirmed'`. */
@@ -141,6 +142,20 @@ export const CHECK_CONSTRAINTS = {
         ` AND ${nullness('addressee_trainer_id', shape.trainer)})`
       );
     }).join(' OR '),
+  },
+  /**
+   * Строка журнала без исполнителя-человека допустима ТОЛЬКО у событий площадки
+   * (шаг 37.27).
+   *
+   * ⚠️ Зачем ограничение, а не договорённость. Колонка стала необязательной ради
+   * автоотмены и блокировки после подбора пароля — у них человека за действием нет.
+   * Без ограничения та же пустота стала бы доступна любой записи по недосмотру,
+   * и журнал начал бы терять исполнителя там, где он есть. Слово `system` берётся
+   * из общего словаря: код и база не могут разойтись в написании.
+   */
+  logs_actor_or_system: {
+    table: 'logs',
+    expression: `actor_id IS NOT NULL OR actor_role = '${SYSTEM_ACTOR_ROLE}'`,
   },
   offerings_owner_one: {
     table: 'offerings',

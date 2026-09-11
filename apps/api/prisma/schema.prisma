@@ -946,7 +946,14 @@ model LogEntry {
   /// Словарь LogAction — 17 значений.
   action String @map("action") @db.VarChar(64)
 
-  actorId Int @map("actor_id")
+  /// Кто сделал. Пусто — сделала сама площадка: автоотмена просроченной заявки,
+  /// блокировка после подбора пароля (шаг 37.27). До этого колонка была
+  /// обязательной, и событиям площадки приходилось назначать исполнителем
+  /// случайного участника — журнал говорил неправду о том, кто действовал,
+  /// а подбор по НЕСУЩЕСТВУЮЩЕЙ почте не оставлял следа вовсе.
+  /// Пустота допустима только вместе с actor_role = 'system', и это держит
+  /// CHECK logs_actor_or_system, а не добросовестность вызывающего.
+  actorId Int? @map("actor_id")
 
   /// Роль на момент действия — снимок, а не текущая роль.
   actorRole String @map("actor_role") @db.VarChar(32)
@@ -958,7 +965,7 @@ model LogEntry {
   meta Json? @map("meta")
 
   /// Restrict: история обязана пережить аккаунт исполнителя.
-  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
   /// Журнал с фильтрами и постраничностью.
   @@index([action, createdAt(sort: Desc)])
