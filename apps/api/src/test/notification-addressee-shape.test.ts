@@ -90,6 +90,58 @@ describe('строка без владельца-человека (37.7)', () =>
     expect(created.userId).toBe(userId);
   });
 
+  it('НЕИЗВЕСТНЫЙ вид адресата отбивается базой', async () => {
+    // ⚠️ Ради этого случая ограничение записано дизъюнкцией, а не суммой CASE.
+    // `CASE … END` без `ELSE` вернул бы на неизвестном виде NULL, а CHECK на NULL
+    // строку ПРОПУСКАЕТ — то есть ограничение пропустило бы ровно то, против чего
+    // писалось. Опечатка в одну букву — самый вероятный способ сюда попасть.
+    const userId = await insertUser();
+
+    await expect(
+      db.prisma.$executeRawUnsafe(
+        `INSERT INTO notifications (user_id, addressee_kind, type, payload, created_at)
+         VALUES ($1, 'persona1', 'booking_requested', '{}'::jsonb, NOW())`,
+        userId,
+      ),
+    ).rejects.toThrow(/notifications_addressee_kind/);
+  });
+
+  it('надзорная строка С владельцем отбивается базой', async () => {
+    const userId = await insertUser();
+
+    await expect(
+      db.prisma.notification.create({
+        data: {
+          userId,
+          addresseeKind: 'supervision',
+          type: 'publication_recheck_requested',
+          payload,
+        },
+      }),
+    ).rejects.toThrow(/notifications_addressee_shape/);
+  });
+
+  it('личная строка БЕЗ владельца отбивается базой', async () => {
+    // ⚠️ Прежнее ограничение этого не ловило вовсе: «не более одного лица»
+    // разрешало строку вообще без адресата. После снятия NOT NULL с владельца
+    // такая строка стала возможной — и её ловит только новое ограничение.
+    await expect(
+      db.prisma.notification.create({
+        data: { addresseeKind: 'personal', type: 'booking_requested', payload },
+      }),
+    ).rejects.toThrow(/notifications_addressee_shape/);
+  });
+
+  it('клубная строка БЕЗ клуба отбивается базой', async () => {
+    const userId = await insertUser();
+
+    await expect(
+      db.prisma.notification.create({
+        data: { userId, addresseeKind: 'club', type: 'booking_requested', payload },
+      }),
+    ).rejects.toThrow(/notifications_addressee_shape/);
+  });
+
   it('чтение бесхозной строки отказывает ЯВНО, а не подставляет ноль', async () => {
     // ⚠️ Временный мост шага 37.7: контракт научится называть строку без владельца
     // на шаге 37.11. До тех пор попытка прочитать такую строку обязана падать

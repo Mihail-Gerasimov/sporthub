@@ -9,11 +9,28 @@
 // Поэтому SQL не пишется руками, а собирается отсюда из тех же наборов. Тот же модуль
 // читает тест схемы: он сверяет предикаты, реально стоящие в базе, с наборами из кода.
 
-import { ACCOUNT_KINDS, ACTIVE_BOOKING_STATUSES, ACTIVE_LINK_STATUSES } from '@sporthub/domain';
+import {
+  ACCOUNT_KINDS,
+  ACTIVE_BOOKING_STATUSES,
+  ACTIVE_LINK_STATUSES,
+  NOTIFICATION_ADDRESSEE_KINDS,
+  NOTIFICATION_ADDRESSEE_SHAPE,
+} from '@sporthub/domain';
 
 /** Набор состояний в виде списка для SQL: `'pending','confirmed'`. */
 export function toSqlList(values) {
   return [...values].map((value) => `'${String(value).replace(/'/g, "''")}'`).join(',');
+}
+
+/**
+ * Заполненность колонки одной формой: `user_id IS NOT NULL` либо `user_id IS NULL`.
+ *
+ * Отдельная функция, а не строка по месту: в форме строки уведомления таких
+ * условий двенадцать, и переписывать их руками — это двенадцать шансов ошибиться
+ * в одном `NOT`.
+ */
+function nullness(column, filled) {
+  return `${column} IS ${filled ? 'NOT NULL' : 'NULL'}`;
 }
 
 /** Предикаты частичных индексов — единственное место, где они записаны. */
@@ -71,16 +88,47 @@ export const CHECK_CONSTRAINTS = {
       '(CASE WHEN face_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN face_trainer_id IS NULL THEN 0 ELSE 1 END) <= 1',
   },
   /**
-   * Адресат уведомления — НЕ БОЛЕЕ одного лица (шаг 35.26).
-   *
-   * Именно «не более», а не «ровно один»: у уведомления человеку лица нет вовсе,
-   * и обе колонки пусты. Форма через CASE — та же, что у остальных пар: функция
-   * num_nonnulls есть только в PostgreSQL, а эта запись переносится куда угодно.
+   * Вид адресата уведомления — по словарю, а не «любая строка до 16 символов»
+   * (шаг 37.8). Тот же приём, что у `users_account_kind`.
    */
-  notifications_addressee_one: {
+  notifications_addressee_kind: {
     table: 'notifications',
-    expression:
-      '(CASE WHEN addressee_club_id IS NULL THEN 0 ELSE 1 END) + (CASE WHEN addressee_trainer_id IS NULL THEN 0 ELSE 1 END) <= 1',
+    expression: `addressee_kind IN (${toSqlList(NOTIFICATION_ADDRESSEE_KINDS)})`,
+  },
+  /**
+   * Форма строки уведомления — ЦЕЛИКОМ, по случаю на каждый вид адресата (шаг 37.8).
+   *
+   * ⚠️ Что было и почему заменено. Прежнее `notifications_addressee_one` говорило
+   * только «не более одного лица». Это половина формы: под него подходила строка
+   * вообще без адресата, клубная без клуба и — после снятия NOT NULL с владельца —
+   * любая бесхозная. Обещание «у строки ровно один адресат» становится правдой
+   * только здесь.
+   *
+   * ⚠️ Почему дизъюнкция, а НЕ сумма CASE, как у остальных пар. CHECK отвергает
+   * строку только на FALSE; на NULL он её ПРОПУСКАЕТ. `CASE … END` без `ELSE`
+   * возвращает NULL ровно тогда, когда вид адресата не совпал ни с одной веткой, —
+   * то есть строка с неизвестным или опечатанным видом прошла бы сквозь ограничение,
+   * написанное именно против неё. Дизъюнкция на неизвестном виде даёт FALSE.
+   *
+   * ⚠️ Почему выражение СОБИРАЕТСЯ из карты формы. Иначе обещание «новый вид
+   * адресата = правка одного словаря» не выполнилось бы: понадобилась бы ещё
+   * правка этого файла и миграции. Пятый вид — строка в `NOTIFICATION_ADDRESSEE_SHAPE`,
+   * и SQL меняется сам.
+   *
+   * Диалектной специфики нет: только сравнение, AND / OR и IS [NOT] NULL.
+   */
+  notifications_addressee_shape: {
+    table: 'notifications',
+    expression: NOTIFICATION_ADDRESSEE_KINDS.map((kind) => {
+      const shape = NOTIFICATION_ADDRESSEE_SHAPE[kind];
+
+      return (
+        `(addressee_kind = '${kind}'` +
+        ` AND ${nullness('user_id', shape.user)}` +
+        ` AND ${nullness('addressee_club_id', shape.club)}` +
+        ` AND ${nullness('addressee_trainer_id', shape.trainer)})`
+      );
+    }).join(' OR '),
   },
   offerings_owner_one: {
     table: 'offerings',

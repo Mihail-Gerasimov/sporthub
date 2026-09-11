@@ -832,9 +832,12 @@ model Notification {
   /// Адресат-лицо: клуб. Пусто — уведомление адресовано человеку.
   addresseeClubId Int? @map("addressee_club_id")
 
-  /// Адресат-лицо: карточка тренера. Пусто — уведомление адресовано человеку.
-  /// Пара взаимоисключающая: заполнено НЕ БОЛЕЕ одного из двух
-  /// (CHECK notifications_addressee_one, scripts/db-constraints.mjs).
+  /// Адресат-лицо: карточка тренера. Пусто — уведомление адресовано человеку
+  /// или очереди надзора.
+  /// Форму строки целиком держит CHECK notifications_addressee_shape: какому виду
+  /// адресата какая ссылка полагается (scripts/db-constraints.mjs, собрано
+  /// из карты формы в packages/domain). Прежнее notifications_addressee_one
+  /// говорило лишь «не более одного лица» и разрешало строку вообще без адресата.
   addresseeTrainerId Int? @map("addressee_trainer_id")
 
   /// Словарь NotificationType — 22 значения, объявлен в packages/types.
