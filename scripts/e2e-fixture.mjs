@@ -15,7 +15,7 @@
 // создаваться — то есть прогон перестал бы быть повторяемым.
 import { execFileSync } from 'node:child_process';
 
-import { cleanupStatements, publicationCleanupPlan } from './cleanup-publications.mjs';
+import { cleanupPlans, cleanupStatements } from './cleanup-publications.mjs';
 
 /**
  * Признак прогона. По нему всё созданное потом и сносится.
@@ -110,20 +110,27 @@ export function cleanupRun() {
   const clubIds = idsOf('clubs');
   const trainerIds = idsOf('trainers');
 
-  // Публикации прогона со всем, что на них висит, — общей описью.
-  for (const statement of cleanupStatements(publicationCleanupPlan({ clubIds, trainerIds }))) {
+  // Публикации прогона со всем, что на них висит, ПЛЮС следы самих людей —
+  // общим реестром планов (шаг 37.56).
+  //
+  // ⚠️ Прежде уведомления людей убирались здесь отдельной строкой с отбором
+  // `user_id IN (…)`. У надзорной строки владельца НЕТ, и `IN` с `NULL`
+  // не совпадает никогда: выживала любая надзорная строка, порождённая действием
+  // любого человека прогона. Ключ уборки — ПРЕДМЕТ, а не владелец, и он один
+  // на оба плана.
+  const userIds = list.split(',').map(Number);
+
+  for (const statement of cleanupStatements(cleanupPlans({ clubIds, trainerIds, userIds }))) {
     psql(statement);
   }
 
-  // Следы самих людей: они могли записаться и на чужую публикацию, и без этих
+  // Остальные следы людей: они могли записаться и на чужую публикацию, и без этих
   // строк база не отдаст удалить человека (`Restrict` на записи и отзыве).
-  psql(`DELETE FROM notifications WHERE user_id IN (${list});`);
   psql(
     `DELETE FROM provider_client_notes WHERE provider_user_id IN (${list}) OR client_user_id IN (${list});`,
   );
   psql(`DELETE FROM reviews WHERE user_id IN (${list});`);
   psql(`DELETE FROM bookings WHERE user_id IN (${list});`);
-  psql(`DELETE FROM logs WHERE actor_id IN (${list});`);
   psql(`DELETE FROM sessions WHERE user_id IN (${list});`);
 
   const users = psql(

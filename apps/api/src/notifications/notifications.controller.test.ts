@@ -876,7 +876,7 @@ describe('Очередь надзора в маршрутах уведомлен
           id: 3,
           createdAt: '2026-02-03T00:00:00.000Z',
           addresseeKind: 'supervision',
-          type: 'link_requested',
+          type: 'oversight_link_force_revoked',
           payload: { subjectType: 'link', subjectId: 1 },
         },
       ],
@@ -959,13 +959,13 @@ describe('Очередь надзора в маршрутах уведомлен
   });
 
   it('отбор по теме уходит в ЗАПРОС и режет очередь', async () => {
-    const moderation = await feed(adminCookie, '&group=moderation');
-    const links = await feed(adminCookie, '&group=links');
+    const moderation = await feed(adminCookie, '&group=oversight_catalog');
+    const links = await feed(adminCookie, '&group=oversight_admin');
 
     expect(moderation.body.data.total).toBe(1);
     expect(moderation.body.data.items[0].type).toBe('publication_recheck_requested');
     expect(links.body.data.total).toBe(1);
-    expect(links.body.data.items[0].type).toBe('link_requested');
+    expect(links.body.data.items[0].type).toBe('oversight_link_force_revoked');
   });
 
   it('неизвестная тема отвергается, а не расширяет выдачу молча', async () => {

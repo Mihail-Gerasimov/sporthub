@@ -183,6 +183,12 @@ function readSite(site: SendSite): string {
 type CleanupEntry = { label: string; where: string };
 type CleanupModule = {
   publicationCleanupPlan: (options: { clubIds: number[]; trainerIds: number[] }) => CleanupEntry[];
+  /** Реестр планов уборки (шаг 37.56): вид предмета разбирает хотя бы один из них. */
+  cleanupPlans: (options: {
+    clubIds: number[];
+    trainerIds: number[];
+    userIds: number[];
+  }) => CleanupEntry[];
 };
 
 describe('Сторож формы ссылки на предмет уведомления (36.51)', () => {
@@ -261,16 +267,22 @@ describe('Сторож формы ссылки на предмет уведом�
       const module = (await import(
         pathToFileURL(path.join(REPO_ROOT, 'scripts', 'cleanup-publications.mjs')).href
       )) as CleanupModule;
-      const plan = module.publicationCleanupPlan({ clubIds: [1], trainerIds: [2] });
-      const notifications = plan.find((entry) => entry.label === 'notifications');
+      // ⚠️ Шаг 37.56: планов уборки стало НЕСКОЛЬКО, и требование читается иначе —
+      // «вид предмета разобран ХОТЯ БЫ ОДНИМ планом». Пока план был один, первый же
+      // вид предмета, к публикациям не относящийся (`user` из фазы 37), поставил бы
+      // выбор между красным сторожем и его ослаблением. Реестр снимает выбор.
+      const plans = module.cleanupPlans({ clubIds: [1], trainerIds: [2], userIds: [3] });
+      const notifications = plans.filter((entry) => entry.label === 'notifications');
 
-      expect(notifications).toBeDefined();
+      expect(notifications.length).toBeGreaterThan(0);
+
+      const where = notifications.map((entry) => entry.where).join('\n');
 
       // Вид предмета, добавленный в словарь, обязан быть разобран уборкой:
       // иначе повторится история, с которой шаг начался — форма есть,
       // уборка о ней не знает, и после каждого прогона остаётся сирота.
       for (const subject of NOTIFICATION_SUBJECT_TYPES) {
-        expect(notifications?.where, `уборка не разбирает предмет «${subject}»`).toContain(
+        expect(where, `ни один план уборки не разбирает предмет «${subject}»`).toContain(
           `payload->>'subjectType' = '${subject}'`,
         );
       }
@@ -278,9 +290,7 @@ describe('Сторож формы ссылки на предмет уведом�
       // И ни одной прежней формы: разбор четырёх форм — это и есть та цена,
       // ради снятия которой шаг делается.
       for (const key of LEGACY_SUBJECT_KEYS) {
-        expect(notifications?.where, `уборка всё ещё разбирает форму ${key}`).not.toContain(
-          `payload->>'${key}'`,
-        );
+        expect(where, `уборка всё ещё разбирает форму ${key}`).not.toContain(`payload->>'${key}'`);
       }
     });
   });

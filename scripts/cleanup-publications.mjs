@@ -203,6 +203,58 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
  * @param {CleanupEntry[]} plan
  * @returns {string[]}
  */
+/**
+ * Уборка по ЛЮДЯМ: строки, предмет которых — сам человек (шаг 37.56).
+ *
+ * ⚠️ Зачем отдельный план, а не ещё одна строка в уборке публикаций. Публикации
+ * убираются по спискам номеров клубов и карточек; человек в этих списках не значится
+ * вовсе, и вид предмета `user` — появившийся в фазе 37 — под тот план не подходит
+ * ни одним условием. Втискивать его туда значило бы завести уборку, которой на вход
+ * приходят три разных вида списков и которая половину из них игнорирует.
+ *
+ * ⚠️ Этот же план закрывает дыру, из-за которой прогоны копили надзорный мусор:
+ * `scripts/e2e-fixture.mjs` убирал уведомления отбором `user_id IN (…)`, а у надзорной
+ * строки владельца нет — `IN` с `NULL` не совпадает никогда. Ключ уборки — ПРЕДМЕТ,
+ * а не владелец.
+ */
+export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
+  void schema;
+  const users = intArray(userIds);
+  const usersText = textArray(userIds);
+
+  return [
+    {
+      label: 'notifications',
+      table: 'notifications',
+      where: [
+        // Предмет — сам человек: надзорные события про работу от чужого лица,
+        // смену пароля и блокировку входа.
+        `(payload->>'subjectType' = 'user' AND payload->>'subjectId' = ANY(${usersText}))`,
+        // И его собственные строки — те, что прежде убирал `e2e-fixture.mjs`
+        // отбором по владельцу.
+        `user_id = ANY(${users})`,
+      ].join('\n        OR '),
+    },
+    { label: 'logs', table: 'logs', where: `actor_id = ANY(${users})` },
+  ];
+}
+
+/**
+ * Все планы уборки — РЕЕСТР, а не один план.
+ *
+ * ⚠️ Сторож `notification-subject-guard` требует, чтобы КАЖДЫЙ вид предмета из словаря
+ * кто-то разбирал. Пока план был один, требование читалось как «всё разбирает уборка
+ * публикаций» — и первый же вид предмета, к публикациям не относящийся, поставил бы
+ * выбор между красным сторожем и его ослаблением. Реестр снимает выбор: вид обязан
+ * быть разобран хотя бы одним планом, а каким — дело самих планов.
+ */
+export function cleanupPlans({ clubIds = [], trainerIds = [], userIds = [], schema = '' } = {}) {
+  return [
+    ...publicationCleanupPlan({ clubIds, trainerIds, schema }),
+    ...peopleCleanupPlan({ userIds, schema }),
+  ];
+}
+
 export function cleanupStatements(plan) {
   return plan
     .filter((entry) => !entry.cascade)
