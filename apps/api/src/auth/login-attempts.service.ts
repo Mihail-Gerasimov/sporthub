@@ -25,9 +25,11 @@
 // перезапуск обнуляет счёт, а два процесса дадут два независимых счёта.
 
 import { Inject, Injectable } from '@nestjs/common';
+import { notificationPayload } from '@sporthub/domain';
 
 import { TooManyRequestsError } from '../common/domain-error';
 import { LogService, SYSTEM_ACTOR_ROLE } from '../logs/log.service';
+import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -141,6 +143,9 @@ export class LoginAttemptsService {
   constructor(
     private readonly logs: LogService,
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+    // Очередь надзора: подбор пароля — единственное событие фазы, о котором
+    // до сих пор не оставалось вообще никакого следа (шаг 37.38).
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -283,6 +288,27 @@ export class LoginAttemptsService {
           blockedUntil: new Date(now + waitMs).toISOString(),
         },
       });
+
+      // ⚠️ Шаг 37.38. Надзорное событие — единственный способ узнать о подборе
+      // пароля вовремя. Журнал отвечает на вопрос «что было, если я пришёл искать»;
+      // очередь надзора — на вопрос «что требует меня сейчас».
+      //
+      // ⚠️ Предмет — учётная запись, в которую закрыли вход. Если такой записи нет,
+      // предметом остаётся сама попытка: ноль означает «адресата не существует»,
+      // и признак `accountExists` в тексте это проговаривает. Без него администратор
+      // не отличит «ломают живого человека» от «перебирают адреса наугад» —
+      // а это разные по срочности события.
+      await this.notifications.notify(
+        supervisionRecipient,
+        'oversight_login_blocked',
+        notificationPayload('oversight_login_blocked', 'user', user?.id ?? 0, {
+          key,
+          keyKind,
+          accountExists: user !== undefined && user !== null,
+          failures,
+          blockedUntil: new Date(now + waitMs).toISOString(),
+        }),
+      );
     }
   }
 

@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooManyRequestsError } from '../common/domain-error';
 import type { LogService } from '../logs/log.service';
+import type { NotificationService } from '../notifications/notification.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { LOGIN_BLOCKED_PREFIX, LoginAttemptsService } from './login-attempts.service';
 
@@ -32,8 +33,15 @@ const IP = '10.0.0.1';
 const silentLogs = { record: async () => {} } as unknown as LogService;
 const noUsers = { findByEmail: async () => null } as unknown as UsersRepository;
 
+/**
+ * Отправитель-заглушка: этот набор проверяет САМ СЧЁТЧИК, а не очередь надзора.
+ * Надзорное событие проверяется отдельно, на живой базе (`login-lockout.test.ts`).
+ */
+const silentNotifications = { notify: async () => null } as unknown as NotificationService;
+
 /** Служба со всеми зависимостями-заглушками. */
-const createService = (): LoginAttemptsService => new LoginAttemptsService(silentLogs, noUsers);
+const createService = (): LoginAttemptsService =>
+  new LoginAttemptsService(silentLogs, noUsers, silentNotifications);
 
 describe('Нарастающая блокировка входа', () => {
   let attempts: LoginAttemptsService;

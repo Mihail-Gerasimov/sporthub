@@ -46,6 +46,9 @@ describe('Блокировка входа после неверных попыт
     await harness.writeMany({
       users: [user(1, 'victim@test.local'), user(2, 'neighbour@test.local')],
       logs: [],
+      // Шаг 37.38: по той же причине чистится и очередь надзора — иначе
+      // «ровно одна строка на блокировку» считалась бы по куче от прошлых проверок.
+      notifications: [],
     });
     // Счётчики живут в приложении и переживают смену данных: каждая проверка
     // начинается с чистого листа, иначе блокировка предыдущей досталась бы следующей.
@@ -203,6 +206,70 @@ describe('Блокировка входа после неверных попыт
 
       expect(written).not.toContain('не тот пароль');
       expect(written).not.toContain('$argon2');
+    });
+  });
+
+  // --- Шаг 37.38: то же событие в ОЧЕРЕДИ НАДЗОРА -------------------------------
+  //
+  // ⚠️ Журнал и очередь надзора — разные обязанности, и это не дубль. Журнал
+  // отвечает на вопрос «что было, если я пришёл искать»; очередь — на вопрос
+  // «что требует меня СЕЙЧАС». Подбор пароля — ровно то событие, узнавать о котором
+  // постфактум бессмысленно.
+  describe('след блокировки в очереди надзора', () => {
+    const oversightRows = async (): Promise<
+      { addresseeKind: string; userId?: number; type: string; payload: Record<string, unknown> }[]
+    > => {
+      await harness.app.get(LoginAttemptsService).flushTrace();
+
+      const rows = await harness.read<
+        {
+          addresseeKind: string;
+          userId?: number;
+          type: string;
+          payload: Record<string, unknown>;
+        }[]
+      >('notifications');
+
+      return rows.filter((row) => row.type === 'oversight_login_blocked');
+    };
+
+    it('срабатывание ступени кладёт строку в очередь надзора', async () => {
+      await failTimes(5, 'victim@test.local');
+
+      const rows = await oversightRows();
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].addresseeKind).toBe('supervision');
+      // У очереди владельца-человека нет: строка переживёт удаление учётной записи.
+      expect(rows[0].userId).toBeUndefined();
+      expect(rows[0].payload.subjectType).toBe('user');
+      expect(rows[0].payload.accountExists).toBe(true);
+    });
+
+    it('подбор по НЕСУЩЕСТВУЮЩЕЙ почте тоже оставляет строку', async () => {
+      // ⚠️ Ради этого случая `logs.actor_id` и стал необязательным (шаг 37.27):
+      // привязать строку было не к кому, и самое ценное событие фазы оказывалось
+      // слепым ровно там, где оно нужнее всего.
+      await failTimes(5, 'nobody@nowhere.local');
+
+      const rows = await oversightRows();
+
+      expect(rows).toHaveLength(1);
+      // И администратор видит РАЗНИЦУ: ломают живого человека или перебирают
+      // адреса наугад — события разные по срочности.
+      expect(rows[0].payload.accountExists).toBe(false);
+    });
+
+    it('одиночная неудача очередь не трогает', async () => {
+      await attempt('victim@test.local', 'не тот пароль');
+
+      expect(await oversightRows()).toHaveLength(0);
+    });
+
+    it('успешный вход очередь не трогает', async () => {
+      await attempt('victim@test.local', DEMO_PASSWORD);
+
+      expect(await oversightRows()).toHaveLength(0);
     });
   });
 });
