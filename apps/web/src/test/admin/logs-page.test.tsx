@@ -26,18 +26,17 @@ describe('AdminNavigation — пункт «Логи»', () => {
     expect(logsLink).toHaveAttribute('href', '/service-portal/logs');
   });
 
-  it('«Логи» расположен между «Модерация» и «Финансы»', () => {
+  it('«Логи» стоят после «Надзора» и перед «Финансами»', () => {
+    // ⚠️ Шаг 37.44. Проверка была написана как «Логи идут сразу за Модерацией»,
+    // и шестой раздел панели её уронил, ничего не сломав: между ними встал
+    // «Надзор». Смысл проверки — ПОРЯДОК разделов, а не соседство двух из них,
+    // поэтому здесь сверяется вся последовательность целиком: так седьмой раздел
+    // потребует осознанного решения, куда его ставить, а не молча упадёт.
     render(<AdminNavigation />);
 
-    const links = screen.getAllByRole('link');
-    const labels = links.map((l) => l.textContent);
+    const labels = screen.getAllByRole('link').map((link) => link.textContent);
 
-    const moderationIndex = labels.indexOf('Модерация');
-    const logsIndex = labels.indexOf('Логи');
-    const financeIndex = labels.indexOf('Финансы');
-
-    expect(logsIndex).toBe(moderationIndex + 1);
-    expect(financeIndex).toBe(logsIndex + 1);
+    expect(labels).toEqual(['Пользователи', 'Аналитика', 'Модерация', 'Надзор', 'Логи', 'Финансы']);
   });
 });
 
