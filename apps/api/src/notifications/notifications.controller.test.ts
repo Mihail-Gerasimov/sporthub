@@ -1082,3 +1082,98 @@ describe('Очередь надзора в маршрутах уведомлен
     expect(person.body.data.total).toBe(1);
   });
 });
+
+// --- Шаг 37.19: состояние разбора как ОТБОР, а не признак выданной строки -------
+
+describe('Состояние разбора в отборе очереди (37.19)', () => {
+  let harness: TestHarness;
+  let adminCookie: string;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-read-state');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Администратор',
+          email: 'state@sup.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: [
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_created',
+          payload: { subjectType: 'club', subjectId: 1 },
+        },
+        {
+          id: 2,
+          createdAt: '2026-02-02T00:00:00.000Z',
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_hidden',
+          payload: { subjectType: 'club', subjectId: 2 },
+          readAt: '2026-02-03T00:00:00.000Z',
+        },
+      ],
+    });
+
+    adminCookie = await harness.as(1);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const feed = (query: string) =>
+    request(harness.app.getHttpServer())
+      .get(`/api/notifications?scope=supervision${query}`)
+      .set('Cookie', adminCookie);
+
+  it('без параметров видно ВСЁ — и разобранное тоже', async () => {
+    // ⚠️ Разобранная строка не исчезает: она меняет состояние. Иначе «отметить»
+    // означало бы «стереть», и вернуть её было бы нечем.
+    const response = await feed('');
+
+    expect(response.body.data.total).toBe(2);
+  });
+
+  it('«не разобрано» показывает только неразобранное', async () => {
+    const response = await feed('&unreadOnly=true');
+
+    expect(response.body.data.total).toBe(1);
+    expect(response.body.data.items[0].id).toBe(1);
+  });
+
+  it('«разобрано» показывает только разобранное', async () => {
+    // Этого отбора до шага 37.19 не существовало вовсе: сервер умел сказать
+    // только «покажи непрочитанное», и вкладке «разобрано» пришлось бы фильтровать
+    // выданную страницу — честно ровно до её потолка.
+    const response = await feed('&readOnly=true');
+
+    expect(response.body.data.total).toBe(1);
+    expect(response.body.data.items[0].id).toBe(2);
+  });
+
+  it('оба состояния сразу — отказ, а не молчаливый выбор одного', async () => {
+    const response = await feed('&unreadOnly=true&readOnly=true');
+
+    expect(response.status).toBe(400);
+  });
+
+  it('счётчик неразобранного не зависит от выбранного состояния', async () => {
+    // ⚠️ Значок показывает очередь, а не текущий отбор. Иначе переключение вкладки
+    // на «разобрано» обнуляло бы значок — и человек решил бы, что дел не осталось.
+    const onRead = await feed('&readOnly=true');
+
+    expect(onRead.body.data.unreadCount).toBe(1);
+  });
+});

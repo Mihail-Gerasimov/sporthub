@@ -103,7 +103,18 @@ export type NotificationsAudience =
  * выключенного типа в базе нет, и прятать при чтении нечего.
  */
 export type NotificationsFilter = NotificationsAudience & {
-  unreadOnly?: boolean;
+  /**
+   * Состояние строки: `false` — не разобрано, `true` — разобрано, не задано — всё.
+   *
+   * ⚠️ ОДНО поле на три состояния, а не пара булевых флагов (шаг 37.19). Пара
+   * `unreadOnly` + `readOnly` умеет сказать «и то и другое сразу» — противоречие,
+   * которое пришлось бы ловить проверкой в каждом читателе. Здесь его нельзя
+   * даже выразить.
+   *
+   * ⚠️ В надзорной очереди `read_at` означает «этим ЗАНЯЛИСЬ», а не «на это
+   * посмотрели»: у общей очереди прочтение и разбор — одно событие.
+   */
+  read?: boolean;
   /**
    * Тема ленты — отбор УХОДИТ В ЗАПРОС (шаг 37.18).
    *
@@ -129,7 +140,7 @@ export type NotificationsFilter = NotificationsAudience & {
  * пропал бы и весь смысл.
  */
 export type NotificationsCountFilter = NotificationsAudience & {
-  unreadOnly?: boolean;
+  read?: boolean;
   group?: NotificationGroupKey;
   ids?: number[];
 };

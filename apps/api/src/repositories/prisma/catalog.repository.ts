@@ -582,7 +582,9 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
   ): Prisma.NotificationWhereInput {
     return {
       ...PrismaNotificationsRepository.audienceWhere(filter),
-      readAt: filter.unreadOnly === true ? null : undefined,
+      // Три состояния одним условием: не задано — всё, `false` — только
+      // неразобранное, `true` — только разобранное.
+      readAt: filter.read === undefined ? undefined : filter.read ? { not: null } : null,
       // Тема ленты — условие ЗАПРОСА, а не отбор выданной страницы (шаг 37.18).
       // Отбор в памяти был бы честен ровно до потолка выдачи, то есть до 101-й строки.
       type: filter.group === undefined ? undefined : { in: notificationTypesOfGroup(filter.group) },

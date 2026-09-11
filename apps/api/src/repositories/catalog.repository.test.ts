@@ -317,8 +317,8 @@ const catalogContract = (createRepositories: () => Promise<CatalogRepositories>)
       const read = await notifications.markRead(first.id, 1);
 
       expect(read.readAt).toBeDefined();
-      expect(await notifications.findMany({ userId: 1, unreadOnly: true })).toHaveLength(1);
-      expect(await notifications.count({ userId: 1, unreadOnly: true })).toBe(1);
+      expect(await notifications.findMany({ userId: 1, read: false })).toHaveLength(1);
+      expect(await notifications.count({ userId: 1, read: false })).toBe(1);
       expect(await notifications.count({ userId: 1 })).toBe(2);
     });
 
@@ -394,8 +394,8 @@ const catalogContract = (createRepositories: () => Promise<CatalogRepositories>)
       await notifications.insert({ ...baseNotification, userId: 2 });
 
       expect(await notifications.markAllRead({ userId: 1 }, 1)).toBe(2);
-      expect(await notifications.count({ userId: 1, unreadOnly: true })).toBe(0);
-      expect(await notifications.count({ userId: 2, unreadOnly: true })).toBe(1);
+      expect(await notifications.count({ userId: 1, read: false })).toBe(0);
+      expect(await notifications.count({ userId: 2, read: false })).toBe(1);
       // Повторный вызов ничего не находит и ничего не меняет.
       expect(await notifications.markAllRead({ userId: 1 }, 1)).toBe(0);
     });

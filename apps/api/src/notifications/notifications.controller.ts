@@ -94,6 +94,27 @@ function optionalNumber(raw: string | undefined): number | undefined {
  * нечем: параметр необязательный, и отсутствие темы — законный случай. Поэтому
  * неизвестная тема отвергается явно.
  */
+/**
+ * Состояние строки из двух зеркальных параметров.
+ *
+ * ⚠️ Противоречие («покажи и разобранное, и только неразобранное») называется
+ * ОТКАЗОМ. Молчаливый выбор одного из двух — способ месяцами смотреть не на ту
+ * половину очереди и не понимать, почему числа не сходятся.
+ */
+function parseReadState(unreadOnly?: string, readOnly?: string): boolean | undefined {
+  const wantsUnread = unreadOnly === 'true' || unreadOnly === '1';
+  const wantsRead = readOnly === 'true' || readOnly === '1';
+
+  if (wantsUnread && wantsRead) {
+    throw new ValidationError('Некорректные параметры запроса');
+  }
+
+  if (wantsUnread) return false;
+  if (wantsRead) return true;
+
+  return undefined;
+}
+
 function parseGroup(raw: string | undefined): NotificationGroupKey | undefined {
   if (raw === undefined || raw === '') return undefined;
 
@@ -116,6 +137,11 @@ export class NotificationsController {
   async findMany(
     @CurrentUser() session: SessionContext,
     @Query('unreadOnly') unreadOnly?: string,
+    // ⚠️ Шаг 37.19. Зеркало `unreadOnly`: очередь надзора умеет показывать
+    // разобранное — строка после отметки не исчезает, а меняет состояние.
+    // Оба параметра сразу — противоречие, и оно называется отказом, а не
+    // молчаливым выбором одного из двух.
+    @Query('readOnly') readOnly?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
     @Query('scope') scope?: string,
@@ -135,7 +161,7 @@ export class NotificationsController {
       throw new ForbiddenError('Режим scope=all закрыт: спрашивайте конкретный ящик');
     }
 
-    const onlyUnread = unreadOnly === 'true' || unreadOnly === '1';
+    const read = parseReadState(unreadOnly, readOnly);
     const offset = optionalNumber(rawOffset) ?? 0;
     const rawLimitValue = optionalNumber(rawLimit);
     // Лимит не назван — берётся умолчание; назван больше потолка — срезается.
@@ -162,14 +188,14 @@ export class NotificationsController {
       this.notifications.findMany({
         ...audience,
         group,
-        unreadOnly: onlyUnread,
+        read,
         offset,
         limit,
       }),
-      this.notifications.count({ ...audience, group, unreadOnly: onlyUnread }),
+      this.notifications.count({ ...audience, group, read }),
       // ⚠️ Счётчик непрочитанного считается по тому же адресату и той же теме:
       // разойдясь хоть одним условием, они дадут «в значке 3, в списке 0».
-      this.notifications.count({ ...audience, group, unreadOnly: true }),
+      this.notifications.count({ ...audience, group, read: false }),
     ]);
 
     return { items, total, unreadCount };
@@ -188,7 +214,7 @@ export class NotificationsController {
     // своего отбора. Именно расхождение этих двух условий давало «в колокольчике 3,
     // в списке 0» (шаг 36.50).
     return {
-      unreadCount: await this.notifications.count({ ...audience, unreadOnly: true }),
+      unreadCount: await this.notifications.count({ ...audience, read: false }),
     };
   }
 
