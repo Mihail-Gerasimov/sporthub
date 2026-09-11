@@ -23,17 +23,53 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
-const adminNavItems = [
+/**
+ * Какой счётчик несёт пункт меню (шаг 37.49).
+ *
+ * ⚠️ Признак живёт В СЛОВАРЕ пунктов, а не в разметке. До этого шага он был
+ * жёстким сравнением адреса прямо в теле ссылки — `item.href === '…/moderation'`, —
+ * и это работало ровно до второго счётчика: третий превратил бы разметку
+ * в лестницу `if`, четвёртый — в лестницу, которую никто не решится тронуть.
+ * Теперь новый счётчик — это строка в словаре и строка в `NAV_BADGES`.
+ */
+type AdminNavBadge = 'awaitingRecheck' | 'supervisionUnread';
+
+const adminNavItems: ReadonlyArray<{ href: string; label: string; badge?: AdminNavBadge }> = [
   { href: '/service-portal/dashboard', label: 'Пользователи' },
   { href: '/service-portal/analytics', label: 'Аналитика' },
-  { href: '/service-portal/moderation', label: 'Модерация' },
+  { href: '/service-portal/moderation', label: 'Модерация', badge: 'awaitingRecheck' },
   // Очередь надзора (шаг 37.44): события администраторов, каталога и входа.
   // Стоит рядом с «Модерацией» намеренно — это соседние обязанности, но очереди
   // РАЗНЫЕ: там публикации, здесь письма.
-  { href: '/service-portal/notifications', label: 'Надзор' },
+  { href: '/service-portal/notifications', label: 'Надзор', badge: 'supervisionUnread' },
   { href: '/service-portal/logs', label: 'Логи' },
   { href: '/service-portal/finance', label: 'Финансы' },
 ];
+
+/**
+ * Как выглядит и как называется каждый счётчик.
+ *
+ * ⚠️ Подпись для экранного диктора обязательна и у каждого СВОЯ. Голое «3» диктору
+ * не сообщает ничего, а два голых числа рядом — тем более: прогон MCP фазы 35 нашёл
+ * дефект, видимый только в дереве доступности, и с тех пор подпись называет цель.
+ *
+ * ⚠️ Тона разные намеренно. Красный у повторной проверки — это просроченная работа
+ * модератора; оранжевый у надзора — «есть непрочитанное», тот же тон, что у значка
+ * уведомлений. Одинаковые тона читались бы как одна очередь.
+ */
+const NAV_BADGES: Record<
+  AdminNavBadge,
+  { readonly tone: string; readonly describe: (count: number) => string }
+> = {
+  awaitingRecheck: {
+    tone: 'bg-danger text-white',
+    describe: (count) => `Исправлено, ждёт проверки: ${count}`,
+  },
+  supervisionUnread: {
+    tone: 'bg-orange text-ink',
+    describe: (count) => `Не разобрано в очереди надзора: ${count}`,
+  },
+};
 
 /** Проверяет, активен ли пункт навигации для текущего pathname. */
 function isItemActive(pathname: string, href: string): boolean {
@@ -75,11 +111,28 @@ function isItemActive(pathname: string, href: string): boolean {
  * он отстранён намеренно. Надзорная лента — другой ящик: механизм тот же,
  * содержание разное, и это различие держит всю фазу.
  *
- * Счётчик надзора со счётчиком «Модерации» не складывается: очереди разные,
- * и одно число на двоих означало бы «есть N чего-то».
+ * ⚠️ Счётчик надзора со счётчиком «Модерации» НЕ СКЛАДЫВАЕТСЯ и стоит отдельно.
+ * Они считают разное: `awaitingRecheck` — публикации в очереди модерации,
+ * `supervisionUnread` — письма в очереди надзора. Одно число на двоих означало бы
+ * «есть N чего-то», и расхождение с любым из разделов выглядело бы дефектом,
+ * оставаясь законным.
+ *
+ * Оба числа приходят СВОЙСТВАМИ от серверного лейаута и берутся там параллельно:
+ * лейаут собирает КАЖДУЮ страницу панели, и последовательное ожидание второго
+ * числа было бы задержкой на всех шести разделах сразу.
  */
-export function AdminNavigation({ awaitingRecheck = 0 }: { awaitingRecheck?: number }) {
+export function AdminNavigation({
+  awaitingRecheck = 0,
+  supervisionUnread = 0,
+}: {
+  awaitingRecheck?: number;
+  supervisionUnread?: number;
+}) {
   const pathname = usePathname();
+
+  // Числа — по тем же ключам, что и признак в словаре пунктов: разойтись
+  // «какой счётчик у какого раздела» здесь негде.
+  const counts: Record<AdminNavBadge, number> = { awaitingRecheck, supervisionUnread };
 
   return (
     <nav
@@ -89,6 +142,11 @@ export function AdminNavigation({ awaitingRecheck = 0 }: { awaitingRecheck?: num
       <ul className="inline-flex items-center gap-1 rounded-full border border-line bg-card-2 p-1.5">
         {adminNavItems.map((item) => {
           const active = isItemActive(pathname, item.href);
+          // Счётчик показывается только когда ему есть что сказать: вечный ноль
+          // в навигации перестаёт сообщать что-либо вовсе.
+          const badge = item.badge === undefined ? null : NAV_BADGES[item.badge];
+          const count = item.badge === undefined ? 0 : counts[item.badge];
+
           return (
             <li key={item.href}>
               <Link
@@ -100,12 +158,15 @@ export function AdminNavigation({ awaitingRecheck = 0 }: { awaitingRecheck?: num
                 )}
               >
                 {item.label}
-                {item.href === '/service-portal/moderation' && awaitingRecheck > 0 ? (
+                {badge !== null && count > 0 ? (
                   <span
-                    className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] text-white"
-                    aria-label={`Исправлено, ждёт проверки: ${awaitingRecheck}`}
+                    className={cn(
+                      'ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] tabular-nums',
+                      badge.tone,
+                    )}
+                    aria-label={badge.describe(count)}
                   >
-                    {awaitingRecheck}
+                    {count}
                   </span>
                 ) : null}
               </Link>
