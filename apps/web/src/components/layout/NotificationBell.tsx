@@ -97,7 +97,10 @@ export function NotificationBell() {
   const markReadInStore = useNotificationsStore((state) => state.markRead);
   const rollbackMarkRead = useNotificationsStore((state) => state.rollbackMarkRead);
 
-  const { refetch } = useUnreadCountPolling({ enabled: isAuthenticated });
+  // ⚠️ Счётчик спрашивается ТЕМ ЖЕ ящиком, что и лента (шаг 37.51). Иначе значок
+  // и вкладка считали бы разное — это ровно тот третий читатель, которым
+  // кончились фазы 35 и 36.
+  const { refetch } = useUnreadCountPolling({ enabled: isAuthenticated, mailbox });
 
   const loadItems = useCallback(async () => {
     setLoading(true);

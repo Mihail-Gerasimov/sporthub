@@ -15,12 +15,19 @@
  * единый источник правды для bell-badge и страницы уведомлений. Локальный
  * state хука сохранён для обратной совместимости (старые потребители читают
  * `result.unreadCount` напрямую). Новый код подписывается на стор.
+ *
+ * ⚠️ Шаг 37.51. Адрес опроса был зашит БЕЗ параметров, и с появлением очереди
+ * надзора это стало дефектом: служебная запись спрашивала бы «свою личную почту»,
+ * которой у неё не бывает, и значок показывал бы вечный ноль поверх растущей
+ * очереди. Ящик теперь называется — тем же словарём `notification-mailbox`,
+ * которым его называют обе ленты: разойтись именем параметра негде.
  */
 'use client';
 
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { mailboxQuery, type NotificationsMailbox } from '@/lib/notification-mailbox';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 
 const POLL_INTERVAL_MS = 60_000;
@@ -28,6 +35,11 @@ const POLL_INTERVAL_MS = 60_000;
 export interface UseUnreadCountPollingOptions {
   /** Спрашивать ли счётчик. `false` — гость: спрашивать нечего и не о ком. */
   enabled: boolean;
+  /**
+   * Ящик, который считаем. Не задан — вся лента человека: прежнее поведение,
+   * и оно оставлено намеренно, чтобы колокольчик человека пережил выкатку.
+   */
+  mailbox?: NotificationsMailbox;
 }
 
 export interface UseUnreadCountPollingResult {
@@ -38,6 +50,7 @@ export interface UseUnreadCountPollingResult {
 
 export function useUnreadCountPolling({
   enabled,
+  mailbox,
 }: UseUnreadCountPollingOptions): UseUnreadCountPollingResult {
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
@@ -51,7 +64,7 @@ export function useUnreadCountPolling({
     controllerRef.current = controller;
 
     try {
-      const response = await fetch('/api/notifications/unread-count', {
+      const response = await fetch(`/api/notifications/unread-count${mailboxQuery(mailbox)}`, {
         signal: controller.signal,
       });
       if (!response.ok) return;
@@ -70,7 +83,7 @@ export function useUnreadCountPolling({
     } catch {
       // Ошибки сети и аборты игнорируем — счётчик остаётся прежним
     }
-  }, []);
+  }, [mailbox]);
 
   const refetch = useCallback(async () => {
     if (!enabled) return;

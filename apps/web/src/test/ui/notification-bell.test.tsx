@@ -169,6 +169,52 @@ describe('NotificationBell', () => {
     expect(String(listCall?.[0])).toContain('scope=supervision');
   });
 
+  it('счётчик служебной записи спрашивается тем же ящиком, что и лента', async () => {
+    // ⚠️ Шаг 37.51. Значок, лента и вкладка обязаны считать ОДНИМ способом —
+    // именно третий читатель с собственным правилом кончил фазы 35 и 36.
+    const fetchMock = mockFetchByRoute({ unreadCount: 4 });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
+      user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+
+    const countCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/api/notifications/unread-count'),
+    );
+
+    expect(String(countCall?.[0])).toBe('/api/notifications/unread-count?scope=supervision');
+  });
+
+  it('счётчик человека спрашивается без ящика — прежнее поведение', async () => {
+    const fetchMock = mockFetchByRoute({ unreadCount: 3 });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
+      user: { id: PROVIDER_USER_ID, name: 'Марина Крылова', email: 'marina@studio.local' },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+
+    const countCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/api/notifications/unread-count'),
+    );
+
+    expect(String(countCall?.[0])).toBe('/api/notifications/unread-count');
+  });
+
   it('под работой от чужого лица показывает ленту ТОГО, от чьего лица работают', async () => {
     // ⚠️ Ловушка, названная планом заранее: различать надо по `accountKind`,
     // а НЕ по `isAdmin`. Под подменой `accountKind` становится `person`, а

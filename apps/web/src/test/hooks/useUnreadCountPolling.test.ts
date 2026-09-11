@@ -60,6 +60,50 @@ describe('useUnreadCountPolling', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/notifications/unread-count', expect.any(Object));
   });
 
+  // ⚠️ Шаг 37.51. Адрес опроса был зашит без параметров, и у служебной записи
+  // это значило «посчитай мою личную почту» — почты у неё не бывает, значок
+  // показывал бы вечный ноль поверх растущей очереди надзора. Ящик называется
+  // ТЕМ ЖЕ словарём, что и в ленте: разойтись именем параметра негде.
+  it('называет ящик в адресе опроса: у служебной записи это очередь надзора', async () => {
+    fetchSpy.mockResolvedValueOnce(makeResponse(5));
+
+    renderHook(() => useUnreadCountPolling({ enabled: true, mailbox: { scope: 'supervision' } }));
+
+    await flushMicrotasks();
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+
+    expect(url).toBe('/api/notifications/unread-count?scope=supervision');
+  });
+
+  it('ящик лица услуг тоже доезжает до адреса опроса', async () => {
+    // Ящиков у человека столько, сколько у него лиц: владелец трёх клубов
+    // спрашивает счётчик ОДНОГО, того, чей кабинет открыт.
+    fetchSpy.mockResolvedValueOnce(makeResponse(2));
+
+    renderHook(() => useUnreadCountPolling({ enabled: true, mailbox: { kind: 'club', id: 3 } }));
+
+    await flushMicrotasks();
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+
+    expect(url).toBe('/api/notifications/unread-count?clubId=3');
+  });
+
+  it('без ящика адрес прежний — вся лента человека', async () => {
+    // Прежнее поведение переживает выкатку: неназванный ящик означает «всё моё»,
+    // и колокольчик человека спрашивает ровно это.
+    fetchSpy.mockResolvedValueOnce(makeResponse(1));
+
+    renderHook(() => useUnreadCountPolling({ enabled: true }));
+
+    await flushMicrotasks();
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+
+    expect(url).toBe('/api/notifications/unread-count');
+  });
+
   it('не называет пользователя в адресе — счётчик считается по сессии', async () => {
     fetchSpy.mockResolvedValueOnce(makeResponse(3));
 
