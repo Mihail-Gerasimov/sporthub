@@ -68,8 +68,19 @@ export class AdminController {
     const bookingId = parseId(rawId, 'Некорректный id записи');
 
     // Удаление и освобождение места делает сервис записей — одной операцией.
-    await this.bookingService.hardDelete(bookingId);
+    // Снимок удалённого возвращается оттуда же: читать данные вторым запросом
+    // до удаления значило бы держать две выборки одного и того же.
+    const { booking, slot } = await this.bookingService.hardDelete(bookingId);
 
+    // ⚠️ Шаг 37.26. Удаление необратимо, и строка журнала — единственное, что
+    // от события остаётся: по `entityId` восстановить уже нечего. Поэтому в `meta`
+    // уходит то, по чему событие читается без обращения к данным, — кто записан,
+    // на какое занятие и к какому лицу услуг.
+    //
+    // Время занятия берётся из слота, а дата — из самой записи: слот могли убрать
+    // из расписания, и тогда времени у события просто нет, а дата в записи есть
+    // снимком. Пустые поля не дописываются — событие честнее без них, чем
+    // с выдуманным нулём.
     await this.logs.record({
       action: 'admin_hard_delete_booking',
       // Роль — из сессии, как и номер. Здесь это всегда администратор, и именно
@@ -79,6 +90,17 @@ export class AdminController {
       actorRole: accountKindOf(session.actor),
       entityType: 'booking',
       entityId: bookingId,
+      meta: {
+        athleteUserId: booking.userId,
+        scheduleId: booking.scheduleId,
+        date: booking.date,
+        status: booking.status,
+        ...(booking.ownerType === undefined ? {} : { ownerType: booking.ownerType }),
+        ...(booking.ownerId === undefined ? {} : { ownerId: booking.ownerId }),
+        ...(slot === null
+          ? {}
+          : { startTime: slot.startTime, endTime: slot.endTime, slotTitle: slot.title }),
+      },
     });
 
     return EMPTY_RESULT;

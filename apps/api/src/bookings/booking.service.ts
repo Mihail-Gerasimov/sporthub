@@ -55,6 +55,18 @@ export type LazyTransitionsResult = {
   autoUnmarked: number;
 };
 
+/**
+ * Снимок удалённой записи (шаг 37.26).
+ *
+ * Отдаётся вызывающему, чтобы он мог назвать событие в журнале: после удаления
+ * ни запись, ни её связи прочитать уже неоткуда. Слот может быть пуст — занятие
+ * убрали из расписания раньше, чем удалили запись.
+ */
+export type DeletedBookingSnapshot = {
+  booking: Booking;
+  slot: Schedule | null;
+};
+
 @Injectable()
 export class BookingService {
   constructor(
@@ -279,24 +291,39 @@ export class BookingService {
   /**
    * Физическое удаление записи администратором. В отличие от отмены, история
    * исчезает навсегда. Место освобождается только если запись была активной.
+   *
+   * ⚠️ Шаг 37.26. Возвращается СНИМОК удалённого — сама запись и слот, на который
+   * она ссылалась. Без него строке журнала нечего называть: после удаления по
+   * номеру `entityId` уже ничего не прочитать, и вызывающему пришлось бы читать
+   * данные до вызова, то есть повторять ту же выборку вторым запросом.
    */
-  async hardDelete(bookingId: number): Promise<void> {
+  async hardDelete(bookingId: number): Promise<DeletedBookingSnapshot> {
     const booking = await this.bookings.findById(bookingId);
 
     if (!booking) {
       throw new NotFoundError('Запись не найдена');
     }
 
+    // Слот читается ДО транзакции и безусловно: он нужен снимку целиком, а не
+    // только ради счётчика мест. Слота может не быть — занятие убирают
+    // из расписания, а запись остаётся.
+    const slot =
+      booking.scheduleId === null ? null : await this.schedule.findById(booking.scheduleId);
+
     await this.transactions.runInTransaction(async () => {
       await this.bookings.remove(bookingId);
 
       if (ACTIVE_BOOKING_STATUSES.has(booking.status) && booking.scheduleId !== null) {
-        const slot = await this.schedule.findById(booking.scheduleId);
-        if (slot) {
-          await this.schedule.changeBookedCount(slot.id, -1);
+        // Слот перечитывается внутри транзакции: снимок выше сделан снаружи,
+        // и полагаться на него при изменении счётчика нельзя.
+        const fresh = await this.schedule.findById(booking.scheduleId);
+        if (fresh) {
+          await this.schedule.changeBookedCount(fresh.id, -1);
         }
       }
     });
+
+    return { booking, slot };
   }
 
   /**

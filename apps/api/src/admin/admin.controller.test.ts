@@ -232,6 +232,37 @@ describe('Административные маршруты', () => {
     expect(schedule[0].bookedCount).toBe(0);
   });
 
+  // ⚠️ Шаг 37.26. Удаление необратимо: самой записи после него нет, и по номеру
+  // `entityId` уже ничего не восстановить. Значит строка журнала — ЕДИНСТВЕННОЕ,
+  // что остаётся от события, и она обязана назвать и человека, и занятие.
+  // До этого шага `meta` не передавалась вовсе.
+  it('удаление записи называет в журнале человека, занятие и лицо услуг', async () => {
+    await request(harness.app.getHttpServer())
+      .delete('/api/admin/bookings/1')
+      .set('Cookie', adminCookie);
+
+    const logs =
+      await harness.read<{ action: string; entityId: number; meta?: Record<string, unknown> }[]>(
+        'logs',
+      );
+
+    expect(logs[0]).toMatchObject({
+      action: 'admin_hard_delete_booking',
+      entityId: 1,
+      meta: {
+        athleteUserId: 1,
+        scheduleId: 1,
+        date: '2026-03-18',
+        startTime: '10:00',
+        endTime: '11:00',
+        slotTitle: 'Слот',
+        ownerType: 'club',
+        ownerId: 1,
+        status: 'pending',
+      },
+    });
+  });
+
   it('несуществующая запись — 404', async () => {
     const response = await request(harness.app.getHttpServer())
       .delete('/api/admin/bookings/99')
