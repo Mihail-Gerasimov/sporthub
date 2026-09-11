@@ -29,6 +29,7 @@
  */
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { OVERSIGHT_GROUP_KEYS, NOTIFICATION_TYPE_GROUP } from '@sporthub/domain';
@@ -43,6 +44,7 @@ import {
 import { getNotificationCopy } from '@/lib/notification-copy';
 import { formatNotificationDateFull } from '@/lib/notification-date';
 import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/notification-groups';
+import { notificationTarget, PANEL_PLACE } from '@/lib/notification-links';
 import { mailboxParams, SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';
 import type { NotificationsFeedPage } from '@/lib/server-api';
 import { cn } from '@/lib/utils';
@@ -778,6 +780,9 @@ function SupervisionCard({
   const copy = getNotificationCopy(notification.type, notification.payload);
   const group = NOTIFICATION_TYPE_GROUP[notification.type];
   const isUnresolved = notification.readAt === undefined;
+  // Куда ведёт строка — решает общая карта, и место у неё здесь всегда одно:
+  // служебная панель. Тот же предмет из кабинета откроется своей карточкой.
+  const target = notificationTarget(notification, PANEL_PLACE);
 
   return (
     <article
@@ -807,9 +812,42 @@ function SupervisionCard({
             </span>
           )}
         </div>
-        <p className="m-0 break-words text-sm font-semibold leading-[1.3] text-ink">{copy.title}</p>
+        {target.kind === 'open' ? (
+          <p className="m-0 break-words text-sm font-semibold leading-[1.3] text-ink">
+            {/*
+              ⚠️ Переход УВОДИТ и оставляет строку в очереди. Обработчика здесь нет
+              намеренно: пока «открыть» и «пометить» были одним действием, поход
+              посмотреть объявлял строку разобранной всей команде.
+            */}
+            <Link
+              href={target.href}
+              data-testid={`supervision-open-${notification.id}`}
+              className="rounded-[4px] text-ink transition-colors hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+            >
+              {copy.title}
+            </Link>
+          </p>
+        ) : (
+          <p className="m-0 break-words text-sm font-semibold leading-[1.3] text-ink">
+            {copy.title}
+          </p>
+        )}
         {copy.description ? (
           <p className="m-0 break-words text-[13px] leading-[1.5] text-muted">{copy.description}</p>
+        ) : null}
+        {/*
+          ⚠️ Предмета больше нет — и это норма для надзорной строки (шаг 37.55):
+          событие «публикация стёрта» переживает свою публикацию. Молчание здесь
+          означало бы 404 или пустой раздел, в котором человек ищет, какой фильтр
+          съел карточку. Плашка отвечает словами.
+        */}
+        {target.kind === 'gone' ? (
+          <p
+            data-testid={`supervision-gone-${notification.id}`}
+            className="m-0 inline-flex w-fit items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[11px] font-semibold leading-[1.3] text-muted"
+          >
+            {target.note}
+          </p>
         ) : null}
 
         {/*

@@ -44,6 +44,7 @@ import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import {
   cabinetPlace,
   notificationsFeedHref,
+  notificationTarget,
   PANEL_PLACE,
   type NotificationPlace,
 } from '@/lib/notification-links';
@@ -166,6 +167,19 @@ export function NotificationBell() {
   const handleItemClick = useCallback(
     async (notification: Notification) => {
       setIsOpen(false);
+
+      // ⚠️ Шаг 37.53. Надзорная строка живёт в ОБЩЕЙ очереди, и «пошёл посмотреть»
+      // не имеет права означать «объявил разобранным всей команде». Поэтому здесь
+      // два разных поведения, и различает их вид адресата, а не вид учётной
+      // записи: под работой от чужого лица администратор читает человеческий ящик,
+      // и там прежнее правило остаётся в силе.
+      if (notification.addresseeKind === 'supervision') {
+        const target = notificationTarget(notification, place);
+
+        router.push(target.kind === 'open' ? target.href : allNotificationsHref);
+        return;
+      }
+
       if (notification.readAt === undefined) {
         // Optimistic: badge уменьшается мгновенно, dropdown получает readAt.
         markReadInStore(notification.id);
@@ -195,7 +209,7 @@ export function NotificationBell() {
       }
       router.push(allNotificationsHref);
     },
-    [refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
+    [refetch, router, allNotificationsHref, place, markReadInStore, rollbackMarkRead],
   );
 
   if (!isAuthenticated) {
