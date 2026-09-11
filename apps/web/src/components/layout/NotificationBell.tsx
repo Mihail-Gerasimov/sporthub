@@ -20,6 +20,11 @@
  * пишет в этот же стор, поэтому badge мгновенно убавляется при пометке
  * прочитанным на странице (без ожидания следующего polling-цикла).
  * markRead в dropdown тоже идёт через стор с optimistic-rollback.
+ *
+ * ⚠️ Шаг 37.40. Собственного форматтера даты у колокольчика больше нет: краткая
+ * форма приезжает из общего `@/lib/notification-date`. Вид подписи прежний —
+ * день, месяц и время без года; год в выпадашке шириной 320px был бы шумом.
+ * Разными остались ФОРМЫ, а не реализации: расходиться теперь нечему.
  */
 'use client';
 
@@ -28,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNotificationCopy } from '@/lib/notification-copy';
+import { formatNotificationDateShort } from '@/lib/notification-date';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { PERSONAL_CABINET_PATH } from '@/lib/service-faces';
@@ -35,20 +41,6 @@ import type { Notification } from '@sporthub/types';
 import { useUnreadCountPolling } from '@/hooks/useUnreadCountPolling';
 
 const DROPDOWN_LIMIT = 5;
-
-function formatNotificationDate(iso: string): string {
-  try {
-    const date = new Date(iso);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 export function NotificationBell() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -255,7 +247,7 @@ export function NotificationBell() {
                           <p className="mt-1 text-xs text-[var(--ui-muted)]">{copy.description}</p>
                         ) : null}
                         <p className="mt-1 font-body text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
-                          {formatNotificationDate(notification.createdAt)}
+                          {formatNotificationDateShort(notification.createdAt)}
                         </p>
                       </button>
                     </li>

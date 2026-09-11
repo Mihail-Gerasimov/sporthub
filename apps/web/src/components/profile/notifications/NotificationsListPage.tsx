@@ -24,9 +24,9 @@
  * `notification-checkbox-{id}`, `notifications-bulk-delete`,
  * `notifications-delete-confirm`.
  *
- * ⚠️ Шаг 37.39. Чистые части ленты уехали в `lib`: вёдра по дате и их подписи
- * (`notification-buckets`), подписи тем (`notification-groups`), тексты
- * уведомлений (`notification-copy`). Причина — надзорная лента администратора
+ * ⚠️ Шаги 37.39 и 37.40. Чистые части ленты уехали в `lib`: вёдра по дате
+ * и их подписи (`notification-buckets`), подписи тем (`notification-groups`),
+ * тексты уведомлений (`notification-copy`), формат момента (`notification-date`). Причина — надзорная лента администратора
  * фазы 37: она живёт в служебной панели и переиспользовать этот каркас не может,
  * а завести вторую копию общего значило бы повторить расхождение, случавшееся
  * в этом домене трижды за две фазы. Здесь остаётся то, что и правда про кабинет:
@@ -49,6 +49,7 @@ import {
   type DateBucket,
 } from '@/lib/notification-buckets';
 import { getNotificationCopy } from '@/lib/notification-copy';
+import { formatNotificationDateFull } from '@/lib/notification-date';
 import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/notification-groups';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
@@ -91,28 +92,6 @@ export interface NotificationsListPageProps {
    * но тип это допускает, и мутации в этом случае просто не выполняются.
    */
   userId?: number;
-}
-
-/**
- * Полный формат даты-времени для карточки уведомления.
- *
- * ⚠️ Шаг 37.39. Вёдра по дате, их подписи и подписи тем уехали в `lib`: те же
- * части нужны надзорной ленте администратора, а она живёт в служебной панели.
- * Форматтер даты остаётся здесь до шага 37.40 — там он сведётся с форматтером
- * колокольчика в один модуль.
- */
-function formatFullDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
 }
 
 export function NotificationsListPage({
@@ -552,7 +531,7 @@ export function NotificationsListPage({
                             <p className="text-xs text-muted">{copy.description}</p>
                           ) : null}
                           <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
-                            {formatFullDate(notification.createdAt)}
+                            {formatNotificationDateFull(notification.createdAt)}
                           </span>
                         </button>
                         {/* Phase 29 Step 29.3: per-item delete (X-иконка) — только
