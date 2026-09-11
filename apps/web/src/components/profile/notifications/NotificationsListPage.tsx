@@ -24,17 +24,21 @@
  * `notification-checkbox-{id}`, `notifications-bulk-delete`,
  * `notifications-delete-confirm`.
  *
- * ⚠️ Шаги 37.39 и 37.40. Чистые части ленты уехали в `lib`: вёдра по дате
- * и их подписи (`notification-buckets`), подписи тем (`notification-groups`),
- * тексты уведомлений (`notification-copy`), формат момента (`notification-date`). Причина — надзорная лента администратора
- * фазы 37: она живёт в служебной панели и переиспользовать этот каркас не может,
- * а завести вторую копию общего значило бы повторить расхождение, случавшееся
- * в этом домене трижды за две фазы. Здесь остаётся то, что и правда про кабинет:
- * ящик, режим выбора, модалка удаления и сама разметка.
+ * ⚠️ Шаги 37.39–37.41. Общее с другими лентами уехало отсюда: вёдра по дате
+ * и их подписи (`lib/notification-buckets`), подписи тем (`lib/notification-groups`),
+ * тексты уведомлений (`lib/notification-copy`), формат момента
+ * (`lib/notification-date`), имя ящика в адресе (`lib/notification-mailbox`)
+ * и все мутации с оптимистичным откатом (`hooks/useNotificationsFeedActions`).
+ *
+ * Причина — надзорная лента администратора фазы 37: она живёт в служебной панели
+ * и переиспользовать ЭТОТ каркас не может, а вторая копия общего повторила бы
+ * расхождение, случавшееся в этом домене трижды за две фазы. Здесь остаётся
+ * то, что и правда про кабинет: отбор по теме и непрочитанности, разметка
+ * карточек и модалка подтверждения.
  */
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
 import {
@@ -51,30 +55,11 @@ import {
 import { getNotificationCopy } from '@/lib/notification-copy';
 import { formatNotificationDateFull } from '@/lib/notification-date';
 import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/notification-groups';
+import type { NotificationsMailbox } from '@/lib/notification-mailbox';
+import { useNotificationsFeedActions } from '@/hooks/useNotificationsFeedActions';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
-import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
-
-import type { ServiceFaceRef } from '@/lib/service-faces';
-
-/**
- * Ящик, который открыт: личный или названного лица.
- *
- * ⚠️ Нужен «прочитать всё» (шаг 35.47a). Без него уборка шла по ВСЕМУ человеку:
- * человек, открывший кабинет одного клуба и нажавший «отметить всё», гасил заодно
- * ящики двух других клубов и свой личный. Бэкенд область понимал с 35.28 — назвать
- * её из браузера было нечем.
- */
-export type NotificationsMailbox = { scope: 'personal' } | ServiceFaceRef;
-
-/** Ящик в виде строки запроса — так его называет бэкенд. */
-function mailboxQuery(mailbox: NotificationsMailbox | undefined): string {
-  if (mailbox === undefined) return '';
-  if ('scope' in mailbox) return `?scope=${mailbox.scope}`;
-
-  return mailbox.kind === 'club' ? `?clubId=${mailbox.id}` : `?trainerId=${mailbox.id}`;
-}
 
 export interface NotificationsListPageProps {
   notifications: Notification[];
@@ -106,47 +91,31 @@ export function NotificationsListPage({
   const notifications = useNotificationsStore((state) => state.notifications);
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
   const setUserIdInStore = useNotificationsStore((state) => state.setUserId);
-  const markReadInStore = useNotificationsStore((state) => state.markRead);
-  const rollbackMarkReadInStore = useNotificationsStore((state) => state.rollbackMarkRead);
-  const markAllReadInStore = useNotificationsStore((state) => state.markAllRead);
-  const rollbackMarkAllReadInStore = useNotificationsStore((state) => state.rollbackMarkAllRead);
-  // Phase 29 Step 29.3: removeMany — удаляет из списка локально и декрементит
-  // unreadCount только на число удалённых непрочитанных. rollback используется
-  // на server fail для возврата записей и счётчика.
-  const removeManyInStore = useNotificationsStore((state) => state.removeMany);
-  const rollbackRemoveManyInStore = useNotificationsStore((state) => state.rollbackRemoveMany);
 
-  const [pendingId, setPendingId] = useState<number | null>(null);
-  const [markingAll, setMarkingAll] = useState(false);
+  // ⚠️ Шаг 37.41. Все мутации ленты — в общем хуке: пометка прочитанным, «отметить
+  // всё» по ОТКРЫТОМУ ящику, удаление и режим выбора, каждая с оптимистичным
+  // откатом при отказе сервера. Здесь остаётся только то, что решает сам кабинет.
+  //
+  // `markReadOnOpen` не задан — значит «да», и это прежнее поведение ленты
+  // человека: клик по непрочитанной карточке гасит её. У надзорной ленты будет
+  // иначе, и ради этого параметр и существует.
+  const actions = useNotificationsFeedActions({ mailbox, resetKey: userId });
+
   const [activeGroup, setActiveGroup] = useState<NotificationGroupFilter>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
-
-  // Phase 29 Step 29.3: режим выбора нескольких уведомлений и подтверждение
-  // удаления через Modal. confirmIds — id'шники, ожидающие подтверждения
-  // (per-item: один id; bulk: все selectedIds на момент клика).
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
-  const [confirmIds, setConfirmIds] = useState<number[] | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const addToast = useToastStore((state) => state.addToast);
 
   // Phase 29 Step 29.2: при смене userId — сбрасываем стор и заполняем
   // его server-prop'ом. Если userId не изменился (refresh страницы) —
   // тоже перезаписываем notifications, чтобы взять самые свежие данные.
+  //
+  // ⚠️ Посев ленты остаётся у страницы, а не уезжает в хук: серверные данные
+  // получила она, и только она знает, что именно спрашивала.
   useEffect(() => {
     if (userId !== undefined) {
       setUserIdInStore(userId);
     }
     setNotificationsInStore(initial);
   }, [userId, initial, setUserIdInStore, setNotificationsInStore]);
-
-  // Phase 29 Step 29.3: при смене userId сбрасываем выделение, чтобы
-  // пользователь не наследовал чужие выборы при impersonation/login.
-  useEffect(() => {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-  }, [userId]);
 
   // ⚠️ Шаг 35.34. Плашка «Доступ ограничен» убрана: пускать сюда или нет,
   // решает серверный лейаут, и решает ДО похода за данными. Здесь остался
@@ -201,12 +170,18 @@ export function NotificationsListPage({
     [groupCounts],
   );
 
-  // Защита от stale activeGroup: если active-tab стал невидимым, сбрасываем на 'all'.
-  useEffect(() => {
-    if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
-      setActiveGroup('all');
-    }
-  }, [activeGroup, visibleGroupKeys]);
+  // Защита от устаревшей вкладки: выбранная тема пропала из ряда — возвращаемся
+  // на «Все». Так бывает с надзорной темой: её вкладку показывают сами данные,
+  // и после уборки последней такой строки выбранной темы в ряду больше нет.
+  //
+  // ⚠️ Правка во время рендера, а не в эффекте, и это рекомендованный React способ
+  // подстроить состояние под изменившиеся данные: React перерисовывает сразу,
+  // до показа кадра, и пустая выбранная вкладка не успевает мелькнуть. Эффект
+  // здесь делал то же самое, но кадром позже — и попадал под запрет
+  // «не вызывать setState синхронно в теле эффекта».
+  if (activeGroup !== 'all' && !visibleGroupKeys.includes(activeGroup)) {
+    setActiveGroup('all');
+  }
 
   // Фильтр — только то, что человек выбрал сам: группа и тоггл непрочитанных.
   const filtered = useMemo(() => {
@@ -239,125 +214,22 @@ export function NotificationsListPage({
     );
   }, [filtered]);
 
-  const markSingleRead = useCallback(
-    async (id: number) => {
-      if (pendingId !== null) return;
-      setPendingId(id);
-      // Phase 29 Step 29.2: optimistic — стор сразу декрементит unreadCount,
-      // bell-badge меняется до ответа сервера. На fail откатываем.
-      markReadInStore(id);
-      try {
-        // Владельца сервер берёт из сессии. Чужое уведомление он отвечает тем же
-        // «не найдено», что и несуществующее, — по коду ответа чужие номера
-        // не переберёшь.
-        const response = await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-        if (!response.ok) {
-          rollbackMarkReadInStore(id);
-          addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
-        }
-      } catch {
-        rollbackMarkReadInStore(id);
-        addToast({ message: 'Не удалось обновить уведомление', tone: 'error' });
-      } finally {
-        setPendingId(null);
-      }
-    },
-    [pendingId, addToast, markReadInStore, rollbackMarkReadInStore],
-  );
-
-  // Phase 29 Step 29.3: переключение режима выбора. На входе/выходе —
-  // полная очистка selectedIds, чтобы выделения не утекали между сеансами.
-  const toggleSelectionMode = useCallback(() => {
-    setSelectionMode((current) => !current);
-    setSelectedIds(new Set());
-  }, []);
-
-  const toggleItemSelection = useCallback((id: number) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
-  // Phase 29 Step 29.3: открыть модалку подтверждения. Per-item путь передаёт
-  // [id], bulk-путь — массив selectedIds. После успеха модалка закрывается
-  // через handleConfirmDelete; на cancel — через onClose Modal'ы.
-  const requestDelete = useCallback((ids: number[]) => {
-    if (ids.length === 0) return;
-    setConfirmIds(ids);
-  }, []);
-
-  const cancelDelete = useCallback(() => {
-    setConfirmIds(null);
-  }, []);
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (confirmIds === null || confirmIds.length === 0) return;
-    setDeleting(true);
-    // Optimistic: убираем из стора, считаем удалённые непрочитанные.
-    const removed = removeManyInStore(confirmIds);
-    try {
-      const response = await fetch('/api/notifications', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        // Чужие номера в списке сервер молча отбрасывает — удаляется только своё.
-        body: JSON.stringify({ ids: confirmIds }),
-      });
-      if (!response.ok) {
-        rollbackRemoveManyInStore(removed);
-        addToast({ message: 'Не удалось удалить уведомления', tone: 'error' });
-      } else {
-        const message =
-          confirmIds.length === 1
-            ? 'Уведомление удалено'
-            : `Удалено уведомлений: ${confirmIds.length}`;
-        addToast({ message, tone: 'success' });
-        // После успешного удаления — выходим из selection-mode и очищаем выбор.
-        setSelectionMode(false);
-        setSelectedIds(new Set());
-      }
-    } catch {
-      rollbackRemoveManyInStore(removed);
-      addToast({ message: 'Не удалось удалить уведомления', tone: 'error' });
-    } finally {
-      setDeleting(false);
-      setConfirmIds(null);
-    }
-  }, [confirmIds, removeManyInStore, rollbackRemoveManyInStore, addToast]);
-
-  const markAllRead = useCallback(async () => {
-    if (markingAll) return;
-    setMarkingAll(true);
-    // Phase 29 Step 29.2: optimistic — все непрочитанные помечаются в сторе,
-    // bell-badge становится 0. На fail возвращаем readAt и unreadCount.
-    const optimisticallyMarkedIds = markAllReadInStore();
-    try {
-      // ⚠️ До фазы 34 этот маршрут не проверял НИЧЕГО: прислал чужой номер —
-      // пометил прочитанными чужие уведомления. Тела у него больше нет.
-      // ⚠️ Уборка идёт по ОТКРЫТОМУ ящику. До шага 35.47a область не называлась,
-      // и «отметить всё» в кабинете одного клуба гасило ящики остальных лиц
-      // и личный заодно — то есть кнопка делала больше, чем обещала подписью.
-      const response = await fetch(`/api/notifications/read-all${mailboxQuery(mailbox)}`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        rollbackMarkAllReadInStore(optimisticallyMarkedIds);
-        addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
-        return;
-      }
-      addToast({ message: 'Все уведомления отмечены прочитанными', tone: 'success' });
-    } catch {
-      rollbackMarkAllReadInStore(optimisticallyMarkedIds);
-      addToast({ message: 'Не удалось отметить все уведомления', tone: 'error' });
-    } finally {
-      setMarkingAll(false);
-    }
-  }, [markingAll, mailbox, addToast, markAllReadInStore, rollbackMarkAllReadInStore]);
+  // ⚠️ Мутации разворачиваются из хука по именам, чтобы разметка ниже читалась
+  // так же, как читалась до выноса: `selectionMode`, `markAllRead`, `requestDelete`.
+  const {
+    markingAll,
+    deleting,
+    selectionMode,
+    selectedIds,
+    confirmIds,
+    activateItem,
+    markAllRead,
+    toggleSelectionMode,
+    toggleItemSelection,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+  } = actions;
 
   // Размещаем после всех хуков (useState/useEffect/useMemo/useCallback), чтобы соблюсти
   // rules-of-hooks (нельзя менять количество хуков между рендерами).
@@ -507,13 +379,11 @@ export function NotificationsListPage({
                           type="button"
                           data-testid={`notification-item-${notification.id}`}
                           onClick={() => {
-                            // Phase 29 Step 29.3: в режиме выбора клик по карточке
-                            // тоггалит чекбокс (как в почтовиках), иначе — markRead.
-                            if (selectionMode) {
-                              toggleItemSelection(notification.id);
-                              return;
-                            }
-                            if (isUnread) void markSingleRead(notification.id);
+                            // В режиме выбора клик тоггалит чекбокс (как в почтовиках),
+                            // иначе помечает прочитанным. Оба пути — в общем хуке:
+                            // у надзорной ленты второй путь выключен, и различие
+                            // задаётся параметром, а не переписанным обработчиком.
+                            activateItem(notification);
                           }}
                           className="flex flex-1 flex-col items-start gap-1 text-left"
                         >
@@ -599,7 +469,7 @@ export function NotificationsListPage({
               type="button"
               data-testid="notifications-delete-confirm"
               onClick={() => {
-                void handleConfirmDelete();
+                void confirmDelete();
               }}
               disabled={deleting}
               className="rounded-pill border-0 bg-orange px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-orange/90 disabled:opacity-50"
