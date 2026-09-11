@@ -140,13 +140,12 @@ export function NotificationsListPage({
   // Считается ВСЁ, что прислал сервер: он уже отобрал ящик, и второй раз решать
   // «наше ли это уведомление» браузеру нечем и незачем.
   const groupCounts = useMemo<Record<NotificationGroupFilter, number>>(() => {
-    const counts: Record<NotificationGroupFilter, number> = {
-      all: 0,
-      booking: 0,
-      links: 0,
-      reviews: 0,
-      moderation: 0,
-    };
+    // Счётчики собираются ИЗ СЛОВАРЯ тем, а не выписываются по одной: забытая тема
+    // означала бы `undefined + 1` и вкладку с пустым числом.
+    const counts = Object.fromEntries([
+      ['all', 0],
+      ...NOTIFICATION_GROUP_KEYS.map((group) => [group, 0]),
+    ]) as Record<NotificationGroupFilter, number>;
     for (const n of notifications) {
       counts.all += 1;
       const g = NOTIFICATION_TYPE_GROUP[n.type];
@@ -156,17 +155,18 @@ export function NotificationsListPage({
   }, [notifications]);
 
   //
-  // ⚠️ Шаг 36.21 добавил четвёртую группу — надзорную. Её единственный тип адресован
-  // АДМИНИСТРАТОРУ, а на этой странице администратора не бывает: она закрыта
-  // `requirePerson()`. Вкладка получалась вечно пустой у всех.
+  // ⚠️ Решают ДАННЫЕ, а не формула «кому что положено» (шаг 36.21, уточнён в 37.23).
   //
-  // Прятать её насовсем нельзя по правилу выше — тогда строка, если она однажды
-  // сюда попадёт, будет видна в «Все» и неотфильтровываема. Поэтому решает
-  // не формула «кому положено», а сами ДАННЫЕ: вкладка появляется, когда в ленте
-  // есть хоть одна её строка.
+  // Надзорные темы адресованы общей очереди администраторов, а на этой странице
+  // администратора не бывает: она закрыта `requirePerson()`. Прятать их формулой
+  // всё равно нельзя — тогда строка, если однажды сюда попадёт, будет видна
+  // в «Все» и неотфильтровываема. Поэтому надзорная вкладка появляется ровно тогда,
+  // когда в ленте есть хоть одна её строка, то есть в норме — никогда.
   const visibleGroupKeys: readonly NotificationGroupKey[] = useMemo(
     () =>
-      NOTIFICATION_GROUP_KEYS.filter((group) => group !== 'moderation' || groupCounts[group] > 0),
+      NOTIFICATION_GROUP_KEYS.filter(
+        (group) => !group.startsWith('oversight_') || groupCounts[group] > 0,
+      ),
     [groupCounts],
   );
 

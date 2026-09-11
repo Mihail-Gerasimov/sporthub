@@ -233,6 +233,23 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
       />,
     );
 
-    expect(screen.getByTestId('notifications-filter-group-moderation')).toBeInTheDocument();
+    // ⚠️ Тема переименована на шаге 37.21: `moderation` содержала ровно один тип,
+    // адресованный администратору, и рисовалась человеку ПУСТОЙ. Теперь надзорные
+    // темы отделены, и эта вкладка появляется только по данным — то есть в норме
+    // никогда, а здесь только потому, что строка подложена нарочно.
+    expect(screen.getByTestId('notifications-filter-group-oversight_catalog')).toBeInTheDocument();
+  });
+
+  it('надзорной вкладки нет, пока нет надзорной строки', () => {
+    // Обратная сторона. Без неё «вкладка появляется по данным» было бы зелено
+    // и тогда, когда она просто есть всегда.
+    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+
+    expect(
+      screen.queryByTestId('notifications-filter-group-oversight_catalog'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('notifications-filter-group-oversight_admin'),
+    ).not.toBeInTheDocument();
   });
 });

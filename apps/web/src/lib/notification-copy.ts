@@ -146,7 +146,97 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
         : 'Публикация ждёт повторной проверки.',
     };
   },
+  // --- Фаза 37: надзорные события ------------------------------------------------
+  //
+  // ⚠️ Тексты пишутся для АДМИНИСТРАТОРА, а не для участника: он смотрит на чужое
+  // действие со стороны. Поэтому здесь называются обе стороны там, где они есть, —
+  // иначе строка «сменён пароль» не отвечает на главный вопрос «чей».
+  oversight_impersonation_started: (payload) => {
+    const target = text(payload.targetName) || text(payload.targetEmail);
+    return {
+      title: 'Работа от чужого лица',
+      description: target
+        ? `Администратор начал работать от лица «${target}».`
+        : 'Администратор начал работать от чужого лица.',
+    };
+  },
+  oversight_password_changed_by_admin: (payload) => {
+    const target = text(payload.targetName) || text(payload.targetEmail);
+    return {
+      title: 'Администратор сменил чужой пароль',
+      description: target
+        ? `Пароль учётной записи «${target}» изменён не её владельцем.`
+        : 'Пароль чужой учётной записи изменён администратором.',
+    };
+  },
+  oversight_booking_hard_deleted: (payload) => {
+    const slot = text(payload.slotTitle);
+    const date = text(payload.date);
+    return {
+      title: 'Запись стёрта необратимо',
+      description:
+        [slot, date].filter(Boolean).join(', ') || 'Чужая запись удалена администратором.',
+    };
+  },
+  oversight_link_force_revoked: (payload) => {
+    const detached = typeof payload.detachedCount === 'number' ? payload.detachedCount : undefined;
+    return {
+      title: 'Связь разорвана принудительно',
+      description:
+        detached === undefined
+          ? 'Администратор разорвал связь тренера с клубом.'
+          : `Администратор разорвал связь; занятий отцеплено: ${detached}.`,
+    };
+  },
+  oversight_publication_deleted: (payload) => {
+    const name = text(payload.publicationName);
+    return {
+      title: 'Публикация стёрта необратимо',
+      description: name
+        ? `«${name}» удалена вместе со всем, что на ней висело.`
+        : 'Публикация удалена каскадом.',
+    };
+  },
+  oversight_publication_hidden: (payload) => {
+    const name = text(payload.publicationName);
+    const reason = text(payload.reason);
+    return {
+      title: 'Публикация скрыта',
+      description:
+        [name && `«${name}»`, reason].filter(Boolean).join(' — ') ||
+        'Публикация скрыта модератором.',
+    };
+  },
+  oversight_publication_created: (payload) => {
+    const name = text(payload.publicationName);
+    return {
+      title: 'Новое лицо в каталоге',
+      // Премодерации нет: карточка встаёт в каталог сразу, и это единственная
+      // точка, где надзор вообще может её увидеть — иначе только по жалобе.
+      description: name
+        ? `«${name}» опубликовано и уже видно людям.`
+        : 'Новая публикация уже видна людям.',
+    };
+  },
+  oversight_login_blocked: (payload) => {
+    const key = text(payload.key);
+    const exists = payload.accountExists === true;
+    return {
+      title: 'Вход заблокирован после подбора пароля',
+      description: [
+        key && `Ключ: ${key}.`,
+        exists ? 'Учётная запись существует.' : 'Учётной записи с таким адресом нет.',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    };
+  },
 };
+
+/** Строка из `payload` или пусто: тексты не имеют права печатать `undefined`. */
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
 
 export function getNotificationCopy(
   type: NotificationType,

@@ -300,19 +300,36 @@ describe('Domain model contracts', () => {
   });
 
   it('Phase 24: NotificationType покрывает FSM booking и link-события', () => {
-    expectTypeOf<NotificationType>().toMatchTypeOf<
-      | 'booking_confirmed'
-      | 'booking_rejected'
-      | 'booking_cancelled_by_athlete'
-      | 'booking_cancelled_by_provider'
-      | 'booking_completed'
-      | 'booking_no_show'
-      | 'booking_auto_expired'
-      | 'link_requested'
-      | 'link_approved'
-      | 'link_rejected'
-      | 'link_revoked'
-    >();
+    // ⚠️ Направление проверки исправлено на шаге 37.21. Прежде здесь стояло
+    // `expectTypeOf<NotificationType>().toMatchTypeOf<…одиннадцать значений…>()`,
+    // то есть «весь словарь обязан уместиться в этот список». Такое утверждение
+    // ломается при добавлении ЛЮБОГО типа и не проверяет того, ради чего написано:
+    // что перечисленные события в словаре ЕСТЬ.
+    //
+    // Правильное направление обратное: каждое названное значение обязано быть
+    // допустимым значением словаря.
+    expectTypeOf<'booking_confirmed'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_rejected'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_cancelled_by_athlete'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_cancelled_by_provider'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_completed'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_no_show'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'booking_auto_expired'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'link_requested'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'link_approved'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'link_rejected'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'link_revoked'>().toMatchTypeOf<NotificationType>();
+  });
+
+  it('Phase 37: NotificationType покрывает надзорные события', () => {
+    expectTypeOf<'oversight_impersonation_started'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_password_changed_by_admin'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_booking_hard_deleted'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_link_force_revoked'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_publication_deleted'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_publication_hidden'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_publication_created'>().toMatchTypeOf<NotificationType>();
+    expectTypeOf<'oversight_login_blocked'>().toMatchTypeOf<NotificationType>();
   });
 
   it('Phase 37: Notification — размеченный union по виду адресата', () => {
@@ -341,19 +358,22 @@ describe('Domain model contracts', () => {
   });
 
   it('Phase 24: LogAction расширен значениями FSM/links/reliability', () => {
-    expectTypeOf<LogAction>().toMatchTypeOf<
-      | 'booking_confirm'
-      | 'booking_reject'
-      | 'booking_check_in_completed'
-      | 'booking_check_in_no_show'
-      | 'booking_auto_expire'
-      | 'link_request'
-      | 'link_approve'
-      | 'link_reject'
-      | 'link_revoke'
-      | 'reliability_recompute'
-      | 'admin_hard_delete_booking'
-    >();
+    // ⚠️ Направление проверки исправлено вместе с соседней (шаг 37.21): «весь
+    // словарь обязан уместиться в этот список» ломается при добавлении любого
+    // действия и не проверяет того, ради чего написано.
+    expectTypeOf<'booking_confirm'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'booking_reject'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'booking_check_in_completed'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'booking_check_in_no_show'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'booking_auto_expire'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'link_request'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'link_approve'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'link_reject'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'link_revoke'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'reliability_recompute'>().toMatchTypeOf<LogAction>();
+    expectTypeOf<'admin_hard_delete_booking'>().toMatchTypeOf<LogAction>();
+    // Шаг 37.27: след блокировки входа после подбора пароля.
+    expectTypeOf<'login_lockout'>().toMatchTypeOf<LogAction>();
   });
 
   it('новая публикация тренера имеет корректный shape с safe defaults', () => {

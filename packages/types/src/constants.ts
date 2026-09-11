@@ -102,7 +102,16 @@ export const LOG_ACTIONS = [
 //
 // Форма теперь одна: пара `subjectType` + `subjectId` внутри `payload`.
 // Новый вид предмета добавляется ЗНАЧЕНИЕМ в этот список, а не пятой формой.
-export const NOTIFICATION_SUBJECT_TYPES = ['club', 'trainer', 'booking', 'review', 'link'] as const;
+export const NOTIFICATION_SUBJECT_TYPES = [
+  'club',
+  'trainer',
+  'booking',
+  'review',
+  'link',
+  // Фаза 37: четыре надзорных типа говорят про ЧЕЛОВЕКА — от чьего лица работали,
+  // чей пароль сменили, чей вход закрыли. Такого вида предмета в словаре не было.
+  'user',
+] as const;
 
 // Единственное объявление типов сущностей, которых касаются записи журнала.
 // Тип LogEntityType выводится отсюда, бэкенд и админка импортируют этот же

@@ -22,7 +22,25 @@ import type {
 //
 // ⚠️ Фаза 35: группа — это ТЕМА уведомления («записи», «связи», «отзывы»),
 // а не его получатель. Кому строка видна, решает адресат, и решает это сервер.
-export const NOTIFICATION_GROUP_KEYS = ['booking', 'links', 'reviews', 'moderation'] as const;
+// ⚠️ Фаза 37. Группа `moderation` УДАЛЕНА, и на её месте три надзорные темы.
+//
+// Причина не в переименовании. `moderation` содержала ровно один тип, адресованный
+// администратору, а редактор настроек рисовал группы по словарю — и показывал
+// КАЖДОМУ человеку пустую секцию «Модерация» с галочкой, которую он не мог получить
+// никогда. Комментарий рядом утверждал, что у обычного человека группа пуста; это
+// была неправда.
+//
+// Теперь надзорные темы отделены от человеческих, а редактор рисует только то, что
+// ящик может получить и что вообще настраивается (шаг 37.23).
+export const NOTIFICATION_GROUP_KEYS = [
+  'booking',
+  'links',
+  'reviews',
+  // Надзорные темы: отбор вкладки надзора идёт по ним, и он уходит в ЗАПРОС.
+  'oversight_admin',
+  'oversight_catalog',
+  'oversight_security',
+] as const;
 export type NotificationGroupKey = (typeof NOTIFICATION_GROUP_KEYS)[number];
 
 // ⚠️ Фаза 35, шаг 35.28a. Здесь жила модель видимости «тип уведомления → роль
@@ -60,8 +78,34 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   review_published_for_athlete: 'reviews',
   // Шаг 36.21: надзор. Группа своя, а не 'booking': тема у неё другая, и человеку,
   // который отключил уведомления о записях, надзорные приходить не перестают.
-  publication_recheck_requested: 'moderation',
+  // Шаг 37.30: тип переезжает в общую очередь надзора, тема — каталог и модерация.
+  publication_recheck_requested: 'oversight_catalog',
+  // --- Фаза 37: надзорные типы ---------------------------------------------------
+  oversight_impersonation_started: 'oversight_admin',
+  oversight_password_changed_by_admin: 'oversight_admin',
+  oversight_booking_hard_deleted: 'oversight_admin',
+  oversight_link_force_revoked: 'oversight_admin',
+  oversight_publication_deleted: 'oversight_catalog',
+  oversight_publication_hidden: 'oversight_catalog',
+  oversight_publication_created: 'oversight_catalog',
+  oversight_login_blocked: 'oversight_security',
 };
+
+/**
+ * Темы, которые видит ТОЛЬКО очередь надзора.
+ *
+ * ⚠️ Считается из словаря групп, а не выписывается списком: иначе новый надзорный
+ * тип пришлось бы вносить в два места, и забытое второе означало бы, что редактор
+ * настроек снова нарисует человеку галочку, которую тот не может получить.
+ */
+export const OVERSIGHT_GROUP_KEYS = NOTIFICATION_GROUP_KEYS.filter((group) =>
+  group.startsWith('oversight_'),
+);
+
+/** Надзорный ли это тип: тема у него надзорная. */
+export function isOversightNotificationType(type: NotificationType): boolean {
+  return NOTIFICATION_TYPE_GROUP[type].startsWith('oversight_');
+}
 
 /**
  * Типы уведомлений одной темы — единственное объявление на весь проект (шаг 37.18).
@@ -88,6 +132,13 @@ export function notificationTypesOfGroup(group: NotificationGroupKey): Notificat
 export const REQUIRED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   'booking_confirmed',
   'booking_cancelled_by_provider',
+  // ⚠️ Фаза 37: надзорные типы отключить нельзя, и это не строгость ради строгости.
+  // Строка в общей очереди ОДНА на всех администраторов: личная галочка одного
+  // погасила бы событие для всех коллег — настройка превратилась бы в глушилку.
+  // Довод тот же, что у двух типов выше: пропущенное событие — вред, а не неудобство.
+  ...(Object.keys(NOTIFICATION_TYPE_GROUP) as NotificationType[]).filter((type) =>
+    NOTIFICATION_TYPE_GROUP[type].startsWith('oversight_'),
+  ),
 ];
 
 /** Проверяет, можно ли отключить уведомление этого типа. */
@@ -155,6 +206,18 @@ export const NOTIFICATION_TYPE_SUBJECT = {
   review_published_for_athlete: ['review'],
   // Надзор: предмет — сама публикация, и она бывает двух видов.
   publication_recheck_requested: ['club', 'trainer'],
+  // --- Фаза 37 -------------------------------------------------------------------
+  // Действия администраторов: предмет — тот, КОГО действие задело.
+  oversight_impersonation_started: ['user'],
+  oversight_password_changed_by_admin: ['user'],
+  oversight_booking_hard_deleted: ['booking'],
+  oversight_link_force_revoked: ['link'],
+  // Каталог: предмет — сама публикация, и она бывает двух видов.
+  oversight_publication_deleted: ['club', 'trainer'],
+  oversight_publication_hidden: ['club', 'trainer'],
+  oversight_publication_created: ['club', 'trainer'],
+  // Вход: предмет — учётная запись, в которую закрыли вход.
+  oversight_login_blocked: ['user'],
 } as const satisfies Record<NotificationType, readonly NotificationSubjectType[]>;
 
 /** Виды предмета, допустимые для типа уведомления. Считается из словаря выше. */
