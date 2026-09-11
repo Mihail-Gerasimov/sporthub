@@ -10,7 +10,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { ACTIVE_BOOKING_STATUSES, ACTIVE_LINK_STATUSES } from '@sporthub/domain';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  ACTIVE_LINK_STATUSES,
+  NOTIFICATION_ADDRESSEE_KINDS,
+} from '@sporthub/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createTestDatabase, testSchemaName, type TestDatabase } from './db-harness';
@@ -236,6 +240,49 @@ describe('Предикаты частичных индексов', () => {
     expect(await predicateValues('bookings_active_by_slot_idx')).toEqual(
       [...ACTIVE_BOOKING_STATUSES].sort(),
     );
+  });
+
+  // --- Шаг 37.13: литералы предиката сверяются со словарём видов адресата ---
+  //
+  // ⚠️ До этого шага такая сверка была только у записей и связей. У ящиков
+  // уведомлений её не было вовсе, и опечатка в одну букву — `'persona1'` вместо
+  // `'personal'` — прошла бы молча: индекс создался бы, запросы перестали бы им
+  // пользоваться, и никто бы не заметил, потому что ответы остались бы верными.
+  //
+  // Сверка идёт со СЛОВАРЁМ, а не с выписанной здесь строкой: второй список —
+  // второе место, где можно ошибиться.
+  it('предикат личного ящика называет вид адресата ровно из словаря', async () => {
+    expect(await predicateValues('notifications_personal_idx')).toEqual(['personal']);
+    expect(NOTIFICATION_ADDRESSEE_KINDS).toContain('personal');
+  });
+
+  it('предикат непрочитанного в личном ящике называет тот же вид', async () => {
+    expect(await predicateValues('notifications_personal_unread_idx')).toEqual(['personal']);
+  });
+
+  it('предикаты очереди надзора называют вид адресата ровно из словаря', async () => {
+    expect(await predicateValues('notifications_supervision_idx')).toEqual(['supervision']);
+    expect(await predicateValues('notifications_supervision_unread_idx')).toEqual(['supervision']);
+    expect(NOTIFICATION_ADDRESSEE_KINDS).toContain('supervision');
+  });
+
+  it('каждый вид адресата из словаря либо назван предикатом, либо не нуждается в нём', async () => {
+    // ⚠️ Обратная сторона: сверка выше проверяет, что НАЗВАННОЕ верно, а эта —
+    // что не забыт новый вид. У ящиков лица частичного индекса нет: там отбор
+    // идёт по самой колонке лица, и она уже не пуста. Остальные обязаны быть
+    // названы хотя бы одним предикатом.
+    const named = new Set([
+      ...(await predicateValues('notifications_personal_idx')),
+      ...(await predicateValues('notifications_supervision_idx')),
+    ]);
+    const byFaceColumn = ['club', 'trainer'];
+
+    for (const kind of NOTIFICATION_ADDRESSEE_KINDS) {
+      expect(
+        named.has(kind) || byFaceColumn.includes(kind),
+        `вид адресата ${kind} не назван ни одним предикатом и не отбирается колонкой лица`,
+      ).toBe(true);
+    }
   });
 });
 

@@ -96,6 +96,22 @@ async function collectRoots(): Promise<string[]> {
   return roots;
 }
 
+/**
+ * Текст файла без комментариев.
+ *
+ * ⚠️ Урок фазы 36, повторённый здесь. Сторож, не умеющий отличить код от пояснения,
+ * заставляет писать ХУЖЕ комментарии: объяснить, почему механизма больше нет, стало бы
+ * нельзя — слово попало бы под запрет. Ровно на это наткнулась фаза 37, когда
+ * в комментарии к новому тесту понадобилось сказать «мёртвые строки вырезанного
+ * карантина».
+ *
+ * Сила сторожа при этом не падает: запрет касается КОДА, а вырезанный механизм —
+ * это код, а не воспоминание о нём.
+ */
+function codeOnly(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 describe('Отменённые санкции за неявки', () => {
   it('в исходниках приложений и пакетов не осталось упоминаний механизма', async () => {
     const roots = await collectRoots();
@@ -114,7 +130,7 @@ describe('Отменённые санкции за неявки', () => {
       for (const file of files) {
         if (ALLOWED.has(file)) continue;
 
-        const text = await readFile(path.join(ROOT, file), 'utf8');
+        const text = codeOnly(await readFile(path.join(ROOT, file), 'utf8'));
 
         for (const { pattern, why } of FORBIDDEN) {
           if (pattern.test(text)) offenders.push(`${file} — ${why}`);

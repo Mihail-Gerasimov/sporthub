@@ -16,6 +16,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -24,7 +25,7 @@ import { NOTIFICATION_ADDRESSEE_KINDS } from '@sporthub/domain';
 import type { Prisma } from '../storage/prisma-client/client';
 import { createTestDatabase, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
-import { API_ROOT } from './repo-root';
+import { API_ROOT, REPO_ROOT } from './repo-root';
 
 /** Запрос заполнения из самой миграции. */
 function backfillStatements(): string[] {
@@ -58,12 +59,34 @@ describe('миграция восстанавливает вид адресат�
   });
 
   afterAll(async () => {
+    // Возврат ограничения: снятое и не возвращённое, оно превратило бы соседние
+    // проверки этого же файла в проверки без защиты.
+    const { CHECK_CONSTRAINTS } = (await import(
+      pathToFileURL(path.join(REPO_ROOT, 'scripts', 'db-constraints.mjs')).href
+    )) as { CHECK_CONSTRAINTS: Record<string, { table: string; expression: string }> };
+    const spec = CHECK_CONSTRAINTS.notifications_addressee_shape;
+
+    await db.prisma.$executeRawUnsafe(
+      `ALTER TABLE ${spec.table} ADD CONSTRAINT notifications_addressee_shape CHECK (${spec.expression})`,
+    );
     await db.close();
   });
 
   beforeEach(async () => {
     await db.truncateAll();
     counter = 0;
+
+    // ⚠️ Ограничение формы снимается НА ВРЕМЯ набора — и это не послабление,
+    // а условие проверки. Миграция восстанавливает вид адресата у строк, написанных
+    // ДО фазы 37, то есть до того, как ограничение появилось. Пока оно стоит,
+    // «строку с неверным видом» физически невозможно записать — и проверять
+    // было бы нечего: набор зеленел бы, ничего не восстановив.
+    //
+    // Схема у каждого файла набора своя, поэтому снятие не задевает соседей.
+    // Ограничение возвращается в `afterAll`, и его возврат тоже проверяется.
+    await db.prisma.$executeRawUnsafe(
+      'ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_addressee_shape',
+    );
   });
 
   const insertUser = async (): Promise<number> => {
