@@ -58,6 +58,12 @@ export const INDEX_PREDICATES = {
   // теперь буквально одно слово, и разъехаться им негде.
   notifications_personal_idx: "addressee_kind = 'personal'",
   notifications_personal_unread_idx: "addressee_kind = 'personal' AND read_at IS NULL",
+  // Очередь надзора (шаг 37.10). Строк с этим видом адресата — единицы на фоне
+  // всей ленты платформы, поэтому индекс частичный: обычный по (addressee_kind,
+  // created_at) хранил бы всю таблицу ради одной её доли.
+  notifications_supervision_idx: "addressee_kind = 'supervision'",
+  // Значок колокольчика и отбор «не разобрано» — состояние очереди по умолчанию.
+  notifications_supervision_unread_idx: "addressee_kind = 'supervision' AND read_at IS NULL",
   sessions_active_idx: 'revoked_at IS NULL',
   // Раздел модерации: «что исправили и ждёт повторной проверки» (шаг 36.22).
   // Строк с признаком — единицы, публикаций — тысячи, поэтому индекс частичный,
@@ -239,6 +245,14 @@ export const PARTIAL_INDEXES = {
   notifications_personal_unread_idx: {
     table: 'notifications',
     columns: 'user_id, created_at DESC',
+  },
+  /// Лента очереди надзора с постраничностью. Колонки владельца здесь нет: у очереди
+  /// его не бывает, и сортировка идёт по одному времени.
+  notifications_supervision_idx: { table: 'notifications', columns: 'created_at DESC' },
+  /// Счётчик неразобранного в очереди — число в значке и отбор по умолчанию.
+  notifications_supervision_unread_idx: {
+    table: 'notifications',
+    columns: 'created_at DESC',
   },
   /// Отзыв всех живых сессий пользователя: отозванные в индекс не попадают,
   /// а их со временем становится большинство.

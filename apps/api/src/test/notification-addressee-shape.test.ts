@@ -157,3 +157,56 @@ describe('строка без владельца-человека (37.7)', () =>
     expect(rows[0].userId).toBeNull();
   });
 });
+
+describe('индексы очереди надзора и отбора по теме (37.10)', () => {
+  let db: TestDatabase;
+
+  beforeAll(async () => {
+    await ensureTestSchema();
+    db = await createTestDatabase();
+  });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const indexDefinition = async (name: string): Promise<string | undefined> => {
+    const rows = await db.prisma.$queryRawUnsafe<{ indexdef: string }[]>(
+      `SELECT indexdef FROM pg_indexes
+       WHERE schemaname = current_schema() AND indexname = $1`,
+      name,
+    );
+
+    return rows[0]?.indexdef;
+  };
+
+  it('лента очереди и её счётчик неразобранного опираются на ЧАСТИЧНЫЕ индексы', async () => {
+    // Частичные, а не обычные: строк очереди единицы на фоне всей ленты платформы,
+    // и обычный индекс хранил бы всю таблицу ради одной её доли.
+    // ⚠️ Сравнивается СМЫСЛ предиката, а не его буква. PostgreSQL приводит условие
+    // к своей форме — `(addressee_kind)::text = 'supervision'::text`, — и посимвольное
+    // сравнение с тем, что написано в скрипте, краснело бы всегда и ни о чём.
+    const feed = await indexDefinition('notifications_supervision_idx');
+    const unread = await indexDefinition('notifications_supervision_unread_idx');
+
+    for (const definition of [feed, unread]) {
+      expect(definition).toContain('WHERE');
+      expect(definition).toContain('addressee_kind');
+      expect(definition).toContain("'supervision'");
+    }
+
+    expect(unread).toContain('read_at IS NULL');
+    expect(feed).not.toContain('read_at IS NULL');
+  });
+
+  it('индекс отбора по теме НЕ частичный', async () => {
+    // ⚠️ Не придирка к оформлению. Тест схемы берёт из базы ВСЕ индексы с WHERE
+    // и требует точного совпадения набора имён со скриптом ограничений. Частичный
+    // индекс, заведённый через схему Prisma мимо этого скрипта, уронил бы сверку —
+    // причём по ложной причине, и искали бы его долго.
+    const themed = await indexDefinition('notifications_addressee_kind_type_created_at_idx');
+
+    expect(themed).toBeDefined();
+    expect(themed).not.toContain(' WHERE ');
+  });
+});
