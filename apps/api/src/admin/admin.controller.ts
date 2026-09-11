@@ -125,7 +125,13 @@ export class AdminController {
       throw new ValidationError(parsed.error.issues[0]?.message ?? 'Некорректные данные запроса');
     }
 
-    if (!(await this.users.findById(targetUserId))) {
+    // ⚠️ Шаг 37.25. Найденный человек НЕ выбрасывается: он нужен строке журнала.
+    // Прежде здесь стояло `if (!(await this.users.findById(...)))` — результат
+    // проверялся и терялся, а `meta` уходила пустой. Второго запроса за теми же
+    // данными не делаем: событие обязано называть человека, а не его номер.
+    const target = await this.users.findById(targetUserId);
+
+    if (!target) {
       throw new NotFoundError('Пользователь не найден');
     }
 
@@ -136,14 +142,29 @@ export class AdminController {
       passwordHash: await hashPassword(parsed.data.newPassword),
     });
 
-    // Ни пароль, ни его хеш в журнал не попадают — только факт смены.
+    // Ни пароль, ни его хеш в журнал не попадают — только факт смены и то, кому
+    // и кем она сделана.
+    //
+    // ⚠️ Почта пишется открыто — ровно так же, как в соседней записи журнала
+    // `admin_impersonate_start` (`auth.controller.ts`, `meta.targetEmail`).
+    // Хешировать её здесь значило бы завести ВТОРОЙ порядок хранения одного
+    // и того же поля и сделать след нечитаемым для того единственного, ради кого
+    // он ведётся: журнал открыт только администратору, и опознать человека
+    // по хешу он не сможет. Имя и почта — то, чем человек назван в админке.
     await this.logs.record({
       action: 'admin_password_change',
       actorId: session.actor.id,
       actorRole: accountKindOf(session.actor),
       entityType: 'user',
       entityId: targetUserId,
-      meta: {},
+      meta: {
+        targetUserId: target.id,
+        targetName: target.name,
+        targetEmail: target.email,
+        // Исполнитель уже стоит в `actorId`, но событие читают и выгрузкой `meta`
+        // отдельно от строки — пусть отвечает на «кем» само.
+        changedByUserId: session.actor.id,
+      },
     });
 
     return EMPTY_RESULT;

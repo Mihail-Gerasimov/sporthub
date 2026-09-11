@@ -293,6 +293,54 @@ describe('Административные маршруты', () => {
     expect(logs[0].action).toBe('admin_password_change');
   });
 
+  // ⚠️ Шаг 37.25. Строка журнала обязана НАЗЫВАТЬ человека, а не только его номер.
+  // До этого шага `meta` передавалась явно пустым объектом: событие в ленте
+  // читалось как «Пароль изменён администратором · Пользователь #1» и не отвечало
+  // на вопрос «чей пароль», если номер ни о чём не говорит.
+  it('смена пароля называет в журнале человека, которому её сделали, и того, кто сделал', async () => {
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' });
+
+    const logs =
+      await harness.read<
+        { action: string; actorId: number; entityId: number; meta?: Record<string, unknown> }[]
+      >('logs');
+
+    expect(logs[0]).toMatchObject({
+      action: 'admin_password_change',
+      entityId: 1,
+      // Исполнитель — администратор из сессии, а не тот, кому меняли пароль.
+      actorId: 3,
+      meta: {
+        targetUserId: 1,
+        targetName: 'Атлет',
+        targetEmail: 'a@test.local',
+        changedByUserId: 3,
+      },
+    });
+  });
+
+  // Обратная половина того же требования: «опознаваемое» не должно превратиться
+  // в «всё подряд». Ни пароль, ни его хеш в журнал не попадают — журнал живёт
+  // дольше пароля и читается шире.
+  it('ни пароль, ни его хеш в журнал не попадают', async () => {
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/users/1/password')
+      .set('Cookie', adminCookie)
+      .send({ newPassword: 'fresh-password-99' });
+
+    const logs = await harness.read<{ meta?: Record<string, unknown> }[]>('logs');
+    const written = JSON.stringify(logs);
+
+    expect(written).not.toContain('fresh-password-99');
+    expect(written).not.toContain('$argon2');
+    // Слово `password` в самой строке законно — так называется действие;
+    // запрещено оно именно в данных события, куда пароль и мог бы просочиться.
+    expect(JSON.stringify(logs.map((entry) => entry.meta)).toLowerCase()).not.toContain('password');
+  });
+
   it('короткий пароль — 400', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/password')
