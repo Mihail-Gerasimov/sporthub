@@ -411,4 +411,49 @@ describe('Сторож адресата уведомления', () => {
       ).toEqual(['booking_requested → club:1', 'link_requested → trainer:1']);
     });
   });
+
+  // --- Шаг 37.24: обратная половина сторожа -------------------------------------
+  //
+  // ⚠️ Прежде сторож проверял только «пришло правильному адресату». С фазы 37
+  // у него появилась вторая обязанность: ЛИШНЕЙ надзорной строки быть не должно.
+  //
+  // Причина в решении 5.1. Лента надзора не второй журнал и не копия очереди
+  // модерации: событие, уже адресованное участнику (запись, связь, отзыв), в неё
+  // не идёт. Соблазн «продублируем на всякий случай» велик и обходится дорого —
+  // очередь, в которой лежит всё, перестаёт читаться в первую же неделю.
+  describe('Очередь надзора не дублирует человеческие события', () => {
+    /** Сколько надзорных строк лежит в базе прямо сейчас. */
+    const supervisionRows = async (): Promise<StoredNotification[]> => {
+      const rows =
+        await harness.read<(StoredNotification & { addresseeKind: string })[]>('notifications');
+
+      return rows.filter((row) => row.addresseeKind === 'supervision');
+    };
+
+    it('заявка на занятие надзорной строки НЕ порождает', async () => {
+      await post('/bookings', asAthlete, { scheduleId: 1 });
+
+      expect(await supervisionRows()).toHaveLength(0);
+    });
+
+    it('запрос связи и её подтверждение надзорной строки НЕ порождают', async () => {
+      // ⚠️ Обычный разрыв связи сторонами — тоже договор двоих, и надзору он
+      // не адресован. Надзорная строка полагается только ПРИНУДИТЕЛЬНОМУ разрыву.
+      const created = await post('/trainer-club-links', asOtherTrainer, {
+        trainerId: 1,
+        clubId: 2,
+      });
+
+      expect(created.status).toBe(201);
+      expect(await supervisionRows()).toHaveLength(0);
+    });
+
+    it('ни одно человеческое действие набора не оставило надзорных строк', async () => {
+      // Сводная проверка: три разных действия подряд, и очередь по-прежнему пуста.
+      await post('/bookings', asAthlete, { scheduleId: 1 });
+      await post('/trainer-club-links', asOtherTrainer, { trainerId: 1, clubId: 2 });
+
+      expect(await supervisionRows()).toHaveLength(0);
+    });
+  });
 });
