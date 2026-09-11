@@ -39,6 +39,7 @@ const athleteLatency = new Trend('profile_athlete', true);
 const providerLatency = new Trend('profile_provider', true);
 const adminLatency = new Trend('profile_admin', true);
 const mailboxLatency = new Trend('profile_mailbox', true);
+const supervisionLatency = new Trend('profile_supervision', true);
 /** Отказ гостю без cookie — та цена, ниже которой отказ стоить не может (шаг 36.43). */
 const guestTurnLatency = new Trend('turn_guest', true);
 /** Отказ с мусорной cookie. Должен сравняться с гостевым — в этом весь шаг. */
@@ -141,6 +142,27 @@ const mailboxScenario = {
 };
 
 /**
+ * Очередь надзора (шаг 37.62).
+ *
+ * ⚠️ Отдельным профилем, а не внутри «ящиков». Очередь одна на всех администраторов
+ * и растёт быстрее любой личной ленты: у личного ящика число строк ограничено
+ * жизнью одного человека, у очереди — работой всей площадки. Замер на пустой
+ * очереди показал бы только скорость пустого ответа.
+ *
+ * Меряются три запроса, которые ходят на КАЖДОЙ отрисовке вкладки: страница ленты,
+ * число неразобранного (его же опрашивает значок) и отбор по теме.
+ */
+const supervisionScenario = {
+  supervision: {
+    executor: 'constant-vus',
+    vus: VUS,
+    duration: DURATION,
+    exec: 'supervision',
+    tags: { profile: 'supervision' },
+  },
+};
+
+/**
  * Мусорная cookie (шаг 36.43).
  *
  * Отдельным профилем, потому что мерить надо не страницу, а ЦЕНУ ОТКАЗА. До фазы 36
@@ -173,7 +195,9 @@ const scenarios =
           ? profileScenarios
           : ONLY === 'junk'
             ? junkCookieScenario
-            : { ...profileScenarios, ...raceScenario, ...mailboxScenario };
+            : ONLY === 'supervision'
+              ? supervisionScenario
+              : { ...profileScenarios, ...raceScenario, ...mailboxScenario };
 
 export const options = {
   scenarios,
@@ -192,6 +216,11 @@ export const options = {
     // Двадцатикратный запас к измеренному оставлен намеренно: он покрывает разброс
     // машин, но регресс на порядок краснеет.
     ...(ONLY === 'mailbox' || ONLY === '' ? { profile_mailbox: ['p(95)<150'] } : {}),
+    // Очередь надзора (37.62). Порог тот же, что у ящиков, и по той же причине:
+    // это запросы каждой отрисовки вкладки, а не разовые. Объявляется только когда
+    // профиль действительно гоняется — иначе прогон краснеет на метрике,
+    // не набравшей ни одного значения.
+    ...(ONLY === 'supervision' ? { profile_supervision: ['p(95)<150'] } : {}),
     // Ровно один успех на все одновременные запросы к слоту с одним местом.
     //
     // ⚠️ Порог объявляется, только когда гонка ДЕЙСТВИТЕЛЬНО гоняется. Прежнее
@@ -251,6 +280,29 @@ function body(response) {
  * а пустой массив — тоже массив.
  */
 export function setup() {
+  if (ONLY === 'supervision') {
+    // ⚠️ Служебный вход отличается признаком `portal`, а не почтой: администратор
+    // входит тем же маршрутом, но кабинетов у него нет ни одного.
+    const email = __ENV.ADMIN_EMAIL || 'admin@sporthub.local';
+    const password = __ENV.LOGIN_PASSWORD || 'sporthub123';
+    const login = http.post(
+      `${API}/api/auth/login`,
+      JSON.stringify({ email, password, portal: 'service' }),
+      JSON_HEADERS,
+    );
+
+    if (login.status !== 200) {
+      throw new Error(`нагрузка на очередь: вход ${email} ответил ${login.status}`);
+    }
+
+    const rawAdmin = String(login.headers['Set-Cookie'] || login.headers['set-cookie'] || '');
+    const matchAdmin = rawAdmin.match(/(__Host-sh-session|sh-session)=([^;]+)/);
+
+    if (matchAdmin === null) throw new Error('нагрузка на очередь: сервер не выдал cookie');
+
+    return { cookie: `${matchAdmin[1]}=${matchAdmin[2]}` };
+  }
+
   if (ONLY !== 'mailbox') return {};
 
   const email = __ENV.MAILBOX_EMAIL || 'both@sporthub.local';
@@ -386,6 +438,41 @@ export function login() {
  * Три запроса — это и есть то, что названо в шаге 35.45: список лиц («кто я»),
  * лента по лицу и личный ящик.
  */
+export function supervision(data) {
+  const auth = { headers: { Cookie: data.cookie }, tags: { profile: 'supervision' } };
+
+  // Страница ленты: отбор и постраничность — в запросе, читается ровно страница.
+  const page = track(
+    supervisionLatency,
+    http.get(`${API}/api/notifications?scope=supervision&limit=15`, auth),
+    'supervision:feed',
+  );
+
+  check(page, {
+    // ⚠️ Проверяется НЕПУСТОТА очереди. На пустой профиль измерил бы скорость
+    // пустого ответа и остался бы зелёным, ничего не сказав.
+    'очередь не пуста': () => (body(page)?.data?.total ?? 0) > 0,
+  });
+
+  // Число неразобранного: его же опрашивает значок колокольчика.
+  track(
+    supervisionLatency,
+    http.get(`${API}/api/notifications/unread-count?scope=supervision`, auth),
+    'supervision:unread',
+  );
+
+  // Отбор по теме — то место, ради которого он и уехал в запрос.
+  // Тема выбирается по номеру итерации: одна и та же читалась бы из кеша.
+  const groups = ['oversight_admin', 'oversight_catalog', 'oversight_security'];
+  const group = groups[__ITER % groups.length];
+
+  track(
+    supervisionLatency,
+    http.get(`${API}/api/notifications?scope=supervision&limit=15&group=${group}`, auth),
+    `supervision:${group}`,
+  );
+}
+
 export function mailbox(data) {
   const auth = { headers: { Cookie: data.cookie }, tags: { profile: 'mailbox' } };
   const me = track(mailboxLatency, http.get(`${API}/api/auth/me`, auth), 'mailbox:me');
