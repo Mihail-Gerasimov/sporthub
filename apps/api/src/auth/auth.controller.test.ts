@@ -374,11 +374,19 @@ describe('Работа от чужого лица', () => {
   });
 
   beforeEach(async () => {
-    await harness.write('users', [
-      user(1, 'person', 'athlete@test.local'),
-      user(2, 'person', 'owner@test.local'),
-      user(3, 'admin', 'admin@test.local'),
-    ]);
+    // ⚠️ Уведомления чистятся ЯВНО. Перенос среза выгружает текущее состояние базы
+    // и накладывает правку на него — то есть строки, созданные соседним кейсом,
+    // переживают запись пользователей. У надзорной строки владельца-человека нет,
+    // и она не исчезает даже при пересборке таблицы людей: счёт «ровно одна»
+    // без этой чистки считал бы чужие.
+    await harness.writeMany({
+      users: [
+        user(1, 'person', 'athlete@test.local'),
+        user(2, 'person', 'owner@test.local'),
+        user(3, 'admin', 'admin@test.local'),
+      ],
+      notifications: [],
+    });
   });
 
   afterAll(async () => {
@@ -386,6 +394,17 @@ describe('Работа от чужого лица', () => {
   });
 
   const server = () => harness.app.getHttpServer();
+
+  /** Строки надзорной очереди — то, что видит администратор в своей ленте. */
+  type StoredNotification = {
+    userId?: number;
+    addresseeKind: string;
+    type: string;
+    payload: Record<string, unknown>;
+  };
+
+  const oversight = async (type: string): Promise<StoredNotification[]> =>
+    (await harness.read<StoredNotification[]>('notifications')).filter((row) => row.type === type);
 
   it('работа от чужого лица оставляет след в журнале — от НАСТОЯЩЕГО администратора', async () => {
     // ⚠️ Найдено браузерным прогоном 10.09.2026, и это была дыра по существу.
@@ -512,6 +531,108 @@ describe('Работа от чужого лица', () => {
     expect((await request(server()).get('/api/auth/me').set('Cookie', adminCookie)).status).toBe(
       401,
     );
+  });
+
+  // --- Шаг 37.34: надзорная очередь ---------------------------------------------
+
+  it('начало работы от чужого лица кладёт строку в ОЧЕРЕДЬ НАДЗОРА, а не в личный ящик', async () => {
+    // ⚠️ Суть проверки — адресат, а не факт отправки. Личная строка с пустым
+    // владельцем выглядит так же в ответе 200 и так же «отправлена», но читает её
+    // не тот: очередь видят все администраторы, личный ящик — один человек.
+    await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3))
+      .expect(200);
+
+    const rows = await oversight('oversight_impersonation_started');
+
+    expect(rows, 'работа от чужого лица не дошла до очереди надзора').toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+    // У очереди владельца-человека нет вовсе — это и отличает её от личного ящика.
+    expect(rows[0]?.userId, 'надзорная строка приехала человеку в личный ящик').toBeUndefined();
+  });
+
+  it('надзорная строка называет и цель, и настоящего администратора', async () => {
+    // Текст ленты читает `targetName`/`targetEmail` (`notification-copy.ts`), а без
+    // исполнителя событие отвечает только на половину вопроса: «от чьего лица»
+    // без «кем» надзору бесполезно.
+    await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3))
+      .expect(200);
+
+    const [row] = await oversight('oversight_impersonation_started');
+
+    expect(row?.payload).toMatchObject({
+      subjectType: 'user',
+      subjectId: 1,
+      targetName: 'Пользователь 1',
+      targetEmail: 'athlete@test.local',
+      actorUserId: 3,
+      actorName: 'Пользователь 3',
+    });
+  });
+
+  it('строка ОДНА и адресована очереди — сколько бы администраторов ни было', async () => {
+    // ⚠️ Формулировка именно такая, а не «у исполнителя её нет». Копии строки
+    // по числу администраторов сломали бы разбор: «этим занялись» стало бы личным,
+    // и второй не увидел бы, что первый уже взялся. Заодно это и есть ответ
+    // на «исполнитель не пишет сам себе»: строк не три и не одна личная — одна общая.
+    await harness.writeMany({
+      users: [
+        user(1, 'person', 'athlete@test.local'),
+        user(2, 'person', 'owner@test.local'),
+        user(3, 'admin', 'admin@test.local'),
+        user(4, 'admin', 'admin2@test.local'),
+        user(5, 'admin', 'admin3@test.local'),
+      ],
+      notifications: [],
+    });
+
+    await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3))
+      .expect(200);
+
+    const rows = await oversight('oversight_impersonation_started');
+
+    expect(rows).toHaveLength(1);
+    expect(
+      rows.filter((row) => row.userId !== undefined),
+      'у события завёлся личный адресат — значит строк станет по числу читателей',
+    ).toEqual([]);
+  });
+
+  it('возврат к себе второй строки не создаёт', async () => {
+    // Событие надзора — НАЧАЛО работы от чужого лица. Возврат к себе ничего
+    // нового про площадку не сообщает, а вторая строка на то же событие
+    // означала бы, что очередь разбирают дважды.
+    const start = await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(3));
+
+    await request(server())
+      .post('/api/auth/impersonate/stop')
+      .set('Cookie', sessionCookie(start) as string)
+      .expect(200);
+
+    expect(await oversight('oversight_impersonation_started')).toHaveLength(1);
+  });
+
+  it('отказ работать от чужого лица строки не порождает', async () => {
+    // Обратная проверка: уведомление обязано следовать за СВЕРШИВШИМСЯ действием.
+    // Отправка до проверок дала бы надзору событие, которого не было.
+    await request(server())
+      .post('/api/auth/impersonate/3')
+      .set('Cookie', await harness.as(3))
+      .expect(403);
+
+    await request(server())
+      .post('/api/auth/impersonate/1')
+      .set('Cookie', await harness.as(2))
+      .expect(403);
+
+    expect(await oversight('oversight_impersonation_started')).toEqual([]);
   });
 
   it('возврат без начала работы отклоняется', async () => {

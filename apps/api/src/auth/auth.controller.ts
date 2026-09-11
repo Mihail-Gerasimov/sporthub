@@ -32,7 +32,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { accountKindOf, capabilitiesOf, isAdminKind } from '@sporthub/domain';
+import { accountKindOf, capabilitiesOf, isAdminKind, notificationPayload } from '@sporthub/domain';
 import type { AccountKind, EntityStatus, User } from '@sporthub/types';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -55,6 +55,7 @@ import { CurrentUser, Public, Requires } from './access.decorators';
 import { LoginAttemptsService } from './login-attempts.service';
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from './session-cookie';
 import { LogService } from '../logs/log.service';
+import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
 import { SessionService, type SessionContext } from './session.service';
 
 /**
@@ -199,6 +200,11 @@ export class AuthController {
     // ⚠️ Журнал нужен работе от чужого лица. Ради этого следа её и переносили
     // на сервер в фазе 34 — а записи не было вовсе (найдено прогоном 10.09.2026).
     private readonly logs: LogService,
+    // ⚠️ Шаг 37.34. Очередь надзора. Журнал отвечает на вопрос «что было» тому,
+    // кто пришёл его читать; уведомление САМО приходит к тому, кто читать
+    // не собирался. Работа от чужого лица — ровно тот случай: сегодня о ней
+    // не узнаёт ни второй администратор, ни кто-либо ещё, пока не откроет журнал.
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -515,6 +521,36 @@ export class AuthController {
       entityId: targetId,
       meta: { targetEmail: target.email },
     });
+
+    // ⚠️ Шаг 37.34. Строка уходит в ОБЩУЮ ОЧЕРЕДЬ надзора, а не человеку.
+    //
+    // Почему не адресату действия: письмо «от вашего лица сейчас работает
+    // администратор» — это не надзор, а тревога для того, кому помогают.
+    // Почему не исполнителю: он и есть тот, кто действие совершил, и письмо
+    // о себе самом ему сообщать нечего. Надзор — это взгляд ПЛОЩАДКИ, и адресат
+    // у него один на всех: сколько бы администраторов ни было, строка одна,
+    // и разобранной её объявляет тот, кто ею занялся.
+    //
+    // ⚠️ Отправка — ПОСЛЕ того, как сессия выдана и cookie поставлена: транзакции
+    // здесь нет, каждая запись зафиксирована своим вызовом, и возврат сюда уже
+    // означает «свершилось». Отправлять раньше значило бы сообщить о работе
+    // от чужого лица, которая могла и не начаться.
+    //
+    // Имя и почта кладутся в payload, а не вычитываются читателем по номеру:
+    // строка обязана называть человека и тогда, когда его учётной записи
+    // уже нет, — иначе надзор о стирании узнаёт из пустоты.
+    await this.notifications.notify(
+      supervisionRecipient,
+      'oversight_impersonation_started',
+      notificationPayload('oversight_impersonation_started', 'user', targetId, {
+        targetName: target.name,
+        targetEmail: target.email,
+        // Настоящий администратор — вторая половина события: «от чьего лица»
+        // без «кем» не отвечает на вопрос, ради которого очередь и заведена.
+        actorUserId: context.actor.id,
+        actorName: context.actor.name,
+      }),
+    );
 
     return await this.toProfile(target);
   }
