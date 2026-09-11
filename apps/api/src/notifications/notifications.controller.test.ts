@@ -297,14 +297,13 @@ describe('Маршруты уведомлений', () => {
   });
 
   it('полный срез ленты площадки обычному пользователю закрыт', async () => {
-    // `?scope=all` отдаёт уведомления всех людей разом. До фазы 34 для этого хватало
+    // `?scope=all` отдавал уведомления всех людей разом. До фазы 34 для этого хватало
     // одного параметра в строке запроса — без входа вообще.
     const response = await request(harness.app.getHttpServer())
       .get('/api/notifications?scope=all')
       .set('Cookie', firstCookie);
 
     expect(response.status).toBe(403);
-    expect(response.body.error).toBe('Недостаточно прав');
     expect(response.body.data).toBeUndefined();
   });
 
@@ -314,17 +313,23 @@ describe('Маршруты уведомлений', () => {
     expect(response.status).toBe(401);
   });
 
-  it('администратору полный срез отдаётся целиком', async () => {
-    // Обратная сторона отказа: право есть — выдача обязана работать, иначе
-    // проверка прав превратилась бы в поломку раздела.
+  it('полный срез ленты площадки закрыт И АДМИНИСТРАТОРУ ТОЖЕ', async () => {
+    // ⚠️ Утверждение ПЕРЕВЁРНУТО на шаге 37.19, а не удалено. Прежде здесь
+    // проверялось обратное: «право есть — выдача обязана работать». Режим был
+    // последним полным чтением ленты платформы в память и держался на одном
+    // доводе — «нужен сводкам кабинета провайдера». Довод устарел: из веба маршрут
+    // в этом режиме не зовётся ни разу.
+    //
+    // С появлением очереди надзора он стал ещё и опасен: отдал бы администратору
+    // чужие надзорные строки вперемешку с личными лентами всех людей площадки.
+    // Закрыт ОТКАЗОМ, а не молчаливым сужением: клиент, который его всё-таки звал,
+    // обязан узнать об этом, а не получить половину ленты и счесть это нормой.
     const response = await request(harness.app.getHttpServer())
       .get('/api/notifications?scope=all')
       .set('Cookie', adminCookie);
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.items).toHaveLength(5);
-    expect(response.body.data.total).toBe(5);
-    expect(response.body.data.unreadCount).toBe(4);
+    expect(response.status).toBe(403);
+    expect(response.body.data).toBeUndefined();
   });
 });
 
@@ -801,5 +806,250 @@ describe('Настройки уведомлений ПРИМЕНЯЮТСЯ к с
     expect((counter.body as { data?: { unreadCount?: number } }).data?.unreadCount).toBe(
       (feed.body as { data?: { unreadCount?: number } }).data?.unreadCount,
     );
+  });
+});
+
+// --- Шаги 37.15–37.19: очередь надзора как четвёртый адресат --------------------
+
+describe('Очередь надзора в маршрутах уведомлений', () => {
+  let harness: TestHarness;
+  let personCookie: string;
+  let adminCookie: string;
+  let secondAdminCookie: string;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-supervision');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Человек',
+          email: 'person@sup.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Первый администратор',
+          email: 'admin1@sup.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Второй администратор',
+          email: 'admin2@sup.local',
+          phone: '+7 (900) 000-00-03',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: [
+        // Личная строка человека — контрольная группа: она не имеет права
+        // появиться в очереди надзора, а надзорные — в его ленте.
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          addresseeKind: 'personal',
+          userId: 1,
+          type: 'booking_confirmed',
+          payload: { subjectType: 'booking', subjectId: 1 },
+        },
+        {
+          id: 2,
+          createdAt: '2026-02-02T00:00:00.000Z',
+          addresseeKind: 'supervision',
+          type: 'publication_recheck_requested',
+          payload: { subjectType: 'club', subjectId: 1 },
+        },
+        {
+          id: 3,
+          createdAt: '2026-02-03T00:00:00.000Z',
+          addresseeKind: 'supervision',
+          type: 'link_requested',
+          payload: { subjectType: 'link', subjectId: 1 },
+        },
+      ],
+    });
+
+    personCookie = await harness.as(1);
+    adminCookie = await harness.as(2);
+    secondAdminCookie = await harness.as(3);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const feed = (cookie: string, query = '') =>
+    request(harness.app.getHttpServer())
+      .get(`/api/notifications?scope=supervision${query}`)
+      .set('Cookie', cookie);
+
+  it('человеку очередь надзора закрыта ОТКАЗОМ, а не пустой лентой', async () => {
+    // ⚠️ Пустая лента читается как «событий пока нет» и прячет то, что спрашивать
+    // было нечего. Это правило раздела с фазы 35, и оно распространяется
+    // на четвёртый вид адресата тоже.
+    const response = await feed(personCookie);
+
+    expect(response.status).toBe(403);
+    expect(response.body.data).toBeUndefined();
+  });
+
+  it('гостю очередь надзора закрыта', async () => {
+    const response = await request(harness.app.getHttpServer()).get(
+      '/api/notifications?scope=supervision',
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it('ОБА администратора видят одну и ту же очередь', async () => {
+    // Это и есть смысл общей очереди: событие одно, строка одна, видят все.
+    const first = await feed(adminCookie);
+    const second = await feed(secondAdminCookie);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.body.data.total).toBe(2);
+    expect(second.body.data.total).toBe(2);
+    expect(first.body.data.items.map((item: { id: number }) => item.id)).toEqual(
+      second.body.data.items.map((item: { id: number }) => item.id),
+    );
+  });
+
+  it('личная строка человека в очередь надзора не попадает', async () => {
+    const response = await feed(adminCookie);
+
+    expect(
+      response.body.data.items.some((item: { type: string }) => item.type === 'booking_confirmed'),
+    ).toBe(false);
+  });
+
+  it('надзорная строка не попадает в ленту человека', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications')
+      .set('Cookie', personCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(1);
+    expect(response.body.data.items[0].type).toBe('booking_confirmed');
+  });
+
+  it('счётчик значка считает очередь тем же способом, что и лента', async () => {
+    // ⚠️ Именно расхождение этих двух чисел давало «в колокольчике 3, в списке 0»
+    // дважды за две фазы. Поэтому они сверяются друг с другом, а не с константой.
+    const list = await feed(adminCookie, '&unreadOnly=true');
+    const badge = await request(harness.app.getHttpServer())
+      .get('/api/notifications/unread-count?scope=supervision')
+      .set('Cookie', adminCookie);
+
+    expect(badge.status).toBe(200);
+    expect(badge.body.data.unreadCount).toBe(list.body.data.total);
+  });
+
+  it('отбор по теме уходит в ЗАПРОС и режет очередь', async () => {
+    const moderation = await feed(adminCookie, '&group=moderation');
+    const links = await feed(adminCookie, '&group=links');
+
+    expect(moderation.body.data.total).toBe(1);
+    expect(moderation.body.data.items[0].type).toBe('publication_recheck_requested');
+    expect(links.body.data.total).toBe(1);
+    expect(links.body.data.items[0].type).toBe('link_requested');
+  });
+
+  it('неизвестная тема отвергается, а не расширяет выдачу молча', async () => {
+    // Молчаливое расширение там, где просили сузить, — способ не заметить
+    // опечатку в адресе и решить, что событий действительно нет.
+    const response = await feed(adminCookie, '&group=nonsense');
+
+    expect(response.status).toBe(400);
+  });
+
+  it('разобрал один — видно всем, и подпись называет его', async () => {
+    const marked = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/read')
+      .set('Cookie', adminCookie);
+
+    expect(marked.status).toBe(200);
+    expect(marked.body.data.readByUserId).toBe(2);
+
+    // Второй администратор видит строку уже разобранной.
+    const second = await feed(secondAdminCookie, '&unreadOnly=true');
+
+    expect(second.body.data.items.some((item: { id: number }) => item.id === 2)).toBe(false);
+  });
+
+  it('разбор НЕ перезаписывается вторым нажатием', async () => {
+    // ⚠️ Прежде здесь стояли `findUnique` и безусловный `update` вне транзакции:
+    // занявшимся оказывался нажавший последним, а не тот, кто взял дело.
+    await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/read')
+      .set('Cookie', adminCookie);
+
+    const again = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/read')
+      .set('Cookie', secondAdminCookie);
+
+    expect(again.status).toBe(200);
+    expect(again.body.data.readByUserId).toBe(2);
+  });
+
+  it('человек не может отметить надзорную строку', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/read')
+      .set('Cookie', personCookie);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('человек не может удалить надзорную строку', async () => {
+    // ⚠️ Раньше такой запрос отвечал 200 с `deleted: 0` — то есть отказ выглядел
+    // как отсутствие строк. Теперь чужие номера просто не попадают в его ящик.
+    const response = await request(harness.app.getHttpServer())
+      .delete('/api/notifications')
+      .set('Cookie', personCookie)
+      .send({ ids: [2, 3] });
+
+    expect(response.body.data.deleted).toBe(0);
+
+    const stillThere = await feed(adminCookie);
+
+    expect(stillThere.body.data.total).toBe(2);
+  });
+
+  it('«отметить всё» гасит очередь всем и подписывает разобравшего', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all?scope=supervision')
+      .set('Cookie', adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.updatedCount).toBe(2);
+
+    const second = await feed(secondAdminCookie, '&unreadOnly=true');
+
+    expect(second.body.data.total).toBe(0);
+  });
+
+  it('«отметить всё» в очереди не трогает личную ленту человека', async () => {
+    await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all?scope=supervision')
+      .set('Cookie', adminCookie);
+
+    const person = await request(harness.app.getHttpServer())
+      .get('/api/notifications?unreadOnly=true')
+      .set('Cookie', personCookie);
+
+    expect(person.body.data.total).toBe(1);
   });
 });
