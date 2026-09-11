@@ -516,10 +516,6 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
       readAt: filter.unreadOnly === true ? null : undefined,
       // Пустой список `ids` означает «ни одного», и `IN ()` даёт ровно это.
       id: filter.ids === undefined ? undefined : { in: filter.ids },
-      type:
-        filter.excludeTypes === undefined || filter.excludeTypes.length === 0
-          ? undefined
-          : { notIn: filter.excludeTypes },
     };
   }
 

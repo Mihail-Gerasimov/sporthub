@@ -133,7 +133,13 @@ export class NotificationsController {
     // ⚠️ Ящик определяется ДО настроек: настройки берутся того ящика, чью ленту
     // показываем. Обратный порядок давал бы личные настройки на ленту лица.
     const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
-    const excludeTypes = await this.disabledTypes(userId, mailbox);
+    // ⚠️ Шаг 36.50. Отбора по настройкам здесь БОЛЬШЕ НЕТ, и это не упущение.
+    // Решение принимается при отправке (36.49): выключенного типа в базе нет вовсе,
+    // и прятать при чтении нечего.
+    //
+    // Пока фильтр стоял здесь, его повторяли трое — лента, счётчик и колокольчик, —
+    // и за две фазы они разошлись трижды. Убрать его — не «упростить», а снять
+    // сам повод расходиться.
     const inMailbox = mailbox === undefined ? {} : { mailbox };
 
     // Страница, общее число и непрочитанные — тремя запросами и параллельно.
@@ -147,12 +153,11 @@ export class NotificationsController {
         userId,
         ...inMailbox,
         unreadOnly: onlyUnread,
-        excludeTypes,
         offset,
         limit,
       }),
-      this.notifications.count({ userId, ...inMailbox, unreadOnly: onlyUnread, excludeTypes }),
-      this.notifications.count({ userId, ...inMailbox, unreadOnly: true, excludeTypes }),
+      this.notifications.count({ userId, ...inMailbox, unreadOnly: onlyUnread }),
+      this.notifications.count({ userId, ...inMailbox, unreadOnly: true }),
     ]);
 
     return { items, total, unreadCount };
@@ -167,14 +172,15 @@ export class NotificationsController {
   ): Promise<{ unreadCount: number }> {
     const userId = session.user.id;
     const mailbox = await this.resolveMailbox(session, scope, rawClubId, rawTrainerId);
-    const excludeTypes = await this.disabledTypes(userId, mailbox);
 
+    // Счётчик и лента спрашивают базу ОДИНАКОВО — ни у той, ни у другой нет больше
+    // своего отбора. Именно расхождение этих двух условий давало «в колокольчике 3,
+    // в списке 0» (шаг 36.50).
     return {
       unreadCount: await this.notifications.count({
         userId,
         ...(mailbox === undefined ? {} : { mailbox }),
         unreadOnly: true,
-        excludeTypes,
       }),
     };
   }
@@ -333,25 +339,6 @@ export class NotificationsController {
    * действуют личные: другого разумного умолчания нет, а показать всё подряд,
    * игнорируя настройки вовсе, значило бы вернуть ту же дыру с другой стороны.
    */
-  private async disabledTypes(
-    userId: number,
-    mailbox: NotificationMailbox | undefined,
-  ): Promise<string[]> {
-    // ⚠️ Ящик у ленты и ящик у настроек описаны РАЗНЫМИ типами: у ленты
-    // `{ kind: 'personal' }` — законное значение, у настроек личный ящик выражен
-    // отсутствием лица. Перевод здесь один и явный, чтобы «личный» не превратился
-    // молча в «любой».
-    const face =
-      mailbox === undefined || mailbox.kind === 'personal'
-        ? undefined
-        : ({ type: mailbox.kind, id: mailbox.id } as const);
-    const preferences = await this.users.findNotificationPreferences(userId, face);
-    const types = Object.keys(preferences) as NotificationType[];
-
-    // Обязательные типы выключить нельзя — их отбрасывает запись настроек,
-    // но проверка стоит и здесь: правило одно, а мест применения два.
-    return types.filter((type) => preferences[type] === false && canDisableNotificationType(type));
-  }
 }
 
 export const NOTIFICATION_CONTROLLERS = [NotificationsController];

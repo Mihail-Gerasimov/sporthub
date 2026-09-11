@@ -425,44 +425,23 @@ const catalogContract = (createRepositories: () => Promise<CatalogRepositories>)
       expect(await notifications.count({ userId: 1, ids: [] })).toBe(0);
     });
 
-    it('отключённые типы не попадают ни в ленту, ни в счётчик', async () => {
-      const { notifications } = await createRepositories();
-      await notifications.insert({ ...baseNotification, type: 'booking_confirmed' });
-      await notifications.insert({ ...baseNotification, type: 'booking_completed' });
-
-      // Настройки пользователя приходят сюда уже готовым списком типов: правило
-      // «включён ли тип» разбирает домен, а репозиторий превращает список в условие.
-      const filter = { userId: 1, excludeTypes: ['booking_completed'] };
-
-      expect((await notifications.findMany(filter)).map((item) => item.type)).toEqual([
-        'booking_confirmed',
-      ]);
-      expect(await notifications.count(filter)).toBe(1);
-      // Пустой список настроек условия не даёт — лента остаётся целой.
-      expect(await notifications.count({ userId: 1, excludeTypes: [] })).toBe(2);
-    });
-
-    it('постраничность считается ПОСЛЕ отсева отключённых типов', async () => {
+    it('постраничность считается в ЗАПРОСЕ, а не после чтения ленты', async () => {
+      // ⚠️ Шаг 36.50. Прежде здесь проверялся отсев отключённых типов — поля
+      // `excludeTypes` больше нет: настройка решает при ОТПРАВКЕ, и выключенного
+      // типа в базе не существует. Прятать при чтении стало нечего.
+      //
+      // Само утверждение про постраничность осталось и остаётся важным: срез,
+      // взятый после чтения всей ленты, не совпадает со срезом внутри запроса,
+      // и цена такого чтения растёт вместе с историей человека.
       const { notifications } = await createRepositories();
       await notifications.insert({ ...baseNotification, payload: { index: 0 } });
-      await notifications.insert({
-        ...baseNotification,
-        type: 'booking_completed',
-        payload: { index: 1 },
-      });
+      await notifications.insert({ ...baseNotification, payload: { index: 1 } });
       await notifications.insert({ ...baseNotification, payload: { index: 2 } });
 
-      // ⚠️ Именно ради этого отсев и уехал в запрос: срез по набору, отфильтрованному
-      // уже ПОСЛЕ чтения, не совпадает со срезом внутри запроса. Свежие первыми —
-      // после отсева остаются 2 и 0, значит второй элементом идёт 0.
-      const page = await notifications.findMany({
-        userId: 1,
-        excludeTypes: ['booking_completed'],
-        offset: 1,
-        limit: 1,
-      });
+      const page = await notifications.findMany({ userId: 1, offset: 1, limit: 1 });
 
-      expect(payloadIndexes(page)).toEqual([0]);
+      // Свежие первыми: 2, 1, 0 — значит вторым элементом идёт 1.
+      expect(payloadIndexes(page)).toEqual([1]);
     });
   });
 };
