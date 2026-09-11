@@ -338,6 +338,30 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
     [returningId, setNotificationsInStore, addToast],
   );
 
+  /**
+   * Отметить всё и СПРОСИТЬ ОЧЕРЕДЬ ЗАНОВО.
+   *
+   * ⚠️ Перезапрос здесь обязателен, и это не перестраховка. Счётчики раздела
+   * приходят от сервера, а не считаются по стору: без перезапроса подпись
+   * продолжала бы показывать прежнее «12 не разобрано» над очередью, в которой
+   * уже ничего не осталось. Ровно та форма дефекта, что ловится этой фазой, —
+   * число, взятое не оттуда, где оно изменилось.
+   *
+   * ⚠️ Очередь общая, поэтому ответ может отличаться от ожидаемого: пока шёл
+   * запрос, коллега мог что-то разобрать или вернуть. Это не дефект, и подгонять
+   * число под своё действие нельзя — правду знает сервер.
+   */
+  const markAllAndRefresh = useCallback(async () => {
+    await markAllRead();
+    await load();
+  }, [markAllRead, load]);
+
+  /** Удалить и спросить заново — по той же причине: `total` изменился. */
+  const deleteAndRefresh = useCallback(async () => {
+    await confirmDelete();
+    await load();
+  }, [confirmDelete, load]);
+
   // Разобранные строки показанной страницы — их и предлагается убрать.
   const resolvedIds = useMemo(
     () => items.filter((item) => item.readAt !== undefined).map((item) => item.id),
@@ -611,7 +635,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
               data-testid="supervision-mark-all-confirm"
               onClick={() => {
                 setConfirmingMarkAll(false);
-                void markAllRead();
+                void markAllAndRefresh();
               }}
               disabled={markingAll}
               className="rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime-hov hover:bg-lime-hov disabled:opacity-50"
@@ -646,7 +670,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
               type="button"
               data-testid="supervision-delete-confirm"
               onClick={() => {
-                void confirmDelete();
+                void deleteAndRefresh();
               }}
               disabled={deleting}
               className="rounded-full border-0 bg-orange px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-orange-hov disabled:opacity-50"

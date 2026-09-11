@@ -123,6 +123,39 @@ describe('очередь надзора: уборка', () => {
     );
   });
 
+  it('после «отметить всё» счётчики спрашиваются заново, а не остаются прежними', async () => {
+    // ⚠️ Без перезапроса подпись показывала бы «2 не разобрано» над очередью,
+    // в которой не осталось ничего: счётчики приходят от сервера и сами
+    // по нажатию кнопки не меняются.
+    fetchMock.mockImplementation(async (url: unknown) =>
+      String(url).includes('/read-all')
+        ? new Response(JSON.stringify({ success: true, data: { updatedCount: 2 } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : new Response(
+            JSON.stringify({ success: true, data: { items: [], total: 2, unreadCount: 0 } }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+    );
+
+    render(
+      <AdminNotificationsPage
+        initialFeed={{ items: [row({ id: 15 }), row({ id: 16 })], total: 2, unreadCount: 2 }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('supervision-mark-all'));
+    fireEvent.click(screen.getByTestId('supervision-mark-all-confirm'));
+
+    await waitFor(() =>
+      expect(askedUrls(fetchMock).some((url) => url.includes('scope=supervision&'))).toBe(true),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('supervision-unread-count')).toHaveTextContent('0'),
+    );
+  });
+
   it('разобранную строку можно вернуть в очередь', async () => {
     render(
       <AdminNotificationsPage
