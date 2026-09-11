@@ -720,6 +720,48 @@ describe('Маршруты клубов и тренеров', () => {
       expect(response.body.details).toBeDefined();
     });
 
+    it('новое лицо в каталоге уходит В ОЧЕРЕДЬ НАДЗОРА', async () => {
+      // ⚠️ Шаг 37.33. Премодерации в продукте НЕТ: публикация встаёт в каталог
+      // сразу `published`. Без этой строки надзор узнаёт о новой карточке, только
+      // когда придёт жалоба, — а механизма жалоб в продукте тоже не существует.
+      const created = await request(server())
+        .post('/api/clubs')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send(CLUB_FORM);
+
+      expect(created.status).toBe(201);
+
+      const rows = await harness.read<
+        {
+          addresseeKind: string;
+          userId?: number;
+          type: string;
+          payload: Record<string, unknown>;
+        }[]
+      >('notifications');
+      const oversight = rows.filter((row) => row.type === 'oversight_publication_created');
+
+      expect(oversight).toHaveLength(1);
+      expect(oversight[0].addresseeKind).toBe('supervision');
+      expect(oversight[0].userId).toBeUndefined();
+      expect(oversight[0].payload.subjectType).toBe('club');
+    });
+
+    it('АРХИВ владельца надзорной строки не порождает, а стирание — порождает', async () => {
+      // ⚠️ Шаг 37.32. Различие не косметическое: архив обратим и делается владельцем
+      // со своей вещью, стирание необратимо и уносит каскадом услуги, расписание,
+      // чужие записи и отзывы.
+      await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(OWNER_ID));
+
+      const afterArchive = await harness.read<{ type: string }[]>('notifications');
+
+      expect(
+        afterArchive.filter((row) => row.type === 'oversight_publication_deleted'),
+      ).toHaveLength(0);
+    });
+
     it('владелец правит свою публикацию', async () => {
       // Контрольная группа к отказам ниже: без неё 403 у чужого был бы зелен
       // и в том случае, если правка сломана для всех.

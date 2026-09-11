@@ -29,6 +29,7 @@
 
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
+  notificationPayload,
   editClubSchema,
   editTrainerSchema,
   publishClubSchema,
@@ -51,6 +52,7 @@ import {
 import { CatalogQueryService } from './catalog-query.service';
 import type { PublicClub, PublicTrainer } from './public-view';
 import { LogService } from '../logs/log.service';
+import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
 import {
   type PublicationActor,
   PublicationService,
@@ -158,6 +160,9 @@ export class ClubsController {
     private readonly publications: PublicationService,
     private readonly logs: LogService,
     private readonly access: AccessService,
+    // Очередь надзора: премодерации нет, и появление нового лица в каталоге —
+    // единственная точка, где надзор может его увидеть (шаг 37.33).
+    private readonly notifications: NotificationService,
   ) {}
 
   /** См. `mayIncludeHidden`: флаг «показать скрытые» учитывается только модератору. */
@@ -336,6 +341,18 @@ export class ClubsController {
       meta: { name: result.club.name, city: result.club.city },
     });
 
+    // ⚠️ Шаг 37.33. Премодерации в продукте НЕТ: публикация встаёт в каталог сразу
+    // `published` — значит первый и единственный взгляд надзора на новую карточку
+    // возможен только постфактум. Без этой строки надзор узнаёт о ней, лишь когда
+    // придёт жалоба, которой в продукте тоже не существует.
+    await this.notifications.notify(
+      supervisionRecipient,
+      'oversight_publication_created',
+      notificationPayload('oversight_publication_created', 'club', result.club.id, {
+        publicationName: result.club.name,
+      }),
+    );
+
     return result;
   }
 
@@ -424,6 +441,20 @@ export class ClubsController {
       meta: { name: club?.name ?? 'unknown' },
     });
 
+    // ⚠️ Шаг 37.32. Надзорная строка только на СТИРАНИЕ, не на архив.
+    // Архив — обратимое действие владельца со своей вещью, и запрет при живых
+    // записях на нём уже стоит. Стирание необратимо и уносит каскадом услуги,
+    // расписание, чужие записи и отзывы — о нём надзор обязан узнать.
+    if (outcome === 'deleted') {
+      await this.notifications.notify(
+        supervisionRecipient,
+        'oversight_publication_deleted',
+        notificationPayload('oversight_publication_deleted', 'club', clubId, {
+          publicationName: club?.name ?? '',
+        }),
+      );
+    }
+
     // ⚠️ Исход возвращается КЛИЕНТУ, а не только пишется в журнал.
     //
     // Исходов два, и они разные по последствиям: владелец лицо АРХИВИРУЕТ —
@@ -444,6 +475,9 @@ export class TrainersController {
     private readonly publications: PublicationService,
     private readonly logs: LogService,
     private readonly access: AccessService,
+    // Очередь надзора: премодерации нет, и появление нового лица в каталоге —
+    // единственная точка, где надзор может его увидеть (шаг 37.33).
+    private readonly notifications: NotificationService,
   ) {}
 
   /** См. `mayIncludeHidden`: флаг «показать скрытые» учитывается только модератору. */
@@ -602,6 +636,15 @@ export class TrainersController {
       meta: { name: result.trainer.name, city: result.trainer.city },
     });
 
+    // Шаг 37.33: то же, что у клуба. Премодерации нет, карточка видна людям сразу.
+    await this.notifications.notify(
+      supervisionRecipient,
+      'oversight_publication_created',
+      notificationPayload('oversight_publication_created', 'trainer', result.trainer.id, {
+        publicationName: result.trainer.name,
+      }),
+    );
+
     return result;
   }
 
@@ -674,6 +717,17 @@ export class TrainersController {
       entityId: trainerId,
       meta: { name: trainer?.name ?? 'unknown' },
     });
+
+    // Шаг 37.32: только стирание, не архив — по той же причине, что у клуба.
+    if (outcome === 'deleted') {
+      await this.notifications.notify(
+        supervisionRecipient,
+        'oversight_publication_deleted',
+        notificationPayload('oversight_publication_deleted', 'trainer', trainerId, {
+          publicationName: trainer?.name ?? '',
+        }),
+      );
+    }
 
     // Исход — как у клуба: архив владельца и стирание модератора различаются
     // необратимостью, и клиент обязан знать, что именно произошло.
