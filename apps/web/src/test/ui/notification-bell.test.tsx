@@ -220,7 +220,7 @@ describe('NotificationBell', () => {
     // а НЕ по `isAdmin`. Под подменой `accountKind` становится `person`, а
     // `isAdmin` остаётся истинным — по нему администратор увидел бы свою
     // служебную ленту вместо ленты того, от чьего лица он работает.
-    mockFetchByRoute({ unreadCount: 0, items: [] });
+    const fetchMock = mockFetchByRoute({ unreadCount: 0, items: [] });
 
     useAuthStore.setState({
       isAuthenticated: true,
@@ -247,8 +247,8 @@ describe('NotificationBell', () => {
 
     // И ящик в запросе — тоже ящик того, от чьего лица работают: надзорного
     // `scope=supervision` здесь быть не должно ни при каком `isAdmin`.
-    const listCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([url]: [RequestInfo | URL]) => String(url).startsWith('/api/notifications?'),
+    const listCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith('/api/notifications?'),
     );
 
     expect(String(listCall?.[0])).not.toContain('supervision');
