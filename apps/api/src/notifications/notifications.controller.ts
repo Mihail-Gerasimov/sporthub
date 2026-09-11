@@ -269,12 +269,14 @@ export class NotificationsController {
     // У надзорной строки владельца-человека нет вовсе: проверка через `userId`
     // вернула бы ноль и отвечала бы «не найдено» КАЖДОМУ администратору — то есть
     // выглядела бы как пропавшая строка, а не как дыра в разборе.
-    const visible = await this.notifications.count({
+    await this.assertMayTouch(session, [notificationId]);
+
+    const mine = await this.notifications.count({
       ...this.audienceOfSession(session),
       ids: [notificationId],
     });
 
-    if (visible === 0) {
+    if (mine === 0) {
       throw new NotFoundError('Уведомление не найдено');
     }
 
@@ -296,12 +298,14 @@ export class NotificationsController {
     // ⚠️ Право доказывается тем же способом, что и при отметке (шаг 37.16):
     // у надзорной строки владельца-человека нет, и отбор по `userId` вернул бы
     // «не найдено» каждому администратору.
-    const visible = await this.notifications.count({
+    await this.assertMayTouch(session, [notificationId]);
+
+    const mine = await this.notifications.count({
       ...this.audienceOfSession(session),
       ids: [notificationId],
     });
 
-    if (visible === 0) {
+    if (mine === 0) {
       throw new NotFoundError('Уведомление не найдено');
     }
 
@@ -326,6 +330,8 @@ export class NotificationsController {
     // у надзорных строк владельца нет, и отбор по `userId` вернул бы пустоту,
     // а ответ — 200 с `deleted: 0`. Такой отказ выглядит как отсутствие строк,
     // а не как нехватка прав, и искать его пришлось бы долго.
+    await this.assertMayTouch(session, parsed.data.ids);
+
     const own = await this.notifications.findMany({
       ...this.audienceOfSession(session),
       ids: parsed.data.ids,
@@ -358,6 +364,39 @@ export class NotificationsController {
    * читать саму строку, чтобы выбрать путь, не требуется — достаточно того,
    * кто спрашивает.
    */
+  /**
+   * Вправе ли этот человек трогать названные строки.
+   *
+   * ⚠️ Два разных отказа, и разница не косметическая (шаг 37.61, нашёл браузер).
+   *
+   * Чужая ЛИЧНАЯ строка отвечает «не найдено»: иначе по коду ответа можно было бы
+   * перебирать чужие номера. А вот строка ОЧЕРЕДИ НАДЗОРА никакой тайны не хранит —
+   * она не принадлежит никому конкретно, — и отвечать на неё «не найдено» значит
+   * врать: строка есть, просто прав не хватает. Прежде человек получал на отметку
+   * 404, а на удаление — вовсе 200 с `deleted: 0`, то есть отказ выглядел как успех.
+   *
+   * Порядок проверок важен: сначала «моё ли», потом «не надзорное ли». Обратный
+   * порядок превратил бы отказ в подсказку «такой строки нет» для любого номера.
+   */
+  private async assertMayTouch(session: SessionContext, ids: number[]): Promise<void> {
+    const mine = await this.notifications.count({
+      ...this.audienceOfSession(session),
+      ids,
+    });
+
+    if (mine === ids.length) return;
+
+    // ⚠️ Отказ 403 полагается ТОЛЬКО строкам очереди надзора. Для чужой личной
+    // строки поведение остаётся прежним и меняться не должно: отметка отвечает
+    // «не найдено», удаление молча отбрасывает номер. Это решение фазы 34 —
+    // иначе по коду ответа перебирались бы чужие номера.
+    const inQueue = await this.notifications.count({ supervision: true, ids });
+
+    if (inQueue > 0) {
+      throw new ForbiddenError('Недостаточно прав');
+    }
+  }
+
   private audienceOfSession(session: SessionContext): NotificationsAudience {
     return accountCan(accountKindOf(session.user), 'moderate_publications')
       ? { supervision: true }

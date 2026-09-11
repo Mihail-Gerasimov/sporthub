@@ -121,11 +121,19 @@ export class AdminController {
     //
     // Человеку, чью запись стёрли, это письмо не адресовано: он участник события,
     // а очередь надзора отвечает на вопрос площадки — кто из администраторов что сделал.
+    // Имя снимается ПОСЛЕ удаления намеренно: человек стиранием записи не затронут,
+    // и запрос за ним не удлиняет саму операцию.
+    const athlete = await this.users.findById(booking.userId);
+
     await this.notifications.notify(
       supervisionRecipient,
       'oversight_booking_hard_deleted',
       notificationPayload('oversight_booking_hard_deleted', 'booking', bookingId, {
         date: booking.date,
+        // ⚠️ Имя, а не только номер (нашёл браузерный прогон, 37.61). В ленте строка
+        // читается человеком, и «запись №312» не отвечает на вопрос «чья». Номер
+        // тоже остаётся: по нему строку связывают с журналом.
+        ...(athlete === null ? {} : { athleteName: athlete.name }),
         athleteUserId: booking.userId,
         actorUserId: session.actor.id,
         actorName: session.actor.name,

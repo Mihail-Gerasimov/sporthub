@@ -1005,23 +1005,44 @@ describe('Очередь надзора в маршрутах уведомлен
     expect(again.body.data.readByUserId).toBe(2);
   });
 
-  it('человек не может отметить надзорную строку', async () => {
+  it('человек получает 403 на отметку надзорной строки, а не 404', async () => {
+    // ⚠️ Утверждение исправлено после браузерного прогона (37.61). Прежде здесь
+    // стоял 404, и это было враньё: строка есть, просто прав не хватает. Скрывать
+    // её номер незачем — очередь не принадлежит никому конкретно и тайны не хранит.
     const response = await request(harness.app.getHttpServer())
       .post('/api/notifications/2/read')
       .set('Cookie', personCookie);
 
+    expect(response.status).toBe(403);
+  });
+
+  it('человек получает 403 и на возврат надзорной строки в очередь', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/unread')
+      .set('Cookie', personCookie);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('чужая ЛИЧНАЯ строка по-прежнему отвечает «не найдено»', async () => {
+    // Обратная сторона: здесь 404 остаётся и обязан остаться. Иначе по коду ответа
+    // перебирались бы чужие номера — ровно то, от чего 404 и защищает.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/1/read')
+      .set('Cookie', adminCookie);
+
     expect(response.status).toBe(404);
   });
 
-  it('человек не может удалить надзорную строку', async () => {
-    // ⚠️ Раньше такой запрос отвечал 200 с `deleted: 0` — то есть отказ выглядел
-    // как отсутствие строк. Теперь чужие номера просто не попадают в его ящик.
+  it('человек получает 403 на удаление надзорных строк, а не 200 с нулём', async () => {
+    // ⚠️ Прежде такой запрос отвечал 200 с `deleted: 0`, то есть отказ выглядел
+    // как успех: «удалил, просто удалять было нечего». Нашёл браузерный прогон.
     const response = await request(harness.app.getHttpServer())
       .delete('/api/notifications')
       .set('Cookie', personCookie)
       .send({ ids: [2, 3] });
 
-    expect(response.body.data.deleted).toBe(0);
+    expect(response.status).toBe(403);
 
     const stillThere = await feed(adminCookie);
 
@@ -1047,14 +1068,6 @@ describe('Очередь надзора в маршрутах уведомлен
     const unread = await feed(adminCookie, '&unreadOnly=true');
 
     expect(unread.body.data.items.some((item: { id: number }) => item.id === 2)).toBe(true);
-  });
-
-  it('человек не может вернуть в очередь чужую надзорную строку', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/notifications/2/unread')
-      .set('Cookie', personCookie);
-
-    expect(response.status).toBe(404);
   });
 
   it('«отметить всё» гасит очередь всем и подписывает разобравшего', async () => {

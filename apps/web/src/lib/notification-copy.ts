@@ -170,12 +170,19 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
     };
   },
   oversight_booking_hard_deleted: (payload) => {
+    // ⚠️ Первым называется ЧЬЯ запись (нашёл браузерный прогон, 37.61). Прежде текст
+    // печатал только занятие и дату, и главный вопрос — «у кого отняли» — оставался
+    // без ответа. Имя приходит снимком: записи уже нет, сходить за ним некуда.
+    const who = text(payload.athleteName);
     const slot = text(payload.slotTitle);
     const date = text(payload.date);
+    const what = [slot, date].filter(Boolean).join(', ');
+
     return {
       title: 'Запись стёрта необратимо',
       description:
-        [slot, date].filter(Boolean).join(', ') || 'Чужая запись удалена администратором.',
+        [who && `Запись «${who}»`, what].filter(Boolean).join(' — ') ||
+        'Чужая запись удалена администратором.',
     };
   },
   oversight_link_force_revoked: (payload) => {
