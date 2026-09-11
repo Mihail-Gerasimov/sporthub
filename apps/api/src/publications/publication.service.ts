@@ -59,7 +59,11 @@ import {
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
 import { BookingService } from '../bookings/booking.service';
-import { NotificationService, personRecipient } from '../notifications/notification.service';
+import {
+  NotificationService,
+  personRecipient,
+  supervisionRecipient,
+} from '../notifications/notification.service';
 
 /** Слот в запросе на публикацию: без id — новый, с id — правка существующего. */
 export type PublicationSlotInput = Omit<Schedule, 'id' | 'createdAt'> & {
@@ -311,7 +315,7 @@ export class PublicationService {
       ...hiddenPatch,
     });
 
-    await this.notifyModeratorOfRecheck(hiddenPatch, current, {
+    await this.notifyModeratorOfRecheck(hiddenPatch, {
       kind: 'club',
       id: input.clubId,
       name: club.name,
@@ -371,7 +375,7 @@ export class PublicationService {
       ...hiddenPatch,
     });
 
-    await this.notifyModeratorOfRecheck(hiddenPatch, current, {
+    await this.notifyModeratorOfRecheck(hiddenPatch, {
       kind: 'trainer',
       id: input.trainerId,
       name: trainer.name,
@@ -437,37 +441,34 @@ export class PublicationService {
    * а не намерение.
    */
   /**
-   * Известить модератора, что владелец исправил скрытую публикацию (шаг 36.21).
+   * Известить надзор, что владелец исправил скрытую публикацию (шаг 36.21,
+   * переезд в общую очередь — шаг 37.30).
    *
-   * ⚠️ Адресат — тот, КТО СКРЫЛ. Это точнее, чем «всем администраторам»: разбирался
-   * с публикацией конкретный человек, и продолжать разбирательство ему.
+   * ⚠️ Адресат сменился, и это исправление дыры, а не перенос. Прежде письмо шло
+   * ТОМУ, КТО СКРЫЛ, — а если скрывший неизвестен (строка из прошлого без номера),
+   * не шло НИКОМУ. У общей очереди адресат есть всегда, и ветка «скрывший
+   * неизвестен» исчезает вместе с самой возможностью промолчать.
+   *
+   * Заодно снимается и второй перекос: разбираться с исправленной публикацией
+   * мог любой свободный администратор, а знал о ней только один.
    *
    * ⚠️ Это НЕ «базовый набор человека», от которого администратор отстранён
-   * решением 13. Это служебный инструмент надзора, и механизм для него уже есть:
-   * колокольчик показывается любому вошедшему, включая администратора, — просто
-   * до этой фазы ему никто не писал, и в базе у него было ноль строк.
+   * решением 13: у надзора свой ящик и своё содержание.
    *
    * ⚠️ Отправка — ПОСЛЕ коммита. Уведомление о правке, которая не сохранилась, —
    * ложь, и она хуже молчания.
-   *
-   * Если скрывший неизвестен (строка из прошлого без номера), уведомление
-   * не отправляется: раздел модерации всё равно показывает признак, и молчание
-   * здесь честнее, чем письмо в никуда.
    */
   private async notifyModeratorOfRecheck(
     patch: Partial<Club> & Partial<Trainer>,
-    current: Pick<Club, 'hiddenByUserId'>,
     publication: { kind: 'club' | 'trainer'; id: number; name: string },
   ): Promise<void> {
-    if (patch.awaitingRecheck !== true || current.hiddenByUserId === undefined) {
+    if (patch.awaitingRecheck !== true) {
       return;
     }
 
-    const moderatorId = current.hiddenByUserId;
-
     await this.transactions.afterCommit(async () => {
       await this.notifications.notify(
-        personRecipient(moderatorId),
+        supervisionRecipient,
         'publication_recheck_requested',
         notificationPayload('publication_recheck_requested', publication.kind, publication.id, {
           publicationName: publication.name,

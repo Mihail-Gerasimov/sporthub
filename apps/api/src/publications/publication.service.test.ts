@@ -560,10 +560,11 @@ describe('PublicationService', () => {
     expect(result.club.awaitingRecheck).toBe(true);
   });
 
-  it('правка скрытой модератором уведомляет ТОГО, КТО СКРЫЛ', async () => {
-    // ⚠️ Адресат — конкретный человек, разбиравшийся с публикацией, а не «все
-    // администраторы». Механизм существующий: колокольчик показывается любому
-    // вошедшему, просто до этой фазы админу никто не писал.
+  it('правка скрытой модератором уходит В ОЧЕРЕДЬ НАДЗОРА, а не одному человеку', async () => {
+    // ⚠️ Утверждение ПЕРЕВЁРНУТО на шаге 37.30, и это исправление дыры, а не перенос.
+    // Прежде письмо шло тому, КТО СКРЫЛ, а при неизвестном скрывшем — никому.
+    // Разбираться с исправленной публикацией мог любой свободный администратор,
+    // а знал о ней один. У общей очереди адресат есть всегда.
     const { club } = await createClub();
     await clubs.update(club.id, {
       status: 'hidden',
@@ -581,11 +582,39 @@ describe('PublicationService', () => {
       slots: [],
     });
 
-    const stored = await harness.read<{ userId: number; type: string }[]>('notifications');
+    const stored =
+      await harness.read<{ userId?: number; addresseeKind: string; type: string }[]>(
+        'notifications',
+      );
     const recheck = stored.filter((item) => item.type === 'publication_recheck_requested');
 
     expect(recheck).toHaveLength(1);
-    expect(recheck[0].userId).toBe(3);
+    expect(recheck[0].addresseeKind).toBe('supervision');
+    expect(recheck[0].userId).toBeUndefined();
+  });
+
+  it('скрывший НЕИЗВЕСТЕН — уведомление всё равно приходит', async () => {
+    // ⚠️ Та самая дыра, ради которой тип переехал в очередь: строка из прошлого
+    // без номера скрывшего не уведомляла НИКОГО, и публикация ждала проверки молча.
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: 'жалоба',
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'moderation',
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    const stored = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
+
+    expect(stored.filter((item) => item.type === 'publication_recheck_requested')).toHaveLength(1);
   });
 
   it('правка архива владельца модератора не беспокоит', async () => {
