@@ -18,12 +18,12 @@
 
 ## Что проверено
 
-| Запрос | План | Индекс |
-| --- | --- | --- |
-| Лента очереди с постраничностью | `Index Scan` | `notifications_supervision_idx` |
-| Счётчик неразобранного | `Index Only Scan` | `notifications_supervision_unread_idx` |
-| Отбор очереди по теме | `Index Scan` + `Filter` по типу | `notifications_supervision_idx` |
-| Личный ящик человека | `Index Scan`, `Index Cond: user_id = 2` | `notifications_personal_idx` |
+| Запрос                          | План                                    | Индекс                                 |
+| ------------------------------- | --------------------------------------- | -------------------------------------- |
+| Лента очереди с постраничностью | `Index Scan`                            | `notifications_supervision_idx`        |
+| Счётчик неразобранного          | `Index Only Scan`                       | `notifications_supervision_unread_idx` |
+| Отбор очереди по теме           | `Index Scan` + `Filter` по типу         | `notifications_supervision_idx`        |
+| Личный ящик человека            | `Index Scan`, `Index Cond: user_id = 2` | `notifications_personal_idx`           |
 
 ## Две вещи, которые стоит назвать
 
