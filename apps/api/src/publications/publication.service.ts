@@ -59,7 +59,7 @@ import {
   TRAINERS_REPOSITORY,
 } from '../repositories/entities.repository';
 import { BookingService } from '../bookings/booking.service';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService, personRecipient } from '../notifications/notification.service';
 
 /** Слот в запросе на публикацию: без id — новый, с id — правка существующего. */
 export type PublicationSlotInput = Omit<Schedule, 'id' | 'createdAt'> & {
@@ -467,7 +467,7 @@ export class PublicationService {
 
     await this.transactions.afterCommit(async () => {
       await this.notifications.notify(
-        { userId: moderatorId },
+        personRecipient(moderatorId),
         'publication_recheck_requested',
         notificationPayload('publication_recheck_requested', publication.kind, publication.id, {
           publicationName: publication.name,

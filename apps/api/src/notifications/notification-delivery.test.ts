@@ -27,7 +27,7 @@ import { NOTIFICATIONS_REPOSITORY } from '../repositories/catalog.repository';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
-import { NotificationService } from './notification.service';
+import { NotificationService, personRecipient } from './notification.service';
 
 /** Человек с двумя лицами: клуб 1 и карточка тренера 1. */
 const OWNER_ID = 2;
@@ -118,9 +118,19 @@ describe('настройка уведомлений применяется пр�
     });
   });
 
-  const personal = { userId: OWNER_ID } as const;
-  const club = { addresseeType: 'club', addresseeId: 1, managedByUserId: OWNER_ID } as const;
-  const trainer = { addresseeType: 'trainer', addresseeId: 1, managedByUserId: OWNER_ID } as const;
+  const personal = personRecipient(OWNER_ID);
+  const club = {
+    to: 'face' as const,
+    addresseeType: 'club',
+    addresseeId: 1,
+    managedByUserId: OWNER_ID,
+  } as const;
+  const trainer = {
+    to: 'face' as const,
+    addresseeType: 'trainer',
+    addresseeId: 1,
+    managedByUserId: OWNER_ID,
+  } as const;
 
   const stored = async () => notifications.findMany({ userId: OWNER_ID });
 
@@ -227,7 +237,7 @@ describe('настройка уведомлений применяется пр�
     await users.setNotificationPreferences(OWNER_ID, { booking_requested: false });
 
     // Уведомление человеку, которого нет: настроек у него быть не может.
-    const created = await service.notify({ userId: 9999 }, 'booking_requested', {});
+    const created = await service.notify(personRecipient(9999), 'booking_requested', {});
 
     expect(created).toBeNull();
   });

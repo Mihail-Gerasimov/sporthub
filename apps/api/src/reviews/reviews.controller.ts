@@ -40,7 +40,11 @@ import {
   ValidationError,
 } from '../common/domain-error';
 import { AccessService } from '../access/access.service';
-import { NotificationService, faceRecipient } from '../notifications/notification.service';
+import {
+  NotificationService,
+  faceRecipient,
+  personRecipient,
+} from '../notifications/notification.service';
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type { ReviewsRepository } from '../repositories/crud.repository';
@@ -335,7 +339,7 @@ export class ReviewsController {
 
     // А подтверждение публикации — самому автору, человеку.
     await this.notifications.notify(
-      { userId },
+      personRecipient(userId),
       'review_published_for_athlete',
       notificationPayload('review_published_for_athlete', 'review', review.id, { entityName }),
     );

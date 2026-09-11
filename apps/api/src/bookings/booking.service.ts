@@ -32,7 +32,7 @@ import type {
 import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
 import { LogService, SYSTEM_ACTOR_ROLE } from '../logs/log.service';
 import type { NotificationRecipient } from '../notifications/notification.service';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService, personRecipient } from '../notifications/notification.service';
 import type { TransactionRunner } from '../storage/transaction-runner';
 import { TRANSACTION_RUNNER } from '../storage/transaction-runner';
 import type { BookingsRepository } from '../repositories/bookings.repository';
@@ -430,6 +430,7 @@ export class BookingService {
     if (managedByUserId === null) return null;
 
     return {
+      to: 'face',
       addresseeType: booking.ownerType,
       addresseeId: booking.ownerId,
       managedByUserId,
@@ -451,7 +452,7 @@ export class BookingService {
     switch (transition.to) {
       case 'confirmed':
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           'booking_confirmed',
           notificationPayload('booking_confirmed', 'booking', booking.id),
         );
@@ -459,7 +460,7 @@ export class BookingService {
 
       case 'rejected_by_provider':
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           'booking_rejected',
           notificationPayload('booking_rejected', 'booking', booking.id, {
             reason: transition.reason,
@@ -469,7 +470,7 @@ export class BookingService {
 
       case 'cancelled_by_athlete': {
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           'booking_cancelled_by_athlete',
           notificationPayload('booking_cancelled_by_athlete', 'booking', booking.id, {
             cancelReason: booking.cancelReason,
@@ -497,7 +498,7 @@ export class BookingService {
         const cancelType = bySystem ? 'booking_auto_expired' : 'booking_cancelled_by_provider';
 
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           cancelType,
           notificationPayload(cancelType, 'booking', booking.id),
         );
@@ -520,7 +521,7 @@ export class BookingService {
 
       case 'completed':
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           'booking_completed',
           notificationPayload('booking_completed', 'booking', booking.id),
         );
@@ -528,7 +529,7 @@ export class BookingService {
 
       case 'no_show':
         await this.notifications.notify(
-          { userId: athleteId },
+          personRecipient(athleteId),
           'booking_no_show',
           notificationPayload('booking_no_show', 'booking', booking.id),
         );

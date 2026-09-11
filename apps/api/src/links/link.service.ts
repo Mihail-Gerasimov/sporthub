@@ -13,7 +13,11 @@ import type { TrainerClubLink } from '@sporthub/types';
 
 import { AccessService } from '../access/access.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../common/domain-error';
-import { NotificationService, faceRecipient } from '../notifications/notification.service';
+import {
+  NotificationService,
+  faceRecipient,
+  personRecipient,
+} from '../notifications/notification.service';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
