@@ -10,6 +10,7 @@ export * from './discipline-config';
 export * from './athlete-streaks';
 export * from './athlete-timeline-format';
 export * from './notification-types';
+export * from './notification-addressee';
 export * from './permissions';
 export * from './reliability';
 export * from './sorting';
