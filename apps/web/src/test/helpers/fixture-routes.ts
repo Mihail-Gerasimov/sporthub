@@ -80,5 +80,9 @@ export function createFixtureRoutes(): ApiRoutes {
     '/trainer-club-links': fixtureConfirmedLinkCollections['trainer-club-links'],
     '/provider-client-notes': [],
     '/notifications': { items: [] },
+    // Счётчик непрочитанных — отдельный адрес, а не поле ленты (шаг 37.57).
+    // Сводка кабинета спрашивает ЕГО: считать по странице ленты, обрезанной
+    // потолком выдачи, значит занижать число после сотого уведомления.
+    '/notifications/unread-count': { unreadCount: 0 },
   };
 }

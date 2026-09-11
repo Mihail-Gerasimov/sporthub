@@ -100,7 +100,6 @@ describe('ID аккаунта в ЛК (Step 17.6 → Phase 26 Step 26.5)', () =>
         offerings={[]}
         schedule={[]}
         links={[]}
-        notifications={[]}
       />,
       clubFace(10, 'Test'),
     );

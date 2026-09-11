@@ -9,11 +9,11 @@ import { loadFaceScope } from '@/lib/face-scope';
 import { requireFaceCabinetParams, type FaceCabinetParams } from '@/lib/face-cabinet-params';
 import {
   faceOwnerQuery,
-  getNotifications,
   getOfferings,
   getReviews,
   getSchedule,
   getTrainerClubLinks,
+  getUnreadNotificationsCount,
 } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
@@ -24,20 +24,26 @@ export default async function FaceDashboardRoute({
   params: Promise<FaceCabinetParams>;
 }) {
   const face = await requireFaceCabinetParams(params);
-  // ⚠️ Срез кабинета читается ПЕРВЫМ, потому что от него зависит, чьи уведомления
-  // запрашивать. Раньше страница брала ленту ВСЕЙ платформы (`scope=all`) и считала
-  // по ней непрочитанные одного пользователя фильтром в памяти — цена страницы росла
-  // вместе с числом уведомлений всех пользователей сразу.
+  // ⚠️ Срез кабинета читается ПЕРВЫМ, потому что от него зависит, спрашивать ли
+  // данные вообще: у гостя их не запрашивается ни одного.
   const scope = await loadFaceScope(face.kind, face.id);
   const { bookings, clubs, trainers, userId } = scope;
 
-  const [offerings, schedule, links, notifications, reviews] = await Promise.all([
+  const [offerings, schedule, links, unreadCount, reviews] = await Promise.all([
     getOfferings(),
     getSchedule({ ownerType: 'all' }),
     // Связи и отзывы — этого лица, а не всей площадки: обзор показывает их числа,
     // и отбирать выдачу площадки в памяти незачем.
     getTrainerClubLinks(faceOwnerQuery(face)),
-    userId === null ? Promise.resolve([]) : getNotifications({ userId }),
+    // ⚠️ Шаг 37.57. Непрочитанные приходят ЧИСЛОМ из запроса, а не лентой, которую
+    // потом считают в браузере. Прежде страница забирала ленту человека (потолок —
+    // сто строк), а сводка фильтровала её в памяти: после сотни уведомлений KPI
+    // молча занижался, и цена страницы росла вместе с ящиком.
+    //
+    // Ящик назван лицом ОТКРЫТОГО кабинета — тем же самым, по которому раздел
+    // уведомлений этого кабинета покажет строки. Число под подписью и список
+    // под ним обязаны сходиться: у них один запрос и одно условие.
+    userId === null ? Promise.resolve(0) : getUnreadNotificationsCount(face),
     getReviews(faceOwnerQuery(face)),
   ]);
 
@@ -49,7 +55,7 @@ export default async function FaceDashboardRoute({
       offerings={offerings}
       schedule={schedule}
       links={links}
-      notifications={notifications}
+      unreadCount={unreadCount}
       reviews={reviews}
     />
   );
