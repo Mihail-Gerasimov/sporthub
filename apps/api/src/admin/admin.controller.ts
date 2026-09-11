@@ -160,6 +160,26 @@ export class AdminController {
       },
     });
 
+    // ⚠️ Шаг 37.37. Надзорная строка — только на ПРИНУДИТЕЛЬНЫЙ разрыв. Обычный
+    // разрыв сторонами (`links.controller.ts` → `LinkService.revoke`) её не порождает
+    // намеренно: это договор двоих, и обе стороны уже получили `link_revoked`.
+    // Событие надзора — вмешательство третьего, о котором иначе не узнаёт никто.
+    //
+    // Отправка — после разрыва: `forceRevoke` уже вернулся, связь помечена, услуги
+    // отцеплены. Число отцепленных занятий кладётся в строку, потому что именно его
+    // читает текст ленты: «разорвал связь» без цены разрыва не даёт понять, срочно ли
+    // разбираться. Имена сторон в `payload` не кладутся — предмет назван одной формой,
+    // и связь читается по своему номеру.
+    await this.notifications.notify(
+      supervisionRecipient,
+      'oversight_link_force_revoked',
+      notificationPayload('oversight_link_force_revoked', 'link', linkId, {
+        detachedCount,
+        actorUserId: session.actor.id,
+        actorName: session.actor.name,
+      }),
+    );
+
     return link;
   }
 

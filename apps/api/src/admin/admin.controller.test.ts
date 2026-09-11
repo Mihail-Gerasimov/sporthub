@@ -410,6 +410,73 @@ describe('Административные маршруты', () => {
     expect(logs[0]).toMatchObject({ action: 'link_revoke', meta: { forced: true } });
   });
 
+  // --- Шаг 37.37: принудительный разрыв связи виден очереди надзора -----------------
+
+  it('принудительный разрыв кладёт строку в ОЧЕРЕДЬ НАДЗОРА и называет число отцепленных занятий', async () => {
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/trainer-club-links/1/force-revoke')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const rows = await oversight('oversight_link_force_revoked');
+
+    expect(rows, 'принудительный разрыв не дошёл до очереди надзора').toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+    expect(rows[0]?.userId, 'надзорная строка приехала человеку в личный ящик').toBeUndefined();
+    // Текст ленты читает `detachedCount`: «разорвал связь» без цены разрыва
+    // не даёт понять, насколько срочно с этим разбираться.
+    expect(rows[0]?.payload).toMatchObject({
+      subjectType: 'link',
+      subjectId: 1,
+      detachedCount: 1,
+      actorUserId: 3,
+    });
+  });
+
+  it('разрыв связи СТОРОНАМИ надзорной строки не порождает', async () => {
+    // ⚠️ Главное различение шага. Обычный разрыв — договор двоих, и обе стороны
+    // о нём уже извещены своим `link_revoked`. Надзор заведён под вмешательство
+    // третьего: если бы строку порождал любой разрыв, очередь надзора наполнилась бы
+    // обычной жизнью площадки и перестала бы отвечать на свой вопрос.
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/trainer-club-links/1/revoke')
+      .set('Cookie', providerCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ status: 'revoked' });
+    expect(await oversight('oversight_link_force_revoked')).toEqual([]);
+  });
+
+  it('принудительный разрыв при трёх администраторах даёт ОДНУ строку', async () => {
+    await withThreeAdmins();
+
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/trainer-club-links/1/force-revoke')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const rows = await oversight('oversight_link_force_revoked');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.addresseeKind).toBe('supervision');
+  });
+
+  it('несостоявшийся принудительный разрыв строки не порождает', async () => {
+    // Повторный разрыв отбивается 409 — и надзору сообщать нечего: связь уже
+    // разорвана, второго вмешательства не было.
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/trainer-club-links/1/force-revoke')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    await request(harness.app.getHttpServer())
+      .post('/api/admin/trainer-club-links/1/force-revoke')
+      .set('Cookie', adminCookie)
+      .expect(409);
+
+    expect(await oversight('oversight_link_force_revoked')).toHaveLength(1);
+  });
+
   it('повторный принудительный разрыв — 409', async () => {
     await request(harness.app.getHttpServer())
       .post('/api/admin/trainer-club-links/1/force-revoke')
