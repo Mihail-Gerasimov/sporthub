@@ -378,6 +378,10 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       id: row.id,
       createdAt: toIsoString(row.createdAt),
       userId: row.userId,
+      // Вид адресата попадает в срез как есть: с фазы 37 он назван в самой строке,
+      // и вычислять его заново из колонок значило бы завести второе правило.
+      addresseeKind: row.addresseeKind,
+      readByUserId: row.readByUserId ?? undefined,
       // Колонки лица собираются обратно в пару полей контракта. Обе пусты —
       // полей в срезе нет вовсе: уведомление адресовано человеку.
       addresseeType:

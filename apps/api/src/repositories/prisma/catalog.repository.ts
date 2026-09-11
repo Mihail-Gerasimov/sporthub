@@ -21,6 +21,7 @@ import type { NotificationAddresseeKind } from '@sporthub/domain';
 import type {
   CatalogOwnerType,
   EntityId,
+  NewNotification,
   Notification,
   NotificationType,
   Offering,
@@ -432,29 +433,40 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
   }
 
   private static toNotification(row: NotificationRow): Notification {
-    // ⚠️ Временный мост шага 37.7. Колонка владельца стала необязательной, а контракт
-    // ещё не умеет называть строку без него — union по виду адресата появляется
-    // на шаге 37.11. Надзорных строк на этот момент не пишет никто: отправитель
-    // узнаёт про очередь только на шаге 37.20.
-    //
-    // Поэтому здесь ЯВНЫЙ отказ, а не `?? 0`. Подставленный ноль превратил бы
-    // бесхозную строку в чужую личную — ровно тот класс тихих ошибок, от которого
-    // уходит вся фаза. Отказ виден сразу и снимается вместе с мостом.
-    if (row.userId === null) {
-      throw new Error(
-        'Уведомление без владельца-человека: контракт научится его называть на шаге 37.11',
-      );
-    }
-
-    return omitNulls({
+    const common = {
       id: row.id,
       createdAt: toIsoString(row.createdAt),
-      userId: row.userId,
-      ...PrismaNotificationsRepository.toAddressee(row),
       type: row.type as NotificationType,
       // Колонка объявлена как JSON, значит содержимое приходит уже разобранным.
       payload: (row.payload ?? {}) as Record<string, unknown>,
       readAt: toOptionalIsoString(row.readAt),
+    };
+
+    // ⚠️ Ветвление по виду адресата, а не по наличию владельца (шаг 37.11).
+    // Контракт — размеченный union: у строки очереди надзора поля владельца нет
+    // вовсе, и читатель обязан сузить тип, прежде чем его взять. Проверка
+    // «если владелец пуст» дала бы тот же результат и оставила бы вид адресата
+    // выводимым — ровно то, от чего уходит фаза.
+    if (row.addresseeKind === 'supervision') {
+      return omitNulls({
+        ...common,
+        addresseeKind: 'supervision' as const,
+        readByUserId: row.readByUserId ?? undefined,
+      });
+    }
+
+    if (row.userId === null) {
+      // Форму держит база (`notifications_addressee_shape`), и сюда попасть можно
+      // только если ограничение сняли. Тогда лучше громкий отказ, чем строка
+      // с подставленным нулём, то есть чужая личная.
+      throw new Error(`Уведомление ${row.id} без владельца при виде адресата ${row.addresseeKind}`);
+    }
+
+    return omitNulls({
+      ...common,
+      addresseeKind: row.addresseeKind as 'personal' | CatalogOwnerType,
+      userId: row.userId,
+      ...PrismaNotificationsRepository.toAddressee(row),
     });
   }
 
@@ -484,28 +496,51 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
    * Один строитель на запись и на отбор: разъехавшись, они отдали бы ящик клуба
    * не тому лицу — молча и с кодом 200.
    */
-  private static addresseeColumns(notification: {
-    addresseeType?: CatalogOwnerType;
-    addresseeId?: EntityId;
-  }): {
+  private static addresseeColumns(notification: NewNotification): {
     addresseeKind: NotificationAddresseeKind;
+    userId: number | null;
     addresseeClubId: number | null;
     addresseeTrainerId: number | null;
   } {
-    if (notification.addresseeType === undefined || notification.addresseeId === undefined) {
-      return { addresseeKind: 'personal', addresseeClubId: null, addresseeTrainerId: null };
+    // Очередь надзора: владельца-человека нет, колонок лица нет. Форму держит база
+    // (`notifications_addressee_shape`), здесь она просто не собирается неверно.
+    if (notification.addresseeKind === 'supervision') {
+      return {
+        addresseeKind: 'supervision',
+        userId: null,
+        addresseeClubId: null,
+        addresseeTrainerId: null,
+      };
     }
 
-    return notification.addresseeType === 'club'
+    if (notification.addresseeKind === 'personal') {
+      return {
+        addresseeKind: 'personal',
+        userId: notification.userId,
+        addresseeClubId: null,
+        addresseeTrainerId: null,
+      };
+    }
+
+    // Ящик лица: номер лица обязателен, иначе строка не описывает ящик вовсе.
+    const addresseeId = notification.addresseeId;
+
+    if (addresseeId === undefined) {
+      throw new Error(`Уведомление ящику ${notification.addresseeKind} без номера лица`);
+    }
+
+    return notification.addresseeKind === 'club'
       ? {
           addresseeKind: 'club',
-          addresseeClubId: notification.addresseeId,
+          userId: notification.userId,
+          addresseeClubId: addresseeId,
           addresseeTrainerId: null,
         }
       : {
           addresseeKind: 'trainer',
+          userId: notification.userId,
           addresseeClubId: null,
-          addresseeTrainerId: notification.addresseeId,
+          addresseeTrainerId: addresseeId,
         };
   }
 
@@ -571,10 +606,11 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     });
   }
 
-  async insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {
+  async insert(notification: NewNotification): Promise<Notification> {
     const created = await this.client.notification.create({
       data: {
-        userId: notification.userId,
+        // Владелец и колонки лица собираются ОДНИМ строителем по виду адресата:
+        // разъехавшись, они отдали бы ящик не тому лицу — молча и с кодом 200.
         ...PrismaNotificationsRepository.addresseeColumns(notification),
         type: notification.type,
         payload: (notification.payload ?? {}) as Prisma.InputJsonValue,

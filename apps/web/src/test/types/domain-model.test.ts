@@ -16,6 +16,8 @@ import type {
   ISODateTimeString,
   LogAction,
   Notification,
+  OwnedNotification,
+  SupervisionNotification,
   NotificationType,
   Offering,
   OfferingFormat,
@@ -313,13 +315,29 @@ describe('Domain model contracts', () => {
     >();
   });
 
-  it('Phase 24: Notification описывает in-app уведомление', () => {
+  it('Phase 37: Notification — размеченный union по виду адресата', () => {
+    // ⚠️ Утверждение переписано, а не удалено (шаг 37.11). Прежнее требовало
+    // `userId: EntityId` у КАЖДОГО уведомления — с появлением очереди надзора
+    // это перестало быть правдой: у неё владельца-человека нет и быть не может.
+    //
+    // ⚠️ Этот тест — единственная настоящая страховка на такую правку.
+    // Сверка контрактов её не поймает: в эталоне у всех трёх маршрутов
+    // уведомлений тело пустое, и форма строки им не покрыта вовсе.
     expectTypeOf<Notification>().toMatchTypeOf<{
-      userId: EntityId;
+      addresseeKind: 'personal' | 'club' | 'trainer' | 'supervision';
       type: NotificationType;
       payload: Record<string, unknown>;
       readAt?: ISODateTimeString;
     }>();
+  });
+
+  it('Phase 37: владелец-человек есть у человеческого ящика и отсутствует у надзорного', () => {
+    // Ради этого различения union и заводился: читатель обязан сузить тип
+    // НА СБОРКЕ, прежде чем взять владельца. Необязательное поле переложило бы
+    // ответственность на дисциплину читателя, а цена промаха здесь — «погасить
+    // ленту всей площадки, ответ 200».
+    expectTypeOf<OwnedNotification>().toMatchTypeOf<{ userId: EntityId }>();
+    expectTypeOf<SupervisionNotification>().not.toMatchTypeOf<{ userId: EntityId }>();
   });
 
   it('Phase 24: LogAction расширен значениями FSM/links/reliability', () => {

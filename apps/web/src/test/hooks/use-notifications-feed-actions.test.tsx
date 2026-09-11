@@ -26,6 +26,7 @@ const PERSON_ID = 7;
 const FEED: Notification[] = [
   {
     id: 1,
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'booking_confirmed',
     payload: { subjectType: 'booking', subjectId: 100 },
@@ -33,6 +34,7 @@ const FEED: Notification[] = [
   },
   {
     id: 2,
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'link_requested',
     payload: { subjectType: 'link', subjectId: 200 },
@@ -40,6 +42,7 @@ const FEED: Notification[] = [
   },
   {
     id: 3,
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'booking_completed',
     payload: { subjectType: 'booking', subjectId: 300 },

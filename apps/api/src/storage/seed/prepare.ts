@@ -29,6 +29,7 @@ import {
   addresseeKindFromFace,
   normalizeMatchKey,
 } from '@sporthub/domain';
+import type { NotificationAddresseeKind } from '@sporthub/domain';
 import type { CatalogOwnerType, EntityId } from '@sporthub/types';
 
 import { normalizeSlugLookupValue } from '../../repositories/entities.repository';
@@ -709,25 +710,49 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
   }));
 
   const notifications: Prisma.NotificationCreateManyInput[] = source.notifications.map(
-    (notification) => ({
-      id: notification.id,
-      createdAt: requireTimestamp(notification.createdAt, `уведомление ${notification.id}`),
-      userId: notification.userId,
-      // Вид адресата называется явно: колонка без умолчания, и вывести его
-      // «по пустоте колонок» больше нельзя — с фазы 37 пустые колонки лица
-      // бывают и у надзорной очереди (шаг 37.5).
-      addresseeKind: addresseeKindFromFace(notification.addresseeType),
-      // Адресат-лицо: пара полей контракта раскладывается на две колонки, ровно
-      // как владелец услуги и расписания. Обе пусты — уведомление человеку.
-      addresseeClubId:
-        notification.addresseeType === 'club' ? (notification.addresseeId ?? null) : null,
-      addresseeTrainerId:
-        notification.addresseeType === 'trainer' ? (notification.addresseeId ?? null) : null,
-      type: notification.type,
-      // Форма содержимого зависит от типа, запросов по его внутренностям нет.
-      payload: notification.payload as Prisma.InputJsonValue,
-      readAt: toTimestamp(notification.readAt),
-    }),
+    (notification) => {
+      const common = {
+        id: notification.id,
+        createdAt: requireTimestamp(notification.createdAt, `уведомление ${notification.id}`),
+        type: notification.type,
+        // Форма содержимого зависит от типа, запросов по его внутренностям нет.
+        payload: notification.payload as Prisma.InputJsonValue,
+        readAt: toTimestamp(notification.readAt),
+      };
+
+      // ⚠️ Ветвление по ВИДУ адресата, а не по наличию полей лица (шаг 37.11).
+      // У очереди надзора полей лица тоже нет, и «нет лица — значит личное»
+      // с фазы 37 неверно.
+      if (notification.addresseeKind === 'supervision') {
+        return {
+          ...common,
+          addresseeKind: 'supervision',
+          userId: null,
+          addresseeClubId: null,
+          addresseeTrainerId: null,
+          readByUserId: notification.readByUserId ?? null,
+        };
+      }
+
+      // ⚠️ Вид берётся из среза, но читается через расширение типа. Причина:
+      // тип обещает поле, а JSON на диске, записанный до фазы 37, его не содержит —
+      // и поверить типу здесь означало бы положить `undefined` в колонку без
+      // умолчания. Запасной путь переводит прежнюю форму («тип лица + номер»)
+      // в новую и исчезнет вместе с последним старым файлом среза.
+      const declared = (notification as { addresseeKind?: NotificationAddresseeKind })
+        .addresseeKind;
+      const kind = declared ?? addresseeKindFromFace(notification.addresseeType);
+
+      return {
+        ...common,
+        addresseeKind: kind,
+        userId: notification.userId,
+        // Адресат-лицо: пара полей контракта раскладывается на две колонки, ровно
+        // как владелец услуги и расписания. Обе пусты — уведомление человеку.
+        addresseeClubId: kind === 'club' ? (notification.addresseeId ?? null) : null,
+        addresseeTrainerId: kind === 'trainer' ? (notification.addresseeId ?? null) : null,
+      };
+    },
   );
 
   const logs: Prisma.LogEntryCreateManyInput[] = source.logs.map((entry) => ({

@@ -10,7 +10,7 @@
 // из ответа вставки, а не задаются числом: у базы их выдаёт последовательность,
 // и проверка «идентификатор равен единице» там неверна по построению.
 
-import type { Notification, Offering, TrainerClubLink } from '@sporthub/types';
+import type { NewNotification, Notification, Offering, TrainerClubLink } from '@sporthub/types';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PrismaTransactionRunner } from '../storage/prisma-transaction';
@@ -63,10 +63,13 @@ const baseOffering = {
 } as const satisfies Omit<Offering, 'id' | 'createdAt'>;
 
 const baseNotification = {
+  // Вид адресата называется явно с шага 37.11: контракт стал размеченным union'ом,
+  // и «личная строка» больше не выводится из отсутствия полей лица.
+  addresseeKind: 'personal',
   userId: 1,
   type: 'booking_confirmed',
   payload: {},
-} as const satisfies Omit<Notification, 'id' | 'createdAt'>;
+} as const satisfies NewNotification;
 
 /** Полезная нагрузка уведомления в удобном для сравнения виде. */
 const payloadIndexes = (items: Notification[]): unknown[] =>

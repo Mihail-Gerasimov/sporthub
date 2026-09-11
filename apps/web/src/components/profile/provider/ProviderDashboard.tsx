@@ -219,13 +219,19 @@ export function ProviderDashboard({
     const face = cabinet.face;
 
     if (face === null) {
-      // Личный кабинет: строки без адресата — они и есть личные.
-      return notifications.filter((item) => item.addresseeType === undefined && !item.readAt)
+      // Личный кабинет. ⚠️ Отбор идёт по НАЗВАННОМУ виду адресата (шаг 37.11):
+      // прежнее «нет адресата — значит личное» с появлением очереди надзора стало
+      // неверным, у неё полей лица тоже нет.
+      return notifications.filter((item) => item.addresseeKind === 'personal' && !item.readAt)
         .length;
     }
 
     return notifications.filter(
-      (item) => item.addresseeType === face.kind && item.addresseeId === face.id && !item.readAt,
+      (item) =>
+        item.addresseeKind === face.kind &&
+        'addresseeId' in item &&
+        item.addresseeId === face.id &&
+        !item.readAt,
     ).length;
   }, [notifications, cabinet]);
 

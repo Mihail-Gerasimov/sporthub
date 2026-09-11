@@ -605,15 +605,36 @@ export interface NotificationSubject {
  * bell-icon в Header'е (Step 24.7). Архитектурно готово к SSE/WebSocket — payload
  * сериализуем, type строго типизирован.
  */
-export interface Notification extends BaseEntity {
+interface NotificationBase extends BaseEntity {
   /**
-   * Владелец-человек. Есть всегда — и у уведомления человеку, и у уведомления лицу:
-   * у лица есть владелец, и объединённый ящик «всё моё» читается одним условием
-   * по этому полю, без разбора колонок лица.
-   *
-   * ⚠️ Значение ВЫВОДИМОЕ, а не снимок: при смене владельца лица оно пересчитывается
-   * вместе с ним (фаза 35, решение 5.4).
+   * Вид адресата — НАЗВАННЫЙ (фаза 37). До неё он выводился из пустоты колонок
+   * лица, и с появлением очереди надзора выводиться перестал: у очереди колонок
+   * лица тоже нет.
    */
+  addresseeKind: NotificationAddresseeKindValue;
+  type: NotificationType;
+  payload: Record<string, unknown>;
+  readAt?: ISODateTimeString;
+  /**
+   * Кто разобрал — только у очереди надзора. В человеческом ящике разбирающий
+   * и владелец один человек, и поле пустое: это не пропуск данных, а отсутствие
+   * вопроса.
+   */
+  readByUserId?: EntityId;
+}
+
+/**
+ * Строка человеческого ящика: личного или ящика лица. Владелец-человек есть всегда —
+ * у лица он тоже есть, и объединённый срез «всё моё» читается одним условием
+ * по этому полю, без разбора колонок лица.
+ *
+ * ⚠️ Про «выводимое значение». Прежний комментарий обещал, что `userId`
+ * пересчитывается при смене владельца лица. Пути, который это делал бы,
+ * в проекте нет: владелец ставится один раз при создании строки. Обещание снято,
+ * а не переписано мягче (шаг 37.11).
+ */
+export interface OwnedNotification extends NotificationBase {
+  addresseeKind: 'personal' | CatalogOwnerType;
   userId: EntityId;
   /**
    * Лицо-адресат: вид (`club` / `trainer`) и его номер. Заполнены оба или ни одного.
@@ -624,10 +645,33 @@ export interface Notification extends BaseEntity {
    */
   addresseeType?: CatalogOwnerType;
   addresseeId?: EntityId;
-  type: NotificationType;
-  payload: Record<string, unknown>;
-  readAt?: ISODateTimeString;
 }
+
+/**
+ * Строка очереди надзора: владельца-человека у неё НЕТ и быть не может.
+ *
+ * ⚠️ Почему union, а не `userId?: EntityId`. Необязательное поле перекладывает
+ * ответственность на дисциплину читателя: забыл проверить — получил `undefined`
+ * в рантайме. Здесь читатель обязан сузить тип НА СБОРКЕ, прежде чем взять владельца.
+ */
+export interface SupervisionNotification extends NotificationBase {
+  addresseeKind: 'supervision';
+}
+
+/** In-app уведомление: строка человеческого ящика либо строка очереди надзора. */
+export type Notification = OwnedNotification | SupervisionNotification;
+
+/**
+ * Уведомление до записи — без номера и времени создания.
+ *
+ * ⚠️ Объявлено отдельным типом, а не `Omit<Notification, 'id' | 'createdAt'>`.
+ * `Omit` по union НЕ распределяется: он схлопывает варианты в один объект,
+ * и различение по `addresseeKind` пропадает — вместе с ним пропадает и весь смысл
+ * размеченного union'а. Здесь `Omit` применяется к каждому варианту отдельно.
+ */
+export type NewNotification =
+  | Omit<OwnedNotification, 'id' | 'createdAt'>
+  | Omit<SupervisionNotification, 'id' | 'createdAt'>;
 
 // --- Phase 24: Двусторонняя привязка тренер↔клуб ---
 

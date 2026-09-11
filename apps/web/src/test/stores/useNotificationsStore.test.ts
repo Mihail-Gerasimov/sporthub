@@ -10,6 +10,7 @@ function makeNotification(id: number, readAt?: string): Notification {
   return {
     id,
     createdAt: `2026-05-01T10:0${id}:00.000Z`,
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_confirmed',
     payload: { bookingId: id },

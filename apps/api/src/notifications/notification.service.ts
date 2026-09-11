@@ -79,10 +79,15 @@ export class NotificationService {
   ): Promise<Notification | null> {
     // Ящик лица несёт и лицо, и его владельца: первое решает видимость строки,
     // второе даёт срез «всё моё» и каскад при удалении человека.
+    // ⚠️ Вид адресата называется ЯВНО (шаг 37.11). Выводить его из наличия полей
+    // больше нельзя: у очереди надзора полей лица тоже нет, и «нет лица — значит
+    // личный» с фазы 37 неверно. Тег получателя появится на шаге 37.20 — тогда
+    // отсюда уйдёт и последняя проверка `'userId' in recipient`.
     const addressee =
       'userId' in recipient
-        ? { userId: recipient.userId }
+        ? { addresseeKind: 'personal' as const, userId: recipient.userId }
         : {
+            addresseeKind: recipient.addresseeType,
             userId: recipient.managedByUserId,
             addresseeType: recipient.addresseeType,
             addresseeId: recipient.addresseeId,

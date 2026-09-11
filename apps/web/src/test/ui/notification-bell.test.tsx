@@ -151,6 +151,7 @@ describe('NotificationBell', () => {
         {
           id: 10,
           createdAt: '2026-04-20T12:00:00.000Z',
+          addresseeKind: 'personal' as const,
           userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
           payload: { subjectType: 'booking', subjectId: 501 },
@@ -158,6 +159,7 @@ describe('NotificationBell', () => {
         {
           id: 9,
           createdAt: '2026-04-19T12:00:00.000Z',
+          addresseeKind: 'personal' as const,
           userId: ATHLETE_USER_ID,
           type: 'booking_rejected',
           payload: { subjectType: 'booking', subjectId: 502 },
@@ -233,6 +235,7 @@ describe('NotificationBell', () => {
         {
           id: 42,
           createdAt: '2026-04-22T12:00:00.000Z',
+          addresseeKind: 'personal' as const,
           userId: ATHLETE_USER_ID,
           type: 'booking_confirmed',
           payload: { subjectType: 'booking', subjectId: 777 },

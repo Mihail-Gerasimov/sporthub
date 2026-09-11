@@ -19,6 +19,7 @@ const seed: Notification[] = [
   {
     id: 1,
     createdAt: '2026-04-20T12:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_confirmed',
     payload: { subjectType: 'booking', subjectId: 501 },
@@ -26,6 +27,7 @@ const seed: Notification[] = [
   {
     id: 2,
     createdAt: '2026-04-19T08:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_rejected',
     payload: { bookingId: 502, reason: 'Слот отменён' },

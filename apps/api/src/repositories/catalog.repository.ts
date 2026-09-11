@@ -7,6 +7,7 @@
 
 import type {
   CatalogOwnerType,
+  NewNotification,
   Notification,
   Offering,
   TrainerClubLink,
@@ -105,7 +106,7 @@ export type NotificationsScope = Pick<NotificationsFilter, 'mailbox'> & { userId
 export interface NotificationsRepository {
   findMany(filter: NotificationsFilter): Promise<Notification[]>;
   count(filter: NotificationsCountFilter): Promise<number>;
-  insert(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification>;
+  insert(notification: NewNotification): Promise<Notification>;
   markRead(id: number): Promise<Notification>;
   /**
    * Пометить прочитанными весь ящик разом.

@@ -37,6 +37,7 @@ const fixtures: Notification[] = [
   {
     id: 1,
     createdAt: '2026-04-22T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_requested',
     payload: { subjectType: 'booking', subjectId: 501 },
@@ -44,6 +45,7 @@ const fixtures: Notification[] = [
   {
     id: 2,
     createdAt: '2026-04-22T09:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'link_requested',
     payload: { subjectType: 'link', subjectId: 10 },
@@ -52,6 +54,7 @@ const fixtures: Notification[] = [
   {
     id: 3,
     createdAt: '2026-04-21T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_cancelled_by_athlete_to_provider',
     payload: { subjectType: 'booking', subjectId: 502 },
@@ -61,6 +64,7 @@ const fixtures: Notification[] = [
   {
     id: 4,
     createdAt: '2026-04-20T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_auto_expired_to_provider',
     payload: { subjectType: 'booking', subjectId: 503 },
@@ -69,6 +73,7 @@ const fixtures: Notification[] = [
   {
     id: 5,
     createdAt: '2026-03-15T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'link_revoked',
     payload: { subjectType: 'link', subjectId: 11 },
@@ -81,6 +86,7 @@ const athleteFixtures: Notification[] = [
   {
     id: 10,
     createdAt: '2026-04-22T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'booking_confirmed',
     payload: { subjectType: 'booking', subjectId: 701 },
@@ -88,6 +94,7 @@ const athleteFixtures: Notification[] = [
   {
     id: 11,
     createdAt: '2026-04-22T09:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: 1,
     type: 'review_published_for_athlete',
     payload: { reviewId: 801 },
@@ -215,6 +222,7 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
           ...fixtures,
           {
             id: 9001,
+            addresseeKind: 'personal' as const,
             userId: 1,
             type: 'publication_recheck_requested',
             payload: { publicationName: 'Клуб' },

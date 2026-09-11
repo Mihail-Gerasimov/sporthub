@@ -53,6 +53,7 @@ const MIXED_FEED: Notification[] = [
   {
     id: 1,
     createdAt: '2026-04-22T10:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'booking_requested',
     payload: { subjectType: 'booking', subjectId: 501 },
@@ -60,6 +61,7 @@ const MIXED_FEED: Notification[] = [
   {
     id: 2,
     createdAt: '2026-04-22T09:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'link_requested',
     payload: { subjectType: 'link', subjectId: 10 },
@@ -67,6 +69,7 @@ const MIXED_FEED: Notification[] = [
   {
     id: 3,
     createdAt: '2026-04-21T18:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'booking_confirmed',
     payload: { subjectType: 'booking', subjectId: 777 },
@@ -74,6 +77,7 @@ const MIXED_FEED: Notification[] = [
   {
     id: 4,
     createdAt: '2026-04-20T12:00:00.000Z',
+    addresseeKind: 'personal' as const,
     userId: PERSON_ID,
     type: 'review_published_for_athlete',
     payload: { entityName: 'Volna Aquatic Club' },
