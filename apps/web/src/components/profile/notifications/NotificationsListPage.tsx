@@ -51,6 +51,8 @@
  */
 'use client';
 
+import { NOTIFICATIONS_PAGE_SIZE } from '@/lib/notification-pagination';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -83,7 +85,10 @@ import type { Notification } from '@sporthub/types';
  * нельзя — иначе первая страница показывала бы не столько строк, сколько все
  * следующие, и «показано 1–100 из 150» сменялось бы «21–40» при первом же клике.
  */
-export const NOTIFICATIONS_PAGE_SIZE = 20;
+// Размер страницы объявлен в `lib/notification-pagination.ts` — он нужен и серверным
+// страницам кабинета, а импорт значения из модуля с `'use client'` через границу
+// отдаёт заглушку вместо числа (шаг 37.61). Реэкспорт — для прежних импортов.
+export { NOTIFICATIONS_PAGE_SIZE };
 
 /** Максимум видимых номеров страниц — пагинатор не разбухает на длинной истории. */
 const MAX_VISIBLE_PAGE_BUTTONS = 5;

@@ -15,10 +15,8 @@
 import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
 import { requireFaceCabinetParams, type FaceCabinetParams } from '@/lib/face-cabinet-params';
-import {
-  NOTIFICATIONS_PAGE_SIZE,
-  NotificationsListPage,
-} from '@/components/profile/notifications/NotificationsListPage';
+import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
+import { NOTIFICATIONS_PAGE_SIZE } from '@/lib/notification-pagination';
 
 export const dynamic = 'force-dynamic';
 

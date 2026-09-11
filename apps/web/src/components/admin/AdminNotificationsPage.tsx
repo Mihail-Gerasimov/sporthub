@@ -29,6 +29,8 @@
  */
 'use client';
 
+import { SUPERVISION_PAGE_SIZE } from '@/lib/notification-pagination';
+
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -60,7 +62,10 @@ import type { Notification } from '@sporthub/types';
  * страницу, браузер листает остальные, и разъехаться этим двум числам нельзя —
  * иначе первая страница показывала бы не столько строк, сколько все следующие.
  */
-export const SUPERVISION_PAGE_SIZE = 15;
+// Размер страницы объявлен в `lib/notification-pagination.ts` — он нужен и серверной
+// странице, а импорт значения из модуля с `'use client'` через границу отдаёт заглушку
+// вместо числа (шаг 37.61). Реэкспорт оставлен для прежних импортов.
+export { SUPERVISION_PAGE_SIZE };
 
 /** Максимум видимых номеров страниц — как в «Логах»: пагинатор не разбухает. */
 const MAX_VISIBLE_PAGE_BUTTONS = 5;

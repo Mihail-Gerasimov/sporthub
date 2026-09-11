@@ -15,12 +15,10 @@
  * что открывается на неразобранном; разобранное никуда не девается и доступно
  * переключателем состояния.
  */
-import {
-  AdminNotificationsPage,
-  SUPERVISION_PAGE_SIZE,
-} from '@/components/admin/AdminNotificationsPage';
+import { AdminNotificationsPage } from '@/components/admin/AdminNotificationsPage';
 import { SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';
 import { getNotifications } from '@/lib/server-api';
+import { SUPERVISION_PAGE_SIZE } from '@/lib/notification-pagination';
 
 export const dynamic = 'force-dynamic';
 

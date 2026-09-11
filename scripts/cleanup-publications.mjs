@@ -218,7 +218,12 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
  * а не владелец.
  */
 export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
-  void schema;
+  // ⚠️ Имя таблицы со схемой обязано приехать в `qualified` — по нему собирается
+  // `DELETE FROM`. Первая редакция шага 37.56 этого не делала, и уборка падала
+  // на `DELETE FROM undefined`, обрывая цикл ДО уборки людей: любой прогон копил
+  // мусор. Нашёл браузерный прогон, а не набор: планы проверялись по тексту `where`,
+  // и отсутствие второго поля в них не читалось.
+  const at = (table) => (schema ? `"${schema}"."${table}"` : table);
   const users = intArray(userIds);
   const usersText = textArray(userIds);
 
@@ -236,7 +241,7 @@ export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
       ].join('\n        OR '),
     },
     { label: 'logs', table: 'logs', where: `actor_id = ANY(${users})` },
-  ];
+  ].map((entry) => ({ ...entry, qualified: at(entry.table) }));
 }
 
 /**
