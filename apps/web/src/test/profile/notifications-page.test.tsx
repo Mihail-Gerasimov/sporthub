@@ -12,6 +12,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
+import type { NotificationsFeedPage } from '@/lib/server-api';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import type { Notification } from '@sporthub/types';
 
@@ -35,6 +36,21 @@ const seed: Notification[] = [
   },
 ];
 
+/**
+ * Ответ маршрута конвертом: строки плюс счётчики.
+ *
+ * ⚠️ Шаг 37.59. Компонент принимает КОНВЕРТ, а не голый массив: без `total`
+ * постраничность строить не из чего, а `unreadCount`, посчитанный по выданной
+ * странице, — это исправленный дефект «счёт в памяти поверх обрезанной ленты».
+ */
+function feedOf(items: Notification[]): NotificationsFeedPage {
+  return {
+    items,
+    total: items.length,
+    unreadCount: items.filter((item) => item.readAt === undefined).length,
+  };
+}
+
 describe('NotificationsListPage', () => {
   const fetchMock = vi.fn();
 
@@ -53,7 +69,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('рендерит плоский список уведомлений с заголовками и описаниями', () => {
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf(seed)} userId={1} />);
 
     expect(screen.getByText('Бронирование подтверждено')).toBeInTheDocument();
     expect(screen.getByText('Бронирование отклонено')).toBeInTheDocument();
@@ -61,7 +77,7 @@ describe('NotificationsListPage', () => {
   });
 
   it('для пустого списка показывает «Пока нет уведомлений»', () => {
-    render(<NotificationsListPage notifications={[]} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf([])} userId={1} />);
 
     expect(screen.getByText(/пока нет уведомлений/i)).toBeInTheDocument();
   });
@@ -77,7 +93,7 @@ describe('NotificationsListPage', () => {
       ),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf(seed)} userId={1} />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 
@@ -113,7 +129,7 @@ describe('NotificationsListPage', () => {
       }),
     );
 
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf(seed)} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notification-item-1'));
 
@@ -128,14 +144,28 @@ describe('NotificationsListPage', () => {
   });
 
   it('«Отметить всё как прочитанное» шлёт POST read-all и сбрасывает индикаторы', async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: { updatedCount: 1 } }), {
+    // ⚠️ Шаг 37.59. Заглушка стала различать адреса: после «отметить всё» лента
+    // СПРАШИВАЕТСЯ ЗАНОВО. Без перезапроса подпись «показано 1–2 из 2» и число
+    // непрочитанных продолжали бы показывать состояние до нажатия — ровно та
+    // форма дефекта, что ловится этой фазой: число, взятое не оттуда, где оно
+    // изменилось.
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const payload = url.startsWith('/api/notifications?')
+        ? {
+            items: seed.map((item) => ({ ...item, readAt: '2026-04-21T00:00:00.000Z' })),
+            total: 2,
+            unreadCount: 0,
+          }
+        : { updatedCount: 1 };
+
+      return new Response(JSON.stringify({ success: true, data: payload }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      }),
-    );
+      });
+    });
 
-    render(<NotificationsListPage notifications={seed} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf(seed)} userId={1} />);
 
     expect(screen.getByTestId('notification-item-unread-1')).toBeInTheDocument();
 

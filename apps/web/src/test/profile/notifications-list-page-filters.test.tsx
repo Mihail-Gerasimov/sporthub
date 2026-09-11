@@ -1,17 +1,36 @@
-// Phase 26 Step 26.2: тесты фильтров групп и группировки по датам в
-// NotificationsListPage. Проверяет 4 tab'а групп со счётчиками, фильтрацию
-// по выбранной группе, toggle «Только непрочитанные» и рендер date-buckets
-// (Сегодня / Вчера / Эта неделя / Раньше).
-import { fireEvent, render, screen } from '@testing-library/react';
+// Вкладки тем, тоггл непрочитанных и вёдра по дате в ленте кабинета.
+//
+// ⚠️ Шаг 37.59 переписал половину утверждений этого файла, и вот почему прежние
+// больше не верны.
+//
+// Набор писался под ленту, которая получала массив строк пропом и отбирала его
+// В ПАМЯТИ: «нажали вкладку — на экране остались только booking-строки». Пока
+// фикстура короткая, такой тест зелен при обоих способах отбора, и именно поэтому
+// дефект дожил до фазы 37: массив приходил страницей с потолком в сто строк,
+// постраничности не было вовсе, и у человека с большой историей вкладка темы
+// показывала не всё, что в этой теме есть, а только то, что попало в первую сотню.
+// Числа на вкладках врали ровно так же.
+//
+// Теперь отбирает база. Проверять «что осталось на экране» стало бессмысленно:
+// на экране ровно то, что прислал сервер, и утверждение про отрисовку зеленело бы
+// и в том случае, если бы отбор вернулся в память. Поэтому здесь проверяется
+// АДРЕС ЗАПРОСА и то, что ответ сервера доезжает до экрана нетронутым.
+//
+// Что осталось прежним: вёдра по дате (это не отбор — ни одна строка не теряется)
+// и правило «вкладки — это темы, а не роли».
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/profile/athlete/notifications',
+  usePathname: () => '/profile/me/notifications',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
+import { PERSONAL_MAILBOX } from '@/lib/notification-mailbox';
+import type { NotificationsFeedPage } from '@/lib/server-api';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import type { Notification } from '@sporthub/types';
 
 // ⚠️ Фаза 35: типов кабинета больше нет, и лента их не спрашивает — видимость
@@ -80,99 +99,175 @@ const fixtures: Notification[] = [
   },
 ];
 
-// Athlete-фикстуры для теста, проверяющего фильтр группы «Отзывы» в athlete-виде:
-// атлету приходит подтверждение публикации собственного отзыва.
-const athleteFixtures: Notification[] = [
-  {
-    id: 10,
-    createdAt: '2026-04-22T10:00:00.000Z',
-    addresseeKind: 'personal' as const,
-    userId: 1,
-    type: 'booking_confirmed',
-    payload: { subjectType: 'booking', subjectId: 701 },
-  },
-  {
-    id: 11,
-    createdAt: '2026-04-22T09:00:00.000Z',
-    addresseeKind: 'personal' as const,
-    userId: 1,
-    type: 'review_published_for_athlete',
-    payload: { reviewId: 801 },
-  },
-];
+/** Конверт ответа маршрута: строки плюс счётчики, которые считает сервер. */
+function feedOf(items: Notification[]): NotificationsFeedPage {
+  return {
+    items,
+    total: items.length,
+    unreadCount: items.filter((item) => item.readAt === undefined).length,
+  };
+}
 
-describe('NotificationsListPage фильтры и группы (Step 26.2)', () => {
+/** Адреса, которые лента запросила у сервера. */
+function askedUrls(mock: ReturnType<typeof vi.fn>): string[] {
+  return mock.mock.calls.map((call) => String(call[0]));
+}
+
+describe('Лента кабинета: вкладки тем, непрочитанные и вёдра по дате', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
-    // По умолчанию — provider (4 из 6 тестов). Athlete-тесты переопределят ниже.
+    useNotificationsStore.getState().reset();
     authenticateAs();
+
+    fetchMock.mockReset();
+    // По умолчанию сервер отвечает пустой страницей: тесты, которым важен ответ,
+    // переопределяют заглушку сами.
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ success: true, data: feedOf([]) }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
   });
 
-  it('рендерит табы групп со счётчиками по NOTIFICATION_TYPE_GROUP', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+  it('рисует вкладки тем БЕЗ чисел на них', () => {
+    // ⚠️ Прежде здесь проверялись счётчики: «Записи 3», «Связи 2», «Отзывы 0».
+    // Утверждение снято вместе с самими числами. Считать их браузеру не по чему:
+    // у него страница, а не ящик, и число по странице — это ровно исправляемый
+    // дефект. Сервер по темам сразу тоже не считает: `unreadCount` его ответа
+    // сужается ВЫБРАННОЙ темой, а маршрута «сколько в каждой» нет. Выбор был
+    // между числом с сервера, числом из памяти и отсутствием числа — первого нет,
+    // второе лжёт. У очереди надзора чисел на вкладках нет по той же причине.
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
-    // 3 booking (id=1, 3, 4) + 2 link (id=2, 5) + 0 отзывов = 5 total у провайдера
-    expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent(/Все/);
-    expect(screen.getByTestId('notifications-filter-group-all')).toHaveTextContent('5');
-    expect(screen.getByTestId('notifications-filter-group-booking')).toHaveTextContent(/Записи/);
-    expect(screen.getByTestId('notifications-filter-group-booking')).toHaveTextContent('3');
-    expect(screen.getByTestId('notifications-filter-group-links')).toHaveTextContent(/Связи/);
-    expect(screen.getByTestId('notifications-filter-group-links')).toHaveTextContent('2');
-    expect(screen.getByTestId('notifications-filter-group-reviews')).toHaveTextContent(/Отзывы/);
-    expect(screen.getByTestId('notifications-filter-group-reviews')).toHaveTextContent('0');
+    const bookingTab = screen.getByTestId('notifications-filter-group-booking');
+
+    expect(bookingTab).toHaveTextContent(/Записи/);
+    expect(bookingTab.textContent).not.toMatch(/\d/);
+    expect(screen.getByTestId('notifications-filter-group-all').textContent).not.toMatch(/\d/);
   });
 
-  it('выбор booking-фильтра оставляет только booking-уведомления', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+  it('вместо чисел на вкладках показывает числа СЕРВЕРА', () => {
+    // Непрочитанные и «показано X из N» приходят из конверта ответа. Это и есть
+    // замена вкладочным счётчикам: цифры остались, но за них отвечает тот,
+    // у кого есть все строки.
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
+
+    expect(screen.getByTestId('notifications-unread-count')).toHaveTextContent('4');
+    expect(screen.getByTestId('notifications-page-range')).toHaveTextContent('Показано 1–5 из 5');
+  });
+
+  it('смена вкладки меняет АДРЕС запроса, а не фильтрует выданное', async () => {
+    // ⚠️ Главная переписанная проверка. Прежде утверждалось «на экране остались
+    // только booking-строки» — и это зеленело при обоих способах отбора. Теперь
+    // проверяется то, что различает способы: куда ушёл вопрос.
+    render(
+      <NotificationsListPage
+        initialFeed={feedOf(fixtures)}
+        userId={1}
+        mailbox={PERSONAL_MAILBOX}
+      />,
+    );
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-booking'));
 
-    expect(screen.getByTestId('notification-item-1')).toBeInTheDocument();
-    expect(screen.getByTestId('notification-item-3')).toBeInTheDocument();
-    expect(screen.getByTestId('notification-item-4')).toBeInTheDocument();
-    expect(screen.queryByTestId('notification-item-2')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('notification-item-5')).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const url = askedUrls(fetchMock)[0];
+
+    expect(url).toContain('group=booking');
+    expect(url).toContain('scope=personal');
+    expect(url).toContain('limit=20');
+    expect(url).toContain('offset=0');
   });
 
-  // Phase 27 Step 27.3: подтверждение публикации отзыва приходит только атлету,
-  // поэтому фильтр группы «Отзывы» проверяем в athlete-виде с локальными fixtures.
-  it('выбор фильтра «Отзывы» оставляет только отзывное уведомление (athlete)', async () => {
-    authenticateAs();
+  it('на монтировании лента не ходит второй раз за той же страницей', async () => {
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
-    render(<NotificationsListPage notifications={athleteFixtures} userId={1} />);
+    await waitFor(() => expect(screen.getByTestId('notification-item-1')).toBeInTheDocument());
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('«Все» снимают отбор из адреса, а не добавляют условие', async () => {
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notifications-filter-group-reviews'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(askedUrls(fetchMock)[0]).toContain('group=reviews');
 
-    expect(screen.getByTestId('notification-item-11')).toBeInTheDocument();
-    expect(screen.queryByTestId('notification-item-10')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('notifications-filter-group-all'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(askedUrls(fetchMock)[1]).not.toContain('group=');
   });
 
-  it('тоггл «Только непрочитанные» скрывает прочитанные', async () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+  it('на экране оказывается ровно то, что прислал сервер', async () => {
+    // Вторая половина того же утверждения: браузер не досматривает ответ.
+    // Сервер прислал строку темы «Связи» в ответ на вопрос про «Записи» —
+    // она видна: спорить с сервером о принадлежности строки браузеру нечем.
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ success: true, data: feedOf([fixtures[1]]) }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
 
-    // По умолчанию id=3 (прочитанное) виден
-    expect(screen.getByTestId('notification-item-3')).toBeInTheDocument();
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
+
+    fireEvent.click(screen.getByTestId('notifications-filter-group-booking'));
+
+    expect(await screen.findByTestId('notification-item-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('notification-item-1')).not.toBeInTheDocument();
+  });
+
+  it('тоггл «Только непрочитанные» тоже уходит В ЗАПРОС', async () => {
+    // Прежде тоггл прятал прочитанные строки в памяти. Причина замены та же:
+    // прятать можно только то, что уже выдано, а выдана одна страница.
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
     fireEvent.click(screen.getByTestId('notifications-toggle-unread'));
 
-    // После включения тоггла — прочитанное id=3 исчезло, непрочитанное id=1 осталось
-    expect(screen.queryByTestId('notification-item-3')).not.toBeInTheDocument();
-    expect(screen.getByTestId('notification-item-1')).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(askedUrls(fetchMock)[0]).toContain('unreadOnly=true');
+
+    fireEvent.click(screen.getByTestId('notifications-toggle-unread'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(askedUrls(fetchMock)[1]).not.toContain('unreadOnly');
+  });
+
+  it('тема и состояние спрашиваются вместе, а не по очереди', async () => {
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
+
+    fireEvent.click(screen.getByTestId('notifications-filter-group-links'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('notifications-toggle-unread'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    // Второй запрос обязан помнить и тему: отбор — одно условие, а не два экрана.
+    const url = askedUrls(fetchMock)[1];
+
+    expect(url).toContain('group=links');
+    expect(url).toContain('unreadOnly=true');
   });
 
   // ⚠️ Шаг 35.28a. Прежде вкладка «Связи» пряталась у атлета: у роли атлета связей
   // не бывало. Ролей нет — у человека с клубом связи есть, — и вкладка обязана быть:
   // иначе её строки видно в «Все» и невозможно отфильтровать.
   it('вкладки — темы, а не роли: видны все три', () => {
-    authenticateAs();
-
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
     expect(screen.getByTestId('notifications-filter-group-all')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
@@ -181,7 +276,9 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
   });
 
   it('рендерит date-buckets (today / yesterday / thisWeek / earlier) и распределяет уведомления', () => {
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    // Вёдра остались прежними и проверяются прежним утверждением: это НЕ отбор,
+    // ни одна строка выданной страницы здесь не теряется — только раскладывается.
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
     const today = screen.getByTestId('notifications-bucket-today');
     const yesterday = screen.getByTestId('notifications-bucket-yesterday');
@@ -199,26 +296,47 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
     expect(earlier).toContainElement(screen.getByTestId('notification-item-5'));
   });
 
-  it('надзорная вкладка не показывается, пока нет её строк', () => {
-    // ⚠️ Шаг 36.21 добавил четвёртую группу, и её единственный тип адресован
-    // АДМИНИСТРАТОРУ. На этой странице администратора не бывает — она закрыта
-    // `requirePerson()`, — и вкладка получалась вечно пустой у всех.
+  it('надзорных вкладок в человеческой ленте нет вовсе', () => {
+    // ⚠️ Переписано на новое обещание. Прежде вкладка надзора показывалась
+    // «по данным» — появлялась, если в выданном массиве была хоть одна надзорная
+    // строка, — и это утверждение проверялось с обеих сторон.
     //
-    // Прятать её насовсем нельзя: строка, если она сюда попадёт, была бы видна
-    // в «Все» и неотфильтровываема. Поэтому решают ДАННЫЕ, а не формула.
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
+    // С переходом отбора в запрос приём перестал работать по построению: страница
+    // видит ОДНУ СТРАНИЦУ, и «нет строк на ней» не означает «нет строк в ящике».
+    // Значит вкладка то появлялась бы, то исчезала при листании — хуже, чем
+    // не появляться вовсе.
+    render(<NotificationsListPage initialFeed={feedOf(fixtures)} userId={1} />);
 
-    expect(screen.queryByTestId('notifications-filter-group-moderation')).not.toBeInTheDocument();
-    // Прочие вкладки на месте: правило сузило ровно одну.
+    expect(
+      screen.queryByTestId('notifications-filter-group-oversight_catalog'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('notifications-filter-group-oversight_admin'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('notifications-filter-group-oversight_security'),
+    ).not.toBeInTheDocument();
+    // Человеческие вкладки на месте: правило сузило ровно надзорные.
     expect(screen.getByTestId('notifications-filter-group-booking')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-links')).toBeInTheDocument();
     expect(screen.getByTestId('notifications-filter-group-reviews')).toBeInTheDocument();
   });
 
-  it('появилась надзорная строка — появилась и вкладка', () => {
+  it('надзорная строка, если она сюда попадёт, ВИДНА — просто без своей вкладки', () => {
+    // ⚠️ Замена прежнего «появилась надзорная строка — появилась и вкладка».
+    // Довод, которым та вкладка держалась, был: «спрятать формулой нельзя, иначе
+    // строка видна в «Все» и неотфильтровываема». Он остаётся в силе наполовину:
+    // строка обязана быть ВИДНА, и она видна — отбора в памяти здесь больше нет,
+    // лента показывает ровно то, что прислал сервер. Недоступно только сужение
+    // по её теме, и это дешевле вкладки, пустой у всех и всегда.
+    //
+    // В норме такой строки не бывает: надзорная адресована очереди надзора,
+    // владельца-человека у неё нет вовсе (`addressee_kind = 'supervision'`,
+    // `user_id` пуст), а человеческий ящик отбирается по `userId`. Здесь она
+    // подложена нарочно.
     render(
       <NotificationsListPage
-        notifications={[
+        initialFeed={feedOf([
           ...fixtures,
           {
             id: 9001,
@@ -228,28 +346,14 @@ describe('NotificationsListPage фильтры и группы (Step 26.2)', () 
             payload: { publicationName: 'Клуб' },
             createdAt: '2026-04-22T11:00:00.000Z',
           },
-        ]}
+        ])}
         userId={1}
       />,
     );
 
-    // ⚠️ Тема переименована на шаге 37.21: `moderation` содержала ровно один тип,
-    // адресованный администратору, и рисовалась человеку ПУСТОЙ. Теперь надзорные
-    // темы отделены, и эта вкладка появляется только по данным — то есть в норме
-    // никогда, а здесь только потому, что строка подложена нарочно.
-    expect(screen.getByTestId('notifications-filter-group-oversight_catalog')).toBeInTheDocument();
-  });
-
-  it('надзорной вкладки нет, пока нет надзорной строки', () => {
-    // Обратная сторона. Без неё «вкладка появляется по данным» было бы зелено
-    // и тогда, когда она просто есть всегда.
-    render(<NotificationsListPage notifications={fixtures} userId={1} />);
-
+    expect(screen.getByTestId('notification-item-9001')).toBeInTheDocument();
     expect(
       screen.queryByTestId('notifications-filter-group-oversight_catalog'),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId('notifications-filter-group-oversight_admin'),
     ).not.toBeInTheDocument();
   });
 });

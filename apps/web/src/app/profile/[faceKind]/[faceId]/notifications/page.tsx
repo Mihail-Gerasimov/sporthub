@@ -15,7 +15,10 @@
 import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
 import { requireFaceCabinetParams, type FaceCabinetParams } from '@/lib/face-cabinet-params';
-import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
+import {
+  NOTIFICATIONS_PAGE_SIZE,
+  NotificationsListPage,
+} from '@/components/profile/notifications/NotificationsListPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,17 +31,24 @@ export default async function FaceNotificationsRoute({
   const userId = (await readSession())?.id ?? null;
 
   // `applyPreferences` оставлен: страница уважает выключенные типы, как и колокольчик.
-  // ⚠️ Шаг 37.42. Лента отвечает конвертом: строки плюс `total` и `unreadCount`.
-  // Кабинету нужны строки — счётчики отбрасывает он сам, а не общий читатель.
+  // ⚠️ Шаг 37.59. Конверт уходит в компонент целиком: счётчики считает тот, у кого
+  // есть все строки, — сервер. Отбор по теме и по непрочитанному теперь тоже его
+  // работа, а браузер листает страницы тем же `limit`, что назван здесь.
   const feed =
     userId !== null
-      ? await getNotifications({ userId, applyPreferences: true, mailbox: face })
+      ? await getNotifications({
+          userId,
+          applyPreferences: true,
+          mailbox: face,
+          offset: 0,
+          limit: NOTIFICATIONS_PAGE_SIZE,
+        })
       : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <NotificationsListPage
-        notifications={feed?.items ?? []}
+        initialFeed={feed ?? { items: [], total: 0, unreadCount: 0 }}
         userId={userId ?? undefined}
         mailbox={face}
       />
