@@ -673,8 +673,18 @@ describe('Общая опись уборки — одна на всех (36.36)'
   const fixtureSource = readFileSync(path.join(REPO_ROOT, 'scripts', 'e2e-fixture.mjs'), 'utf8');
 
   it('фикстура прогона берёт каскад из общей описи', () => {
+    // ⚠️ Шаг 37.56: планов уборки стало несколько, и фикстура зовёт РЕЕСТР,
+    // а не один план. Прежде она отбирала уведомления сама, строкой
+    // `user_id IN (…)`, — и надзорные строки, у которых владельца нет,
+    // не попадали под неё никогда: `IN` с `NULL` не совпадает.
     expect(fixtureSource).toContain("from './cleanup-publications.mjs'");
-    expect(fixtureSource).toContain('publicationCleanupPlan');
+    expect(fixtureSource).toContain('cleanupPlans');
+  });
+
+  it('своего отбора уведомлений у фикстуры не осталось', () => {
+    // Та самая копия: пока она была, ключом уборки у фикстуры оставался ВЛАДЕЛЕЦ,
+    // а у общей описи — ПРЕДМЕТ, и они расходились на каждом новом виде адресата.
+    expect(fixtureSource).not.toContain('DELETE FROM notifications');
   });
 
   it.each([
