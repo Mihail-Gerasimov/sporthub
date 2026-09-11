@@ -49,9 +49,15 @@ export const INDEX_PREDICATES = {
   // Личный ящик человека — это отсутствие лица, а не «моё вообще». Условие
   // на NULL обычным индексом по user_id не выражается: он отдаст все строки
   // владельца восемнадцати клубов, и лицо отсеется уже после чтения.
-  notifications_personal_idx: 'addressee_club_id IS NULL AND addressee_trainer_id IS NULL',
-  notifications_personal_unread_idx:
-    'addressee_club_id IS NULL AND addressee_trainer_id IS NULL AND read_at IS NULL',
+  //
+  // ⚠️ Шаг 37.9: предикат перешёл с «обе колонки лица пусты» на НАЗВАННЫЙ вид
+  // адресата. Прежняя формулировка описывала личный ящик косвенно, и с появлением
+  // очереди надзора (у неё колонок лица тоже нет) перестала его описывать: надзорные
+  // строки попадали бы в индекс личного ящика — не в ответ, но в индекс, то есть
+  // в его размер. Главное же в другом: условие репозитория и предикат индекса
+  // теперь буквально одно слово, и разъехаться им негде.
+  notifications_personal_idx: "addressee_kind = 'personal'",
+  notifications_personal_unread_idx: "addressee_kind = 'personal' AND read_at IS NULL",
   sessions_active_idx: 'revoked_at IS NULL',
   // Раздел модерации: «что исправили и ждёт повторной проверки» (шаг 36.22).
   // Строк с признаком — единицы, публикаций — тысячи, поэтому индекс частичный,

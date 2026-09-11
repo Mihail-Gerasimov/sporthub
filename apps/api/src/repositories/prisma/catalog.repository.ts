@@ -515,15 +515,21 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
    * Личный ящик — это ОТСУТСТВИЕ лица, а не «моё вообще»: под него заведён
    * отдельный частичный индекс, потому что у владельца восемнадцати клубов
    * его номер стоит почти в каждой строке.
+   *
+   * ⚠️ Шаг 37.9: отбор идёт по НАЗВАННОМУ виду адресата, а не по пустоте колонок.
+   * Прежняя формулировка («обе колонки лица пусты») описывала личный ящик косвенно
+   * и с появлением очереди надзора описывать его перестала: у очереди колонок лица
+   * тоже нет. Разойтись с предикатом частичного индекса теперь негде — там записано
+   * то же самое слово.
    */
   private static mailboxWhere(mailbox: NotificationMailbox): Prisma.NotificationWhereInput {
     if (mailbox.kind === 'personal') {
-      return { addresseeClubId: null, addresseeTrainerId: null };
+      return { addresseeKind: 'personal' };
     }
 
     return mailbox.kind === 'club'
-      ? { addresseeClubId: mailbox.id }
-      : { addresseeTrainerId: mailbox.id };
+      ? { addresseeKind: 'club', addresseeClubId: mailbox.id }
+      : { addresseeKind: 'trainer', addresseeTrainerId: mailbox.id };
   }
 
   /**
