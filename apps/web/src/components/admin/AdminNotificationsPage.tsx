@@ -32,6 +32,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { OVERSIGHT_GROUP_KEYS, NOTIFICATION_TYPE_GROUP } from '@sporthub/domain';
+import { Modal } from '@/components/ui/Modal';
+import { useNotificationsFeedActions } from '@/hooks/useNotificationsFeedActions';
 import {
   BUCKET_LABELS,
   BUCKET_ORDER,
@@ -44,6 +46,7 @@ import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/n
 import { mailboxParams, SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';
 import type { NotificationsFeedPage } from '@/lib/server-api';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
@@ -152,6 +155,35 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
 
   const addToast = useToastStore((state) => state.addToast);
+  // Кто разбирает — это я: подпись «занялся» ставится по вошедшему.
+  const sessionUserId = useAuthStore((state) => state.user?.id);
+
+  // ⚠️ Мутации — общим хуком, а не своей копией. Копия отката — худший вид копии:
+  // её расхождение видно только в момент ОТКАЗА сервера, то есть на экране
+  // у человека и никогда в зелёном прогоне.
+  //
+  // `markReadOnOpen: false` — разбор здесь ОТДЕЛЬНОЕ действие. В ленте кабинета
+  // клик по строке и уводит, и гасит; в общей очереди это значило бы «пошёл
+  // посмотреть — объявил разобранным всей команде».
+  const {
+    pendingId,
+    markingAll,
+    deleting,
+    confirmIds,
+    markSingleRead,
+    markAllRead,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+  } = useNotificationsFeedActions({
+    mailbox: SUPERVISION_MAILBOX,
+    markReadOnOpen: false,
+  });
+
+  // Подтверждение на «отметить всё». Строк это действие гасит не одну и не свои.
+  const [confirmingMarkAll, setConfirmingMarkAll] = useState(false);
+  // Возврат строки в очередь: чей запрос сейчас в пути.
+  const [returningId, setReturningId] = useState<number | null>(null);
 
   // Страница, которую показываем: серверный посев либо последний ответ браузера.
   const [fetched, setFetched] = useState<NotificationsFeedPage | null>(null);
@@ -234,6 +266,84 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
     void load();
   }, [load]);
 
+  /**
+   * Разобрать одну строку.
+   *
+   * ⚠️ После удачи строка НЕ исчезает и не перезапрашивается. Перезапрос при
+   * отборе «не разобрано» убрал бы её с экрана в тот же миг — а требование
+   * обратное: разобранное остаётся видимым под своим состоянием и с подписью,
+   * кто занялся. Подпись ставится по вошедшему: разобрал её именно он.
+   */
+  const resolveOne = useCallback(
+    async (id: number) => {
+      await markSingleRead(id);
+
+      const rows = useNotificationsStore.getState().notifications;
+      const row = rows.find((item) => item.id === id);
+
+      // Отказ виден по стору: хук вернул строку в неразобранные сам.
+      if (row === undefined || row.readAt === undefined || sessionUserId === undefined) return;
+
+      setNotificationsInStore(
+        rows.map((item) => (item.id === id ? { ...item, readByUserId: sessionUserId } : item)),
+      );
+    },
+    [markSingleRead, setNotificationsInStore, sessionUserId],
+  );
+
+  /**
+   * Вернуть строку в очередь: снять разбор.
+   *
+   * ⚠️ Без этого действия очередь очередью не является. Снятия разбора
+   * в проекте не было нигде: ошибочно разобранная строка становилась
+   * необратимо разобранной ДЛЯ ВСЕЙ КОМАНДЫ — её больше никто не увидит
+   * в работе.
+   *
+   * ⚠️ Маршрута `POST /api/notifications/:id/unread` на сервере ПОКА НЕТ.
+   * Вызов назван здесь и закреплён тестом; сторона API дописывается отдельно.
+   */
+  const returnToQueue = useCallback(
+    async (id: number) => {
+      if (returningId !== null) return;
+
+      setReturningId(id);
+
+      const rows = useNotificationsStore.getState().notifications;
+
+      // Оптимистично: строка снова в работе, счётчик колокольчика подрос.
+      setNotificationsInStore(
+        rows.map((item) =>
+          item.id === id ? { ...item, readAt: undefined, readByUserId: undefined } : item,
+        ),
+      );
+
+      try {
+        const response = await fetch(`/api/notifications/${id}/unread`, { method: 'POST' });
+
+        if (!response.ok) {
+          // Возврат к тому, что было ДО нажатия: разбор и его подпись целы.
+          setNotificationsInStore(rows);
+          addToast({ message: 'Не удалось вернуть в очередь', tone: 'error' });
+          return;
+        }
+
+        addToast({ message: 'Строка вернулась в очередь', tone: 'success' });
+      } catch {
+        setNotificationsInStore(rows);
+        addToast({ message: 'Не удалось вернуть в очередь', tone: 'error' });
+      } finally {
+        setReturningId(null);
+      }
+    },
+    [returningId, setNotificationsInStore, addToast],
+  );
+
+  // Разобранные строки показанной страницы — их и предлагается убрать.
+  const resolvedIds = useMemo(
+    () => items.filter((item) => item.readAt !== undefined).map((item) => item.id),
+    [items],
+  );
+
   // ⚠️ Число страниц считается от `total` — от числа СЕРВЕРА, а не от длины
   // выданной страницы. Счёт по выданному дал бы вечную «одну страницу»: пятнадцать
   // строк делятся на пятнадцать ровно всегда. Это форма дефекта фазы 36 «счётчик
@@ -297,6 +407,28 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
           </span>
         </p>
       </header>
+
+      {/* Уборка очереди: разом и построчно */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          data-testid="supervision-mark-all"
+          disabled={markingAll || unreadCount === 0}
+          onClick={() => setConfirmingMarkAll(true)}
+          className="inline-flex items-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Отметить всё разобранным
+        </button>
+        <button
+          type="button"
+          data-testid="supervision-delete-resolved"
+          disabled={deleting || resolvedIds.length === 0}
+          onClick={() => requestDelete(resolvedIds)}
+          className="inline-flex items-center rounded-full border border-orange bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-orange transition-colors hover:bg-orange hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Удалить разобранные ({resolvedIds.length})
+        </button>
+      </div>
 
       {/* Тулбар: тема слева, состояние справа. На узком — в столбик. */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -389,7 +521,16 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
               <ul className="flex flex-col gap-2.5">
                 {bucket.items.map((notification) => (
                   <li key={notification.id}>
-                    <SupervisionCard notification={notification} />
+                    <SupervisionCard
+                      notification={notification}
+                      busy={pendingId === notification.id || returningId === notification.id}
+                      onResolve={() => {
+                        void resolveOne(notification.id);
+                      }}
+                      onReturn={() => {
+                        void returnToQueue(notification.id);
+                      }}
+                    />
                   </li>
                 ))}
               </ul>
@@ -441,6 +582,82 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
           </PageButton>
         </div>
       </div>
+
+      {/*
+        ⚠️ Подтверждение на «отметить всё» обязательно, и вот почему оно здесь,
+        а не в общем хуке: в ленте кабинета это действие гасит СВОЙ ящик, а в общей
+        очереди — очередь ВСЕХ администраторов разом. Цена ошибки разная,
+        и предупреждать надо ровно там, где она велика.
+      */}
+      <Modal
+        open={confirmingMarkAll}
+        onClose={() => setConfirmingMarkAll(false)}
+        title="Отметить всю очередь разобранной?"
+        description="Очередь общая: строки погаснут у всех администраторов сразу. Вернуть в работу можно будет каждую по отдельности."
+        className="max-w-md"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              data-testid="supervision-mark-all-cancel"
+              onClick={() => setConfirmingMarkAll(false)}
+              disabled={markingAll}
+              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              data-testid="supervision-mark-all-confirm"
+              onClick={() => {
+                setConfirmingMarkAll(false);
+                void markAllRead();
+              }}
+              disabled={markingAll}
+              className="rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime-hov hover:bg-lime-hov disabled:opacity-50"
+            >
+              Отметить всё
+            </button>
+          </div>
+        }
+      >
+        <></>
+      </Modal>
+
+      {/* Уборка разобранного: удаление физическое и необратимое */}
+      <Modal
+        open={confirmIds !== null && confirmIds.length > 0}
+        onClose={cancelDelete}
+        title="Удалить разобранные строки?"
+        description={`Будет удалено строк: ${confirmIds?.length ?? 0}. Журнал служебных действий это не затрагивает — он ведётся отдельно и не переписывается.`}
+        className="max-w-md"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              data-testid="supervision-delete-cancel"
+              onClick={cancelDelete}
+              disabled={deleting}
+              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              data-testid="supervision-delete-confirm"
+              onClick={() => {
+                void confirmDelete();
+              }}
+              disabled={deleting}
+              className="rounded-full border-0 bg-orange px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-orange-hov disabled:opacity-50"
+            >
+              {deleting ? 'Удаляем…' : 'Удалить'}
+            </button>
+          </div>
+        }
+      >
+        <></>
+      </Modal>
     </div>
   );
 }
@@ -495,7 +712,18 @@ function PageButton({
  * занялся ли этим КТО-ТО, и кто именно. «Разобрал #12» отвечает на оба, точка —
  * ни на один.
  */
-function SupervisionCard({ notification }: { notification: Notification }) {
+function SupervisionCard({
+  notification,
+  busy,
+  onResolve,
+  onReturn,
+}: {
+  notification: Notification;
+  /** Идёт ли сейчас запрос по ЭТОЙ строке. */
+  busy: boolean;
+  onResolve: () => void;
+  onReturn: () => void;
+}) {
   const copy = getNotificationCopy(notification.type, notification.payload);
   const group = NOTIFICATION_TYPE_GROUP[notification.type];
   const isUnresolved = notification.readAt === undefined;
@@ -532,6 +760,34 @@ function SupervisionCard({ notification }: { notification: Notification }) {
         {copy.description ? (
           <p className="m-0 break-words text-[13px] leading-[1.5] text-muted">{copy.description}</p>
         ) : null}
+
+        {/*
+          Разбор — ОТДЕЛЬНОЕ действие, а не побочный эффект открытия строки:
+          иначе «пошёл посмотреть» означало бы «объявил разобранным всей команде».
+        */}
+        <div className="flex flex-wrap gap-2">
+          {isUnresolved ? (
+            <button
+              type="button"
+              data-testid={`supervision-resolve-${notification.id}`}
+              disabled={busy}
+              onClick={onResolve}
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Разобрать
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid={`supervision-return-${notification.id}`}
+              disabled={busy}
+              onClick={onReturn}
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Вернуть в очередь
+            </button>
+          )}
+        </div>
       </div>
 
       <time
