@@ -27,7 +27,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { TooManyRequestsError } from '../common/domain-error';
-import { LogService } from '../logs/log.service';
+import { LogService, SYSTEM_ACTOR_ROLE } from '../logs/log.service';
 import type { UsersRepository } from '../repositories/crud.repository';
 import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
@@ -261,7 +261,7 @@ export class LoginAttemptsService {
         // Исполнитель — сама площадка: ступень включил счётчик, а не человек.
         // Поле хранит исторический снимок строкой и сужению не подлежит —
         // см. пояснение к `actorRole` в `LogActionInput`.
-        actorRole: 'system',
+        actorRole: SYSTEM_ACTOR_ROLE,
         entityType: 'user',
         entityId: user.id,
         meta: {

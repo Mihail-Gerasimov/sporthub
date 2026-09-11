@@ -30,7 +30,7 @@ import type {
 } from '@sporthub/types';
 
 import { ConflictError, NotFoundError, ForbiddenError } from '../common/domain-error';
-import { LogService } from '../logs/log.service';
+import { LogService, SYSTEM_ACTOR_ROLE } from '../logs/log.service';
 import type { NotificationRecipient } from '../notifications/notification.service';
 import { NotificationService } from '../notifications/notification.service';
 import type { TransactionRunner } from '../storage/transaction-runner';
@@ -570,7 +570,7 @@ export class BookingService {
     await this.logs.record({
       action: 'booking_auto_expire',
       actorId: booking.userId,
-      actorRole: 'system',
+      actorRole: SYSTEM_ACTOR_ROLE,
       entityType: 'booking',
       entityId: booking.id,
       meta: {
