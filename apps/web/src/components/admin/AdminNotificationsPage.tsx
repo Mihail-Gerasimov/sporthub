@@ -29,7 +29,7 @@
  */
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { OVERSIGHT_GROUP_KEYS, NOTIFICATION_TYPE_GROUP } from '@sporthub/domain';
 import {
@@ -41,9 +41,11 @@ import {
 import { getNotificationCopy } from '@/lib/notification-copy';
 import { formatNotificationDateFull } from '@/lib/notification-date';
 import { NOTIFICATION_GROUP_LABELS, type NotificationGroupFilter } from '@/lib/notification-groups';
+import { mailboxParams, SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';
 import type { NotificationsFeedPage } from '@/lib/server-api';
 import { cn } from '@/lib/utils';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
 
 /**
@@ -68,6 +70,45 @@ export const SUPERVISION_GROUP_TABS: readonly NotificationGroupFilter[] = [
   ...OVERSIGHT_GROUP_KEYS,
 ];
 
+/**
+ * Состояние разбора, которое спрашивают у очереди.
+ *
+ * ⚠️ Три значения, а не галочка «только неразобранные». У общей очереди разобранное
+ * не исчезает: оно остаётся видимым под своим состоянием, с подписью, кто занялся,
+ * и его можно вернуть в работу. Галочка выражала бы только два случая из трёх.
+ */
+export type SupervisionState = 'unresolved' | 'resolved' | 'all';
+
+/**
+ * Состояние → параметры запроса. ОДИН словарь, и в нём вся трансляция.
+ *
+ * ⚠️ Отбор уходит в ЗАПРОС, а не применяется к выданной странице. В человеческой
+ * ленте он сделан в памяти поверх страницы с потолком в сто строк: для личного
+ * ящика это сходит с рук, для общей очереди означало бы «честно ровно
+ * до сто первой строки». Здесь отбирает база.
+ *
+ * ⚠️ `readOnly=true` маршрут ПОКА НЕ ПОНИМАЕТ — параметра «только разобранные»
+ * на сервере нет, есть только `unreadOnly`. Он назван здесь и покрыт тестом
+ * подключения; сторона API дописывается отдельно. Назвать его надо было сейчас:
+ * альтернатива — отобрать разобранные в памяти, то есть завести ровно тот дефект,
+ * ради которого отбор и уезжал в запрос.
+ */
+const STATE_QUERY: Record<SupervisionState, Record<string, string>> = {
+  unresolved: { unreadOnly: 'true' },
+  resolved: { readOnly: 'true' },
+  all: {},
+};
+
+/** Подписи переключателя состояния. */
+const STATE_LABELS: Record<SupervisionState, string> = {
+  unresolved: 'Не разобрано',
+  resolved: 'Разобрано',
+  all: 'Все',
+};
+
+/** Порядок кнопок состояния: очередь открывается на неразобранном. */
+const STATE_ORDER: readonly SupervisionState[] = ['unresolved', 'resolved', 'all'];
+
 export interface AdminNotificationsPageProps {
   /** Первая страница очереди, полученная сервером: строки плюс счётчики. */
   initialFeed: NotificationsFeedPage;
@@ -79,18 +120,84 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
   const items = useNotificationsStore((state) => state.notifications);
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
 
+  const addToast = useToastStore((state) => state.addToast);
+
+  // Страница, которую показываем: серверный посев либо последний ответ браузера.
+  const [fetched, setFetched] = useState<NotificationsFeedPage | null>(null);
+  const [loading, setLoading] = useState(false);
+
   // ⚠️ Счётчики берутся ИЗ ОТВЕТА СЕРВЕРА и не считаются по стору. Стор держит
   // показанную страницу — пятнадцать строк, — и счёт по нему был бы дефектом
   // фазы 36 наизнанку: не вечный ноль, а уверенная неправда.
-  const { total, unreadCount } = initialFeed;
+  const { total, unreadCount } = fetched ?? initialFeed;
 
   const [activeGroup, setActiveGroup] = useState<NotificationGroupFilter>('all');
+  const [state, setState] = useState<SupervisionState>('unresolved');
 
   // Посев остаётся у страницы: серверные данные получила она. В сторе живут
   // только строки — счётчики он считать не умеет и не должен.
   useEffect(() => {
     setNotificationsInStore(initialFeed.items);
   }, [initialFeed, setNotificationsInStore]);
+
+  /**
+   * Спросить очередь с текущим отбором.
+   *
+   * ⚠️ Ящик называется тем же словарём, что и на сервере (`mailboxParams`):
+   * второго места, где имя параметра пишется буквами, в проекте нет.
+   */
+  const load = useCallback(async () => {
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(mailboxParams(SUPERVISION_MAILBOX))) {
+      params.set(key, String(value));
+    }
+
+    if (activeGroup !== 'all') params.set('group', activeGroup);
+
+    for (const [key, value] of Object.entries(STATE_QUERY[state])) {
+      params.set(key, value);
+    }
+
+    params.set('offset', '0');
+    params.set('limit', String(SUPERVISION_PAGE_SIZE));
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/notifications?${params.toString()}`);
+      const body = (await response.json()) as {
+        success: boolean;
+        data?: NotificationsFeedPage;
+      };
+
+      if (!response.ok || !body.success || body.data === undefined) {
+        addToast({ message: 'Не удалось обновить очередь', tone: 'error' });
+        return;
+      }
+
+      setFetched(body.data);
+      setNotificationsInStore(body.data.items);
+    } catch {
+      addToast({ message: 'Не удалось обновить очередь', tone: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [activeGroup, state, addToast, setNotificationsInStore]);
+
+  // ⚠️ Первый проход пропускается намеренно: эту самую страницу уже принёс сервер,
+  // и повторный запрос на монтировании был бы вторым походом за тем же самым.
+  // Дальше каждая смена отбора идёт В ЗАПРОС — выданную страницу здесь не фильтруют.
+  const seeded = useRef(false);
+
+  useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      return;
+    }
+
+    void load();
+  }, [load]);
 
   // Группировка по дате — теми же вёдрами, что в ленте кабинета. Внутри ведра
   // от свежего к старому.
@@ -136,43 +243,76 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
         </p>
       </header>
 
-      {/* Ряд вкладок по теме события */}
-      <div
-        role="tablist"
-        aria-label="Тема события"
-        data-testid="supervision-group-tabs"
-        className="scrollbar-hidden -mx-1 flex max-w-full gap-2 overflow-x-auto px-1"
-      >
-        {SUPERVISION_GROUP_TABS.map((group) => {
-          const isActive = activeGroup === group;
+      {/* Тулбар: тема слева, состояние справа. На узком — в столбик. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          role="tablist"
+          aria-label="Тема события"
+          data-testid="supervision-group-tabs"
+          className="scrollbar-hidden -mx-1 flex max-w-full gap-2 overflow-x-auto px-1"
+        >
+          {SUPERVISION_GROUP_TABS.map((group) => {
+            const isActive = activeGroup === group;
 
-          return (
-            <button
-              key={group}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              data-testid={`supervision-group-${group}`}
-              onClick={() => setActiveGroup(group)}
-              className={cn(
-                'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
-                isActive
-                  ? 'border-lime bg-lime text-ink'
-                  : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime',
-              )}
-            >
-              {NOTIFICATION_GROUP_LABELS[group]}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={group}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                data-testid={`supervision-group-${group}`}
+                onClick={() => setActiveGroup(group)}
+                className={cn(
+                  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
+                  isActive
+                    ? 'border-lime bg-lime text-ink'
+                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime',
+                )}
+              >
+                {NOTIFICATION_GROUP_LABELS[group]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Состояние разбора: не разобрано (умолчание) / разобрано / всё */}
+        <div
+          role="group"
+          aria-label="Состояние разбора"
+          data-testid="supervision-state-filter"
+          className="scrollbar-hidden -mx-1 flex max-w-full gap-2 overflow-x-auto px-1"
+        >
+          {STATE_ORDER.map((value) => {
+            const isActive = state === value;
+
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={isActive}
+                data-testid={`supervision-state-${value}`}
+                onClick={() => setState(value)}
+                className={cn(
+                  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
+                  isActive
+                    ? 'border-lime bg-lime text-ink'
+                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime',
+                )}
+              >
+                {STATE_LABELS[value]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {items.length === 0 ? (
         <p
           data-testid="supervision-empty"
           className="m-0 rounded-[18px] border border-line bg-card p-10 text-center text-sm text-muted"
+          aria-busy={loading}
         >
-          Очередь пуста — разбирать нечего
+          {loading ? 'Спрашиваем очередь…' : 'Очередь пуста — разбирать нечего'}
         </p>
       ) : (
         <div className="flex flex-col gap-5">
