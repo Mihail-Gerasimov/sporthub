@@ -53,13 +53,19 @@ export const LOG_ACTIONS = [
   'publish_archive',
   'booking_create',
   'booking_cancel',
-  'admin_login',
+  // Phase 37 Step 37.29: `admin_login` удалён отсюда — писателя у него не было
+  // ни одного, событие входа администратора система не производит. Строки
+  // с этим значением в журнале ОСТАЛИСЬ и останутся: переписывать прошлое —
+  // это подделка следа. Их подпись живёт отдельным словарём прошлого
+  // в `LogsPage.tsx` (`LEGACY_ACTION_LABELS`), по образцу `LEGACY_ROLE_LABELS`
+  // из `packages/domain/src/account-kind.ts`.
   'admin_impersonate_start',
   'admin_impersonate_stop',
   // Phase 22 — модерация
   'moderation_hide',
   'moderation_unhide',
-  'moderation_auto_restore',
+  // Phase 37 Step 37.29: `moderation_auto_restore` удалён — остаток прежней
+  // реализации, писателя не было. См. пояснение к `admin_login` выше.
   // Phase 24 — FSM booking и действия провайдера
   'booking_confirm',
   'booking_reject',

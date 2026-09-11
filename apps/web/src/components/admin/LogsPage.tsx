@@ -35,12 +35,10 @@ const ACTION_LABELS: Record<LogAction, string> = {
   publish_archive: 'Публикация убрана из каталога',
   booking_create: 'Запись создана',
   booking_cancel: 'Запись отменена',
-  admin_login: 'Вход администратора',
   admin_impersonate_start: 'Impersonation начат',
   admin_impersonate_stop: 'Impersonation завершён',
   moderation_hide: 'Публикация скрыта',
   moderation_unhide: 'Публикация восстановлена',
-  moderation_auto_restore: 'Публикация авто-восстановлена',
   // Phase 24 — FSM booking
   booking_confirm: 'Запись подтверждена',
   booking_reject: 'Запись отклонена',
@@ -60,6 +58,26 @@ const ACTION_LABELS: Record<LogAction, string> = {
   admin_password_change: 'Пароль изменён администратором',
   // Phase 37 Step 37.27 — сработала ступень блокировки после подбора пароля
   login_lockout: 'Вход заблокирован после неудачных попыток',
+};
+
+/**
+ * Подписи действий, которых больше нет (Phase 37 Step 37.29).
+ *
+ * ⚠️ Это не второй словарь на замену первому, а СЛОВАРЬ ПРОШЛОГО — по образцу
+ * `LEGACY_ROLE_LABELS` из `packages/domain/src/account-kind.ts`. `admin_login`
+ * и `moderation_auto_restore` удалены из `LOG_ACTIONS`: писателя у них не было
+ * ни одного, и в выпадающем фильтре они обещали событие, которого система
+ * не производит. Но записанные СТРОКИ журнала остались — на живой базе это две
+ * строки `admin_login` от 21.08.2026, — и удалять их нельзя: журнал тем и ценен,
+ * что прошлое в нём не переписывают. Показывать вместо подписи сырое
+ * `admin_login` значило бы наказать администратора за нашу уборку словаря.
+ *
+ * Список закрытый и не растёт: новых значений в нём взяться неоткуда — писателя
+ * у них нет по определению. Пополняется только `ACTION_LABELS` выше.
+ */
+const LEGACY_ACTION_LABELS: Record<string, string> = {
+  admin_login: 'Вход администратора',
+  moderation_auto_restore: 'Публикация авто-восстановлена',
 };
 
 // Тон badge для типа действия — Phase 28.18 семантические уровни:
@@ -86,12 +104,10 @@ const ACTION_TONES: Record<LogAction, ActionTone> = {
   link_revoke: 'danger',
   reliability_recompute: 'neutral',
   admin_hard_delete_booking: 'danger',
-  admin_login: 'neutral',
   admin_impersonate_start: 'warn',
   admin_impersonate_stop: 'neutral',
   moderation_hide: 'warn',
   moderation_unhide: 'good',
-  moderation_auto_restore: 'neutral',
   // Админский сброс пароля — тон как у прочих админских вмешательств
   admin_password_change: 'warn',
   // Блокировка входа — единственное в журнале событие про попытку взлома,
@@ -600,7 +616,14 @@ function LogCard({
   log: LogEntry;
   onOpenBookingDrawer: (id: EntityId) => void;
 }) {
-  const actionLabel = ACTION_LABELS[log.action] ?? log.action;
+  // Порядок разбора важен и повторяет `actorLabel` из `@sporthub/domain`:
+  // сначала нынешние действия, потом словарь прошлого, и только если не узнали —
+  // само значение. Пустоту не показываем никогда: неизвестное лучше показать
+  // как есть, чем спрятать.
+  const actionLabel = ACTION_LABELS[log.action] ?? LEGACY_ACTION_LABELS[log.action] ?? log.action;
+  // Тон у прошлого один — нейтральный: разметка тяжести подсказывает, куда
+  // смотреть СЕЙЧАС, а событий, которых система больше не производит, это
+  // не касается.
   const actionTone = ACTION_TONES[log.action] ?? 'neutral';
   // Исполнитель в записи — исторический снимок: в строках до фазы 35 лежит имя
   // роли, в новых — вид учётной записи. Подпись читает оба, иначе половина

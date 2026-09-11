@@ -93,7 +93,10 @@ async function seedWorld(db: TestDatabase, world: World): Promise<void> {
 
 const logsContract = (createRepository: () => Promise<LogsRepository>) => {
   const base = {
-    action: 'admin_login',
+    // ⚠️ Шаг 37.29: прежде здесь стоял `admin_login` — значение удалено из словаря,
+    // писателя у него не было ни одного. Набор про хранение журнала, а не про
+    // конкретное действие, поэтому взято живое.
+    action: 'admin_impersonate_start',
     actorId: 3,
     actorRole: 'admin',
     entityType: 'user',

@@ -192,3 +192,64 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
     });
   });
 });
+
+// ⚠️ Шаг 37.29. Два значения словаря удалены — писателя у них не было ни одного.
+// Но СТРОКИ с ними в журнале остались (на живой базе — две от 21.08.2026),
+// и удалять их нельзя: журнал тем и ценен, что прошлое в нём не переписывают.
+// Значит подпись обязана пережить уборку словаря — отдельным словарём прошлого,
+// как `LEGACY_ROLE_LABELS` для удалённых ролей.
+describe('LogsPage — подписи действий, которых больше нет', () => {
+  const legacyLog = (id: number, action: string) => ({
+    id,
+    action,
+    actorId: 3,
+    actorRole: 'admin',
+    entityType: 'user',
+    entityId: 3,
+    createdAt: '2026-08-21T10:00:00.000Z',
+  });
+
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: [legacyLog(1, 'admin_login'), legacyLog(2, 'moderation_auto_restore')],
+          total: 2,
+          offset: 0,
+          limit: 50,
+        }),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('историческая строка читается по-русски, а не сырым значением', async () => {
+    const { LogsPage } = await import('@/components/admin/LogsPage');
+    render(<LogsPage />);
+
+    expect(await screen.findByText('Вход администратора')).toBeInTheDocument();
+    expect(screen.getByText('Публикация авто-восстановлена')).toBeInTheDocument();
+    // Сырого значения на экране быть не должно: именно оно и появилось бы,
+    // если словарь прошлого потеряется.
+    expect(screen.queryByText('admin_login')).not.toBeInTheDocument();
+    expect(screen.queryByText('moderation_auto_restore')).not.toBeInTheDocument();
+  });
+
+  it('удалённые действия не предлагаются в фильтре — событий с ними больше нет', async () => {
+    const { LogsPage } = await import('@/components/admin/LogsPage');
+    render(<LogsPage />);
+
+    await screen.findByText('Вход администратора');
+
+    // Фильтр строится из живого словаря: обещать выбор действия, которого система
+    // не производит, — значит отдавать пустую выдачу без объяснения. Бэкенд такое
+    // значение и не примет: его нет в `LOG_ACTIONS`.
+    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    expect(options).not.toContain('Вход администратора');
+    expect(options).not.toContain('Публикация авто-восстановлена');
+  });
+});
