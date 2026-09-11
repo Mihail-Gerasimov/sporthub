@@ -1,11 +1,12 @@
 /**
  * Навигация внутри admin-панели — segmented-control стиль (Phase 28.16).
- * Табы/ссылки на 5 разделов: Пользователи, Аналитика, Модерация, Логи, Финансы.
+ * Табы/ссылки на 6 разделов: Пользователи, Аналитика, Модерация, Надзор, Логи,
+ * Финансы. Шестой — очередь надзора (шаг 37.44).
  *
  * Реализация:
  * — Внешний wrapper: inline-flex + bg-card-2 + 1px line-border + rounded-full
  *   + padding 6px + gap 4px. На 480 — overflow-x-auto + scrollbar-hidden,
- *   чтобы 5 пунктов не переносились на 2 строки.
+ *   чтобы пункты не переносились на 2 строки.
  * — Каждая ссылка: rounded-full + px-4 py-2 + Oswald 700 11px UPPERCASE
  *   letter-spacing 0.16em + whitespace-nowrap.
  * — Активная (по `pathname.startsWith(item.href + '/')` или строгому равенству):
@@ -26,6 +27,10 @@ const adminNavItems = [
   { href: '/service-portal/dashboard', label: 'Пользователи' },
   { href: '/service-portal/analytics', label: 'Аналитика' },
   { href: '/service-portal/moderation', label: 'Модерация' },
+  // Очередь надзора (шаг 37.44): события администраторов, каталога и входа.
+  // Стоит рядом с «Модерацией» намеренно — это соседние обязанности, но очереди
+  // РАЗНЫЕ: там публикации, здесь письма.
+  { href: '/service-portal/notifications', label: 'Надзор' },
   { href: '/service-portal/logs', label: 'Логи' },
   { href: '/service-portal/finance', label: 'Финансы' },
 ];
