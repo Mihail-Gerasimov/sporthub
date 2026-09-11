@@ -12,6 +12,9 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
+import type { NotificationGroupKey } from '@sporthub/domain';
+
+import { mailboxParams, type NotificationsMailbox } from '@/lib/notification-mailbox';
 import type { ServiceFaceRef } from '@/lib/service-faces';
 import type {
   Amenity,
@@ -567,8 +570,10 @@ export type GetNotificationsOptions = {
   offset?: number;
   limit?: number;
   applyPreferences?: boolean;
+  /** Тема ленты. Отбирает БАЗА: страница в сто строк отфильтровать очередь не может. */
+  group?: NotificationGroupKey;
   /**
-   * Ящик, который спрашивают (шаг 35.47a).
+   * Ящик, который спрашивают (шаг 35.47a, обязателен с 37.42).
    *
    * ⚠️ Появился не для красоты. Уведомления переехали на ЛИЦО ещё в 35.27, и бэкенд
    * умеет отдавать ящик каждого лица отдельно — а страница кабинета продолжала
@@ -579,36 +584,55 @@ export type GetNotificationsOptions = {
    * и покрыта тестами, а вызова из браузера нет ни одного, и снаружи разделения
    * не существует.
    *
-   * Не задан — ящик человека целиком (прежнее поведение, старый клиент цел).
+   * ⚠️ Шаг 37.42 сделал поле ОБЯЗАТЕЛЬНЫМ, и это главное здесь изменение.
+   * Прежде необязательное поле означало «ящик не назван», а не названный ящик
+   * превращался в `?scope=all` — режим «вся лента площадки в память», который
+   * с шага 37.19 отвечает отказом. То есть самый дорогой промах этой работы —
+   * забыть параметр — выглядел как обычный вызов и ловился только на глаз.
+   * Теперь он не собирается: «ящик не назван» стало невыразимо (решение 5.3a).
    */
-  mailbox?: { scope: 'personal' } | ServiceFaceRef;
+  mailbox: NotificationsMailbox;
 };
 
-/** Ящик в виде параметров строки запроса — так его называет бэкенд. */
-function mailboxQuery(mailbox: GetNotificationsOptions['mailbox']) {
-  if (mailbox === undefined) return {};
-  if ('scope' in mailbox) return { scope: mailbox.scope };
-
-  return mailbox.kind === 'club' ? { clubId: mailbox.id } : { trainerId: mailbox.id };
+/**
+ * Страница ленты — ровно то, что отдаёт маршрут.
+ *
+ * ⚠️ Форма ответа у уведомлений своя: счётчики лежат ВНУТРИ `data`
+ * (`{ success, data: { items, total, unreadCount } }`), а не рядом с ним, как
+ * у журнала и публикаций. Поэтому здесь возвращается `data` целиком, а не
+ * читается поле конверта.
+ */
+export interface NotificationsFeedPage {
+  items: Notification[];
+  total: number;
+  unreadCount: number;
 }
 
+/**
+ * Страница ленты названного ящика.
+ *
+ * ⚠️ Шаг 37.42. Функция возвращает КОНВЕРТ, а не один `items`. Прежняя редакция
+ * брала из ответа только строки и молча выбрасывала `total` и `unreadCount` —
+ * постраничность надзорной вкладки строить было не из чего, а попытка посчитать
+ * число страниц по длине выданной страницы дала бы ровно дефект фазы 36
+ * «счётчик показывал вечный ноль, потому что читал `total` не оттуда».
+ *
+ * Считать обязан тот, у кого есть все строки. У страницы их пятнадцать.
+ */
 export async function getNotifications(
-  options: GetNotificationsOptions = {},
-): Promise<Notification[]> {
-  const path =
-    options.userId === undefined
-      ? `/notifications${query({ scope: 'all' })}`
-      : `/notifications${query({
-          userId: options.userId,
-          unreadOnly: options.unreadOnly,
-          offset: options.offset,
-          limit: options.limit,
-          ...mailboxQuery(options.mailbox),
-        })}`;
+  options: GetNotificationsOptions,
+): Promise<NotificationsFeedPage> {
+  const path = `/notifications${query({
+    userId: options.userId,
+    unreadOnly: options.unreadOnly,
+    offset: options.offset,
+    limit: options.limit,
+    group: options.group,
+    // Имя параметра ящика пишется буквами ровно в одном месте проекта.
+    ...mailboxParams(options.mailbox),
+  })}`;
 
-  const payload = await apiGet<{ items: Notification[] }>(path);
-
-  return payload.items;
+  return apiGet<NotificationsFeedPage>(path);
 }
 
 /**
@@ -624,13 +648,13 @@ export async function getNotifications(
  * разойтись условиям негде, а именно их расхождение трижды давало
  * «в колокольчике 3, в списке 0» (ловушка 7.8 фазы 35, шаг 36.50).
  *
- * Ящик не назван — весь ящик человека целиком, как и у ленты.
+ * ⚠️ Шаг 37.42. Ящик стал обязательным по той же причине, что и у ленты: ящик
+ * без имени — это «всё моё», и счётчик надзора, у которого имя забыли, показал бы
+ * личную почту администратора, то есть вечный ноль.
  */
-export async function getUnreadNotificationsCount(
-  mailbox: GetNotificationsOptions['mailbox'] = undefined,
-): Promise<number> {
+export async function getUnreadNotificationsCount(mailbox: NotificationsMailbox): Promise<number> {
   const payload = await apiGet<{ unreadCount: number }>(
-    `/notifications/unread-count${query(mailboxQuery(mailbox))}`,
+    `/notifications/unread-count${query(mailboxParams(mailbox))}`,
   );
 
   return payload.unreadCount;

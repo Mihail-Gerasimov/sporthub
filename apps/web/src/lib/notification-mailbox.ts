@@ -11,26 +11,63 @@
  * ящик называет теперь и хук мутаций, и обе ленты поверх него. Имя ящика в адресе
  * объявлено один раз — разойтись «отметить всё» у двух лент негде.
  *
- * ⚠️ Параметрический близнец живёт в `lib/server-api.ts` (`mailboxQuery` для
- * чтения ленты со страницы). Словарь у них ОДИН — `scope` / `clubId` / `trainerId`, —
- * а формы разные: там объект параметров, здесь готовый хвост адреса. Свести
- * их — работа шага 37.42, который правит `server-api` по своему плану.
+ * ⚠️ Шаг 37.42. Параметрического близнеца в `lib/server-api.ts` больше нет:
+ * словарь ящика объявлен ЗДЕСЬ и один — `mailboxParams` отдаёт пары параметров,
+ * `mailboxQuery` собирает из них хвост адреса. Пока копий было две, «ящик»
+ * в запросе страницы и «ящик» в запросе браузера могли разойтись именем
+ * параметра, и разошлись бы молча: обе стороны продолжали бы отвечать 200,
+ * просто про разные ящики.
+ *
+ * ⚠️ Шаг 37.42 добавил четвёртую форму — очередь надзора (`scope=supervision`).
+ * Она не «ящик человека»: владельца у неё нет вовсе, право на неё даёт вид
+ * учётной записи. Но в АДРЕСЕ она называется тем же параметром, что и остальные,
+ * поэтому и живёт в этом словаре, а не рядом с ним.
  */
 
 import type { ServiceFaceRef } from '@/lib/service-faces';
 
-/** Открытый ящик: личный либо названного лица. */
-export type NotificationsMailbox = { scope: 'personal' } | ServiceFaceRef;
+/** Открытый ящик: личный, ящик названного лица либо общая очередь надзора. */
+export type NotificationsMailbox = { scope: 'personal' | 'supervision' } | ServiceFaceRef;
 
 /**
- * Ящик в виде хвоста строки запроса — так его называет бэкенд.
+ * Личный ящик человека — названный, а не собранный на месте.
  *
- * Ящик не задан — хвоста нет, и сервер берёт ленту человека целиком. Это прежнее
+ * ⚠️ Объявлен константой ради одного: литерал `{ scope: 'personal' }`, собранный
+ * в теле компонента, — новая ссылка на каждый рендер, и зависимости хуков
+ * пересчитываются впустую.
+ */
+export const PERSONAL_MAILBOX: NotificationsMailbox = { scope: 'personal' };
+
+/** Общая очередь надзора — один ящик на всех администраторов. */
+export const SUPERVISION_MAILBOX: NotificationsMailbox = { scope: 'supervision' };
+
+/**
+ * Ящик в виде пар параметров запроса — так его называет бэкенд.
+ *
+ * Это ЕДИНСТВЕННОЕ место, где имя параметра ящика пишется буквами. Хвост адреса
+ * для браузера и объект параметров для запроса страницы собираются отсюда оба.
+ *
+ * Ящик не задан — пар нет, и сервер берёт ленту человека целиком. Это прежнее
  * поведение, и оно оставлено намеренно: старый вызов переживает выкатку.
  */
-export function mailboxQuery(mailbox: NotificationsMailbox | undefined): string {
-  if (mailbox === undefined) return '';
-  if ('scope' in mailbox) return `?scope=${mailbox.scope}`;
+export function mailboxParams(
+  mailbox: NotificationsMailbox | undefined,
+): Record<string, string | number> {
+  if (mailbox === undefined) return {};
+  if ('scope' in mailbox) return { scope: mailbox.scope };
 
-  return mailbox.kind === 'club' ? `?clubId=${mailbox.id}` : `?trainerId=${mailbox.id}`;
+  return mailbox.kind === 'club' ? { clubId: mailbox.id } : { trainerId: mailbox.id };
+}
+
+/** Тот же ящик готовым хвостом адреса — для запросов из браузера. */
+export function mailboxQuery(mailbox: NotificationsMailbox | undefined): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(mailboxParams(mailbox))) {
+    params.set(key, String(value));
+  }
+
+  const text = params.toString();
+
+  return text === '' ? '' : `?${text}`;
 }

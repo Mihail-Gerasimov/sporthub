@@ -28,15 +28,17 @@ export default async function FaceNotificationsRoute({
   const userId = (await readSession())?.id ?? null;
 
   // `applyPreferences` оставлен: страница уважает выключенные типы, как и колокольчик.
-  const notifications =
+  // ⚠️ Шаг 37.42. Лента отвечает конвертом: строки плюс `total` и `unreadCount`.
+  // Кабинету нужны строки — счётчики отбрасывает он сам, а не общий читатель.
+  const feed =
     userId !== null
       ? await getNotifications({ userId, applyPreferences: true, mailbox: face })
-      : [];
+      : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <NotificationsListPage
-        notifications={notifications}
+        notifications={feed?.items ?? []}
         userId={userId ?? undefined}
         mailbox={face}
       />

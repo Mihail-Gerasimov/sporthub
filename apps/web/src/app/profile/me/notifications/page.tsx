@@ -9,24 +9,26 @@
 // писал сам браузер, и страницу чужих уведомлений открывали правкой одного числа.
 import { readSession } from '@/lib/session';
 import { getNotifications } from '@/lib/server-api';
+import { PERSONAL_MAILBOX } from '@/lib/notification-mailbox';
 import { NotificationsListPage } from '@/components/profile/notifications/NotificationsListPage';
 
 export const dynamic = 'force-dynamic';
 
-const PERSONAL_MAILBOX = { scope: 'personal' } as const;
-
 export default async function PersonalNotificationsRoute() {
   const userId = (await readSession())?.id ?? null;
   // `applyPreferences` оставлен: страница уважает выключенные типы, как и колокольчик.
-  const notifications =
+  // ⚠️ Шаг 37.42. Лента отвечает КОНВЕРТОМ — строки плюс счётчики. Кабинету нужны
+  // пока только строки, но выбрасывает их здесь страница, а не общий читатель:
+  // именно выброшенный в читателе `total` не давал построить постраничность.
+  const feed =
     userId !== null
       ? await getNotifications({ userId, applyPreferences: true, mailbox: PERSONAL_MAILBOX })
-      : [];
+      : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <NotificationsListPage
-        notifications={notifications}
+        notifications={feed?.items ?? []}
         userId={userId ?? undefined}
         mailbox={PERSONAL_MAILBOX}
       />
