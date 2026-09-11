@@ -15,9 +15,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooManyRequestsError } from '../common/domain-error';
+import type { LogService } from '../logs/log.service';
+import type { UsersRepository } from '../repositories/crud.repository';
 import { LOGIN_BLOCKED_PREFIX, LoginAttemptsService } from './login-attempts.service';
 
 const IP = '10.0.0.1';
+
+/**
+ * Лестница ожидания проверяется БЕЗ журнала и без базы: набор про счёт неудач,
+ * а не про след. Заглушки говорят «человека с такой почтой нет» — этого хватает,
+ * чтобы запись следа не делалась вовсе, а счётчик работал как в бою.
+ *
+ * Сам след проверяется через HTTP в `login-lockout.test.ts`: там есть и база,
+ * и настоящая учётная запись, которой след принадлежит.
+ */
+const silentLogs = { record: async () => {} } as unknown as LogService;
+const noUsers = { findByEmail: async () => null } as unknown as UsersRepository;
+
+/** Служба со всеми зависимостями-заглушками. */
+const createService = (): LoginAttemptsService => new LoginAttemptsService(silentLogs, noUsers);
 
 describe('Нарастающая блокировка входа', () => {
   let attempts: LoginAttemptsService;
@@ -25,7 +41,7 @@ describe('Нарастающая блокировка входа', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-09T10:00:00.000Z'));
-    attempts = new LoginAttemptsService();
+    attempts = createService();
   });
 
   afterEach(() => {
@@ -146,7 +162,7 @@ describe('Нарастающая блокировка входа', () => {
   it('пороги и шаг настраиваются окружением', () => {
     vi.stubEnv('SPORT_HUB_LOGIN_LOCKOUT_ATTEMPTS', '2');
     vi.stubEnv('SPORT_HUB_LOGIN_LOCKOUT_STEP_MS', '10000');
-    const tuned = new LoginAttemptsService();
+    const tuned = createService();
 
     tuned.registerFailure({ email: 'user@test.local', ip: IP });
     tuned.registerFailure({ email: 'user@test.local', ip: IP });

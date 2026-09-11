@@ -24,9 +24,12 @@
 // формат ответа. Сделать это придётся вместе со вторым процессом бэкенда: сейчас
 // перезапуск обнуляет счёт, а два процесса дадут два независимых счёта.
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { TooManyRequestsError } from '../common/domain-error';
+import { LogService } from '../logs/log.service';
+import type { UsersRepository } from '../repositories/crud.repository';
+import { USERS_REPOSITORY } from '../repositories/crud.repository';
 
 /** Начало текста отказа. Срок ожидания дописывается к нему числом. */
 export const LOGIN_BLOCKED_PREFIX = 'Слишком много неудачных попыток входа. Повторите через ';
@@ -93,6 +96,17 @@ type AttemptRecord = {
 const SWEEP_INTERVAL_MS = 60_000;
 
 /**
+ * Приведение почты к одному виду — одно объявление на счётчик и на след.
+ *
+ * Без него `User@mail` и `user@mail ` считались бы порознь, и порог обходился бы
+ * регистром букв. Функция вынесена отдельно ровно потому, что ею пользуются двое:
+ * ключ счётчика и поиск учётной записи для строки журнала, — и разъехаться им нельзя.
+ */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
  * Срок ожидания словами: до минуты — в секундах, дальше — в минутах.
  *
  * Человеку нужно понимать, ждать ему полминуты или полчаса; «429» без срока
@@ -114,6 +128,20 @@ export class LoginAttemptsService {
   private readonly records = new Map<string, AttemptRecord>();
 
   private lastSweepAt = 0;
+
+  /**
+   * Хвост незавершённых записей следа (шаг 37.27).
+   *
+   * Записи выстроены в цепочку, а не пущены врассыпную: две ступени, сработавшие
+   * подряд, обязаны лечь в журнал в том же порядке, в каком сработали. Ждать этот
+   * хвост в рабочем коде некому — вход не должен дожидаться журнала.
+   */
+  private trace: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly logs: LogService,
+    @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
+  ) {}
 
   /**
    * Пустить или отказать. Зовётся ДО сверки пароля: смысл блокировки в том числе
@@ -147,7 +175,13 @@ export class LoginAttemptsService {
 
     this.sweep(now);
 
-    for (const { key, step } of this.keysOf(keys)) {
+    // Сработавшие ступени собираются списком и уходят в журнал ОДНИМ заходом
+    // после цикла: одна неудача может включить сразу обе ступени — и почтовую,
+    // и адресную, — а учётную запись для них искать достаточно один раз.
+    const triggered: { key: string; keyKind: 'email' | 'ip'; failures: number; waitMs: number }[] =
+      [];
+
+    for (const { key, kind, step } of this.keysOf(keys)) {
       const previous = this.records.get(key);
       // Давняя неудача забывается: иначе один промах в понедельник и четыре
       // в пятницу складывались бы в блокировку на ровном месте.
@@ -166,12 +200,78 @@ export class LoginAttemptsService {
       // Между ними ждать не нужно — предыдущее ожидание уже отбыто.
       if (failures % step === 0) {
         const stepNumber = failures / step;
+        const waitMs = Math.min(stepNumber * this.settings.stepMs, this.settings.maxMs);
 
-        record.blockedUntil =
-          now + Math.min(stepNumber * this.settings.stepMs, this.settings.maxMs);
+        record.blockedUntil = now + waitMs;
+        triggered.push({ key, keyKind: kind, failures, waitMs });
       }
 
       this.records.set(key, record);
+    }
+
+    if (triggered.length > 0) {
+      // Вход не ждёт журнала: запись — побочный эффект, и её задержка не должна
+      // превращаться в задержку ответа тому, кто как раз и подбирает пароль.
+      this.trace = this.trace.then(() => this.recordLockout(keys.email, triggered, now));
+    }
+  }
+
+  /**
+   * Дождаться, пока след доедет до журнала.
+   *
+   * Нужно наборам: ответ на вход возвращается раньше записи, и проверка «строка
+   * ровно одна» иначе считала бы недописанный журнал. В рабочем коде не зовётся —
+   * там ждать запись входу незачем. Родня `reset()` ниже.
+   */
+  async flushTrace(): Promise<void> {
+    await this.trace;
+  }
+
+  /**
+   * Записать в журнал сработавшие ступени.
+   *
+   * ⚠️ ПОЧЕМУ ПОЧТА ЛЕЖИТ ОТКРЫТО. Ключ блокировки — это и есть почта, и пишется
+   * она так же, как в соседней записи журнала `admin_impersonate_start`
+   * (`auth.controller.ts`, `meta.targetEmail`). Хеш на её месте завёл бы ВТОРОЙ
+   * порядок хранения одного и того же поля и сделал бы след бесполезным ровно для
+   * того, ради кого он ведётся: журнал открыт только администратору, и по хешу он
+   * не поймёт, чей вход закрыт. Пароль и его хеш в след не попадают никогда —
+   * они к ключу блокировки отношения не имеют.
+   *
+   * ⚠️ ИЗВЕСТНЫЙ ПРОБЕЛ. `logs.actor_id` — обязательная ссылка на живого человека
+   * (внешний ключ с `RESTRICT`), поэтому след пишется только тогда, когда почта
+   * попытки принадлежит существующей учётной записи. Подбор по несуществующим
+   * адресам следа не оставляет: привязать строку не к кому. Закрывается это
+   * не здесь, а колонкой, допускающей пустоту, — то есть миграцией и решением
+   * заказчика; до тех пор пробел назван, а не спрятан.
+   */
+  private async recordLockout(
+    email: string,
+    triggered: { key: string; keyKind: 'email' | 'ip'; failures: number; waitMs: number }[],
+    now: number,
+  ): Promise<void> {
+    const user = await this.users.findByEmail(normalizeEmail(email));
+
+    if (!user) return;
+
+    for (const { key, keyKind, failures, waitMs } of triggered) {
+      await this.logs.record({
+        action: 'login_lockout',
+        actorId: user.id,
+        // Исполнитель — сама площадка: ступень включил счётчик, а не человек.
+        // Поле хранит исторический снимок строкой и сужению не подлежит —
+        // см. пояснение к `actorRole` в `LogActionInput`.
+        actorRole: 'system',
+        entityType: 'user',
+        entityId: user.id,
+        meta: {
+          key,
+          keyKind,
+          failures,
+          blockedForMs: waitMs,
+          blockedUntil: new Date(now + waitMs).toISOString(),
+        },
+      });
     }
   }
 
@@ -205,12 +305,17 @@ export class LoginAttemptsService {
    * Почта приводится к нижнему регистру и без пробелов: иначе `User@mail` и
    * `user@mail ` считались бы порознь, и порог обходился бы регистром букв.
    */
-  private keysOf({ email, ip }: LoginAttemptKeys): { key: string; step: number }[] {
-    const keys = [{ key: `email:${email.trim().toLowerCase()}`, step: this.settings.attempts }];
+  private keysOf({
+    email,
+    ip,
+  }: LoginAttemptKeys): { key: string; kind: 'email' | 'ip'; step: number }[] {
+    const keys: { key: string; kind: 'email' | 'ip'; step: number }[] = [
+      { key: `email:${normalizeEmail(email)}`, kind: 'email', step: this.settings.attempts },
+    ];
 
     // Адреса может не быть вовсе (внутренний вызов, необычный транспорт) —
     // тогда работает только счётчик почты.
-    if (ip) keys.push({ key: `ip:${ip}`, step: this.settings.ipAttempts });
+    if (ip) keys.push({ key: `ip:${ip}`, kind: 'ip', step: this.settings.ipAttempts });
 
     return keys;
   }

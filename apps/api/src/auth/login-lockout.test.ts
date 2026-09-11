@@ -40,7 +40,13 @@ describe('Блокировка входа после неверных попыт
   });
 
   beforeEach(async () => {
-    await harness.write('users', [user(1, 'victim@test.local'), user(2, 'neighbour@test.local')]);
+    // ⚠️ Шаг 37.27. Журнал чистится ВМЕСТЕ с людьми. Обвязка правит только
+    // названные коллекции, поэтому строки предыдущей проверки дожили бы
+    // до следующей — и «ровно одна строка на блокировку» считалась бы по куче.
+    await harness.writeMany({
+      users: [user(1, 'victim@test.local'), user(2, 'neighbour@test.local')],
+      logs: [],
+    });
     // Счётчики живут в приложении и переживают смену данных: каждая проверка
     // начинается с чистого листа, иначе блокировка предыдущей досталась бы следующей.
     harness.app.get(LoginAttemptsService).reset();
@@ -118,5 +124,85 @@ describe('Блокировка входа после неверных попыт
     expect(response.status).toBe(429);
     expect(response.body.error).toMatch(/Повторите через 2 мин/);
     expect(response.headers['retry-after']).toBe('120');
+  });
+
+  // ⚠️ Шаг 37.27. До него подбор пароля не оставлял НИКАКОГО следа: счёт неудач
+  // жил в `Map` в памяти процесса и умирал вместе с перезапуском. Блокировка
+  // срабатывала, человек её чувствовал, а узнать о ней постфактум было неоткуда.
+  describe('след блокировки в журнале', () => {
+    /**
+     * Дождаться записи следа и прочитать журнал.
+     *
+     * Запись в журнал — побочный эффект и не задерживает ответ на вход; поэтому
+     * набор ждёт её явно, а не гадает про таймеры.
+     */
+    const lockoutLogs = async (): Promise<
+      { action: string; actorId: number; entityId: number; meta?: Record<string, unknown> }[]
+    > => {
+      await harness.app.get(LoginAttemptsService).flushTrace();
+
+      const logs =
+        await harness.read<
+          { action: string; actorId: number; entityId: number; meta?: Record<string, unknown> }[]
+        >('logs');
+
+      return logs.filter((entry) => entry.action === 'login_lockout');
+    };
+
+    it('пять неудач подряд оставляют РОВНО ОДНУ строку журнала', async () => {
+      await failTimes(5, 'victim@test.local');
+
+      const logs = await lockoutLogs();
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        // Событие произвела сама площадка, а не человек: `actorRole` говорит это
+        // прямо, а номер указывает на учётную запись, вход в которую закрыли.
+        actorId: 1,
+        entityId: 1,
+        meta: {
+          key: 'email:victim@test.local',
+          keyKind: 'email',
+          failures: 5,
+          blockedForMs: 60_000,
+        },
+      });
+    });
+
+    it('одиночная неудача следа не оставляет', async () => {
+      await failTimes(1, 'victim@test.local');
+
+      expect(await lockoutLogs()).toHaveLength(0);
+    });
+
+    it('успешный вход следа не оставляет', async () => {
+      await attempt('victim@test.local', DEMO_PASSWORD);
+
+      expect(await lockoutLogs()).toHaveLength(0);
+    });
+
+    it('вторая ступень даёт вторую строку, а не переписывает первую', async () => {
+      await failTimes(5, 'victim@test.local');
+      forward(60_001);
+      await failTimes(5, 'victim@test.local');
+
+      const logs = await lockoutLogs();
+
+      expect(logs).toHaveLength(2);
+      // Порядок выдачи журнала набор не проверяет — он проверяет, что ступени
+      // записаны обе и с разным числом неудач.
+      expect(logs.map((entry) => Number(entry.meta?.failures)).sort((a, b) => a - b)).toEqual([
+        5, 10,
+      ]);
+    });
+
+    it('ни пароль, ни его хеш в след не попадают', async () => {
+      await failTimes(5, 'victim@test.local');
+
+      const written = JSON.stringify((await lockoutLogs()).map((entry) => entry.meta));
+
+      expect(written).not.toContain('не тот пароль');
+      expect(written).not.toContain('$argon2');
+    });
   });
 });

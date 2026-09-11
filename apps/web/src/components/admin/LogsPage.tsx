@@ -58,6 +58,8 @@ const ACTION_LABELS: Record<LogAction, string> = {
   admin_hard_delete_booking: 'Запись удалена администратором',
   // Phase 29 Step 29.7 — админский сброс пароля
   admin_password_change: 'Пароль изменён администратором',
+  // Phase 37 Step 37.27 — сработала ступень блокировки после подбора пароля
+  login_lockout: 'Вход заблокирован после неудачных попыток',
 };
 
 // Тон badge для типа действия — Phase 28.18 семантические уровни:
@@ -92,6 +94,9 @@ const ACTION_TONES: Record<LogAction, ActionTone> = {
   moderation_auto_restore: 'neutral',
   // Админский сброс пароля — тон как у прочих админских вмешательств
   admin_password_change: 'warn',
+  // Блокировка входа — единственное в журнале событие про попытку взлома,
+  // и тон у неё соответствующий: это не предупреждение, а происшествие.
+  login_lockout: 'danger',
 };
 
 const ACTION_TONE_CLASSES: Record<ActionTone, string> = {
