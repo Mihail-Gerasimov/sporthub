@@ -217,7 +217,7 @@ export function publicationCleanupPlan({ clubIds = [], trainerIds = [], schema =
  * строки владельца нет — `IN` с `NULL` не совпадает никогда. Ключ уборки — ПРЕДМЕТ,
  * а не владелец.
  */
-export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
+export function peopleCleanupPlan({ userIds = [], subjects = [], schema = '' } = {}) {
   // ⚠️ Имя таблицы со схемой обязано приехать в `qualified` — по нему собирается
   // `DELETE FROM`. Первая редакция шага 37.56 этого не делала, и уборка падала
   // на `DELETE FROM undefined`, обрывая цикл ДО уборки людей: любой прогон копил
@@ -238,6 +238,19 @@ export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
         // И его собственные строки — те, что прежде убирал `e2e-fixture.mjs`
         // отбором по владельцу.
         `user_id = ANY(${users})`,
+        // ⚠️ Названные предметы — то, чего уже нет в базе (шаг 37.61, нашёл прогон).
+        //
+        // Надзорная строка СОЗНАТЕЛЬНО переживает свой предмет: событие «публикация
+        // стёрта» бессмысленно, если исчезает вместе с публикацией. Значит найти её
+        // по живым номерам нельзя — их нет. Убирающий обязан назвать номера САМ,
+        // запомнив их до удаления; иначе прогон оставляет строку навсегда.
+        ...subjects
+          .filter((subject) => subject.ids.length > 0)
+          .map(
+            (subject) =>
+              `(payload->>'subjectType' = '${subject.type}'` +
+              ` AND payload->>'subjectId' = ANY(${textArray(subject.ids)}))`,
+          ),
       ].join('\n        OR '),
     },
     { label: 'logs', table: 'logs', where: `actor_id = ANY(${users})` },
@@ -253,10 +266,16 @@ export function peopleCleanupPlan({ userIds = [], schema = '' } = {}) {
  * выбор между красным сторожем и его ослаблением. Реестр снимает выбор: вид обязан
  * быть разобран хотя бы одним планом, а каким — дело самих планов.
  */
-export function cleanupPlans({ clubIds = [], trainerIds = [], userIds = [], schema = '' } = {}) {
+export function cleanupPlans({
+  clubIds = [],
+  trainerIds = [],
+  userIds = [],
+  subjects = [],
+  schema = '',
+} = {}) {
   return [
     ...publicationCleanupPlan({ clubIds, trainerIds, schema }),
-    ...peopleCleanupPlan({ userIds, schema }),
+    ...peopleCleanupPlan({ userIds, subjects, schema }),
   ];
 }
 
