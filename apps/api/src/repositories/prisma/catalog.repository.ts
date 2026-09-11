@@ -674,6 +674,24 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     return PrismaNotificationsRepository.toNotification(updated);
   }
 
+  async markUnread(id: EntityId): Promise<Notification> {
+    const current = await this.client.notification.findUnique({ where: { id } });
+
+    if (current === null) {
+      throw new Error('Уведомление не найдено');
+    }
+
+    // Снимается и время, и подпись: «разобрано кем-то давно» без времени было бы
+    // половиной состояния, а подпись без разбора — следом от действия, которое
+    // отменили.
+    const updated = await this.client.notification.update({
+      where: { id },
+      data: { readAt: null, readByUserId: null },
+    });
+
+    return PrismaNotificationsRepository.toNotification(updated);
+  }
+
   async markAllRead(scope: NotificationsScope, readByUserId: number): Promise<number> {
     // Одним запросом: чтение ленты целиком ради пометки прочитанным дало бы
     // столько же работы, сколько её отрисовка, и разъехалось бы при гонке.

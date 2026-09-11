@@ -255,6 +255,33 @@ export class NotificationsController {
     return this.notifications.markRead(notificationId, session.user.id);
   }
 
+  @Post(':id/unread')
+  @HttpCode(HttpStatus.OK)
+  async markUnread(
+    @Param('id') rawId: string,
+    @CurrentUser() session: SessionContext,
+  ): Promise<Notification> {
+    const notificationId = Number(rawId);
+
+    if (!Number.isInteger(notificationId) || notificationId <= 0) {
+      throw new ValidationError('Некорректный id уведомления');
+    }
+
+    // ⚠️ Право доказывается тем же способом, что и при отметке (шаг 37.16):
+    // у надзорной строки владельца-человека нет, и отбор по `userId` вернул бы
+    // «не найдено» каждому администратору.
+    const visible = await this.notifications.count({
+      ...this.audienceOfSession(session),
+      ids: [notificationId],
+    });
+
+    if (visible === 0) {
+      throw new NotFoundError('Уведомление не найдено');
+    }
+
+    return this.notifications.markUnread(notificationId);
+  }
+
   @Delete()
   async remove(
     @Body() rawBody: unknown,

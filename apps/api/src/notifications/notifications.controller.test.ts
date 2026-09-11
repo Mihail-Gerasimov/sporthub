@@ -1028,6 +1028,35 @@ describe('Очередь надзора в маршрутах уведомлен
     expect(stillThere.body.data.total).toBe(2);
   });
 
+  it('строку можно ВЕРНУТЬ В ОЧЕРЕДЬ: разбор и подпись снимаются', async () => {
+    // ⚠️ Без возврата очередь очередью не является: ошибочная отметка необратима
+    // для всей команды — строка исчезает из «не разобрано» у всех сразу.
+    await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/read')
+      .set('Cookie', adminCookie);
+
+    const returned = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/unread')
+      .set('Cookie', secondAdminCookie);
+
+    expect(returned.status).toBe(200);
+    expect(returned.body.data.readAt).toBeUndefined();
+    expect(returned.body.data.readByUserId).toBeUndefined();
+
+    // И это видно обоим: строка снова в работе.
+    const unread = await feed(adminCookie, '&unreadOnly=true');
+
+    expect(unread.body.data.items.some((item: { id: number }) => item.id === 2)).toBe(true);
+  });
+
+  it('человек не может вернуть в очередь чужую надзорную строку', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/notifications/2/unread')
+      .set('Cookie', personCookie);
+
+    expect(response.status).toBe(404);
+  });
+
   it('«отметить всё» гасит очередь всем и подписывает разобравшего', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/notifications/read-all?scope=supervision')

@@ -278,6 +278,11 @@ export class PublicationsController {
     // ⚠️ Шаг 36.22. Параметр НЕОБЯЗАТЕЛЬНЫЙ: клиент, ничего о нём не знающий,
     // обязан получить ровно ту же выдачу, что получал до выкатки.
     @Query('awaitingRecheck') rawAwaitingRecheck?: string,
+    // ⚠️ Шаг 37.54. Наводка на ОДНУ публикацию — быстрый переход из надзорной ленты.
+    // Параметр необязательный: клиент, ничего о нём не знающий, получает прежнюю
+    // выдачу. Номер, а не слаг: в уведомлении лежит именно номер, а перевод его
+    // в слаг означал бы лишний поход в базу ради ссылки.
+    @Query('id') rawFocusId?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
   ): Promise<TopLevelResult<PublicationItem[]>> {
@@ -290,6 +295,12 @@ export class PublicationsController {
     // отбора нет: среза «покажи всё, что проверять не надо» никто не спрашивает,
     // и заводить его молча, из-за случайной строки в адресе, нельзя.
     const onlyAwaitingRecheck = rawAwaitingRecheck === 'true';
+    // Мусор в параметре означает его отсутствие: страница не падает, а показывает
+    // обычную выдачу. Показать вместо наведённой публикации ВСЮ выдачу молча —
+    // единственная альтернатива, и она хуже: опечатку в адресе никто не заметит,
+    // поэтому раздел о ненайденной публикации говорит вслух.
+    const focusId = Number(rawFocusId);
+    const focus = Number.isInteger(focusId) && focusId > 0 ? focusId : undefined;
     const offset = Math.max(0, Number(rawOffset ?? 0));
     const limit = Math.min(100, Math.max(1, Number(rawLimit ?? 50)));
 
@@ -307,6 +318,10 @@ export class PublicationsController {
       // Очередь повторной проверки уходит В ЗАПРОС: под неё заведён частичный
       // индекс `clubs_awaiting_recheck_idx` / `trainers_awaiting_recheck_idx`.
       ...(onlyAwaitingRecheck ? { awaitingRecheck: true } : {}),
+      // ⚠️ Наводка СУЖАЕТ выдачу до одной строки и делает это в запросе.
+      // Читать страницу целиком, чтобы найти в ней одну публикацию, — ровно тот
+      // отбор в памяти, от которого ушёл шаг 36.х.
+      ...(focus === undefined ? {} : { ids: [focus] }),
     };
 
     // Ненужная половина не читается вовсе: при `type=club` таблица тренеров
