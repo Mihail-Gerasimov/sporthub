@@ -81,10 +81,19 @@ describe('NotificationBell', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('у служебной записи колокольчика нет: уведомляться ей не о чем', () => {
-    // ⚠️ Ловушка 7.11. Условие показа было «есть тип учётной записи», и с уходом
-    // типа колокольчик исчез бы у ВСЕХ молча. Отказ теперь ровно один — админ.
-    mockFetchByRoute();
+  // ⚠️ Шаг 37.50. Прежнее обещание этого набора было обратным: «у служебной
+  // записи колокольчика нет, уведомляться ей не о чем». Оно ПЕРЕВЁРНУТО, а не
+  // удалено, и вот почему. Довод «не о чем» был верен ровно до фазы 37: у
+  // администратора не бывает записей и отзывов, а больше уведомлять его было
+  // нечем. Фаза 37 завела очередь надзора — общий ящик служебной записи, куда
+  // приходят события, о которых не узнаёт ни пострадавший, ни второй
+  // администратор. Уведомляться стало о чем, и молчащий колокольчик превратился
+  // из верного поведения в потерю событий.
+  //
+  // Удалить проверку было нельзя: тогда снятие запрета никто бы не стерёг, и
+  // возврат строки `accountKind === 'admin' → null` прошёл бы зелёным.
+  it('у служебной записи колокольчик ЕСТЬ: ей адресована очередь надзора', async () => {
+    mockFetchByRoute({ unreadCount: 4 });
 
     useAuthStore.setState({
       isAuthenticated: true,
@@ -94,9 +103,109 @@ describe('NotificationBell', () => {
       user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
     });
 
-    const { container } = render(<NotificationBell />);
+    render(<NotificationBell />);
 
-    expect(container).toBeEmptyDOMElement();
+    await flush();
+
+    expect(screen.getByRole('button', { name: /уведомления/i })).toBeInTheDocument();
+    expect(screen.getByTestId('notification-bell-badge')).toHaveTextContent('4');
+  });
+
+  it('у служебной записи «Все уведомления» ведут в служебную панель, а не в кабинет', async () => {
+    // ⚠️ Ловушка 7 плана. `primaryCabinet` у администратора `null`, и адрес,
+    // собранный от него, уезжал бы в `/profile/me/notifications`, откуда
+    // `requirePerson()` выбрасывает на главную. Колокольчик «работал» бы,
+    // а клик выкидывал из панели.
+    mockFetchByRoute({ unreadCount: 0, items: [] });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
+      user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: /уведомления/i }));
+
+    await flush();
+
+    expect(screen.getByRole('link', { name: 'Все уведомления' })).toHaveAttribute(
+      'href',
+      '/service-portal/notifications',
+    );
+  });
+
+  it('выпадашка служебной записи спрашивает надзорный ящик, а не личную почту', async () => {
+    // ⚠️ Ящик обязан быть НАЗВАН. Неназванный означает «всё моё», то есть личную
+    // почту администратора, которой у него не бывает: выпадашка выглядела бы
+    // рабочей и показывала бы вечную пустоту.
+    const fetchMock = mockFetchByRoute({ unreadCount: 1, items: [] });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
+      user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: /уведомления/i }));
+
+    await flush();
+
+    const listCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith('/api/notifications?'),
+    );
+
+    expect(String(listCall?.[0])).toContain('scope=supervision');
+  });
+
+  it('под работой от чужого лица показывает ленту ТОГО, от чьего лица работают', async () => {
+    // ⚠️ Ловушка, названная планом заранее: различать надо по `accountKind`,
+    // а НЕ по `isAdmin`. Под подменой `accountKind` становится `person`, а
+    // `isAdmin` остаётся истинным — по нему администратор увидел бы свою
+    // служебную ленту вместо ленты того, от чьего лица он работает.
+    mockFetchByRoute({ unreadCount: 0, items: [] });
+
+    useAuthStore.setState({
+      isAuthenticated: true,
+      isAdmin: true,
+      isImpersonating: true,
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
+      user: { id: PROVIDER_USER_ID, name: 'Марина Крылова', email: 'marina@studio.local' },
+    });
+
+    render(<NotificationBell />);
+
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: /уведомления/i }));
+
+    await flush();
+
+    expect(screen.getByRole('link', { name: 'Все уведомления' })).toHaveAttribute(
+      'href',
+      '/profile/club/3/notifications',
+    );
+
+    // И ящик в запросе — тоже ящик того, от чьего лица работают: надзорного
+    // `scope=supervision` здесь быть не должно ни при каком `isAdmin`.
+    const listCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([url]: [RequestInfo | URL]) => String(url).startsWith('/api/notifications?'),
+    );
+
+    expect(String(listCall?.[0])).not.toContain('supervision');
   });
 
   it('у человека без лиц услуг колокольчик на месте (ловушка 7.11)', async () => {

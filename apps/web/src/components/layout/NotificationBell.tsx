@@ -7,8 +7,13 @@
  * ⚠️ Фаза 35, шаг 35.36 (ловушка 7.11). Колокольчик показывался тому, у кого
  * есть тип учётной записи. Типа не стало — и колокольчик исчез бы у ВСЕХ,
  * причём молча: компонент просто вернул бы `null`, без ошибки и без красного
- * теста. Теперь условие честное: уведомления есть у всякого вошедшего, кроме
- * служебной записи (у неё нет ни записей, ни отзывов — уведомляться не о чем).
+ * теста. Теперь условие честное: уведомления есть у всякого вошедшего.
+ *
+ * ⚠️ Шаг 37.50 снял последний отказ — служебной записи. Довод «уведомляться ей
+ * не о чем» был верен ровно до фазы 37: записей и отзывов у администратора
+ * по-прежнему нет, но появилась ОЧЕРЕДЬ НАДЗОРА — общий ящик, куда приходят
+ * события, о которых не узнаёт ни пострадавший, ни второй администратор.
+ * Молчащий колокольчик стал означать не «нечего показывать», а потерю событий.
  *
  * Phase 34 Step 34.49: номер пользователя из запросов ушёл — и из строки адреса,
  * и из тела. Лента и пометка прочитанным идут по сессии; чужое уведомление
@@ -30,13 +35,24 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { getNotificationCopy } from '@/lib/notification-copy';
 import { formatNotificationDateShort } from '@/lib/notification-date';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
-import { PERSONAL_CABINET_PATH } from '@/lib/service-faces';
+import {
+  cabinetPlace,
+  notificationsFeedHref,
+  PANEL_PLACE,
+  type NotificationPlace,
+} from '@/lib/notification-links';
+import {
+  mailboxQuery,
+  SUPERVISION_MAILBOX,
+  type NotificationsMailbox,
+} from '@/lib/notification-mailbox';
+import { PERSONAL_CABINET } from '@/lib/service-faces';
 import type { Notification } from '@sporthub/types';
 import { useUnreadCountPolling } from '@/hooks/useUnreadCountPolling';
 
@@ -47,6 +63,28 @@ export function NotificationBell() {
   const { accountKind, primaryCabinet } = useAuthFaces();
 
   const router = useRouter();
+
+  // ⚠️ Различаем по `accountKind`, а НЕ по `isAdmin` (ловушка решения 5.9).
+  // Под работой от чужого лица `accountKind` становится `person`, а `isAdmin`
+  // остаётся истинным: по нему администратор увидел бы СВОЮ служебную ленту
+  // вместо ленты того, от чьего лица он работает.
+  const isServiceAccount = accountKind === 'admin';
+
+  // Место, из которого смотрят: служебная панель либо кабинет — тот же, куда
+  // ведёт аватар в шапке. У служебной записи кабинета нет ни одного, поэтому
+  // третий случай адреса и понадобился.
+  const place: NotificationPlace = useMemo(
+    () => (isServiceAccount ? PANEL_PLACE : cabinetPlace(primaryCabinet ?? PERSONAL_CABINET)),
+    [isServiceAccount, primaryCabinet],
+  );
+
+  // Ящик, который спрашиваем. У служебной записи он надзорный — общая очередь;
+  // у человека ящик НЕ называется вовсе, и это прежнее поведение: колокольчик
+  // показывает всё, что пришло человеку, по всем его лицам сразу.
+  const mailbox: NotificationsMailbox | undefined = isServiceAccount
+    ? SUPERVISION_MAILBOX
+    : undefined;
+
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +102,13 @@ export function NotificationBell() {
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/notifications?limit=${DROPDOWN_LIMIT}`);
+      // ⚠️ Ящик обязан быть НАЗВАН для служебной записи. Неназванный означает
+      // «всё моё», то есть личную почту администратора, которой не бывает:
+      // выпадашка выглядела бы рабочей и показывала бы вечную пустоту.
+      const query = mailboxQuery(mailbox);
+      const response = await fetch(
+        `/api/notifications${query === '' ? '?' : `${query}&`}limit=${DROPDOWN_LIMIT}`,
+      );
       if (!response.ok) return;
       const body = (await response.json()) as {
         success: boolean;
@@ -78,7 +122,7 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mailbox]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,9 +144,9 @@ export function NotificationBell() {
     };
   }, [isOpen]);
 
-  // Раздел уведомлений — в том же кабинете, куда ведёт аватар: у человека
-  // с лицами услуг это кабинет текущего лица, у остальных — личный.
-  const allNotificationsHref = `${primaryCabinet?.href ?? PERSONAL_CABINET_PATH}/notifications`;
+  // Раздел уведомлений — по месту: у человека это тот же кабинет, куда ведёт
+  // аватар, у служебной записи — очередь надзора в панели.
+  const allNotificationsHref = notificationsFeedHref(place);
 
   // Phase 27 Step 27.6: клик по карточке уведомления = mark-as-read + переход на
   // полную страницу уведомлений. Хук объявлен ДО early-return, чтобы порядок
@@ -151,7 +195,7 @@ export function NotificationBell() {
     [refetch, router, allNotificationsHref, markReadInStore, rollbackMarkRead],
   );
 
-  if (!isAuthenticated || accountKind === 'admin') {
+  if (!isAuthenticated) {
     return null;
   }
 
