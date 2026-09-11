@@ -354,6 +354,7 @@ describe('Ограничения работают, а не просто суще
       db.prisma.notification.create({
         data: {
           userId,
+          addresseeKind: 'club',
           type: 'booking_requested',
           payload: {},
           addresseeClubId: clubId,
@@ -408,10 +409,16 @@ describe('Ограничения работают, а не просто суще
     const { clubId, userId } = await seedMinimum();
 
     const toClub = await db.prisma.notification.create({
-      data: { userId, type: 'booking_requested', payload: {}, addresseeClubId: clubId },
+      data: {
+        userId,
+        addresseeKind: 'club',
+        type: 'booking_requested',
+        payload: {},
+        addresseeClubId: clubId,
+      },
     });
     const toPerson = await db.prisma.notification.create({
-      data: { userId, type: 'booking_confirmed', payload: {} },
+      data: { userId, addresseeKind: 'personal', type: 'booking_confirmed', payload: {} },
     });
 
     expect(toClub.addresseeClubId).toBe(clubId);

@@ -17,6 +17,7 @@
 // 3. **Владелец услуги — пара взаимоисключающих колонок** (см. `./owner-columns.ts`).
 
 import { Injectable } from '@nestjs/common';
+import type { NotificationAddresseeKind } from '@sporthub/domain';
 import type {
   CatalogOwnerType,
   EntityId,
@@ -472,14 +473,26 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
   private static addresseeColumns(notification: {
     addresseeType?: CatalogOwnerType;
     addresseeId?: EntityId;
-  }): { addresseeClubId: number | null; addresseeTrainerId: number | null } {
+  }): {
+    addresseeKind: NotificationAddresseeKind;
+    addresseeClubId: number | null;
+    addresseeTrainerId: number | null;
+  } {
     if (notification.addresseeType === undefined || notification.addresseeId === undefined) {
-      return { addresseeClubId: null, addresseeTrainerId: null };
+      return { addresseeKind: 'personal', addresseeClubId: null, addresseeTrainerId: null };
     }
 
     return notification.addresseeType === 'club'
-      ? { addresseeClubId: notification.addresseeId, addresseeTrainerId: null }
-      : { addresseeClubId: null, addresseeTrainerId: notification.addresseeId };
+      ? {
+          addresseeKind: 'club',
+          addresseeClubId: notification.addresseeId,
+          addresseeTrainerId: null,
+        }
+      : {
+          addresseeKind: 'trainer',
+          addresseeClubId: null,
+          addresseeTrainerId: notification.addresseeId,
+        };
   }
 
   /**

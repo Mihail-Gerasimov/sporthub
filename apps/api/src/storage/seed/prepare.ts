@@ -23,7 +23,12 @@
 //    расходятся со слотом у 31 записи из 32 — это снимок на момент записи,
 //    защищающий атлета от условий, изменённых задним числом. Не дефект.
 
-import { ACTIVE_BOOKING_STATUSES, accountKindOf, normalizeMatchKey } from '@sporthub/domain';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  accountKindOf,
+  addresseeKindFromFace,
+  normalizeMatchKey,
+} from '@sporthub/domain';
 import type { CatalogOwnerType, EntityId } from '@sporthub/types';
 
 import { normalizeSlugLookupValue } from '../../repositories/entities.repository';
@@ -708,6 +713,10 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       id: notification.id,
       createdAt: requireTimestamp(notification.createdAt, `уведомление ${notification.id}`),
       userId: notification.userId,
+      // Вид адресата называется явно: колонка без умолчания, и вывести его
+      // «по пустоте колонок» больше нельзя — с фазы 37 пустые колонки лица
+      // бывают и у надзорной очереди (шаг 37.5).
+      addresseeKind: addresseeKindFromFace(notification.addresseeType),
       // Адресат-лицо: пара полей контракта раскладывается на две колонки, ровно
       // как владелец услуги и расписания. Обе пусты — уведомление человеку.
       addresseeClubId:

@@ -370,21 +370,25 @@ async function seedFixture(): Promise<Fixture> {
       // строку по номерам сторон, а по номеру самой связи — не находила вовсе.
       {
         userId: owner.id,
+        addresseeKind: 'personal',
         type: 'link_requested',
         payload: { subjectType: 'link', subjectId: link.id, initiatedBy: 'trainer' },
       },
       {
         userId: client.id,
+        addresseeKind: 'personal',
         type: 'booking_confirmed',
         payload: { subjectType: 'booking', subjectId: venueBooking.id },
       },
       {
         userId: owner.id,
+        addresseeKind: 'personal',
         type: 'review_received_by_provider',
         payload: { subjectType: 'review', subjectId: garbageReview.id, rating: 5 },
       },
       {
         userId: owner.id,
+        addresseeKind: 'club',
         type: 'booking_requested',
         addresseeClubId: garbageClub.id,
         payload: { subjectType: 'booking', subjectId: venueBooking.id },
@@ -392,11 +396,13 @@ async function seedFixture(): Promise<Fixture> {
       // Контроль: уведомление живой записи и живого клуба остаётся.
       {
         userId: client.id,
+        addresseeKind: 'personal',
         type: 'booking_confirmed',
         payload: { subjectType: 'booking', subjectId: liveBooking.id },
       },
       {
         userId: owner.id,
+        addresseeKind: 'personal',
         type: 'publication_recheck_requested',
         payload: { subjectType: 'club', subjectId: liveClub.id, publicationName: 'Живой клуб' },
       },

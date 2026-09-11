@@ -91,7 +91,7 @@ describe('миграция переводит прежние формы ссыл
     const created = await db.prisma.notification.create({
       // Приведение — то же, что в самом хранилище: `payload` полиморфен,
       // и у клиента базы для него свой тип значения.
-      data: { userId, type, payload: payload as Prisma.InputJsonValue },
+      data: { userId, addresseeKind: 'personal', type, payload: payload as Prisma.InputJsonValue },
     });
 
     return created.id;

@@ -17,7 +17,7 @@
 // из карты ниже (шаг 37.8) — пятый вид меняет SQL сам. Образец того же приёма уже
 // есть: `users_account_kind` собирается из `ACCOUNT_KINDS`.
 
-import type { NotificationAddresseeKindValue } from '@sporthub/types';
+import type { CatalogOwnerType, NotificationAddresseeKindValue } from '@sporthub/types';
 
 /**
  * Все виды адресата — единственный СПИСОК на весь проект.
@@ -84,4 +84,23 @@ export function isNotificationAddresseeKind(value: unknown): value is Notificati
 /** Полагается ли строке этого вида владелец-человек. */
 export function addresseeKindHasOwner(kind: NotificationAddresseeKind): boolean {
   return NOTIFICATION_ADDRESSEE_SHAPE[kind].user;
+}
+
+/**
+ * Вид адресата по ПРЕЖНЕЙ форме контракта — паре «тип лица + номер».
+ *
+ * ⚠️ Это не возврат к выводу из пустоты, а перевод старой формы в новую, и он
+ * нужен ровно там, где на входе ещё лежит старая: разбор исходных данных засева
+ * и чтение строк, записанных до фазы 37. Как только контракт начнёт называть вид
+ * сам (шаг 37.11), эта функция останется запасным вариантом для старого входа,
+ * а не основным путём.
+ *
+ * Надзорной очереди здесь взяться неоткуда: в старой форме её не существовало.
+ */
+export function addresseeKindFromFace(
+  addresseeType: CatalogOwnerType | undefined | null,
+): NotificationAddresseeKind {
+  if (addresseeType === 'club') return 'club';
+  if (addresseeType === 'trainer') return 'trainer';
+  return 'personal';
 }
