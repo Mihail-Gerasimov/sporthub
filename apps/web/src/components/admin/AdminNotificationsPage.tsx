@@ -153,6 +153,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
   // разобранным в ленте меняет значок мгновенно, не дожидаясь опроса.
   const items = useNotificationsStore((state) => state.notifications);
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
+  const setUnreadCountInStore = useNotificationsStore((state) => state.setUnreadCount);
 
   const addToast = useToastStore((state) => state.addToast);
   // Кто разбирает — это я: подпись «занялся» ставится по вошедшему.
@@ -201,11 +202,30 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
   // и назвать её «событий нет».
   const [offset, setOffset] = useState(0);
 
-  // Посев остаётся у страницы: серверные данные получила она. В сторе живут
-  // только строки — счётчики он считать не умеет и не должен.
+  /**
+   * Положить в стор строки И число неразобранных — ВСЕГДА вместе.
+   *
+   * ⚠️ Найдено паритетом шага 37.52, и это ровно тот класс дефекта, ради которого
+   * фаза и затевалась. `setNotifications` пересчитывает счётчик ПО ВЫДАННЫМ
+   * строкам: для личного ящика, который приходит целиком, это верно, а очередь
+   * надзора читается страницами по пятнадцать. Смена отбора на «разобрано»
+   * оставляла на странице ноль неразобранных — и значок в шапке показывал ноль
+   * над очередью из двенадцати. Число знает сервер, и класть его в стор обязана
+   * страница, получившая ответ.
+   */
+  const showRows = useCallback(
+    (rows: Notification[], unread: number) => {
+      setNotificationsInStore(rows);
+      setUnreadCountInStore(unread);
+    },
+    [setNotificationsInStore, setUnreadCountInStore],
+  );
+
+  // Посев остаётся у страницы: серверные данные получила она. Стор считать
+  // счётчики не умеет и не должен — он их только хранит.
   useEffect(() => {
-    setNotificationsInStore(initialFeed.items);
-  }, [initialFeed, setNotificationsInStore]);
+    showRows(initialFeed.items, initialFeed.unreadCount);
+  }, [initialFeed, showRows]);
 
   /**
    * Спросить очередь с текущим отбором.
@@ -244,13 +264,13 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
       }
 
       setFetched(body.data);
-      setNotificationsInStore(body.data.items);
+      showRows(body.data.items, body.data.unreadCount);
     } catch {
       addToast({ message: 'Не удалось обновить очередь', tone: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [activeGroup, state, offset, addToast, setNotificationsInStore]);
+  }, [activeGroup, state, offset, addToast, showRows]);
 
   // ⚠️ Первый проход пропускается намеренно: эту самую страницу уже принёс сервер,
   // и повторный запрос на монтировании был бы вторым походом за тем же самым.
@@ -284,11 +304,14 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
       // Отказ виден по стору: хук вернул строку в неразобранные сам.
       if (row === undefined || row.readAt === undefined || sessionUserId === undefined) return;
 
-      setNotificationsInStore(
+      // Счётчик здесь НЕ меняется: его уже убавил хук пометки. Простановка
+      // подписи — правка одной строки, а не новое событие разбора.
+      showRows(
         rows.map((item) => (item.id === id ? { ...item, readByUserId: sessionUserId } : item)),
+        useNotificationsStore.getState().unreadCount,
       );
     },
-    [markSingleRead, setNotificationsInStore, sessionUserId],
+    [markSingleRead, showRows, sessionUserId],
   );
 
   /**
@@ -309,33 +332,37 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
       setReturningId(id);
 
       const rows = useNotificationsStore.getState().notifications;
+      const unreadBefore = useNotificationsStore.getState().unreadCount;
 
       // Оптимистично: строка снова в работе, счётчик колокольчика подрос.
-      setNotificationsInStore(
+      // Подрос ровно на единицу — очередь общая, и пересчёт по показанной
+      // странице выдал бы вместо числа очереди число экрана.
+      showRows(
         rows.map((item) =>
           item.id === id ? { ...item, readAt: undefined, readByUserId: undefined } : item,
         ),
+        unreadBefore + 1,
       );
 
       try {
         const response = await fetch(`/api/notifications/${id}/unread`, { method: 'POST' });
 
         if (!response.ok) {
-          // Возврат к тому, что было ДО нажатия: разбор и его подпись целы.
-          setNotificationsInStore(rows);
+          // Возврат к тому, что было ДО нажатия: разбор, его подпись и счётчик целы.
+          showRows(rows, unreadBefore);
           addToast({ message: 'Не удалось вернуть в очередь', tone: 'error' });
           return;
         }
 
         addToast({ message: 'Строка вернулась в очередь', tone: 'success' });
       } catch {
-        setNotificationsInStore(rows);
+        showRows(rows, unreadBefore);
         addToast({ message: 'Не удалось вернуть в очередь', tone: 'error' });
       } finally {
         setReturningId(null);
       }
     },
-    [returningId, setNotificationsInStore, addToast],
+    [returningId, showRows, addToast],
   );
 
   /**
