@@ -79,21 +79,17 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
   const items = useNotificationsStore((state) => state.notifications);
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
 
-  // ⚠️ Счётчики держатся ОТДЕЛЬНО от стора и приходят из ответа сервера.
-  // Стор считает непрочитанные по тому, что в нём лежит, — то есть по странице
-  // в пятнадцать строк. Это ровно дефект фазы 36 «счётчик показывал вечный ноль,
-  // потому что читал число не оттуда», только наоборот: число было бы не нулём,
-  // а неправдой.
-  const [total, setTotal] = useState(initialFeed.total);
-  const [unreadCount, setUnreadCount] = useState(initialFeed.unreadCount);
+  // ⚠️ Счётчики берутся ИЗ ОТВЕТА СЕРВЕРА и не считаются по стору. Стор держит
+  // показанную страницу — пятнадцать строк, — и счёт по нему был бы дефектом
+  // фазы 36 наизнанку: не вечный ноль, а уверенная неправда.
+  const { total, unreadCount } = initialFeed;
 
   const [activeGroup, setActiveGroup] = useState<NotificationGroupFilter>('all');
 
-  // Посев остаётся у страницы: серверные данные получила она.
+  // Посев остаётся у страницы: серверные данные получила она. В сторе живут
+  // только строки — счётчики он считать не умеет и не должен.
   useEffect(() => {
     setNotificationsInStore(initialFeed.items);
-    setTotal(initialFeed.total);
-    setUnreadCount(initialFeed.unreadCount);
   }, [initialFeed, setNotificationsInStore]);
 
   // Группировка по дате — теми же вёдрами, что в ленте кабинета. Внутри ведра
