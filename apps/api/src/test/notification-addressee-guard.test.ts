@@ -448,10 +448,75 @@ describe('Сторож адресата уведомления', () => {
       expect(await supervisionRows()).toHaveLength(0);
     });
 
+    it('ОТЗЫВ надзорной строки НЕ порождает', async () => {
+      // ⚠️ Дыра покрытия, найденная ревизией 37.73. Обратная половина сторожа
+      // обещала «все не-надзорные действия», а обходила два из трёх разделов
+      // набора: записи и связи. Отзыв — самый соблазнительный кандидат
+      // на «продублируем надзору на всякий случай»: он публичный, он влияет
+      // на рейтинг, и спорные отзывы фаза 37 назвала в списке будущего.
+      // Пока механизма спорных отзывов нет, обычный отзыв — договор двоих,
+      // и обе стороны о нём уже извещены.
+      await harness.writeMany({
+        bookings: [
+          {
+            id: 601,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            userId: 1,
+            scheduleId: 2,
+            clubId: 1,
+            ownerType: 'club',
+            ownerId: 1,
+            sportId: 3,
+            status: 'completed',
+            date: slotAt(-2).date,
+            totalPrice: 1000,
+            statusHistory: [],
+          },
+        ],
+      });
+
+      const response = await post('/reviews', await harness.as(1), {
+        clubId: 1,
+        rating: 5,
+        text: 'Отличный клуб, всё понравилось',
+      });
+
+      // Контрольная группа: отзыв действительно опубликован. Без неё «надзорных
+      // строк ноль» зелено и у маршрута, который ничего не делает.
+      expect(response.status).toBe(201);
+      expect(await stored('review_received_by_provider')).toBeDefined();
+
+      expect(await supervisionRows()).toHaveLength(0);
+    });
+
     it('ни одно человеческое действие набора не оставило надзорных строк', async () => {
-      // Сводная проверка: три разных действия подряд, и очередь по-прежнему пуста.
-      await post('/bookings', asAthlete, { scheduleId: 1 });
-      await post('/trainer-club-links', asOtherTrainer, { trainerId: 1, clubId: 2 });
+      // Сводная проверка: все три раздела набора подряд — записи, связи, отзыв, —
+      // и очередь по-прежнему пуста.
+      await harness.writeMany({
+        bookings: [
+          {
+            id: 602,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            userId: 1,
+            scheduleId: 2,
+            clubId: 1,
+            ownerType: 'club',
+            ownerId: 1,
+            sportId: 3,
+            status: 'completed',
+            date: slotAt(-2).date,
+            totalPrice: 1000,
+            statusHistory: [],
+          },
+        ],
+      });
+
+      // ⚠️ Cookie берутся ЗАНОВО: запись пересобирает базу и гасит прежние сессии.
+      const [athlete, otherTrainer] = await Promise.all([harness.as(1), harness.as(5)]);
+
+      await post('/bookings', athlete, { scheduleId: 1 });
+      await post('/trainer-club-links', otherTrainer, { trainerId: 1, clubId: 2 });
+      await post('/reviews', athlete, { clubId: 1, rating: 4, text: 'Хороший клуб, спасибо' });
 
       expect(await supervisionRows()).toHaveLength(0);
     });
