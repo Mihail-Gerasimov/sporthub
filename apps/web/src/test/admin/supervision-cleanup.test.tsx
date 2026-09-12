@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminNotificationsPage } from '@/components/admin/AdminNotificationsPage';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
 
 const ADMIN_ID = 3;
@@ -37,6 +38,35 @@ function askedUrls(mock: ReturnType<typeof vi.fn>): string[] {
   return mock.mock.calls.map((call) => String(call[0]));
 }
 
+function json(data: unknown): Response {
+  return new Response(JSON.stringify({ success: true, data }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/**
+ * Стенд отвечает ПО МАРШРУТУ, а не одним телом на всё.
+ *
+ * ⚠️ Прежде все запросы получали ответ уборки — `{ deleted: 1 }`, — включая
+ * перезапрос ленты, который уборка и «отметить всё» делают сразу после себя.
+ * В стор уезжало `undefined` вместо строк, и страница падала на `items.filter`:
+ * восемь тестов оставались зелёными, а прогон выходил с ошибкой. Стенд, который
+ * отвечает не тем, чем ответил бы сервер, проверяет не то приложение.
+ */
+async function defaultServer(url: unknown, init?: RequestInit): Promise<Response> {
+  const address = String(url);
+
+  if (init?.method === 'DELETE') return json({ deleted: 1 });
+  if (address.includes('/read-all')) return json({ updatedCount: 1 });
+  if (address.startsWith('/api/notifications?')) {
+    return json({ items: [], total: 0, unreadCount: 0 });
+  }
+
+  // Разбор и возврат одной строки: важен только успех, тело не читается.
+  return json({ ok: true });
+}
+
 describe('очередь надзора: уборка', () => {
   const fetchMock = vi.fn();
 
@@ -50,13 +80,7 @@ describe('очередь надзора: уборка', () => {
     useNotificationsStore.getState().reset();
 
     fetchMock.mockReset();
-    fetchMock.mockImplementation(
-      async () =>
-        new Response(JSON.stringify({ success: true, data: { deleted: 1 } }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-    );
+    fetchMock.mockImplementation(defaultServer);
     vi.stubGlobal('fetch', fetchMock);
   });
 
@@ -230,6 +254,45 @@ describe('очередь надзора: уборка', () => {
     // Уходят номера ТОЛЬКО разобранных: неразобранная строка — это работа,
     // которую ещё никто не сделал.
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({ ids: [13] });
+  });
+
+  it('ответ без строк признаётся неудачей, а не роняет раздел', async () => {
+    // ⚠️ Не выдумка: ровно так отвечал прежний стенд этого файла, и раздел падал
+    // на `items.filter` — в стор уезжало `undefined`. Восемь тестов при этом
+    // оставались зелёными, потому что падение происходило ПОСЛЕ проверок,
+    // необработанной ошибкой. Проверка формы ответа стоит у ленты кабинета
+    // с самого начала; у очереди надзора её не было.
+    fetchMock.mockImplementation(async (url: unknown, init?: RequestInit) => {
+      if (init?.method === 'DELETE') return json({ deleted: 1 });
+
+      // Тело есть, признак успеха есть, строк нет — прежняя проверка пропускала.
+      return json({ deleted: 1 });
+    });
+
+    render(
+      <AdminNotificationsPage
+        initialFeed={{
+          items: [row({ id: 17, readAt: new Date().toISOString(), readByUserId: 12 })],
+          total: 1,
+          unreadCount: 0,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('supervision-delete-resolved'));
+    fireEvent.click(screen.getByTestId('supervision-delete-confirm'));
+
+    // Перезапрос после уборки получил тело не той формы — это неудача обновления.
+    await waitFor(() =>
+      expect(
+        useToastStore.getState().toasts.some((toast) => toast.message.includes('обновить очередь')),
+      ).toBe(true),
+    );
+
+    // Раздел на месте и отрисован: при падении на `items.filter` от него
+    // не осталось бы ничего — страницу снёс бы весь, вместе с управлением.
+    expect(screen.getByTestId('supervision-state-filter')).toBeInTheDocument();
+    expect(screen.getByTestId('supervision-group-tabs')).toBeInTheDocument();
   });
 
   it('удалять нечего — кнопка не обещает действия', () => {

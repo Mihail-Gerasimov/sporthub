@@ -237,7 +237,12 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
         data?: NotificationsFeedPage;
       };
 
-      if (!response.ok || !body.success || body.data === undefined) {
+      // ⚠️ Проверяются СТРОКИ, а не только наличие тела. Форма `{ success: true,
+      // data: { … } }` без `items` проходила прежнюю проверку насквозь, в стор
+      // уезжало `undefined`, и весь раздел падал на первом же `items.filter` —
+      // белый экран вместо очереди. Лента кабинета проверяла массив с самого
+      // начала; здесь проверки не было, и расхождение нашёл прогон диверсий.
+      if (!response.ok || !body.success || !Array.isArray(body.data?.items)) {
         addToast({ message: 'Не удалось обновить очередь', tone: 'error' });
         return;
       }
