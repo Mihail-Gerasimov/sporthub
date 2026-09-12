@@ -7,6 +7,8 @@ export { ChipMarquee } from '@/components/ui/ChipMarquee';
 export type { ChipMarqueeItem } from '@/components/ui/ChipMarquee';
 export { Input } from '@/components/ui/Input';
 export { Modal } from '@/components/ui/Modal';
+export { PaginationBar } from '@/components/ui/PaginationBar';
+export type { PaginationShape } from '@/components/ui/PaginationBar';
 export { Select } from '@/components/ui/Select';
 export { Rating } from '@/components/ui/Rating';
 export { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';

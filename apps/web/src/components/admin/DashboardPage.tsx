@@ -26,6 +26,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
+import { PaginationBar } from '@/components/ui/PaginationBar';
 import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import {
@@ -50,7 +51,6 @@ type FacesFilter = 'all' | 'with' | 'without';
 type StatusFilter = 'all' | 'active' | 'banned' | 'suspended';
 
 const PAGE_SIZE = 15;
-const MAX_VISIBLE_PAGE_BUTTONS = 5;
 
 // Подписи отбора по лицам услуг — один словарь на фильтр и на бейдж карточки.
 const FACES_LABELS: Record<Exclude<FacesFilter, 'all'>, string> = {
@@ -91,34 +91,6 @@ const ICON_CHEV_DOWN = (
     className="h-3.5 w-3.5"
   >
     <path d="M6 9l6 6 6-6" />
-  </svg>
-);
-
-const ICON_CHEV_LEFT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const ICON_CHEV_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M9 6l6 6-6 6" />
   </svg>
 );
 
@@ -220,16 +192,6 @@ export function DashboardPage({ users, bookings }: DashboardPageProps) {
     () => filteredUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
     [filteredUsers, safePage],
   );
-
-  const visiblePageNumbers = useMemo(() => {
-    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
-    let start = Math.max(1, safePage - half);
-    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
-    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
-    const pages: number[] = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  }, [safePage, totalPages]);
 
   /**
    * Обработчик impersonation.
@@ -408,49 +370,15 @@ export function DashboardPage({ users, bookings }: DashboardPageProps) {
       )}
 
       {/* Pagination всегда видна */}
-      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs font-medium text-muted">
-          {filteredUsers.length === 0 ? (
-            'Показано 0 из 0'
-          ) : (
-            <>
-              Показано{' '}
-              <strong className="font-bold text-ink">
-                {(safePage - 1) * PAGE_SIZE + 1}–
-                {Math.min(safePage * PAGE_SIZE, filteredUsers.length)}
-              </strong>{' '}
-              из <strong className="font-bold text-ink">{filteredUsers.length}</strong>
-            </>
-          )}
-        </span>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PageButton
-            disabled={safePage === 1}
-            onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
-            ariaLabel="Предыдущая страница"
-          >
-            {ICON_CHEV_LEFT}
-          </PageButton>
-          {visiblePageNumbers.map((page) => (
-            <PageButton
-              key={page}
-              active={page === safePage}
-              onClick={() => setCurrentPage(page)}
-              ariaLabel={`Страница ${page}`}
-            >
-              {page}
-            </PageButton>
-          ))}
-          <PageButton
-            disabled={safePage >= totalPages}
-            onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
-            ariaLabel="Следующая страница"
-          >
-            {ICON_CHEV_RIGHT}
-          </PageButton>
-        </div>
-      </div>
+      <PaginationBar
+        shape="boxed"
+        className="px-1 pt-1.5"
+        page={safePage}
+        pageSize={PAGE_SIZE}
+        total={filteredUsers.length}
+        shownCount={pagedUsers.length}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }
@@ -638,38 +566,6 @@ function FilterSelect({
         )}
       />
     </span>
-  );
-}
-
-function PageButton({
-  active = false,
-  disabled = false,
-  onClick,
-  children,
-  ariaLabel,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-        active
-          ? 'border-lime bg-lime text-ink'
-          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
-      )}
-    >
-      {children}
-    </button>
   );
 }
 

@@ -45,6 +45,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { HIDE_KIND_LABELS, isHideKind } from '@sporthub/domain';
 import type { City, HideKindValue } from '@sporthub/types';
+import { PaginationBar } from '@/components/ui/PaginationBar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   MODERATION_DEFAULT_FILTERS,
@@ -85,7 +86,6 @@ interface ModerationPageProps {
 // Шаг 37.54: объявлен в `lib/moderation-filters` — оттуда же собирается смещение
 // в запросе, и двух разных представлений о размере страницы быть не должно.
 const PAGE_SIZE = MODERATION_PAGE_SIZE;
-const MAX_VISIBLE_PAGE_BUTTONS = 5;
 
 /**
  * Задержка перед тем, как поиск попадёт в адрес.
@@ -110,34 +110,6 @@ const ICON_SEARCH = (
   >
     <circle cx="11" cy="11" r="7" />
     <path d="M21 21l-4.3-4.3" />
-  </svg>
-);
-
-const ICON_CHEV_LEFT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const ICON_CHEV_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M9 6l6 6-6 6" />
   </svg>
 );
 
@@ -313,10 +285,9 @@ export function ModerationPage({ sports }: ModerationPageProps) {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  // Страница — из адреса, смещение считается от неё (и так же — в запросе).
+  // Страница — из адреса: отбор и постраничность живут в нём одинаково,
+  // и ссылку на вторую страницу модерации можно дать кому угодно.
   const currentPage = filters.page;
-  const offset = (currentPage - 1) * PAGE_SIZE;
 
   /**
    * Публикация, ради которой пришли из уведомления.
@@ -331,16 +302,6 @@ export function ModerationPage({ sports }: ModerationPageProps) {
       ? null
       : (items.find((item) => isFocusedPublication(filters, item)) ?? null);
   const focusMissing = filters.focusId !== null && !loading && focusedItem === null;
-
-  const visiblePageNumbers = useMemo(() => {
-    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
-    let start = Math.max(1, currentPage - half);
-    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
-    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
-    const pages: number[] = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  }, [currentPage, totalPages]);
 
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
@@ -494,48 +455,15 @@ export function ModerationPage({ sports }: ModerationPageProps) {
       )}
 
       {/* Пагинация всегда видна */}
-      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs font-medium text-muted">
-          {total === 0 ? (
-            'Показано 0 из 0'
-          ) : (
-            <>
-              Показано{' '}
-              <strong className="font-bold text-ink">
-                {offset + 1}–{Math.min(offset + items.length, total)}
-              </strong>{' '}
-              из <strong className="font-bold text-ink">{total}</strong>
-            </>
-          )}
-        </span>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PageButton
-            disabled={currentPage <= 1}
-            onClick={() => applyFilters({ page: Math.max(1, currentPage - 1) })}
-            ariaLabel="Предыдущая страница"
-          >
-            {ICON_CHEV_LEFT}
-          </PageButton>
-          {visiblePageNumbers.map((page) => (
-            <PageButton
-              key={page}
-              active={page === currentPage}
-              onClick={() => applyFilters({ page })}
-              ariaLabel={`Страница ${page}`}
-            >
-              {page}
-            </PageButton>
-          ))}
-          <PageButton
-            disabled={currentPage >= totalPages}
-            onClick={() => applyFilters({ page: currentPage + 1 })}
-            ariaLabel="Следующая страница"
-          >
-            {ICON_CHEV_RIGHT}
-          </PageButton>
-        </div>
-      </div>
+      <PaginationBar
+        shape="boxed"
+        className="px-1 pt-1.5"
+        page={currentPage}
+        pageSize={PAGE_SIZE}
+        total={total}
+        shownCount={items.length}
+        onPageChange={(page) => applyFilters({ page })}
+      />
 
       {/* Модалка скрытия */}
       <HideReasonModal
@@ -723,37 +651,5 @@ function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode 
     >
       {children}
     </span>
-  );
-}
-
-function PageButton({
-  active = false,
-  disabled = false,
-  onClick,
-  children,
-  ariaLabel,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-        active
-          ? 'border-lime bg-lime text-ink'
-          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
-      )}
-    >
-      {children}
-    </button>
   );
 }

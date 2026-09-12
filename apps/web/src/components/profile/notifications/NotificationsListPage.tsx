@@ -56,6 +56,7 @@ import { NOTIFICATIONS_PAGE_SIZE } from '@/lib/notification-pagination';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
+import { PaginationBar } from '@/components/ui/PaginationBar';
 import {
   BUCKET_LABELS,
   BUCKET_ORDER,
@@ -89,39 +90,6 @@ import type { Notification } from '@sporthub/types';
 // страницам кабинета, а импорт значения из модуля с `'use client'` через границу
 // отдаёт заглушку вместо числа (шаг 37.61). Реэкспорт — для прежних импортов.
 export { NOTIFICATIONS_PAGE_SIZE };
-
-/** Максимум видимых номеров страниц — пагинатор не разбухает на длинной истории. */
-const MAX_VISIBLE_PAGE_BUTTONS = 5;
-
-const ICON_CHEV_LEFT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="size-3.5"
-    aria-hidden="true"
-  >
-    <path d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const ICON_CHEV_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="size-3.5"
-    aria-hidden="true"
-  >
-    <path d="M9 6l6 6-6 6" />
-  </svg>
-);
 
 export interface NotificationsListPageProps {
   /**
@@ -331,22 +299,10 @@ export function NotificationsListPage({
     );
   }, [notifications]);
 
-  // Число страниц считается от `total` — от числа СЕРВЕРА, а не от длины выданной
-  // страницы: увидеть разницу можно только на второй странице.
+  // Число страниц полоса считает от `total` — от числа СЕРВЕРА, а не от длины
+  // выданной страницы: увидеть разницу можно только на второй странице. Здесь
+  // живёт сдвиг (его ждёт запрос), полосе нужен номер — это одно и то же число.
   const currentPage = Math.floor(offset / NOTIFICATIONS_PAGE_SIZE) + 1;
-  const totalPages = Math.max(1, Math.ceil(total / NOTIFICATIONS_PAGE_SIZE));
-
-  const visiblePageNumbers = useMemo(() => {
-    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
-    let start = Math.max(1, currentPage - half);
-    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
-    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
-    const pages: number[] = [];
-
-    for (let page = start; page <= end; page += 1) pages.push(page);
-
-    return pages;
-  }, [currentPage, totalPages]);
 
   // ⚠️ Мутации разворачиваются из хука по именам, чтобы разметка ниже читалась
   // так же, как читалась до выноса: `selectionMode`, `markAllRead`, `requestDelete`.
@@ -611,48 +567,15 @@ export function NotificationsListPage({
         больше одной страницы — иначе смена темы означала бы «покажи первые
         двадцать этой темы и промолчи об остальных».
       */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs font-medium text-muted" data-testid="notifications-page-range">
-          {total === 0 ? (
-            'Показано 0 из 0'
-          ) : (
-            <>
-              Показано{' '}
-              <strong className="font-semibold tabular-nums text-ink">
-                {offset + 1}–{Math.min(offset + notifications.length, total)}
-              </strong>{' '}
-              из <strong className="font-semibold tabular-nums text-ink">{total}</strong>
-            </>
-          )}
-        </span>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PageButton
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - NOTIFICATIONS_PAGE_SIZE))}
-            ariaLabel="Предыдущая страница"
-          >
-            {ICON_CHEV_LEFT}
-          </PageButton>
-          {visiblePageNumbers.map((page) => (
-            <PageButton
-              key={page}
-              active={page === currentPage}
-              onClick={() => setOffset((page - 1) * NOTIFICATIONS_PAGE_SIZE)}
-              ariaLabel={`Страница ${page}`}
-            >
-              {page}
-            </PageButton>
-          ))}
-          <PageButton
-            disabled={offset + NOTIFICATIONS_PAGE_SIZE >= total}
-            onClick={() => setOffset(offset + NOTIFICATIONS_PAGE_SIZE)}
-            ariaLabel="Следующая страница"
-          >
-            {ICON_CHEV_RIGHT}
-          </PageButton>
-        </div>
-      </div>
+      <PaginationBar
+        shape="pill"
+        page={currentPage}
+        pageSize={NOTIFICATIONS_PAGE_SIZE}
+        total={total}
+        shownCount={notifications.length}
+        onPageChange={(page) => setOffset((page - 1) * NOTIFICATIONS_PAGE_SIZE)}
+        rangeTestId="notifications-page-range"
+      />
 
       {/* Phase 29 Step 29.3: модалка подтверждения удаления. Открывается с
           confirmIds — массив id (1 для per-item, N для bulk). */}
@@ -695,46 +618,5 @@ export function NotificationsListPage({
         <></>
       </Modal>
     </section>
-  );
-}
-
-/**
- * Кнопка пагинатора в каноне кабинета.
- *
- * ⚠️ Это не копия пагинатора служебной панели, и слить их в один компонент нельзя
- * без правки самой панели: там другой канон — прямоугольные кнопки `rounded-[8px]`
- * и UPPERCASE-трекинг, здесь `rounded-pill` и кабинетные токены. Общий пагинатор
- * площадки — отдельная работа: своих у панели сегодня три (журнал, модерация,
- * очередь надзора), и заводить четвёртый общий, не тронув те три, значило бы
- * оставить дубль и добавить слой.
- */
-function PageButton({
-  active = false,
-  disabled = false,
-  onClick,
-  children,
-  ariaLabel,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      aria-current={active ? 'page' : undefined}
-      className={`inline-flex h-8 min-w-8 items-center justify-center rounded-pill border px-2 text-xs font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        active
-          ? 'border-accent bg-accent text-ink'
-          : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

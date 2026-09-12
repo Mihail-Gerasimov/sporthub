@@ -17,12 +17,12 @@
  */
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { actorLabel as formatActorLabel } from '@sporthub/domain';
 
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
-import { Skeleton } from '@/components/ui';
+import { PaginationBar, Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Booking, EntityId, LogAction, LogEntityType, LogEntry } from '@sporthub/types';
@@ -153,7 +153,6 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
 const PAGE_SIZE = 15;
 const POLL_INTERVAL_MS = 30_000;
 // Максимум видимых нумерованных кнопок в pager'е, чтобы не разбухал на 100+ страницах
-const MAX_VISIBLE_PAGE_BUTTONS = 5;
 
 /** Вычисляет ISO-строку from/to для пресета периода */
 function getPeriodRange(period: PeriodFilter): { from?: string; to?: string } {
@@ -202,34 +201,6 @@ const ICON_REFRESH = (
   >
     <path d="M21 12a9 9 0 11-3-6.7L21 8" />
     <path d="M21 3v5h-5" />
-  </svg>
-);
-
-const ICON_CHEV_LEFT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const ICON_CHEV_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="h-3.5 w-3.5"
-  >
-    <path d="M9 6l6 6-6 6" />
   </svg>
 );
 
@@ -341,19 +312,9 @@ export function LogsPage() {
     setOffset(0);
   };
 
+  // Сдвиг и номер страницы — одно и то же, записанное по-разному: здесь живёт
+  // сдвиг (его ждёт запрос), полосе нужен номер.
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  // Видимый ряд номеров страниц вокруг текущей (max 5 кнопок)
-  const visiblePageNumbers = useMemo(() => {
-    const half = Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2);
-    let start = Math.max(1, currentPage - half);
-    const end = Math.min(totalPages, start + MAX_VISIBLE_PAGE_BUTTONS - 1);
-    start = Math.max(1, end - MAX_VISIBLE_PAGE_BUTTONS + 1);
-    const pages: number[] = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  }, [currentPage, totalPages]);
 
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
@@ -461,48 +422,15 @@ export function LogsPage() {
       )}
 
       {/* Пагинация (всегда видна, даже при 1 странице) */}
-      <div className="flex flex-col gap-3 px-1 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs font-medium text-muted">
-          {total === 0 ? (
-            'Показано 0 из 0'
-          ) : (
-            <>
-              Показано{' '}
-              <strong className="font-bold text-ink">
-                {offset + 1}–{Math.min(offset + logs.length, total)}
-              </strong>{' '}
-              из <strong className="font-bold text-ink">{total}</strong>
-            </>
-          )}
-        </span>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PageButton
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-            ariaLabel="Предыдущая страница"
-          >
-            {ICON_CHEV_LEFT}
-          </PageButton>
-          {visiblePageNumbers.map((page) => (
-            <PageButton
-              key={page}
-              active={page === currentPage}
-              onClick={() => setOffset((page - 1) * PAGE_SIZE)}
-              ariaLabel={`Страница ${page}`}
-            >
-              {page}
-            </PageButton>
-          ))}
-          <PageButton
-            disabled={offset + PAGE_SIZE >= total}
-            onClick={() => setOffset(offset + PAGE_SIZE)}
-            ariaLabel="Следующая страница"
-          >
-            {ICON_CHEV_RIGHT}
-          </PageButton>
-        </div>
-      </div>
+      <PaginationBar
+        shape="boxed"
+        className="px-1 pt-1.5"
+        page={currentPage}
+        pageSize={PAGE_SIZE}
+        total={total}
+        shownCount={logs.length}
+        onPageChange={(page) => setOffset((page - 1) * PAGE_SIZE)}
+      />
 
       {/* Phase 25 Step 25.15: drawer FSM-истории booking'а. */}
       <BookingStatusHistoryDrawer
@@ -572,39 +500,6 @@ function FilterSelect({
         )}
       />
     </span>
-  );
-}
-
-/** Кнопка пагинатора (numbered + chevron) */
-function PageButton({
-  active = false,
-  disabled = false,
-  onClick,
-  children,
-  ariaLabel,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'inline-flex h-8 min-w-[32px] items-center justify-center rounded-[8px] border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-        active
-          ? 'border-lime bg-lime text-ink'
-          : 'border-line bg-transparent text-ink hover:border-lime hover:text-lime',
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
