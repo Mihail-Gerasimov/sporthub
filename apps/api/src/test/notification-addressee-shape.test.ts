@@ -9,6 +9,8 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { NOTIFICATION_ADDRESSEE_KINDS } from '@sporthub/domain';
+
 import type { Prisma } from '../storage/prisma-client/client';
 import { createTestDatabase, type TestDatabase } from './db-harness';
 import { ensureTestSchema } from './db-setup';
@@ -104,6 +106,44 @@ describe('строка без владельца-человека (37.7)', () =>
         userId,
       ),
     ).rejects.toThrow(/notifications_addressee_kind/);
+  });
+
+  it('форма строки отбивает неизвестный вид адресата и БЕЗ словарного ограничения', async () => {
+    // ⚠️ Диверсия д-40 (шаг 37.76). Форма записана ДИЗЪЮНКЦИЕЙ намеренно: сумма
+    // `CASE` без `ELSE` вернула бы на неизвестном виде NULL, а `CHECK` на NULL строку
+    // ПРОПУСКАЕТ. Пока рядом стоит словарное `notifications_addressee_kind`, разницы
+    // в ответе нет — опечатку ловит оно, — и подмена дизъюнкции на сумму `CASE`
+    // не краснела ничем: проверка выше падала бы по имени СОСЕДНЕГО ограничения.
+    //
+    // Здесь словарное ограничение снимается на время, и за неизвестный вид отвечает
+    // САМА форма. Второй рубеж обязан быть рубежом, а не украшением: словарное
+    // ограничение однажды снимут миграцией, и форма останется одна.
+    //
+    // Схема у файла набора своя, поэтому снятие не задевает соседей, а возврат
+    // стоит в `finally`: не возвращённое ограничение превратило бы остальные
+    // проверки этого файла в проверки без защиты.
+    const userId = await insertUser();
+
+    await db.prisma.$executeRawUnsafe(
+      'ALTER TABLE notifications DROP CONSTRAINT notifications_addressee_kind',
+    );
+
+    try {
+      await expect(
+        db.prisma.$executeRawUnsafe(
+          `INSERT INTO notifications (user_id, addressee_kind, type, payload, created_at)
+           VALUES ($1, 'persona1', 'booking_requested', '{}'::jsonb, NOW())`,
+          userId,
+        ),
+      ).rejects.toThrow(/notifications_addressee_shape/);
+    } finally {
+      await db.prisma.$executeRawUnsafe(
+        `ALTER TABLE notifications ADD CONSTRAINT notifications_addressee_kind
+           CHECK (addressee_kind IN (${NOTIFICATION_ADDRESSEE_KINDS.map((kind) => `'${kind}'`).join(
+             ', ',
+           )}))`,
+      );
+    }
   });
 
   it('надзорная строка С владельцем отбивается базой', async () => {
