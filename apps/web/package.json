@@ -7,7 +7,8 @@
     "dev:turbo": "node ./scripts/run-next.mjs dev --turbopack",
     "build": "node ./scripts/run-next.mjs build",
     "start": "node ./scripts/run-next.mjs start",
-    "lint": "eslint",
+    "lint": "eslint && npm run typecheck",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
