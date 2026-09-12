@@ -47,6 +47,13 @@ type CleanupModule = {
     trainerIds: number[];
     userIds: number[];
     subjects?: { type: string; ids: number[] }[];
+    /**
+     * ⚠️ Схема была пропущена в этом описании (ревизия 37.73), и пропуск был
+     * не безобидным: реестр без явной схемы ушёл бы убирать в `public`, оставив
+     * набор зелёным и бессмысленным. Сам скрипт её принимал всегда — не знал
+     * о ней только тип, то есть единственный, кто мог бы об этом предупредить.
+     */
+    schema?: string;
   }) => CleanupEntry[];
   cleanupStatements: (plan: CleanupEntry[]) => string[];
   inventorySql: (plan: CleanupEntry[]) => string;
@@ -662,6 +669,185 @@ describe('Пробный прогон уборки публикаций (36.37)'
     expect(await db.prisma.club.count()).toBe(2);
     expect(await db.prisma.trainer.count()).toBe(2);
     expect(await db.prisma.booking.count()).toBe(3);
+  });
+});
+
+/**
+ * Надзорные строки в НАСТОЯЩЕМ прогоне уборки (шаг 37.56).
+ *
+ * ⚠️ Дыра покрытия, найденная ревизией 37.73. Реестр планов проверялся сравнением
+ * ИСХОДНОГО ТЕКСТА скриптов — «в фикстуре написано `cleanupPlans`», «в отборе
+ * встречается `subjects`», — а настоящий прогон уборки работал только с личными
+ * и лицевыми строками: слова `supervision` в нём не было ни разу. То есть
+ * доказательство «надзорные строки убираются» держалось на чтении кода, а не
+ * на его выполнении.
+ *
+ * Разница здесь не теоретическая. Надзорная строка — единственная, у которой
+ * НЕТ ВЛАДЕЛЬЦА: прежний отбор `user_id IN (…)` не совпадал с ней никогда,
+ * потому что `IN` с `NULL` не совпадает ни с чем. Ровно поэтому прогоны копили
+ * надзорный мусор в живой базе, и ровно поэтому ключом уборки стал ПРЕДМЕТ.
+ *
+ * Проверяются оба пути к предмету:
+ *   1. предмет ЖИВ на момент уборки (публикация удаляется этим же прогоном) —
+ *      строку находит план уборки публикаций по списку номеров;
+ *   2. предмет УЖЕ СТЁРТ — номеров в базе нет вовсе, и убирающий обязан назвать
+ *      их сам (`subjects`). Надзорная строка сознательно переживает свой предмет:
+ *      событие «публикация стёрта» бессмысленно, если исчезает вместе с ней.
+ *
+ * Отдельный набор, а не дописка в стенд выше: там опись сверяется по строкам
+ * «до и после», и второй план с теми же ярлыками (`notifications`, `logs`)
+ * ломал бы эту арифметику пересечением отборов.
+ */
+describe('Надзорные строки уходят настоящей уборкой (37.56)', () => {
+  let fixture: Fixture;
+
+  /**
+   * Номер клуба, которого в базе нет.
+   *
+   * Это и есть «стёртый предмет»: публикацию удалили раньше, а надзорная строка
+   * про её удаление осталась — и найти её по живым номерам невозможно, номеров
+   * больше не существует.
+   */
+  const ERASED_CLUB_ID = 100_000;
+
+  beforeEach(async () => {
+    fixture = await seedFixture();
+
+    await db.prisma.notification.createMany({
+      data: [
+        // Предмет жив на момент уборки: клуб удаляется этим же прогоном.
+        {
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_hidden',
+          payload: { subjectType: 'club', subjectId: fixture.garbageClubId, reason: 'жалоба' },
+        },
+        // То же с карточкой тренера: у неё свой список номеров в описи.
+        {
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_hidden',
+          payload: { subjectType: 'trainer', subjectId: fixture.garbageTrainerId },
+        },
+        // Предмета уже нет: строку способен найти только названный номер.
+        {
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_deleted',
+          payload: { subjectType: 'club', subjectId: ERASED_CLUB_ID },
+        },
+        // Контрольная группа: строка про ЖИВОЙ клуб обязана уцелеть. Без неё
+        // «уборка унесла надзорное» неотличимо от «уборка унесла всё».
+        {
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_created',
+          payload: { subjectType: 'club', subjectId: fixture.liveClubId },
+        },
+      ],
+    });
+  });
+
+  /** Уборка по названному плану и список уцелевших уведомлений. Транзакция откатывается. */
+  async function survivingNotifications(
+    plan: CleanupEntry[],
+  ): Promise<{ type: string; addresseeKind: string; subjectId: number | null }[]> {
+    const marker = 'откат пробного прогона';
+    let captured: { type: string; addresseeKind: string; subjectId: number | null }[] | null = null;
+
+    try {
+      await db.prisma.$transaction(async (tx) => {
+        for (const statement of cleanup.cleanupStatements(plan)) {
+          await tx.$executeRawUnsafe(statement);
+        }
+
+        const rows = await tx.$queryRawUnsafe<
+          Array<{ type: string; addressee_kind: string; subject_id: string | null }>
+        >(
+          `SELECT type, addressee_kind, payload->>'subjectId' AS subject_id ` +
+            `FROM "${schema}"."notifications" WHERE addressee_kind = 'supervision'`,
+        );
+
+        captured = rows.map((row) => ({
+          type: row.type,
+          addresseeKind: row.addressee_kind,
+          subjectId: row.subject_id === null ? null : Number(row.subject_id),
+        }));
+
+        throw new Error(marker);
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== marker) throw error;
+    }
+
+    if (captured === null) throw new Error('Пробный прогон не собрал уведомления');
+
+    return captured;
+  }
+
+  /** Полный реестр планов: публикации, люди и названные стёртые предметы. */
+  const fullPlans = () =>
+    cleanup.cleanupPlans({
+      clubIds: [fixture.garbageClubId],
+      trainerIds: [fixture.garbageTrainerId],
+      userIds: [],
+      subjects: [{ type: 'club', ids: [ERASED_CLUB_ID] }],
+      schema,
+    });
+
+  it('до уборки надзорных строк ЧЕТЫРЕ — стенд собран', async () => {
+    // Контрольная группа стенда: без неё «после уборки осталась одна» зелено
+    // и в том случае, если строк не было вовсе.
+    const before = await db.prisma.notification.count({
+      where: { addresseeKind: 'supervision' },
+    });
+
+    expect(before).toBe(4);
+  });
+
+  it('строка про ЖИВОЙ на момент уборки предмет уходит вместе с ним', async () => {
+    // Клуб и карточка тренера удаляются этим же прогоном, и строки про них
+    // обязаны уйти: после уборки они указывали бы в никуда.
+    const surviving = await survivingNotifications(fullPlans());
+
+    expect(
+      surviving.some((row) => row.subjectId === fixture.garbageClubId),
+      'надзорная строка про удалённый клуб осталась сиротой',
+    ).toBe(false);
+    expect(
+      surviving.some((row) => row.subjectId === fixture.garbageTrainerId),
+      'надзорная строка про удалённую карточку осталась сиротой',
+    ).toBe(false);
+  });
+
+  it('строка про УЖЕ СТЁРТЫЙ предмет уходит по названному номеру', async () => {
+    const surviving = await survivingNotifications(fullPlans());
+
+    expect(
+      surviving.some((row) => row.subjectId === ERASED_CLUB_ID),
+      'надзорная строка про стёртую публикацию осталась навсегда',
+    ).toBe(false);
+  });
+
+  it('без названных номеров строка про стёртый предмет НЕ находится', async () => {
+    // ⚠️ Та самая причина, по которой `subjects` вообще появились (37.61).
+    // Эта проверка — не дубль предыдущей, а её обратная половина: она показывает,
+    // что стёртый предмет убирает именно НАЗВАННЫЙ номер, а не какой-то другой
+    // отбор, случайно совпавший. Без неё предыдущая проверка зеленела бы и тогда,
+    // когда уборка сносит уведомления подряд.
+    const withoutSubjects = cleanup.cleanupPlans({
+      clubIds: [fixture.garbageClubId],
+      trainerIds: [fixture.garbageTrainerId],
+      userIds: [],
+      subjects: [],
+      schema,
+    });
+    const surviving = await survivingNotifications(withoutSubjects);
+
+    expect(surviving.map((row) => row.subjectId)).toContain(ERASED_CLUB_ID);
+  });
+
+  it('строка про ЖИВУЮ публикацию остаётся', async () => {
+    // Контрольная группа: уборка обязана унести своё и ничего сверх того.
+    const surviving = await survivingNotifications(fullPlans());
+
+    expect(surviving.map((row) => row.subjectId)).toEqual([fixture.liveClubId]);
   });
 });
 
