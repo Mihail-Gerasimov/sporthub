@@ -1639,3 +1639,96 @@ describe('Отбор очереди по теме честен за предел
     expect(response.body.data.items).toHaveLength(100);
   });
 });
+
+/**
+ * Сколько САМЫХ СТАРЫХ строк очереди уже разобрано.
+ *
+ * Самых старых — намеренно: в порядке «новые сверху» ни одна из них в первую
+ * страницу не попадает. Отбор, сделанный поверх выданной сотни, вернул бы ноль.
+ */
+const OLDEST_RESOLVED = 40;
+
+describe('Отбор очереди по состоянию разбора честен за пределами страницы (37.19)', () => {
+  // ⚠️ Заведено диверсией д-19 (шаг 37.76). Проверки состояния разбора выше стоят
+  // на стенде в ДВЕ строки, и этого мало: перенос отбора из запроса в память —
+  // поверх уже выданной страницы — оставлял их зелёными. На двух строках обе
+  // формулировки дают один ответ; разойтись им негде, пока стенд короче страницы.
+  //
+  // Здесь стенд заведомо длиннее: сто пятьдесят строк при потолке в сто. Для общей
+  // очереди это не теоретический случай — она копится по всей площадке и переваливает
+  // за сотню быстрее любой человеческой ленты.
+  let harness: TestHarness;
+  let adminCookie: string;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-read-state-volume');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Администратор',
+          email: 'state-volume@sup.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: Array.from({ length: 150 }, (_, index) => ({
+        id: index + 1,
+        createdAt: new Date(Date.UTC(2026, 1, 1, 0, index)).toISOString(),
+        addresseeKind: 'supervision' as const,
+        type: 'oversight_publication_created',
+        payload: { subjectType: 'club', subjectId: index + 1 },
+        // Разобраны САМЫЕ СТАРЫЕ: за первой страницей их не видно вовсе.
+        ...(index < OLDEST_RESOLVED ? { readAt: '2026-03-01T00:00:00.000Z', readByUserId: 1 } : {}),
+      })),
+    });
+
+    adminCookie = await harness.as(1);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const feed = (query = '') =>
+    request(harness.app.getHttpServer())
+      .get(`/api/notifications?scope=supervision${query}`)
+      .set('Cookie', adminCookie);
+
+  it('без состояния очередь отдаёт СТРАНИЦУ и общее число', async () => {
+    // Контрольная группа: стенд действительно длиннее страницы, иначе следующие
+    // проверки ничего не доказывали бы.
+    const response = await feed();
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(150);
+    expect(response.body.data.items).toHaveLength(100);
+  });
+
+  it('«разобрано» достаёт строки ИЗ-ЗА ПРЕДЕЛОВ первой страницы', async () => {
+    const response = await feed('&readOnly=true');
+
+    expect(response.body.data.total, 'состояние посчитано по выданной странице').toBe(
+      OLDEST_RESOLVED,
+    );
+    expect(response.body.data.items, 'состояние отобрано по выданной странице').toHaveLength(
+      OLDEST_RESOLVED,
+    );
+    expect(
+      response.body.data.items.every((item: { readAt?: string }) => item.readAt !== undefined),
+    ).toBe(true);
+  });
+
+  it('«не разобрано» НЕ отменяет постраничность', async () => {
+    const response = await feed('&unreadOnly=true');
+
+    expect(response.body.data.total).toBe(150 - OLDEST_RESOLVED);
+    expect(response.body.data.items).toHaveLength(100);
+  });
+});
