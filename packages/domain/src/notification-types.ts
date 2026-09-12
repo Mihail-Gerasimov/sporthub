@@ -36,6 +36,9 @@ export const NOTIFICATION_GROUP_KEYS = [
   'booking',
   'links',
   'reviews',
+  // Решения по публикации, адресованные её владельцу: скрытие и возврат.
+  // Тема человеческая, а не надзорная — письмо приходит в ящик лица услуг.
+  'publications',
   // Надзорные темы: отбор вкладки надзора идёт по ним, и он уходит в ЗАПРОС.
   'oversight_admin',
   'oversight_catalog',
@@ -89,6 +92,9 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   oversight_publication_hidden: 'oversight_catalog',
   oversight_publication_created: 'oversight_catalog',
   oversight_login_blocked: 'oversight_security',
+  // Довесок к фазе 37: решения по публикации — владельцу, в ящик лица.
+  publication_hidden_for_owner: 'publications',
+  publication_unhidden_for_owner: 'publications',
 };
 
 /**
@@ -139,6 +145,11 @@ export const REQUIRED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   ...(Object.keys(NOTIFICATION_TYPE_GROUP) as NotificationType[]).filter((type) =>
     NOTIFICATION_TYPE_GROUP[type].startsWith('oversight_'),
   ),
+  // ⚠️ Решения по публикации отключить нельзя. Это не «новости площадки», а факт,
+  // который меняет работу человека: публикации нет в каталоге, записи не идут.
+  // Пропущенное письмо здесь — вред, а не неудобство.
+  'publication_hidden_for_owner',
+  'publication_unhidden_for_owner',
 ];
 
 /** Проверяет, можно ли отключить уведомление этого типа. */
@@ -218,6 +229,9 @@ export const NOTIFICATION_TYPE_SUBJECT = {
   oversight_publication_created: ['club', 'trainer'],
   // Вход: предмет — учётная запись, в которую закрыли вход.
   oversight_login_blocked: ['user'],
+  // Решения по публикации: предмет — сама публикация, и она бывает двух видов.
+  publication_hidden_for_owner: ['club', 'trainer'],
+  publication_unhidden_for_owner: ['club', 'trainer'],
 } as const satisfies Record<NotificationType, readonly NotificationSubjectType[]>;
 
 /** Виды предмета, допустимые для типа уведомления. Считается из словаря выше. */

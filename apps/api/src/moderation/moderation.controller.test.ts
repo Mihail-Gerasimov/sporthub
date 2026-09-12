@@ -197,6 +197,73 @@ describe('Маршруты модерации', () => {
     expect(rows.filter((row) => row.type === 'oversight_publication_hidden')).toHaveLength(1);
   });
 
+  it('ВЛАДЕЛЕЦ узнаёт о скрытии — письмом в ящик своего лица, с причиной', async () => {
+    // ⚠️ Довесок к фазе 37. Прежде владелец узнавал о скрытии, только если сам
+    // заходил на карточку и видел плашку: публикации нет в каталоге, записи не идут,
+    // а человек ждёт и не знает.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' });
+
+    const rows = await harness.read<
+      {
+        addresseeKind: string;
+        addresseeType?: string;
+        addresseeId?: number;
+        userId?: number;
+        type: string;
+        payload: Record<string, unknown>;
+      }[]
+    >('notifications');
+    const owner = rows.filter((row) => row.type === 'publication_hidden_for_owner');
+
+    expect(owner).toHaveLength(1);
+    // ⚠️ Адресат — ЛИЦО, а не человек: у владельца трёх клубов письмо ложится
+    // в ящик того клуба, чью публикацию тронули (модель фазы 35).
+    expect(owner[0].addresseeKind).toBe('club');
+    expect(owner[0].addresseeType).toBe('club');
+    expect(owner[0].addresseeId).toBe(1);
+    expect(owner[0].payload.reason).toBe('жалоба');
+  });
+
+  it('в письме владельцу НЕТ имени администратора', async () => {
+    // Решение заказчика: владельцу важна причина, а не фамилия — имя превращает
+    // административное решение в личный конфликт. В журнале исполнитель остаётся.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' });
+
+    const rows =
+      await harness.read<{ type: string; payload: Record<string, unknown> }[]>('notifications');
+    const owner = rows.find((row) => row.type === 'publication_hidden_for_owner');
+    const written = JSON.stringify(owner?.payload ?? {});
+
+    expect(written).not.toContain('Админ');
+    expect(written).not.toContain('hiddenByUserId');
+    expect(written).not.toContain('moderator');
+  });
+
+  it('ВОЗВРАТ публикации владельцу тоже приходит', async () => {
+    // ⚠️ Без этого человек, исправивший нарушение, не узнает, что его вернули,
+    // и продолжит ждать: молчание здесь читается как отказ.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' });
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', adminCookie)
+      .send({ action: 'unhide', entityType: 'club', entityId: 1 });
+
+    const rows = await harness.read<{ type: string; addresseeId?: number }[]>('notifications');
+    const returned = rows.filter((row) => row.type === 'publication_unhidden_for_owner');
+
+    expect(returned).toHaveLength(1);
+    expect(returned[0].addresseeId).toBe(1);
+  });
+
   it('восстановление снимает состояние и причину', async () => {
     await request(harness.app.getHttpServer())
       .post('/api/moderation')

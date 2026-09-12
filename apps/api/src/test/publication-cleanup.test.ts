@@ -41,6 +41,13 @@ type CleanupModule = {
     trainerIds: number[];
     schema?: string;
   }) => CleanupEntry[];
+  /** Реестр планов уборки (шаг 37.56): вид предмета разбирает хотя бы один из них. */
+  cleanupPlans: (options: {
+    clubIds: number[];
+    trainerIds: number[];
+    userIds: number[];
+    subjects?: { type: string; ids: number[] }[];
+  }) => CleanupEntry[];
   cleanupStatements: (plan: CleanupEntry[]) => string[];
   inventorySql: (plan: CleanupEntry[]) => string;
 };

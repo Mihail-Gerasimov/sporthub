@@ -12,7 +12,11 @@ import type { SessionContext } from '../auth/session.service';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
 import { NotFoundError, ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
-import { NotificationService, supervisionRecipient } from '../notifications/notification.service';
+import {
+  NotificationService,
+  faceRecipient,
+  supervisionRecipient,
+} from '../notifications/notification.service';
 import { PublicationService } from '../publications/publication.service';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
@@ -186,7 +190,59 @@ export class ModerationController {
       );
     }
 
+    await this.notifyOwnerOfDecision(action, owner, entity, reason);
+
     return entity;
+  }
+
+  /**
+   * Известить ВЛАДЕЛЬЦА о решении по его публикации (довесок к фазе 37).
+   *
+   * ⚠️ Зачем понадобилось. До этого владелец узнавал о скрытии, только если сам
+   * заходил на свою карточку и видел плашку. То есть публикации нет в каталоге,
+   * записи не идут — а человек об этом не знает и ждёт. Плашка отвечает тому,
+   * кто пришёл спросить; письмо приходит само.
+   *
+   * ⚠️ Адресат — ЛИЦО УСЛУГ, а не человек. У владельца трёх клубов письмо приходит
+   * в ящик того клуба, чью публикацию тронули: иначе три решения по трём разным
+   * клубам легли бы в одну кучу, и разобрать, к какому относится причина, было бы
+   * нечем (модель фазы 35).
+   *
+   * ⚠️ Имя администратора НЕ называется — решение заказчика. Владельцу важна причина,
+   * а не фамилия; имя превращает административное решение в личный конфликт.
+   * В журнале и в очереди надзора исполнитель остаётся.
+   *
+   * ⚠️ Возврат публикации уведомляет ТОЖЕ. Иначе человек, исправивший нарушение,
+   * не узнает, что его вернули, и продолжит ждать — молчание здесь читается как отказ.
+   *
+   * Отключить эти два типа нельзя (`REQUIRED_NOTIFICATION_TYPES`): это не новость
+   * площадки, а факт, меняющий работу человека.
+   */
+  private async notifyOwnerOfDecision(
+    action: string,
+    owner: CatalogOwnerType,
+    entity: Club | Trainer,
+    reason: unknown,
+  ): Promise<void> {
+    // У лица из сида владельца может не быть вовсе — тогда писать некому,
+    // и `faceRecipient` честно возвращает `null` (правило фазы 35).
+    const recipient = faceRecipient(owner, entity);
+
+    if (recipient === null) return;
+
+    const type =
+      action === 'hide' ? 'publication_hidden_for_owner' : 'publication_unhidden_for_owner';
+
+    await this.notifications.notify(
+      recipient,
+      type,
+      notificationPayload(type, owner, entity.id, {
+        publicationName: entity.name,
+        // Причина есть только у скрытия и обязательна там: без неё письмо
+        // не отвечает на единственный вопрос, который у человека возникнет.
+        ...(action === 'hide' ? { reason: String(reason).trim() } : {}),
+      }),
+    );
   }
 
   private async hide(
