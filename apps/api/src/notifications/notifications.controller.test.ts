@@ -7,12 +7,17 @@
 // Теперь адресат — всегда владелец сессии, а полный срез площадки (`?scope=all`)
 // закрыт правом `use_admin_tools`.
 
+import { RequestMethod } from '@nestjs/common';
+import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
+import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureCollections, fixtureDictionaryCollections } from '@sporthub/fixtures';
 
+import { API_PREFIX } from '../configure-app';
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
+import { NotificationsController } from './notifications.controller';
 
 const notification = (id: number, over: Record<string, unknown>) => ({
   id,
@@ -586,6 +591,18 @@ describe('Ящики лиц', () => {
   });
 });
 
+/**
+ * Сколько САМЫХ СТАРЫХ строк стенда отданы теме «связи».
+ *
+ * Число объявлено рядом со стендом и используется и в засеве, и в утверждениях:
+ * две копии разъехались бы при первой же правке размера стенда, причём молча —
+ * проверка продолжила бы сравнивать выдачу с числом, которого в базе уже нет.
+ *
+ * Сорок при потолке страницы в сто и ленте в сто пятьдесят строк выбраны так,
+ * чтобы НИ ОДНА из них не попала в первую страницу: 150 − 40 = 110 > 100.
+ */
+const OLDEST_LINKS = 40;
+
 describe('Постраничность ленты по умолчанию (шаг 35.45)', () => {
   let harness: TestHarness;
 
@@ -614,11 +631,18 @@ describe('Постраничность ленты по умолчанию (ша�
       ],
       // ⚠️ Метка времени собирается своя: общий помощник рассчитан на девять строк
       // (`2026-02-0${id}`) и на сто пятидесяти даёт несуществующую дату.
+      //
+      // ⚠️ Ревизия 37.73. Прежде все сто пятьдесят строк были ОДНОГО типа, и стенд
+      // умел проверять только постраничность. Теперь тем две, и распределены они
+      // не случайно: сорок строк темы «связи» — САМЫЕ СТАРЫЕ, то есть в порядке
+      // «новые сверху» они начинаются со сто одиннадцатой и в первую страницу
+      // не попадают НИ ОДНОЙ. Отбор, сделанный в памяти поверх выданной сотни,
+      // вернул бы на такой ленте ноль; отбор в запросе возвращает все сорок.
       notifications: Array.from({ length: 150 }, (_, index) => ({
         id: index + 1,
         createdAt: new Date(Date.UTC(2026, 1, 1, 0, index)).toISOString(),
         userId: 1,
-        type: 'booking_created',
+        type: index < OLDEST_LINKS ? 'link_requested' : 'booking_confirmed',
         payload: {},
       })),
       ...fixtureDictionaryCollections,
@@ -665,6 +689,49 @@ describe('Постраничность ленты по умолчанию (ша�
       .set('Cookie', await harness.as(1));
 
     expect((response.body as { data?: { items?: unknown[] } }).data?.items?.length).toBe(7);
+  });
+
+  it('отбор по теме достаёт строки ИЗ-ЗА ПРЕДЕЛОВ первой страницы (37.18)', async () => {
+    // ⚠️ Дыра покрытия, найденная ревизией 37.73. Обещание шага 37.18 —
+    // «отбор по теме уходит в ЗАПРОС, а не делается в памяти», — до сих пор
+    // проверялось на двух-трёх строках. На такой ленте отбор в памяти поверх
+    // выданной страницы неотличим от отбора в запросе: обе страницы помещаются
+    // целиком, и разницы нет.
+    //
+    // Здесь разница есть и она полная. Все сорок строк темы «связи» лежат
+    // за сотой позицией, поэтому отбор в памяти вернул бы РОВНО НОЛЬ — и молча:
+    // пустая лента читается как «таких событий нет».
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications?group=links')
+      .set('Cookie', await harness.as(1));
+
+    expect(response.status).toBe(200);
+    expect(
+      (response.body as { data?: { total?: number } }).data?.total,
+      'отбор по теме посчитал только то, что попало в первую страницу',
+    ).toBe(OLDEST_LINKS);
+    expect(
+      (response.body as { data?: { items?: unknown[] } }).data?.items?.length,
+      'отбор по теме отдал только то, что попало в первую страницу',
+    ).toBe(OLDEST_LINKS);
+    // И это действительно та тема, а не «что-нибудь сорок штук».
+    expect(
+      (response.body as { data: { items: { type: string }[] } }).data.items.every(
+        (item) => item.type === 'link_requested',
+      ),
+    ).toBe(true);
+  });
+
+  it('отбор по теме НЕ отменяет постраничность', async () => {
+    // Контрольная группа к предыдущей проверке. Без неё «отбор уехал в запрос»
+    // было бы зелено и у реализации, которая на любой `group` отдаёт всю ленту
+    // целиком: сорок строк она бы тоже отдала.
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/notifications?group=booking')
+      .set('Cookie', await harness.as(1));
+
+    expect((response.body as { data?: { total?: number } }).data?.total).toBe(150 - OLDEST_LINKS);
+    expect((response.body as { data?: { items?: unknown[] } }).data?.items?.length).toBe(100);
   });
 });
 
@@ -880,6 +947,30 @@ describe('Очередь надзора в маршрутах уведомлен
           payload: { subjectType: 'link', subjectId: 1 },
         },
       ],
+      // ⚠️ Журнал засевается вместе с очередью (ревизия 37.73). Он нужен
+      // обратной проверке: уборка ОЧЕРЕДИ не имеет права уносить ИСТОРИЮ.
+      // Это две разные обязанности — «что требует меня сейчас» и «что было,
+      // если я пришёл искать», — и путать их нельзя ни в какую сторону.
+      logs: [
+        {
+          id: 1,
+          createdAt: '2026-02-02T00:00:00.000Z',
+          action: 'moderation_hide',
+          actorId: 2,
+          actorRole: 'admin',
+          entityType: 'club',
+          entityId: 1,
+        },
+        {
+          id: 2,
+          createdAt: '2026-02-03T00:00:00.000Z',
+          action: 'link_revoke',
+          actorId: 2,
+          actorRole: 'admin',
+          entityType: 'trainer',
+          entityId: 1,
+        },
+      ],
     });
 
     personCookie = await harness.as(1);
@@ -1005,6 +1096,66 @@ describe('Очередь надзора в маршрутах уведомлен
     expect(again.body.data.readByUserId).toBe(2);
   });
 
+  it('два ОДНОВРЕМЕННЫХ разбора дают одного занявшегося (37.17)', async () => {
+    // ⚠️ Дыра покрытия, найденная ревизией 37.73. Соседняя проверка выше —
+    // ПОСЛЕДОВАТЕЛЬНАЯ: первый разбор успевает записаться целиком, и второй
+    // приходит на уже разобранную строку. Именно этого случая гонка и не содержит.
+    //
+    // Механизм в коде верный (`updateMany` с условием `readAt: null`, один запрос
+    // вместо пары «прочитал — записал»), доказательства не было. Здесь оба
+    // администратора жмут «разобрать» одновременно, и очередь обязана назвать
+    // ОДНОГО занявшегося — одного и того же в обоих ответах и в базе.
+    const [first, second] = await Promise.all([
+      request(harness.app.getHttpServer())
+        .post('/api/notifications/2/read')
+        .set('Cookie', adminCookie),
+      request(harness.app.getHttpServer())
+        .post('/api/notifications/2/read')
+        .set('Cookie', secondAdminCookie),
+    ]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    // Занявшийся один — и это НЕ «кто-то», а конкретный администратор.
+    const winner = first.body.data.readByUserId;
+
+    expect([2, 3], 'занявшимся оказался не тот, кто жал').toContain(winner);
+    expect(second.body.data.readByUserId, 'два ответа назвали РАЗНЫХ занявшихся').toBe(winner);
+    expect(second.body.data.readAt, 'два ответа назвали разное время разбора').toBe(
+      first.body.data.readAt,
+    );
+
+    // База согласна с обоими ответами.
+    const stored = (
+      await harness.read<{ id: number; readAt?: string; readByUserId?: number }[]>('notifications')
+    ).find((row) => row.id === 2);
+
+    expect(stored?.readByUserId).toBe(winner);
+    expect(stored?.readAt).toBe(first.body.data.readAt);
+
+    // ⚠️ Вот эта половина и краснеет при снятии условия `readAt: null`.
+    // Согласие двух ответов гонка гарантировать не может — оба перечитывают строку
+    // после записи и увидели бы одно и то же даже у безусловной записи. А вот
+    // ВТОРОЙ одновременный заход по уже разобранной строке безусловная запись
+    // перепишет: сменится и подпись, и время.
+    const secondRound = await Promise.all([
+      request(harness.app.getHttpServer())
+        .post('/api/notifications/2/read')
+        .set('Cookie', adminCookie),
+      request(harness.app.getHttpServer())
+        .post('/api/notifications/2/read')
+        .set('Cookie', secondAdminCookie),
+    ]);
+
+    for (const response of secondRound) {
+      expect(response.body.data.readByUserId, 'повторный разбор переписал подпись').toBe(winner);
+      expect(response.body.data.readAt, 'повторный разбор переписал время').toBe(
+        first.body.data.readAt,
+      );
+    }
+  });
+
   it('человек получает 403 на отметку надзорной строки, а не 404', async () => {
     // ⚠️ Утверждение исправлено после браузерного прогона (37.61). Прежде здесь
     // стоял 404, и это было враньё: строка есть, просто прав не хватает. Скрывать
@@ -1047,6 +1198,39 @@ describe('Очередь надзора в маршрутах уведомлен
     const stillThere = await feed(adminCookie);
 
     expect(stillThere.body.data.total).toBe(2);
+  });
+
+  it('уборка разобранных строк НЕ трогает журнал (37.48)', async () => {
+    // ⚠️ Обещание шага 37.48, не проверявшееся нигде (найдено ревизией 37.73).
+    //
+    // Очередь и журнал отвечают на разные вопросы: очередь — «что требует меня
+    // СЕЙЧАС», журнал — «что было, если я пришёл искать». Поэтому разобранную
+    // строку из очереди убирают — это нормальная работа с очередью, — и именно
+    // поэтому уборка не имеет права уносить историю: иначе «прибраться в ленте»
+    // означало бы стереть след администраторских действий, причём необратимо
+    // и в один клик.
+    const before = await harness.read<unknown[]>('logs');
+
+    expect(before, 'стенд без журнала: проверять было бы нечего').toHaveLength(2);
+
+    await request(harness.app.getHttpServer())
+      .post('/api/notifications/read-all?scope=supervision')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const removed = await request(harness.app.getHttpServer())
+      .delete('/api/notifications')
+      .set('Cookie', adminCookie)
+      .send({ ids: [2, 3] });
+
+    // Контрольная группа: уборка действительно случилась. Без неё «журнал цел»
+    // зелено и у маршрута, который не удаляет ничего.
+    expect(removed.status).toBe(200);
+    expect(removed.body.data.deleted).toBe(2);
+    expect((await feed(adminCookie)).body.data.total).toBe(0);
+
+    // А журнал — на месте, строка в строку.
+    expect(await harness.read<unknown[]>('logs'), 'уборка очереди унесла журнал').toHaveLength(2);
   });
 
   it('строку можно ВЕРНУТЬ В ОЧЕРЕДЬ: разбор и подпись снимаются', async () => {
@@ -1188,5 +1372,270 @@ describe('Состояние разбора в отборе очереди (37.1
     const onRead = await feed('&readOnly=true');
 
     expect(onRead.body.data.unreadCount).toBe(1);
+  });
+});
+
+// --- Ревизия 37.73: право на очередь спрашивается на ВСЕХ её путях -------------
+
+/**
+ * Пути очереди надзора — СПРОШЕНЫ У КОНТРОЛЛЕРА, а не выписаны списком.
+ *
+ * ⚠️ Зачем так, а не константой. Шаг 37.15 обещал «очередь закрыта от человека»,
+ * а проверен был один путь из трёх: лента. Счётчик значка и «отметить всё»
+ * звались в наборе только админской cookie — то есть их отказ не проверял никто,
+ * и снятие проверки в `resolveAudience` увидела бы ровно одна строка теста.
+ *
+ * Выписанный руками список закрыл бы сегодняшнюю дыру и завёл завтрашнюю:
+ * четвёртый путь очереди в него забыли бы внести. Урок фазы 35 ровно про это —
+ * сторож владения «брал маршруты у приложения» при списке, набранном вручную,
+ * и диверсия его не покраснила.
+ *
+ * Путь очереди — это маршрут, у которого ЕСТЬ параметр `scope`: другого способа
+ * попросить очередь не существует. Он и спрашивается — у метаданных самого
+ * контроллера, из которых Nest строит маршруты. Новый такой маршрут попадёт
+ * под проверку сам, без правки набора.
+ */
+function supervisionQueueRoutes(): { method: 'get' | 'post' | 'delete'; path: string }[] {
+  const controllerPath = Reflect.getMetadata(PATH_METADATA, NotificationsController) as string;
+  const prototype = NotificationsController.prototype as unknown as Record<string, unknown>;
+  const methodNames = ['get', 'post', 'delete'] as const;
+  const routes: { method: 'get' | 'post' | 'delete'; path: string }[] = [];
+
+  for (const name of Object.getOwnPropertyNames(prototype)) {
+    if (name === 'constructor') continue;
+
+    // Аргументы маршрута лежат словарём «вид:позиция» → описание. Нужен ровно
+    // один вид — параметр строки запроса, — и ровно одно имя: `scope`.
+    const args =
+      (Reflect.getMetadata(ROUTE_ARGS_METADATA, NotificationsController, name) as Record<
+        string,
+        { data?: unknown }
+      > | null) ?? {};
+    const takesScope = Object.entries(args).some(
+      ([key, value]) =>
+        key.startsWith(`${RouteParamtypes.QUERY}:`) &&
+        (value as { data?: unknown }).data === 'scope',
+    );
+
+    if (!takesScope) continue;
+
+    const handler = prototype[name] as object;
+    const verb = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod;
+    const method = methodNames.find(
+      (candidate) => RequestMethod[candidate.toUpperCase() as 'GET' | 'POST' | 'DELETE'] === verb,
+    );
+
+    if (method === undefined) continue;
+
+    const methodPath = (Reflect.getMetadata(PATH_METADATA, handler) as string) ?? '/';
+    const tail = methodPath === '/' || methodPath === '' ? '' : `/${methodPath}`;
+
+    routes.push({ method, path: `/${API_PREFIX}/${controllerPath}${tail}` });
+  }
+
+  return routes;
+}
+
+describe('Право на очередь надзора спрашивается на ВСЕХ её путях (37.15)', () => {
+  let harness: TestHarness;
+  let personCookie: string;
+  let adminCookie: string;
+
+  const routes = supervisionQueueRoutes();
+  /** Тот же список, но с подписью для названия проверки: «get /api/notifications». */
+  const named = routes.map((route) => [`${route.method} ${route.path}`, route] as const);
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-supervision-paths');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Человек',
+          email: 'person@paths.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Администратор',
+          email: 'admin@paths.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: [
+        {
+          id: 1,
+          createdAt: '2026-02-01T00:00:00.000Z',
+          addresseeKind: 'supervision',
+          type: 'oversight_publication_created',
+          payload: { subjectType: 'club', subjectId: 1 },
+        },
+      ],
+    });
+
+    personCookie = await harness.as(1);
+    adminCookie = await harness.as(2);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const call = (route: { method: 'get' | 'post' | 'delete'; path: string }, cookie?: string) => {
+    const query = `${route.path}?scope=supervision`;
+    const started = request(harness.app.getHttpServer())[route.method](query);
+
+    return cookie === undefined ? started : started.set('Cookie', cookie);
+  };
+
+  it('пути очереди СОБРАНЫ, а не оказались пустым списком', () => {
+    // ⚠️ Главная опасность обхода по собранному списку: сломается сбор — и цикл
+    // пройдёт по нулю путей, оставшись зелёным. Поэтому список сверяется
+    // с известными сегодня путями; четвёртый, появившись, просто добавится
+    // к ним и попадёт в обход сам.
+    expect(routes.map((route) => `${route.method} ${route.path}`).sort()).toEqual(
+      expect.arrayContaining([
+        'get /api/notifications',
+        'get /api/notifications/unread-count',
+        'post /api/notifications/read-all',
+      ]),
+    );
+  });
+
+  it.each(named)('человеку закрыт путь очереди «%s» — 403', async (_title, route) => {
+    // ⚠️ До ревизии 37.73 это проверялось ровно на ленте. Счётчик значка
+    // и «отметить всё» звались только админской cookie: снятие проверки
+    // в `resolveAudience` они бы не заметили, а «отметить всё» вдобавок
+    // ГАСИТ очередь всем сразу — отказ там дороже всего.
+    const response = await call(route, personCookie);
+
+    expect(response.status).toBe(403);
+    expect(response.body.data).toBeUndefined();
+  });
+
+  it.each(named)('гостю закрыт путь очереди «%s» — 401', async (_title, route) => {
+    const response = await call(route);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each(named)('администратору путь очереди «%s» открыт', async (_title, route) => {
+    // Контрольная группа. Без неё «человеку 403 везде» было бы зелено и у очереди,
+    // закрытой для ВСЕХ, — то есть у неработающего раздела.
+    const response = await call(route, adminCookie);
+
+    expect(response.status).toBe(200);
+  });
+});
+
+// --- Ревизия 37.73: отбор по теме на очереди БОЛЬШЕ страницы ------------------
+
+/** Сколько самых старых строк очереди отданы теме «безопасность». */
+const OLDEST_SECURITY = 40;
+
+describe('Отбор очереди по теме честен за пределами страницы (37.18)', () => {
+  let harness: TestHarness;
+  let adminCookie: string;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('notifications-supervision-volume');
+  });
+
+  beforeEach(async () => {
+    // ⚠️ Очередь заведомо длиннее страницы: сто пятьдесят строк при потолке в сто.
+    // Сорок строк темы «безопасность» — САМЫЕ СТАРЫЕ, то есть в порядке «новые
+    // сверху» ни одна из них в первую страницу не попадает. Отбор, сделанный
+    // в памяти поверх выданной сотни, вернул бы ноль.
+    //
+    // Для общей очереди это не теоретический случай: она копится по всей площадке
+    // и переваливает за сотню быстрее любой человеческой ленты.
+    await harness.writeMany({
+      users: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Администратор',
+          email: 'admin@volume.local',
+          phone: '+7 (900) 000-00-01',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: Array.from({ length: 150 }, (_, index) => ({
+        id: index + 1,
+        createdAt: new Date(Date.UTC(2026, 1, 1, 0, index)).toISOString(),
+        addresseeKind: 'supervision',
+        ...(index < OLDEST_SECURITY
+          ? {
+              type: 'oversight_login_blocked',
+              payload: { subjectType: 'user', subjectId: 1, accountExists: true },
+            }
+          : {
+              type: 'oversight_publication_created',
+              payload: { subjectType: 'club', subjectId: index + 1 },
+            }),
+      })),
+    });
+
+    adminCookie = await harness.as(1);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const feed = (query = '') =>
+    request(harness.app.getHttpServer())
+      .get(`/api/notifications?scope=supervision${query}`)
+      .set('Cookie', adminCookie);
+
+  it('без темы очередь отдаёт СТРАНИЦУ и общее число', async () => {
+    // Контрольная группа: стенд действительно длиннее страницы, иначе следующая
+    // проверка ничего не доказывала бы.
+    const response = await feed();
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(150);
+    expect(response.body.data.items).toHaveLength(100);
+  });
+
+  it('тема достаёт строки ИЗ-ЗА ПРЕДЕЛОВ первой страницы', async () => {
+    const response = await feed('&group=oversight_security');
+
+    expect(response.body.data.total, 'тема посчитана по выданной странице').toBe(OLDEST_SECURITY);
+    expect(response.body.data.items, 'тема отобрана по выданной странице').toHaveLength(
+      OLDEST_SECURITY,
+    );
+    expect(
+      response.body.data.items.every(
+        (item: { type: string }) => item.type === 'oversight_login_blocked',
+      ),
+    ).toBe(true);
+  });
+
+  it('счётчик неразобранного считает тему тем же запросом, что и лента', async () => {
+    // ⚠️ Расхождение этих двух чисел дважды за две фазы давало «в значке 3,
+    // в списке 0». На стенде длиннее страницы отбор в памяти дал бы 0 и 40.
+    const response = await feed('&group=oversight_security');
+
+    expect(response.body.data.unreadCount).toBe(OLDEST_SECURITY);
+  });
+
+  it('тема НЕ отменяет постраничность', async () => {
+    const response = await feed('&group=oversight_catalog');
+
+    expect(response.body.data.total).toBe(150 - OLDEST_SECURITY);
+    expect(response.body.data.items).toHaveLength(100);
   });
 });
