@@ -180,6 +180,58 @@ describe('Маршруты модерации', () => {
     expect(oversight[0].payload.subjectId).toBe(1);
   });
 
+  it('скрытие при ТРЁХ администраторах даёт ОДНУ строку', async () => {
+    // ⚠️ Дыра покрытия, найденная ревизией 37.73. Стенд держал одного
+    // администратора, а на одном «одна строка на всех» и «по строке каждому»
+    // дают одинаковый результат — то есть не проверяются вовсе.
+    //
+    // Копии по числу администраторов сломали бы разбор: «этим занялись» стало бы
+    // личным, и второй не увидел бы, что первый уже взялся.
+    const existing =
+      await harness.read<{ id: number; accountKind?: string; email: string }[]>('users');
+
+    await harness.writeMany({
+      users: [
+        ...existing,
+        {
+          id: 4,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 2',
+          email: 'a2@test.local',
+          phone: '+7 (900) 000-00-04',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 5,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 3',
+          email: 'a3@test.local',
+          phone: '+7 (900) 000-00-05',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      notifications: [],
+    });
+
+    // ⚠️ Cookie выдаётся ЗАНОВО: запись пересобирает базу целиком, а сессии
+    // лежат в ней обычной таблицей и гаснут вместе с остальными данными.
+    await request(harness.app.getHttpServer())
+      .post('/api/moderation')
+      .set('Cookie', await harness.as(3))
+      .send({ action: 'hide', entityType: 'club', entityId: 1, reason: 'жалоба' })
+      .expect(200);
+
+    const rows = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
+    const oversight = rows.filter((row) => row.type === 'oversight_publication_hidden');
+
+    expect(oversight, 'строка размножилась по администраторам').toHaveLength(1);
+    expect(oversight[0].addresseeKind).toBe('supervision');
+  });
+
   it('ВОЗВРАТ публикации надзорной строки не порождает', async () => {
     // Обратная сторона: очередь надзора — про то, что требует внимания, а снятие
     // ограничения внимания не требует. Полный след обоих действий — в журнале.

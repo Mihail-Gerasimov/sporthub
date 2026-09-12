@@ -357,6 +357,25 @@ describe('Маршруты клубов и тренеров', () => {
 
   const server = () => harness.app.getHttpServer();
 
+  /**
+   * Тот же срез, но администраторов ТРОЕ.
+   *
+   * ⚠️ Ревизия 37.73. «Одна строка на всех» — главное свойство общей очереди,
+   * и до сих пор оно проверялось на стенде с одним администратором: там одна
+   * строка и три строки выглядят одинаково, то есть свойство не проверялось
+   * вовсе. Копии по числу администраторов сломали бы разбор — «этим занялись»
+   * стало бы личным, и второй не увидел бы, что первый уже взялся.
+   *
+   * Срез переписывается целиком и гасит выданные сессии, поэтому cookie
+   * берётся ПОСЛЕ вызова.
+   */
+  const withThreeAdmins = async (): Promise<void> => {
+    await harness.writeMany({
+      users: [...USERS, user(11, 'admin', 'Администратор 2'), user(12, 'admin', 'Администратор 3')],
+      notifications: [],
+    });
+  };
+
   describe('разбор параметров выдачи', () => {
     it('неизвестная сортировка отклоняется', async () => {
       const response = await request(server()).get('/api/clubs?sort=price');
@@ -749,6 +768,37 @@ describe('Маршруты клубов и тренеров', () => {
       expect(oversight[0].addresseeKind).toBe('supervision');
       expect(oversight[0].userId).toBeUndefined();
       expect(oversight[0].payload.subjectType).toBe('club');
+    });
+
+    it('новое лицо при ТРЁХ администраторах даёт ОДНУ строку', async () => {
+      await withThreeAdmins();
+
+      await request(server())
+        .post('/api/clubs')
+        .set('Cookie', await harness.as(OWNER_ID))
+        .send(CLUB_FORM)
+        .expect(201);
+
+      const rows = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
+      const oversight = rows.filter((row) => row.type === 'oversight_publication_created');
+
+      expect(oversight, 'строка размножилась по администраторам').toHaveLength(1);
+      expect(oversight[0].addresseeKind).toBe('supervision');
+    });
+
+    it('стирание при ТРЁХ администраторах даёт ОДНУ строку', async () => {
+      await withThreeAdmins();
+
+      await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(ADMIN_ID))
+        .expect(200);
+
+      const rows = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
+      const deleted = rows.filter((row) => row.type === 'oversight_publication_deleted');
+
+      expect(deleted, 'строка размножилась по администраторам').toHaveLength(1);
+      expect(deleted[0].addresseeKind).toBe('supervision');
     });
 
     it('АРХИВ владельца надзорной строки не порождает', async () => {

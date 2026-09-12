@@ -593,6 +593,50 @@ describe('PublicationService', () => {
     expect(recheck[0].userId).toBeUndefined();
   });
 
+  it('правка скрытой при ТРЁХ администраторах даёт ОДНУ строку', async () => {
+    // ⚠️ Дыра покрытия, найденная ревизией 37.73. «Одна строка на всех» —
+    // главное свойство общей очереди, и до сих пор оно проверялось на стенде
+    // с ОДНИМ администратором, где одна строка и три строки выглядят одинаково.
+    //
+    // Копии по числу администраторов сломали бы разбор: «этим занялись» стало бы
+    // личным, и второй не увидел бы, что первый уже взялся.
+    //
+    // Срез переписывается ДО создания публикации: каждая запись пересобирает базу
+    // целиком, и сделанная после она снесла бы саму публикацию.
+    await harness.writeMany({
+      users: [
+        user(1, 'person'),
+        user(2, 'person'),
+        user(3, 'admin'),
+        user(4, 'admin'),
+        user(5, 'admin'),
+      ],
+    });
+
+    const { club } = await createClub();
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: 'жалоба',
+      hiddenByUserId: 3,
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'moderation',
+    });
+
+    await service.updateClub({
+      clubId: club.id,
+      userId: 2,
+      club: { name: 'Исправлено' },
+      offering: {},
+      slots: [],
+    });
+
+    const stored = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
+    const recheck = stored.filter((item) => item.type === 'publication_recheck_requested');
+
+    expect(recheck, 'строка размножилась по администраторам').toHaveLength(1);
+    expect(recheck[0].addresseeKind).toBe('supervision');
+  });
+
   it('скрывший НЕИЗВЕСТЕН — уведомление всё равно приходит', async () => {
     // ⚠️ Та самая дыра, ради которой тип переехал в очередь: строка из прошлого
     // без номера скрывшего не уведомляла НИКОГО, и публикация ждала проверки молча.

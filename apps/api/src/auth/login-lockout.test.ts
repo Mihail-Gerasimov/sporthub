@@ -260,6 +260,35 @@ describe('Блокировка входа после неверных попыт
       expect(rows[0].payload.accountExists).toBe(false);
     });
 
+    it('блокировка при ТРЁХ администраторах даёт ОДНУ строку', async () => {
+      // ⚠️ Дыра покрытия, найденная ревизией 37.73. В стенде администраторов
+      // не было ВООБЩЕ, и «одна строка на всех» проверялась там, где адресатов
+      // ноль: такой замер зелен и у кода, который пишет по строке каждому.
+      //
+      // ⚠️ Люди переписываются, а счётчики попыток живут в приложении и запись
+      // среза переживают — поэтому сброс делается здесь же, иначе предыдущая
+      // проверка оставила бы запертую почту и пяти неудач не потребовалось бы.
+      await harness.writeMany({
+        users: [
+          user(1, 'victim@test.local'),
+          user(2, 'neighbour@test.local'),
+          { ...user(3, 'admin1@test.local'), accountKind: 'admin' },
+          { ...user(4, 'admin2@test.local'), accountKind: 'admin' },
+          { ...user(5, 'admin3@test.local'), accountKind: 'admin' },
+        ],
+        logs: [],
+        notifications: [],
+      });
+      harness.app.get(LoginAttemptsService).reset();
+
+      await failTimes(5, 'victim@test.local');
+
+      const rows = await oversightRows();
+
+      expect(rows, 'строка размножилась по администраторам').toHaveLength(1);
+      expect(rows[0].addresseeKind).toBe('supervision');
+    });
+
     it('одиночная неудача очередь не трогает', async () => {
       await attempt('victim@test.local', 'не тот пароль');
 
