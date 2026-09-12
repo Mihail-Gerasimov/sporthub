@@ -45,6 +45,7 @@ const providerClub: Club = {
   rating: 4.8,
   reviewCount: 10,
   priceFrom: 900,
+  distanceKm: 0,
   managedByUserId: 2,
 };
 

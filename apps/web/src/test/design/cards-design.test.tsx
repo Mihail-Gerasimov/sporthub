@@ -60,6 +60,19 @@ const stubTrainer: TrainerDirectoryItem = {
   venueAddress: 'ул. Спартаковская, 10',
   primaryOfferingId: 11,
   offeringTitles: ['Персональная тренировка'],
+  // Шаг 24.11: у карточки тренера появился массив услуг. Здесь он повторяет
+  // единственную услугу из primaryOffering* — фикстура остаётся согласованной сама с собой.
+  offerings: [
+    {
+      id: 11,
+      title: 'Персональная тренировка',
+      format: 'personal',
+      price: 1500,
+      durationMinutes: 60,
+      venueClubName: 'Спарта',
+      trainerClubLinkId: null,
+    },
+  ],
   searchText: 'иван петров бокс спарта',
   nextSlotId: 1,
   nextSlotDate: '2026-04-01',

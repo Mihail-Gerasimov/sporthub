@@ -181,6 +181,19 @@ const trainers: TrainerDirectoryItem[] = [
     nextSlotStartTime: '10:15',
     availableSlotsCount: 1,
     offeringTitles: ['Персональная тренировка: Йога'],
+    // Шаг 24.11: у карточки тренера появился массив услуг. Здесь он повторяет
+    // единственную услугу из primaryOffering* — фикстура остаётся согласованной сама с собой.
+    offerings: [
+      {
+        id: 105,
+        title: 'Персональная тренировка: Йога',
+        format: 'personal',
+        price: 1300,
+        durationMinutes: 60,
+        venueClubName: 'Balance Yoga House',
+        trainerClubLinkId: null,
+      },
+    ],
     searchText: 'анна миронова йога',
   },
   {
@@ -212,6 +225,19 @@ const trainers: TrainerDirectoryItem[] = [
     nextSlotStartTime: '08:15',
     availableSlotsCount: 1,
     offeringTitles: ['Персональная тренировка: Плавание'],
+    // Шаг 24.11: у карточки тренера появился массив услуг. Здесь он повторяет
+    // единственную услугу из primaryOffering* — фикстура остаётся согласованной сама с собой.
+    offerings: [
+      {
+        id: 101,
+        title: 'Персональная тренировка: Плавание',
+        format: 'personal',
+        price: 1400,
+        durationMinutes: 60,
+        venueClubName: 'Volna Aquatic Club',
+        trainerClubLinkId: null,
+      },
+    ],
     searchText: 'марина соколова плавание',
   },
 ];

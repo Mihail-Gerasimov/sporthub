@@ -17,7 +17,6 @@ describe('AthleteUpcomingBookingCard', () => {
   it('показывает тип записи, название, тренера, дату, время, место и action cancel', () => {
     render(
       <AthleteUpcomingBookingCard
-        athleteUserId={1}
         booking={{
           id: 77,
           bookingTypeLabel: 'Услуга тренера',

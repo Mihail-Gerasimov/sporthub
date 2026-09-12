@@ -133,7 +133,6 @@ const historyTrainers: Trainer[] = [
   {
     id: 3,
     createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 2,
     sportIds: [2],
     sportId: 2,
     name: 'Тимур Каримов',
@@ -150,7 +149,6 @@ const historyTrainers: Trainer[] = [
   {
     id: 5,
     createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
     sportIds: [1],
     sportId: 1,
     name: 'Анна Миронова',

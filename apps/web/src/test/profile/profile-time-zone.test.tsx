@@ -54,7 +54,7 @@ class ResizeObserverStub {
   unobserve() {}
   disconnect() {}
 }
-// @ts-expect-error — расширяем globalThis для jsdom
+// Заглушка подходит под тип ResizeObserver целиком, подавление проверки не нужно.
 globalThis.ResizeObserver = ResizeObserverStub;
 
 const athleteUser: User = {
@@ -83,7 +83,10 @@ const club: Club = {
   name: 'Aqua Pro',
   slug: 'aqua-pro',
   description: '',
-  sportId: 3,
+  shortDescription: '',
+  phone: '',
+  imageUrls: [],
+  distanceKm: 0,
   sportIds: [3],
   rating: 4.8,
   reviewCount: 0,
@@ -112,7 +115,18 @@ const offeringSwim: Offering = {
   coordinates: { lat: 53.2, lng: 50.1 },
 };
 
-const sports: Sport[] = [{ id: 3, createdAt: '', name: 'Плавание', slug: 'swim' }];
+const sports: Sport[] = [
+  {
+    id: 3,
+    createdAt: '',
+    name: 'Плавание',
+    slug: 'swim',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
+];
 const trainers: Trainer[] = [];
 
 function makeSchedule(overrides: Partial<Schedule> & Pick<Schedule, 'id'>): Schedule {
@@ -219,7 +233,7 @@ describe('Окно бесплатной отмены у атлета (Step 33.11
     // оставался бы 21 час — и прежняя формула показала бы предупреждение зря.
     freezeTimeAt('2026-08-21T04:00:00.000Z');
 
-    render(<AthleteUpcomingBookingCard athleteUserId={athleteUser.id} booking={bookingBase} />);
+    render(<AthleteUpcomingBookingCard booking={bookingBase} />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
@@ -233,7 +247,7 @@ describe('Окно бесплатной отмены у атлета (Step 33.11
     // 2026-08-21T08:00Z — до начала 22 часа по часам зала, окно 24 часа уже нарушено.
     freezeTimeAt('2026-08-21T08:00:00.000Z');
 
-    render(<AthleteUpcomingBookingCard athleteUserId={athleteUser.id} booking={bookingBase} />);
+    render(<AthleteUpcomingBookingCard booking={bookingBase} />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
@@ -251,7 +265,6 @@ describe('Окно бесплатной отмены у атлета (Step 33.11
 
     render(
       <AthleteUpcomingBookingCard
-        athleteUserId={athleteUser.id}
         booking={{ ...bookingBase, startTime: 'Время уточняется', timeLabel: 'Время уточняется' }}
       />,
     );

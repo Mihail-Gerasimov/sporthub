@@ -62,11 +62,12 @@ const clubs: Club[] = [
   },
 ];
 
+// Шаг 25.1b снял с Trainer поля clubId/affiliatedClubId: связь тренер↔клуб
+// живёт только в trainer-club-links, поэтому в фикстуре её и не должно быть.
 const trainers: Trainer[] = [
   {
     id: 1,
     createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
     sportIds: [3],
     sportId: 3,
     name: 'Марина Соколова',
@@ -83,7 +84,6 @@ const trainers: Trainer[] = [
   {
     id: 5,
     createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
     sportIds: [1],
     sportId: 1,
     name: 'Анна Миронова',

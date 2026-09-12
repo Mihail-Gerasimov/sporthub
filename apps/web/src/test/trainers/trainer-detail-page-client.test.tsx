@@ -70,7 +70,6 @@ const offerings: Offering[] = [
     createdAt: '2026-03-17T09:00:00.000Z',
     ownerType: 'trainer',
     ownerId: 1,
-    affiliatedClubId: 1,
     sportId: 3,
     title: 'Персональная тренировка: Плавание',
     description: 'Индивидуальная работа над техникой.',

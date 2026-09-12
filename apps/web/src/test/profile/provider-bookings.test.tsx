@@ -11,6 +11,9 @@ const bookings: ProviderIncomingBooking[] = [
     id: 1,
     athleteEmail: 'alexey@sporthub.local',
     athleteName: 'Алексей Миронов',
+    // Шаг 24.13: id атлета нужен секции для расчёта его надёжности.
+    // Обе записи — одного человека, поэтому id один.
+    athleteUserId: 1,
     bookingTypeLabel: 'Услуга клуба',
     contextLabel: 'Volna Aquatic Club',
     date: '2099-03-18',
@@ -28,6 +31,7 @@ const bookings: ProviderIncomingBooking[] = [
     id: 2,
     athleteEmail: 'alexey@sporthub.local',
     athleteName: 'Алексей Миронов',
+    athleteUserId: 1,
     bookingTypeLabel: 'Услуга тренера',
     contextLabel: 'Тимур Каримов · North Ring',
     date: '2099-03-20',

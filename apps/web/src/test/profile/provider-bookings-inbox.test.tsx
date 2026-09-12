@@ -55,7 +55,10 @@ const club: Club = {
   name: 'Aqua Pro',
   slug: 'aqua-pro',
   description: '',
-  sportId: 3,
+  shortDescription: '',
+  phone: '',
+  imageUrls: [],
+  distanceKm: 0,
   sportIds: [3, 4],
   rating: 4.8,
   reviewCount: 0,
@@ -101,8 +104,26 @@ const offeringBox: Offering = {
 };
 
 const sports: Sport[] = [
-  { id: 3, createdAt: '', name: 'Плавание', slug: 'swim' },
-  { id: 4, createdAt: '', name: 'Бокс', slug: 'box' },
+  {
+    id: 3,
+    createdAt: '',
+    name: 'Плавание',
+    slug: 'swim',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
+  {
+    id: 4,
+    createdAt: '',
+    name: 'Бокс',
+    slug: 'box',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
 ];
 
 function makeSchedule(overrides: Partial<Schedule> & Pick<Schedule, 'id'>): Schedule {

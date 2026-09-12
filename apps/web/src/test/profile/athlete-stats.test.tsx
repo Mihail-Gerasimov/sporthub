@@ -71,7 +71,18 @@ function authenticateAthlete() {
   });
 }
 
-const sports: Sport[] = [{ id: 3, createdAt: '', name: 'Плавание', slug: 'swim' }];
+const sports: Sport[] = [
+  {
+    id: 3,
+    createdAt: '',
+    name: 'Плавание',
+    slug: 'swim',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
+];
 const clubs: Club[] = [];
 const trainers: Trainer[] = [];
 const reviews: Review[] = [];

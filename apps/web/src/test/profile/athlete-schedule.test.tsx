@@ -32,8 +32,26 @@ const athleteUser: User = {
 };
 
 const sports: Sport[] = [
-  { id: 1, createdAt: '2026-01-01T00:00:00.000Z', name: 'Йога', slug: 'yoga' },
-  { id: 3, createdAt: '2026-01-01T00:00:00.000Z', name: 'Плавание', slug: 'swimming' },
+  {
+    id: 1,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    name: 'Йога',
+    slug: 'yoga',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
+  {
+    id: 3,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    name: 'Плавание',
+    slug: 'swimming',
+    description: '',
+    icon: '',
+    imageUrl: '',
+    isPopular: false,
+  },
 ];
 
 const clubs: Club[] = [

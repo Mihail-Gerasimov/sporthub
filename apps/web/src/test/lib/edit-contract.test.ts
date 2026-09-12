@@ -25,7 +25,7 @@ describe('shared form-state типы (Step 15.1)', () => {
       price: '900',
       capacity: '15',
       location: 'Зал №1',
-      discipline: 'Йога',
+      sportId: 1,
     };
 
     expect(newSlot.id).toBeUndefined();

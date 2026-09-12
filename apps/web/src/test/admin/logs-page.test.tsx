@@ -112,8 +112,10 @@ describe('LogsPage — Step 25.15: drawer-wire-up для booking-логов', ()
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: { id: 3, name: 'Admin', email: 'a@a.com', phone: '+7' },
+      // Вид учётной записи здесь именно 'admin': журнал открыт только администратору,
+      // и остальные наборы админки заводят вход тем же способом. Рядом стоял второй
+      // ключ `accountKind: null` — он молча затирал этот и оставлял набор без вида записи.
       accountKind: 'admin',
-      accountKind: null,
       isAuthenticated: true,
       isAdmin: true,
       status: 'ready',

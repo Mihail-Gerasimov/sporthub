@@ -36,7 +36,7 @@ class ResizeObserverStub {
   unobserve() {}
   disconnect() {}
 }
-// @ts-expect-error — расширяем globalThis для jsdom
+// Заглушка подходит под тип ResizeObserver целиком, подавление проверки не нужно.
 globalThis.ResizeObserver = ResizeObserverStub;
 
 const NOW = new Date('2026-04-22T12:00:00.000Z');

@@ -95,6 +95,7 @@ function makeTrainer(overrides: Partial<TrainerDirectoryItem> = {}): TrainerDire
     nextSlotStartTime: null,
     availableSlotsCount: 0,
     offeringTitles: [],
+    offerings: [],
     searchText: 'тренер бокс самара',
     ...overrides,
   };
