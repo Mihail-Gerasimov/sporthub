@@ -344,6 +344,10 @@ describe('Маршруты клубов и тренеров', () => {
       bookings: [CLUB_BOOKING],
       reviews: [CLUB_REVIEW],
       logs: [],
+      // ⚠️ Уведомления переносятся пустыми вместе со срезом: обвязка правит только
+      // НАЗВАННЫЕ коллекции, и надзорные строки копились бы между проверками —
+      // «создалась одна» зеленело бы на второй и краснело на третьей.
+      notifications: [],
     });
   });
 
@@ -747,10 +751,15 @@ describe('Маршруты клубов и тренеров', () => {
       expect(oversight[0].payload.subjectType).toBe('club');
     });
 
-    it('АРХИВ владельца надзорной строки не порождает, а стирание — порождает', async () => {
+    it('АРХИВ владельца надзорной строки не порождает', async () => {
       // ⚠️ Шаг 37.32. Различие не косметическое: архив обратим и делается владельцем
       // со своей вещью, стирание необратимо и уносит каскадом услуги, расписание,
       // чужие записи и отзывы.
+      //
+      // ⚠️ Название исправлено ревизией (37.73). Прежде оно обещало «а стирание —
+      // порождает», а тело проверяло ТОЛЬКО ветку архива. Тест, утверждающий
+      // в названии больше, чем делает, хуже отсутствующего: он читается как
+      // покрытие, которого нет. Вторая половина вынесена отдельной проверкой ниже.
       await request(server())
         .delete('/api/clubs/1')
         .set('Cookie', await harness.as(OWNER_ID));
@@ -760,6 +769,55 @@ describe('Маршруты клубов и тренеров', () => {
       expect(
         afterArchive.filter((row) => row.type === 'oversight_publication_deleted'),
       ).toHaveLength(0);
+    });
+
+    it('СТИРАНИЕ модератором кладёт строку в очередь и называет публикацию', async () => {
+      // Та самая вторая половина: раньше она жила только в названии соседнего теста.
+      const response = await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(ADMIN_ID));
+
+      expect(response.status).toBe(200);
+
+      const rows = await harness.read<
+        {
+          addresseeKind: string;
+          userId?: number;
+          type: string;
+          payload: Record<string, unknown>;
+        }[]
+      >('notifications');
+      const deleted = rows.filter((row) => row.type === 'oversight_publication_deleted');
+
+      expect(deleted).toHaveLength(1);
+      expect(deleted[0].addresseeKind).toBe('supervision');
+      expect(deleted[0].userId).toBeUndefined();
+      expect(deleted[0].payload.subjectType).toBe('club');
+      expect(deleted[0].payload.subjectId).toBe(1);
+      // ⚠️ Имя приходит СНИМКОМ: публикации больше нет, и сходить за ним некуда.
+      expect(deleted[0].payload.publicationName).toBe('Клуб 1');
+    });
+
+    it('строка про стёртую публикацию ПЕРЕЖИВАЕТ саму публикацию', async () => {
+      // ⚠️ Это не побочный эффект, а свойство события: «публикация стёрта» без
+      // публикации — единственная его форма. Отдельная проверка нужна потому, что
+      // на этом свойстве держится и уборка (37.56): найти такую строку по живым
+      // номерам нельзя, номеров больше не существует.
+      await request(server())
+        .delete('/api/clubs/1')
+        .set('Cookie', await harness.as(ADMIN_ID));
+
+      // Сверяется отсутствие ИМЕННО стёртой публикации, а не длина списка:
+      // соседние проверки этого набора заводят свои клубы, и счёт по длине
+      // зеленел бы или краснел от порядка выполнения, а не от сути.
+      expect((await harness.read<{ id: number }[]>('clubs')).some((item) => item.id === 1)).toBe(
+        false,
+      );
+      expect(
+        (await harness.read<{ type: string }[]>('notifications')).filter(
+          (row) => row.type === 'oversight_publication_deleted',
+        ),
+      ).toHaveLength(1);
     });
 
     it('владелец правит свою публикацию', async () => {
