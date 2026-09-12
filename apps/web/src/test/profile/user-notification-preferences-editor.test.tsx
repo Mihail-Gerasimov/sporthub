@@ -353,3 +353,32 @@ describe('Настройка названа обещанием на будуще
     expect(screenText).toMatch(/останутся в ленте/i);
   });
 });
+
+// --- Довесок к фазе 37: тема «Публикации» ----------------------------------------
+
+describe('тема «Публикации» в настройках человека', () => {
+  it('секция есть, и оба её переключателя ВЫКЛЮЧИТЬ НЕЛЬЗЯ', () => {
+    // ⚠️ Скрытие публикации — не новость площадки, а факт, меняющий работу человека:
+    // публикации нет в каталоге, записи не идут. Показать галочку и дать её снять
+    // значило бы пообещать то, чего страница не делает.
+    render(<UserNotificationPreferencesEditor userId={1} />);
+
+    expect(screen.getByText('Публикации')).toBeInTheDocument();
+
+    for (const type of ['publication_hidden_for_owner', 'publication_unhidden_for_owner']) {
+      const toggle = screen.getByTestId(`notification-preferences-toggle-${type}`);
+
+      expect(toggle).toBeDisabled();
+    }
+  });
+
+  it('надзорных тем в настройках человека по-прежнему нет', () => {
+    // Обратная сторона: «Публикации» — тема ЧЕЛОВЕЧЕСКАЯ, письмо приходит в ящик
+    // лица услуг. Надзорные темы адресованы общей очереди администраторов,
+    // и человеку в неё не попасть ни при каких настройках.
+    render(<UserNotificationPreferencesEditor userId={1} />);
+
+    expect(screen.queryByText('Действия администраторов')).not.toBeInTheDocument();
+    expect(screen.queryByText('Доступ и вход')).not.toBeInTheDocument();
+  });
+});
