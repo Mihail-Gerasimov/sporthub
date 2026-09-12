@@ -158,3 +158,44 @@ describe('очередь надзора: отбор уходит в запрос
     expect(screen.getByTestId('supervision-unread-count')).toHaveTextContent('12');
   });
 });
+
+// --- Найдено MCP-прогоном интерфейса: подписи кнопок --------------------------
+
+describe('кнопки строки называют СТРОКУ, а не только действие', () => {
+  it('«Разобрать» в дереве доступности несёт заголовок события', () => {
+    // ⚠️ Три кнопки «Разобрать» подряд в дереве доступности неразличимы: человек
+    // с экранным диктором слышит список одинаковых имён и не знает, какую нажимает.
+    // На экране всё правильно — кнопка стоит внутри своей карточки; врало дерево.
+    // Ровно эта болезнь была в фазе 35 у ссылки в шапке. Нашёл MCP-прогон.
+    render(
+      <AdminNotificationsPage
+        initialFeed={{
+          items: [
+            {
+              id: 1,
+              createdAt: '2026-09-12T10:00:00.000Z',
+              addresseeKind: 'supervision',
+              type: 'oversight_publication_hidden',
+              payload: { subjectType: 'club', subjectId: 1, publicationName: 'Амстафф' },
+            },
+            {
+              id: 2,
+              createdAt: '2026-09-12T09:00:00.000Z',
+              addresseeKind: 'supervision',
+              type: 'oversight_login_blocked',
+              payload: { subjectType: 'user', subjectId: 0, key: 'email:x@y.z' },
+            },
+          ],
+          total: 2,
+          unreadCount: 2,
+        }}
+      />,
+    );
+
+    const named = screen.getAllByRole('button', { name: /^Разобрать: / });
+
+    // Обе кнопки названы, и названы ПО-РАЗНОМУ — иначе различить их всё равно нельзя.
+    expect(named).toHaveLength(2);
+    expect(named[0].getAttribute('aria-label')).not.toBe(named[1].getAttribute('aria-label'));
+  });
+});

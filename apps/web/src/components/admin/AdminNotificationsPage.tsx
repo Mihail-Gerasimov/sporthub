@@ -749,6 +749,12 @@ function SupervisionCard({
             <button
               type="button"
               data-testid={`supervision-resolve-${notification.id}`}
+              // ⚠️ Подпись для экранного диктора называет СТРОКУ, а не действие
+              // (нашёл MCP-прогон интерфейса). В дереве доступности три кнопки
+              // «Разобрать» подряд неразличимы: человек слышит список из одинаковых
+              // имён и не знает, какую из них нажимает. Ровно эта болезнь была
+              // в фазе 35 у ссылки в шапке — там подпись называла не ту цель.
+              aria-label={`Разобрать: ${copy.title}`}
               disabled={busy}
               onClick={onResolve}
               className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
@@ -759,6 +765,7 @@ function SupervisionCard({
             <button
               type="button"
               data-testid={`supervision-return-${notification.id}`}
+              aria-label={`Вернуть в очередь: ${copy.title}`}
               disabled={busy}
               onClick={onReturn}
               className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"

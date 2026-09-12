@@ -440,3 +440,49 @@ describe('NotificationBell', () => {
     expect(screen.queryByTestId('notification-bell-dropdown')).not.toBeInTheDocument();
   });
 });
+
+// --- Найдено MCP-прогоном интерфейса: подпись значка --------------------------
+
+describe('подпись колокольчика называет число непрочитанных', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers();
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+  });
+
+  const asAdmin = () =>
+    useAuthStore.setState({
+      isAuthenticated: true,
+      accountKind: 'admin',
+      faces: [],
+      activeFaceKey: null,
+      user: { id: 9, name: 'Администратор', email: 'admin@sporthub.local' },
+    });
+
+  it('при непрочитанных подпись называет их количество', async () => {
+    // ⚠️ Прежде диктор читал «Уведомления», а рядом стоял значок с цифрой,
+    // ни к чему не привязанной: услышать «три» человек мог, а понять, что это
+    // непрочитанные, — нет. В пункте меню панели это было сделано верно,
+    // в колокольчике — нет. Ни один тест этого не ловил: на экране всё выглядело
+    // правильно, врало дерево доступности. Нашёл MCP-прогон.
+    mockFetchByRoute({ unreadCount: 3 });
+    asAdmin();
+
+    render(<NotificationBell />);
+    await flush();
+
+    expect(screen.getByRole('button', { name: /непрочитанных: 3/ })).toBeInTheDocument();
+  });
+
+  it('без непрочитанных подпись остаётся короткой', async () => {
+    // Обратная сторона: «Уведомления, непрочитанных: 0» — шум, который диктор
+    // читал бы на каждой странице.
+    mockFetchByRoute({ unreadCount: 0, items: [] });
+    asAdmin();
+
+    render(<NotificationBell />);
+    await flush();
+
+    expect(screen.getByRole('button', { name: 'Уведомления' })).toBeInTheDocument();
+  });
+});
