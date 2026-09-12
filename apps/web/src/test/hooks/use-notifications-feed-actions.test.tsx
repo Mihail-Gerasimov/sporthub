@@ -20,6 +20,18 @@ import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Notification } from '@sporthub/types';
 
+/**
+ * Сколько непрочитанных в наборе строк.
+ *
+ * ⚠️ Раньше это считал сам стор внутри `setNotifications`. Пересчёт по выданным
+ * строкам был верен, пока лента приходила целиком, и стал дефектом с появлением
+ * постраничности: двадцать строк из ста пятидесяти давали счётчик «20».
+ * Теперь число называет тот, кто его знает, — в наборах это делает засев.
+ */
+function unreadOf(rows: { readAt?: string }[]): number {
+  return rows.filter((row) => row.readAt === undefined).length;
+}
+
 const PERSON_ID = 7;
 
 /** Две непрочитанные строки и одна прочитанная — минимум, на котором виден откат. */
@@ -75,7 +87,7 @@ const rowById = (id: number): Notification | undefined => rows().find((n) => n.i
 
 beforeEach(() => {
   useNotificationsStore.getState().reset();
-  useNotificationsStore.getState().setNotifications(FEED);
+  useNotificationsStore.getState().setNotifications(FEED, unreadOf(FEED));
   useToastStore.setState({ toasts: [] });
 });
 

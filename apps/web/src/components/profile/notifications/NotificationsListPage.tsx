@@ -126,9 +126,7 @@ export function NotificationsListPage({
   // Строки живут в общем сторе: его же читает колокольчик шапки, и пометка
   // прочитанным в ленте меняет цифру мгновенно, не дожидаясь опроса.
   const notifications = useNotificationsStore((state) => state.notifications);
-  const unreadCount = useNotificationsStore((state) => state.unreadCount);
   const setNotificationsInStore = useNotificationsStore((state) => state.setNotifications);
-  const setUnreadCountInStore = useNotificationsStore((state) => state.setUnreadCount);
   const setUserIdInStore = useNotificationsStore((state) => state.setUserId);
 
   const addToast = useToastStore((state) => state.addToast);
@@ -175,19 +173,39 @@ export function NotificationsListPage({
   }, [mailbox]);
 
   /**
-   * Положить в стор строки И число непрочитанных — ВСЕГДА вместе.
+   * Число непрочитанных В ЭТОМ ящике — своё, не общее.
    *
-   * ⚠️ `setNotifications` пересчитывает счётчик ПО ВЫДАННЫМ строкам. Пока лента
-   * приходила целиком, это было верно; со страницами по двадцать — это дефект
-   * фазы 36 наизнанку: не вечный ноль, а уверенная неправда в колокольчике.
-   * Число знает сервер, и класть его в стор обязана страница, получившая ответ.
+   * ⚠️ Найдено браузерным прогоном (37.75). У поля `unreadCount` общего стора
+   * оказалось ДВА писателя с разным смыслом: эта страница клала число ОТКРЫТОГО
+   * ящика, а опрос колокольчика — число ВСЕХ ящиков человека. Кто записывал
+   * последним, тот и побеждал: восемь загрузок подряд давали `3 0 0 3 3 3 3 3`,
+   * и значок противоречил собственной выпадашке — в кружке ноль, в списке под ним
+   * три непрочитанных строки.
+   *
+   * Это та же болезнь, от которой уходила вся фаза, только с другой стороны:
+   * раньше расходились два ЧИТАТЕЛЯ, теперь — два ПИСАТЕЛЯ. Лечится так же:
+   * у числа остаётся один хозяин. Значок принадлежит колокольчику, и абсолютное
+   * значение в стор кладёт только он; страница держит своё число у себя.
+   *
+   * ⚠️ Оптимистичные правки (отметил, удалил) по-прежнему идут ЧЕРЕЗ стор —
+   * иначе значок перестал бы убавляться при работе на странице. Убавление
+   * на единицу верно для обоих смыслов, а абсолютное число — нет.
+   *
+   * ⚠️ В служебной панели такого расхождения нет: там ящик страницы и ящик
+   * колокольчика — один и тот же (очередь надзора), и писатель фактически один.
    */
+  const [mailboxUnread, setMailboxUnread] = useState(initialFeed.unreadCount);
+  // Последнее известное число — для запроса под суженной темой: `unreadCount`
+  // ответа там сужен той же темой, и класть его как «непрочитанных в ящике» нельзя.
+  const mailboxUnreadRef = useRef(initialFeed.unreadCount);
+
   const showRows = useCallback(
     (rows: Notification[], unread: number) => {
       setNotificationsInStore(rows);
-      setUnreadCountInStore(unread);
+      setMailboxUnread(unread);
+      mailboxUnreadRef.current = unread;
     },
-    [setNotificationsInStore, setUnreadCountInStore],
+    [setNotificationsInStore],
   );
 
   // Посев остаётся у страницы: серверные данные получила она, и только она знает,
@@ -245,12 +263,9 @@ export function NotificationsListPage({
       // в ленте 0» с другой стороны. Поэтому число ящика берётся из ответа только
       // тогда, когда ответ про весь ящик; под суженной темой остаётся прежнее —
       // его ведут опрос счётчика и оптимистичные пометки.
-      const mailboxUnread =
-        activeGroup === 'all'
-          ? body.data.unreadCount
-          : useNotificationsStore.getState().unreadCount;
+      const answered = activeGroup === 'all' ? body.data.unreadCount : mailboxUnreadRef.current;
 
-      showRows(body.data.items, mailboxUnread);
+      showRows(body.data.items, answered);
     } catch {
       addToast({ message: 'Не удалось обновить ленту', tone: 'error' });
     } finally {
@@ -352,12 +367,12 @@ export function NotificationsListPage({
               className="font-semibold tabular-nums text-ink"
               data-testid="notifications-unread-count"
             >
-              {unreadCount}
+              {mailboxUnread}
             </span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {unreadCount > 0 && !selectionMode ? (
+          {mailboxUnread > 0 && !selectionMode ? (
             <button
               type="button"
               disabled={markingAll}

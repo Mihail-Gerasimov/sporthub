@@ -6,6 +6,18 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import type { Notification } from '@sporthub/types';
 
+/**
+ * Сколько непрочитанных в наборе строк.
+ *
+ * ⚠️ Раньше это считал сам стор внутри `setNotifications`. Пересчёт по выданным
+ * строкам был верен, пока лента приходила целиком, и стал дефектом с появлением
+ * постраничности: двадцать строк из ста пятидесяти давали счётчик «20».
+ * Теперь число называет тот, кто его знает, — в наборах это делает засев.
+ */
+function unreadOf(rows: { readAt?: string }[]): number {
+  return rows.filter((row) => row.readAt === undefined).length;
+}
+
 function makeNotification(id: number, readAt?: string): Notification {
   return {
     id,
@@ -30,7 +42,7 @@ describe('useNotificationsStore', () => {
         makeNotification(2, '2026-05-01T11:00Z'),
         makeNotification(3),
       ];
-      useNotificationsStore.getState().setNotifications(list);
+      useNotificationsStore.getState().setNotifications(list, unreadOf(list));
 
       expect(useNotificationsStore.getState().notifications).toHaveLength(3);
       expect(useNotificationsStore.getState().unreadCount).toBe(2);
@@ -38,7 +50,7 @@ describe('useNotificationsStore', () => {
     });
 
     it('пустой список → unreadCount=0', () => {
-      useNotificationsStore.getState().setNotifications([]);
+      useNotificationsStore.getState().setNotifications([], unreadOf([]));
 
       expect(useNotificationsStore.getState().unreadCount).toBe(0);
       expect(useNotificationsStore.getState().loaded).toBe(true);
@@ -59,7 +71,12 @@ describe('useNotificationsStore', () => {
 
   describe('markRead', () => {
     it('помечает непрочитанное и декрементит unreadCount', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1), makeNotification(2)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications(
+          [makeNotification(1), makeNotification(2)],
+          unreadOf([makeNotification(1), makeNotification(2)]),
+        );
 
       useNotificationsStore.getState().markRead(1);
 
@@ -69,7 +86,9 @@ describe('useNotificationsStore', () => {
     });
 
     it('идемпотентен — повторный markRead уже прочитанного не меняет state', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       useNotificationsStore.getState().markRead(1);
       const firstReadAt = useNotificationsStore.getState().notifications[0].readAt;
 
@@ -80,14 +99,18 @@ describe('useNotificationsStore', () => {
     });
 
     it('unreadCount не уходит в минус при отсутствующем id', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       useNotificationsStore.getState().markRead(999);
 
       expect(useNotificationsStore.getState().unreadCount).toBe(1);
     });
 
     it('rollbackMarkRead возвращает readAt в undefined и инкрементит unreadCount', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       useNotificationsStore.getState().markRead(1);
       expect(useNotificationsStore.getState().unreadCount).toBe(0);
 
@@ -103,11 +126,14 @@ describe('useNotificationsStore', () => {
     it('помечает все непрочитанные и обнуляет unreadCount', () => {
       useNotificationsStore
         .getState()
-        .setNotifications([
-          makeNotification(1),
-          makeNotification(2, '2026-05-01T11:00Z'),
-          makeNotification(3),
-        ]);
+        .setNotifications(
+          [makeNotification(1), makeNotification(2, '2026-05-01T11:00Z'), makeNotification(3)],
+          unreadOf([
+            makeNotification(1),
+            makeNotification(2, '2026-05-01T11:00Z'),
+            makeNotification(3),
+          ]),
+        );
 
       const ids = useNotificationsStore.getState().markAllRead();
 
@@ -118,7 +144,12 @@ describe('useNotificationsStore', () => {
     });
 
     it('возвращает пустой массив если нет непрочитанных', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1, '2026-05-01T11:00Z')]);
+      useNotificationsStore
+        .getState()
+        .setNotifications(
+          [makeNotification(1, '2026-05-01T11:00Z')],
+          unreadOf([makeNotification(1, '2026-05-01T11:00Z')]),
+        );
 
       const ids = useNotificationsStore.getState().markAllRead();
 
@@ -126,7 +157,12 @@ describe('useNotificationsStore', () => {
     });
 
     it('rollbackMarkAllRead возвращает readAt и unreadCount', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1), makeNotification(2)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications(
+          [makeNotification(1), makeNotification(2)],
+          unreadOf([makeNotification(1), makeNotification(2)]),
+        );
       const ids = useNotificationsStore.getState().markAllRead();
       expect(useNotificationsStore.getState().unreadCount).toBe(0);
 
@@ -140,11 +176,18 @@ describe('useNotificationsStore', () => {
 
   describe('removeMany', () => {
     it('удаляет указанные id и декрементит unreadCount только для непрочитанных', () => {
-      useNotificationsStore.getState().setNotifications([
-        makeNotification(1), // unread
-        makeNotification(2, '2026-05-01T11:00Z'), // read
-        makeNotification(3), // unread
-      ]);
+      useNotificationsStore.getState().setNotifications(
+        [
+          makeNotification(1), // unread
+          makeNotification(2, '2026-05-01T11:00Z'), // read
+          makeNotification(3), // unread
+        ],
+        unreadOf([
+          makeNotification(1), // unread
+          makeNotification(2, '2026-05-01T11:00Z'), // read
+          makeNotification(3), // unread
+        ]),
+      );
 
       const removed = useNotificationsStore.getState().removeMany([1, 2]);
 
@@ -157,7 +200,9 @@ describe('useNotificationsStore', () => {
     });
 
     it('пустой массив id → no-op', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       const removed = useNotificationsStore.getState().removeMany([]);
 
       expect(removed).toEqual([]);
@@ -165,7 +210,9 @@ describe('useNotificationsStore', () => {
     });
 
     it('несуществующий id → no-op', () => {
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       const removed = useNotificationsStore.getState().removeMany([999]);
 
       expect(removed).toEqual([]);
@@ -174,7 +221,7 @@ describe('useNotificationsStore', () => {
 
     it('rollbackRemoveMany возвращает удалённые элементы в список с сортировкой DESC', () => {
       const list = [makeNotification(1), makeNotification(2), makeNotification(3)];
-      useNotificationsStore.getState().setNotifications(list);
+      useNotificationsStore.getState().setNotifications(list, unreadOf(list));
 
       const removed = useNotificationsStore.getState().removeMany([1, 3]);
       expect(useNotificationsStore.getState().notifications).toHaveLength(1);
@@ -192,7 +239,9 @@ describe('useNotificationsStore', () => {
   describe('setUserId / reset', () => {
     it('setUserId с тем же id — no-op', () => {
       useNotificationsStore.getState().setUserId(1);
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       useNotificationsStore.getState().setUserId(1);
 
       expect(useNotificationsStore.getState().notifications).toHaveLength(1);
@@ -200,7 +249,12 @@ describe('useNotificationsStore', () => {
 
     it('setUserId с другим id — полный сброс', () => {
       useNotificationsStore.getState().setUserId(1);
-      useNotificationsStore.getState().setNotifications([makeNotification(1), makeNotification(2)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications(
+          [makeNotification(1), makeNotification(2)],
+          unreadOf([makeNotification(1), makeNotification(2)]),
+        );
       expect(useNotificationsStore.getState().unreadCount).toBe(2);
 
       useNotificationsStore.getState().setUserId(2);
@@ -214,7 +268,9 @@ describe('useNotificationsStore', () => {
 
     it('setUserId(null) сбрасывает стор для logout', () => {
       useNotificationsStore.getState().setUserId(1);
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
 
       useNotificationsStore.getState().setUserId(null);
 
@@ -224,7 +280,9 @@ describe('useNotificationsStore', () => {
 
     it('reset очищает всё', () => {
       useNotificationsStore.getState().setUserId(1);
-      useNotificationsStore.getState().setNotifications([makeNotification(1)]);
+      useNotificationsStore
+        .getState()
+        .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
 
       useNotificationsStore.getState().reset();
 
