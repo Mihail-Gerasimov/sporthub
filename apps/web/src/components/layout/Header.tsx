@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -48,7 +49,8 @@ export function Header() {
       // ещё действует и плашка об этом говорит.
       if (!(await stopImpersonation())) return;
 
-      router.push('/service-portal/dashboard');
+      // Адрес раздела приезжает из словаря панели: буквами он написан один раз.
+      router.push(SERVICE_PORTAL_SECTIONS.users);
       // Phase 30.6: симметрично stopImpersonation в ImpersonationBanner —
       // RSC-кэш сегмента инвалидируется, иначе страница висит на старой личности.
       router.refresh();
@@ -138,7 +140,7 @@ export function Header() {
                   Найдено прогоном через Playwright MCP 10.09.2026. */}
               {isAdminDirect ? (
                 <Link
-                  href="/service-portal/dashboard"
+                  href={SERVICE_PORTAL_SECTIONS.users}
                   aria-label="Панель управления"
                   className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] font-display text-[16px] uppercase text-[var(--ui-ink)] no-underline transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
                 >

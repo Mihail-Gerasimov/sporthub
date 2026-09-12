@@ -12,6 +12,7 @@
 
 import { useRouter } from 'next/navigation';
 
+import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 export function ImpersonationBanner() {
@@ -35,7 +36,8 @@ export function ImpersonationBanner() {
     // с плашкой: она и есть признак того, что подмена ещё действует.
     if (!(await stopImpersonation())) return;
 
-    router.push('/service-portal/dashboard');
+    // Адрес раздела приезжает из словаря панели: буквами он написан один раз.
+    router.push(SERVICE_PORTAL_SECTIONS.users);
     // Phase 27 Step 27.15: инвалидация RSC-кэша — без обновления админ увидел бы
     // сводку, отрисованную ещё под подменённой личностью.
     router.refresh();

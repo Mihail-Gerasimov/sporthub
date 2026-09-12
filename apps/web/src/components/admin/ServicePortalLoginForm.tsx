@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 
 import { Button, Input } from '@/components/ui';
+import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 /**
@@ -125,7 +126,8 @@ export function ServicePortalLoginForm() {
 
       // Phase 30.1 (final): обычный router.push() без router.refresh().
       // refresh() в dev-mode отменял начатый push (гонка с RSC-кэшем).
-      router.push('/service-portal/dashboard');
+      // Адрес раздела приезжает из словаря панели: буквами он написан один раз.
+      router.push(SERVICE_PORTAL_SECTIONS.users);
     } catch {
       setErrors({ general: 'Сетевая ошибка, попробуй позже.' });
     } finally {

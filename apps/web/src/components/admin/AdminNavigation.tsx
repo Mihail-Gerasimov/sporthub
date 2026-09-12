@@ -21,6 +21,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { SERVICE_PORTAL_SECTIONS, type ServicePortalSection } from '@/lib/service-portal-sections';
 import { cn } from '@/lib/utils';
 
 /**
@@ -34,16 +35,29 @@ import { cn } from '@/lib/utils';
  */
 type AdminNavBadge = 'awaitingRecheck' | 'supervisionUnread';
 
-const adminNavItems: ReadonlyArray<{ href: string; label: string; badge?: AdminNavBadge }> = [
-  { href: '/service-portal/dashboard', label: 'Пользователи' },
-  { href: '/service-portal/analytics', label: 'Аналитика' },
-  { href: '/service-portal/moderation', label: 'Модерация', badge: 'awaitingRecheck' },
+/**
+ * Пункты меню: порядок, подпись и счётчик.
+ *
+ * ⚠️ Адрес раздела здесь НЕ пишется буквами (шаг 37.68). Пункт называет раздел
+ * ключом, а сам адрес приезжает из `lib/service-portal-sections` — того же
+ * места, откуда его берёт карта переходов уведомлений. Пока строки стояли
+ * в обоих файлах, переименование раздела чинило меню и молча ломало переход
+ * из строки надзора: увидеть это мог только клик.
+ */
+const adminNavItems: ReadonlyArray<{
+  section: ServicePortalSection;
+  label: string;
+  badge?: AdminNavBadge;
+}> = [
+  { section: 'users', label: 'Пользователи' },
+  { section: 'analytics', label: 'Аналитика' },
+  { section: 'moderation', label: 'Модерация', badge: 'awaitingRecheck' },
   // Очередь надзора (шаг 37.44): события администраторов, каталога и входа.
   // Стоит рядом с «Модерацией» намеренно — это соседние обязанности, но очереди
   // РАЗНЫЕ: там публикации, здесь письма.
-  { href: '/service-portal/notifications', label: 'Надзор', badge: 'supervisionUnread' },
-  { href: '/service-portal/logs', label: 'Логи' },
-  { href: '/service-portal/finance', label: 'Финансы' },
+  { section: 'supervision', label: 'Надзор', badge: 'supervisionUnread' },
+  { section: 'logs', label: 'Логи' },
+  { section: 'finance', label: 'Финансы' },
 ];
 
 /**
@@ -141,16 +155,17 @@ export function AdminNavigation({
     >
       <ul className="inline-flex items-center gap-1 rounded-full border border-line bg-card-2 p-1.5">
         {adminNavItems.map((item) => {
-          const active = isItemActive(pathname, item.href);
+          const href = SERVICE_PORTAL_SECTIONS[item.section];
+          const active = isItemActive(pathname, href);
           // Счётчик показывается только когда ему есть что сказать: вечный ноль
           // в навигации перестаёт сообщать что-либо вовсе.
           const badge = item.badge === undefined ? null : NAV_BADGES[item.badge];
           const count = item.badge === undefined ? 0 : counts[item.badge];
 
           return (
-            <li key={item.href}>
+            <li key={item.section}>
               <Link
-                href={item.href}
+                href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors',

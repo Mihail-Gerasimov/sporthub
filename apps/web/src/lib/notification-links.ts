@@ -28,27 +28,7 @@ import {
   type CabinetTarget,
   type ServiceFaceKind,
 } from '@/lib/service-faces';
-
-/** Корень служебной панели. Отсюда собираются все её адреса ниже. */
-const SERVICE_PORTAL_ROOT = '/service-portal';
-
-/**
- * Разделы служебной панели, на которые уводят уведомления.
- *
- * ⚠️ Названный долг. Те же строки выписаны в словаре пунктов меню
- * (`AdminNavigation.tsx`), и объявление получилось вторым. Свести их в одно
- * этой работой нельзя: файл меню правит параллельная работа, и общий словарь
- * пришлось бы заводить, не имея возможности перевести на него меню. Свод —
- * отдельная правка, и она записана в отчёт.
- */
-const PANEL_PATHS = {
-  /** Очередь надзора — лента служебной записи. */
-  supervision: `${SERVICE_PORTAL_ROOT}/notifications`,
-  /** Модерация каталога: единственный раздел панели, принимающий наводку на предмет. */
-  moderation: `${SERVICE_PORTAL_ROOT}/moderation`,
-  /** Люди площадки. Наводки на конкретного человека раздел пока не принимает. */
-  users: `${SERVICE_PORTAL_ROOT}/dashboard`,
-} as const;
+import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 
 /**
  * Место, из которого смотрят на уведомление: кабинет лица (или личный)
@@ -78,7 +58,7 @@ export function cabinetPlace(cabinet: CabinetTarget): NotificationPlace {
  */
 export function notificationsFeedHref(place: NotificationPlace): string {
   return place.kind === 'panel'
-    ? PANEL_PATHS.supervision
+    ? SERVICE_PORTAL_SECTIONS.supervision
     : cabinetSectionPath(place.cabinet.href, 'notifications');
 }
 
@@ -99,7 +79,7 @@ function publicationHref(kind: ServiceFaceKind, id: number, place: NotificationP
       focusId: id,
     });
 
-    return `${PANEL_PATHS.moderation}?${query}`;
+    return `${SERVICE_PORTAL_SECTIONS.moderation}?${query}`;
   }
 
   // Своя карточка живёт в кабинете САМОГО лица, а не в том кабинете, из которого
@@ -147,7 +127,7 @@ const SUBJECT_ADDRESS: Record<
 
   // Человек как предмет бывает только у надзорных типов, и смотрят на него
   // только из панели. В кабинете такого уведомления не бывает вовсе.
-  user: (_id, place) => (place.kind === 'panel' ? PANEL_PATHS.users : null),
+  user: (_id, place) => (place.kind === 'panel' ? SERVICE_PORTAL_SECTIONS.users : null),
 };
 
 /**
