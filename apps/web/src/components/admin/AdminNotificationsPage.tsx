@@ -301,8 +301,10 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
    * необратимо разобранной ДЛЯ ВСЕЙ КОМАНДЫ — её больше никто не увидит
    * в работе.
    *
-   * ⚠️ Маршрута `POST /api/notifications/:id/unread` на сервере ПОКА НЕТ.
-   * Вызов назван здесь и закреплён тестом; сторона API дописывается отдельно.
+   * Маршрут `POST /api/notifications/:id/unread` на сервере есть и право
+   * на строку доказывает тем же способом, что и отметка разобранной (шаг 37.16):
+   * у надзорной строки владельца-человека нет, и отбор по `userId` вернул бы
+   * «не найдено» каждому администратору.
    */
   const returnToQueue = useCallback(
     async (id: number) => {
