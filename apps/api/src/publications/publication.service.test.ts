@@ -22,8 +22,11 @@ import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import type { BookingsRepository } from '../repositories/bookings.repository';
 import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
-import type { OfferingsRepository } from '../repositories/catalog.repository';
-import { OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
+import type {
+  NotificationsRepository,
+  OfferingsRepository,
+} from '../repositories/catalog.repository';
+import { NOTIFICATIONS_REPOSITORY, OFFERINGS_REPOSITORY } from '../repositories/catalog.repository';
 import type {
   ProviderClientNotesRepository,
   ReviewsRepository,
@@ -659,6 +662,64 @@ describe('PublicationService', () => {
     const stored = await harness.read<{ addresseeKind: string; type: string }[]>('notifications');
 
     expect(stored.filter((item) => item.type === 'publication_recheck_requested')).toHaveLength(1);
+  });
+
+  it('сбой отправки надзорной строки НЕ отменяет саму правку (37.38)', async () => {
+    // ⚠️ Заведено диверсией д-17 (шаг 37.76). Обещание «отправка — ПОСЛЕ коммита»
+    // было записано комментарием и держалось обёрткой `afterCommit`, а проверки
+    // у него не было ни одной: снятие обёртки оставляло весь набор зелёным.
+    //
+    // Разница видна ровно в одном случае — когда запись уведомления ПАДАЕТ.
+    // Внутри транзакции неудачная вставка отравляет её целиком, и правка публикации,
+    // ради которой всё затевалось, пропадает вместе с письмом. После коммита падать
+    // уже нечему: правка сохранена, потеряно только письмо — и это названная цена.
+    //
+    // Сбой делается НАСТОЯЩИЙ, отказом базы, а не выброшенной из заглушки ошибкой:
+    // отправитель ошибку глушит, и подделка отравила бы не транзакцию, а только тест.
+    const { club } = await createClub();
+
+    await clubs.update(club.id, {
+      status: 'hidden',
+      hideReason: 'жалоба',
+      hiddenAt: '2026-04-01T00:00:00.000Z',
+      hiddenKind: 'moderation',
+      hiddenByUserId: 3,
+    });
+
+    const notifications = harness.app.get<NotificationsRepository>(NOTIFICATIONS_REPOSITORY);
+    const insert = notifications.insert.bind(notifications);
+
+    // Отказ базы делается длиной: колонка типа — `VarChar(64)`, и значение
+    // длиннее её не запишется. Портить адресата бесполезно — строитель колонок
+    // собирает их по виду адресата сам и лишнее поле не возьмёт.
+    notifications.insert = (notification) =>
+      notification.type === 'publication_recheck_requested'
+        ? insert({
+            ...notification,
+            type: 'publication_recheck_requested'.padEnd(80, '_'),
+          } as Parameters<typeof insert>[0])
+        : insert(notification);
+
+    try {
+      await service.updateClub({
+        clubId: club.id,
+        userId: 2,
+        club: { name: 'Исправлено вопреки сбою' },
+        offering: {},
+        slots: [slot()],
+      });
+    } finally {
+      notifications.insert = insert;
+    }
+
+    // Правка на месте: сбой уведомления её не отменил.
+    expect((await clubs.findById(club.id))?.name).toBe('Исправлено вопреки сбою');
+
+    // Письма нет — и это ровно то, чем платим: потерять письмо дешевле,
+    // чем потерять правку.
+    const stored = await harness.read<{ type: string }[]>('notifications');
+
+    expect(stored.filter((item) => item.type === 'publication_recheck_requested')).toHaveLength(0);
   });
 
   it('правка архива владельца модератора не беспокоит', async () => {
