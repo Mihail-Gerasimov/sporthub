@@ -48,8 +48,16 @@ const ADMIN_ROOTS = [
  */
 const KNOWN_DEBT: readonly string[] = ['src/components/admin/DashboardPage.tsx'];
 
-/** Импорт из кабинета человека — в любом из трёх видов записи. */
-const PROFILE_IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]@\/components\/profile\//;
+/**
+ * Импорт из кабинета человека — в любом из ЧЕТЫРЁХ видов записи.
+ *
+ * ⚠️ Четвёртый — импорт ради побочного действия, без `from` (диверсия д-33,
+ * шаг 37.76). Первая редакция шаблона его не видела: `from` в такой строке нет,
+ * и диверсия «сослаться из панели в кабинет» прошла молча, оставив сторож зелёным.
+ * Модуль кабинета при этом затягивается в сборку панели ровно так же.
+ */
+const PROFILE_IMPORT =
+  /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]@\/components\/profile\//;
 
 /**
  * Находит в тексте файла ссылки на кабинет человека.
@@ -126,6 +134,9 @@ describe('Сторож: служебная панель не импортиру�
     expect(
       findsProfileImport("const m = await import('@/components/profile/athlete-bookings');"),
     ).toBe(true);
+    // ⚠️ Импорт ради побочного действия — та самая запись, на которой сторож
+    // молчал до шага 37.76. `from` в ней нет, а зависимость есть.
+    expect(findsProfileImport("import '@/components/profile/notifications/effects';")).toBe(true);
 
     // И не краснеет на законном: общее лежит в `lib`, а слово «profile»
     // встречается в панели и само по себе.
