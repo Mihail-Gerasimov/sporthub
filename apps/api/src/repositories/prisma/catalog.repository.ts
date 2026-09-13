@@ -649,11 +649,11 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
   }
 
   async markRead(id: EntityId, readByUserId: number): Promise<Notification> {
-    const current = await this.client.notification.findUnique({ where: { id } });
-
-    if (current === null) {
-      throw new Error('Уведомление не найдено');
-    }
+    // ⚠️ Проверки «а есть ли строка» ПЕРЕД записью здесь нет намеренно (шаг 37.79).
+    // Она была, и это третий поход в базу на одну отметку: условная запись по
+    // несуществующему номеру трогает ноль строк и вреда не делает, а отсутствие
+    // строки всё равно вскроется чтением ниже — с тем же дословным текстом отказа.
+    // Отдельная проверка ничего не защищала и стоила запроса на каждый клик.
 
     // ⚠️ Условная запись ОДНИМ запросом (шаг 37.17). Прежде здесь стояли
     // `findUnique` и безусловный `update` вне транзакции: второй клик переписывал
@@ -671,7 +671,14 @@ export class PrismaNotificationsRepository implements NotificationsRepository {
     // нажавший последним. Возвращается текущее состояние, каким бы оно ни было.
     void count;
 
-    const updated = await this.client.notification.findUniqueOrThrow({ where: { id } });
+    const updated = await this.client.notification.findUnique({ where: { id } });
+
+    // Текст отказа дословный: на него опирается договор репозитория, а не только
+    // сообщение на экране. `findUniqueOrThrow` бросил бы ошибку движка базы —
+    // то есть протащил бы диалект хранилища в бизнес-код.
+    if (updated === null) {
+      throw new Error('Уведомление не найдено');
+    }
 
     return PrismaNotificationsRepository.toNotification(updated);
   }
