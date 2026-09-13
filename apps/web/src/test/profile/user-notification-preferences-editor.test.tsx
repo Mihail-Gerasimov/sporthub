@@ -40,6 +40,45 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('подпись раздела называет каждый заблокированный переключатель (37.72)', () => {
+    // ⚠️ Правка 37.72, которую нашёл MCP-прогон и которую нечем было закрыть.
+    // Подпись перечисляет, что отключить нельзя. Когда фаза 37 добавила два типа
+    // решений по публикации, подпись про них смолчала: человек видел заблокированный
+    // переключатель без объяснения, почему он заблокирован.
+    //
+    // Тест связывает ДВА факта, которые иначе живут порознь: какие переключатели
+    // отрисованы заблокированными и что о них сказано в подписи. Пятый такой тип
+    // покраснит первую половину, правка подписи — вторую.
+    const EXPLAINED: Record<string, string> = {
+      booking_confirmed: 'подтверждения',
+      booking_cancelled_by_provider: 'отмены провайдером',
+      publication_hidden_for_owner: 'решения по вашей публикации',
+      publication_unhidden_for_owner: 'решения по вашей публикации',
+    };
+
+    render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
+
+    const intro = screen.getByTestId('notification-preferences-editor').textContent ?? '';
+    const locked = screen
+      .getAllByRole('checkbox')
+      .filter((box) => (box as HTMLInputElement).disabled)
+      .map((box) =>
+        box.getAttribute('data-testid')?.replace('notification-preferences-toggle-', ''),
+      )
+      .filter((type): type is string => type !== undefined);
+
+    // Сторож самого теста: без него «все объяснены» означало бы «заблокированных
+    // не нашлось» — ровно та форма ложной зелени, на которой этот проект уже горел.
+    expect(locked.length).toBeGreaterThanOrEqual(4);
+
+    for (const type of locked) {
+      const phrase = EXPLAINED[type];
+
+      expect(phrase, `переключатель «${type}» заблокирован, а подпись о нём молчит`).toBeDefined();
+      expect(intro, `подпись не называет «${phrase}» (тип ${type})`).toContain(phrase);
+    }
+  });
+
   it('рендерит группы (booking / links / reviews) для provider', () => {
     render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
 
