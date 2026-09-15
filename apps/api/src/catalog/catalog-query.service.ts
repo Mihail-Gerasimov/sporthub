@@ -30,6 +30,7 @@ import type { ReviewsRepository, UsersRepository } from '../repositories/crud.re
 import { REVIEWS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repository';
 import type {
   ClubsRepository,
+  PublicationListOptions,
   ScheduleRepository,
   TrainersRepository,
 } from '../repositories/entities.repository';
@@ -119,56 +120,72 @@ export class CatalogQueryService {
    * владельца из публичного каталога убран (шаг 35.20a), а компилятор не даст
    * вернуть отсюда полную сущность и вернуть поле обратно случайно.
    */
-  async findPublishedClubs(filter: {
-    sportId?: number;
-    search?: string;
-    minRating?: number;
-    /** Все скрытые — только модератору (шаг 36.14). */
-    includeHidden?: boolean;
-    /** Скрытые ЭТОГО владельца — его кабинету. Условие уходит в запрос. */
-    includeHiddenOwnedBy?: number;
-  }): Promise<PublicClub[]> {
-    // Вид спорта и рейтинг — условия запроса: под них есть связующая таблица
-    // и индекс с рейтингом в ключе. Раньше оба отсеивались уже после того, как
-    // из базы поднялась вся таблица публикаций.
-    let clubs = await this.clubs.findAll({
+  async findPublishedClubs(
+    filter: {
+      sportId?: number;
+      search?: string;
+      minRating?: number;
+      /** Все скрытые — только модератору (шаг 36.14). */
+      includeHidden?: boolean;
+      /** Скрытые ЭТОГО владельца — его кабинету. Условие уходит в запрос. */
+      includeHiddenOwnedBy?: number;
+    },
+    options: PublicationListOptions = {},
+  ): Promise<PublicClub[]> {
+    const where = {
       excludeHidden: !filter.includeHidden,
       includeHiddenOwnedBy: filter.includeHiddenOwnedBy,
       sportId: filter.sportId,
       minRating: filter.minRating,
-    });
+    };
 
-    if (filter.search !== undefined) {
-      // Поиск идёт и по названиям тегов, поэтому справочник подтягивается.
-      const needle = filter.search.toLowerCase();
-      const tags = await this.tags.findAll();
-      const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
-
-      clubs = clubs.filter((club) => {
-        const haystack = [
-          club.name,
-          club.shortDescription,
-          club.description,
-          club.address,
-          ...club.tagIds.map((id) => tagNameById.get(id) ?? ''),
-        ]
-          .join(' ')
-          .toLowerCase();
-
-        return haystack.includes(needle);
-      });
+    // Вид спорта и рейтинг — условия запроса: под них есть связующая таблица
+    // и индекс с рейтингом в ключе. Порядок и ограничение — тоже запросом
+    // (шаг 38.29): витрина спрашивает шесть лучших и получает ровно их.
+    if (filter.search === undefined) {
+      return (await this.clubs.findAll(where, options)).map(stripPublicationOwner);
     }
 
-    return clubs.map(stripPublicationOwner);
+    // ⚠️ Поиск подстрокой — ДЕЙСТВУЮЩЕЕ ОГРАНИЧЕНИЕ, записанное в `STACK_OVERVIEW.md`
+    // (долг Д-15): он идёт по описанию, адресу и названиям тегов, и в запрос
+    // без полнотекстового индекса не уходит. Поэтому ограничение здесь применяется
+    // ПОСЛЕ отбора, а не до: срез в запросе с отсевом в памяти отдал бы «подходящие
+    // среди первых N», а не «первые N среди подходящих». Порядок при этом всё
+    // равно наводит запрос — он от отсева не зависит.
+    const needle = filter.search.toLowerCase();
+    // Поиск идёт и по названиям тегов, поэтому справочник подтягивается.
+    const tags = await this.tags.findAll();
+    const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+
+    const matched = (await this.clubs.findAll(where, { sort: options.sort })).filter((club) => {
+      const haystack = [
+        club.name,
+        club.shortDescription,
+        club.description,
+        club.address,
+        ...club.tagIds.map((id) => tagNameById.get(id) ?? ''),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(needle);
+    });
+
+    return (options.limit === undefined ? matched : matched.slice(0, options.limit)).map(
+      stripPublicationOwner,
+    );
   }
 
   /** Публичный список тренеров. Номер владельца убран, как и у клубов. */
-  async findPublishedTrainers(filter: {
-    clubId?: number;
-    sportId?: number;
-    includeHidden?: boolean;
-    includeHiddenOwnedBy?: number;
-  }): Promise<PublicTrainer[]> {
+  async findPublishedTrainers(
+    filter: {
+      clubId?: number;
+      sportId?: number;
+      includeHidden?: boolean;
+      includeHiddenOwnedBy?: number;
+    },
+    options: PublicationListOptions = {},
+  ): Promise<PublicTrainer[]> {
     // Тренеры клуба — только через подтверждённую связь. Номера берутся ПЕРВЫМ
     // запросом и уходят условием во второй: раньше поднимались все тренеры
     // платформы и отсеивались по множеству в памяти.
@@ -183,12 +200,15 @@ export class CatalogQueryService {
       ids = [...new Set(confirmed.map((link) => link.trainerId))];
     }
 
-    const trainers = await this.trainers.findAll({
-      excludeHidden: !filter.includeHidden,
-      includeHiddenOwnedBy: filter.includeHiddenOwnedBy,
-      ids,
-      sportId: filter.sportId,
-    });
+    const trainers = await this.trainers.findAll(
+      {
+        excludeHidden: !filter.includeHidden,
+        includeHiddenOwnedBy: filter.includeHiddenOwnedBy,
+        ids,
+        sportId: filter.sportId,
+      },
+      options,
+    );
 
     return trainers.map(stripPublicationOwner);
   }

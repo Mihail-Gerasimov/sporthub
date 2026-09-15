@@ -375,19 +375,20 @@ describe('Маршруты клубов и тренеров', () => {
   };
 
   describe('разбор параметров выдачи', () => {
-    // ⚠️ Фаза 38, шаг 38.23. Единственной сортировкой выдачи была надёжность,
-    // и вместе с ней ушли параметры `sort`, `dir` и `excludeDanger`. Прежние кейсы
-    // «неизвестная сортировка отклоняется» держались на том, что параметр
-    // существует; теперь он — лишний, а лишний параметр выдачу не роняет, как
-    // любой другой незнакомый ключ строки запроса. Сортировка по рейтингу
-    // заводится шагом 38.29 — и вернёт отказ на незнакомое ЗНАЧЕНИЕ.
-    it('снятые параметры сортировки и отсева — лишние: выдача полная и без отказа', async () => {
-      const response = await request(server()).get(
-        '/api/clubs?sort=reliability&dir=desc&excludeDanger=true',
-      );
+    // ⚠️ Фаза 38, шаги 38.23 и 38.29. Надёжность вырезана: `sort=reliability`
+    // стал незнакомым ЗНАЧЕНИЕМ словаря сортировок и отклоняется, как любое другое
+    // (см. стенд витрины ниже). Параметры `dir` и `excludeDanger` сняты вовсе:
+    // они — лишние ключи строки запроса и выдачу не роняют, как любой незнакомый
+    // ключ. Отказ на них означал бы, что механизм вернулся под видом проверки.
+    it('sort=reliability — незнакомое значение, 400; dir и excludeDanger — лишние, игнорируются', async () => {
+      const gone = await request(server()).get('/api/clubs?sort=reliability');
 
-      expect(response.status).toBe(200);
-      expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([1, 2]);
+      expect(gone.status).toBe(400);
+
+      const ignored = await request(server()).get('/api/clubs?dir=desc&excludeDanger=true');
+
+      expect(ignored.status).toBe(200);
+      expect(ignored.body.data.map((item: { id: number }) => item.id)).toEqual([1, 2]);
     });
 
     it('оценка вне диапазона отклоняется', async () => {
@@ -441,13 +442,13 @@ describe('Маршруты клубов и тренеров', () => {
       expect(all.body.data.map((item: { id: number }) => item.id)).toEqual([1]);
     });
 
-    it('то же у тренеров: снятые параметры не роняют выдачу', async () => {
-      const response = await request(server()).get(
-        '/api/trainers?sort=reliability&dir=asc&excludeDanger=true',
-      );
+    it('то же у тренеров: sort=reliability — 400, dir и excludeDanger — игнорируются', async () => {
+      expect((await request(server()).get('/api/trainers?sort=reliability')).status).toBe(400);
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(1);
+      const ignored = await request(server()).get('/api/trainers?dir=asc&excludeDanger=true');
+
+      expect(ignored.status).toBe(200);
+      expect(ignored.body.data).toHaveLength(1);
     });
   });
 
@@ -1485,5 +1486,156 @@ describe('Уборка лица называет ИСХОД, а не отвеч�
 
     expect(response.status).toBe(200);
     expect((response.body as { data?: { outcome?: string } }).data?.outcome).toBe('archived');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Витрина: ограничение и сортировка — в ЗАПРОСЕ (фаза 38, шаг 38.29)
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Главная показывает шесть клубов и четырёх тренеров, а до этого шага брала
+// ВЕСЬ каталог в память и резала его на месте. Здесь `limit` и `sort=rating`
+// уходят в запрос — и стенд построен так, чтобы реализация «взять первые N,
+// потом отсортировать» от честной отличалась не мельканием, а полностью.
+//
+// Стенд: 150 клубов. Первые 110 (по номеру) — с одинаковым рейтингом 4,
+// последние 40 — с растущим до 5: лучшие по рейтингу — САМЫЕ НОВЫЕ, то есть
+// в порядке по умолчанию (`id ASC`) они лежат за сотой строкой. Сортировка
+// поверх взятой сотни вернула бы шесть первых по номеру, а не шесть лучших.
+// Десять последних делят рейтинг 5 ровно: без вторичного ключа верхушка
+// у равных мигала бы от прогона к прогону.
+describe('Витрина каталога: limit и sort=rating считает запрос', () => {
+  let harness: TestHarness;
+
+  const TOTAL = 150;
+  const PLAIN = 110;
+  const TOP_TIED = 10;
+
+  /** Рейтинг клуба по номеру: первые 110 — ровно 4, дальше растёт до 5. */
+  const ratingOf = (id: number): number =>
+    id <= PLAIN ? 4 : Math.min(5, 4 + (id - PLAIN) / (TOTAL - PLAIN - TOP_TIED + 1));
+
+  beforeAll(async () => {
+    harness = await createTestHarness('clubs-showcase');
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: USERS,
+      // Метка времени собирается своя: общий помощник рассчитан на девять строк.
+      clubs: Array.from({ length: TOTAL }, (_, index) =>
+        club(index + 1, {
+          createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(),
+          rating: ratingOf(index + 1),
+          reviewCount: 1,
+        }),
+      ),
+      trainers: [
+        trainerCard({ id: 1, slug: 'tr-1', rating: 4 }),
+        trainerCard({ id: 2, slug: 'tr-2', rating: 5, reviewCount: 3 }),
+        trainerCard({ id: 3, slug: 'tr-3', rating: 5, reviewCount: 3 }),
+      ],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      reviews: [],
+      logs: [],
+      notifications: [],
+    });
+  });
+
+  const server = () => harness.app.getHttpServer();
+  const ids = (response: { body: { data: { id: number }[] } }) =>
+    response.body.data.map((item) => item.id);
+
+  it('без limit выдача ПОЛНАЯ: потолок действует только на названный лимит', async () => {
+    // ⚠️ Не как у ленты уведомлений. Там умолчание равно потолку, потому что
+    // потребитель у ленты один. Полный список каталога читают двенадцать мест —
+    // страница клуба, загрузчик лица, восемь разделов кабинета, — и потолок
+    // «по умолчанию» молча обрезал бы им каталог на сотой публикации.
+    const response = await request(server()).get('/api/clubs');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(TOTAL);
+  });
+
+  it('без sort порядок прежний — по номеру', async () => {
+    const response = await request(server()).get('/api/clubs?limit=3');
+
+    expect(ids(response)).toEqual([1, 2, 3]);
+  });
+
+  it('sort=rating с limit отдаёт ЛУЧШИХ, а не первых по номеру', async () => {
+    // Шесть лучших лежат в хвосте по номеру: реализация «take, потом sort»
+    // вернула бы шесть первых с рейтингом 4.
+    const response = await request(server()).get('/api/clubs?sort=rating&limit=6');
+
+    expect(response.status).toBe(200);
+    expect(ids(response)).toEqual([141, 142, 143, 144, 145, 146]);
+    expect(response.body.data.every((item: { rating: number }) => item.rating === 5)).toBe(true);
+  });
+
+  it('верхушка limit=1 совпадает с первой строкой полной сортированной выдачи', async () => {
+    // Десять клубов делят рейтинг 5. Без вторичного ключа `id` база вправе
+    // отдать любого из десяти — и сравнение «верхушка ≡ первая строка» мигало бы.
+    const top = await request(server()).get('/api/clubs?sort=rating&limit=1');
+    const full = await request(server()).get('/api/clubs?sort=rating');
+
+    expect(full.body.data).toHaveLength(TOTAL);
+    expect(ids(top)).toEqual([141]);
+    expect(ids(full)[0]).toBe(141);
+    // И равные рейтинги идут по возрастанию номера — весь хвост, не только голова.
+    expect(ids(full).slice(0, TOP_TIED)).toEqual(
+      Array.from({ length: TOP_TIED }, (_, index) => TOTAL - TOP_TIED + 1 + index),
+    );
+  });
+
+  it('названный лимит больше потолка срезается до потолка', async () => {
+    const response = await request(server()).get('/api/clubs?limit=500');
+
+    expect(response.body.data).toHaveLength(100);
+  });
+
+  it('лимит не число, ноль или отрицательный — 400', async () => {
+    for (const raw of ['abc', '0', '-3', '1.5']) {
+      const response = await request(server()).get(`/api/clubs?limit=${raw}`);
+
+      expect(response.status, `limit=${raw}`).toBe(400);
+    }
+  });
+
+  it('незнакомое значение сортировки — 400', async () => {
+    const response = await request(server()).get('/api/clubs?sort=price');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ success: false, error: 'Некорректные параметры запроса' });
+  });
+
+  it('сортировка складывается с отбором: minRating и sort=rating в одном запросе', async () => {
+    // Отбор до сортировки и до среза: иначе «лучшие среди подходящих»
+    // превратились бы в «подходящие среди первых».
+    const response = await request(server()).get('/api/clubs?minRating=4.5&sort=rating&limit=2');
+
+    expect(ids(response)).toEqual([141, 142]);
+  });
+
+  it('тренеры: sort=rating и limit — то же правило, ничьи разводит число отзывов, затем номер', async () => {
+    const top = await request(server()).get('/api/trainers?sort=rating&limit=1');
+    const full = await request(server()).get('/api/trainers');
+
+    expect(ids(top)).toEqual([2]);
+    // Порядок по умолчанию у тренеров и прежде был «по рейтингу, при равенстве —
+    // по числу отзывов»; он не изменился, только переехал из памяти в запрос.
+    expect(ids(full)).toEqual([2, 3, 1]);
+  });
+
+  it('тренеры: незнакомая сортировка и негодный лимит — 400', async () => {
+    expect((await request(server()).get('/api/trainers?sort=price')).status).toBe(400);
+    expect((await request(server()).get('/api/trainers?limit=0')).status).toBe(400);
   });
 });

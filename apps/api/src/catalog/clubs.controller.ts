@@ -54,6 +54,11 @@ import {
   NotFoundError,
   ValidationError,
 } from '../common/domain-error';
+import {
+  PUBLICATION_SORTS,
+  type PublicationListOptions,
+  type PublicationSort,
+} from '../repositories/entities.repository';
 import { CatalogQueryService } from './catalog-query.service';
 import type { PublicClub, PublicTrainer } from './public-view';
 import { LogService } from '../logs/log.service';
@@ -85,6 +90,42 @@ function parseOptionalNumber(raw: string | undefined): number | undefined {
   }
 
   return parsed;
+}
+
+/**
+ * Потолок НАЗВАННОГО ограничения выдачи (шаг 38.29). Больше сотни маршрут
+ * не отдаёт по одному запросу с `limit`.
+ *
+ * ⚠️ Умолчания у потолка НЕТ, и это отличие от ленты уведомлений — намеренное.
+ * Там потребитель один, и «не назвал — получи страницу» ему подходит. Полный
+ * список каталога читают двенадцать мест (страница клуба, загрузчик лица,
+ * восемь разделов кабинета): потолок по умолчанию обрезал бы им каталог
+ * на сотой публикации молча. Поэтому: не назвал — получи всё, назвал — не больше
+ * потолка.
+ */
+const MAX_LIMIT = 100;
+
+/**
+ * Порядок и ограничение выдачи из строки запроса.
+ *
+ * Сортировка сверяется со словарём `PUBLICATION_SORTS`: незнакомое значение —
+ * отказ, а не молчаливый порядок по умолчанию. Иначе опечатка в параметре
+ * выглядела бы как «сортировка не работает».
+ */
+function parseListOptions(
+  sort: string | undefined,
+  limit: string | undefined,
+): PublicationListOptions {
+  if (sort !== undefined && !(PUBLICATION_SORTS as readonly string[]).includes(sort)) {
+    throw new ValidationError('Некорректные параметры запроса');
+  }
+
+  const parsedLimit = parseOptionalNumber(limit);
+
+  return {
+    sort: sort as PublicationSort | undefined,
+    limit: parsedLimit === undefined ? undefined : Math.min(parsedLimit, MAX_LIMIT),
+  };
 }
 
 /**
@@ -188,6 +229,8 @@ export class ClubsController {
     @Query('search') search?: string,
     @Query('minRating') minRating?: string,
     @Query('includeHidden') includeHidden?: string,
+    @Query('sort') sort?: string,
+    @Query('limit') limit?: string,
     @CurrentUser() session?: SessionContext,
   ): Promise<PublicClub[]> {
     const rating = minRating === undefined || minRating === '' ? undefined : Number(minRating);
@@ -196,16 +239,21 @@ export class ClubsController {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
-    return this.query.findPublishedClubs({
-      sportId: parseOptionalNumber(sportId),
-      search: search?.trim() || undefined,
-      minRating: rating,
-      includeHidden: await this.mayIncludeHidden(includeHidden, session),
-      // Владелец видит свои скрытые публикации и в общей выдаче: кабинет читает
-      // каталог этим же маршрутом, и без этого исключения он показал бы владельцу
-      // на одну публикацию меньше, чем у него есть.
-      includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
-    });
+    return this.query.findPublishedClubs(
+      {
+        sportId: parseOptionalNumber(sportId),
+        search: search?.trim() || undefined,
+        minRating: rating,
+        includeHidden: await this.mayIncludeHidden(includeHidden, session),
+        // Владелец видит свои скрытые публикации и в общей выдаче: кабинет читает
+        // каталог этим же маршрутом, и без этого исключения он показал бы владельцу
+        // на одну публикацию меньше, чем у него есть.
+        includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
+      },
+      // Витрина главной: `sort=rating&limit=6`. Оба параметра необязательные —
+      // старый клиент без них получает прежнюю выдачу целиком (шаг 38.29).
+      parseListOptions(sort, limit),
+    );
   }
 
   /**
@@ -463,23 +511,25 @@ export class TrainersController {
     @Query('clubId') clubId?: string,
     @Query('sportId') sportId?: string,
     @Query('includeHidden') includeHidden?: string,
+    @Query('sort') sort?: string,
+    @Query('limit') limit?: string,
     @CurrentUser() session?: SessionContext,
   ): Promise<PublicTrainer[]> {
-    const trainers = await this.query.findPublishedTrainers({
-      // Оба имени параметра поддерживаются — так было до переноса.
-      clubId: parseOptionalNumber(affiliatedClubId) ?? parseOptionalNumber(clubId),
-      sportId: parseOptionalNumber(sportId),
-      includeHidden: await this.mayIncludeHidden(includeHidden, session),
-      includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
-    });
+    const options = parseListOptions(sort, limit);
 
-    // Умолчание: по рейтингу, при равенстве — по числу отзывов. Порядок пока
-    // наводится в памяти — так было до фазы 38; в запрос он уезжает шагом 38.29
-    // вместе с `limit`, и тогда же эта строка исчезнет.
-    return trainers.sort((left, right) =>
-      right.rating !== left.rating
-        ? right.rating - left.rating
-        : right.reviewCount - left.reviewCount,
+    return this.query.findPublishedTrainers(
+      {
+        // Оба имени параметра поддерживаются — так было до переноса.
+        clubId: parseOptionalNumber(affiliatedClubId) ?? parseOptionalNumber(clubId),
+        sportId: parseOptionalNumber(sportId),
+        includeHidden: await this.mayIncludeHidden(includeHidden, session),
+        includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
+      },
+      // Умолчание у тренеров и прежде было «по рейтингу, при равенстве — по числу
+      // отзывов»; шаг 38.29 перенёс его из памяти в запрос. Порядок не изменился —
+      // изменилось лишь то, что теперь он совместим с `limit`: сортировать после
+      // среза значило бы отдать лучших среди первых, а не первых среди лучших.
+      { ...options, sort: options.sort ?? 'rating' },
     );
   }
 

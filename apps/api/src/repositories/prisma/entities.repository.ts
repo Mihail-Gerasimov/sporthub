@@ -39,6 +39,8 @@ import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
 import type { Prisma } from '../../storage/prisma-client/client';
 import type {
   ClubsRepository,
+  PublicationListOptions,
+  PublicationSort,
   PublicationsByOwner,
   PublicationStatusFilter,
   ScheduleFilter,
@@ -177,6 +179,32 @@ function buildPublicationWhere(
   return Object.keys(where).length === 0 ? undefined : where;
 }
 
+/**
+ * Выражение порядка под каждое значение словаря `PUBLICATION_SORTS`.
+ *
+ * Карта, а не ветвление: новое значение словаря компилятор потребует добавить
+ * сюда сам. Умолчание — по номеру — здесь не живёт: оно не выбирается параметром.
+ */
+const PUBLICATION_ORDER_BY: Record<
+  PublicationSort,
+  Prisma.ClubOrderByWithRelationInput[] & Prisma.TrainerOrderByWithRelationInput[]
+> = {
+  rating: [{ rating: 'desc' }, { reviewCount: 'desc' }, { id: 'asc' }],
+};
+
+/** Порядок и ограничение выдачи — в запрос, а не к поднятому списку. */
+function buildPublicationListArgs(options: PublicationListOptions): {
+  orderBy: Prisma.ClubOrderByWithRelationInput[] & Prisma.TrainerOrderByWithRelationInput[];
+  take: number | undefined;
+} {
+  return {
+    orderBy: options.sort === undefined ? [{ id: 'asc' }] : PUBLICATION_ORDER_BY[options.sort],
+    // `take: undefined` для Prisma — «без ограничения»: полный список у тех,
+    // кто его не называл.
+    take: options.limit,
+  };
+}
+
 @Injectable()
 export class PrismaClubsRepository implements ClubsRepository {
   constructor(private readonly transactions: PrismaTransactionRunner) {}
@@ -221,7 +249,10 @@ export class PrismaClubsRepository implements ClubsRepository {
     });
   }
 
-  async findAll(filter: PublicationStatusFilter = {}): Promise<Club[]> {
+  async findAll(
+    filter: PublicationStatusFilter = {},
+    options: PublicationListOptions = {},
+  ): Promise<Club[]> {
     // Пустой набор номеров — заведомо пустая выдача. Запрос не делается вовсе,
     // и файловая реализация ведёт себя так же.
     if (filter.ids !== undefined && filter.ids.length === 0) return [];
@@ -231,7 +262,9 @@ export class PrismaClubsRepository implements ClubsRepository {
       // из базы всё, включая то, что заведомо выбрасывает.
       where: buildPublicationWhere(filter, 'sports'),
       include: CLUB_INCLUDE,
-      orderBy: { id: 'asc' },
+      // Порядок и ограничение — тоже запросом (шаг 38.29): сортировать после
+      // `take` значило бы отдать лучших среди первых, а не первых среди лучших.
+      ...buildPublicationListArgs(options),
     });
 
     return rows.map((row) => PrismaClubsRepository.toClub(row));
@@ -588,13 +621,16 @@ export class PrismaTrainersRepository implements TrainersRepository {
     });
   }
 
-  async findAll(filter: PublicationStatusFilter = {}): Promise<Trainer[]> {
+  async findAll(
+    filter: PublicationStatusFilter = {},
+    options: PublicationListOptions = {},
+  ): Promise<Trainer[]> {
     if (filter.ids !== undefined && filter.ids.length === 0) return [];
 
     const rows = await this.client.trainer.findMany({
       where: buildPublicationWhere(filter, 'sports'),
       include: TRAINER_INCLUDE,
-      orderBy: { id: 'asc' },
+      ...buildPublicationListArgs(options),
     });
 
     return rows.map((row) => PrismaTrainersRepository.toTrainer(row));

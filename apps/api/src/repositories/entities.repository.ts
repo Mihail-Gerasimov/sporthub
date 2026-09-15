@@ -114,6 +114,40 @@ export type PublicationStatusFilter = {
 };
 
 /**
+ * Порядки выдачи публикаций, которые умеет задавать запрос (шаг 38.29).
+ *
+ * Словарь один: контроллер сверяет с ним параметр `sort`, реализация — берёт
+ * из него выражение `ORDER BY`. Новый порядок = значение здесь плюс строка
+ * в карте реализации, компилятор потребует вторую сам.
+ *
+ * `rating` — по рейтингу убыванию, ничьи разводит число отзывов, затем номер.
+ * ⚠️ Вторичный ключ `id` обязателен: без него база вправе отдать равных
+ * в любом порядке, и «верхушка `limit=1`» мигала бы от прогона к прогону.
+ * Под порядок есть индекс `(status, rating DESC, review_count DESC)`.
+ */
+export const PUBLICATION_SORTS = ['rating'] as const;
+export type PublicationSort = (typeof PUBLICATION_SORTS)[number];
+
+/**
+ * Как отдавать выдачу: порядок и ограничение. Оба — необязательные, и оба
+ * уходят в запрос (`ORDER BY`, `LIMIT`), а не применяются к поднятому списку.
+ *
+ * ⚠️ Отдельно от отбора (`PublicationStatusFilter`), потому что отбор общий
+ * у выдачи и счёта, а порядок и ограничение у счёта смысла не имеют.
+ */
+export type PublicationListOptions = {
+  /** Без значения — по возрастанию номера, как и прежде. */
+  sort?: PublicationSort;
+  /**
+   * Сколько строк отдать. Без значения — ВСЕ подходящие: потолок «по умолчанию»
+   * молча обрезал бы двенадцать потребителей полного списка (страница клуба,
+   * загрузчик лица, разделы кабинета). Потолок ставит контроллер, и только
+   * на названное значение.
+   */
+  limit?: number;
+};
+
+/**
  * Сколько публикаций у одного владельца. Строка на владельца, а не на публикацию.
  *
  * ⚠️ Шаг 35.20a. Считать это чтением таблицы публикаций нельзя: админский
@@ -128,7 +162,7 @@ export type PublicationStatusFilter = {
 export type PublicationsByOwner = { userId: number; count: number };
 
 export interface ClubsRepository {
-  findAll(filter?: PublicationStatusFilter): Promise<Club[]>;
+  findAll(filter?: PublicationStatusFilter, options?: PublicationListOptions): Promise<Club[]>;
   findById(id: number): Promise<Club | null>;
   findBySlug(slug: string): Promise<Club | null>;
   /**
@@ -146,7 +180,7 @@ export interface ClubsRepository {
 }
 
 export interface TrainersRepository {
-  findAll(filter?: PublicationStatusFilter): Promise<Trainer[]>;
+  findAll(filter?: PublicationStatusFilter, options?: PublicationListOptions): Promise<Trainer[]>;
   findById(id: number): Promise<Trainer | null>;
   findBySlug(slug: string): Promise<Trainer | null>;
   /** То же, что у клубов: счёт по отбору запросом (шаг 38.28). */
