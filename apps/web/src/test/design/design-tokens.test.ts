@@ -15,6 +15,17 @@ const globalsCss = readFileSync(
 );
 
 describe('Дизайн-токены (globals.css)', () => {
+  // --- Шапка файла (шаг 38.6) ---
+  // ⚠️ Шапка `globals.css` с фазы 28 обещала «тёмную дизайн-систему», а палитра
+  // светлая с фазы 31: три фазы файл открывался описанием того, чего в нём нет.
+  // Шапка — первое, что читает человек, и врать она не вправе.
+  it('шапка файла не называет палитру тёмной и называет светлой', () => {
+    const header = globalsCss.match(/^\/\*[\s\S]*?\*\//);
+    expect(header).not.toBeNull();
+    expect(header![0]).not.toMatch(/тёмн/i);
+    expect(header![0]).toMatch(/светл/i);
+  });
+
   // --- Палитра ---
   const paletteVars = [
     '--ui-canvas',
