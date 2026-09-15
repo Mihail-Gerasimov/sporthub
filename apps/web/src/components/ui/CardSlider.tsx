@@ -304,16 +304,18 @@ export function CardSlider({
       ? 'hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]'
       : 'hover:border-[var(--ui-orange)] hover:text-[var(--ui-orange)]';
 
-  // Стили pill-счётчика и активной dot — через CSS-переменные accent.
-  const accentVar = accent === 'lime' ? 'var(--ui-lime)' : 'var(--ui-orange)';
-  const accentSoftVar = accent === 'lime' ? 'var(--ui-lime-soft)' : 'var(--ui-orange-soft)';
+  // Pill-счётчик и активная точка — классами по акценту, а не инлайновым стилем:
+  // цвет идёт через токен, и перекраска его видит.
+  const pillAccentClass =
+    accent === 'lime' ? 'bg-lime-soft text-lime-hov' : 'bg-orange-soft text-orange';
+  const dotActiveClass =
+    accent === 'lime' ? 'data-[active=true]:bg-lime' : 'data-[active=true]:bg-orange';
 
   // Дефолтный pill-счётчик «N в выдаче» — рендерится только если `tools`
   // не передан. Иначе вместо него — пользовательский tools-блок.
   const defaultTools = (
     <span
-      className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em]"
-      style={{ background: accentSoftVar, color: accentVar }}
+      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em] ${pillAccentClass}`}
     >
       <span className="font-display text-[14px] tabular-nums leading-none">{total}</span>
       {countLabel}
@@ -470,11 +472,7 @@ export function CardSlider({
             data-active={i === safeIdx ? 'true' : 'false'}
             onClick={() => setIdx(i)}
             aria-label={`Слайд ${i + 1}`}
-            className="h-1 cursor-pointer rounded-full border-0 p-0 transition-[background,width] duration-200"
-            style={{
-              width: i === safeIdx ? '40px' : '28px',
-              background: i === safeIdx ? accentVar : 'var(--ui-line)',
-            }}
+            className={`h-1 w-7 cursor-pointer rounded-full border-0 bg-line p-0 transition-[background,width] duration-200 data-[active=true]:w-10 ${dotActiveClass}`}
           />
         ))}
       </div>

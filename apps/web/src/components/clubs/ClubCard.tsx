@@ -94,10 +94,7 @@ export function ClubCard({
       } ${hoverBorderClass}`}
     >
       {/* Hero — диагональный луч + watermark + city-pill + name */}
-      <div
-        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5"
-        style={{ minHeight: 176 }}
-      >
+      <div className="relative flex min-h-[176px] flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5">
         {/* Двухслойный фон через готовый класс из globals.css (Step 28.6) */}
         <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
 

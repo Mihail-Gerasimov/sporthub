@@ -699,11 +699,7 @@ export function ClubDetailPageClient({
                   >
                     <div
                       aria-hidden="true"
-                      className="size-9 rounded-[10px] border border-line bg-card-2 md:size-11 md:rounded-[12px]"
-                      style={{
-                        backgroundImage:
-                          'repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 8px)',
-                      }}
+                      className="hatch-soft size-9 rounded-[10px] border border-line bg-card-2 md:size-11 md:rounded-[12px]"
                     />
                     <div className="min-w-0">
                       <p className="font-display text-sm leading-tight text-ink">

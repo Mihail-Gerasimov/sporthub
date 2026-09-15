@@ -122,10 +122,7 @@ export function TrainerCard({
       } ${hoverBorderClass}`}
     >
       {/* Hero — луч + watermark + city-pill + avatar + role + name + sport-tag */}
-      <div
-        className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5"
-        style={{ minHeight: 200 }}
-      >
+      <div className="relative flex min-h-[200px] flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5">
         <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
 
         {wm ? (

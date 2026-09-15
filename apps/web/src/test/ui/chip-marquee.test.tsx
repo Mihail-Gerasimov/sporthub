@@ -133,7 +133,7 @@ describe('ChipMarquee', () => {
 
   // --- Phase 30.8 ---
 
-  it('Phase 30.8: на каждом чипе явно cursor: default (override grab от родителя)', () => {
+  it('Phase 30.8: на каждом чипе явно cursor-default (override grab от родителя)', () => {
     MOCK_CONTAINER_W = 500;
     MOCK_CONTENT_W = 200;
     const items = [{ label: 'A' }, { label: 'B' }];
@@ -141,7 +141,9 @@ describe('ChipMarquee', () => {
     const chips = container.querySelectorAll<HTMLElement>('[data-chip-original="true"]');
     expect(chips.length).toBe(2);
     chips.forEach((chip) => {
-      expect(chip.style.cursor).toBe('default');
+      // Шаг 38.9: курсор задаётся классом, а не инлайновым стилем.
+      expect(chip.className).toMatch(/\bcursor-default\b/);
+      expect(chip.getAttribute('style')).toBeNull();
     });
   });
 

@@ -57,7 +57,7 @@ export const RAW_COLOR_PATTERNS: { name: string; pattern: RegExp }[] = [
 ];
 
 /** Файлы, где `#000` внутри `mask-image` — законная альфа-маска. Только эти. */
-export const MASK_FILES = ['src/app/globals.css', 'src/components/ui/ChipMarquee.tsx'];
+export const MASK_FILES = ['src/app/globals.css'];
 
 /**
  * Старые файлы и потолок сырых цветов в каждом. Список только убывает (шаг 38.14
@@ -75,7 +75,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/admin/analytics/AnalyticsDashboard.tsx': 1,
   'src/components/admin/analytics/KpiCards.tsx': 4,
   'src/components/clubs/ClubCard.tsx': 2,
-  'src/components/clubs/ClubDetailPageClient.tsx': 3,
+  'src/components/clubs/ClubDetailPageClient.tsx': 2,
   'src/components/detail-shared/DetailScheduleWeek.tsx': 1,
   'src/components/home/HeroSportMarquee.tsx': 2,
   'src/components/layout/Header.tsx': 7,
@@ -90,13 +90,14 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/ScheduleSlotsEditor.tsx': 2,
   'src/components/profile/provider/RejectBookingReasonModal.tsx': 1,
   'src/components/trainers/TrainerCard.tsx': 5,
-  'src/components/trainers/TrainerDetailPageClient.tsx': 3,
+  'src/components/trainers/TrainerDetailPageClient.tsx': 2,
   'src/components/trainers/trainer-utils.ts': 12,
   'src/components/ui/ChipMarquee.tsx': 2,
   'src/components/ui/Modal.tsx': 1,
 };
 
-/** Текст без комментариев: `/* */ `, `; //` до конца строки и JSX-обёртки `{/* */}`. */
+// Текст без комментариев: блочных, строчных (до конца строки) и JSX-обёрток.
+// ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.
 function stripComments(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 }
@@ -280,10 +281,10 @@ describe('Сторож: сырых цветов нет (38.8)', () => {
   });
 
   it('альфа-маска #000 законна только в названных файлах', () => {
+    // Маска в TSX не названа ни для одного файла: у ленты чипов она переехала в CSS.
     const mask = "maskImage: 'linear-gradient(to right, transparent 0, #000 24px, #000 100%)'";
 
-    expect(rawColorsIn('src/components/ui/ChipMarquee.tsx', mask)).toEqual([]);
-    expect(rawColorsIn('src/components/ui/CardSlider.tsx', mask)).toEqual([
+    expect(rawColorsIn('src/components/ui/ChipMarquee.tsx', mask)).toEqual([
       'hex: #000',
       'hex: #000',
     ]);
@@ -292,9 +293,7 @@ describe('Сторож: сырых цветов нет (38.8)', () => {
       '.x {\n  -webkit-mask-image: linear-gradient(#000, transparent);\n  mask-image: linear-gradient(#000, transparent);\n}';
 
     expect(rawColorsIn('src/app/globals.css', cssMask)).toEqual([]);
-    // А `#000` в той же строке, но не в маске — сырой цвет даже в названном файле.
-    expect(rawColorsIn('src/components/ui/ChipMarquee.tsx', "color: '#000'")).toEqual([
-      'hex: #000',
-    ]);
+    // А `#000` вне маски — сырой цвет даже в названном файле.
+    expect(rawColorsIn('src/app/globals.css', '.x { color: #000; }')).toEqual(['hex: #000']);
   });
 });

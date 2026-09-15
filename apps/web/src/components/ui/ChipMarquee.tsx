@@ -223,43 +223,23 @@ export function ChipMarquee({
   return (
     <div
       ref={marqueeRef}
-      className={`chip-marquee relative overflow-hidden ${isLast ? 'mb-[22px] sm:mb-4' : ''}`}
-      style={{
-        height: 36,
-        marginTop: 16,
-        WebkitMaskImage:
-          'linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)',
-        maskImage:
-          'linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)',
-      }}
+      className={`chip-marquee relative mt-4 h-9 overflow-hidden ${isLast ? 'mb-[22px] sm:mb-4' : ''}`}
     >
       <div
         ref={trackRef}
-        className="chip-track flex select-none items-center will-change-transform"
-        style={{
-          // Абсолютное позиционирование вытаскивает track из flow родителя:
-          // его «требуемая» ширина (max-content) больше не давит на ширину
-          // карточки, overflow:hidden родителя корректно обрезает выезжающие
-          // чипы. Без этого min-content propagation расширял slide на 1440.
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          height: '100%',
-          width: 'max-content',
-          gap: 10,
-          padding: '0 22px',
-          cursor: 'grab',
-          touchAction: 'pan-y',
-        }}
+        // Абсолютное позиционирование вытаскивает track из flow родителя:
+        // его «требуемая» ширина (max-content) больше не давит на ширину
+        // карточки, overflow:hidden родителя корректно обрезает выезжающие
+        // чипы. Без этого min-content propagation расширял slide на 1440.
+        className="chip-track absolute top-0 left-0 flex h-full w-max cursor-grab touch-pan-y select-none items-center gap-2.5 px-[22px] will-change-transform"
       >
         {items.map((item, i) => (
           <span
             key={i}
             data-chip-original="true"
-            // Phase 30.8: cursor: default явно — иначе наследуется grab от .chip-track
+            // Phase 30.8: cursor-default явно — иначе наследуется grab от .chip-track
             // и чипы выглядят как drag-handle, хотя они контентные (не интерактивны).
-            style={{ cursor: 'default' }}
-            className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] ${tagClass}`}
+            className={`inline-flex flex-shrink-0 cursor-default items-center whitespace-nowrap rounded-full px-3 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.18em] ${tagClass}`}
           >
             {item.label}
           </span>

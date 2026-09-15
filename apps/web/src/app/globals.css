@@ -315,6 +315,25 @@ body {
  * убираем edge-маску, убираем cursor:grab. Класс ставит JS-эффект внутри
  * src/components/ui/ChipMarquee.tsx после измерения scrollWidth/containerW.
  */
+/* Края ленты растворяются: альфа-маска, цвет `#000` здесь — только альфа-канал
+ * (исключение поимённо в стороже no-raw-colors). */
+.chip-marquee {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 24px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 24px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
+}
+
 .chip-marquee.no-loop {
   -webkit-mask-image: none;
   mask-image: none;
@@ -326,6 +345,18 @@ body {
 
 .chip-track.is-dragging {
   cursor: grabbing;
+}
+
+/* ===== Штриховка-заглушка аватара (отзывы на детальных страницах) =====
+ * Только `background-image`: цвет подложки остаётся классом (`bg-card-2`),
+ * штрих — 3% чернил через color-mix, без сырого цвета.
+ */
+.hatch-soft {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ui-ink) 3%, transparent) 0 1px,
+    transparent 1px 8px
+  );
 }
 
 /* ===== Phase 30.10 — hero sport-rail marquee на главной =====

@@ -1,6 +1,6 @@
 /**
  * Phase 30.10: тесты HeroSportMarquee.
- * Проверяем дублирование контента (a11y), cursor:default на чипах,
+ * Проверяем дублирование контента (a11y), cursor-default на чипах,
  * aria-hidden на дубликате, пустой массив → null.
  */
 import { render, screen } from '@testing-library/react';
@@ -28,14 +28,16 @@ describe('HeroSportMarquee (Phase 30.10)', () => {
     expect(screen.getAllByText('Плавание')).toHaveLength(2);
   });
 
-  it('каждый чип имеет cursor:default явно (override любого hover-наследования)', () => {
+  it('каждый чип имеет cursor-default явно (override любого hover-наследования)', () => {
     const { container } = render(<HeroSportMarquee sports={SPORTS} />);
     const chips = container.querySelectorAll<HTMLElement>(
       '[data-testid="hero-sport-marquee"] .hero-sport-marquee > span',
     );
     expect(chips.length).toBe(6);
     chips.forEach((chip) => {
-      expect(chip.style.cursor).toBe('default');
+      // Шаг 38.9: курсор задаётся классом, а не инлайновым стилем.
+      expect(chip.className).toMatch(/\bcursor-default\b/);
+      expect(chip.getAttribute('style')).toBeNull();
     });
   });
 

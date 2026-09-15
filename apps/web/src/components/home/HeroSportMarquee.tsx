@@ -31,8 +31,7 @@ function SportChip({
   return (
     <span
       aria-hidden={ariaHidden ? 'true' : undefined}
-      style={{ cursor: 'default' }}
-      className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#BFDFD2]/30 bg-white/[0.08] px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--ui-bg)]"
+      className="inline-flex shrink-0 cursor-default items-center gap-2 rounded-full border border-[#BFDFD2]/30 bg-white/[0.08] px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--ui-bg)]"
     >
       <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-[var(--ui-lime-soft)] font-body text-[11px] font-bold text-[var(--ui-ink)]">
         {sport.name.trim().charAt(0).toUpperCase()}
