@@ -10,17 +10,20 @@
  *    Старые имена сохранены, добавлены новые (color-bg, color-lime, color-orange, ...).
  * 3. Базовые стили html/body — светлый фон с двойным радиальным градиентом
  *    (зелёный 5% top-left + orange 4% bottom-right, на базе --ui-bg-deep).
- * 4. Типографические утилиты .t-* (display- и body-шрифт из UI Kit).
+ * 4. Типографические утилиты .t-* (display- и body-шрифт).
  * 5. Существующие утилиты (.scrollbar-hidden, input[type=number] resets) сохранены.
  */
 
 @import 'tailwindcss';
 
 :root {
-  /* ===== Шрифты (значения подставляются через next/font/google в src/app/layout.tsx) ===== */
-  --ui-font-display: 'Bowlby One', Impact, sans-serif;
-  --ui-font-body: 'Oswald', system-ui, sans-serif;
-  --ui-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  /* ===== Шрифты (шаг 38.16) =====
+   * Файлы подключает next/font/google в src/app/layout.tsx и отдаёт переменными
+   * `--font-sofia` / `--font-inter`; стеки собираются здесь. Своего моно-шрифта нет —
+   * `.font-mono` живёт на системном стеке (`--font-mono` в @theme inline).
+   */
+  --ui-font-display: var(--font-sofia), 'Arial Narrow', sans-serif;
+  --ui-font-body: var(--font-inter), system-ui, sans-serif;
 
   /* ===== Палитра ПРОСПОРТ (фаза 38): графитовый текст на светло-серой странице,
    * белые карточки, зелёный акцент. Значения — из эталона дизайна
@@ -178,11 +181,12 @@
   --color-warning: var(--ui-warning);
   --color-danger: var(--ui-danger);
 
-  /* Шрифты */
+  /* Шрифты. `--font-mono` — системный моно-стек для служебных данных (`.font-mono`,
+   * `.t-mono`): токены, hex, номера. Собственного моно-шрифта проект не грузит. */
   --font-sans: var(--ui-font-body);
   --font-display: var(--ui-font-display);
   --font-body: var(--ui-font-body);
-  --font-mono: var(--ui-font-mono);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Радиусы */
   --radius-card: var(--ui-radius-card);
@@ -310,7 +314,7 @@ body {
 }
 
 .t-mono {
-  font-family: var(--ui-font-mono);
+  font-family: var(--font-mono);
   font-size: 13px;
 }
 

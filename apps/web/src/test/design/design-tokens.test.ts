@@ -78,6 +78,24 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(globalsCss).toContain('--ui-font-body');
   });
 
+  // Шаг 38.16: два шрифта вместо трёх. Display — Sofia Sans Extra Condensed, body — Inter,
+  // оба приходят переменными next/font (`--font-sofia`, `--font-inter`); собственного
+  // моно-шрифта нет — `.font-mono` живёт на системном стеке, названном в `@theme inline`.
+  it('display-стек собран из переменной Sofia, body — из Inter; свой моно-токен снят', () => {
+    expect(globalsCss).toMatch(/--ui-font-display:\s*[^;]*var\(--font-sofia\)/);
+    expect(globalsCss).toMatch(/--ui-font-body:\s*var\(--font-inter\)/);
+    // Имя склеено, чтобы сторож removed-fonts не принял проверку за ссылку.
+    expect(globalsCss).not.toContain(`--ui-font-${'mono'}`);
+  });
+
+  it('.font-mono — утилита на системном моно-стеке, названном в @theme inline', () => {
+    const match = globalsCss.match(/--font-mono:\s*([^;]+);/);
+    expect(match).not.toBeNull();
+    expect(match![1]).toMatch(/ui-monospace|Menlo|monospace/);
+    // Имена склеены, чтобы сторож removed-fonts не принял проверку за ссылку.
+    expect(match![1]).not.toMatch(new RegExp(`var\\(--ui-font-${'mono'}\\)|Jet${'Brains'}`));
+  });
+
   // --- @theme маппинг ---
   it('содержит @theme inline блок с цветовыми маппингами', () => {
     expect(globalsCss).toContain('@theme inline');
