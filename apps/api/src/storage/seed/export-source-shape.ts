@@ -211,6 +211,8 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       hideReason: row.hideReason ?? undefined,
       hiddenByUserId: row.hiddenByUserId ?? undefined,
       hiddenAt: row.hiddenAt ? toIsoString(row.hiddenAt) : undefined,
+      verifiedAt: row.verifiedAt ? toIsoString(row.verifiedAt) : undefined,
+      verifiedByUserId: row.verifiedByUserId ?? undefined,
     } as Club),
     coordinates: { lat: row.latitude, lng: row.longitude },
     sportIds: row.sports.map((item) => item.sportId),
@@ -244,6 +246,8 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
       hideReason: row.hideReason ?? undefined,
       hiddenByUserId: row.hiddenByUserId ?? undefined,
       hiddenAt: row.hiddenAt ? toIsoString(row.hiddenAt) : undefined,
+      verifiedAt: row.verifiedAt ? toIsoString(row.verifiedAt) : undefined,
+      verifiedByUserId: row.verifiedByUserId ?? undefined,
       coordinates:
         row.latitude === null || row.longitude === null
           ? undefined

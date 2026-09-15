@@ -31,7 +31,7 @@
 // людям по-разному, — это то, на чём ошибаются незаметно; администратор узнаёт
 // владельцев своими маршрутами (`GET /api/users`, `GET /api/publications`).
 
-import type { Club, EntityId, Trainer } from '@sporthub/types';
+import type { Club, Trainer } from '@sporthub/types';
 
 /**
  * Поля, которых в публичной выдаче быть не должно.
@@ -43,32 +43,49 @@ import type { Club, EntityId, Trainer } from '@sporthub/types';
  * ещё не посмотрел исправление». Каталогу он не нужен ни при каком статусе,
  * а на живой публикации ещё и шумит значением `false` в каждой карточке.
  * Разделу модерации он приходит своим маршрутом, где владение уже проверено.
+ *
+ * `verifiedByUserId` — шаг 38.48: КЕМ подтверждена публикация — номер
+ * администратора, гостю он не нужен ни для чего; знак на карточке рисуется
+ * по `verifiedAt`, а она остаётся. Ровно как у скрытия: причина видна, номер нет.
+ *
+ * ⚠️ Список — единственное место, где названо скрытое. `stripPublicationOwner`
+ * и сторож `owner-leak.test.ts` обходят ЕГО, а не свои копии имён: четвёртое
+ * поле добавляется строкой здесь, и вырезание с проверкой меняются сами.
  */
-const HIDDEN_FROM_PUBLIC = ['managedByUserId', 'awaitingRecheck'] as const;
+export const HIDDEN_FROM_PUBLIC = [
+  'managedByUserId',
+  'awaitingRecheck',
+  'verifiedByUserId',
+] as const;
+
+/** Поле, скрытое от публичной выдачи. */
+export type HiddenFromPublic = (typeof HIDDEN_FROM_PUBLIC)[number];
 
 /** Клуб в публичной выдаче. */
-export type PublicClub = Omit<Club, (typeof HIDDEN_FROM_PUBLIC)[number]>;
+export type PublicClub = Omit<Club, HiddenFromPublic>;
 
 /** Карточка тренера в публичной выдаче. */
-export type PublicTrainer = Omit<Trainer, (typeof HIDDEN_FROM_PUBLIC)[number]>;
+export type PublicTrainer = Omit<Trainer, HiddenFromPublic>;
 
 /**
- * Убрать номер владельца из публикации.
+ * Убрать скрытые поля из публикации — по списку, а не по именам руками.
  *
  * Обобщённая, а не две одинаковых: клуб и карточка тренера различаются всем,
- * кроме этого поля, и второй экземпляр той же строки разъехался бы с первым.
+ * кроме этих полей, и второй экземпляр той же строки разъехался бы с первым.
+ * Ключ удаляется, а не обнуляется: отсутствие поля и `undefined` в JSON
+ * выглядят одинаково, но `null` — нет, и он рассказал бы, что поле существует.
  */
-export function stripPublicationOwner<
-  T extends { managedByUserId?: EntityId; awaitingRecheck?: boolean },
->(entity: T): Omit<T, (typeof HIDDEN_FROM_PUBLIC)[number]> {
-  const { managedByUserId: _owner, awaitingRecheck: _recheck, ...publicView } = entity;
+export function stripPublicationOwner<T extends object>(entity: T): Omit<T, HiddenFromPublic> {
+  const publicView: Record<string, unknown> = { ...(entity as Record<string, unknown>) };
 
-  return publicView;
+  for (const key of HIDDEN_FROM_PUBLIC) delete publicView[key];
+
+  return publicView as Omit<T, HiddenFromPublic>;
 }
 
 /** То же для необязательной публикации: `null` остаётся `null`. */
-export function stripOptionalPublicationOwner<
-  T extends { managedByUserId?: EntityId; awaitingRecheck?: boolean },
->(entity: T | null): Omit<T, (typeof HIDDEN_FROM_PUBLIC)[number]> | null {
+export function stripOptionalPublicationOwner<T extends object>(
+  entity: T | null,
+): Omit<T, HiddenFromPublic> | null {
   return entity === null ? null : stripPublicationOwner(entity);
 }

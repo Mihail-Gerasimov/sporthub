@@ -1,4 +1,15 @@
-// Сторож: ни один публичный маршрут не отдаёт номер владельца публикации.
+// Сторож: ни один публичный маршрут не отдаёт скрытые поля публикации —
+// номер владельца, надзорный признак и номер подтвердившего администратора.
+//
+// ⚠️ Шаг 38.48. Список скрытого берётся из `HIDDEN_FROM_PUBLIC`, а не переписан
+// здесь: до этого шага сторож знал ОДНО имя (`managedByUserId`), и второе
+// скрытое поле стереглось бы только тем, что о нём вспомнили. Теперь четвёртое
+// поле — строка в списке, и обход подхватывает его сам.
+//
+// ⚠️ В фикстурах — ВЕРИФИЦИРОВАННАЯ публикация. Без неё `verifiedByUserId`
+// был бы `undefined` у всех, поле не попало бы в JSON вовсе, и сторож зеленел бы
+// мимо: «не утекает» неотличимо от «нечему утекать». Отдельная проверка ниже
+// убеждается, что в базе номер действительно стоит.
 //
 // ⚠️ Шаг 35.20a. `managedByUserId` — техническая связь лица услуг с человеком.
 // Пока она уезжала в публичную выдачу каталога, «эти лица принадлежат одному
@@ -26,17 +37,36 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fixtureCollections } from '@sporthub/fixtures';
 
+import { HIDDEN_FROM_PUBLIC } from '../catalog/public-view';
 import { createTestHarness, type TestHarness } from './harness';
 
 import { collectRoutes, type RouteRecord } from './app-routes';
 
-/** Поле, которого в публичном ответе быть не должно. */
-const OWNER_KEY = 'managedByUserId';
+/** Поля, которых в публичном ответе быть не должно, — сам список, не копия. */
+const HIDDEN_KEYS: ReadonlySet<string> = new Set(HIDDEN_FROM_PUBLIC);
+
+/** Администратор из фикстур — им «подтверждена» публикация стенда. */
+const ADMIN_ID = 3;
+const VERIFIED_AT = '2026-09-15T12:00:00.000Z';
+
+/** Фикстуры, где клуб 1 и тренер 1 подтверждены: есть чему утекать. */
+function verifiedFixtures(): Parameters<TestHarness['writeMany']>[0] {
+  const verify = <T extends { id: number }>(rows: readonly T[]) =>
+    rows.map((row) =>
+      row.id === 1 ? { ...row, verifiedAt: VERIFIED_AT, verifiedByUserId: ADMIN_ID } : row,
+    );
+
+  return {
+    ...fixtureCollections,
+    clubs: verify(fixtureCollections.clubs),
+    trainers: verify(fixtureCollections.trainers),
+  };
+}
 
 /** Путь до найденного поля — чтобы отчёт назвал место, а не только маршрут. */
-function findOwnerFields(value: unknown, path = 'body'): string[] {
+function findHiddenFields(value: unknown, path = 'body'): string[] {
   if (Array.isArray(value)) {
-    return value.flatMap((item, index) => findOwnerFields(item, `${path}[${index}]`));
+    return value.flatMap((item, index) => findHiddenFields(item, `${path}[${index}]`));
   }
 
   if (value && typeof value === 'object') {
@@ -45,9 +75,9 @@ function findOwnerFields(value: unknown, path = 'body'): string[] {
     for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
       const childPath = `${path}.${key}`;
 
-      if (key === OWNER_KEY) found.push(childPath);
+      if (HIDDEN_KEYS.has(key)) found.push(childPath);
 
-      found.push(...findOwnerFields(item, childPath));
+      found.push(...findHiddenFields(item, childPath));
     }
 
     return found;
@@ -97,7 +127,7 @@ describe('Сторож: номер владельца публикации не 
   });
 
   beforeEach(async () => {
-    await harness.writeMany(fixtureCollections);
+    await harness.writeMany(verifiedFixtures());
   });
 
   afterAll(async () => {
@@ -119,7 +149,16 @@ describe('Сторож: номер владельца публикации не 
     }
   });
 
-  it('ни один публичный GET не отдаёт гостю номер владельца', async () => {
+  it('стенду есть чему утекать: у клуба 1 и тренера 1 в базе стоит номер подтвердившего', async () => {
+    // Без этой проверки сторож зелен и тогда, когда поле не попало в базу вовсе.
+    const clubs = await harness.read<{ id: number; verifiedByUserId?: number }[]>('clubs');
+    const trainers = await harness.read<{ id: number; verifiedByUserId?: number }[]>('trainers');
+
+    expect(clubs.find((row) => row.id === 1)?.verifiedByUserId).toBe(ADMIN_ID);
+    expect(trainers.find((row) => row.id === 1)?.verifiedByUserId).toBe(ADMIN_ID);
+  });
+
+  it('ни один публичный GET не отдаёт гостю скрытые поля публикации', async () => {
     const offenders: string[] = [];
 
     for (const route of routes) {
@@ -130,11 +169,21 @@ describe('Сторож: номер владельца публикации не 
       // Гостю закрытые маршруты отвечают 401 — их проверять нечем и незачем.
       if (response.status === 401) continue;
 
-      for (const found of findOwnerFields(response.body)) {
+      for (const found of findHiddenFields(response.body)) {
         offenders.push(`${key}: ${found}`);
       }
     }
 
     expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('«когда подтверждено» гостю ВИДНО — вырезается «кем», а не сам знак', async () => {
+    // Обратная половина: список скрытого не должен однажды разрастись до даты,
+    // иначе знак проверки на карточке нечем рисовать.
+    const response = await request(harness.app.getHttpServer()).get('/api/clubs/1');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.club.verifiedAt).toBe(VERIFIED_AT);
+    expect('verifiedByUserId' in response.body.data.club).toBe(false);
   });
 });

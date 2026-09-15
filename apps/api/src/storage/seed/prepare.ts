@@ -352,6 +352,10 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       hideReason: club.hideReason ?? null,
       hiddenAt: toTimestamp(club.hiddenAt),
       hiddenByUserId: club.hiddenByUserId ?? null,
+      // Проверка площадкой (38.42): в исходных данных её нет, но перенос обязан
+      // уметь её нести — иначе стенд с подтверждённой публикацией не собрать.
+      verifiedAt: toTimestamp(club.verifiedAt),
+      verifiedByUserId: club.verifiedByUserId ?? null,
     });
 
     club.imageUrls.forEach((url, index) => {
@@ -426,6 +430,8 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
       hideReason: trainer.hideReason ?? null,
       hiddenAt: toTimestamp(trainer.hiddenAt),
       hiddenByUserId: trainer.hiddenByUserId ?? null,
+      verifiedAt: toTimestamp(trainer.verifiedAt),
+      verifiedByUserId: trainer.verifiedByUserId ?? null,
     });
 
     for (const sportId of trainer.sportIds) trainerSports.push({ trainerId: trainer.id, sportId });
