@@ -33,7 +33,8 @@ export const MAX_CODE_LINES = 200;
  * установки сторожа. Только убывает.
  */
 export const LEGACY_CEILINGS: Record<string, number> = {
-  'src/app/page.tsx': 362,
+  // 38.31: лидеры запросом, сортировка в памяти снята.
+  'src/app/page.tsx': 361,
   'src/components/admin/AdminNotificationsPage.tsx': 526,
   'src/components/admin/AdminUpdatePasswordModal.tsx': 240,
   'src/components/admin/DashboardPage.tsx': 477,
