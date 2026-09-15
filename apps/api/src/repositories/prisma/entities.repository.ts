@@ -116,6 +116,11 @@ const CLUB_ERASABLE_FIELDS = [
   // Иначе на возвращённой в каталог публикации остался бы признак «скрыто
   // модератором», и раздел модерации показывал бы её вечно.
   'hiddenKind',
+  // ⚠️ Шаг 38.42. «Кем проверено» стирается отзывом проверки; «когда» — дата,
+  // у неё своя ветка ниже, как у `hiddenAt`. Забытое здесь поле оставило бы
+  // на отозванной публикации номер администратора — и CHECK `clubs_verified_shape`
+  // отбил бы запись: «кем» без «когда» невозможно.
+  'verifiedByUserId',
 ] as const satisfies readonly (keyof Club)[];
 
 /**
@@ -248,6 +253,8 @@ export class PrismaClubsRepository implements ClubsRepository {
       hiddenAt: toOptionalIsoString(row.hiddenAt),
       hiddenKind: (row.hiddenKind as Club['hiddenKind']) ?? undefined,
       awaitingRecheck: row.awaitingRecheck,
+      verifiedAt: toOptionalIsoString(row.verifiedAt),
+      verifiedByUserId: row.verifiedByUserId ?? undefined,
     });
   }
 
@@ -370,6 +377,8 @@ export class PrismaClubsRepository implements ClubsRepository {
         hiddenAt: club.hiddenAt === undefined ? null : new Date(club.hiddenAt),
         hiddenKind: club.hiddenKind ?? null,
         awaitingRecheck: club.awaitingRecheck ?? false,
+        verifiedAt: club.verifiedAt === undefined ? null : new Date(club.verifiedAt),
+        verifiedByUserId: club.verifiedByUserId,
         sports: { create: idsOf(club.sportIds).map((sportId) => ({ sportId })) },
         tags: { create: idsOf(club.tagIds).map((tagId) => ({ tagId })) },
         amenities: { create: idsOf(club.amenityIds).map((amenityId) => ({ amenityId })) },
@@ -513,6 +522,12 @@ function buildClubPatch(patch: Partial<Club>): Prisma.ClubUncheckedUpdateInput {
     data.hiddenAt = patch.hiddenAt === undefined ? null : new Date(patch.hiddenAt);
   }
 
+  // Дата проверки — та же особая ветка, что у даты скрытия (шаг 38.42): ключ
+  // с `undefined` обнуляет колонку, отсутствие ключа её не трогает.
+  if (hasKey(patch, 'verifiedAt')) {
+    data.verifiedAt = patch.verifiedAt === undefined ? null : new Date(patch.verifiedAt);
+  }
+
   return data as Prisma.ClubUncheckedUpdateInput;
 }
 
@@ -559,6 +574,8 @@ const TRAINER_ERASABLE_FIELDS = [
   'hiddenByUserId',
   // См. пояснение у клуба: вид скрытия гасится вместе с прочими полями (шаг 36.12).
   'hiddenKind',
+  // См. пояснение у клуба: «кем проверено» стирается отзывом проверки (шаг 38.42).
+  'verifiedByUserId',
 ] as const satisfies readonly (keyof Trainer)[];
 
 @Injectable()
@@ -620,6 +637,8 @@ export class PrismaTrainersRepository implements TrainersRepository {
       hiddenAt: toOptionalIsoString(row.hiddenAt),
       hiddenKind: (row.hiddenKind as Club['hiddenKind']) ?? undefined,
       awaitingRecheck: row.awaitingRecheck,
+      verifiedAt: toOptionalIsoString(row.verifiedAt),
+      verifiedByUserId: row.verifiedByUserId ?? undefined,
     });
   }
 
@@ -725,6 +744,8 @@ export class PrismaTrainersRepository implements TrainersRepository {
         hiddenAt: trainer.hiddenAt === undefined ? null : new Date(trainer.hiddenAt),
         hiddenKind: trainer.hiddenKind ?? null,
         awaitingRecheck: trainer.awaitingRecheck ?? false,
+        verifiedAt: trainer.verifiedAt === undefined ? null : new Date(trainer.verifiedAt),
+        verifiedByUserId: trainer.verifiedByUserId,
         sports: { create: sportIds.map((sportId) => ({ sportId })) },
         specialties: {
           create: idsOf(trainer.specialtyIds).map((specialtyId) => ({ specialtyId })),
@@ -828,6 +849,11 @@ function buildTrainerPatch(patch: Partial<Trainer>): Prisma.TrainerUncheckedUpda
 
   if (hasKey(patch, 'hiddenAt')) {
     data.hiddenAt = patch.hiddenAt === undefined ? null : new Date(patch.hiddenAt);
+  }
+
+  // Дата проверки — как у клуба (шаг 38.42): ключ с `undefined` обнуляет.
+  if (hasKey(patch, 'verifiedAt')) {
+    data.verifiedAt = patch.verifiedAt === undefined ? null : new Date(patch.verifiedAt);
   }
 
   // Колонка основного вида спорта правится только явным указанием — она попала

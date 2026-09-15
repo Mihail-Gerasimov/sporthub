@@ -446,6 +446,42 @@ const clubsContract = (createRepository: () => Promise<ClubsRepository>) => {
     expect(await clubs.findAll({ excludeHidden: true, includeHiddenOwnedBy: 9999 })).toEqual([]);
   });
 
+  // --- Верификация: восемь мест записи на сущность (фаза 38, шаг 38.42) ---
+  //
+  // ⚠️ Проверяется на базе, а не на моках: без особой ветки даты `verifiedAt: undefined`
+  // в патче «не трогает» колонку, и отзыв проверки оставляет дату на месте.
+  // Мок репозитория этого не увидит — он вернёт то, что ему передали. Диверсия д-49.
+  it('verify → unverify: дата и номер обнуляются В БАЗЕ, а не только в ответе', async () => {
+    const clubs = await createRepository();
+    const verifiedAt = '2026-09-15T12:00:00.000Z';
+
+    const verified = await clubs.update(1, { verifiedAt });
+
+    expect(verified.verifiedAt).toBe(verifiedAt);
+    expect((await clubs.findById(1))?.verifiedAt).toBe(verifiedAt);
+
+    // Ключи с undefined — обнулить (конвенция словаря действий модерации).
+    const revoked = await clubs.update(1, { verifiedAt: undefined, verifiedByUserId: undefined });
+
+    expect('verifiedAt' in revoked).toBe(false);
+    expect('verifiedByUserId' in revoked).toBe(false);
+
+    const fromDb = await clubs.findById(1);
+
+    expect(fromDb?.verifiedAt).toBeUndefined();
+    expect(fromDb?.verifiedByUserId).toBeUndefined();
+  });
+
+  it('патч без ключей проверки её не трогает — отсутствие ключа ≠ ключ с undefined', async () => {
+    const clubs = await createRepository();
+    const verifiedAt = '2026-09-15T12:00:00.000Z';
+
+    await clubs.update(1, { verifiedAt });
+    await clubs.update(1, { name: 'Кроссфит после правки' });
+
+    expect((await clubs.findById(1))?.verifiedAt).toBe(verifiedAt);
+  });
+
   it('count по пустому набору номеров — ноль без запроса, как у findAll', async () => {
     const clubs = await createRepository();
 
@@ -618,6 +654,17 @@ const trainersContract = (createRepository: () => Promise<TrainersRepository>) =
 
     expect(await trainers.findAll()).toHaveLength(2);
     expect(await trainers.findAll({ excludeHidden: true })).toHaveLength(1);
+  });
+
+  it('тренер: verify → unverify обнуляет дату в базе (38.42, наравне с клубом)', async () => {
+    const trainers = await createRepository();
+    const verifiedAt = '2026-09-15T12:00:00.000Z';
+
+    await trainers.update(1, { verifiedAt });
+    expect((await trainers.findById(1))?.verifiedAt).toBe(verifiedAt);
+
+    await trainers.update(1, { verifiedAt: undefined, verifiedByUserId: undefined });
+    expect((await trainers.findById(1))?.verifiedAt).toBeUndefined();
   });
 
   it('count считает по тому же отбору, что findAll (38.28)', async () => {
