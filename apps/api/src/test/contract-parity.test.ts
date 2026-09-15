@@ -97,6 +97,10 @@ const KNOWN_DIFFERENCES: Record<string, string> = {
   //     `awaitingRecheck` и `hiddenKind` у создания, правки и модерации
   //     публикации, `awaitingRecheck` у сводного списка. Все аддитивные.
   //
+  // Ревью 38.30a: в эталон ДОБАВЛЕНЫ три вызова витрины — `?sort=rating&limit=6`,
+  // `?sort=rating&limit=4`, `/stats/overview` (54 → 57). Прежние 54 не изменились
+  // ни на байт — проверено сравнением снимков; добавление — не пересъёмка.
+  //
   // Непустой список — это всегда обещание, которое пришлось изменить. Пустой —
   // обещание держится. Следующая пересъёмка — 38.55, после `verifiedAt`.
   //
@@ -194,9 +198,18 @@ export type Call = {
 
 export const CALLS: Call[] = [
   { name: 'GET /api/sports', method: 'get', url: '/api/sports' },
+  // Четыре числа героя главной (шаг 38.30): публичный маршрут, форма `{ success, data }`.
+  { name: 'GET /api/stats/overview', method: 'get', url: '/api/stats/overview' },
   { name: 'GET /api/cities', method: 'get', url: '/api/cities' },
   { name: 'GET /api/clubs', method: 'get', url: '/api/clubs' },
   { name: 'GET /api/clubs?sportId=3', method: 'get', url: '/api/clubs?sportId=3' },
+  // Витрина главной (шаг 38.29): шесть лучших клубов и четыре тренера — порядок
+  // и срез в запросе. Вызовы НОВЫЕ, а не изменение прежних (ревью 38.30a).
+  {
+    name: 'GET /api/clubs?sort=rating&limit=6',
+    method: 'get',
+    url: '/api/clubs?sort=rating&limit=6',
+  },
   { name: 'POST /api/clubs', method: 'post', url: '/api/clubs', body: clubForm, as: 2 },
   {
     name: 'POST /api/clubs (ошибка)',
@@ -225,6 +238,11 @@ export const CALLS: Call[] = [
   // со всеми записями на занятия сносил кто угодно.
   { name: 'DELETE /api/clubs/[id]', method: 'delete', url: '/api/clubs/3', as: 3 },
   { name: 'GET /api/trainers', method: 'get', url: '/api/trainers' },
+  {
+    name: 'GET /api/trainers?sort=rating&limit=4',
+    method: 'get',
+    url: '/api/trainers?sort=rating&limit=4',
+  },
   {
     name: 'GET /api/trainers?clubId=1',
     method: 'get',
