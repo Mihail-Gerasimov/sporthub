@@ -127,7 +127,7 @@ export default async function Home() {
         {/* ========== HERO BILLBOARD ========== */}
         <section
           aria-label="Главный экран"
-          className="relative overflow-hidden rounded-[24px] border border-plate-line bg-plate text-plate-ink p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:var(--decor-plate-glow)]"
+          className="relative overflow-hidden rounded-[24px] border border-plate-line bg-plate text-plate-ink p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow)]"
         >
           {/* Watermark "SH" — фоновая марка лайма в правом нижнем углу */}
           <span

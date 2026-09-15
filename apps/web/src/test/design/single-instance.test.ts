@@ -14,14 +14,18 @@
 // ⚠️ Прежний различитель — подпись «Рейтинг: X из 5» — не годится: она живёт
 // в трёх файлах, и карточкой из них является не каждый.
 //
-// Как узнаётся карусель — по вызову `scrollBy(`: лента без прокрутки не лента.
+// Как узнаётся карусель — по одному из двух признаков: вызов `scrollBy(` на элементе
+// (не `window.scrollBy` — это прокрутка страницы к якорю) либо сдвиг трека
+// `translateX(` вместе с кнопками прокрутки (`aria-label` «Назад»/«Вперёд»/«Прокрутить…»).
+// Второй признак нужен, чтобы после сведения на 38.79 единственную карусель было кому
+// узнать: сам `CardSlider` `scrollBy(` не зовёт.
 //
-// ⚠️ Три проверки КРАСНЫЕ ПО ПОСТРОЕНИЮ до шагов, где предмет появляется:
-// подписи карточек — 38.73 (клуб) и 38.74 (тренер), сведение каруселей — 38.79.
-// Записаны через `it.fails`: vitest засчитывает такой тест зелёным, пока утверждение
-// падает, и КРАСНЫМ, как только оно проходит, — то есть на шаге 38.73/38.74/38.79
-// сторож сам потребует снять `.fails`. Это не зелёная пустышка: снять `.fails`
-// раньше времени нельзя, оставить после — тоже.
+// ⚠️ Три проверки ПРИКОЛОТЫ к сегодняшнему состоянию, а не помечены «ожидаемо
+// красными»: подписей карточек сегодня нет ни у кого (`[]`), каруселей три. `it.fails`
+// здесь не годится (ревью 38.13b): он зеленел бы при ЛЮБОМ падении — и на «ещё нет»,
+// и на «уже дубль», то есть был бы слеп к своему предмету. Приколотое ожидание краснит
+// дубль сразу, а шаги 38.73 / 38.74 / 38.79 обязаны поменять ожидание на `[HOME]`
+// сознательно — это и есть их приёмка.
 
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -43,8 +47,19 @@ export const CARD_LABELS = {
   trainerCard: /aria-label=\{?[`'"]Карточка тренера: /,
 } as const;
 
-/** Признак карусели. */
-export const CAROUSEL_CALL = /\bscrollBy\(/;
+/** Признак карусели: `scrollBy(` на элементе — не `window.scrollBy` (прокрутка к якорю). */
+export const CAROUSEL_CALL = /(?<!window)\.scrollBy\(/;
+
+/** Второй признак: сдвиг трека `translateX(` вместе с кнопками прокрутки. */
+export const CAROUSEL_TRACK = /translateX\(/;
+export const CAROUSEL_CONTROLS = /aria-label=[{"'`]+(Назад|Вперёд|Прокрутить)/;
+
+/** Сегодняшние карусели — три; на 38.79 остаётся `[HOMES.carousel]`. */
+export const CAROUSELS_TODAY = [
+  'src/components/clubs/PopularNearby.tsx',
+  'src/components/trainers/PopularTrainers.tsx',
+  'src/components/ui/CardSlider.tsx',
+];
 
 // Текст без комментариев: блочных и строчных (до конца строки).
 // ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.
@@ -60,6 +75,13 @@ function normalize(relativePath: string): string {
 /** Рисует ли файл предмет сам — по признаку, без учёта комментариев. */
 export function drawsItself(text: string, marker: RegExp): boolean {
   return marker.test(stripComments(text));
+}
+
+/** Карусель ли это: прокрутка элемента либо сдвиг трека с кнопками. */
+export function isCarousel(text: string): boolean {
+  const body = stripComments(text);
+
+  return CAROUSEL_CALL.test(body) || (CAROUSEL_TRACK.test(body) && CAROUSEL_CONTROLS.test(body));
 }
 
 /** Обход `.ts`/`.tsx` фронта; тесты не в счёт. */
@@ -85,35 +107,32 @@ async function collectSources(directory: string): Promise<string[]> {
 }
 
 /** Файлы, в которых признак найден. */
-async function filesDrawing(marker: RegExp): Promise<string[]> {
+async function filesDrawing(marker: RegExp | ((text: string) => boolean)): Promise<string[]> {
   const found: string[] = [];
+  const test = typeof marker === 'function' ? marker : (text: string) => drawsItself(text, marker);
 
-  for (const file of await collectSources(path.join(WEB_ROOT, 'src'))) {
-    if (drawsItself(await readFile(path.join(WEB_ROOT, file), 'utf8'), marker)) found.push(file);
+  for (const file of (await collectSources(path.join(WEB_ROOT, 'src'))).sort()) {
+    if (test(await readFile(path.join(WEB_ROOT, file), 'utf8'))) found.push(file);
   }
 
   return found;
 }
 
 describe('Сторожа единственности (38.12)', () => {
-  // ⚠️ Ожидается зелёный на шаге 38.73: тогда снять `.fails`.
-  it.fails('club-card-single: карточку клуба рисует ровно один файл — ClubCard.tsx', async () => {
-    expect(await filesDrawing(CARD_LABELS.clubCard)).toEqual([HOMES.clubCard]);
+  // ⚠️ На шаге 38.73 заменить ожидание на `[HOMES.clubCard]`. До него подписи нет
+  // ни у кого; любая карточка с подписью раньше 38.73 — дубль, и он краснит сразу.
+  it('club-card-single: карточку клуба с подписью рисует ровно столько файлов, сколько приколото', async () => {
+    expect(await filesDrawing(CARD_LABELS.clubCard)).toEqual([]);
   });
 
-  // ⚠️ Ожидается зелёный на шаге 38.74: тогда снять `.fails`.
-  it.fails(
-    'trainer-card-single: карточку тренера рисует ровно один файл — TrainerCard.tsx',
-    async () => {
-      expect(await filesDrawing(CARD_LABELS.trainerCard)).toEqual([HOMES.trainerCard]);
-    },
-  );
+  // ⚠️ На шаге 38.74 заменить ожидание на `[HOMES.trainerCard]`.
+  it('trainer-card-single: карточку тренера с подписью рисует ровно столько файлов, сколько приколото', async () => {
+    expect(await filesDrawing(CARD_LABELS.trainerCard)).toEqual([]);
+  });
 
-  // ⚠️ Ожидается зелёный на шаге 38.79: тогда снять `.fails`. Сегодня `scrollBy(`
-  // живёт в `PopularNearby.tsx` и `PopularTrainers.tsx`, а сам `CardSlider` крутит
-  // ленту сдвигом трека, не прокруткой, — сведение назовёт один способ.
-  it.fails('carousel-single: scrollBy( только в CardSlider.tsx', async () => {
-    expect(await filesDrawing(CAROUSEL_CALL)).toEqual([HOMES.carousel]);
+  // ⚠️ На шаге 38.79 заменить ожидание на `[HOMES.carousel]`: сведение каруселей.
+  it('carousel-single: каруселей ровно столько, сколько приколото', async () => {
+    expect(await filesDrawing(isCarousel)).toEqual(CAROUSELS_TODAY);
   });
 
   it('сторожа обходят настоящие файлы, а не пустоту', async () => {
@@ -123,11 +142,8 @@ describe('Сторожа единственности (38.12)', () => {
     expect(files).toContain(HOMES.clubCard);
     expect(files).toContain(HOMES.trainerCard);
     expect(files).toContain(HOMES.carousel);
-    // Обе сегодняшние копии карусели найдены — иначе сведение на 38.79 нечего было бы стеречь.
-    expect(await filesDrawing(CAROUSEL_CALL)).toEqual([
-      'src/components/clubs/PopularNearby.tsx',
-      'src/components/trainers/PopularTrainers.tsx',
-    ]);
+    // Дом карусели узнаётся вторым признаком — иначе после сведения его было бы некому узнать.
+    expect(isCarousel(await readFile(path.join(WEB_ROOT, HOMES.carousel), 'utf8'))).toBe(true);
   });
 
   it('сторожа видят копию на подставном тексте, а не молчат на любом', () => {
@@ -145,8 +161,17 @@ describe('Сторожа единственности (38.12)', () => {
     expect(
       drawsItself('<article aria-label={`Карточка тренера: ${name}`}>', CARD_LABELS.clubCard),
     ).toBe(false);
-    // Карусель узнаётся по вызову, комментарий — не вызов.
-    expect(drawsItself('ref.current?.scrollBy({ left: 320 })', CAROUSEL_CALL)).toBe(true);
-    expect(drawsItself('// раньше тут был scrollBy(', CAROUSEL_CALL)).toBe(false);
+    // Карусель узнаётся по вызову на элементе; комментарий и прокрутка страницы — нет.
+    expect(isCarousel('ref.current?.scrollBy({ left: 320 })')).toBe(true);
+    expect(isCarousel('// раньше тут был ref.scrollBy(')).toBe(false);
+    expect(isCarousel('window.scrollBy({ top: 200 }); // к якорю')).toBe(false);
+    // И по сдвигу трека с кнопками — но не по одному `translateX` (это может быть анимация).
+    expect(
+      isCarousel('rail.style.transform = `translateX(${x}px)`;\n<button aria-label="Вперёд" />'),
+    ).toBe(true);
+    expect(isCarousel('rail.style.transform = `translateX(${x}px)`;')).toBe(false);
+    expect(
+      isCarousel('<button aria-label="Прокрутить популярные клубы влево" />\n// translateX(0)'),
+    ).toBe(false);
   });
 });

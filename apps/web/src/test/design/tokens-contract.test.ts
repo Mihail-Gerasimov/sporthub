@@ -8,10 +8,13 @@
 // токен заведён в `:root`, но не замаплен в `@theme inline` — тогда `var(--ui-x)`
 // работает, а `bg-x` нет, и цвет расползается по коду в виде `bg-[var(--ui-x)]`.
 //
-// ⚠️ Правило маппинга: `--ui-<семейство>-<имя>` ↔ `--<семейство>-<имя>`, где семейство —
-// `font`, `radius` или `shadow`; всё остальное — цвет и маппится в `--color-<имя>`.
-// Алиасы (`--ui-canvas: var(--ui-bg)`) — тоже цвет и тоже обязаны быть замаплены:
-// на них держится половина классов проекта (`bg-panel`, `text-accent`).
+// ⚠️ Правило маппинга: `--ui-<семейство>-<имя>` ↔ `--<пространство>-<имя>`, где семейство
+// названо в `FAMILIES`: `font` → `--font-*`, `radius` → `--radius-*`, `shadow` →
+// `--shadow-*`, `weight` → `--font-weight-*`. Семейства БЕЗ Tailwind-маппинга — `decor`
+// (рисунки-декор для CSS) и `scale` (скаляры для `calc()`, шаг 38.19): у них
+// пространства в Tailwind нет, но единственность стережётся так же. Всё остальное —
+// цвет и маппится в `--color-<имя>`. Алиасы (`--ui-canvas: var(--ui-bg)`) — тоже цвет
+// и тоже обязаны быть замаплены: на них держится половина классов проекта.
 //
 // ⚠️ Сверка значений с эталоном дизайна — разовая, по снимку шага 38.5, и в этот
 // сторож не входит: тест, который знает hex наизусть, красен при каждой перекраске.
@@ -62,8 +65,18 @@ export const REQUIRED_TOKENS = [
   '--ui-shadow-floating',
 ];
 
-/** Семейства, у которых в Tailwind своё пространство имён; всё остальное — цвет. */
-const FAMILIES = ['font', 'radius', 'shadow'] as const;
+/**
+ * Семейства токенов: пространство Tailwind либо `null` — маппинга нет по построению.
+ * Порядок важен: `font-weight` длиннее `font` и проверяется раньше.
+ */
+const FAMILIES: [family: string, themePrefix: string | null][] = [
+  ['weight', '--font-weight'],
+  ['font', '--font'],
+  ['radius', '--radius'],
+  ['shadow', '--shadow'],
+  ['decor', null],
+  ['scale', null],
+];
 
 /** Текст CSS без комментариев — иначе токен из пояснения посчитался бы объявлением. */
 function stripComments(css: string): string {
@@ -98,12 +111,14 @@ export function declaredTokens(rootBody: string): { name: string; value: string 
   }));
 }
 
-/** Имя Tailwind-переменной, под которым обязан быть замаплен токен `--ui-...`. */
-export function expectedThemeName(token: string): string {
+/** Имя Tailwind-переменной для токена `--ui-...`; `null` — семейство без маппинга. */
+export function expectedThemeName(token: string): string | null {
   const bare = token.slice('--ui-'.length);
 
-  for (const family of FAMILIES) {
-    if (bare.startsWith(`${family}-`)) return `--${family}-${bare.slice(family.length + 1)}`;
+  for (const [family, prefix] of FAMILIES) {
+    if (bare.startsWith(`${family}-`)) {
+      return prefix === null ? null : `${prefix}-${bare.slice(family.length + 1)}`;
+    }
   }
 
   return `--color-${bare}`;
@@ -124,6 +139,9 @@ export function unmappedTokens(rootBody: string, themeBody: string): string[] {
 
   for (const { name } of declaredTokens(rootBody)) {
     const themeName = expectedThemeName(name);
+
+    if (themeName === null) continue;
+
     const mapping = new RegExp(`${themeName}\\s*:\\s*var\\(${name}\\)\\s*;`);
 
     if (!mapping.test(themeBody)) missing.push(name);
@@ -191,7 +209,15 @@ describe('Сторож: контракт токенов палитры (38.7)', 
     expect(expectedThemeName('--ui-font-display')).toBe('--font-display');
     expect(expectedThemeName('--ui-radius-card-lg')).toBe('--radius-card-lg');
     expect(expectedThemeName('--ui-shadow-floating')).toBe('--shadow-floating');
+    expect(expectedThemeName('--ui-weight-display')).toBe('--font-weight-display');
     expect(expectedThemeName('--ui-lime-soft')).toBe('--color-lime-soft');
+    // Декор и скаляры маппинга не требуют, но дубль у них ловится так же.
+    expect(expectedThemeName('--ui-decor-hatch')).toBeNull();
+    expect(expectedThemeName('--ui-scale-display')).toBeNull();
+    expect(unmappedTokens('--ui-decor-hatch: none;\n--ui-scale-display: 1.069;', '')).toEqual([]);
+    expect(
+      duplicatedTokens(declaredTokens('--ui-decor-hatch: none;\n--ui-decor-hatch: none;')),
+    ).toEqual(['--ui-decor-hatch']);
 
     // Маппинг на чужой токен не засчитывается: `--color-ink: var(--ui-muted)` — не маппинг ink.
     expect(unmappedTokens('--ui-ink: #000;', '--color-ink: var(--ui-muted);')).toEqual([

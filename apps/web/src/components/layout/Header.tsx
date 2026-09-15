@@ -72,7 +72,7 @@ export function Header() {
         {/* Лого: марка + (на md+ tagline, на lg+ ещё eyebrow) */}
         <Link href="/" className="flex shrink-0 items-center gap-3 text-inherit no-underline">
           {/* Лого-марка 44×44 с инкрустированным гранжем через ::before */}
-          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-ink)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:var(--decor-grunge)]">
+          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-ink)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:var(--ui-decor-grunge)]">
             S
           </span>
           {/* Текст-лого: скрыт на sm (480-), tagline появляется на md (768+),

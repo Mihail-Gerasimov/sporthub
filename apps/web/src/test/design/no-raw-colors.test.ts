@@ -8,7 +8,7 @@
 //
 // Что считается сырым цветом — регулярки названы здесь, а не подразумеваются:
 //   1. hex — `#fff`, `#0A1029`, `#7ED90080`;
-//   2. функции цвета — `rgb(`, `rgba(`, `hsl(`, `hsla(`;
+//   2. функции цвета — `rgb(`, `rgba(`, `hsl(`, `hsla(`, `hwb(`, `lab(`, `lch(`, `oklab(`, `oklch(`;
 //   3. `-white` / `-black` в цветовых утилитах Tailwind — `bg-white/[0.06]`, `text-black`;
 //   4. оттенки Tailwind — `text-red-500`, `bg-amber-50`, `border-gray-200`:
 //      решение фазы — оттенки входят в «все», у проекта своя палитра.
@@ -18,6 +18,7 @@
 //   - `#000` внутри `mask-image`: у маски цвет не цвет, значение имеет только альфа;
 //     исключение ПОИМЁННО — в `MASK_FILES`, в любом другом файле маска тоже краснеет;
 //   - комментарии — снимаются до разбора, пояснение «раньше было #0A1029» законно;
+//   - якоря `href="#…"` — `#feed`, `#face`, `#add` состоят из hex-букв, но это ссылки;
 //   - `src/test/**` — тесты вправе называть цвета, они их проверяют.
 //
 // ⚠️ Список старых файлов с потолками — `LEGACY_CEILINGS` — только убывает: файл
@@ -45,7 +46,7 @@ export const RAW_COLOR_PATTERNS: { name: string; pattern: RegExp }[] = [
   { name: 'hex', pattern: /#[0-9a-fA-F]{3,8}\b/g },
   // `(?<![a-zA-Z-])`, а не `\b`: в `shadow-[0_0_0_3px_rgba(...)]` перед `rgba` стоит `_`,
   // и граница слова там не проходит — такая тень уходила бы от сторожа.
-  { name: 'функция цвета', pattern: /(?<![a-zA-Z-])(?:rgba?|hsla?)\(/g },
+  { name: 'функция цвета', pattern: /(?<![a-zA-Z-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/g },
   {
     name: 'white/black',
     pattern: new RegExp(`(?<![\\w-])${COLOR_UTILITIES}-(?:white|black)(?![\\w-])`, 'g'),
@@ -93,6 +94,11 @@ function stripRootBlock(css: string): string {
   return css;
 }
 
+/** Снимает якоря `href="#…"` / `href={\`#…\`}`: hex-буквы в имени якоря — не цвет. */
+function stripAnchors(text: string): string {
+  return text.replace(/href=(?:"#[^"]*"|'#[^']*'|\{`#[^`]*`\})/g, '');
+}
+
 /** Снимает значения `mask-image` (CSS) и `maskImage`/`WebkitMaskImage` (TSX). */
 function stripMaskValues(text: string): string {
   return text
@@ -113,7 +119,7 @@ function normalize(relativePath: string): string {
  */
 export function rawColorsIn(relativePath: string, text: string): string[] {
   const file = normalize(relativePath);
-  let body = stripComments(text);
+  let body = stripAnchors(stripComments(text));
 
   if (file.endsWith('.css')) body = stripRootBlock(body);
   if (MASK_FILES.includes(file)) body = stripMaskValues(body);
@@ -236,8 +242,14 @@ describe('Сторож: сырых цветов нет (38.8)', () => {
     ).toEqual([]);
     // `var(--ui-*)` в произвольном значении — не сырой цвет.
     expect(rawColorsIn(file, "className='bg-[var(--ui-plate)]'")).toEqual([]);
-    // Якорь — не hex.
+    // Якорь — не hex, даже если имя целиком из hex-букв.
     expect(rawColorsIn(file, "href='#results' href='#availability'")).toEqual([]);
+    expect(rawColorsIn(file, 'href="#feed" href={`#face`}')).toEqual([]);
+    // Современные функции цвета — тоже сырой цвет.
+    expect(rawColorsIn(file, "className='bg-[oklch(0.8_0.2_130)] text-[lab(50%_0_0)]'")).toEqual([
+      'функция цвета: oklch(',
+      'функция цвета: lab(',
+    ]);
     // `font-black` — вес, не цвет.
     expect(rawColorsIn(file, "className='font-black'")).toEqual([]);
     // Комментарии снимаются до разбора.

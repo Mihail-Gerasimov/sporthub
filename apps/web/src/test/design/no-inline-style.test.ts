@@ -16,7 +16,14 @@
 // уже нет, — красная, иначе «исключение» превращается в разрешение впрок.
 //
 // ⚠️ `style={переменная}` — тоже инлайновый стиль: содержимое переменной сторож
-// прочитать не может, поэтому такая запись краснеет всегда.
+// прочитать не может, поэтому такая запись краснеет всегда. Так же краснеют спред
+// `style={{ ...dynamic }}` и ключи-переменные `'--slot-tone'`: их не сверить с парой.
+//
+// ⚠️ Императивные стили — тоже инлайновые (ревью 38.13b): `el.style.transform = …`,
+// `el.style.cssText = '…'` и `style="…"` внутри HTML-строки для `innerHTML`. Ловятся
+// теми же парами «файл + свойство» (`cssText` и `style="` — свойство `<html>`).
+// Старые файлы, которые ещё не переписаны, — в `LEGACY_IMPERATIVE` с потолком, только
+// убывает: `MainMap.tsx` рисует маркеры и попап строками до 38.80.
 
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -27,10 +34,23 @@ import { WEB_ROOT } from '../web-root';
 
 /** Динамические свойства, которым инлайновый стиль разрешён: файл → свойства. */
 export const ALLOWED_PAIRS: Record<string, string[]> = {
-  // Ширина слайда — `calc(100% / visible)`, `visible` меняется по matchMedia в рантайме.
-  'src/components/ui/CardSlider.tsx': ['flexBasis'],
+  // Ширина слайда — `calc(100% / visible)`, `visible` меняется по matchMedia в рантайме;
+  // сдвиг трека — императивно из обработчика перетаскивания.
+  'src/components/ui/CardSlider.tsx': ['flexBasis', 'transform'],
+  // Сдвиг ленты чипов — из rAF-цикла.
+  'src/components/ui/ChipMarquee.tsx': ['transform'],
+  // Запрет прокрутки страницы под модалкой — на `document.body`, класса там нет.
+  'src/components/ui/Modal.tsx': ['overflow'],
   // Полоса прогресса — процент выполнения из данных.
   'src/components/profile/AthleteAchievementsSection.tsx': ['width'],
+};
+
+/**
+ * Старые файлы с императивными стилями и потолок вхождений. Только убывает:
+ * `MainMap.tsx` переписывается на 38.80 (маркеры-капли, карточка снизу).
+ */
+export const LEGACY_IMPERATIVE: Record<string, number> = {
+  'src/components/map/MainMap.tsx': 9,
 };
 
 // Текст без комментариев: блочных и строчных (до конца строки).
@@ -86,9 +106,19 @@ function topLevelKeys(objectBody: string): string[] {
   let segment = '';
 
   const flush = () => {
-    const match = segment.match(/^\s*(?:['"]?)([A-Za-z_$][\w$-]*)(?:['"]?)\s*:/);
+    const trimmed = segment.trim();
 
+    if (trimmed === '') {
+      segment = '';
+      return;
+    }
+
+    const match = trimmed.match(/^(?:['"]?)([A-Za-z_$][\w$-]*)(?:['"]?)\s*:/);
+
+    // Спред, ключ-переменная `[name]` и ключ `'--custom'` — не сверить с парой: offender.
     if (match) keys.push(match[1]);
+    else if (trimmed.startsWith('...')) keys.push('<спред>');
+    else keys.push(`<ключ ${trimmed.split(':')[0].trim().slice(0, 24)}>`);
     segment = '';
   };
 
@@ -130,6 +160,16 @@ export function inlineStyleOffenders(relativePath: string, text: string): string
   const allowed = new Set(ALLOWED_PAIRS[file] ?? []);
   const body = stripComments(text);
   const offenders: string[] = [];
+
+  // Императивные стили: `el.style.transform = …`, `el.style.cssText = …`.
+  for (const match of body.matchAll(/\.style\.(cssText|[a-zA-Z]+)\s*=[^=]/g)) {
+    if (!allowed.has(match[1])) offenders.push(match[1]);
+  }
+
+  // HTML-строки для `innerHTML`: `style="…"` внутри кавычек шаблона.
+  for (const _ of body.matchAll(/style="/g)) {
+    if (!allowed.has('<html>')) offenders.push('<html>');
+  }
 
   for (const match of body.matchAll(/\bstyle\s*=\s*\{/g)) {
     const outer = balanced(body, match.index + match[0].length - 1);
@@ -204,11 +244,34 @@ describe('Сторож: инлайновых стилей нет, кроме н�
 
     for (const file of await collectSources(path.join(WEB_ROOT, 'src'))) {
       const found = inlineStyleOffenders(file, await readFile(path.join(WEB_ROOT, file), 'utf8'));
+      const ceiling = LEGACY_IMPERATIVE[file] ?? 0;
 
-      if (found.length > 0) offenders.push(`${file}: ${found.join(', ')}`);
+      if (found.length > ceiling)
+        offenders.push(`${file}: ${found.join(', ')} (${found.length} > ${ceiling})`);
     }
 
     expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('список старых файлов с императивными стилями только убывает', async () => {
+    const stale: string[] = [];
+
+    for (const [file, ceiling] of Object.entries(LEGACY_IMPERATIVE)) {
+      const text = await readFile(path.join(WEB_ROOT, file), 'utf8').catch(() => null);
+
+      if (text === null) {
+        stale.push(`${file}: файла нет — запись снять`);
+        continue;
+      }
+
+      const actual = inlineStyleOffenders(file, text).length;
+
+      if (actual === 0) stale.push(`${file}: уже чист — запись снять`);
+      else if (actual < ceiling)
+        stale.push(`${file}: факт ${actual} < потолок ${ceiling} — опустить`);
+    }
+
+    expect(stale, stale.join('\n')).toEqual([]);
   });
 
   it('каждая пара-исключение живая: свойство в файле есть', async () => {
@@ -222,7 +285,13 @@ describe('Сторож: инлайновых стилей нет, кроме н�
         continue;
       }
 
-      const present = new Set(inlineStyleKeys(text));
+      const present = new Set([
+        ...inlineStyleKeys(text),
+        ...[...stripComments(text).matchAll(/\.style\.(cssText|[a-zA-Z]+)\s*=[^=]/g)].map(
+          (m) => m[1],
+        ),
+        ...(/style="/.test(stripComments(text)) ? ['<html>'] : []),
+      ]);
 
       for (const property of properties) {
         if (!present.has(property)) stale.push(`${file}: «${property}» в файле нет — пару снять`);
@@ -276,6 +345,37 @@ describe('Сторож: инлайновых стилей нет, кроме н�
     expect(inlineStyleOffenders('src/components/ui/Button.tsx', 'style={buttonStyle}')).toEqual([
       '<выражение>',
     ]);
+    // Спред и ключ-переменная — тоже: их не сверить с парой (ревью 38.13b).
+    expect(inlineStyleOffenders('src/components/ui/Button.tsx', 'style={{ ...dynamic }}')).toEqual([
+      '<спред>',
+    ]);
+    expect(
+      inlineStyleOffenders('src/components/ui/SlotCard.tsx', "style={{ '--slot-tone': tone }}"),
+    ).toEqual(["<ключ '--slot-tone'>"]);
+    // Императивные стили — свойство узнаётся, пара-исключение действует.
+    expect(
+      inlineStyleOffenders('src/components/ui/Button.tsx', "el.style.background = '#7ED900';"),
+    ).toEqual(['background']);
+    expect(
+      inlineStyleOffenders(
+        'src/components/ui/CardSlider.tsx',
+        'rail.style.transform = `translateX(1px)`;',
+      ),
+    ).toEqual([]);
+    expect(
+      inlineStyleOffenders('src/components/ui/Button.tsx', "el.style.cssText = 'width:14px';"),
+    ).toEqual(['cssText']);
+    // Сравнение `el.style.color === x` — не присваивание.
+    expect(
+      inlineStyleOffenders('src/components/ui/Button.tsx', "if (el.style.color === 'red') {}"),
+    ).toEqual([]);
+    // HTML-строка для innerHTML со `style="…"`.
+    expect(
+      inlineStyleOffenders(
+        'src/components/ui/Button.tsx',
+        'el.innerHTML = `<div style="color:red">x</div>`;',
+      ),
+    ).toEqual(['<html>']);
 
     // Комментарий — не нарушение.
     expect(

@@ -16,6 +16,10 @@
 //   Data-атрибуты и подписи: каждая названная в реестре — в коде; снятая помечается
 //   зачёркиванием `~~…~~ (снят: причина)`.
 //
+// ⚠️ `data-testid={переменная}` половина (б) сверить не может — имя рождается
+// в рантайме. Такая запись считается НЕПРОВЕРЯЕМОЙ и краснеет: контракт обязан
+// быть литералом или шаблонной строкой с литеральным началом.
+//
 // ⚠️ Область — перечень каталогов внутри сторожа, не весь `src`: во всём `src`
 // идентификаторов 231, в дереве главной и каркаса — 21. Шаблонные имена
 // (`notification-bell-item-{id}` ↔ `` `notification-bell-item-${id}` ``) нормализуются
@@ -151,12 +155,16 @@ export function labelPrefix(label: string): string {
   return label.replace(/\s*(\bN\b|\bX\b|…).*$/u, '').replace(/\s+\S*\/\S*$/u, '');
 }
 
-/** `data-testid` в тексте — нормализованные имена. */
+/** `data-testid` в тексте — нормализованные имена; `={переменная}` → `<непроверяемый>`. */
 export function testidsIn(text: string): string[] {
   const found: string[] = [];
 
-  for (const match of text.matchAll(/data-testid=(?:"([^"]+)"|\{`([^`]+)`\})/g)) {
-    found.push(normalizeTemplate(match[1] ?? match[2]));
+  for (const match of text.matchAll(
+    /data-testid=(?:"([^"]+)"|\{`([^`]+)`\}|\{([a-zA-Z_$][^}]*)\})/g,
+  )) {
+    found.push(
+      match[3] !== undefined ? '<непроверяемый>' : normalizeTemplate(match[1] ?? match[2]),
+    );
   }
 
   return found;
@@ -304,6 +312,8 @@ describe('Сторож: реестр контрактов разметки (38.1
       'notification-bell-item-{}',
     ]);
     expect(testidsIn('data-testid="club-card"')).toEqual(['club-card']);
+    // Переменная — непроверяемый контракт, половина (б) его не пропустит.
+    expect(testidsIn('data-testid={testId}')).toEqual(['<непроверяемый>']);
 
     // Строка реестра разбирается со статусом, причиной и новым именем.
     const row =

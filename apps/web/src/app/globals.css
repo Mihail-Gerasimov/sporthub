@@ -107,24 +107,24 @@
    * Один рисунок на hero карточек, слоты и заглушки — объявлен здесь, а не в каждом
    * классе. Цвет штриха — доля чернил через color-mix, без сырого цвета.
    */
-  --decor-hatch: repeating-linear-gradient(
+  --ui-decor-hatch: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--ui-ink) 2%, transparent) 0 1px,
     transparent 1px 14px
   );
-  --decor-hatch-strong: repeating-linear-gradient(
+  --ui-decor-hatch-strong: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--ui-ink) 2.5%, transparent) 0 1px,
     transparent 1px 14px
   );
   /* Гранж лого-марки: грубый штрих 2px/8px */
-  --decor-grunge: repeating-linear-gradient(
+  --ui-decor-grunge: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--ui-ink) 18%, transparent) 0 2px,
     transparent 2px 8px
   );
   /* Свечение контраст-плашки героя: зелёное пятно справа сверху + светлая штриховка */
-  --decor-plate-glow:
+  --ui-decor-plate-glow:
     radial-gradient(
       ellipse 600px 400px at 100% 0%,
       color-mix(in srgb, var(--ui-lime) 16%, transparent),
@@ -335,7 +335,7 @@ body {
       color-mix(in srgb, var(--ui-lime) 5%, transparent) 70%,
       transparent 78%
     ),
-    var(--decor-hatch);
+    var(--ui-decor-hatch);
 }
 
 .hero-bg-orange {
@@ -348,11 +348,11 @@ body {
       color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
       transparent 78%
     ),
-    var(--decor-hatch);
+    var(--ui-decor-hatch);
 }
 
 .hero-bg-blank {
-  background: var(--decor-hatch-strong);
+  background: var(--ui-decor-hatch-strong);
 }
 
 /* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
@@ -394,10 +394,10 @@ body {
 
 /* ===== Штриховка-заглушка аватара (отзывы на детальных страницах) =====
  * Только `background-image`: цвет подложки остаётся классом (`bg-card-2`),
- * штрих — общий декор `--decor-hatch-strong`.
+ * штрих — общий декор `--ui-decor-hatch-strong`.
  */
 .hatch-soft {
-  background-image: var(--decor-hatch-strong);
+  background-image: var(--ui-decor-hatch-strong);
 }
 
 /* ===== Phase 30.10 — hero sport-rail marquee на главной =====
@@ -480,7 +480,7 @@ body {
       color-mix(in srgb, var(--ui-lime) 4%, transparent) 70%,
       transparent 78%
     ),
-    var(--decor-hatch);
+    var(--ui-decor-hatch);
 }
 
 .slot-card.tone-orange .slot-hero::before {
@@ -493,11 +493,11 @@ body {
       color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
       transparent 78%
     ),
-    var(--decor-hatch);
+    var(--ui-decor-hatch);
 }
 
 .slot-card.tone-blank .slot-hero::before {
-  background: var(--decor-hatch-strong);
+  background: var(--ui-decor-hatch-strong);
 }
 
 /* tone-orange также окрашивает eyebrow «Персональная услуга» в orange */
