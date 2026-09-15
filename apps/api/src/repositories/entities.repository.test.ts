@@ -428,6 +428,24 @@ const clubsContract = (createRepository: () => Promise<ClubsRepository>) => {
     expect(await clubs.count({ search: 'КРОСС', city: 'Самара' })).toBe(1);
   });
 
+  it('публичная выдача — только опубликованное: черновик не показывается (38.32)', async () => {
+    // Условие `status = 'published'` вместо `<> 'hidden'`: ради индекса под витрину
+    // (см. `buildPublicationWhere`). Смысл обязан остаться «на витрине опубликованное»:
+    // черновик без исключения, скрытое без исключения, всё остальное — как прежде.
+    const clubs = await createRepository();
+
+    await clubs.update(1, { status: 'draft' });
+
+    expect((await clubs.findAll({ excludeHidden: true })).map((club) => club.id)).toEqual([]);
+    expect(await clubs.count({ excludeHidden: true })).toBe(0);
+    // Без публичного отбора черновик виден — он не исчез, он не на витрине.
+    expect((await clubs.findAll()).map((club) => club.id)).toEqual([1, 2]);
+    // Исключение для владельца скрытого (36.14) живо: условие ПРИМЕНЯЕТСЯ — владельца
+    // в сиде нет (внешний ключ на людей), поэтому чужой номер оставляет выдачу пустой,
+    // а снятие условия вернуло бы черновик и скрытое вместе.
+    expect(await clubs.findAll({ excludeHidden: true, includeHiddenOwnedBy: 9999 })).toEqual([]);
+  });
+
   it('count по пустому набору номеров — ноль без запроса, как у findAll', async () => {
     const clubs = await createRepository();
 

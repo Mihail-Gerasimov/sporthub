@@ -20,13 +20,13 @@ import type {
   Amenity,
   Booking,
   BookingStatus,
-  City,
   Club,
   EntityId,
   ISODateString,
   Notification,
   Offering,
   ProviderClientNote,
+  PublicationSort,
   Review,
   Schedule,
   Specialty,
@@ -264,7 +264,6 @@ export async function getAwaitingRecheckCount(): Promise<number> {
 }
 
 export const getSports = (): Promise<Sport[]> => apiGet<Sport[]>('/sports');
-export const getCities = (): Promise<City[]> => apiGet<City[]>('/cities');
 export const getTags = (): Promise<Tag[]> => apiGet<Tag[]>('/tags');
 export const getAmenities = (): Promise<Amenity[]> => apiGet<Amenity[]>('/amenities');
 export const getSpecialties = (): Promise<Specialty[]> => apiGet<Specialty[]>('/specialties');
@@ -276,12 +275,31 @@ export const getWorkFormats = (): Promise<WorkFormat[]> => apiGet<WorkFormat[]>(
 export const getClubs = (): Promise<Club[]> =>
   apiGet<Club[]>(`/clubs${query({ includeHidden: true })}`);
 
-export const getPublishedClubs = (): Promise<Club[]> => apiGet<Club[]>('/clubs');
+/**
+ * Как спрашивать витринную выдачу (фаза 38, шаг 38.32).
+ *
+ * Оба поля необязательные, и без них вызов означает ровно то, что означал:
+ * полный список в прежнем порядке. Витрина главной называет `sort: 'rating'`
+ * и число — шесть клубов, четыре тренера, лидер с единицей, — и получает
+ * из базы ровно столько, отсортированных запросом. Считать «лучших» в памяти
+ * поверх всего каталога больше незачем.
+ *
+ * ⚠️ `limit` — число, а не строка: `undefined` в адрес не уезжает вовсе
+ * (см. `query`), иначе бэкенд ответил бы 400 на `limit=undefined`.
+ */
+export type CatalogListOptions = {
+  sort?: PublicationSort;
+  limit?: number;
+};
+
+export const getPublishedClubs = (options: CatalogListOptions = {}): Promise<Club[]> =>
+  apiGet<Club[]>(`/clubs${query(options)}`);
 
 export const getTrainers = (): Promise<Trainer[]> =>
   apiGet<Trainer[]>(`/trainers${query({ includeHidden: true })}`);
 
-export const getPublishedTrainers = (): Promise<Trainer[]> => apiGet<Trainer[]>('/trainers');
+export const getPublishedTrainers = (options: CatalogListOptions = {}): Promise<Trainer[]> =>
+  apiGet<Trainer[]>(`/trainers${query(options)}`);
 
 /**
  * Клуб по номеру для ПУБЛИЧНОЙ поверхности — карточки тренера, где он значится
@@ -301,12 +319,6 @@ export async function getPublishedClubById(id: EntityId): Promise<Club | null> {
   const club = detail?.club ?? null;
 
   return club === null || club.status === 'hidden' ? null : club;
-}
-
-export async function getTrainerById(id: EntityId): Promise<Trainer | null> {
-  const trainers = await getTrainers();
-
-  return trainers.find((trainer) => trainer.id === id) ?? null;
 }
 
 /** Детальная карточка по адресу-ссылке. Возвращает только саму публикацию. */
@@ -395,44 +407,12 @@ export type GetBookingsOptions = {
  *
  * Оставлен рабочим намеренно: на него смотрит эталон контрактов, и он честно нужен
  * там, где страница считает по всей площадке (админская сводка). Во всех остальных
- * местах вместо него стоит `getBookingsWhere` со своим отбором.
+ * местах страницы просят свой отбор — по человеку, лицу или слоту.
  *
  * Автопереходы по времени бэкенд прогоняет сам при чтении, отдельного вызова нет.
  */
 export const getBookings = (): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ scope: 'all' })}`);
-
-/**
- * Записи ОДНОГО атлета с дополнительным отбором.
- *
- * ⚠️ Атлет обязателен, и это главное свойство вызова. Раньше он был необязательным,
- * а пропуск молча подставлял `scope=all` — полный срез площадки. Пока тот режим
- * отдавался всем, забытый параметр выглядел как работающий код; после того как срез
- * ушёл под право администратора, каждое такое место превратилось в 403 и упавшую
- * страницу. Обязательность закрывает саму возможность повторить это: срез площадки
- * теперь просят только там, где написали его имя, — в `getBookings`.
- *
- * Номер атлета едет параметром, но чужие записи им не получить: маршрут его
- * игнорирует и отбирает по владельцу сессии. Здесь он остаётся как утверждение
- * вызывающего «мне нужны записи именно этого человека», и оно обязано совпадать
- * с тем, кто вошёл.
- */
-export const getBookingsWhere = (
-  options: GetBookingsOptions & { userId: EntityId },
-): Promise<Booking[]> =>
-  apiGet<Booking[]>(
-    `/bookings${query({
-      userId: options.userId,
-      clubId: options.clubId,
-      trainerId: options.trainerId,
-      scheduleId: options.scheduleId,
-      status: options.status === undefined ? undefined : options.status.join(','),
-      dateFrom: options.dateFrom,
-      dateTo: options.dateTo,
-      offset: options.offset,
-      limit: options.limit,
-    })}`,
-  );
 
 export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ userId })}`);
@@ -547,12 +527,6 @@ export const getClientUsers = (): Promise<User[]> => apiGet<User[]>('/users?scop
 export type AdminUser = User & { serviceFaceCount: number };
 
 export const getUsers = (): Promise<AdminUser[]> => apiGet<AdminUser[]>('/users');
-
-export async function getUserById(id: EntityId): Promise<User | null> {
-  const users = await getUsers();
-
-  return users.find((user) => user.id === id) ?? null;
-}
 
 export type GetTrainerClubLinksOptions = {
   trainerId?: EntityId;

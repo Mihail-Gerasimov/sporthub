@@ -5,7 +5,14 @@
 // В фазе базы они исчезнут (колонки станут NOT NULL, поиск по slug — индексом),
 // поэтому им место внутри JSON-реализации, а не в интерфейсе репозитория.
 
-import type { CatalogOwnerType, Club, Offering, Schedule, Trainer } from '@sporthub/types';
+import type {
+  CatalogOwnerType,
+  Club,
+  Offering,
+  PublicationSort,
+  Schedule,
+  Trainer,
+} from '@sporthub/types';
 
 import type { OwnerIdFilter } from './crud.repository';
 
@@ -53,7 +60,15 @@ export function normalizeSlugLookupValue(slug: string): string {
  * `findAll()`, `findAll({ excludeHidden: true })` — означали ровно то же, что означали.
  */
 export type PublicationStatusFilter = {
-  /** `hidden` скрывается из публичных выдач. */
+  /**
+   * Публичная выдача: только опубликованное.
+   *
+   * ⚠️ Шаг 38.32: условие — `status = 'published'`, а не `<> 'hidden'`, и это не
+   * косметика — по равенству работает индекс `(status, rating, review_count)`,
+   * на котором держится витрина. Черновиков (`draft`) площадка не заводит; если бы
+   * заводила, на витрине им всё равно не место. Имя поля оставлено прежним:
+   * потребителей у него девять, а вопрос они задают тот же.
+   */
   excludeHidden?: boolean;
   /**
    * Исключение из `excludeHidden`: скрытые публикации ЭТОГО владельца остаются
@@ -114,22 +129,15 @@ export type PublicationStatusFilter = {
 };
 
 /**
- * Порядки выдачи публикаций, которые умеет задавать запрос (шаг 38.29).
+ * Как отдавать выдачу: порядок и ограничение (шаг 38.29).
  *
- * Словарь один: контроллер сверяет с ним параметр `sort`, реализация — берёт
- * из него выражение `ORDER BY`. Новый порядок = значение здесь плюс строка
- * в карте реализации, компилятор потребует вторую сам.
+ * Словарь порядков — `PUBLICATION_SORTS` в `@sporthub/types`: он общий с фронтом,
+ * который подставляет значение в адрес витринного вызова. Здесь — только форма
+ * параметров и карта «значение → `ORDER BY`» в реализации.
  *
- * `rating` — по рейтингу убыванию, ничьи разводит число отзывов, затем номер.
  * ⚠️ Вторичный ключ `id` обязателен: без него база вправе отдать равных
  * в любом порядке, и «верхушка `limit=1`» мигала бы от прогона к прогону.
- * Под порядок есть индекс `(status, rating DESC, review_count DESC)`.
- */
-export const PUBLICATION_SORTS = ['rating'] as const;
-export type PublicationSort = (typeof PUBLICATION_SORTS)[number];
-
-/**
- * Как отдавать выдачу: порядок и ограничение. Оба — необязательные, и оба
+ * Под порядок есть индекс `(status, rating DESC, review_count DESC)`. Оба — необязательные, и оба
  * уходят в запрос (`ORDER BY`, `LIMIT`), а не применяются к поднятому списку.
  *
  * ⚠️ Отдельно от отбора (`PublicationStatusFilter`), потому что отбор общий

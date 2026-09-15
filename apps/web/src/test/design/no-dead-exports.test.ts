@@ -59,15 +59,10 @@ export const LEGACY_DEAD_EXPORTS: Record<string, string[]> = {
   ],
   'src/lib/notification-links.ts': ['subjectHref'],
   'src/lib/provider-client-guards.ts': ['isClientOfProvider'],
-  // Клиент бэкенда: снять неиспользуемые методы или дать потребителя (Э4, 38.32).
-  'src/lib/server-api.ts': [
-    'SessionRequiredError',
-    'BackendUnavailableError',
-    'getCities',
-    'getTrainerById',
-    'getBookingsWhere',
-    'getUserById',
-  ],
+  // Клиент бэкенда. Четыре мёртвых метода сняты шагом 38.32; два класса ошибок
+  // остаются экспортом ради `instanceof` в тестах — потребителя вне тестов у них
+  // нет по построению: страницы отдают их границе ошибок Next, не ловя по имени.
+  'src/lib/server-api.ts': ['SessionRequiredError', 'BackendUnavailableError'],
   'src/lib/service-faces.ts': [
     'parseServiceFaceKind',
     'LEGACY_PERSONAL_CABINET_PATH',

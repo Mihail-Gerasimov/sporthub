@@ -29,6 +29,7 @@ import type {
   EntityId,
   EntitySource,
   EntityStatus,
+  PublicationSort,
   Schedule,
   SessionLevel,
   Trainer,
@@ -40,7 +41,6 @@ import type { Prisma } from '../../storage/prisma-client/client';
 import type {
   ClubsRepository,
   PublicationListOptions,
-  PublicationSort,
   PublicationsByOwner,
   PublicationStatusFilter,
   ScheduleFilter,
@@ -124,10 +124,16 @@ const CLUB_ERASABLE_FIELDS = [
  * Условия у них одни и те же, отличается только имя связующей таблицы, поэтому
  * оно и передаётся параметром: две копии этого кода разошлись бы при первой правке.
  *
- * ⚠️ `status: { not: 'hidden' }` индексом по статусу не покрывается — btree не работает
- * на «не равно». Это осознанно оставлено как есть: значений статуса три, и отсев
- * скрытых всё равно читает почти всю таблицу. Ускоряют здесь другие условия —
- * вид спорта (соединение по связующей таблице) и рейтинг (индекс с ним в ключе).
+ * ⚠️ Шаг 38.32, найдено `EXPLAIN` на стенде в 5000 строк. Прежде публичный отбор
+ * писался как `status <> 'hidden'` с оговоркой «btree не работает на «не равно»,
+ * оставлено осознанно». Пока выдача читалась целиком, это было верно: отсев
+ * скрытых всё равно проходит почти всю таблицу. Но витрина спрашивает ШЕСТЬ
+ * лучших по рейтингу — и с «не равно» база читала все 4500 строк и сортировала
+ * их кучей (0,72 мс), а с `status = 'published'` шла по индексу
+ * `(status, rating DESC, review_count DESC)` и читала семь строк (0,10 мс).
+ * Смысл при этом тот же: третье значение, `draft`, площадка не заводит нигде
+ * (писателя у него нет), а если бы и завела — черновику на витрине не место.
+ * Публичная выдача — это опубликованное, и предикат теперь говорит ровно это.
  */
 function buildPublicationWhere(
   filter: PublicationStatusFilter,
@@ -139,14 +145,10 @@ function buildPublicationWhere(
     // ⚠️ Шаг 36.14. Владелец видит СВОИ скрытые публикации и в общей выдаче:
     // иначе кабинет не покажет ему, что публикация спрятана, и чинить будет нечего.
     // Условие идёт в запрос одним `OR`, а не отбором после чтения.
-    where.OR =
-      filter.includeHiddenOwnedBy === undefined
-        ? undefined
-        : [{ status: { not: 'hidden' } }, { managedByUserId: filter.includeHiddenOwnedBy }];
-
-    if (where.OR === undefined) {
-      delete where.OR;
-      where.status = { not: 'hidden' };
+    if (filter.includeHiddenOwnedBy === undefined) {
+      where.status = 'published';
+    } else {
+      where.OR = [{ status: 'published' }, { managedByUserId: filter.includeHiddenOwnedBy }];
     }
   }
   if (filter.onlyHidden === true) where.status = 'hidden';

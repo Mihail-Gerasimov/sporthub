@@ -16,6 +16,7 @@
 // впрок: цифры героя не обязаны быть секундной точности, но и хранить их негде.
 
 import { Controller, Get, Inject } from '@nestjs/common';
+import type { PlatformOverview } from '@sporthub/types';
 
 import { Public } from '../auth/access.decorators';
 import type { ReviewsRepository, UsersRepository } from '../repositories/crud.repository';
@@ -23,21 +24,7 @@ import { REVIEWS_REPOSITORY, USERS_REPOSITORY } from '../repositories/crud.repos
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
 
-/**
- * Четыре числа витрины. Новый счётчик — поле здесь и ещё один `count` ниже;
- * фронт, ничего о нём не знающий, поле просто не читает.
- */
-export type PlatformOverview = {
-  /** Люди с видом учётной записи `person`: служебные записи не считаются. */
-  athletes: number;
-  /** Опубликованные карточки тренеров — ровно те, что видны в каталоге. */
-  trainers: number;
-  /** Опубликованные клубы. */
-  clubs: number;
-  /** Все отзывы площадки. */
-  reviews: number;
-};
-
+// Форма ответа — `PlatformOverview` в `@sporthub/types`: её же читает витрина.
 // Открыто гостю: это цифры героя главной, а главная открывается до входа.
 @Public()
 @Controller('stats')

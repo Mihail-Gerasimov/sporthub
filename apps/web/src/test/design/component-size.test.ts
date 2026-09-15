@@ -63,7 +63,8 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/trainers/trainer-preview.ts': 276,
   'src/components/ui/CardSlider.tsx': 370,
   'src/lib/notification-copy.ts': 224,
-  'src/lib/server-api.ts': 300,
+  // 38.32: сняты четыре мёртвых экспорта, витринные вызовы получили параметры.
+  'src/lib/server-api.ts': 281,
   'src/stores/useAuthStore.ts': 219,
 };
 

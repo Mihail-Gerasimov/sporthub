@@ -33,6 +33,7 @@
 // Это вводит в заблуждение, но покрыто тестами и потому сохранено дословно.
 
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { PUBLICATION_SORTS, type PublicationSort } from '@sporthub/types';
 import {
   notificationPayload,
   editClubSchema,
@@ -54,11 +55,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../common/domain-error';
-import {
-  PUBLICATION_SORTS,
-  type PublicationListOptions,
-  type PublicationSort,
-} from '../repositories/entities.repository';
+import type { PublicationListOptions } from '../repositories/entities.repository';
 import { CatalogQueryService } from './catalog-query.service';
 import type { PublicClub, PublicTrainer } from './public-view';
 import { LogService } from '../logs/log.service';

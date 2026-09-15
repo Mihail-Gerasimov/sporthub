@@ -3,7 +3,12 @@
 // Часть типов-перечислений выводится из словарей-массивов в ./constants:
 // список значений объявлен там ровно один раз, тип — его проекция.
 // Импорт type-only, поэтому во время выполнения связи между модулями нет.
-import type { LOG_ACTIONS, LOG_ENTITY_TYPES, NOTIFICATION_SUBJECT_TYPES } from './constants';
+import type {
+  LOG_ACTIONS,
+  LOG_ENTITY_TYPES,
+  NOTIFICATION_SUBJECT_TYPES,
+  PUBLICATION_SORTS,
+} from './constants';
 
 export type EntityId = number;
 export type ISODateString = string;
@@ -65,6 +70,26 @@ export type HideKindValue = 'owner_archive' | 'moderation';
  * типов ни от чего не зависит по построению.
  */
 export type NotificationAddresseeKindValue = 'personal' | 'club' | 'trainer' | 'supervision';
+
+/** Порядок выдачи каталога. Источник правды — PUBLICATION_SORTS в constants.ts. */
+export type PublicationSort = (typeof PUBLICATION_SORTS)[number];
+
+/**
+ * Четыре числа героя главной — ответ `GET /api/stats/overview` (шаг 38.30).
+ *
+ * Новый счётчик — поле здесь и ещё один `count` на бэкенде; фронт, ничего о нём
+ * не знающий, поле просто не читает.
+ */
+export interface PlatformOverview {
+  /** Люди с видом учётной записи `person`: служебные записи не считаются. */
+  athletes: number;
+  /** Опубликованные карточки тренеров — ровно те, что видны в каталоге. */
+  trainers: number;
+  /** Опубликованные клубы. */
+  clubs: number;
+  /** Все отзывы площадки. */
+  reviews: number;
+}
 
 // Типы действий для системы логирования активности платформы.
 // Источник правды — LOG_ACTIONS в constants.ts: там же лежат пояснения,
