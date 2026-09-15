@@ -91,7 +91,6 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/provider/RejectBookingReasonModal.tsx': 1,
   'src/components/trainers/TrainerCard.tsx': 5,
   'src/components/trainers/TrainerDetailPageClient.tsx': 2,
-  'src/components/trainers/trainer-utils.ts': 12,
   'src/components/ui/ChipMarquee.tsx': 2,
   'src/components/ui/Modal.tsx': 1,
 };
