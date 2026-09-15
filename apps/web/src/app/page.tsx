@@ -46,10 +46,17 @@ export default async function Home() {
     trainerSchedule,
     trainers,
     trainerClubLinks,
+    // Лидеры пришли отсортированными и обрезанными базой — берётся первая строка.
+    [featuredClub],
+    [featuredTrainer],
   ] = await Promise.all([
     // Phase 27 Step 27.12: публичные SSR-витрины читают только не-hidden коллекции,
     // чтобы скрытые админом публикации не оставались в выдаче, на карте, в счётчиках
     // и featured-блоке. Хелперы симметричны фильтру в /api/clubs и /api/trainers.
+    //
+    // ⚠️ Полный список — для РАБОЧЕЙ части: поиск, карта и слоты фильтруют в памяти
+    // по построению (действующее ограничение, долг Д-15). Витринные вызовы ниже —
+    // с `limit`: порядок и срез делает база.
     getPublishedClubs(),
     getSchedule(),
     getOfferings(),
@@ -59,6 +66,11 @@ export default async function Home() {
     getSchedule({ ownerType: 'trainer' }),
     getPublishedTrainers(),
     getTrainerClubLinks({ status: 'confirmed' }),
+    // Лидеры каталога — запросом (шаг 38.31): лучший по рейтингу, при равенстве —
+    // по числу отзывов, ничьи разводит номер. Прежде та же сортировка шла в памяти
+    // по всему каталогу ради одной карточки.
+    getPublishedClubs({ sort: 'rating', limit: 1 }),
+    getPublishedTrainers({ sort: 'rating', limit: 1 }),
   ]);
 
   // Публичные бейджи надёжности приходят ГОТОВЫМИ вместе с карточками каталога.
@@ -99,15 +111,11 @@ export default async function Home() {
     targetDate: todayDateKey,
   });
 
-  // Лидеры каталога: top-1 по рейтингу, при равенстве — по числу отзывов.
-  const featuredClub = [...clubs].sort((left, right) => {
-    if (right.rating !== left.rating) return right.rating - left.rating;
-    return right.reviewCount - left.reviewCount;
-  })[0];
-  const featuredTrainer = [...trainerDirectory].sort((left, right) => {
-    if (right.rating !== left.rating) return right.rating - left.rating;
-    return right.reviewCount - left.reviewCount;
-  })[0];
+  // Подпись услуги лидера — из справочника тренеров (у него свой отсев: без адреса
+  // и координат тренер туда не попадает), иначе биография.
+  const featuredTrainerTitle =
+    trainerDirectory.find((item) => item.id === featuredTrainer?.id)?.primaryOfferingTitle ??
+    featuredTrainer?.bio;
 
   // Ближайшая сессия для FocusCard. Если нет — показываем заглушку.
   const focusSession = upcomingSessions[0];
@@ -342,7 +350,7 @@ export default async function Home() {
                     </div>
                   </div>
                   <p className="relative z-10 m-0 mt-3 font-body text-[13px] leading-[1.5] text-[var(--ui-muted)]">
-                    {featuredTrainer.primaryOfferingTitle ?? featuredTrainer.bio}
+                    {featuredTrainerTitle}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     <div className="flex min-w-[78px] flex-col gap-0.5 rounded-[12px] border border-[var(--ui-line)] bg-[var(--ui-bg)] px-3 py-2">
