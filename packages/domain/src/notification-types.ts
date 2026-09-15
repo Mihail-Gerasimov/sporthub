@@ -95,6 +95,11 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationType, NotificationGroup
   // Довесок к фазе 37: решения по публикации — владельцу, в ящик лица.
   publication_hidden_for_owner: 'publications',
   publication_unhidden_for_owner: 'publications',
+  // Фаза 38, шаг 38.43: верификация. Владельцу — тема «Публикации», отзыв —
+  // ещё и очереди надзора по теме каталога; надзорность — по префиксу имени.
+  publication_verified_for_owner: 'publications',
+  publication_verification_revoked_for_owner: 'publications',
+  oversight_verification_revoked: 'oversight_catalog',
 };
 
 /**
@@ -150,6 +155,11 @@ export const REQUIRED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   // Пропущенное письмо здесь — вред, а не неудобство.
   'publication_hidden_for_owner',
   'publication_unhidden_for_owner',
+  // ⚠️ Шаг 38.43: решения о проверке — тоже неотключаемые. Знак «проверено» меняет
+  // то, как публикацию видят люди; его снятие — тем более. Пропущенное письмо
+  // об отзыве оставило бы владельца в уверенности, что знак на месте.
+  'publication_verified_for_owner',
+  'publication_verification_revoked_for_owner',
 ];
 
 /** Проверяет, можно ли отключить уведомление этого типа. */
@@ -232,6 +242,10 @@ export const NOTIFICATION_TYPE_SUBJECT = {
   // Решения по публикации: предмет — сама публикация, и она бывает двух видов.
   publication_hidden_for_owner: ['club', 'trainer'],
   publication_unhidden_for_owner: ['club', 'trainer'],
+  // Верификация (38.43): предмет тот же — публикация обоих видов.
+  publication_verified_for_owner: ['club', 'trainer'],
+  publication_verification_revoked_for_owner: ['club', 'trainer'],
+  oversight_verification_revoked: ['club', 'trainer'],
 } as const satisfies Record<NotificationType, readonly NotificationSubjectType[]>;
 
 /** Виды предмета, допустимые для типа уведомления. Считается из словаря выше. */

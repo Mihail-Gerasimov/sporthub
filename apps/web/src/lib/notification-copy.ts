@@ -11,6 +11,8 @@
  */
 import type { NotificationType } from '@sporthub/types';
 
+import { PUBLICATION_COPY, payloadText as text } from '@/lib/notification-copy-publications';
+
 export interface NotificationCopy {
   /** Короткий заголовок карточки уведомления (bold). */
   title: string;
@@ -18,7 +20,7 @@ export interface NotificationCopy {
   description?: string;
 }
 
-type CopyResolver = (payload: Record<string, unknown>) => NotificationCopy;
+export type CopyResolver = (payload: Record<string, unknown>) => NotificationCopy;
 
 const COPY_MAP: Record<NotificationType, CopyResolver> = {
   // --- booking FSM ---
@@ -243,34 +245,9 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
   // ⚠️ Имя администратора в текстах НЕ называется — решение заказчика. Владельцу
   // важна причина, а не фамилия; имя превращает административное решение в личный
   // конфликт. В журнале и в очереди надзора исполнитель, разумеется, остаётся.
-  publication_hidden_for_owner: (payload) => {
-    const name = text(payload.publicationName);
-    const reason = text(payload.reason);
-
-    return {
-      title: name ? `Публикация «${name}» скрыта` : 'Публикация скрыта',
-      // Причина — главное в этом письме: без неё человек не знает, что исправлять.
-      // Хвост про записи — не украшение: публикации нет в каталоге, и человек должен
-      // понимать, почему у него перестали появляться заявки.
-      description: reason
-        ? `Причина: ${reason}. Публикация не видна в каталоге, новые записи не приходят.`
-        : 'Публикация не видна в каталоге, новые записи не приходят.',
-    };
-  },
-  publication_unhidden_for_owner: (payload) => {
-    const name = text(payload.publicationName);
-
-    return {
-      title: name ? `Публикация «${name}» вернулась в каталог` : 'Публикация вернулась в каталог',
-      description: 'Она снова видна людям, записи приходят как прежде.',
-    };
-  },
+  // Решения по публикации — своя тема и свой модуль: см. `notification-copy-publications.ts`.
+  ...PUBLICATION_COPY,
 };
-
-/** Строка из `payload` или пусто: тексты не имеют права печатать `undefined`. */
-function text(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
 
 export function getNotificationCopy(
   type: NotificationType,

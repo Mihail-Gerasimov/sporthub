@@ -54,6 +54,9 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       booking_cancelled_by_provider: 'отмены провайдером',
       publication_hidden_for_owner: 'решения по вашей публикации',
       publication_unhidden_for_owner: 'решения по вашей публикации',
+      // Шаг 38.43: подтверждение и его отзыв — тоже решения по публикации.
+      publication_verified_for_owner: 'решения по вашей публикации',
+      publication_verification_revoked_for_owner: 'решения по вашей публикации',
     };
 
     render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
