@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { API_ROOT } from '../test/repo-root';
+import { API_ROOT, REPO_ROOT } from '../test/repo-root';
 
 /** Тексты, каждый из которых обязан встречаться в коде дословно. */
 // ⚠️ Фаза 34 сняла отсюда три текста, и это не потеря, а следствие:
@@ -68,6 +68,10 @@ const REQUIRED_MESSAGES = [
   'Связь уже завершена (rejected/revoked)',
   'Этот пользователь не является вашим клиентом',
   'Причина скрытия обязательна',
+  // Шаг 38.38: словарь действий модерации — тексты действий живут в домене.
+  'Некорректное действие. Ожидается ',
+  'Некорректный тип сущности',
+  'Некорректный entityId',
   'Изменять можно только свои данные',
   'Неверный текущий пароль',
   'Администраторы входят через /service-portal',
@@ -97,8 +101,22 @@ const REQUIRED_MESSAGES = [
   'Ссылка восстановления не указана',
 ] as const;
 
-/** Все исходники бэкенда без тестов — в одну строку для поиска. */
-async function readSources(directory = path.join(API_ROOT, 'src')): Promise<string> {
+/**
+ * Корни обхода: исходники бэкенда и словари домена.
+ *
+ * ⚠️ Шаг 38.38. Тексты отказов модерации переехали в словарь действий
+ * (`packages/domain/src/moderation-actions.ts`): у действия текст свой, и держать
+ * его в контроллере значило бы держать рядом со словарём вторую его половину.
+ * Сторож обязан видеть и это место — иначе «текст обязан встречаться в коде»
+ * покраснело бы на переезде, не на потере.
+ */
+const SOURCE_ROOTS = [
+  path.join(API_ROOT, 'src'),
+  path.join(REPO_ROOT, 'packages', 'domain', 'src'),
+];
+
+/** Все исходники под корнем без тестов — в одну строку для поиска. */
+async function readSources(directory: string): Promise<string> {
   const entries = await readdir(directory, { withFileTypes: true });
   const parts: string[] = [];
 
@@ -120,7 +138,7 @@ async function readSources(directory = path.join(API_ROOT, 'src')): Promise<stri
 
 describe('Словарь текстов ошибок', () => {
   it('каждый закреплённый текст присутствует в коде дословно', async () => {
-    const sources = await readSources();
+    const sources = (await Promise.all(SOURCE_ROOTS.map((root) => readSources(root)))).join('\n');
     const missing = REQUIRED_MESSAGES.filter((message) => !sources.includes(message));
 
     expect(missing).toEqual([]);
