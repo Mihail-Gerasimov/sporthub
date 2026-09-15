@@ -412,6 +412,28 @@ const clubsContract = (createRepository: () => Promise<ClubsRepository>) => {
     expect(await clubs.findAll({ excludeHidden: true })).toHaveLength(1);
   });
 
+  // --- Счёт публикаций (фаза 38, шаг 38.28) ---
+  //
+  // Счётчики витрины («N клубов», «M тренеров») считает база, а не длина
+  // поднятого списка: иначе ради одного числа поднимался бы весь каталог.
+  // Отбор у счёта ТОТ ЖЕ, что у выдачи, — разойдясь хоть одним условием,
+  // они дадут «на витрине 12, в списке 9».
+  it('count считает по тому же отбору, что findAll', async () => {
+    const clubs = await createRepository();
+
+    expect(await clubs.count()).toBe(2);
+    expect(await clubs.count({ excludeHidden: true })).toBe(1);
+    expect(await clubs.count({ sportId: 7 })).toBe(1);
+    expect(await clubs.count({ minRating: 5 })).toBe(0);
+    expect(await clubs.count({ search: 'КРОСС', city: 'Самара' })).toBe(1);
+  });
+
+  it('count по пустому набору номеров — ноль без запроса, как у findAll', async () => {
+    const clubs = await createRepository();
+
+    expect(await clubs.count({ ids: [] })).toBe(0);
+  });
+
   it('findById собирает наборы ссылок, галерею и координаты', async () => {
     const clubs = await createRepository();
 
@@ -578,6 +600,15 @@ const trainersContract = (createRepository: () => Promise<TrainersRepository>) =
 
     expect(await trainers.findAll()).toHaveLength(2);
     expect(await trainers.findAll({ excludeHidden: true })).toHaveLength(1);
+  });
+
+  it('count считает по тому же отбору, что findAll (38.28)', async () => {
+    const trainers = await createRepository();
+
+    expect(await trainers.count()).toBe(2);
+    expect(await trainers.count({ excludeHidden: true })).toBe(1);
+    expect(await trainers.count({ sportId: 8 })).toBe(1);
+    expect(await trainers.count({ ids: [] })).toBe(0);
   });
 
   it('findById собирает наборы ссылок и координаты', async () => {

@@ -237,6 +237,16 @@ export class PrismaClubsRepository implements ClubsRepository {
     return rows.map((row) => PrismaClubsRepository.toClub(row));
   }
 
+  async count(filter: PublicationStatusFilter = {}): Promise<number> {
+    // Пустой набор номеров — заведомо ноль, запрос не делается: то же правило,
+    // что у `findAll`, иначе счёт и выдача разошлись бы на пустом наборе.
+    if (filter.ids !== undefined && filter.ids.length === 0) return 0;
+
+    // Условие — ТО ЖЕ построение, что у выдачи. Своя копия условия для счёта
+    // разошлась бы с выдачей при первой правке фильтра.
+    return this.client.club.count({ where: buildPublicationWhere(filter, 'sports') });
+  }
+
   async findById(id: EntityId): Promise<Club | null> {
     const row = await this.client.club.findUnique({ where: { id }, include: CLUB_INCLUDE });
 
@@ -588,6 +598,13 @@ export class PrismaTrainersRepository implements TrainersRepository {
     });
 
     return rows.map((row) => PrismaTrainersRepository.toTrainer(row));
+  }
+
+  async count(filter: PublicationStatusFilter = {}): Promise<number> {
+    // См. `PrismaClubsRepository.count`: то же правило пустого набора и то же условие.
+    if (filter.ids !== undefined && filter.ids.length === 0) return 0;
+
+    return this.client.trainer.count({ where: buildPublicationWhere(filter, 'sports') });
   }
 
   async findById(id: EntityId): Promise<Trainer | null> {

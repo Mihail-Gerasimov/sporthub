@@ -131,6 +131,13 @@ export interface ClubsRepository {
   findAll(filter?: PublicationStatusFilter): Promise<Club[]>;
   findById(id: number): Promise<Club | null>;
   findBySlug(slug: string): Promise<Club | null>;
+  /**
+   * Сколько клубов подошло под отбор. Считает запрос, а не длина массива (шаг 38.28).
+   *
+   * Отбор тот же, что у `findAll`: счётчик витрины и её список обязаны сходиться,
+   * а поднимать каталог ради одного числа — платить за всю таблицу.
+   */
+  count(filter?: PublicationStatusFilter): Promise<number>;
   /** Число клубов у каждого владельца — группировкой, а не чтением таблицы. */
   countByOwner(): Promise<PublicationsByOwner[]>;
   insert(club: Omit<Club, 'id' | 'createdAt'>): Promise<Club>;
@@ -142,6 +149,8 @@ export interface TrainersRepository {
   findAll(filter?: PublicationStatusFilter): Promise<Trainer[]>;
   findById(id: number): Promise<Trainer | null>;
   findBySlug(slug: string): Promise<Trainer | null>;
+  /** То же, что у клубов: счёт по отбору запросом (шаг 38.28). */
+  count(filter?: PublicationStatusFilter): Promise<number>;
   /** То же для карточек тренера: строка на владельца. */
   countByOwner(): Promise<PublicationsByOwner[]>;
   insert(trainer: Omit<Trainer, 'id' | 'createdAt'>): Promise<Trainer>;
