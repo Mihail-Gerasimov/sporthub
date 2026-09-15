@@ -86,36 +86,4 @@ export const PUBLICATION_COPY: Record<PublicationNotificationType, CopyResolver>
         'Подтверждение публикации отозвано администратором.',
     };
   },
-  // --- Фаза 38, шаг 38.43: верификация публикации ---
-  publication_verified_for_owner: (payload) => {
-    const name = text(payload.publicationName);
-
-    return {
-      title: name ? `Публикация «${name}» подтверждена` : 'Публикация подтверждена',
-      description: 'Площадка проверила её: на карточке появился знак «проверено».',
-    };
-  },
-  publication_verification_revoked_for_owner: (payload) => {
-    const name = text(payload.publicationName);
-    const reason = text(payload.reason);
-
-    return {
-      title: name ? `Подтверждение «${name}» отозвано` : 'Подтверждение отозвано',
-      // Причина — главное: без неё человек не знает, что исправлять.
-      description: reason
-        ? `Причина: ${reason}. Знак «проверено» с карточки снят.`
-        : 'Знак «проверено» с карточки снят.',
-    };
-  },
-  oversight_verification_revoked: (payload) => {
-    const name = text(payload.publicationName);
-    const reason = text(payload.reason);
-
-    return {
-      title: 'Подтверждение отозвано',
-      description:
-        [name && `«${name}»`, reason].filter(Boolean).join(' — ') ||
-        'Подтверждение публикации отозвано администратором.',
-    };
-  },
 };
