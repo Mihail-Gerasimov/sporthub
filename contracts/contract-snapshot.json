@@ -163,17 +163,7 @@
           "priceFrom": 900,
           "distanceKm": 1.8,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 1,
-            "completedCount": 1,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         {
           "id": 2,
@@ -206,17 +196,7 @@
           "priceFrom": 800,
           "distanceKm": 3,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         {
           "id": 3,
@@ -253,17 +233,7 @@
           "priceFrom": 850,
           "distanceKm": 2.3,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         }
       ]
     }
@@ -308,162 +278,7 @@
           "priceFrom": 900,
           "distanceKm": 1.8,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 1,
-            "completedCount": 1,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
-        }
-      ]
-    }
-  },
-  "GET /api/clubs?sort=reliability": {
-    "status": 200,
-    "body": {
-      "success": true,
-      "data": [
-        {
-          "id": 3,
-          "createdAt": "<время>",
-          "name": "Balance Yoga House",
-          "slug": "balance-yoga-house",
-          "description": "Камерная студия для йоги и пилатеса в центре города.",
-          "shortDescription": "Йога и пилатес в центре города.",
-          "city": "Самара",
-          "address": "ул. Молодогвардейская, 86",
-          "phone": "+7 (846) 200-11-03",
-          "email": "hello@balance-house.ru",
-          "website": "https://balance-house.ru",
-          "coordinates": {
-            "lat": 53.1957,
-            "lng": 50.1006
-          },
-          "sportIds": [
-            1,
-            8
-          ],
-          "imageUrls": [
-            "/images/clubs/balance-1.jpg"
-          ],
-          "amenityIds": [
-            1
-          ],
-          "tagIds": [
-            1,
-            2
-          ],
-          "rating": 4.9,
-          "reviewCount": 5,
-          "priceFrom": 850,
-          "distanceKm": 2.3,
-          "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
-        },
-        {
-          "id": 1,
-          "createdAt": "<время>",
-          "name": "Volna Aquatic Club",
-          "slug": "volna-aquatic-club",
-          "description": "Клуб с бассейном 25 м и секциями плавания, пилатеса.",
-          "shortDescription": "Бассейн и пилатес рядом с набережной.",
-          "city": "Самара",
-          "address": "ул. Лесная, 23к1",
-          "phone": "+7 (846) 200-11-01",
-          "email": "hello@volna-club.ru",
-          "website": "https://volna-club.ru",
-          "coordinates": {
-            "lat": 53.2129,
-            "lng": 50.1245
-          },
-          "sportIds": [
-            3,
-            8
-          ],
-          "imageUrls": [
-            "/images/clubs/volna-1.jpg"
-          ],
-          "amenityIds": [
-            1
-          ],
-          "tagIds": [
-            1,
-            2
-          ],
-          "rating": 4.8,
-          "reviewCount": 3,
-          "priceFrom": 900,
-          "distanceKm": 1.8,
-          "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 1,
-            "completedCount": 1,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
-        },
-        {
-          "id": 2,
-          "createdAt": "<время>",
-          "name": "Iron Gym",
-          "slug": "iron-gym",
-          "description": "Тренажёрный зал полного цикла.",
-          "shortDescription": "Тренажёрный зал полного цикла.",
-          "city": "Самара",
-          "address": "ул. Советская, 10",
-          "phone": "+7 (846) 200-11-02",
-          "coordinates": {
-            "lat": 53.2001,
-            "lng": 50.11
-          },
-          "sportIds": [
-            4
-          ],
-          "imageUrls": [
-            "/images/clubs/iron-gym-1.jpg"
-          ],
-          "amenityIds": [
-            2
-          ],
-          "tagIds": [
-            1
-          ],
-          "rating": 4.5,
-          "reviewCount": 2,
-          "priceFrom": 800,
-          "distanceKm": 3,
-          "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         }
       ]
     }
@@ -499,7 +314,8 @@
           "distanceKm": 0,
           "managedByUserId": 2,
           "source": "provider",
-          "status": "published"
+          "status": "published",
+          "awaitingRecheck": false
         },
         "offering": {
           "id": 102,
@@ -590,17 +406,7 @@
           "priceFrom": 900,
           "distanceKm": 1.8,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 1,
-            "completedCount": 1,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         "primaryOffering": {
           "id": 1,
@@ -758,7 +564,8 @@
           "distanceKm": 1.8,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "awaitingRecheck": false
         },
         "offering": {
           "id": 1,
@@ -814,7 +621,10 @@
   "DELETE /api/clubs/[id]": {
     "status": 200,
     "body": {
-      "success": true
+      "success": true,
+      "data": {
+        "outcome": "deleted"
+      }
     }
   },
   "GET /api/trainers": {
@@ -850,17 +660,7 @@
           },
           "sportId": 1,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         {
           "id": 1,
@@ -891,17 +691,7 @@
           },
           "sportId": 3,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 1,
-            "completedCount": 1,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         {
           "id": 3,
@@ -931,17 +721,7 @@
           },
           "sportId": 4,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         }
       ]
     }
@@ -980,17 +760,7 @@
           },
           "sportId": 3,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         }
       ]
     }
@@ -1029,7 +799,8 @@
           "phone": "+7 (900) 000-00-00",
           "managedByUserId": 2,
           "source": "provider",
-          "status": "published"
+          "status": "published",
+          "awaitingRecheck": false
         },
         "offering": {
           "id": 102,
@@ -1107,17 +878,7 @@
           },
           "sportId": 3,
           "source": "seed",
-          "status": "published",
-          "reliability": {
-            "totalRelevant": 0,
-            "completedCount": 0,
-            "noShowCount": 0,
-            "lateCancelCount": 0,
-            "rejectedByProviderCount": 0,
-            "completionRate": 1,
-            "badge": null,
-            "isNewUser": true
-          }
+          "status": "published"
         },
         "affiliatedClub": null,
         "club": null,
@@ -1272,7 +1033,8 @@
           "sportId": 3,
           "managedByUserId": 2,
           "source": "seed",
-          "status": "published"
+          "status": "published",
+          "awaitingRecheck": false
         },
         "offering": {
           "id": 101,
@@ -1321,7 +1083,10 @@
   "DELETE /api/trainers/[id]": {
     "status": 200,
     "body": {
-      "success": true
+      "success": true,
+      "data": {
+        "outcome": "archived"
+      }
     }
   },
   "GET /api/schedule": {
@@ -1846,7 +1611,8 @@
           ],
           "status": "published",
           "createdAt": "<время>",
-          "managedByUserId": 2
+          "managedByUserId": 2,
+          "awaitingRecheck": false
         },
         {
           "id": 2,
@@ -1858,7 +1624,8 @@
           ],
           "status": "published",
           "createdAt": "<время>",
-          "managedByUserId": 2
+          "managedByUserId": 2,
+          "awaitingRecheck": false
         },
         {
           "id": 3,
@@ -1870,7 +1637,8 @@
             8
           ],
           "status": "published",
-          "createdAt": "<время>"
+          "createdAt": "<время>",
+          "awaitingRecheck": false
         },
         {
           "id": 1,
@@ -1882,7 +1650,8 @@
           ],
           "status": "published",
           "createdAt": "<время>",
-          "managedByUserId": 2
+          "managedByUserId": 2,
+          "awaitingRecheck": false
         },
         {
           "id": 3,
@@ -1894,7 +1663,8 @@
           ],
           "status": "published",
           "createdAt": "<время>",
-          "managedByUserId": 2
+          "managedByUserId": 2,
+          "awaitingRecheck": false
         },
         {
           "id": 5,
@@ -1906,7 +1676,8 @@
           ],
           "status": "published",
           "createdAt": "<время>",
-          "managedByUserId": 2
+          "managedByUserId": 2,
+          "awaitingRecheck": false
         }
       ],
       "total": 6,
@@ -1957,7 +1728,9 @@
         "status": "hidden",
         "hideReason": "Снимок",
         "hiddenByUserId": 3,
-        "hiddenAt": "<время>"
+        "hiddenAt": "<время>",
+        "hiddenKind": "moderation",
+        "awaitingRecheck": false
       }
     }
   },
@@ -2082,12 +1855,6 @@
     }
   },
   "POST /api/admin/users/[id]/password": {
-    "status": 200,
-    "body": {
-      "success": true
-    }
-  },
-  "POST /api/admin/users/[id]/recompute-reliability": {
     "status": 200,
     "body": {
       "success": true
