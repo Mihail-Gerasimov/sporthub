@@ -7,6 +7,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { MODERATION_ERRORS } from '@sporthub/domain';
 import { fixtureDictionaryCollections } from '@sporthub/fixtures';
 
 import type { ClubsRepository } from '../repositories/entities.repository';
@@ -294,6 +295,7 @@ describe('Маршруты модерации', () => {
 
     expect(written).not.toContain('Админ');
     expect(written).not.toContain('hiddenByUserId');
+    expect(written).not.toContain('actorUserId');
     expect(written).not.toContain('moderator');
   });
 
@@ -742,7 +744,10 @@ describe('Маршруты модерации', () => {
       .send({ action: 'burn', entityType: 'club', entityId: 1, reason: 'нет' });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Некорректное действие. Ожидается hide или unhide');
+    // Текст — из словаря действий: перечень собирается из него, и пятое действие
+    // меняет текст само, а не роняет этот кейс (38.39).
+    expect(response.body.error).toBe(MODERATION_ERRORS.unknownAction);
+    expect(response.body.error).toMatch(/^Некорректное действие\. Ожидается hide/);
   });
 
   it('неизвестный тип сущности отклоняется своим текстом', async () => {

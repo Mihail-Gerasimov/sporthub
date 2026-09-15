@@ -32,6 +32,17 @@ import { API_ROOT, REPO_ROOT } from './repo-root';
 const SOURCE_ROOT = path.join(API_ROOT, 'src');
 
 /**
+ * Словари домена, из которых бэкенд берёт действие по строке (шаг 38.39).
+ *
+ * Контроллер модерации не называет `moderation_hide` сам — он читает
+ * `MODERATION_ACTION_SPECS[action].logAction`. Литерал живёт в словаре, писатель —
+ * в контроллере, и обходить надо обоих: без словаря значение выглядело бы сиротой,
+ * без бэкенда — сироту закрыл бы словарь, который никто не читает. Второе стережёт
+ * `moderation-dictionary-guard` (контроллер обязан читать словарь).
+ */
+const DICTIONARY_ROOT = path.join(REPO_ROOT, 'packages', 'domain', 'src');
+
+/**
  * Исторические значения: писателя нет, строки в журнале есть.
  *
  * ⚠️ Это НЕ лазейка для мёртвых значений, а закрытый список с причиной у каждого.
@@ -97,7 +108,7 @@ async function sourceFiles(dir: string): Promise<string[]> {
 
 describe('у каждого значения словаря журнала есть писатель', () => {
   it('ни одно действие из LOG_ACTIONS не осталось без записи в коде', async () => {
-    const files = await sourceFiles(SOURCE_ROOT);
+    const files = [...(await sourceFiles(SOURCE_ROOT)), ...(await sourceFiles(DICTIONARY_ROOT))];
     const code = await Promise.all(
       files.map(async (file) => codeOnly(await readFile(file, 'utf8'))),
     );
@@ -115,7 +126,7 @@ describe('у каждого значения словаря журнала ес�
   it('историческое значение действительно без писателя — иначе запись в списке лишняя', async () => {
     // Обратная сторона списка: значение, у которого писатель снова появился,
     // обязано выйти из исторических — иначе список исключений тихо копит живое.
-    const files = await sourceFiles(SOURCE_ROOT);
+    const files = [...(await sourceFiles(SOURCE_ROOT)), ...(await sourceFiles(DICTIONARY_ROOT))];
     const code = await Promise.all(
       files.map(async (file) => codeOnly(await readFile(file, 'utf8'))),
     );

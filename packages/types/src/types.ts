@@ -4,6 +4,7 @@
 // список значений объявлен там ровно один раз, тип — его проекция.
 // Импорт type-only, поэтому во время выполнения связи между модулями нет.
 import type {
+  CATALOG_OWNER_TYPES,
   LOG_ACTIONS,
   LOG_ENTITY_TYPES,
   NOTIFICATION_SUBJECT_TYPES,
@@ -17,7 +18,8 @@ export type ISODateTimeString = string;
 // Статус пользователя: active по умолчанию, banned/suspended — для будущей модерации
 export type UserStatus = 'active' | 'banned' | 'suspended';
 
-export type CatalogOwnerType = 'club' | 'trainer';
+/** Вид владельца публикации. Источник правды — CATALOG_OWNER_TYPES в constants.ts. */
+export type CatalogOwnerType = (typeof CATALOG_OWNER_TYPES)[number];
 
 /**
  * Ссылка на лицо услуг — клуб или карточку тренера (фаза 35).

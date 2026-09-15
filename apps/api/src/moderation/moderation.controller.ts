@@ -1,11 +1,27 @@
-import { notificationPayload, accountKindOf } from '@sporthub/domain';
 // Модерация публикаций и сводный список для админского раздела.
 //
-// Скрытие ставит причину, восстановление её снимает. Публикация без явного
-// состояния считается опубликованной — так устроены исходные данные.
+// Действия модерации — по словарю `MODERATION_ACTION_SPECS` из `@sporthub/domain`
+// (шаг 38.38): скрытие ставит причину, восстановление её снимает, и всё, чем
+// действия отличаются, записано там одной строкой на действие. Публикация без
+// явного состояния считается опубликованной — так устроены исходные данные.
 
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
-import type { CatalogOwnerType, Club, HideKindValue, Trainer } from '@sporthub/types';
+import {
+  MODERATION_ACTION_SPECS,
+  MODERATION_ERRORS,
+  accountKindOf,
+  isModerationAction,
+  notificationPayload,
+  type ModerationPrecondition,
+} from '@sporthub/domain';
+import {
+  CATALOG_OWNER_TYPES,
+  type CatalogOwnerType,
+  type Club,
+  type HideKindValue,
+  type NotificationType,
+  type Trainer,
+} from '@sporthub/types';
 
 import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
@@ -20,6 +36,12 @@ import {
 import { PublicationService } from '../publications/publication.service';
 import type { ClubsRepository, TrainersRepository } from '../repositories/entities.repository';
 import { CLUBS_REPOSITORY, TRAINERS_REPOSITORY } from '../repositories/entities.repository';
+
+/** Текст «не найдено» по виду владельца — как и прежде, у каждого свой. */
+const NOT_FOUND_BY_KIND: Record<CatalogOwnerType, string> = {
+  club: 'Клуб не найден',
+  trainer: 'Тренер не найден',
+};
 
 /** Строка сводного списка: клуб и тренер приводятся к одной форме. */
 export type PublicationItem = {
@@ -114,9 +136,32 @@ export class ModerationController {
     private readonly notifications: NotificationService,
   ) {}
 
-  // Право проверяет guard: модерация закрыта для всех, кроме тех, кому она положена.
-  // Прежняя проверка «а действительно ли этот номер принадлежит админу» больше
-  // не нужна — номер не приходит снаружи вовсе.
+  /**
+   * Проверки по данным, названные в словаре действий (`precondition`).
+   *
+   * Карта, а не ветвление: новое имя условия в словаре компилятор потребует
+   * реализовать здесь. `no_live_bookings` — тот же запрет, что у уборки лица
+   * (36.19, решение 14), и живёт он в сервисе публикаций: вторая копия здесь
+   * разошлась бы с первой при первой же правке набора действующих статусов.
+   */
+  private readonly preconditions: Record<
+    ModerationPrecondition,
+    (owner: { kind: CatalogOwnerType; id: number }) => Promise<void>
+  > = {
+    no_live_bookings: (owner) => this.publications.assertCanHide(owner),
+  };
+
+  /**
+   * Одно действие модерации — по строке словаря (шаг 38.39).
+   *
+   * ⚠️ Здесь НЕТ ветвления по действию, и это стережёт `moderation-dictionary-guard`.
+   * До этого шага контроллер ветвился в восьми местах; всё, чем действия
+   * отличаются, теперь в `MODERATION_ACTION_SPECS`, а здесь — одна и та же
+   * последовательность для любого из них: разбор тела, причина, если нужна,
+   * условие, если названо, запись, журнал, надзорная строка, письмо владельцу.
+   *
+   * Право проверяет guard: модерация закрыта для всех, кроме тех, кому она положена.
+   */
   @Requires('moderate_publications')
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -125,72 +170,83 @@ export class ModerationController {
     @CurrentUser() session: SessionContext,
   ): Promise<Club | Trainer> {
     const body = (rawBody ?? {}) as Record<string, unknown>;
-    const action = body.action;
+
+    // Проверки идут по одной, каждая со своим текстом из словаря.
+    if (!isModerationAction(body.action)) {
+      throw new ValidationError(MODERATION_ERRORS.unknownAction);
+    }
+
+    const spec = MODERATION_ACTION_SPECS[body.action];
     const entityType = body.entityType;
+
+    if (
+      typeof entityType !== 'string' ||
+      !(CATALOG_OWNER_TYPES as readonly string[]).includes(entityType)
+    ) {
+      throw new ValidationError(MODERATION_ERRORS.unknownEntityType);
+    }
+
     const entityId = body.entityId;
-    const reason = body.reason;
-
-    // Проверки идут по одной, каждая со своим текстом — форма проверки
-    // повторяет прежнюю дословно.
-    if (typeof action !== 'string' || !['hide', 'unhide'].includes(action)) {
-      throw new ValidationError('Некорректное действие. Ожидается hide или unhide');
-    }
-
-    if (typeof entityType !== 'string' || !['club', 'trainer'].includes(entityType)) {
-      throw new ValidationError('Некорректный тип сущности');
-    }
 
     if (typeof entityId !== 'number' || !entityId) {
-      throw new ValidationError('Некорректный entityId');
+      throw new ValidationError(MODERATION_ERRORS.invalidEntityId);
     }
 
-    if (action === 'hide' && (typeof reason !== 'string' || !reason.trim())) {
-      throw new ValidationError('Причина скрытия обязательна');
+    // Причина читается только там, где словарь её требует: у остальных действий
+    // присланная строка не попадает ни в запись, ни в журнал, ни в письмо.
+    const trimmedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
+
+    if (spec.requiresReason !== false && trimmedReason === '') {
+      throw new ValidationError(spec.requiresReason);
     }
 
-    // Скрывший записывается по НАСТОЯЩЕМУ исполнителю: под имперсонизацией
-    // в карточке публикации должен остаться след администратора, а не того,
-    // от чьего лица он работал.
+    const reason = spec.requiresReason === false ? undefined : trimmedReason;
+    const owner = { kind: entityType as CatalogOwnerType, id: entityId };
+
+    await this.requirePublication(owner);
+
+    if (spec.precondition !== null) {
+      await this.preconditions[spec.precondition](owner);
+    }
+
+    // Исполнитель — НАСТОЯЩИЙ: под работой от чужого лица в карточке публикации
+    // должен остаться след администратора, а не того, от чьего лица он работал.
     const moderatorId = session.actor.id;
-    const owner = entityType as CatalogOwnerType;
-    const entity =
-      action === 'hide'
-        ? await this.hide(owner, entityId, (reason as string).trim(), moderatorId)
-        : await this.unhide(owner, entityId);
+    const entity = await this.repositoryOf(owner.kind).update(
+      owner.id,
+      spec.patch({ reason, actorId: moderatorId, now: new Date() }),
+    );
 
     await this.logs.record({
-      action: action === 'hide' ? 'moderation_hide' : 'moderation_unhide',
+      action: spec.logAction,
       actorId: moderatorId,
       actorRole: accountKindOf(session.actor),
-      entityType: owner,
-      entityId,
-      meta:
-        action === 'hide'
-          ? { name: entity.name, reason: (reason as string).trim() }
-          : { name: entity.name },
+      entityType: owner.kind,
+      entityId: owner.id,
+      meta: { name: entity.name, ...(reason === undefined ? {} : { reason }) },
     });
 
-    // ⚠️ Шаг 37.31. Скрытие публикации уходит в ОБЩУЮ ОЧЕРЕДЬ НАДЗОРА, а не
-    // отдельному человеку. Причина не в удобстве: двое администраторов, не зная
-    // о решениях друг друга, способны отменять их по очереди — и обнаружится это
-    // только по жалобе владельца.
+    // ⚠️ Шаг 37.31. Наложение ограничения уходит в ОБЩУЮ ОЧЕРЕДЬ НАДЗОРА, а не
+    // отдельному человеку: двое администраторов, не зная о решениях друг друга,
+    // способны отменять их по очереди. Снятие ограничения строки не порождает —
+    // какие действия что порождают, говорит словарь.
     //
-    // ⚠️ Возврат публикации (`unhide`) строки НЕ порождает: это снятие ограничения,
-    // а не его наложение, и очередь надзора не журнал — она про то, что требует
-    // внимания. Полный след обоих действий по-прежнему в журнале.
-    if (action === 'hide') {
+    // Исполнитель в надзорной строке — `actorUserId`, как у остальных надзорных
+    // событий (`admin.controller.ts`). Прежний ключ `hiddenByUserId` у скрытия
+    // не читал никто; одно имя на все действия — и читателю не гадать.
+    if (spec.oversightType !== null) {
       await this.notifications.notify(
         supervisionRecipient,
-        'oversight_publication_hidden',
-        notificationPayload('oversight_publication_hidden', owner, entityId, {
+        spec.oversightType,
+        notificationPayload(spec.oversightType, owner.kind, owner.id, {
           publicationName: entity.name,
-          reason: (reason as string).trim(),
-          hiddenByUserId: moderatorId,
+          reason,
+          actorUserId: moderatorId,
         }),
       );
     }
 
-    await this.notifyOwnerOfDecision(action, owner, entity, reason);
+    await this.notifyOwnerOfDecision(spec.ownerNoticeType, owner.kind, entity, reason);
 
     return entity;
   }
@@ -215,14 +271,14 @@ export class ModerationController {
    * ⚠️ Возврат публикации уведомляет ТОЖЕ. Иначе человек, исправивший нарушение,
    * не узнает, что его вернули, и продолжит ждать — молчание здесь читается как отказ.
    *
-   * Отключить эти два типа нельзя (`REQUIRED_NOTIFICATION_TYPES`): это не новость
+   * Отключить эти типы нельзя (`REQUIRED_NOTIFICATION_TYPES`): это не новость
    * площадки, а факт, меняющий работу человека.
    */
   private async notifyOwnerOfDecision(
-    action: string,
+    type: NotificationType,
     owner: CatalogOwnerType,
     entity: Club | Trainer,
-    reason: unknown,
+    reason: string | undefined,
   ): Promise<void> {
     // У лица из сида владельца может не быть вовсе — тогда писать некому,
     // и `faceRecipient` честно возвращает `null` (правило фазы 35).
@@ -230,93 +286,27 @@ export class ModerationController {
 
     if (recipient === null) return;
 
-    const type =
-      action === 'hide' ? 'publication_hidden_for_owner' : 'publication_unhidden_for_owner';
-
     await this.notifications.notify(
       recipient,
       type,
       notificationPayload(type, owner, entity.id, {
         publicationName: entity.name,
-        // Причина есть только у скрытия и обязательна там: без неё письмо
-        // не отвечает на единственный вопрос, который у человека возникнет.
-        ...(action === 'hide' ? { reason: String(reason).trim() } : {}),
+        // Причина есть там, где словарь её требует, и обязательна там: без неё
+        // письмо не отвечает на единственный вопрос, который у человека возникнет.
+        ...(reason === undefined ? {} : { reason }),
       }),
     );
   }
 
-  private async hide(
-    entityType: CatalogOwnerType,
-    entityId: number,
-    reason: string,
-    moderatorId: number,
-  ): Promise<Club | Trainer> {
-    const patch = {
-      status: 'hidden' as const,
-      hideReason: reason,
-      hiddenByUserId: moderatorId,
-      hiddenAt: new Date().toISOString(),
-      // ⚠️ Шаг 36.12. Вид скрытия — признак, а не вывод из текста причины.
-      // Прежде архив владельца писал те же четыре поля, и различить их можно было
-      // только сравнением причины с константой: стоило владельцу вписать ту же
-      // строку руками — и его архив выглядел бы работой модератора.
-      hiddenKind: 'moderation' as const,
-      // Скрытие начинает разбирательство заново: прежний признак «исправлено,
-      // ждёт проверки» к новой причине отношения не имеет.
-      awaitingRecheck: false,
-    };
-
-    if (entityType === 'club') {
-      await this.requireClub(entityId);
-      // ⚠️ Шаг 36.19, решение заказчика 14. Тот же запрет, что у уборки лица:
-      // скрытая публикация исчезает из каталога, но уже созданную запись не отменяет,
-      // и человек узнает о беде, придя к закрытой двери. Проверка ОДНА на оба повода
-      // и живёт в сервисе публикаций — вторая копия здесь разошлась бы с первой
-      // при первой же правке набора действующих статусов.
-      await this.publications.assertCanHide({ kind: 'club', id: entityId });
-
-      return this.clubs.update(entityId, patch);
-    }
-
-    await this.requireTrainer(entityId);
-    await this.publications.assertCanHide({ kind: 'trainer', id: entityId });
-
-    return this.trainers.update(entityId, patch);
+  /** Репозиторий по виду владельца — карта, а не ветвление. */
+  private repositoryOf(kind: CatalogOwnerType): ClubsRepository | TrainersRepository {
+    return kind === 'club' ? this.clubs : this.trainers;
   }
 
-  private async unhide(entityType: CatalogOwnerType, entityId: number): Promise<Club | Trainer> {
-    const patch = {
-      status: 'published' as const,
-      hideReason: undefined,
-      hiddenByUserId: undefined,
-      hiddenAt: undefined,
-      // ⚠️ Оба новых поля гасятся здесь же. Забытый признак «ждёт повторной
-      // проверки» оставил бы живую публикацию в разделе модерации навсегда,
-      // а забытый вид скрытия — показал бы плашку на возвращённой карточке.
-      hiddenKind: undefined,
-      awaitingRecheck: false,
-    };
-
-    if (entityType === 'club') {
-      await this.requireClub(entityId);
-
-      return this.clubs.update(entityId, patch);
-    }
-
-    await this.requireTrainer(entityId);
-
-    return this.trainers.update(entityId, patch);
-  }
-
-  private async requireClub(entityId: number): Promise<void> {
-    if (!(await this.clubs.findById(entityId))) {
-      throw new NotFoundError('Клуб не найден');
-    }
-  }
-
-  private async requireTrainer(entityId: number): Promise<void> {
-    if (!(await this.trainers.findById(entityId))) {
-      throw new NotFoundError('Тренер не найден');
+  /** Публикация обязана существовать; текст отказа — по виду, как и прежде. */
+  private async requirePublication(owner: { kind: CatalogOwnerType; id: number }): Promise<void> {
+    if ((await this.repositoryOf(owner.kind).findById(owner.id)) === null) {
+      throw new NotFoundError(NOT_FOUND_BY_KIND[owner.kind]);
     }
   }
 }

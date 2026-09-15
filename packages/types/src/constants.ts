@@ -151,3 +151,11 @@ export const APP_LIMITS = {
  * `rating` — по рейтингу убыванию, ничьи разводит число отзывов, затем номер.
  */
 export const PUBLICATION_SORTS = ['rating'] as const;
+
+/**
+ * Виды владельца публикации каталога — клуб и карточка тренера (шаг 38.39).
+ *
+ * Список значений типа `CatalogOwnerType` в одном месте: контроллеры проверяют
+ * по нему тело запроса вместо литерала `['club', 'trainer']`.
+ */
+export const CATALOG_OWNER_TYPES = ['club', 'trainer'] as const;
