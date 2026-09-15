@@ -157,6 +157,23 @@ export const CHECK_CONSTRAINTS = {
     table: 'logs',
     expression: `actor_id IS NOT NULL OR actor_role = '${SYSTEM_ACTOR_ROLE}'`,
   },
+  /**
+   * Верификация публикации: «кем» не бывает без «когда» (фаза 38, шаг 38.40).
+   *
+   * ⚠️ ОДНОСТОРОННИЙ намеренно. Обратное направление — «когда» не бывает без
+   * «кем» — уронило бы удаление администратора: внешний ключ обнуляет `verified_by_user_id`
+   * каскадом (SetNull), и строка с оставшейся датой нарушила бы ограничение в момент
+   * каскада. Проверенность публикации — свойство публикации, а не администратора,
+   * и его уход её не отменяет. Пара объявляется парами: у клубов и у тренеров.
+   */
+  clubs_verified_shape: {
+    table: 'clubs',
+    expression: 'verified_by_user_id IS NULL OR verified_at IS NOT NULL',
+  },
+  trainers_verified_shape: {
+    table: 'trainers',
+    expression: 'verified_by_user_id IS NULL OR verified_at IS NOT NULL',
+  },
   offerings_owner_one: {
     table: 'offerings',
     expression:

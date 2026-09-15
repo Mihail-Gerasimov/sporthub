@@ -477,6 +477,77 @@ describe('Ограничения работают, а не просто суще
     expect(toPerson.addresseeTrainerId).toBeNull();
   });
 
+  // --- Верификация публикаций (фаза 38, шаг 38.40) ---
+  //
+  // Пара «когда + кем» у клубов И тренеров, зеркально скрытию. CHECK односторонний:
+  // «кем» без «когда» — противоречие и отбивается; «когда» без «кем» — законно,
+  // администратор мог быть удалён (SetNull). Двусторонний уронил бы удаление
+  // администратора: SetNull обнулил бы «кем», оставив «когда», и строка стала бы
+  // нарушать ограничение прямо в момент каскада.
+  it('верификация: «кем» без «когда» не записывается — у клуба и у тренера (д-41, д-42)', async () => {
+    await db.truncateAll();
+    const { clubId, userId } = await seedMinimum();
+    const trainer = await db.prisma.trainer.create({
+      data: {
+        name: 'Тренер',
+        slug: 'trainer',
+        slugNormalized: 'trainer',
+        bio: '',
+        experienceYears: 1,
+      },
+    });
+
+    await expect(
+      db.prisma.club.update({ where: { id: clubId }, data: { verifiedByUserId: userId } }),
+    ).rejects.toThrow(/clubs_verified_shape/);
+    await expect(
+      db.prisma.trainer.update({ where: { id: trainer.id }, data: { verifiedByUserId: userId } }),
+    ).rejects.toThrow(/trainers_verified_shape/);
+  });
+
+  it('верификация: «когда» без «кем» записывается — администратора могли удалить', async () => {
+    await db.truncateAll();
+    const { clubId } = await seedMinimum();
+    const now = new Date('2026-09-15T12:00:00.000Z');
+
+    const club = await db.prisma.club.update({
+      where: { id: clubId },
+      data: { verifiedAt: now },
+    });
+
+    expect(club.verifiedAt).toEqual(now);
+    expect(club.verifiedByUserId).toBeNull();
+  });
+
+  it('верификация: удаление администратора обнуляет «кем», оставляя «когда»', async () => {
+    // Сама причина односторонности — проверяется, а не объявляется.
+    await db.truncateAll();
+    const { clubId, userId } = await seedMinimum();
+    const now = new Date('2026-09-15T12:00:00.000Z');
+
+    await db.prisma.club.update({
+      where: { id: clubId },
+      data: { verifiedAt: now, verifiedByUserId: userId },
+    });
+    await db.prisma.user.delete({ where: { id: userId } });
+
+    const club = await db.prisma.club.findUniqueOrThrow({ where: { id: clubId } });
+
+    expect(club.verifiedAt).toEqual(now);
+    expect(club.verifiedByUserId).toBeNull();
+  });
+
+  it('верификация: индекса по verified_at нет — ни один запрос по ней не отбирает', async () => {
+    // Мёртвый индекс дорожит каждую вставку. Раздел модерации отбирает
+    // «непроверенные» (IS NULL) по существующему (status, created_at).
+    const indexes = await db.prisma.$queryRaw<{ indexdef: string }[]>`
+      SELECT indexdef FROM pg_indexes
+      WHERE schemaname = ${testSchemaName()} AND tablename IN ('clubs', 'trainers')
+    `;
+
+    expect(indexes.filter((row) => row.indexdef.includes('verified'))).toEqual([]);
+  });
+
   it('город не заводится дважды под тем же нормализованным именем', async () => {
     await db.truncateAll();
     await db.prisma.city.create({

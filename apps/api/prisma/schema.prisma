@@ -1,4 +1,4 @@
-// Схема базы данных SportHub.
+// Схема базы данных ПРОСПОРТ.
 // Источник: project-phases/phase-33.md, разделы 6.1–6.8 (инвентарь 27 таблиц,
 // решения по спорным местам, основные и связующие таблицы, индексы, ограничения,
 // каскады, список диалектной специфики).
@@ -184,10 +184,12 @@ model User {
   /// В MVP это текст, а не ссылка на City — так объявлено в типах.
   city String? @map("city") @db.VarChar(200)
 
-  managedClubs    Club[]    @relation("ClubManagedBy")
-  hiddenClubs     Club[]    @relation("ClubHiddenBy")
-  managedTrainers Trainer[] @relation("TrainerManagedBy")
-  hiddenTrainers  Trainer[] @relation("TrainerHiddenBy")
+  managedClubs     Club[]    @relation("ClubManagedBy")
+  hiddenClubs      Club[]    @relation("ClubHiddenBy")
+  verifiedClubs    Club[]    @relation("ClubVerifiedBy")
+  managedTrainers  Trainer[] @relation("TrainerManagedBy")
+  hiddenTrainers   Trainer[] @relation("TrainerHiddenBy")
+  verifiedTrainers Trainer[] @relation("TrainerVerifiedBy")
 
   bookings           Booking[]
   reviews            Review[]
@@ -383,8 +385,19 @@ model Club {
   /// Владелец исправил скрытую публикацию — она ждёт повторной проверки (шаг 36.20).
   awaitingRecheck Boolean @default(false) @map("awaiting_recheck")
 
-  managedByUser User? @relation("ClubManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
-  hiddenByUser  User? @relation("ClubHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+  /// Проверка площадкой (фаза 38, шаг 38.40): когда и кем подтверждена. Пара, а не
+  /// boolean — зеркально скрытию: дата отвечает «когда», номер — «кем», отзыв обнуляет
+  /// обе. CHECK `clubs_verified_shape` ОДНОСТОРОННИЙ (`scripts/db-constraints.mjs`):
+  /// «кем» без «когда» невозможно, «когда» без «кем» допустимо — администратора могли
+  /// удалить (SetNull). Индекса нет: ни один запрос не отбирает по `verified_at`,
+  /// раздел модерации ищет непроверенных (IS NULL) по существующему (status, created_at).
+  /// Сразу после выкатки пусто у всех: проставить оптом — подделать проверку.
+  verifiedAt       DateTime? @map("verified_at")
+  verifiedByUserId Int?      @map("verified_by_user_id")
+
+  managedByUser  User? @relation("ClubManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  hiddenByUser   User? @relation("ClubHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+  verifiedByUser User? @relation("ClubVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
 
   /// Владение — каскад: удаление клуба сносит его каталог и историю.
   ownedOfferings Offering[] @relation("OfferingOwnerClub")
@@ -400,14 +413,15 @@ model Club {
   /// Ящик лица: уведомления, адресованные самому клубу, а не его владельцу.
   addressedNotifications Notification[] @relation("NotificationAddresseeClub")
 
-  reviews     Review[]
-  images      ClubImage[]
-  sports      ClubSport[]
-  tags        ClubTag[]
-  amenities   ClubAmenity[]
-  favoritedBy UserFavoriteClub[]
-  trainerLink TrainerClubLink[]
-  faceNotes   ProviderClientNote[]
+  reviews         Review[]
+  images          ClubImage[]
+  sports          ClubSport[]
+  tags            ClubTag[]
+  amenities       ClubAmenity[]
+  favoritedBy     UserFavoriteClub[]
+  trainerLink     TrainerClubLink[]
+  faceNotes       ProviderClientNote[]
+  facePreferences UserNotificationPreference[]
 
   /// Публичная выдача, отсев скрытых.
   @@index([status])
@@ -421,7 +435,6 @@ model Club {
   /// Симметрично тренеру; одиночный (rating DESC) его не покрывает (6.5).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("clubs")
-  facePreferences UserNotificationPreference[]
 }
 
 /// Тренер — вторая публикация провайдера, симметричная клубу.
@@ -476,10 +489,16 @@ model Trainer {
   /// Владелец исправил скрытую карточку — ждёт повторной проверки (шаг 36.20).
   awaitingRecheck Boolean @default(false) @map("awaiting_recheck")
 
-  managedByUser User?  @relation("TrainerManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
-  hiddenByUser  User?  @relation("TrainerHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+  /// Проверка площадкой — см. одноимённую пару у клуба (шаг 38.40). Тренеры
+  /// проверяются наравне с клубами: CHECK `trainers_verified_shape`, индекса нет.
+  verifiedAt       DateTime? @map("verified_at")
+  verifiedByUserId Int?      @map("verified_by_user_id")
+
+  managedByUser  User?  @relation("TrainerManagedBy", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  hiddenByUser   User?  @relation("TrainerHiddenBy", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+  verifiedByUser User?  @relation("TrainerVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
   /// SetNull, а не Restrict: поле переходное и помечено STUB (6.7).
-  sport         Sport? @relation("TrainerPrimarySport", fields: [sportId], references: [id], onDelete: SetNull)
+  sport          Sport? @relation("TrainerPrimarySport", fields: [sportId], references: [id], onDelete: SetNull)
 
   offerings Offering[] @relation("OfferingOwnerTrainer")
   schedule  Schedule[] @relation("ScheduleOwnerTrainer")
@@ -497,7 +516,8 @@ model Trainer {
   conductedSchedule Schedule[] @relation("ScheduleConductedBy")
   conductedBookings Booking[]  @relation("BookingConductedBy")
 
-  faceNotes ProviderClientNote[]
+  faceNotes       ProviderClientNote[]
+  facePreferences UserNotificationPreference[]
 
   @@index([status])
   @@index([managedByUserId])
@@ -506,7 +526,6 @@ model Trainer {
   /// Умолчальная сортировка выдачи тренеров трёхуровневая (clubs.controller.ts:289-293).
   @@index([status, rating(sort: Desc), reviewCount(sort: Desc)])
   @@map("trainers")
-  facePreferences UserNotificationPreference[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
