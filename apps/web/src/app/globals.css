@@ -27,6 +27,16 @@
   --ui-font-display: var(--font-ruble), var(--font-sofia), 'Arial Narrow', sans-serif;
   --ui-font-body: var(--font-inter), system-ui, sans-serif;
 
+  /* ===== Шкала заголовков (шаг 38.19) =====
+   * Sofia Sans Extra Condensed при кегле ×1,069 и весе на ступень выше совпадает
+   * с Barlow Condensed макета (−1% по ширине, штрих в пределах 5%). Коэффициент и веса
+   * объявлены здесь один раз и читаются классами `.t-*`; TS-константы нет — в CSS её
+   * не прокинуть иначе как инлайновым стилем.
+   */
+  --ui-scale-display: 1.069; /* Множитель кегля display-шрифта относительно макета */
+  --ui-weight-heading: 900; /* Заголовки секций и карточек: макет 800 → Sofia 900 */
+  --ui-weight-hero: 1000; /* H1 героя: макет 900 → Sofia 1000 */
+
   /* ===== Палитра ПРОСПОРТ (фаза 38): графитовый текст на светло-серой странице,
    * белые карточки, зелёный акцент. Значения — из эталона дизайна
    * (`prosport/src/styles/theme.css`, `App.tsx:101-105`), снимок шага 38.5.
@@ -189,6 +199,9 @@
   --font-display: var(--ui-font-display);
   --font-body: var(--ui-font-body);
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Веса display: `font-heading` / `font-hero` — утилиты веса, не семейства */
+  --font-weight-heading: var(--ui-weight-heading);
+  --font-weight-hero: var(--ui-weight-hero);
 
   /* Радиусы */
   --radius-card: var(--ui-radius-card);
@@ -256,7 +269,12 @@ body {
  */
 .t-display {
   font-family: var(--ui-font-display);
-  font-size: clamp(48px, 6vw, 88px);
+  font-weight: var(--ui-weight-hero);
+  font-size: clamp(
+    calc(48px * var(--ui-scale-display)),
+    calc(6vw * var(--ui-scale-display)),
+    calc(88px * var(--ui-scale-display))
+  );
   line-height: 0.92;
   letter-spacing: -0.01em;
   text-transform: uppercase;
@@ -264,7 +282,8 @@ body {
 
 .t-h1 {
   font-family: var(--ui-font-display);
-  font-size: 48px;
+  font-weight: var(--ui-weight-hero);
+  font-size: calc(48px * var(--ui-scale-display));
   line-height: 0.95;
   letter-spacing: -0.01em;
   text-transform: uppercase;
@@ -272,14 +291,16 @@ body {
 
 .t-h2 {
   font-family: var(--ui-font-display);
-  font-size: 36px;
+  font-weight: var(--ui-weight-heading);
+  font-size: calc(36px * var(--ui-scale-display));
   line-height: 1;
   text-transform: uppercase;
 }
 
 .t-h3 {
   font-family: var(--ui-font-display);
-  font-size: 24px;
+  font-weight: var(--ui-weight-heading);
+  font-size: calc(24px * var(--ui-scale-display));
   line-height: 1.1;
   text-transform: uppercase;
 }
@@ -322,6 +343,7 @@ body {
 
 .t-num {
   font-family: var(--ui-font-display);
+  font-weight: var(--ui-weight-heading);
   font-variant-numeric: tabular-nums;
 }
 

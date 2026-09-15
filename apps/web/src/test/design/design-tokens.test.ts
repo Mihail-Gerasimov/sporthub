@@ -96,6 +96,47 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(match![1]).not.toMatch(new RegExp(`var\\(--ui-font-${'mono'}\\)|Jet${'Brains'}`));
   });
 
+  // Шаг 38.19: шкала заголовков — токенами CSS, а не TS-константой. Sofia при кегле
+  // ×1,069 и весе на ступень выше совпадает с Barlow макета (−1% по ширине); коэффициент
+  // и веса объявлены один раз и читаются классами `.t-*`. TS-константу в CSS не прокинуть
+  // иначе как инлайновым стилем — поэтому её нет.
+  it('шкала заголовков: коэффициент кегля и веса display — токены :root', () => {
+    expect(globalsCss).toMatch(/--ui-scale-display:\s*1\.069;/);
+    expect(globalsCss).toMatch(/--ui-weight-heading:\s*\d{3,4};/);
+    expect(globalsCss).toMatch(/--ui-weight-hero:\s*\d{3,4};/);
+  });
+
+  it.each(['t-display', 't-h1', 't-h2', 't-h3'])(
+    '.%s читает коэффициент и вес из токенов',
+    (cls) => {
+      const block = globalsCss.match(new RegExp(`\\.${cls}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+      expect(block).toContain('var(--ui-scale-display)');
+      expect(block).toMatch(/font-weight:\s*var\(--ui-weight-(heading|hero)\)/);
+    },
+  );
+
+  it('TS-констант шкалы нет: коэффициент живёт только в globals.css', async () => {
+    const { readdirSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (full.includes(`${'src'}/test`)) continue;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (
+          /\.tsx?$/.test(name) &&
+          /1\.069|DISPLAY_SCALE|displayScale/.test(readFileSync(full, 'utf-8'))
+        ) {
+          offenders.push(full);
+        }
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
+  });
+
   // --- @theme маппинг ---
   it('содержит @theme inline блок с цветовыми маппингами', () => {
     expect(globalsCss).toContain('@theme inline');
