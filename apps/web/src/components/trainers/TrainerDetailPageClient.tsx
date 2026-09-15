@@ -128,7 +128,7 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-[rgba(132,192,3,0.28)] bg-lime-soft text-lime'
+      ? 'border-lime/30 bg-lime-soft text-lime'
       : 'border-line bg-transparent text-ink';
   return (
     <span
@@ -717,7 +717,7 @@ export function TrainerDetailPageClient({
                     {offering.description}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center rounded-pill border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime">
+                    <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime">
                       {getFormatLabel(offering.format)}
                     </span>
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">

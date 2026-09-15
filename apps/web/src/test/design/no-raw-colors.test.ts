@@ -60,39 +60,11 @@ export const RAW_COLOR_PATTERNS: { name: string; pattern: RegExp }[] = [
 export const MASK_FILES = ['src/app/globals.css'];
 
 /**
- * Старые файлы и потолок сырых цветов в каждом. Список только убывает (шаг 38.14
- * чистит все 22 и `globals.css`); дописать сюда файл нельзя — у нового потолок ноль.
+ * Старые файлы и потолок сырых цветов в каждом. Список только убывает; шаг 38.14
+ * вычистил все 22 файла и `globals.css` — список пуст, у любого файла потолок ноль.
  */
 export const LEGACY_CEILINGS: Record<string, number> = {
-  'src/app/global-error.tsx': 1,
-  'src/app/globals.css': 19,
-  'src/app/page.tsx': 11,
-  'src/components/admin/AdminNavigation.tsx': 1,
-  'src/components/admin/DashboardPage.tsx': 7,
-  'src/components/admin/HideReasonModal.tsx': 2,
-  'src/components/admin/LogsPage.tsx': 6,
-  'src/components/admin/ModerationPage.tsx': 6,
-  'src/components/admin/analytics/AnalyticsDashboard.tsx': 1,
-  'src/components/admin/analytics/KpiCards.tsx': 4,
-  'src/components/clubs/ClubCard.tsx': 2,
-  'src/components/clubs/ClubDetailPageClient.tsx': 2,
-  'src/components/detail-shared/DetailScheduleWeek.tsx': 1,
-  'src/components/home/HeroSportMarquee.tsx': 2,
-  'src/components/layout/Header.tsx': 7,
-  'src/components/layout/MobileNav.tsx': 1,
-  'src/components/map/MainMap.tsx': 10,
-  'src/components/profile/AddressGeocoder.tsx': 3,
-  'src/components/profile/CitySuggestInput.tsx': 1,
-  'src/components/profile/ProviderPublicationsSection.tsx': 2,
-  'src/components/profile/PublishClubModal.tsx': 9,
-  'src/components/profile/PublishModalShell.tsx': 6,
-  'src/components/profile/PublishTrainerModal.tsx': 15,
-  'src/components/profile/ScheduleSlotsEditor.tsx': 2,
-  'src/components/profile/provider/RejectBookingReasonModal.tsx': 1,
-  'src/components/trainers/TrainerCard.tsx': 5,
-  'src/components/trainers/TrainerDetailPageClient.tsx': 2,
-  'src/components/ui/ChipMarquee.tsx': 2,
-  'src/components/ui/Modal.tsx': 1,
+  // Пусто с шага 38.14: все 22 файла и `globals.css` вычищены. Дописать сюда нельзя.
 };
 
 // Текст без комментариев: блочных, строчных (до конца строки) и JSX-обёрток.

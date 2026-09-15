@@ -63,7 +63,7 @@ function createMarkerElement(marker: MapMarkerData): HTMLElement {
   const el = document.createElement('div');
   el.className = 'map-marker-pin';
   el.style.cssText =
-    'width:14px;height:14px;border-radius:50%;background:#83D3B5;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s';
+    'width:14px;height:14px;border-radius:50%;background:var(--ui-lime);border:2px solid var(--ui-card);box-shadow:var(--ui-shadow-floating);cursor:pointer;transition:transform .15s';
   el.title = marker.name;
 
   // Ховер-эффект
@@ -82,13 +82,13 @@ function createPopupElement(marker: MapMarkerData): HTMLElement {
   const el = document.createElement('div');
   el.className = 'map-marker-popup';
   el.style.cssText =
-    'background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:160px;max-width:240px;font-size:13px;line-height:1.4;pointer-events:auto;cursor:pointer';
+    'background:var(--ui-card);border-radius:12px;padding:10px 14px;box-shadow:var(--ui-shadow-floating);min-width:160px;max-width:240px;font-size:13px;line-height:1.4;pointer-events:auto;cursor:pointer';
   el.innerHTML = `
-    <div style="font-weight:600;color:#0A1029;margin-bottom:4px">${marker.name}</div>
-    ${marker.sportName ? `<div style="color:#BCBCBC;font-size:12px">${marker.sportName}</div>` : ''}
-    <div style="color:#BCBCBC;font-size:12px;margin-top:2px">${marker.address}</div>
-    ${marker.rating > 0 ? `<div style="color:#f5c518;font-size:12px;margin-top:4px;font-weight:600">${marker.rating.toFixed(1)} ★</div>` : ''}
-    <div style="color:#83D3B5;font-size:11px;margin-top:6px;text-align:right">Подробнее →</div>
+    <div style="font-weight:600;color:var(--ui-ink);margin-bottom:4px">${marker.name}</div>
+    ${marker.sportName ? `<div style="color:var(--ui-muted);font-size:12px">${marker.sportName}</div>` : ''}
+    <div style="color:var(--ui-muted);font-size:12px;margin-top:2px">${marker.address}</div>
+    ${marker.rating > 0 ? `<div style="color:var(--ui-gold);font-size:12px;margin-top:4px;font-weight:600">${marker.rating.toFixed(1)} ★</div>` : ''}
+    <div style="color:var(--ui-lime-hov);font-size:11px;margin-top:6px;text-align:right">Подробнее →</div>
   `;
 
   // Клик по popup → переход на деталку

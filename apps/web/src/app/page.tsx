@@ -127,7 +127,7 @@ export default async function Home() {
         {/* ========== HERO BILLBOARD ========== */}
         <section
           aria-label="Главный экран"
-          className="relative overflow-hidden rounded-[24px] border border-[#BFDFD2]/20 bg-[#0A1029] text-[var(--ui-bg)] p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:radial-gradient(ellipse_600px_400px_at_100%_100%,rgba(80,188,147,0.16),transparent_60%),radial-gradient(ellipse_400px_300px_at_0%_0%,rgba(131,211,181,0.10),transparent_60%),repeating-linear-gradient(135deg,rgba(255,255,255,0.025)_0_1px,transparent_1px_16px)]"
+          className="relative overflow-hidden rounded-[24px] border border-plate-line bg-plate text-plate-ink p-6 sm:p-8 lg:rounded-[28px] lg:p-12 before:pointer-events-none before:absolute before:inset-0 before:[background:var(--decor-plate-glow)]"
         >
           {/* Watermark "SH" — фоновая марка лайма в правом нижнем углу */}
           <span
@@ -149,7 +149,7 @@ export default async function Home() {
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ui-lime-soft)] px-3.5 py-[7px] font-body text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ui-lime)] sm:text-[11px]">
                   Samara active city
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-[#BFDFD2]/40 bg-transparent px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-[var(--ui-bg)] sm:text-[11px]">
+                <span className="inline-flex items-center gap-2 rounded-full border border-plate-line bg-transparent px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-plate-ink sm:text-[11px]">
                   {clubs.length} клубов в каталоге
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ui-orange-soft)] px-3.5 py-[7px] font-body text-[10px] font-bold tabular-nums uppercase tracking-[0.14em] text-[var(--ui-orange)] sm:text-[11px]">
@@ -159,12 +159,12 @@ export default async function Home() {
 
               {/* H1 — Bowlby clamp, ключевое слово lime.
                   max-w ставим только с lg+ (на mobile H1 ширина = ширина контейнера). */}
-              <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-[var(--ui-bg)] lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
+              <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-plate-ink lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
                 Найди <span className="text-[var(--ui-lime)]">спорт</span> в своём ритме
               </h1>
 
               {/* Lede — на mobile занимает всю ширину, max-w только с lg+ */}
-              <p className="m-0 w-full font-body text-[15px] leading-relaxed text-[#BFDFD2] sm:text-[16px] lg:max-w-[520px]">
+              <p className="m-0 w-full font-body text-[15px] leading-relaxed text-plate-muted sm:text-[16px] lg:max-w-[520px]">
                 SportHub собирает клубы, студии, персональных тренеров и спортивные слоты Самары в
                 одной витрине: сначала быстрый поиск и фильтры, потом выдача на карте, популярные
                 карточки и ближайшие окна для записи.
@@ -187,7 +187,7 @@ export default async function Home() {
                 </Link>
                 <Link
                   href="/#availability"
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[#BFDFD2]/40 bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-[var(--ui-bg)] no-underline transition-all hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)] sm:text-[13px]"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-plate-line bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-plate-ink no-underline transition-all hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)] sm:text-[13px]"
                 >
                   Смотреть слоты и окна
                 </Link>
@@ -203,7 +203,7 @@ export default async function Home() {
                   </span>
                   {focusSession ? (
                     <span className="inline-flex items-center gap-1.5 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ui-orange)]">
-                      <span className="size-2 animate-pulse rounded-full bg-[var(--ui-orange)] [box-shadow:0_0_0_0_rgba(251,97,25,0.6)]" />
+                      <span className="size-2 animate-pulse rounded-full bg-orange" />
                       LIVE
                     </span>
                   ) : null}
@@ -233,7 +233,7 @@ export default async function Home() {
                   {focusSession ? (
                     <Link
                       href={`/booking/${focusSession.id}`}
-                      className="inline-flex items-center justify-center rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-lime)] px-3.5 py-1.5 font-body text-[11px] font-bold uppercase tracking-[0.10em] text-[var(--ui-bg)] no-underline transition-all hover:-translate-y-px hover:border-[var(--ui-lime-hov)] hover:bg-[var(--ui-lime-hov)]"
+                      className="inline-flex items-center justify-center rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-lime)] px-3.5 py-1.5 font-body text-[11px] font-bold uppercase tracking-[0.10em] text-plate-ink no-underline transition-all hover:-translate-y-px hover:border-[var(--ui-lime-hov)] hover:bg-[var(--ui-lime-hov)]"
                     >
                       Записаться
                     </Link>
@@ -265,7 +265,7 @@ export default async function Home() {
               {featuredClub ? (
                 <>
                   <div className="mt-3.5 flex items-start gap-3.5">
-                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(131,211,181,0.3)] bg-[var(--ui-lime-soft)] font-display text-[22px] uppercase text-[var(--ui-lime-hov)]">
+                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-lime/30 bg-lime-soft font-display text-[22px] uppercase text-[var(--ui-lime-hov)]">
                       {featuredClub.name.trim().charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -297,7 +297,7 @@ export default async function Home() {
                         {featuredClub.reviewCount}
                       </span>
                     </div>
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-lime)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)]">
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-lime)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-plate-ink">
                       <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
                         от
                       </span>
@@ -329,7 +329,7 @@ export default async function Home() {
               {featuredTrainer ? (
                 <>
                   <div className="mt-3.5 flex items-start gap-3.5">
-                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-[rgba(251,97,25,0.3)] bg-[var(--ui-orange-soft)] font-display text-[22px] uppercase text-[var(--ui-orange)]">
+                    <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] border border-orange/30 bg-orange-soft font-display text-[22px] uppercase text-[var(--ui-orange)]">
                       {featuredTrainer.name.trim().charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -361,7 +361,7 @@ export default async function Home() {
                         {featuredTrainer.reviewCount}
                       </span>
                     </div>
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-orange)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)]">
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-orange)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-plate-ink">
                       <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
                         от
                       </span>

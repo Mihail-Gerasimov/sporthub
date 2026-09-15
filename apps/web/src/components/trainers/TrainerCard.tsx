@@ -105,8 +105,8 @@ export function TrainerCard({
   const accentBgClass = tone === 'lime' ? 'bg-[var(--ui-lime)]' : 'bg-[var(--ui-orange)]';
   const groupChipClass =
     tone === 'lime'
-      ? 'border border-[rgba(131,211,181,0.3)] bg-[var(--ui-lime-soft)] text-[var(--ui-lime-hov)]'
-      : 'border border-[rgba(251,97,25,0.3)] bg-[var(--ui-orange-soft)] text-[var(--ui-orange)]';
+      ? 'border border-lime/30 bg-lime-soft text-lime-hov'
+      : 'border border-orange/30 bg-orange-soft text-orange';
   const ctaHoverClass =
     tone === 'lime'
       ? 'text-[var(--ui-lime)] hover:text-[var(--ui-lime-hov)]'
@@ -136,7 +136,7 @@ export function TrainerCard({
 
         {/* Top row: city-pill + trainer-avatar 84×84 */}
         <div className="relative z-[1] flex items-start justify-between gap-3.5">
-          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-white/[0.04] px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
             {formatCityDisplay(trainer.city)}
           </span>
 
@@ -171,7 +171,7 @@ export function TrainerCard({
           </div>
 
           {sportTagLabel ? (
-            <span className="inline-flex flex-shrink-0 items-center rounded-lg border border-[var(--ui-line)] bg-white/[0.06] px-2.5 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+            <span className="inline-flex flex-shrink-0 items-center rounded-lg border border-[var(--ui-line)] bg-card/60 px-2.5 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
               {sportTagLabel}
             </span>
           ) : null}
@@ -307,7 +307,7 @@ function pluralizeOkno(n: number): string {
 
 /**
  * Mini-помощник: ряд из 5 SVG-звёзд (в синхрон с ClubCard.Stars).
- * Заполненные — золотые (#f5c518), пустые — цвета бордера.
+ * Заполненные — золотые (`text-gold`), пустые — цвета бордера.
  */
 function Stars({ rating }: { rating: number }) {
   const filled = Math.round(rating);
@@ -325,7 +325,7 @@ function Stars({ rating }: { rating: number }) {
           height="14"
           fill="currentColor"
           aria-hidden="true"
-          className={i < filled ? 'text-[#f5c518]' : 'text-[var(--ui-line)]'}
+          className={i < filled ? 'text-gold' : 'text-[var(--ui-line)]'}
         >
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
         </svg>

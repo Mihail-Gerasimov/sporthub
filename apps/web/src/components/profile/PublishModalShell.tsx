@@ -53,8 +53,8 @@ export function PublishModalShell({
               role="status"
               className={`rounded-card border px-4 py-3 text-sm ${
                 noticeTone === 'danger'
-                  ? 'border-red-200 bg-red-50 text-red-700'
-                  : 'border-amber-200 bg-amber-50 text-amber-800'
+                  ? 'border-red/30 bg-red/10 text-red'
+                  : 'border-gold/40 bg-gold/10 text-ink'
               }`}
             >
               {notice}

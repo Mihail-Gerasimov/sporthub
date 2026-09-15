@@ -138,7 +138,7 @@ export function DetailScheduleWeek({ slots, canAct, onGuestSlotAction }: DetailS
                 <h4 className="mt-1 font-display text-base text-ink">{slot.title}</h4>
                 <p className="mt-1 font-body text-xs font-medium text-muted">{slot.sub}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center rounded-pill border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2 py-1 font-body text-[9px] font-bold uppercase tracking-[0.10em] text-lime">
+                  <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2 py-1 font-body text-[9px] font-bold uppercase tracking-[0.10em] text-lime">
                     Свободно {slot.availableSpots} мест
                   </span>
                   <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2 py-1 font-body text-[9px] font-bold uppercase tracking-[0.10em] text-ink">

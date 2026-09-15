@@ -110,7 +110,7 @@ export function ClubCard({
 
         {/* Top row: city-pill + preview-pill */}
         <div className="relative z-[1] flex items-start justify-between gap-3">
-          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-white/[0.04] px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
             {formatCityDisplay(club.city)}
           </span>
           <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-transparent px-2.5 py-[5px] font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
@@ -192,7 +192,7 @@ export function ClubCard({
 }
 
 /**
- * Mini-помощник: ряд из 5 SVG-звёзд. Заполненные — золотые (#f5c518),
+ * Mini-помощник: ряд из 5 SVG-звёзд. Заполненные — золотые (`text-gold`),
  * пустые — цвета бордера. 1-в-1 с дизайном из SportHub Cards - Clubs.html.
  */
 function Stars({ rating }: { rating: number }) {
@@ -211,7 +211,7 @@ function Stars({ rating }: { rating: number }) {
           height="14"
           fill="currentColor"
           aria-hidden="true"
-          className={i < filled ? 'text-[#f5c518]' : 'text-[var(--ui-line)]'}
+          className={i < filled ? 'text-gold' : 'text-[var(--ui-line)]'}
         >
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
         </svg>

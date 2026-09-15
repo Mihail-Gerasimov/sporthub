@@ -122,7 +122,7 @@ export function AnalyticsDashboard({ sports }: AnalyticsDashboardProps) {
         <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
           <span
             aria-hidden="true"
-            className="inline-block h-1.5 w-1.5 rounded-full bg-lime shadow-[0_0_0_3px_rgba(132,192,3,0.18)]"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-lime shadow-[0_0_0_3px_var(--ui-lime-soft)]"
           />
           live · обновлено сейчас
         </span>

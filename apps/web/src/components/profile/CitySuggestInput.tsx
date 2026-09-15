@@ -148,7 +148,7 @@ export function CitySuggestInput({
               <p className="px-3 py-2 text-sm text-muted">Поиск...</p>
             ) : null}
 
-            {suggestError ? <p className="px-3 py-2 text-sm text-red-500">{suggestError}</p> : null}
+            {suggestError ? <p className="px-3 py-2 text-sm text-red">{suggestError}</p> : null}
 
             {hasNoResults ? (
               <p className="px-3 py-2 text-sm text-muted">Ничего не найдено</p>

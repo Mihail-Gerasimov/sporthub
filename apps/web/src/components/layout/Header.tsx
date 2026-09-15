@@ -67,21 +67,21 @@ export function Header() {
   };
 
   return (
-    <header className="relative border-b border-[#BFDFD2]/20 bg-[#0A1029] text-[var(--ui-bg)] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-60">
+    <header className="relative border-b border-plate-line bg-plate text-plate-ink after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-60">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-4 md:gap-6 md:px-6 lg:px-10">
         {/* Лого: марка + (на md+ tagline, на lg+ ещё eyebrow) */}
         <Link href="/" className="flex shrink-0 items-center gap-3 text-inherit no-underline">
           {/* Лого-марка 44×44 с инкрустированным гранжем через ::before */}
-          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-ink)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:repeating-linear-gradient(135deg,rgba(0,0,0,0.18)_0_2px,transparent_2px_8px)]">
+          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-ink)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:var(--decor-grunge)]">
             S
           </span>
           {/* Текст-лого: скрыт на sm (480-), tagline появляется на md (768+),
               eyebrow «SPORTHUB» — только на lg (1024+) */}
           <span className="hidden min-w-0 flex-col leading-none md:flex">
-            <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[#BFDFD2] lg:inline">
+            <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-plate-muted lg:inline">
               SportHub
             </span>
-            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-[var(--ui-bg)] lg:text-base">
+            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-plate-ink lg:text-base">
               Найди свой ритм
             </span>
           </span>
@@ -90,13 +90,13 @@ export function Header() {
         {/* Pill-навигация: скрыта на 480, появляется на md+ */}
         <nav
           aria-label="Основная навигация"
-          className="hidden items-center gap-1 rounded-full border border-[#BFDFD2]/20 bg-white/[0.06] p-[5px] md:flex"
+          className="hidden items-center gap-1 rounded-full border border-plate-line bg-plate-ink/5 p-[5px] md:flex"
         >
           {navigationItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="rounded-full px-3 py-2 font-body text-[11px] font-bold uppercase tracking-[0.10em] text-[var(--ui-bg)] transition-colors hover:bg-white/[0.12] hover:text-[var(--ui-lime)] md:px-4 md:text-[12px] md:tracking-[0.12em]"
+              className="rounded-full px-3 py-2 font-body text-[11px] font-bold uppercase tracking-[0.10em] text-plate-ink transition-colors hover:bg-plate-ink/10 hover:text-[var(--ui-lime)] md:px-4 md:text-[12px] md:tracking-[0.12em]"
             >
               {item.label}
             </Link>
@@ -113,7 +113,7 @@ export function Header() {
               {/* User-info: имя + роль, виден только lg+ */}
               <div className="hidden min-w-0 flex-col items-end text-right leading-tight lg:flex">
                 <p
-                  className="mb-1 max-w-[140px] truncate font-body text-[13px] font-medium text-[var(--ui-bg)]"
+                  className="mb-1 max-w-[140px] truncate font-body text-[13px] font-medium text-plate-ink"
                   title={user.name}
                 >
                   {user.name}
@@ -171,7 +171,7 @@ export function Header() {
                 onClick={() => {
                   void handleLogout();
                 }}
-                className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-orange)] bg-[var(--ui-bg)] font-body font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-orange)] hover:text-[var(--ui-bg)] lg:px-5 lg:py-3 lg:text-[13px]"
+                className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-orange)] bg-[var(--ui-bg)] font-body font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-orange)] hover:text-plate-ink lg:px-5 lg:py-3 lg:text-[13px]"
               >
                 {/* Icon-only вариант на sm/md (44×44, иконка-дверь) */}
                 <span className="flex size-11 items-center justify-center lg:hidden">
@@ -200,7 +200,7 @@ export function Header() {
             <button
               type="button"
               onClick={openAuthModal}
-              className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-bg)] px-5 py-3 font-body text-[13px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-lime)] hover:text-[var(--ui-bg)]"
+              className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-[var(--ui-lime)] bg-[var(--ui-bg)] px-5 py-3 font-body text-[13px] font-bold uppercase tracking-[0.10em] text-[var(--ui-ink)] transition-all hover:bg-[var(--ui-lime)] hover:text-plate-ink"
             >
               Войти
             </button>

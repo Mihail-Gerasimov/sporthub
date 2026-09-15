@@ -623,7 +623,7 @@ function ItemCard({
             type="button"
             onClick={onHide}
             disabled={actionLoading}
-            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-[rgba(231,76,60,0.45)] bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-white disabled:opacity-50 sm:w-auto"
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-red/45 bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-card disabled:opacity-50 sm:w-auto"
           >
             Скрыть
           </button>
@@ -638,9 +638,9 @@ type BadgeTone = 'lime-fill' | 'lime-soft' | 'muted' | 'gold';
 function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
   const classes: Record<BadgeTone, string> = {
     'lime-fill': 'border-transparent bg-lime text-ink',
-    'lime-soft': 'border-[rgba(132,192,3,0.28)] bg-lime-soft text-lime',
-    muted: 'border-line bg-[rgba(160,160,160,0.10)] text-muted',
-    gold: 'border-[rgba(245,197,24,0.28)] bg-[rgba(245,197,24,0.10)] text-gold',
+    'lime-soft': 'border-lime/30 bg-lime-soft text-lime-hov',
+    muted: 'border-line bg-card-2 text-muted',
+    gold: 'border-gold/30 bg-gold/10 text-gold',
   };
   return (
     <span

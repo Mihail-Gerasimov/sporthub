@@ -69,7 +69,7 @@ export function RejectBookingReasonModal({
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="rounded-pill bg-danger px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-pill bg-danger px-5 py-2.5 text-sm font-medium text-card transition-opacity hover:opacity-90 disabled:opacity-50"
             data-testid="provider-reject-reason-submit"
           >
             {loading ? 'Отклоняем…' : 'Отклонить'}

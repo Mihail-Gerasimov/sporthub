@@ -106,7 +106,7 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-[rgba(131,211,181,0.28)] bg-lime-soft text-muted'
+      ? 'border-lime/30 bg-lime-soft text-muted'
       : 'border-line bg-transparent text-ink';
   return (
     <span
@@ -632,7 +632,7 @@ export function ClubDetailPageClient({
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
                       {pluralizeReviews(trainer.reviewCount)}
                     </span>
-                    <span className="inline-flex items-center rounded-pill border border-[rgba(131,211,181,0.28)] bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-muted">
+                    <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-muted">
                       {formatPrice(trainer.priceFrom)}
                     </span>
                   </div>

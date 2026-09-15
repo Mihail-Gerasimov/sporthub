@@ -574,7 +574,7 @@ function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode 
   const classes: Record<BadgeTone, string> = {
     'lime-fill': 'border-transparent bg-lime text-ink',
     'orange-fill': 'border-transparent bg-orange text-ink',
-    red: 'border-[rgba(231,76,60,0.30)] bg-[rgba(231,76,60,0.10)] text-red',
+    red: 'border-red/30 bg-red/10 text-red',
   };
   return (
     <span
@@ -592,20 +592,20 @@ function StatusBadge({ status }: { status: NonNullable<User['status']> }) {
   const label = STATUS_LABELS[status];
   if (status === 'banned') {
     return (
-      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(231,76,60,0.30)] bg-[rgba(231,76,60,0.10)] px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-red">
+      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-red/30 bg-red/10 px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-red">
         {label}
       </span>
     );
   }
   if (status === 'suspended') {
     return (
-      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(245,197,24,0.28)] bg-[rgba(245,197,24,0.10)] px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
+      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-gold/30 bg-gold/10 px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
         {label}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-[rgba(132,192,3,0.28)] bg-lime-soft px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
+    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-lime/30 bg-lime-soft px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
       {label}
     </span>
   );

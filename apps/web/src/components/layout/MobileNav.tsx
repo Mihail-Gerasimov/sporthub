@@ -106,7 +106,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Мобильная навигация"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center justify-between rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
+      className="fixed inset-x-3 bottom-3 z-50 flex items-center justify-between rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] px-3 py-2 shadow-floating backdrop-blur md:hidden"
     >
       {mobileNavItems.map((item) => {
         // Активность определяем по pathname — точное совпадение для «/», префикс для разделов.

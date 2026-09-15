@@ -481,13 +481,13 @@ export function PublishTrainerModal({
                 id="trainer-bio"
                 placeholder="Расскажите о себе и своём подходе к тренировкам"
                 rows={3}
-                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.bio ? 'border-red-400' : 'border-line'}`}
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.bio ? 'border-red' : 'border-line'}`}
                 value={form.bio}
                 onChange={(e) => {
                   updateField('bio', e.target.value);
                 }}
               />
-              {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : null}
+              {errors.bio ? <p className="text-xs text-red">{errors.bio}</p> : null}
             </div>
 
             <Input
@@ -527,7 +527,7 @@ export function PublishTrainerModal({
             <span className="text-xs font-semibold text-muted">Добавить фото</span>
           </button>
           {photoNotice ? (
-            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="mt-3 rounded-card border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-ink">
               Функционал загрузки фото находится в разработке
             </div>
           ) : null}
@@ -548,7 +548,7 @@ export function PublishTrainerModal({
               }}
               placeholder="Поиск вида спорта..."
             />
-            {errors.sportIds ? <p className="text-xs text-red-500">{errors.sportIds}</p> : null}
+            {errors.sportIds ? <p className="text-xs text-red">{errors.sportIds}</p> : null}
 
             <TagSelector
               label="Специализации"
@@ -559,9 +559,7 @@ export function PublishTrainerModal({
               }}
               placeholder="Поиск специализации..."
             />
-            {errors.specialtyIds ? (
-              <p className="text-xs text-red-500">{errors.specialtyIds}</p>
-            ) : null}
+            {errors.specialtyIds ? <p className="text-xs text-red">{errors.specialtyIds}</p> : null}
 
             <TagSelector
               label="Формат работы"
@@ -573,7 +571,7 @@ export function PublishTrainerModal({
               placeholder="Поиск формата..."
             />
             {errors.workFormatIds ? (
-              <p className="text-xs text-red-500">{errors.workFormatIds}</p>
+              <p className="text-xs text-red">{errors.workFormatIds}</p>
             ) : null}
           </div>
         </section>
@@ -652,7 +650,7 @@ export function PublishTrainerModal({
                   </Button>
                 </div>
               )}
-              {linkActionError ? <p className="text-xs text-red-500">{linkActionError}</p> : null}
+              {linkActionError ? <p className="text-xs text-red">{linkActionError}</p> : null}
             </div>
           ) : (
             <div className="mt-3">
@@ -748,14 +746,14 @@ export function PublishTrainerModal({
                 id="offering-description"
                 placeholder="Что входит в услугу, для кого подходит"
                 rows={3}
-                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.offeringDescription ? 'border-red-400' : 'border-line'}`}
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.offeringDescription ? 'border-red' : 'border-line'}`}
                 value={form.offeringDescription}
                 onChange={(e) => {
                   updateField('offeringDescription', e.target.value);
                 }}
               />
               {errors.offeringDescription ? (
-                <p className="text-xs text-red-500">{errors.offeringDescription}</p>
+                <p className="text-xs text-red">{errors.offeringDescription}</p>
               ) : null}
             </div>
 
@@ -783,7 +781,7 @@ export function PublishTrainerModal({
                 ))}
               </div>
               {errors.offeringFormat ? (
-                <p className="mt-1 text-xs text-red-500">{errors.offeringFormat}</p>
+                <p className="mt-1 text-xs text-red">{errors.offeringFormat}</p>
               ) : null}
             </div>
 
@@ -842,7 +840,7 @@ export function PublishTrainerModal({
             />
           </div>
           {errors.scheduleSlots ? (
-            <p className="mt-2 text-xs text-red-500">{errors.scheduleSlots}</p>
+            <p className="mt-2 text-xs text-red">{errors.scheduleSlots}</p>
           ) : null}
         </section>
 
@@ -868,7 +866,7 @@ export function PublishTrainerModal({
                 className="flex items-center gap-3 rounded-card border border-dashed border-line bg-canvas px-4 py-3"
               >
                 <span className="text-sm text-muted">{label}</span>
-                <span className="inline-flex rounded-pill bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                <span className="inline-flex rounded-pill bg-gold/15 px-2 py-0.5 text-xs font-semibold text-ink">
                   Скоро
                 </span>
               </div>

@@ -1,46 +1,108 @@
 /**
- * Контракт дизайна базовых UI-компонентов — проверяет,
- * что компоненты следуют минималистичному стилю.
+ * Контракт дизайна базовых UI-компонентов — правила эталона ПРОСПОРТ (шаг 38.14).
+ *
+ * ⚠️ Переписан тем же коммитом, что классы `Button`/`Badge`/`Chip`/`Card`: прежний
+ * набор утверждал минимализм фазы 31 («тени нигде»), а дизайн фазы 38 держит тень
+ * ровно в двух местах — свечение solid-кнопки и подложка карточки. Тест утверждает
+ * ГДЕ тень есть и где её нет, а не «нигде»: иначе он молчал бы и на кнопке без
+ * свечения, и на бейдже с тенью.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 
-describe('Минималистичный стиль UI-компонентов', () => {
+describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
   describe('Button', () => {
-    it('primary-кнопка не содержит shadow-floating (минимализм)', () => {
+    it('solid-primary — единственный вариант со свечением и подъёмом', () => {
       render(<Button variant="primary">Записаться</Button>);
       const button = screen.getByRole('button');
-      expect(button.className).not.toContain('shadow-floating');
+      expect(button.className).toContain('shadow-glow');
+      expect(button.className).toContain('hover:-translate-y-px');
     });
 
-    it('secondary-кнопка не содержит shadow-card (минимализм)', () => {
-      render(<Button variant="secondary">Подробнее</Button>);
+    it.each(['secondary', 'outline', 'ghost'] as const)(
+      'вариант %s — без тени и без подъёма: меняются обводка, фон и цвет',
+      (variant) => {
+        render(<Button variant={variant}>Подробнее</Button>);
+        const button = screen.getByRole('button');
+        expect(button.className).not.toMatch(/\bshadow-/);
+        expect(button.className).not.toContain('translate');
+      },
+    );
+
+    it('подпись — display-шрифтом в верхнем регистре, обводка 2px, круглая', () => {
+      render(<Button>Найти</Button>);
       const button = screen.getByRole('button');
-      expect(button.className).not.toContain('shadow-card');
+      expect(button.className).toContain('font-display');
+      expect(button.className).toContain('uppercase');
+      expect(button.className).toContain('border-2');
+      expect(button.className).toContain('rounded-pill');
+    });
+
+    it('трекинг подписи не превышает 0.05em', () => {
+      render(<Button>Найти</Button>);
+      const trackingMatch = screen.getByRole('button').className.match(/tracking-\[([0-9.]+)em\]/);
+      expect(trackingMatch).not.toBeNull();
+      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.05);
+    });
+
+    it('цвета — только токенами: ни hex, ни оттенков Tailwind в классах', () => {
+      render(<Button>Найти</Button>);
+      expect(screen.getByRole('button').className).not.toMatch(
+        /#[0-9a-f]{3,8}|-(red|green|gray)-\d/i,
+      );
     });
   });
 
   describe('Badge', () => {
-    it('tracking не превышает 0.10em (сдержанная типографика)', () => {
+    it('трекинг не превышает 0.10em и нет тени', () => {
       render(<Badge>Тест</Badge>);
       const badge = screen.getByText('Тест');
-      // Извлекаем tracking значение из className
       const trackingMatch = badge.className.match(/tracking-\[([0-9.]+)em\]/);
       expect(trackingMatch).not.toBeNull();
-      const trackingValue = parseFloat(trackingMatch![1]);
-      expect(trackingValue).toBeLessThanOrEqual(0.1);
+      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.1);
+      expect(badge.className).not.toMatch(/\bshadow-/);
+    });
+
+    it('positive-тон — тёмно-зелёный текст на мягкой зелёной подложке (читаемость)', () => {
+      render(<Badge tone="accent">Новый</Badge>);
+      const badge = screen.getByText('Новый');
+      expect(badge.className).toContain('bg-lime-soft');
+      expect(badge.className).toContain('text-lime-hov');
     });
   });
 
   describe('Chip', () => {
-    it('active-чип не содержит shadow-card (минимализм)', () => {
+    it('активный чип — зелёная заливка с тёмным текстом, без тени', () => {
       render(<Chip active>Фильтр</Chip>);
       const chip = screen.getByRole('button');
-      expect(chip.className).not.toContain('shadow-card');
+      expect(chip.className).toContain('bg-lime');
+      expect(chip.className).toContain('text-ink');
+      expect(chip.className).not.toMatch(/\bshadow-/);
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  describe('Card', () => {
+    it('по умолчанию — подложка-тень карточки, при наведении — плавающая, без подъёма', () => {
+      render(<Card data-testid="card">Содержимое</Card>);
+      const card = screen.getByTestId('card');
+      expect(card.className).toContain('shadow-card');
+      expect(card.className).toContain('hover:shadow-floating');
+      expect(card.className).not.toContain('translate');
+    });
+
+    it('elevated — плавающая тень всегда', () => {
+      render(
+        <Card data-testid="card" elevated>
+          Содержимое
+        </Card>,
+      );
+      expect(screen.getByTestId('card').className).toContain('shadow-floating');
     });
   });
 });

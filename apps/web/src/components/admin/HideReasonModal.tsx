@@ -64,7 +64,7 @@ export function HideReasonModal({
             type="button"
             onClick={handleSubmit}
             disabled={!reason.trim() || loading}
-            className="inline-flex items-center justify-center rounded-full border border-[rgba(231,76,60,0.45)] bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-full border border-red/45 bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-card disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Скрываем…' : 'Скрыть'}
           </button>

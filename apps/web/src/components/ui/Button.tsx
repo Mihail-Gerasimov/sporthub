@@ -1,5 +1,11 @@
 'use client';
 
+// Кнопка дизайн-системы: четыре варианта, три размера, состояние загрузки.
+// Вид — по эталону ПРОСПОРТ (шаг 38.14): подпись display-шрифтом в верхнем регистре,
+// solid-primary с зелёным свечением и подъёмом на 1px при наведении — единственный
+// вариант с тенью и с transform; остальные меняют только обводку, фон и цвет.
+// Цвета — только токенами: перекраска кнопки = правка `globals.css`.
+
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -7,14 +13,20 @@ import { cn } from '@/lib/utils';
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
+/**
+ * Варианты:
+ * - `primary` — solid: зелёный фон, свечение, подъём при наведении (один главный CTA);
+ * - `secondary` — outline positive: зелёная обводка, при наведении заливается;
+ * - `outline` — нейтральная обводка, при наведении зеленеет обводка и текст;
+ * - `ghost` — без обводки и фона, при наведении светлая подложка.
+ */
 const variantClassNames: Record<ButtonVariant, string> = {
   primary:
-    'border-transparent bg-accent text-ink hover:bg-accent-strong focus-visible:ring-accent/30',
-  secondary: 'border-transparent bg-teal text-ink hover:bg-teal/90 focus-visible:ring-teal/25',
+    'border-transparent bg-lime text-ink shadow-glow hover:-translate-y-px hover:shadow-floating focus-visible:ring-lime/30',
+  secondary: 'border-lime bg-card text-ink hover:bg-lime hover:text-ink focus-visible:ring-lime/25',
   outline:
-    'border-line bg-panel text-ink hover:border-accent hover:text-accent focus-visible:ring-accent/20',
-  ghost:
-    'border-transparent bg-transparent text-ink hover:bg-panel-strong focus-visible:ring-ink/10',
+    'border-line bg-card text-ink hover:border-lime hover:text-lime-hov focus-visible:ring-lime/20',
+  ghost: 'border-transparent bg-transparent text-ink hover:bg-card-2 focus-visible:ring-ink/10',
 };
 
 const sizeClassNames: Record<ButtonSize, string> = {
@@ -56,7 +68,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         type={type}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-pill border font-semibold tracking-[0.01em] transition-all outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
+          'inline-flex items-center justify-center gap-2 rounded-pill border-2 font-display font-bold tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40',
           variantClassNames[variant],
           sizeClassNames[size],
           fullWidth && 'w-full',
@@ -72,7 +84,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               aria-hidden="true"
               className="size-4 animate-spin rounded-pill border-2 border-current border-t-transparent"
             />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.10em]">Загрузка</span>
+            <span className="text-[11px]">Загрузка</span>
           </>
         ) : (
           leadingIcon && <span aria-hidden="true">{leadingIcon}</span>

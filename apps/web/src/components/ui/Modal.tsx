@@ -64,7 +64,7 @@ export function Modal({
   return (
     <div
       data-testid="modal-overlay"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(21,35,42,0.56)] p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/55 p-4 sm:items-center"
       onClick={onClose}
     >
       <div

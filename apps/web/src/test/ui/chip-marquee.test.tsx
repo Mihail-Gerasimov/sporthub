@@ -109,7 +109,8 @@ describe('ChipMarquee', () => {
     const items = [{ label: 'X' }];
     const { container } = render(<ChipMarquee items={items} variant="solid" accent="lime" />);
     const chip = container.querySelector('[data-chip-original="true"]');
-    expect(chip?.className).toMatch(/var\(--ui-lime-soft\)|--ui-lime/);
+    // Шаг 38.14: цвет — токеном-классом, а не `var(--ui-*)` в произвольном значении.
+    expect(chip?.className).toMatch(/\bbg-lime-soft\b/);
   });
 
   it('применяет solid+orange стили (классы orange-soft/orange)', () => {
@@ -118,7 +119,7 @@ describe('ChipMarquee', () => {
     const items = [{ label: 'X' }];
     const { container } = render(<ChipMarquee items={items} variant="solid" accent="orange" />);
     const chip = container.querySelector('[data-chip-original="true"]');
-    expect(chip?.className).toMatch(/var\(--ui-orange-soft\)|--ui-orange/);
+    expect(chip?.className).toMatch(/\bbg-orange-soft\b/);
   });
 
   it('применяет outline стили (без solid-фона)', () => {
@@ -127,7 +128,7 @@ describe('ChipMarquee', () => {
     const items = [{ label: 'X' }];
     const { container } = render(<ChipMarquee items={items} variant="outline" accent="lime" />);
     const chip = container.querySelector('[data-chip-original="true"]');
-    expect(chip?.className).not.toMatch(/var\(--ui-lime-soft\)/);
+    expect(chip?.className).not.toMatch(/\bbg-lime-soft\b/);
     expect(chip?.className).toMatch(/transparent|bg-transparent/);
   });
 

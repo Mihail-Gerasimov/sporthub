@@ -114,7 +114,7 @@ function PublicationCard({
           {onDelete ? (
             <button
               type="button"
-              className="text-xs font-semibold text-red-400 transition-colors hover:text-red-600"
+              className="text-xs font-semibold text-red transition-opacity hover:opacity-80"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();

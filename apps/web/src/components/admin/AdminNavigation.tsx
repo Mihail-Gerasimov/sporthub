@@ -76,7 +76,7 @@ const NAV_BADGES: Record<
   { readonly tone: string; readonly describe: (count: number) => string }
 > = {
   awaitingRecheck: {
-    tone: 'bg-danger text-white',
+    tone: 'bg-danger text-card',
     describe: (count) => `Исправлено, ждёт проверки: ${count}`,
   },
   supervisionUnread: {

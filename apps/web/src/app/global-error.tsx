@@ -13,7 +13,7 @@
 export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
   return (
     <html lang="ru">
-      <body className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-4 text-center">
+      <body className="flex min-h-screen flex-col items-center justify-center gap-6 bg-bg px-4 text-center">
         <h1 className="font-display text-[clamp(1.5rem,5vw,2.25rem)] leading-tight text-ink">
           Что-то пошло не так
         </h1>

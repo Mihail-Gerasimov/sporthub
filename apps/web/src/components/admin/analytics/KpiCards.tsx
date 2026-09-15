@@ -183,7 +183,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
             className={cn(
               'flex min-w-0 flex-col gap-3 rounded-[16px] border bg-card p-4 sm:p-[18px] transition-colors',
               isFeature
-                ? 'border-[rgba(132,192,3,0.30)] bg-gradient-to-b from-[rgba(132,192,3,0.06)] to-transparent'
+                ? 'border-lime/30 bg-gradient-to-b from-lime/5 to-transparent'
                 : 'border-line hover:border-line',
             )}
           >
@@ -193,7 +193,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
                 className={cn(
                   'inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] border',
                   isFeature
-                    ? 'border-[rgba(132,192,3,0.28)] bg-[rgba(132,192,3,0.08)] text-lime'
+                    ? 'border-lime/30 bg-lime-soft text-lime-hov'
                     : 'border-line bg-card-2 text-disabled',
                 )}
                 aria-hidden="true"

@@ -368,15 +368,13 @@ export function PublishClubModal({
                 id="club-description"
                 placeholder="Расскажите о вашем клубе"
                 rows={3}
-                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.description ? 'border-red-400' : 'border-line'}`}
+                className={`w-full rounded-card border bg-panel px-4 py-3 text-sm text-ink outline-none transition-all placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15 ${errors.description ? 'border-red' : 'border-line'}`}
                 value={form.description}
                 onChange={(e) => {
                   updateField('description', e.target.value);
                 }}
               />
-              {errors.description ? (
-                <p className="text-xs text-red-500">{errors.description}</p>
-              ) : null}
+              {errors.description ? <p className="text-xs text-red">{errors.description}</p> : null}
             </div>
 
             {/* Цена от */}
@@ -417,7 +415,7 @@ export function PublishClubModal({
             <span className="text-xs font-semibold text-muted">Добавить фото</span>
           </button>
           {photoNotice ? (
-            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="mt-3 rounded-card border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-ink">
               Функционал загрузки фото находится в разработке
             </div>
           ) : null}
@@ -436,7 +434,7 @@ export function PublishClubModal({
             }}
             placeholder="Поиск направления..."
           />
-          {errors.sportIds ? <p className="mt-2 text-xs text-red-500">{errors.sportIds}</p> : null}
+          {errors.sportIds ? <p className="mt-2 text-xs text-red">{errors.sportIds}</p> : null}
         </section>
 
         <hr className="border-line" />
@@ -545,7 +543,7 @@ export function PublishClubModal({
             />
           </div>
           {errors.scheduleSlots ? (
-            <p className="mt-2 text-xs text-red-500">{errors.scheduleSlots}</p>
+            <p className="mt-2 text-xs text-red">{errors.scheduleSlots}</p>
           ) : null}
         </section>
 
@@ -568,7 +566,7 @@ export function PublishClubModal({
                 className="flex items-center gap-3 rounded-card border border-dashed border-line bg-canvas px-4 py-3"
               >
                 <span className="text-sm text-muted">{label}</span>
-                <span className="inline-flex rounded-pill bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                <span className="inline-flex rounded-pill bg-gold/15 px-2 py-0.5 text-xs font-semibold text-ink">
                   Скоро
                 </span>
               </div>

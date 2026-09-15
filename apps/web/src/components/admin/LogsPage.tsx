@@ -116,9 +116,9 @@ const ACTION_TONES: Record<LogAction, ActionTone> = {
 };
 
 const ACTION_TONE_CLASSES: Record<ActionTone, string> = {
-  good: 'border-[rgba(132,192,3,0.40)] bg-lime-soft text-lime',
-  warn: 'border-[rgba(245,197,24,0.35)] bg-[rgba(245,197,24,0.08)] text-gold',
-  danger: 'border-[rgba(231,76,60,0.40)] bg-[rgba(231,76,60,0.08)] text-red',
+  good: 'border-lime/40 bg-lime-soft text-lime-hov',
+  warn: 'border-gold/35 bg-gold/10 text-gold',
+  danger: 'border-red/40 bg-red/10 text-red',
   neutral: 'border-line bg-card-2 text-ink',
 };
 
@@ -351,7 +351,7 @@ export function LogsPage() {
               className={cn(
                 'inline-block h-2 w-2 rounded-full',
                 autoPolling
-                  ? 'admin-pulse-dot bg-lime shadow-[0_0_0_4px_rgba(132,192,3,0.18)]'
+                  ? 'admin-pulse-dot bg-lime shadow-[0_0_0_4px_var(--ui-lime-soft)]'
                   : 'bg-disabled',
               )}
             />

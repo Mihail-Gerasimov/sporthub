@@ -154,7 +154,7 @@ export function AddressGeocoder({
               <p className="px-3 py-2 text-sm text-muted">Поиск...</p>
             ) : null}
 
-            {error ? <p className="px-3 py-2 text-sm text-red-500">{error}</p> : null}
+            {error ? <p className="px-3 py-2 text-sm text-red">{error}</p> : null}
 
             {hasNoResults ? (
               <p className="px-3 py-2 text-sm text-muted">Ничего не найдено</p>
@@ -194,13 +194,13 @@ export function AddressGeocoder({
         </Button>
 
         {geocodeStatus === 'success' && geocodeMessage ? (
-          <p className="text-sm text-green-600">
+          <p className="text-sm text-lime-hov">
             <span className="font-semibold">Адрес найден:</span> {geocodeMessage}
           </p>
         ) : null}
 
         {geocodeStatus === 'error' && geocodeMessage ? (
-          <p className="text-sm text-red-500">{geocodeMessage}</p>
+          <p className="text-sm text-red">{geocodeMessage}</p>
         ) : null}
       </div>
     </div>

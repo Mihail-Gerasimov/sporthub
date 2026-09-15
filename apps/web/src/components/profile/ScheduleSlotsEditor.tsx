@@ -87,7 +87,7 @@ export function ScheduleSlotsEditor({
             {slots.length > 1 ? (
               <button
                 type="button"
-                className="text-xs font-semibold text-red-500 transition-colors hover:text-red-700"
+                className="text-xs font-semibold text-red transition-opacity hover:opacity-80"
                 onClick={() => {
                   removeSlot(index);
                 }}

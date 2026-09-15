@@ -216,8 +216,8 @@ export function ChipMarquee({
   const tagClass =
     variant === 'solid'
       ? accent === 'lime'
-        ? 'border border-[rgba(131,211,181,0.3)] bg-[var(--ui-lime-soft)] text-[var(--ui-muted)]'
-        : 'border border-[rgba(251,97,25,0.3)] bg-[var(--ui-orange-soft)] text-[var(--ui-orange)]'
+        ? 'border border-lime/30 bg-lime-soft text-lime-hov'
+        : 'border border-orange/30 bg-orange-soft text-orange'
       : 'border border-[var(--ui-line)] bg-transparent text-[var(--ui-ink)]';
 
   return (
