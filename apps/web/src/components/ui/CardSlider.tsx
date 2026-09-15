@@ -301,7 +301,7 @@ export function CardSlider({
   // Hover-классы стрелок зависят от accent (lime/orange).
   const navHoverClass =
     accent === 'lime'
-      ? 'hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]'
+      ? 'hover:border-lime hover:text-lime-hov'
       : 'hover:border-[var(--ui-orange)] hover:text-[var(--ui-orange)]';
 
   // Pill-счётчик и активная точка — классами по акценту, а не инлайновым стилем:

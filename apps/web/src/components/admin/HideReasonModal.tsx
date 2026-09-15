@@ -56,7 +56,7 @@ export function HideReasonModal({
           <button
             type="button"
             onClick={handleClose}
-            className="inline-flex items-center justify-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+            className="inline-flex items-center justify-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
           >
             Отмена
           </button>

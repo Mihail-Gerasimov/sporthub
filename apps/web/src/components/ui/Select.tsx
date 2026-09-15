@@ -52,7 +52,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             'relative flex items-center rounded-card border bg-panel transition-all focus-within:ring-4',
             error
               ? 'border-danger text-danger focus-within:ring-danger/15'
-              : 'border-line text-muted focus-within:border-accent focus-within:text-accent focus-within:ring-accent/15',
+              : 'border-line text-muted focus-within:border-accent focus-within:text-accent-strong focus-within:ring-accent/15',
           )}
         >
           <select

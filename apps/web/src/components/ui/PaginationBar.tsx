@@ -243,7 +243,7 @@ function PageButton({
         styles.button,
         active
           ? 'border-lime bg-lime text-ink'
-          : cn('border-line text-ink hover:border-lime hover:text-lime', styles.inactive),
+          : cn('border-line text-ink hover:border-lime hover:text-lime-hov', styles.inactive),
       )}
     >
       {children}

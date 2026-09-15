@@ -113,7 +113,7 @@ export function MobileNav() {
         const isActive = item.matchPaths.some((path) =>
           path === '/' ? pathname === '/' : pathname.startsWith(path),
         );
-        const colorClass = isActive ? 'text-[var(--ui-lime)]' : 'text-[var(--ui-muted)]';
+        const colorClass = isActive ? 'text-lime-hov' : 'text-[var(--ui-muted)]';
         return (
           <Link
             key={item.label}

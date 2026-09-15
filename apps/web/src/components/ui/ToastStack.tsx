@@ -14,8 +14,8 @@ import { useToastStore, type Toast, type ToastTone } from '@/stores/useToastStor
 const TONE_STYLES: Record<ToastTone, string> = {
   info: 'border-line bg-panel text-ink',
   success: 'border-success/40 bg-success/10 text-success',
-  warning: 'border-accent/40 bg-accent/10 text-accent',
-  error: 'border-accent/40 bg-accent/10 text-accent',
+  warning: 'border-accent/40 bg-accent/10 text-accent-strong',
+  error: 'border-accent/40 bg-accent/10 text-accent-strong',
 };
 
 type ToastItemProps = {

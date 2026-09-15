@@ -128,7 +128,7 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-lime/30 bg-lime-soft text-lime'
+      ? 'border-lime/30 bg-lime-soft text-lime-hov'
       : 'border-line bg-transparent text-ink';
   return (
     <span
@@ -510,7 +510,7 @@ export function TrainerDetailPageClient({
                       href={trainer.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       VK
                     </a>
@@ -520,7 +520,7 @@ export function TrainerDetailPageClient({
                       href={trainer.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       Telegram
                     </a>
@@ -530,7 +530,7 @@ export function TrainerDetailPageClient({
                       href={trainer.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       Facebook
                     </a>
@@ -555,7 +555,7 @@ export function TrainerDetailPageClient({
               {phoneRaw ? (
                 <a
                   href={`tel:${phoneRaw}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
                 >
                   Связаться
                 </a>
@@ -606,7 +606,7 @@ export function TrainerDetailPageClient({
                   <span
                     aria-hidden="true"
                     className={`flex size-10 items-center justify-center rounded-[12px] border border-line bg-card ${
-                      d.kind === 'sport' ? 'text-lime' : 'text-orange'
+                      d.kind === 'sport' ? 'text-lime-hov' : 'text-orange'
                     }`}
                   >
                     {d.kind === 'sport' ? (
@@ -717,7 +717,7 @@ export function TrainerDetailPageClient({
                     {offering.description}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime">
+                    <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-lime-hov">
                       {getFormatLabel(offering.format)}
                     </span>
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">

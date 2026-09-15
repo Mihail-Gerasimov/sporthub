@@ -466,7 +466,7 @@ function UserCard({
                 type="button"
                 data-testid={`user-credentials-change-${user.id}`}
                 onClick={() => setPasswordModalOpen(true)}
-                className="rounded-pill border border-line bg-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-ink hover:border-lime hover:text-lime"
+                className="rounded-pill border border-line bg-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-ink hover:border-lime hover:text-lime-hov"
               >
                 Изменить пароль
               </button>
@@ -513,7 +513,7 @@ function ButtonGhost({ onClick, children }: { onClick: () => void; children: Rea
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border border-line bg-transparent px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime sm:flex-none sm:px-5"
+      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border border-line bg-transparent px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov sm:flex-none sm:px-5"
     >
       {children}
     </button>
@@ -605,7 +605,7 @@ function StatusBadge({ status }: { status: NonNullable<User['status']> }) {
     );
   }
   return (
-    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-lime/30 bg-lime-soft px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
+    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-lime/30 bg-lime-soft px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-lime-hov">
       {label}
     </span>
   );

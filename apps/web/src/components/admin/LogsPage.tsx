@@ -334,7 +334,7 @@ export function LogsPage() {
           <button
             type="button"
             onClick={fetchLogs}
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
           >
             {ICON_REFRESH}
             Обновить
@@ -553,7 +553,7 @@ function LogCard({
               type="button"
               data-testid={`logs-open-booking-history-${log.entityId}`}
               onClick={() => onOpenBookingDrawer(log.entityId)}
-              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
             >
               История FSM
             </button>

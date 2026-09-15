@@ -212,7 +212,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
               <p
                 className={cn(
                   'm-0 break-words font-display text-[30px] leading-[0.9] tracking-tight tabular-nums sm:text-[36px] lg:text-[38px] xl:text-[44px]',
-                  isFeature ? 'text-lime' : 'text-ink',
+                  isFeature ? 'text-lime-hov' : 'text-ink',
                 )}
               >
                 {card.getValue(kpi)}

@@ -82,7 +82,7 @@ export function ClubCard({
 
   // Цвет hover на имени-Link
   const nameHoverClass =
-    tone === 'orange' ? 'hover:text-[var(--ui-orange)]' : 'hover:text-[var(--ui-lime)]';
+    tone === 'orange' ? 'hover:text-[var(--ui-orange)]' : 'hover:text-lime-hov';
 
   return (
     <article

@@ -198,7 +198,7 @@ export default async function Home() {
             <aside className="relative min-w-0 overflow-hidden rounded-[22px] border border-[var(--ui-line)] bg-[var(--ui-bg)] p-5 transition-colors hover:border-[var(--ui-lime)] after:pointer-events-none after:absolute after:-right-10 after:-top-10 after:size-[140px] after:rounded-full after:[background:radial-gradient(circle,var(--ui-lime-soft)_0%,transparent_70%)]">
               <div className="relative z-10 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2.5">
-                  <span className="font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-lime)]">
+                  <span className="font-body text-[10px] font-bold uppercase tracking-[0.18em] text-lime-hov">
                     Сегодня в фокусе
                   </span>
                   {focusSession ? (
@@ -225,7 +225,7 @@ export default async function Home() {
 
                 <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-[var(--ui-line)] pt-3.5">
                   <p className="m-0 font-body text-[12px] font-medium text-[var(--ui-muted)]">
-                    <strong className="mr-1 font-display text-[14px] font-normal tabular-nums text-[var(--ui-lime)]">
+                    <strong className="mr-1 font-display text-[14px] font-normal tabular-nums text-lime-hov">
                       {upcomingSessions.length}
                     </strong>
                     {upcomingSessions.length === 1 ? 'занятие' : 'занятий'} сегодня
@@ -258,7 +258,7 @@ export default async function Home() {
               01
             </span>
             <div className="relative z-10">
-              <div className="flex items-center gap-2 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-lime)]">
+              <div className="flex items-center gap-2 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-lime-hov">
                 <span className="h-px w-6 bg-current opacity-50" />
                 Клуб
               </div>

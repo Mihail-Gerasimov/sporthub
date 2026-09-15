@@ -101,7 +101,7 @@ export function TrainerCard({
     tone === 'lime' ? 'hover:border-[var(--ui-lime)]' : 'hover:border-[var(--ui-orange)]';
 
   // Цвет accent для price-pill, role-eyebrow, CTA hover, photo-tag, group-chip.
-  const accentColorClass = tone === 'lime' ? 'text-[var(--ui-lime)]' : 'text-[var(--ui-orange)]';
+  const accentColorClass = tone === 'lime' ? 'text-lime-hov' : 'text-[var(--ui-orange)]';
   const accentBgClass = tone === 'lime' ? 'bg-[var(--ui-lime)]' : 'bg-[var(--ui-orange)]';
   const groupChipClass =
     tone === 'lime'
@@ -109,7 +109,7 @@ export function TrainerCard({
       : 'border border-orange/30 bg-orange-soft text-orange';
   const ctaHoverClass =
     tone === 'lime'
-      ? 'text-[var(--ui-lime)] hover:text-[var(--ui-lime-hov)]'
+      ? 'text-lime-hov hover:text-ink'
       : 'text-[var(--ui-orange)] hover:text-[var(--ui-orange-hov)]';
 
   return (

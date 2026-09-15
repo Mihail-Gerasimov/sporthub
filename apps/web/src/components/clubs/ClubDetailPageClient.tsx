@@ -452,7 +452,7 @@ export function ClubDetailPageClient({
                       href={club.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       Сайт
                     </a>
@@ -462,7 +462,7 @@ export function ClubDetailPageClient({
                       href={club.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       VK
                     </a>
@@ -472,7 +472,7 @@ export function ClubDetailPageClient({
                       href={club.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       Telegram
                     </a>
@@ -482,7 +482,7 @@ export function ClubDetailPageClient({
                       href={club.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime"
+                      className="block font-body text-ink/70 hover:text-lime-hov"
                     >
                       Facebook
                     </a>
@@ -518,7 +518,7 @@ export function ClubDetailPageClient({
               {phoneRaw ? (
                 <a
                   href={`tel:${phoneRaw}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime"
+                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
                 >
                   Связаться с клубом
                 </a>
@@ -568,7 +568,7 @@ export function ClubDetailPageClient({
                 >
                   <span
                     aria-hidden="true"
-                    className="flex size-10 items-center justify-center rounded-[12px] border border-line bg-card text-xl text-lime"
+                    className="flex size-10 items-center justify-center rounded-[12px] border border-line bg-card text-xl text-lime-hov"
                   >
                     {sport.icon}
                   </span>
@@ -618,7 +618,7 @@ export function ClubDetailPageClient({
                   </div>
                   <Link
                     href={`/trainers/${trainer.slug}`}
-                    className="mx-4 mt-3.5 inline-block font-display text-base leading-none text-ink transition-colors hover:text-lime line-clamp-1"
+                    className="mx-4 mt-3.5 inline-block font-display text-base leading-none text-ink transition-colors hover:text-lime-hov line-clamp-1"
                   >
                     {trainer.name}
                   </Link>

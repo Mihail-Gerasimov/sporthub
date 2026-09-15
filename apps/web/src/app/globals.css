@@ -305,7 +305,8 @@ body {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ui-lime);
+  /* Тёмно-зелёный: яркий `--ui-lime` — заливка, текстом на светлом он нечитаем (1.9:1). */
+  color: var(--ui-lime-hov);
 }
 
 .t-mono {
