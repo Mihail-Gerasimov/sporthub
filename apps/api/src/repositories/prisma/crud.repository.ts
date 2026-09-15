@@ -22,6 +22,7 @@
 
 import { Injectable } from '@nestjs/common';
 import type {
+  AccountKind,
   LogEntry,
   NotificationType,
   PasswordResetToken,
@@ -511,6 +512,10 @@ export class PrismaUsersRepository implements UsersRepository {
     const row = await this.client.user.findUnique({ where: { email }, include: USER_RELATIONS });
 
     return row === null ? null : PrismaUsersRepository.toUser(row as UserRow);
+  }
+
+  countByAccountKind(accountKind: AccountKind): Promise<number> {
+    return this.client.user.count({ where: { accountKind } });
   }
 
   async countPlatformUsers(): Promise<{ total: number; providers: number; admins: number }> {

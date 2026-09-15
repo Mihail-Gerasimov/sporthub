@@ -9,6 +9,7 @@
 // сообщение в код ответа, и тесты, сравнивающие строку посимвольно.
 
 import type {
+  AccountKind,
   LogAction,
   LogEntry,
   NotificationType,
@@ -172,6 +173,17 @@ export interface UsersRepository {
    * база: сводке нужны три числа, а не таблица пользователей со связями.
    */
   countPlatformUsers(): Promise<{ total: number; providers: number; admins: number }>;
+  /**
+   * Сколько людей названного вида учётной записи (шаг 38.30).
+   *
+   * Витрине нужно одно число — «спортсменов на площадке», то есть `person`.
+   * Считает запрос. Индекса по виду учётной записи нет НАМЕРЕННО: значений два,
+   * и почти все строки — `person`; по такой колонке база индекс не возьмёт,
+   * а каждую вставку он бы удорожил. Один `COUNT` по таблице людей — цена,
+   * названная у порога кэширования в контроллере. Выгружать таблицу людей ради
+   * числа нельзя ни по цене, ни по праву — маршрут публичный.
+   */
+  countByAccountKind(accountKind: AccountKind): Promise<number>;
   insert(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
   update(id: number, patch: Partial<User>): Promise<User>;
   /**

@@ -31,6 +31,7 @@ import { NOTIFICATION_CONTROLLERS } from './notifications/notifications.controll
 import { USER_ACCOUNT_CONTROLLERS } from './users/users-account.controller';
 import { REVIEW_CONTROLLERS } from './reviews/reviews.controller';
 import { SCHEDULE_CONTROLLERS } from './schedule/schedule.controller';
+import { STATS_CONTROLLERS } from './stats/stats.controller';
 import { DICTIONARY_CONTROLLERS } from './dictionaries/dictionaries.controller';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
 import { DomainErrorFilter } from './common/domain-error.filter';
@@ -70,6 +71,7 @@ import { StorageModule } from './storage/storage.module';
     ...ANALYTICS_CONTROLLERS,
     ...ADMIN_CONTROLLERS,
     ...GEO_CONTROLLERS,
+    ...STATS_CONTROLLERS,
   ],
   providers: [
     // Формат ответа и разбор ошибок — общие для всех контроллеров.

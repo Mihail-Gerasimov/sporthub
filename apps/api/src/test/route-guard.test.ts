@@ -30,6 +30,7 @@ import { collectRoutes, type RouteRecord } from './app-routes';
  */
 const PUBLIC_ROUTES: Record<string, string> = {
   'get /api/health': 'Проверка живости: её спрашивает контейнер, у него сессии нет.',
+  'get /api/stats/overview': 'Четыре числа героя главной: главная открывается до входа (38.30).',
 
   'get /api/sports': 'Справочники — витрина площадки, гость обязан видеть каталог.',
   'get /api/cities': 'Справочники — витрина площадки.',
