@@ -29,7 +29,6 @@ import type {
   BookingsFilter,
   BookingsRepository,
   OwnerBookingCount,
-  OwnerStatusBookingCount,
   SportBookingCount,
 } from '../bookings.repository';
 import type { DailyCount, OwnerIdFilter } from '../crud.repository';
@@ -482,43 +481,6 @@ export class PrismaBookingsRepository implements BookingsRepository {
     return rows.map((row) => ({
       type: row.ownerType as OwnerBookingCount['type'],
       id: row.ownerId,
-      count: Number(row.count),
-    }));
-  }
-
-  async countByOwnerAndStatus(filter: BookingsCountFilter): Promise<OwnerStatusBookingCount[]> {
-    const condition = PrismaBookingsRepository.toSqlCondition(filter);
-    // Тот же разбор владельца, что и в `countByOwner`, плюс статус в группировке.
-    // Ради надёжности каталога это ОДИН обход таблицы вместо четырёх: спрашивать
-    // счётчик по каждому статусу отдельно значило бы четыре запроса на одну выдачу.
-    //
-    // Порядок не наводится намеренно — потребитель складывает числа в словарь,
-    // и сортировать под него пришлось бы «на всякий случай».
-    const rows = await this.client.$queryRaw<
-      { ownerType: string; ownerId: number; status: string; count: number }[]
-    >`
-      SELECT 'club' AS "ownerType",
-             COALESCE(owner_club_id, venue_club_id) AS "ownerId",
-             status,
-             COUNT(*)::int AS count
-        FROM bookings
-       WHERE (${condition}) AND COALESCE(owner_club_id, venue_club_id) IS NOT NULL
-       GROUP BY 1, 2, 3
-      UNION ALL
-      SELECT 'trainer' AS "ownerType",
-             COALESCE(owner_trainer_id, conducted_by_trainer_id) AS "ownerId",
-             status,
-             COUNT(*)::int AS count
-        FROM bookings
-       WHERE (${condition})
-         AND COALESCE(owner_trainer_id, conducted_by_trainer_id) IS NOT NULL
-       GROUP BY 1, 2, 3
-    `;
-
-    return rows.map((row) => ({
-      type: row.ownerType as OwnerStatusBookingCount['type'],
-      id: row.ownerId,
-      status: row.status as OwnerStatusBookingCount['status'],
       count: Number(row.count),
     }));
   }

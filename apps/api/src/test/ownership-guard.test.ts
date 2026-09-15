@@ -223,8 +223,6 @@ const NOT_ABOUT_OWNERSHIP: Record<string, string> = {
     'Разрыв связи властью площадки — он и нужен затем, что своей связь администратору не является.',
   'post /api/admin/users/:id/password':
     'Смена чужого пароля администратором: полномочие `manage_any_user`.',
-  'post /api/admin/users/:id/recompute-reliability':
-    'Пересчёт надёжности площадкой: административное полномочие, предмет чужой всегда.',
 };
 
 async function callAs(

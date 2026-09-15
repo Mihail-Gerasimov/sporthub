@@ -6,12 +6,7 @@
 // обычным запросом.
 
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  computeProviderReliabilityFromCounts,
-  PROVIDER_RELIABILITY_STATUSES,
-  type ProviderReliabilityCounts,
-} from '@sporthub/domain';
-import type { BookingStatus, Club, ReliabilityResult, Sport, Trainer, User } from '@sporthub/types';
+import type { Club, Sport, Trainer, User } from '@sporthub/types';
 
 import { NotFoundError } from '../common/domain-error';
 import type {
@@ -23,8 +18,6 @@ import {
   SPORTS_REPOSITORY,
   TAGS_REPOSITORY,
 } from '../dictionaries/dictionaries.repository';
-import type { BookingsRepository } from '../repositories/bookings.repository';
-import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
 import type {
   OfferingsRepository,
   TrainerClubLinksRepository,
@@ -52,33 +45,6 @@ import {
   type PublicTrainer,
 } from './public-view';
 
-/** Надёжность публикаций одной выдачи: отдельно клубы, отдельно тренеры. */
-export interface ReliabilityByOwner {
-  clubs: Map<number, ReliabilityResult>;
-  trainers: Map<number, ReliabilityResult>;
-}
-
-/**
- * Статус записи → поле счётчика надёжности.
- *
- * Словарь, а не цепочка условий: добавить статус в расчёт станет правкой ОДНОЙ
- * строки здесь и одной в объявлении статусов, а не поиском всех мест, где статусы
- * перечислены руками.
- */
-const COUNTS_FIELD_BY_STATUS: Partial<Record<BookingStatus, keyof ProviderReliabilityCounts>> = {
-  completed: 'completed',
-  no_show: 'noShow',
-  cancelled_by_provider: 'cancelledByProvider',
-  rejected_by_provider: 'rejectedByProvider',
-};
-
-const emptyCounts = (): ProviderReliabilityCounts => ({
-  completed: 0,
-  noShow: 0,
-  cancelledByProvider: 0,
-  rejectedByProvider: 0,
-});
-
 @Injectable()
 export class CatalogQueryService {
   constructor(
@@ -89,7 +55,6 @@ export class CatalogQueryService {
     @Inject(SCHEDULE_REPOSITORY) private readonly schedule: ScheduleRepository,
     @Inject(REVIEWS_REPOSITORY) private readonly reviews: ReviewsRepository,
     @Inject(USERS_REPOSITORY) private readonly users: UsersRepository,
-    @Inject(BOOKINGS_REPOSITORY) private readonly bookings: BookingsRepository,
     @Inject(TRAINER_CLUB_LINKS_REPOSITORY)
     private readonly links: TrainerClubLinksRepository,
     @Inject(CITIES_REPOSITORY) private readonly cities: CitiesRepository,
@@ -107,56 +72,6 @@ export class CatalogQueryService {
     const all = await this.sports.findAll();
 
     return all.filter((sport) => sportIds.includes(sport.id));
-  }
-
-  /**
-   * Надёжность перечисленных публикаций — запросом-агрегатом.
-   *
-   * ⚠️ Записи здесь НЕ поднимаются вовсе, и это главное свойство метода. Сначала
-   * читалась вся таблица записей платформы, потом — записи только нужных публикаций
-   * и только значимых статусов; но и это остаётся выдачей строк ради восьми чисел
-   * на карточку. База умеет посчитать сама, и здесь она это и делает: один обход
-   * таблицы отдаёт счётчики по публикациям и статусам, а формула надёжности —
-   * та же самая, из `@sporthub/domain`.
-   *
-   * Публикация без единой записи обязана получить результат, а не пропуск: карта
-   * заполняется нулями заранее, иначе новый клуб приходил бы на фронт без поля,
-   * и «нет записей» стало бы неотличимо от «надёжность не посчитали».
-   */
-  async reliabilityFor(owners: {
-    clubIds: number[];
-    trainerIds: number[];
-  }): Promise<ReliabilityByOwner> {
-    const clubs = new Map(owners.clubIds.map((id) => [id, emptyCounts()]));
-    const trainers = new Map(owners.trainerIds.map((id) => [id, emptyCounts()]));
-
-    if (clubs.size > 0 || trainers.size > 0) {
-      const rows = await this.bookings.countByOwnerAndStatus({
-        owners,
-        // Набор статусов берётся из того же объявления, которым пользуется расчёт:
-        // повторив список своими словами, запрос разошёлся бы с ним молча.
-        status: [...PROVIDER_RELIABILITY_STATUSES],
-      });
-
-      for (const row of rows) {
-        // Строка чужой публикации — законная: отбор по клубам ловит и тренерские
-        // занятия в их залах, а значит приносит счётчики тренеров, о которых
-        // не спрашивали. Такие строки просто некуда положить.
-        const counts = (row.type === 'club' ? clubs : trainers).get(row.id);
-        const field = COUNTS_FIELD_BY_STATUS[row.status];
-
-        if (counts !== undefined && field !== undefined) counts[field] += row.count;
-      }
-    }
-
-    return {
-      clubs: new Map(
-        [...clubs].map(([id, counts]) => [id, computeProviderReliabilityFromCounts(counts)]),
-      ),
-      trainers: new Map(
-        [...trainers].map(([id, counts]) => [id, computeProviderReliabilityFromCounts(counts)]),
-      ),
-    };
   }
 
   /** Поиск по адресу-ссылке. Сравнение нечувствительно к регистру и кодировке. */
@@ -290,26 +205,21 @@ export class CatalogQueryService {
     const confirmed = await this.links.findMany({ clubId, status: 'confirmed' });
     const trainerIds = [...new Set(confirmed.map((link) => link.trainerId))];
 
-    const [primaryOffering, clubTrainers, slots, allReviews, sports, reliability] =
-      await Promise.all([
-        this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
-        this.trainers.findAll({ ids: trainerIds }),
-        // Порядок задаёт запрос: сортировать после чтения можно было, пока читалось всё.
-        this.schedule.findMany({ ownerType: 'club', clubId, order: 'dateTime' }),
-        this.reviews.findMany({ clubId, order: 'newest' }),
-        this.resolveSports(club.sportIds),
-        // Бейдж надёжности едет вместе с карточкой. Раньше его считал фронт, для чего
-        // забирал записи ВСЕЙ площадки; после закрытия полного среза публичная
-        // страница просто перестала открываться.
-        this.reliabilityFor({ clubIds: [clubId], trainerIds: [] }),
-      ]);
+    const [primaryOffering, clubTrainers, slots, allReviews, sports] = await Promise.all([
+      this.offerings.findFirst({ ownerType: 'club', ownerId: clubId }),
+      this.trainers.findAll({ ids: trainerIds }),
+      // Порядок задаёт запрос: сортировать после чтения можно было, пока читалось всё.
+      this.schedule.findMany({ ownerType: 'club', clubId, order: 'dateTime' }),
+      this.reviews.findMany({ clubId, order: 'newest' }),
+      this.resolveSports(club.sportIds),
+    ]);
 
     return {
       // Номер владельца убран и у самого клуба, и у его тренеров (шаг 35.20a):
       // карточка клуба — такая же публичная выдача, как и список каталога,
       // а тренеры клуба принадлежат другим людям, и их владельцев тут тем более
       // сообщать нечему.
-      club: { ...stripPublicationOwner(club), reliability: reliability.clubs.get(clubId) },
+      club: stripPublicationOwner(club),
       primaryOffering,
       sports,
       // Порядок «сначала с высоким рейтингом» остаётся в памяти намеренно: тренеров
@@ -329,18 +239,15 @@ export class CatalogQueryService {
 
     if (!trainer) return null;
 
-    const [offerings, trainerSchedule, allReviews, confirmed, sports, reliability] =
-      await Promise.all([
-        this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
-        // Отбор по тренеру и порядок — в запросе: раньше поднималось всё тренерское
-        // расписание платформы и отсеивалось в памяти.
-        this.schedule.findMany({ ownerType: 'trainer', trainerId, order: 'dateTime' }),
-        this.reviews.findMany({ trainerId, order: 'newest' }),
-        this.links.findMany({ trainerId, status: 'confirmed' }),
-        this.resolveSports(trainer.sportIds),
-        // Симметрично карточке клуба: надёжность приходит числом, а не пачкой записей.
-        this.reliabilityFor({ clubIds: [], trainerIds: [trainerId] }),
-      ]);
+    const [offerings, trainerSchedule, allReviews, confirmed, sports] = await Promise.all([
+      this.offerings.findMany({ ownerType: 'trainer', ownerId: trainerId }),
+      // Отбор по тренеру и порядок — в запросе: раньше поднималось всё тренерское
+      // расписание платформы и отсеивалось в памяти.
+      this.schedule.findMany({ ownerType: 'trainer', trainerId, order: 'dateTime' }),
+      this.reviews.findMany({ trainerId, order: 'newest' }),
+      this.links.findMany({ trainerId, status: 'confirmed' }),
+      this.resolveSports(trainer.sportIds),
+    ]);
 
     const venueClubId = confirmed[0]?.clubId;
     // Клуб-площадка тем более чужой: он принадлежит другому человеку,
@@ -350,10 +257,7 @@ export class CatalogQueryService {
     );
 
     return {
-      trainer: {
-        ...stripPublicationOwner(trainer),
-        reliability: reliability.trainers.get(trainerId),
-      },
+      trainer: stripPublicationOwner(trainer),
       affiliatedClub,
       // Дубли ключей сохранены намеренно: на них завязан прежний фронт.
       club: affiliatedClub,

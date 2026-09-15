@@ -31,9 +31,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import { fixtureCollections, fixtureDictionaryCollections } from '@sporthub/fixtures';
-import type { Booking } from '@sporthub/types';
 
 import { DEMO_PASSWORD_HASH, createTestHarness, type TestHarness } from '../test/harness';
 
@@ -377,17 +375,19 @@ describe('Маршруты клубов и тренеров', () => {
   };
 
   describe('разбор параметров выдачи', () => {
-    it('неизвестная сортировка отклоняется', async () => {
-      const response = await request(server()).get('/api/clubs?sort=price');
+    // ⚠️ Фаза 38, шаг 38.23. Единственной сортировкой выдачи была надёжность,
+    // и вместе с ней ушли параметры `sort`, `dir` и `excludeDanger`. Прежние кейсы
+    // «неизвестная сортировка отклоняется» держались на том, что параметр
+    // существует; теперь он — лишний, а лишний параметр выдачу не роняет, как
+    // любой другой незнакомый ключ строки запроса. Сортировка по рейтингу
+    // заводится шагом 38.29 — и вернёт отказ на незнакомое ЗНАЧЕНИЕ.
+    it('снятые параметры сортировки и отсева — лишние: выдача полная и без отказа', async () => {
+      const response = await request(server()).get(
+        '/api/clubs?sort=reliability&dir=desc&excludeDanger=true',
+      );
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({ success: false, error: 'Некорректные параметры запроса' });
-    });
-
-    it('неизвестное направление сортировки отклоняется', async () => {
-      const response = await request(server()).get('/api/clubs?dir=up');
-
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      expect(response.body.data.map((item: { id: number }) => item.id)).toEqual([1, 2]);
     });
 
     it('оценка вне диапазона отклоняется', async () => {
@@ -441,10 +441,13 @@ describe('Маршруты клубов и тренеров', () => {
       expect(all.body.data.map((item: { id: number }) => item.id)).toEqual([1]);
     });
 
-    it('неизвестная сортировка тренеров отклоняется', async () => {
-      const response = await request(server()).get('/api/trainers?sort=price');
+    it('то же у тренеров: снятые параметры не роняют выдачу', async () => {
+      const response = await request(server()).get(
+        '/api/trainers?sort=reliability&dir=asc&excludeDanger=true',
+      );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
     });
   });
 
@@ -613,81 +616,43 @@ describe('Маршруты клубов и тренеров', () => {
     });
   });
 
-  // Надёжность публикации приходит ВМЕСТЕ с карточкой.
+  // Надёжности в выдаче каталога НЕТ (фаза 38, шаг 38.23).
   //
-  // ⚠️ Это не украшение выдачи, а починка: бейдж надёжности считал фронт и забирал
-  // ради него полный срез записей площадки. Фаза 34 закрыла полный срез — и главная
-  // вместе с карточками клуба и тренера начали отвечать пятисотой. Поэтому здесь
-  // проверяется И присутствие поля, И совпадение чисел с чистой функцией на тех же
-  // данных: одно присутствие поля зелено и тогда, когда в нём лежат другие числа.
-  describe('надёжность в выдаче каталога', () => {
-    /** Записи, из которых складывается надёжность клуба 1 и тренера 1. */
-    const RELIABILITY_BOOKINGS = [
-      // Клуб 1: два проведённых занятия.
-      booking(11, { status: 'completed' }),
-      booking(12, { status: 'completed' }),
-      // Неявок ДВЕ, отмена провайдером одна, отказ один: все четыре счётчика
-      // разной величины. С одинаковыми числами перепутанные местами статусы
-      // дали бы тот же результат, и проверка ничего не доказывала бы.
-      booking(13, { status: 'no_show' }),
-      booking(14, { status: 'no_show' }),
-      booking(17, { status: 'rejected_by_provider' }),
-      // Отмена атлетом к репутации провайдера не относится — в расчёт не идёт.
-      booking(15, { status: 'cancelled_by_athlete' }),
-      // Тренерское занятие в зале клуба 1: относится и к тренеру 1, и к клубу.
-      booking(16, {
-        status: 'cancelled_by_provider',
-        ownerType: 'trainer',
-        ownerId: 1,
-        trainerId: 1,
-        clubId: 1,
-      }),
-    ];
-
+  // ⚠️ Прежде здесь стоял блок «надёжность приходит вместе с карточкой» — восемь
+  // чисел на каждую публикацию, посчитанных запросом-агрегатом по записям. Решение
+  // заказчика 15.09.2026: механизм вырезан целиком. Проверяется не «поле пустое»,
+  // а «ключа нет вовсе»: пустой объект или `null` под тем же именем означали бы,
+  // что расчёт остался, просто перестал считать.
+  describe('надёжности в выдаче каталога нет', () => {
     beforeEach(async () => {
-      await harness.write('bookings', RELIABILITY_BOOKINGS);
+      // Записи разных статусов — те самые, из которых надёжность складывалась.
+      // Без них проверка была бы зелена и у живого расчёта: нулевые счётчики
+      // тоже отдавались полем.
+      await harness.write('bookings', [
+        booking(11, { status: 'completed' }),
+        booking(13, { status: 'no_show' }),
+        booking(17, { status: 'rejected_by_provider' }),
+      ]);
     });
 
-    it('список клубов отдаёт надёжность, совпадающую с расчётом по записям', async () => {
-      const response = await request(server()).get('/api/clubs');
-
-      const first = response.body.data.find((item: { id: number }) => item.id === 1);
-      expect(first.reliability).toEqual(
-        computeClubReliability(RELIABILITY_BOOKINGS as unknown as Booking[], 1),
-      );
-      // Клуб без единой записи тоже получает результат, а не пропуск: иначе
-      // «записей нет» стало бы неотличимо от «надёжность не посчитали».
-      const second = response.body.data.find((item: { id: number }) => item.id === 2);
-      expect(second.reliability).toEqual(
-        computeClubReliability(RELIABILITY_BOOKINGS as unknown as Booking[], 2),
-      );
-    });
-
-    it('карточка клуба отдаёт ту же надёжность, что и список', async () => {
+    it('список и карточка клуба не несут поля reliability', async () => {
+      const list = await request(server()).get('/api/clubs');
       const detail = await request(server()).get('/api/clubs/1');
       const bySlug = await request(server()).get('/api/clubs/by-slug/club-1');
 
-      const expected = computeClubReliability(RELIABILITY_BOOKINGS as unknown as Booking[], 1);
-      expect(detail.body.data.club.reliability).toEqual(expected);
-      expect(bySlug.body.data.club.reliability).toEqual(expected);
+      expect(list.status).toBe(200);
+      expect(list.body.data.every((item: object) => !('reliability' in item))).toBe(true);
+      expect('reliability' in detail.body.data.club).toBe(false);
+      expect('reliability' in bySlug.body.data.club).toBe(false);
     });
 
-    it('список и карточка тренера отдают надёжность тренера', async () => {
+    it('список и карточка тренера не несут поля reliability', async () => {
       const list = await request(server()).get('/api/trainers');
       const detail = await request(server()).get('/api/trainers/1');
 
-      const expected = computeTrainerReliability(RELIABILITY_BOOKINGS as unknown as Booking[], 1);
-      expect(list.body.data[0].reliability).toEqual(expected);
-      expect(detail.body.data.trainer.reliability).toEqual(expected);
-    });
-
-    it('надёжность приходит гостю — ради неё вход не требуется', async () => {
-      const response = await request(server()).get('/api/clubs');
-
-      expect(response.status).toBe(200);
-      // Именно за этим числом публичная страница ходила в закрытый полный срез
-      // записей и получала отказ.
-      expect(response.body.data[0].reliability).toBeDefined();
+      expect(list.status).toBe(200);
+      expect(list.body.data.every((item: object) => !('reliability' in item))).toBe(true);
+      expect('reliability' in detail.body.data.trainer).toBe(false);
     });
   });
 

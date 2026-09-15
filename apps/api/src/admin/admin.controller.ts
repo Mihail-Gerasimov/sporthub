@@ -276,29 +276,6 @@ export class AdminController {
 
     return EMPTY_RESULT;
   }
-
-  @Post('users/:id/recompute-reliability')
-  @HttpCode(HttpStatus.OK)
-  async recomputeReliability(
-    @Param('id') rawId: string,
-    @CurrentUser() session: SessionContext,
-  ): Promise<EmptyResult> {
-    const userId = parseId(rawId, 'Некорректный id пользователя');
-
-    if (!(await this.users.findById(userId))) {
-      throw new NotFoundError('Пользователь не найден');
-    }
-
-    await this.logs.record({
-      action: 'reliability_recompute',
-      actorId: session.actor.id,
-      actorRole: accountKindOf(session.actor),
-      entityType: 'user',
-      entityId: userId,
-    });
-
-    return EMPTY_RESULT;
-  }
 }
 
 export const ADMIN_CONTROLLERS = [AdminController];

@@ -92,6 +92,15 @@ const OWNER_REMOVED_FROM_PUBLIC_CATALOG =
   'берёт из ответа «кто я» (`faces`), администратор — из `GET /api/users`.';
 
 /**
+ * Причина, общая для шести выдач каталога (шаг 38.23). Одной строкой — по той же
+ * логике, что и у номера владельца выше.
+ */
+const RELIABILITY_REMOVED_FROM_CATALOG =
+  'Шаг 38.23: поле `reliability` убрано из выдачи — надёжность вырезана целиком ' +
+  'решением заказчика 15.09.2026. Поле было необязательным, старый клиент его ' +
+  'просто не читает.';
+
+/**
  * Принятые расхождения. Каждое — сознательное решение, а не случайность.
  */
 const KNOWN_DIFFERENCES: Record<string, string> = {
@@ -130,6 +139,21 @@ const KNOWN_DIFFERENCES: Record<string, string> = {
   'POST /api/trainers': 'То же изменение и по той же причине, что у клуба.',
   'PATCH /api/trainers/[id]': 'То же изменение и по той же причине, что у клуба.',
   'POST /api/moderation': 'То же изменение и по той же причине, что у клуба.',
+
+  // ⚠️ Фаза 38, шаг 38.23. Расхождение СУБТРАКТИВНОЕ, и это названо, а не спрятано:
+  // из шести публичных выдач каталога пропало поле `reliability` — восемь чисел
+  // надёжности, считавшихся запросом-агрегатом по записям. Решение заказчика
+  // 15.09.2026: механизм вырезан целиком, придумывается заново отдельной работой.
+  // Поле было необязательным, старый клиент переживает выкатку; списки и карточки
+  // в остальном не изменились. Два вызова — `GET /api/clubs?sort=reliability`
+  // и `POST /api/admin/users/[id]/recompute-reliability` — сняты из перечня:
+  // параметра и маршрута больше нет. Список опустеет пересъёмкой 38.24.
+  'GET /api/clubs': RELIABILITY_REMOVED_FROM_CATALOG,
+  'GET /api/clubs?sportId=3': RELIABILITY_REMOVED_FROM_CATALOG,
+  'GET /api/clubs/[id]': RELIABILITY_REMOVED_FROM_CATALOG,
+  'GET /api/trainers': RELIABILITY_REMOVED_FROM_CATALOG,
+  'GET /api/trainers?clubId=1': RELIABILITY_REMOVED_FROM_CATALOG,
+  'GET /api/trainers/[id]': RELIABILITY_REMOVED_FROM_CATALOG,
 
   // ⚠️ Ниже список ПУСТ, и это не забывчивость, а состояние.
   //
@@ -238,11 +262,6 @@ export const CALLS: Call[] = [
   { name: 'GET /api/cities', method: 'get', url: '/api/cities' },
   { name: 'GET /api/clubs', method: 'get', url: '/api/clubs' },
   { name: 'GET /api/clubs?sportId=3', method: 'get', url: '/api/clubs?sportId=3' },
-  {
-    name: 'GET /api/clubs?sort=reliability',
-    method: 'get',
-    url: '/api/clubs?sort=reliability&dir=desc',
-  },
   { name: 'POST /api/clubs', method: 'post', url: '/api/clubs', body: clubForm, as: 2 },
   {
     name: 'POST /api/clubs (ошибка)',
@@ -507,13 +526,6 @@ export const CALLS: Call[] = [
     method: 'post',
     url: '/api/admin/users/1/password',
     body: { newPassword: 'fresh-password-99' },
-  },
-  {
-    name: 'POST /api/admin/users/[id]/recompute-reliability',
-    as: 3,
-    method: 'post',
-    url: '/api/admin/users/1/recompute-reliability',
-    body: {},
   },
 ];
 

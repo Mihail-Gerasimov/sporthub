@@ -1,7 +1,12 @@
 // Контроллеры клубов и тренеров.
 //
-// Самая большая группа маршрутов: публичная выдача с фильтрами и сортировкой
-// по надёжности, детальная карточка, публикация, правка и удаление.
+// Самая большая группа маршрутов: публичная выдача с фильтрами, детальная
+// карточка, публикация, правка и удаление.
+//
+// ⚠️ Фаза 38, шаг 38.23: надёжность вырезана целиком (решение заказчика 15.09.2026).
+// Из выдачи ушли поле `reliability`, отсев `excludeDanger` и сортировка
+// `sort=reliability` с направлением `dir`. Сортировка по рейтингу заводится
+// отдельно, шагом 38.29 — уже в запросе, а не в памяти.
 //
 // Доступ: публична только ЧАСТЬ маршрутов — три чтения у клубов и три у тренеров.
 // Публикация, правка и удаление остаются закрытыми: это действия владельца, и
@@ -182,26 +187,16 @@ export class ClubsController {
     @Query('sportId') sportId?: string,
     @Query('search') search?: string,
     @Query('minRating') minRating?: string,
-    @Query('sort') sort?: string,
-    @Query('dir') dir?: string,
-    @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
     @CurrentUser() session?: SessionContext,
   ): Promise<PublicClub[]> {
-    if (sort !== undefined && sort !== 'reliability') {
-      throw new ValidationError('Некорректные параметры запроса');
-    }
-    if (dir !== undefined && dir !== 'asc' && dir !== 'desc') {
-      throw new ValidationError('Некорректные параметры запроса');
-    }
-
     const rating = minRating === undefined || minRating === '' ? undefined : Number(minRating);
 
     if (rating !== undefined && (Number.isNaN(rating) || rating < 0 || rating > 5)) {
       throw new ValidationError('Некорректные параметры запроса');
     }
 
-    let clubs = await this.query.findPublishedClubs({
+    return this.query.findPublishedClubs({
       sportId: parseOptionalNumber(sportId),
       search: search?.trim() || undefined,
       minRating: rating,
@@ -211,35 +206,6 @@ export class ClubsController {
       // на одну публикацию меньше, чем у него есть.
       includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
     });
-
-    // Надёжность считается ОДНИМ запросом-агрегатом и едет вместе с карточками:
-    // на ней держатся и отсев ненадёжных, и сортировка, и публичный бейдж. Раньше
-    // бейдж считал фронт, забирая ради него все записи площадки, — а после закрытия
-    // полного среза публичные страницы просто перестали открываться.
-    const reliability = await this.query.reliabilityFor({
-      clubIds: clubs.map((club) => club.id),
-      trainerIds: [],
-    });
-    const byId = reliability.clubs;
-
-    if (excludeDanger === 'true') {
-      clubs = clubs.filter((club) => byId.get(club.id)?.badge !== 'danger');
-    }
-
-    if (sort === 'reliability') {
-      clubs = clubs.slice().sort((left, right) => {
-        const leftRate = byId.get(left.id)?.completionRate ?? 0;
-        const rightRate = byId.get(right.id)?.completionRate ?? 0;
-
-        if (rightRate !== leftRate) {
-          return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
-        }
-
-        return right.rating - left.rating;
-      });
-    }
-
-    return clubs.map((club) => ({ ...club, reliability: byId.get(club.id) }));
   }
 
   /**
@@ -496,20 +462,10 @@ export class TrainersController {
     @Query('affiliatedClubId') affiliatedClubId?: string,
     @Query('clubId') clubId?: string,
     @Query('sportId') sportId?: string,
-    @Query('sort') sort?: string,
-    @Query('dir') dir?: string,
-    @Query('excludeDanger') excludeDanger?: string,
     @Query('includeHidden') includeHidden?: string,
     @CurrentUser() session?: SessionContext,
   ): Promise<PublicTrainer[]> {
-    if (sort !== undefined && sort !== 'reliability') {
-      throw new ValidationError('Некорректные параметры запроса');
-    }
-    if (dir !== undefined && dir !== 'asc' && dir !== 'desc') {
-      throw new ValidationError('Некорректные параметры запроса');
-    }
-
-    let trainers = await this.query.findPublishedTrainers({
+    const trainers = await this.query.findPublishedTrainers({
       // Оба имени параметра поддерживаются — так было до переноса.
       clubId: parseOptionalNumber(affiliatedClubId) ?? parseOptionalNumber(clubId),
       sportId: parseOptionalNumber(sportId),
@@ -517,37 +473,14 @@ export class TrainersController {
       includeHiddenOwnedBy: includeHidden === 'true' ? session?.user.id : undefined,
     });
 
-    // То же для тренеров: один запрос-агрегат на всю выдачу.
-    const reliability = await this.query.reliabilityFor({
-      clubIds: [],
-      trainerIds: trainers.map((trainer) => trainer.id),
-    });
-    const byId = reliability.trainers;
-
-    if (excludeDanger === 'true') {
-      trainers = trainers.filter((trainer) => byId.get(trainer.id)?.badge !== 'danger');
-    }
-
-    trainers =
-      sort === 'reliability'
-        ? trainers.slice().sort((left, right) => {
-            const leftRate = byId.get(left.id)?.completionRate ?? 0;
-            const rightRate = byId.get(right.id)?.completionRate ?? 0;
-
-            if (rightRate !== leftRate) {
-              return dir === 'asc' ? leftRate - rightRate : rightRate - leftRate;
-            }
-
-            return right.rating - left.rating;
-          })
-        : // Умолчание: по рейтингу, при равенстве — по числу отзывов.
-          trainers.sort((left, right) =>
-            right.rating !== left.rating
-              ? right.rating - left.rating
-              : right.reviewCount - left.reviewCount,
-          );
-
-    return trainers.map((trainer) => ({ ...trainer, reliability: byId.get(trainer.id) }));
+    // Умолчание: по рейтингу, при равенстве — по числу отзывов. Порядок пока
+    // наводится в памяти — так было до фазы 38; в запрос он уезжает шагом 38.29
+    // вместе с `limit`, и тогда же эта строка исчезнет.
+    return trainers.sort((left, right) =>
+      right.rating !== left.rating
+        ? right.rating - left.rating
+        : right.reviewCount - left.reviewCount,
+    );
   }
 
   // Открыто гостю: адрес-ссылка тренера — та же ссылка из поиска и переписки.

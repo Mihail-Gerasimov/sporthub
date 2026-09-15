@@ -34,7 +34,6 @@ const ADMIN_ROUTES = [
   { method: 'delete', path: '/api/admin/bookings/1' },
   { method: 'post', path: '/api/admin/trainer-club-links/1/force-revoke' },
   { method: 'post', path: '/api/admin/users/1/password' },
-  { method: 'post', path: '/api/admin/users/1/recompute-reliability' },
 ] as const;
 
 describe('Административные маршруты', () => {
@@ -654,23 +653,18 @@ describe('Административные маршруты', () => {
     expect(response.status).toBe(400);
   });
 
-  it('пересчёт надёжности только пишет запись в журнал', async () => {
+  // Фаза 38, шаг 38.23: надёжность вырезана целиком (решение заказчика), и маршрут
+  // пересчёта — no-op, писавший только строку в журнал, — снят вместе с ней.
+  // Тот же вид сторожа, что у послабления ниже: «маршрута нет», а не «отказывает».
+  it('снятого маршрута пересчёта надёжности больше нет — 404 даже администратору', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/admin/users/1/recompute-reliability')
       .set('Cookie', adminCookie);
 
-    expect(response.status).toBe(200);
-
-    const logs = await harness.read<{ action: string; entityId: number }[]>('logs');
-    expect(logs[0]).toMatchObject({ action: 'reliability_recompute', entityId: 1 });
-  });
-
-  it('пересчёт для несуществующего пользователя — 404', async () => {
-    const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/99/recompute-reliability')
-      .set('Cookie', adminCookie);
-
     expect(response.status).toBe(404);
+    // И журнал не получил строки: 404 у живого маршрута с записью до отказа
+    // выглядел бы так же.
+    expect(await harness.read<unknown[]>('logs')).toHaveLength(0);
   });
 
   // Фаза 35, этап Э0a: ручное снятие санкций за неявки удалено вместе с самим
@@ -787,10 +781,16 @@ describe('Административные маршруты', () => {
     // Главное следствие фазы: подсунуть чужой номер больше некуда. Под админской
     // сессией в теле лежит номер атлета — попади он в журнал, админское действие
     // выглядело бы действием атлета, и разбор инцидента пошёл бы по ложному следу.
+    //
+    // ⚠️ Шаг 38.23: проверка переехала с маршрута пересчёта надёжности (снят) на смену
+    // пароля — единственный оставшийся маршрут раздела, который пишет журнал
+    // с исполнителем. Схема пароля строгая, и чужие поля она отвергла бы сама;
+    // поэтому «тело не влияет» здесь означает ровно одно — исполнитель в журнале
+    // тот, чья сессия, а не тот, кого назвали бы в теле.
     const response = await request(harness.app.getHttpServer())
-      .post('/api/admin/users/1/recompute-reliability')
+      .post('/api/admin/users/1/password')
       .set('Cookie', adminCookie)
-      .send({ adminUserId: 1, actorId: 1, actorRole: 'athlete' });
+      .send({ newPassword: 'fresh-password-99' });
 
     expect(response.status).toBe(200);
 

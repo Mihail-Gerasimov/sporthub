@@ -5,7 +5,17 @@
 // меняется число занятых мест. Ни чтения, ни записи, ни уведомлений — поэтому
 // одни и те же правила использует и бэкенд, и экраны.
 
-import type { BookingActor, BookingStatus } from '@sporthub/types';
+import type {
+  Booking,
+  BookingActor,
+  BookingStatus,
+  CancellationPolicy,
+  CancelReason,
+  Schedule,
+} from '@sporthub/types';
+
+import { DISCIPLINE_CONFIG, type DisciplineConfig } from './discipline-config';
+import { hoursUntilSlotStart } from './time';
 
 /**
  * Граф допустимых переходов.
@@ -91,4 +101,41 @@ export function getBookedCountDelta(from: BookingStatus, to: BookingStatus): num
 /** Можно ли перейти из одного статуса в другой (без учёта актора). */
 export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return FSM_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/**
+ * Причина отмены спортсменом: вовремя (`on_time`) или поздно (`late`).
+ *
+ * Считается по политике отмены, ЗАМОРОЖЕННОЙ в записи на момент её создания
+ * (`cancellationPolicySnapshot`), и по часам до начала слота. Чистая функция:
+ * запись и слот приходят явно, базу она не знает.
+ *
+ * ⚠️ Фаза 38, шаг 38.23: переехала сюда из файла надёжности. Надёжность вырезана
+ * решением заказчика, а это правило — не про неё: без него отмена спортсменом
+ * не получит `cancelReason`, и машина состояний записи останется без половины
+ * перехода `→ cancelled_by_athlete`. Место правила — рядом с переходами.
+ */
+export function computeCancelReason(
+  booking: Booking,
+  slot: Schedule | null,
+  now: Date,
+  config: DisciplineConfig = DISCIPLINE_CONFIG,
+): CancelReason {
+  const policy: CancellationPolicy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
+  const freeUntilHours = config.lateCancel.freeUntil[policy];
+
+  if (!Number.isFinite(freeUntilHours)) {
+    return 'on_time';
+  }
+
+  // no_refund (freeUntilHours === 0): окна бесплатной отмены нет → всегда late.
+  if (freeUntilHours === 0) return 'late';
+
+  // Защитный дефолт: если слот не найден (удалён параллельно), считаем отмену поздней.
+  if (!slot) return 'late';
+
+  // Часы до начала считает общий помощник: он работает по часам зала, а не по поясу
+  // процесса. Прежняя копия давала расхождение до четырёх часов — больше, чем окно
+  // строгой политики отмены, то есть решение переворачивалось целиком.
+  return hoursUntilSlotStart(slot, now) >= freeUntilHours ? 'on_time' : 'late';
 }

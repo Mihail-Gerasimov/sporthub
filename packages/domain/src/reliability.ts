@@ -1,4 +1,8 @@
-// Чистые функции рейтинга надёжности для атлетов и провайдеров, плюс computeCancelReason.
+// Чистые функции рейтинга надёжности для атлетов и провайдеров.
+//
+// ⚠️ Фаза 38, этап Э3: надёжность вырезается целиком (решение заказчика 15.09.2026).
+// `computeCancelReason` переехала в `booking-fsm.ts` — она принадлежит машине состояний
+// записи. Остальное снимается шагом 38.26 вместе с потребителями во фронте.
 // Все функции принимают коллекцию booking'ов явно — не обращаются к БД напрямую. Это
 // делает их тестируемыми и пригодными к SSR-вызову (`page.tsx` загружает bookings
 // и прокидывает в UI уже посчитанный `ReliabilityResult`).
@@ -9,16 +13,7 @@
 // считаются и опускают бейдж, просто больше не запирают запись.
 
 import { DISCIPLINE_CONFIG, type DisciplineConfig } from './discipline-config';
-import type {
-  Booking,
-  CancellationPolicy,
-  CancelReason,
-  EntityId,
-  ReliabilityResult,
-  Schedule,
-} from '@sporthub/types';
-
-import { hoursUntilSlotStart } from './time';
+import type { Booking, EntityId, ReliabilityResult } from '@sporthub/types';
 
 /**
  * Результат расчёта надёжности для одной сущности (атлет, клуб или тренер).
@@ -196,34 +191,4 @@ export function computeTrainerReliability(
     return (PROVIDER_RELIABILITY_STATUSES as readonly string[]).includes(booking.status);
   });
   return computeProviderReliability(relevant, config);
-}
-
-/**
- * Вычисляет cancelReason для отмены атлетом: on_time (в пределах окна бесплатной
- * отмены по snapshot-policy) или late (за окном). Чистая функция: получает booking
- * и slot явно. Используется в API `/bookings/[id]/cancel` (через db.ts).
- */
-export function computeCancelReason(
-  booking: Booking,
-  slot: Schedule | null,
-  now: Date,
-  config: DisciplineConfig = DISCIPLINE_CONFIG,
-): CancelReason {
-  const policy: CancellationPolicy = booking.cancellationPolicySnapshot ?? 'free_until_24h';
-  const freeUntilHours = config.lateCancel.freeUntil[policy];
-
-  if (!Number.isFinite(freeUntilHours)) {
-    return 'on_time';
-  }
-
-  // no_refund (freeUntilHours === 0): окна бесплатной отмены нет → всегда late.
-  if (freeUntilHours === 0) return 'late';
-
-  // Защитный дефолт: если слот не найден (удалён параллельно), считаем отмену поздней.
-  if (!slot) return 'late';
-
-  // Часы до начала считает общий помощник: он работает по часам зала, а не по поясу
-  // процесса. Прежняя копия давала расхождение до четырёх часов — больше, чем окно
-  // строгой политики отмены, то есть решение переворачивалось целиком.
-  return hoursUntilSlotStart(slot, now) >= freeUntilHours ? 'on_time' : 'late';
 }

@@ -67,10 +67,7 @@ const HISTORICAL_LOG_ACTION = /reliability_recompute/g;
  * вернулась, — это не «ещё не вырезано», а «вернулось», и он краснит сторож.
  */
 const PENDING: Record<string, string> = {
-  // Бэкенд — шаг 38.23.
-  'apps/api/src/admin/admin.controller.ts': '38.23',
-  'apps/api/src/catalog/catalog-query.service.ts': '38.23',
-  'apps/api/src/catalog/clubs.controller.ts': '38.23',
+  // Бэкенд — шаг 38.23: вычищен, записей нет.
   // Фронт — шаг 38.25.
   'apps/web/src/app/clubs/[slug]/page.tsx': '38.25',
   'apps/web/src/app/page.tsx': '38.25',

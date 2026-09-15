@@ -164,10 +164,6 @@ const REQUEST_BY_ROUTE: Record<string, { url: string; body?: unknown }> = {
     url: '/api/admin/users/1/password',
     body: { newPassword: 'guard-password-77' },
   },
-  'post /api/admin/users/:id/recompute-reliability': {
-    url: '/api/admin/users/1/recompute-reliability',
-    body: { adminUserId: 3 },
-  },
   // Прокси карт ходит наружу только после разбора тела. Пустое тело отбивается
   // проверкой, сеть не трогается, а тело ошибки сторож всё равно осматривает.
   'post /api/geocode': { url: '/api/geocode', body: {} },
