@@ -1,5 +1,5 @@
 /*
- * Глобальные стили SportHub — светлая палитра (фаза 31) на именах токенов фазы 28.
+ * Глобальные стили SportHub — светлая палитра ПРОСПОРТ (фаза 38) на именах токенов фазы 28.
  *
  * Структура:
  * 1. :root  — базовые CSS-переменные светлой палитры (--ui-bg, --ui-card, --ui-lime, ...)
@@ -8,8 +8,8 @@
  *    через алиасы, не требуя точечной правки.
  * 2. @theme inline — маппинг переменных в Tailwind utility-классы (color-*, font-*, radius-*).
  *    Старые имена сохранены, добавлены новые (color-bg, color-lime, color-orange, ...).
- * 3. Базовые стили html/body — белый фон с двойным радиальным градиентом
- *    (mint 5% top-left + orange 4% bottom-right, на базе --ui-bg-deep).
+ * 3. Базовые стили html/body — светлый фон с двойным радиальным градиентом
+ *    (зелёный 5% top-left + orange 4% bottom-right, на базе --ui-bg-deep).
  * 4. Типографические утилиты .t-* (display- и body-шрифт из UI Kit).
  * 5. Существующие утилиты (.scrollbar-hidden, input[type=number] resets) сохранены.
  */
@@ -22,45 +22,54 @@
   --ui-font-body: 'Oswald', system-ui, sans-serif;
   --ui-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
 
-  /* ===== Светлая палитра (Phase 31): white surfaces + navy text + mint primary =====
-   * Имена токенов из Phase 28 (`--ui-lime/orange/red/gold`) сохранены — это семантика,
-   * не цвет. `--ui-lime` = primary positive (теперь mint), `--ui-orange/red/gold` —
-   * warning/danger/pending (тёплая зона не тронута в Phase 31).
+  /* ===== Палитра ПРОСПОРТ (фаза 38): графитовый текст на светло-серой странице,
+   * белые карточки, зелёный акцент. Значения — из эталона дизайна
+   * (`prosport/src/styles/theme.css`, `App.tsx:101-105`), снимок шага 38.5.
+   * Имена токенов — из фазы 28 и НЕ меняются: `--ui-lime` — это «primary positive»
+   * (теперь зелёный), `--ui-orange/red/gold` — warning/danger/pending. Семантика,
+   * а не цвет: сменить палитру = поменять значения здесь, и только здесь.
    */
   /* Поверхности */
-  --ui-bg: #ffffff; /* Основной фон страницы — белый */
-  --ui-bg-deep: #ffffff; /* Самый глубокий фон — body wrapper (тоже белый) */
-  --ui-card: #ffffff; /* Фон карточек выдачи */
-  --ui-card-2: #d2d8d6; /* Альтернативный фон секций, input-полей, photo-placeholder */
-  --ui-line: #d2d8d6; /* Границы карточек, разделители */
-  --ui-line-2: #bcbcbc; /* Усиленные внутренние разделители */
+  --ui-bg: #f4f6f9; /* Основной фон страницы — светло-серый холст дизайна */
+  --ui-bg-deep: #f4f6f9; /* Самый глубокий фон — body wrapper (тот же холст) */
+  --ui-card: #ffffff; /* Фон карточек — белый */
+  --ui-card-2: #eaedf2; /* Альтернативный фон секций, input-полей, photo-placeholder */
+  --ui-line: #e5e7eb; /* Границы карточек, разделители */
+  --ui-line-2: #d1d5db; /* Усиленные внутренние разделители */
 
   /* Текст */
-  --ui-ink: #0a1029; /* Основной текст — deep navy (после Step 31.9 аудита референса) */
-  --ui-muted: #7a8186; /* Вторичный текст, мета, подписи (Step 31.9 — поднят с #BCBCBC до graphite для контраста ≥4.5 на белом) */
-  --ui-disabled: #bcbcbc; /* Disabled-элементы, неактивные состояния (остался grey — иначе disabled будет выглядеть как обычный текст) */
+  --ui-ink: #111111; /* Основной текст — графит */
+  --ui-muted: #6b7280; /* Вторичный текст, мета, подписи */
+  --ui-disabled: #9ca3af; /* Disabled-элементы, плейсхолдеры, неактивные состояния */
 
-  /* Акценты — mint (positive: запись, подтверждение, success, активный).
-   * Step 31.11: swap default/hover. Светлый #83D3B5 теперь основной (default),
-   * насыщенный #50BC93 ушёл в hover/press emphasis (кнопка темнеет при наведении).
+  /* Акценты — зелёный (positive: запись, подтверждение, success, активный).
+   * `-hov` — тёмно-зелёный: текст на мягком зелёном фоне и press-emphasis кнопок;
+   * `-soft` — прозрачная подложка, работает и на белом, и на тёмной плашке.
    */
-  --ui-lime: #83d3b5;
-  --ui-lime-hov: #50bc93;
-  --ui-lime-soft: #bfdfd2;
+  --ui-lime: #7ed900;
+  --ui-lime-hov: #3a7000;
+  --ui-lime-soft: rgba(126, 217, 0, 0.12);
 
-  /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций; НЕ тронут в Phase 31) */
-  --ui-orange: #fb6119;
-  --ui-orange-hov: #ff7a3d;
-  --ui-orange-soft: rgba(251, 97, 25, 0.12);
+  /* Акценты — оранжевый (warning: cancel, reject, late-cancel, badge нотификаций) */
+  --ui-orange: #f97316;
+  --ui-orange-hov: #ea580c;
+  --ui-orange-soft: rgba(249, 115, 22, 0.12);
 
   /* Hard-danger (валидация формы, danger-бэйдж, hard-delete admin) */
-  --ui-red: #e74c3c;
+  --ui-red: #ef4444;
 
   /* Soft-warning (status-pending бейджи, warn-action в логах админки).
-   * Phase 28.16: добавлен под admin-rebrand — нужен для status='pending'
-   * в Moderation/Users и для action-badge.is-warn в LogsPage. Не путать с
-   * --ui-orange (cancel/reject). gold = «на проверке», не «отклонено». */
-  --ui-gold: #f5c518;
+   * Не путать с --ui-orange (cancel/reject): gold = «на проверке», не «отклонено». */
+  --ui-gold: #f59e0b;
+
+  /* ===== Контраст-плашка: тёмный фон героя и шапки =====
+   * Единственные тёмные острова на светлой странице. У плашки свой текст, свой
+   * приглушённый текст и своя линия — обычные `--ui-ink`/`--ui-line` на ней невидимы.
+   */
+  --ui-plate: #111111; /* Фон героя и шапки */
+  --ui-plate-ink: #ffffff; /* Текст на плашке */
+  --ui-plate-muted: rgba(255, 255, 255, 0.45); /* Подзаголовки и подписи на плашке */
+  --ui-plate-line: rgba(255, 255, 255, 0.15); /* Обводки и разделители на плашке */
 
   /* ===== Алиасы для обратной совместимости со светлой палитрой =====
    * Старые имена (--ui-canvas, --ui-panel, --ui-accent, ...) ссылаются на новые.
@@ -90,8 +99,8 @@
    * Минимально — только на модалках и dropdown.
    * На дефолтных карточках теней нет, структуру держит обводка.
    */
-  --ui-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4); /* Едва заметная подложка карточки */
-  --ui-shadow-floating: 0 24px 48px rgba(0, 0, 0, 0.6); /* Модалки, dropdown, popover */
+  --ui-shadow-card: 0 1px 4px rgba(17, 17, 17, 0.05); /* Едва заметная подложка карточки */
+  --ui-shadow-floating: 0 12px 36px rgba(17, 17, 17, 0.12); /* Модалки, dropdown, popover */
 }
 
 @theme inline {
@@ -113,6 +122,10 @@
   --color-orange-soft: var(--ui-orange-soft);
   --color-red: var(--ui-red);
   --color-gold: var(--ui-gold);
+  --color-plate: var(--ui-plate);
+  --color-plate-ink: var(--ui-plate-ink);
+  --color-plate-muted: var(--ui-plate-muted);
+  --color-plate-line: var(--ui-plate-line);
 
   /* Старые имена-алиасы (Tailwind видит их как color-canvas, color-panel и т.д.) */
   --color-canvas: var(--ui-canvas);
