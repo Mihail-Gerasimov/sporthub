@@ -3,7 +3,7 @@
 // per NotificationType, REQUIRED-типы disabled + плашка «Нельзя отключить»,
 // клик по non-required → debounced (500ms) PATCH /api/users/[id]/notification-preferences
 // + toast success/error.
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CabinetProvider } from '@/components/profile/cabinet-context';
@@ -54,9 +54,11 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       booking_cancelled_by_provider: 'отмены провайдером',
       publication_hidden_for_owner: 'решения по вашей публикации',
       publication_unhidden_for_owner: 'решения по вашей публикации',
-      // Шаг 38.43: подтверждение и его отзыв — тоже решения по публикации.
-      publication_verified_for_owner: 'решения по вашей публикации',
-      publication_verification_revoked_for_owner: 'решения по вашей публикации',
+      // Шаг 38.55: подтверждение проверки и его отзыв названы в подписи ПОИМЁННО,
+      // а не спрятаны под общим «решения по публикации»: у них другая цена —
+      // знак «проверено» появился или снят, а не публикация убрана из каталога.
+      publication_verified_for_owner: 'подтверждение проверки',
+      publication_verification_revoked_for_owner: 'его отзыв',
     };
 
     render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
@@ -399,19 +401,36 @@ describe('Настройка названа обещанием на будуще
 // --- Довесок к фазе 37: тема «Публикации» ----------------------------------------
 
 describe('тема «Публикации» в настройках человека', () => {
-  it('секция есть, и оба её переключателя ВЫКЛЮЧИТЬ НЕЛЬЗЯ', () => {
+  it('секция есть, и все четыре её переключателя ВЫКЛЮЧИТЬ НЕЛЬЗЯ', () => {
     // ⚠️ Скрытие публикации — не новость площадки, а факт, меняющий работу человека:
     // публикации нет в каталоге, записи не идут. Показать галочку и дать её снять
-    // значило бы пообещать то, чего страница не делает.
+    // значило бы пообещать то, чего страница не делает. Шаг 38.55: подтверждение
+    // проверки и его отзыв — того же рода: знак меняет то, как публикацию видят люди.
     render(<UserNotificationPreferencesEditor userId={1} />);
 
     expect(screen.getByText('Публикации')).toBeInTheDocument();
 
-    for (const type of ['publication_hidden_for_owner', 'publication_unhidden_for_owner']) {
-      const toggle = screen.getByTestId(`notification-preferences-toggle-${type}`);
+    const publications = screen.getByTestId('notification-preferences-group-publications');
+    const toggles = within(publications).getAllByRole('checkbox');
 
-      expect(toggle).toBeDisabled();
+    expect(toggles).toHaveLength(4);
+
+    for (const type of [
+      'publication_hidden_for_owner',
+      'publication_unhidden_for_owner',
+      'publication_verified_for_owner',
+      'publication_verification_revoked_for_owner',
+    ]) {
+      expect(screen.getByTestId(`notification-preferences-toggle-${type}`)).toBeDisabled();
     }
+  });
+
+  it('подпись называет цену отзыва проверки: знак «проверено» снят', () => {
+    render(<UserNotificationPreferencesEditor userId={1} />);
+
+    const intro = screen.getByTestId('notification-preferences-editor').textContent ?? '';
+
+    expect(intro).toMatch(/знак «проверено»/);
   });
 
   it('надзорных тем в настройках человека по-прежнему нет', () => {
