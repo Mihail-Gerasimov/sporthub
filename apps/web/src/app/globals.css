@@ -429,11 +429,13 @@
     font-size: 13px;
   }
 
+  /* Рубрика над заголовком секции — 10px / 700 / трекинг 0.12em, как рубрики макета
+     (`HomePage.tsx:507`; аудит 17.09, п. 7 — одна рубрика на страницу). */
   .t-eyebrow {
     font-family: var(--ui-font-body);
     font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.18em;
+    font-size: 10px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     /* Цвета у класса нет (ревью 38.79c): на светлом — `text-lime-hov` утилитой, на плашке —
        `text-lime`; цвет в классе бил каскадом утилиту и красил призыв тёмно-зелёным. */
