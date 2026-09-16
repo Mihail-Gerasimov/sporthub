@@ -43,25 +43,6 @@ const SOURCE_ROOT = path.join(API_ROOT, 'src');
 const DICTIONARY_ROOT = path.join(REPO_ROOT, 'packages', 'domain', 'src');
 
 /**
- * Исторические значения: писателя нет, строки в журнале есть.
- *
- * ⚠️ Это НЕ лазейка для мёртвых значений, а закрытый список с причиной у каждого.
- * Отличие от `admin_login` (шаг 37.29): у того писателя не было НИКОГДА — событие
- * система не производила, и значение ушло из словаря. Здесь писатель БЫЛ и снят
- * сознательно: маршрут пересчёта надёжности убран фазой 38 (шаг 38.23) вместе
- * с самой надёжностью, а записи, которые он успел оставить, живы, и прошлое
- * не переписывается. По файлу фазы 38 (4.5) значение остаётся в словаре
- * с подписью — как исторические роли фазы 35 в `actorLabel`.
- *
- * Список не растёт сам собой: новая запись сюда — решение, а не удобство.
- */
-const HISTORICAL_ACTIONS: Record<string, string> = {
-  reliability_recompute:
-    'Шаг 38.23: маршрут `POST /api/admin/users/:id/recompute-reliability` снят вместе ' +
-    'с надёжностью; строки журнала с этим действием остаются и читаются с подписью.',
-};
-
-/**
  * Каталоги вне осмотра.
  *
  * `prisma-client` — сгенерированный клиент базы: он пересобирается из схемы,
@@ -116,33 +97,9 @@ describe('у каждого значения словаря журнала ес�
 
     // Отказ запоминается СПИСКОМ, а не первым попавшимся: иначе уборка шла бы
     // по одному значению за прогон, и каждое следующее выяснялось бы заново.
-    const orphans = LOG_ACTIONS.filter(
-      (action) => HISTORICAL_ACTIONS[action] === undefined && !haystack.includes(`'${action}'`),
-    );
+    const orphans = LOG_ACTIONS.filter((action) => !haystack.includes(`'${action}'`));
 
     expect(orphans).toEqual([]);
-  });
-
-  it('историческое значение действительно без писателя — иначе запись в списке лишняя', async () => {
-    // Обратная сторона списка: значение, у которого писатель снова появился,
-    // обязано выйти из исторических — иначе список исключений тихо копит живое.
-    const files = [...(await sourceFiles(SOURCE_ROOT)), ...(await sourceFiles(DICTIONARY_ROOT))];
-    const code = await Promise.all(
-      files.map(async (file) => codeOnly(await readFile(file, 'utf8'))),
-    );
-    const haystack = code.join('\n');
-    const revived = Object.keys(HISTORICAL_ACTIONS).filter((action) =>
-      haystack.includes(`'${action}'`),
-    );
-
-    expect(revived).toEqual([]);
-    // И каждое историческое значение — из словаря: подпись без значения
-    // в словаре была бы подписью к тому, чего фильтр журнала не примет.
-    expect(
-      Object.keys(HISTORICAL_ACTIONS).filter(
-        (action) => !(LOG_ACTIONS as readonly string[]).includes(action),
-      ),
-    ).toEqual([]);
   });
 
   it('сторож обходит настоящие файлы, а не пустоту', async () => {

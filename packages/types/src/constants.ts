@@ -77,8 +77,11 @@ export const LOG_ACTIONS = [
   'link_approve',
   'link_reject',
   'link_revoke',
-  // Phase 24 — reliability
-  'reliability_recompute',
+  // Phase 38 Step 38.26: `reliability_recompute` удалён отсюда — маршрут пересчёта
+  // снят вместе с надёжностью (38.23), писателя нет. Строки журнала с этим
+  // значением ОСТАЮТСЯ и остаются: прошлое не переписывается. Их подпись живёт
+  // в словаре прошлого `LEGACY_ACTION_LABELS` (`apps/web/src/lib/log-action-labels.ts`),
+  // по образцу `admin_login` (37.29) и исторических ролей фазы 35.
   // Phase 24 — админский hard-delete booking'а
   'admin_hard_delete_booking',
   // Phase 29 Step 29.7 — админский сброс пароля юзеру

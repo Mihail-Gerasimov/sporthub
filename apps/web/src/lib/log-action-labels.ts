@@ -34,8 +34,6 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   link_approve: 'Привязка подтверждена',
   link_reject: 'Привязка отклонена',
   link_revoke: 'Привязка разорвана',
-  // Phase 24 — reliability
-  reliability_recompute: 'Рейтинг пересчитан',
   // Phase 24 — админский hard-delete
   admin_hard_delete_booking: 'Запись удалена администратором',
   // Phase 29 Step 29.7 — админский сброс пароля
@@ -59,12 +57,18 @@ export const ACTION_LABELS: Record<LogAction, string> = {
  * что прошлое в нём не переписывают. Показывать вместо подписи сырое
  * `admin_login` значило бы наказать администратора за нашу уборку словаря.
  *
- * Список закрытый и не растёт: новых значений в нём взяться неоткуда — писателя
- * у них нет по определению. Пополняется только `ACTION_LABELS` выше.
+ * Список пополняется только тогда, когда действие УХОДИТ из `LOG_ACTIONS`
+ * с живыми строками в журнале (как `reliability_recompute` в 38.26); живые действия
+ * пополняют `ACTION_LABELS` выше. Одно значение не бывает в обоих словарях —
+ * стережёт `log-action-labels.test.ts`.
  */
 export const LEGACY_ACTION_LABELS: Record<string, string> = {
   admin_login: 'Вход администратора',
   moderation_auto_restore: 'Публикация авто-восстановлена',
+  // Phase 38 Step 38.26: маршрут пересчёта надёжности снят вместе с самой
+  // надёжностью (38.23). Строки журнала живы — на живой базе это записи прогонов
+  // и ручных проверок, — и подпись им положена, как и прежним двум.
+  reliability_recompute: 'Рейтинг пересчитан',
 };
 
 // Тон badge для типа действия — Phase 28.18 семантические уровни:
@@ -89,7 +93,6 @@ export const ACTION_TONES: Record<LogAction, ActionTone> = {
   link_approve: 'good',
   link_reject: 'danger',
   link_revoke: 'danger',
-  reliability_recompute: 'neutral',
   admin_hard_delete_booking: 'danger',
   admin_impersonate_start: 'warn',
   admin_impersonate_stop: 'neutral',

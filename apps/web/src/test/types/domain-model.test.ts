@@ -357,7 +357,7 @@ describe('Domain model contracts', () => {
     expectTypeOf<SupervisionNotification>().not.toMatchTypeOf<{ userId: EntityId }>();
   });
 
-  it('Phase 24: LogAction расширен значениями FSM/links/reliability', () => {
+  it('Phase 24: LogAction расширен значениями FSM и links', () => {
     // ⚠️ Направление проверки исправлено вместе с соседней (шаг 37.21): «весь
     // словарь обязан уместиться в этот список» ломается при добавлении любого
     // действия и не проверяет того, ради чего написано.
@@ -370,7 +370,9 @@ describe('Domain model contracts', () => {
     expectTypeOf<'link_approve'>().toMatchTypeOf<LogAction>();
     expectTypeOf<'link_reject'>().toMatchTypeOf<LogAction>();
     expectTypeOf<'link_revoke'>().toMatchTypeOf<LogAction>();
-    expectTypeOf<'reliability_recompute'>().toMatchTypeOf<LogAction>();
+    // Шаг 38.26: `reliability_recompute` ушёл из словаря вместе с надёжностью —
+    // в тип он больше не входит; подпись строкам журнала даёт словарь прошлого.
+    expectTypeOf<'reliability_recompute'>().not.toMatchTypeOf<LogAction>();
     expectTypeOf<'admin_hard_delete_booking'>().toMatchTypeOf<LogAction>();
     // Шаг 37.27: след блокировки входа после подбора пароля.
     expectTypeOf<'login_lockout'>().toMatchTypeOf<LogAction>();
