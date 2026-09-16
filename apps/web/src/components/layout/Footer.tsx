@@ -1,56 +1,49 @@
+// Подвал площадки (шаг 38.61) — по эталону ПРОСПОРТ: тёмная плашка, логотип ссылкой
+// на главную, ссылки из словаря `lib/navigation.ts` (те же цели, что в шапке, — и ни
+// одной, которой нет) и копирайт с именем площадки. Блок «Статус» и признание «ссылки
+// работают как заглушки» сняты: подвал больше ни в чём не признаётся.
+import { BRAND_NAME } from '@sporthub/domain';
 import Link from 'next/link';
 
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { FOOTER_NAV } from '@/lib/navigation';
-import { BRAND_NAME } from '@sporthub/domain';
 
 export function Footer() {
+  // Год — из часов, а не буквами: в макете «© 2025» захардкожен и уже устарел.
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="border-t border-line bg-panel/90" aria-label="Подвал сайта">
-      <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
-        <div>
-          <Link href="/" className="inline-flex text-inherit no-underline" aria-label="На главную">
-            <BrandLogo size="sm" />
-          </Link>
-          <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
-            Городская витрина для спорта без лишнего шума.
-          </h2>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
-            Сейчас это MVP с фокусом на подбор, запись и понятный интерфейс для клубов, студий и
-            тренеров.
-          </p>
-        </div>
+    <footer
+      className="border-t border-plate-line bg-plate text-plate-ink"
+      aria-label="Подвал сайта"
+    >
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-7 sm:px-6 md:flex-row md:items-center md:justify-between">
+        <Link
+          href="/"
+          className="inline-flex shrink-0 text-inherit no-underline"
+          aria-label="На главную"
+        >
+          <BrandLogo tone="plate" size="sm" />
+        </Link>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Навигация
-            </p>
-            <div className="mt-4 flex flex-col gap-3">
-              {FOOTER_NAV.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-sm font-medium text-ink transition-colors hover:text-accent-strong"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+        <nav
+          aria-label="Навигация в подвале"
+          className="flex flex-wrap items-center gap-x-5 gap-y-2"
+        >
+          {FOOTER_NAV.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="font-body text-[12px] font-semibold text-plate-muted no-underline transition-colors hover:text-lime"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Статус</p>
-            <div className="mt-4 space-y-2 text-sm leading-relaxed text-muted">
-              <p>MVP разрабатывается по фазам.</p>
-              <p>Следом собираем поиск, фильтры и клубы на главной.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-line/80 px-4 py-4 text-center text-xs text-muted sm:px-6 lg:px-10">
-        © 2026 {BRAND_NAME}. Все ссылки в подвале пока работают как заглушки MVP.
+        <p className="m-0 font-body text-[11px] text-plate-muted">
+          © {year} {BRAND_NAME}
+        </p>
       </div>
     </footer>
   );

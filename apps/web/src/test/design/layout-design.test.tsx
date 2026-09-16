@@ -61,11 +61,7 @@ describe('Минималистичный стиль layout-компоненто�
       expect(logo.querySelector('svg')?.getAttribute('class')).toContain('h-7');
     });
 
-    it('описание проекта использует leading-relaxed вместо leading-7', () => {
-      render(<Footer />);
-      const description = screen.getByText(/MVP с фокусом/);
-      expect(description.className).toContain('leading-relaxed');
-      expect(description.className).not.toContain('leading-7');
-    });
+    // Шаг 38.61: описания проекта в подвале больше нет — подвал по эталону несёт логотип,
+    // ссылки и копирайт; тест leading-relaxed снят вместе с абзацем.
   });
 });
