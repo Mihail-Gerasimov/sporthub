@@ -1,60 +1,90 @@
-// Загрузка данных витрины главной (шаг 38.79b): шесть клубов и четыре тренера
-// по рейтингу — запросом, сводка счётчиков — четырьмя `count` на бэкенде.
+// Загрузка данных витрины главной (шаг 38.79b) — один раз на запрос страницы.
 //
-// ⚠️ Переходно (до снятия рабочей части с главной): справочники, услуги, расписание
-// тренеров и связи для карточек тренеров берутся из уже загруженных данных каталога
-// (`loadCatalogData`), чтобы не спрашивать их дважды на одной странице.
+// Витрина — запросом: шесть клубов и четыре тренера по рейтингу приходят с `limit`
+// и порядком из базы, счётчики героя — четырьмя `count` на бэкенде. Полного списка
+// тренеров и лидеров `limit=1` страница больше не спрашивает.
+//
+// ⚠️ Полный список клубов остаётся: «Сегодня в фокусе» в герое — занятия дня ВСЕЙ
+// площадки с именами клубов, а площадка тренера в карточке — клуб по связи; ни то,
+// ни другое шестью клубами витрины не покрыть. Каталог клубов в запрос — долг Д-15.
 
 import { buildTrainerDirectory } from '@/components/trainers';
-import { getPlatformOverview, getPublishedClubs, getPublishedTrainers } from '@/lib/server-api';
-import { getDateKeyInTimeZone } from '@/lib/utils';
+import { getUpcomingSessions } from '@/components/schedule';
+import {
+  getOfferings,
+  getPlatformOverview,
+  getPublishedClubs,
+  getPublishedTrainers,
+  getSchedule,
+  getSpecialties,
+  getSports,
+  getTags,
+  getTrainerClubLinks,
+} from '@/lib/server-api';
+import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 
-import type { CatalogData } from '@/components/catalog/catalog-data';
 import type { HomeData } from '@/components/home/home-data';
-import type { Offering, Schedule, Specialty, TrainerClubLink } from '@sporthub/types';
 
 /** Сколько карточек витрина просит у базы — макет: клубов шесть, тренеров четыре. */
 const HOME_SHOWCASE_LIMITS = { clubs: 6, trainers: 4 } as const;
 
-/** Справочники, по которым собирается карточка тренера (площадка, услуга, окно). */
-export type TrainerCardReferences = {
-  offerings: Offering[];
-  trainerSchedule: Schedule[];
-  specialties: Specialty[];
-  trainerClubLinks: TrainerClubLink[];
-};
-
-type LoadHomeDataInput = {
-  now: Date;
-  catalog: CatalogData;
-  references: TrainerCardReferences;
-};
-
-export async function loadHomeData({
-  now,
-  catalog,
-  references,
-}: LoadHomeDataInput): Promise<HomeData> {
-  const [showcaseClubs, showcaseTrainers, overview] = await Promise.all([
+export async function loadHomeData(now: Date): Promise<HomeData> {
+  const [
+    showcaseClubs,
+    showcaseTrainers,
+    overview,
+    clubs,
+    clubSchedule,
+    trainerSchedule,
+    offerings,
+    specialties,
+    sports,
+    tags,
+    trainerClubLinks,
+  ] = await Promise.all([
     getPublishedClubs({ sort: 'rating', limit: HOME_SHOWCASE_LIMITS.clubs }),
     getPublishedTrainers({ sort: 'rating', limit: HOME_SHOWCASE_LIMITS.trainers }),
     // Счётчики героя — четыре `count` на бэкенде, а не длины списков (38.30, д-20).
     getPlatformOverview(),
+    getPublishedClubs(),
+    getSchedule(),
+    getSchedule({ ownerType: 'trainer' }),
+    getOfferings(),
+    getSpecialties(),
+    getSports(),
+    getTags(),
+    getTrainerClubLinks({ status: 'confirmed' }),
   ]);
 
-  // Карточка тренера — та же, что в каталоге: площадка, услуга, ближайшее окно и
-  // «доступен сейчас» считаются справочником по четырём тренерам витрины.
-  const showcaseTrainerDirectory = buildTrainerDirectory({
-    clubs: catalog.clubs,
-    offerings: references.offerings,
-    schedule: references.trainerSchedule,
-    specialties: references.specialties,
-    sports: catalog.sports,
-    trainers: showcaseTrainers,
-    trainerClubLinks: references.trainerClubLinks,
-    targetDate: getDateKeyInTimeZone(now),
-    now,
-  });
+  const todayDateKey = getDateKeyInTimeZone(now);
+  // Цвет вида (38.80) едет до карточек и ленты героя вместе с именем и иконкой.
+  const homeSports = sports.map(({ id, name, icon, color }) => ({ id, name, icon, color }));
 
-  return { ...catalog, overview, showcaseClubs, showcaseTrainers: showcaseTrainerDirectory };
+  return {
+    overview,
+    sports: homeSports,
+    tags,
+    // Занятия дня для героя: сегодня, не начались, есть места, по времени (38.81).
+    upcomingSessions: getUpcomingSessions({
+      clubs,
+      schedule: clubSchedule,
+      targetDate: todayDateKey,
+      now,
+    }),
+    upcomingSessionsLabel: formatDate(todayDateKey, { day: 'numeric', month: 'long' }),
+    showcaseClubs,
+    // Карточка тренера — та же, что в каталоге: площадка, услуга, ближайшее окно и
+    // «доступен сейчас» считаются справочником по четырём тренерам витрины.
+    showcaseTrainers: buildTrainerDirectory({
+      clubs,
+      offerings,
+      schedule: trainerSchedule,
+      specialties,
+      sports: homeSports,
+      trainers: showcaseTrainers,
+      trainerClubLinks,
+      targetDate: todayDateKey,
+      now,
+    }),
+  };
 }

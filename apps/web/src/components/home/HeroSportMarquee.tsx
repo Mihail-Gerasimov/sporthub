@@ -33,7 +33,9 @@ function SportChip({
       aria-hidden={ariaHidden ? 'true' : undefined}
       className="inline-flex shrink-0 cursor-default items-center gap-2 rounded-full border border-plate-line bg-plate-ink/10 px-3.5 py-[9px] font-body text-[12px] font-semibold uppercase tracking-[0.06em] text-plate-ink"
     >
-      <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-[var(--ui-lime-soft)] font-body text-[11px] font-bold text-[var(--ui-ink)]">
+      {/* Буква-значок на тёмной плашке героя: зелёная на полупрозрачной зелёной
+          подложке — графит на ней давал 1,24:1 (a11y-прогон 38.96, MED). */}
+      <span className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-lime-soft font-body text-[11px] font-bold text-lime">
         {sport.name.trim().charAt(0).toUpperCase()}
       </span>
       {sport.name}

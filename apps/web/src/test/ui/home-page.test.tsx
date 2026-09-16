@@ -1,26 +1,26 @@
-// Тесты главной — витрина и рабочая часть из словаря секций (фаза 38, шаг 38.76).
+// Тесты главной — витрина ровно по макету из словаря секций (фаза 38, шаги 38.76 и 38.79b).
 //
 // Данные приходят настоящим клиентом с заготовленного стенда ответов
 // (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
 //
-// Что проверяется: страница собрана ИЗ СЛОВАРЯ — каждая запись отрисована своим
-// компонентом в своём порядке; тексты витрины — из `home-copy`, а не литералами
-// теста; рабочая часть переключается одним стором с героем; витрина не ходит
-// за записями; надёжности нет ни в каком виде; пустой каталог честен.
+// Что проверяется: страница собрана ИЗ СЛОВАРЯ — шесть записей отрисованы своими
+// компонентами в своём порядке, ниже призыва ничего нет; тексты витрины — из
+// `home-copy`, а не литералами теста; рабочей части на главной нет (она на `/catalog`);
+// витрина не ходит за записями; надёжности нет ни в каком виде; пустой каталог честен.
 //
 // ⚠️ Правка по ревью 38.66: герой — во всю ширину под шапкой, `main` не держит
 // ни полей, ни потолка; контейнер — у каждой секции свой.
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
-import { CTA, FEATURES, HERO, LEADERS, POPULAR, STEPS } from '@/lib/home-copy';
+import { CTA, FEATURES, HERO, SHOWCASE, STEPS } from '@/lib/home-copy';
 import { HOME_SECTION_KEYS, HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs } from '@/test/helpers/fixture-routes';
 
-/* Мок next/navigation для useRouter (используется в UpcomingSessions/TrainerAvailability) */
+/* Мок next/navigation для useRouter (виджет поиска героя, ссылки витрины) */
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -33,15 +33,6 @@ vi.mock('next/navigation', () => ({
     throw new Error('Not found');
   },
 }));
-
-/** Переключатель героя — один стор с рабочей частью; кликаем в герое. */
-function switchToTrainers() {
-  fireEvent.click(
-    within(screen.getByRole('region', { name: HOME_SECTIONS.hero.label })).getByRole('button', {
-      name: 'Тренеры',
-    }),
-  );
-}
 
 describe('Home page', () => {
   let stub: ApiStub;
@@ -59,7 +50,7 @@ describe('Home page', () => {
     stub?.restore();
   });
 
-  it('рисует все секции словаря в его порядке, каждую — с id из записи', async () => {
+  it('рисует все секции словаря в его порядке, каждую — с id из записи; последняя — призыв', async () => {
     render(await Home());
 
     const main = screen.getByRole('main');
@@ -68,9 +59,12 @@ describe('Home page', () => {
       .map((section) => section.id);
 
     expect(ids).toEqual(HOME_SECTION_KEYS.map((key) => HOME_SECTIONS[key].id));
+    // Главная — ровно макет (решение заказчика 16.09): ниже призыва ничего нет.
+    expect(ids.at(-1)).toBe(HOME_SECTIONS.cta.id);
+    expect(ids).toHaveLength(6);
   });
 
-  it('витрина: заголовки героя, шагов, возможностей и призыва — из словаря текстов', async () => {
+  it('витрина: заголовки героя, шагов, возможностей, каруселей и призыва — из словаря текстов', async () => {
     render(await Home());
 
     const h1 = screen.getByRole('heading', { level: 1 });
@@ -84,6 +78,8 @@ describe('Home page', () => {
     for (const line of FEATURES.titleLines) {
       expect(featuresTitle.textContent).toContain(line);
     }
+    expect(screen.getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: SHOWCASE.trainers.title })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: CTA.primary })).toBeInTheDocument();
   });
 
@@ -98,40 +94,17 @@ describe('Home page', () => {
     expect(hero.querySelector('[class*="max-w-"]')).not.toBeNull();
   });
 
-  it('рабочая часть переключается одним стором с героем: клубы → тренеры', async () => {
+  it('рабочей части на главной нет: ни формы поиска с фильтрами, ни карты, ни выдачи, ни слотов', async () => {
     render(await Home());
 
-    // Подборка под фильтр — до её снятия (38.79b): заголовок ищется внутри её секции,
-    // витринная карусель «Тренеры» называется так же.
-    const popular = document.getElementById(HOME_SECTIONS.popular.id) as HTMLElement;
-    expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(within(popular).getByRole('heading', { name: POPULAR.title.clubs })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
-    // Карточки выдачи — по одной на клуб стенда (популярное рисует их ещё раз — 38.79).
-    const catalog = document.getElementById(HOME_SECTIONS.results.id) as HTMLElement;
-    expect(within(catalog).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
+    expect(screen.queryByRole('heading', { name: 'Карта' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /под текущие фильтры/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ближайшие занятия' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/в выдаче$/)).not.toBeInTheDocument();
+    // Карточки — только витринные: по клубу из ответа с `limit`.
+    expect(screen.getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
       fixtureClubs.length,
     );
-
-    switchToTrainers();
-
-    // Карта не меняется при переключении режима.
-    expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(
-      within(popular).getByRole('heading', { name: POPULAR.title.trainers }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Тренеры под текущие фильтры' }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole('article', { name: /^Карточка тренера: / }).length).toBeGreaterThan(
-      0,
-    );
-    // В выдаче клубов нет; витринная карусель «Клубы» режима не знает и стоит как была.
-    expect(
-      within(catalog).queryByRole('article', { name: /^Карточка клуба: / }),
-    ).not.toBeInTheDocument();
   });
 
   it('витрина не ходит за записями вовсе', async () => {
@@ -182,24 +155,12 @@ describe('Home page', () => {
 
     render(await Home());
 
-    // Пустой каталог виден по лидерам и по выдаче; счётчики героя — из сводки.
-    expect(screen.getByText(LEADERS.empty.catalog)).toBeInTheDocument();
-    const popular = document.getElementById(HOME_SECTIONS.popular.id) as HTMLElement;
-    expect(within(popular).getByText(POPULAR.empty.clubs)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'На сегодня в расписании нет новых слотов. Проверь другие секции или открой клуб, чтобы посмотреть ближайшие даты.',
-      ),
-    ).toBeInTheDocument();
-
-    switchToTrainers();
-
-    expect(within(popular).getByText(POPULAR.empty.trainers)).toBeInTheDocument();
-    // Phase 28.12: новая копия empty-state TrainerAvailability — короче.
-    expect(
-      screen.getByText(
-        'У тренеров пока нет свободных окон. Проверь позже или переключись в клубный режим.',
-      ),
-    ).toBeInTheDocument();
+    // Пустой каталог виден по каруселям витрины; счётчики героя — из сводки.
+    const clubs = document.getElementById(HOME_SECTIONS.clubs.id) as HTMLElement;
+    const trainers = document.getElementById(HOME_SECTIONS.trainers.id) as HTMLElement;
+    expect(within(clubs).getByText(SHOWCASE.clubs.empty)).toBeInTheDocument();
+    expect(within(trainers).getByText(SHOWCASE.trainers.empty)).toBeInTheDocument();
+    // Лексика фазы 35: лица услуг, а не «провайдер».
+    expect(document.body.textContent).not.toMatch(/провайдер/i);
   });
 });

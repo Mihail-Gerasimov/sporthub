@@ -1,7 +1,7 @@
 // Загрузка данных каталога — один раз на запрос страницы (шаг 38.79a).
 //
-// Вынесено из `app/page.tsx`: рабочая часть переезжает на `/catalog`, и до шага 38.79b
-// её данные читают обе страницы — загрузчик один, чтобы не держать два списка вызовов.
+// Вынесено из `app/page.tsx` шагом 38.79a: рабочая часть переехала на `/catalog`,
+// витрина главной читает своё (`home/load-home-data.ts`).
 // Полный каталог — без `limit`: поиск, карта и слоты фильтруют в памяти по построению
 // (действующее ограничение, долг Д-15). Момент `now` приходит аргументом: день и отбор
 // занятий считаются от одного момента, иначе на границе суток они разошлись бы.
@@ -23,10 +23,10 @@ import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 import type { CatalogData } from '@/components/catalog/catalog-data';
 
 /** Сырые списки каталога — то, что страница спрашивает у бэкенда. */
-export type CatalogSources = Awaited<ReturnType<typeof fetchCatalogSources>>;
+type CatalogSources = Awaited<ReturnType<typeof fetchCatalogSources>>;
 
 /** Девять вызовов одним `Promise.all`: полный каталог, расписания, услуги, справочники, связи. */
-export async function fetchCatalogSources() {
+async function fetchCatalogSources() {
   const [
     clubs,
     clubSchedule,
@@ -65,7 +65,7 @@ export async function fetchCatalogSources() {
 }
 
 /** Данные каталога из сырых списков: занятия дня, справочник тренеров, окна, подписи дат. */
-export function buildCatalogData(sources: CatalogSources, now: Date): CatalogData {
+function buildCatalogData(sources: CatalogSources, now: Date): CatalogData {
   const {
     clubs,
     clubSchedule,

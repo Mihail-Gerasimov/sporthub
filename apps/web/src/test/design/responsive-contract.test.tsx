@@ -33,9 +33,7 @@ import { fixtureClub, fixtureClub2, fixtureClub3, fixtureSports } from '@sporthu
 import { ClubList } from '@/components/clubs/ClubList';
 import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHero } from '@/components/home/HomeHero';
-import { HomeLeaders } from '@/components/home/HomeLeaders';
 import { HomeSteps } from '@/components/home/HomeSteps';
-import type { HomeData } from '@/components/home/home-data';
 import { TrainerList } from '@/components/trainers/TrainerList';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 import { useFilterStore } from '@/stores/useFilterStore';
@@ -117,21 +115,6 @@ export function wideMinWidths(text: string): string[] {
 
   return found;
 }
-
-/** Данные дня для секций витрины — пусто там, где сетке содержимое не нужно. */
-const homeData: HomeData = {
-  overview: { athletes: 0, trainers: 0, clubs: 0, reviews: 0 },
-  clubs: [],
-  sports: [],
-  tags: [],
-  trainerDirectory: [],
-  upcomingSessions: [],
-  upcomingSessionsLabel: '16 сентября',
-  trainerAvailability: [],
-  trainerAvailabilityLabel: '16 сентября',
-  showcaseClubs: [],
-  showcaseTrainers: [],
-};
 
 const clubs = [fixtureClub, fixtureClub2, fixtureClub3];
 
@@ -269,11 +252,6 @@ describe('Контракт адаптива: колонка героя и сет
     const steps = stepsRoot.querySelector('ol');
     expect(steps?.className).toContain('grid-cols-1');
     expect(steps?.className).toContain('md:grid-cols-3');
-
-    const { container: leadersRoot } = render(<HomeLeaders data={homeData} />);
-    const leaders = leadersRoot.querySelector('.grid');
-    expect(leaders?.className).toContain('grid-cols-1');
-    expect(leaders?.className).toContain('md:grid-cols-2');
   });
 
   const NARROW = {};

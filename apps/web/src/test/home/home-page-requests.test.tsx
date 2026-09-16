@@ -46,6 +46,20 @@ describe('главная — адреса запросов', () => {
     expect(stub.calls).toContain('/stats/overview');
   });
 
+  it('вызовы рабочей части и лидеров ушли (38.79b/38.79c): нет полного списка тренеров и limit=1', async () => {
+    await Home();
+
+    const trainers = stub.calls.filter((call) => call.split('?')[0] === '/trainers');
+
+    // Тренеры — только витриной с `limit`; лидеров `limit=1` больше нет.
+    expect(trainers).toEqual(['/trainers?sort=rating&limit=4']);
+    expect(stub.calls.filter((call) => /limit=1(&|$)/.test(call))).toEqual([]);
+    expect(stub.calls).toContain('/clubs?sort=rating&limit=6');
+    // ⚠️ Полный список клубов остаётся: «Сегодня в фокусе» — занятия дня всей площадки
+    // с именами клубов, площадка тренера — клуб по связи (`load-home-data.ts`).
+    expect(stub.calls).toContain('/clubs');
+  });
+
   it('числа героя — из ответа сводки, а не из длины списков (д-20)', async () => {
     render(await Home());
 

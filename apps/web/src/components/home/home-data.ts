@@ -4,29 +4,30 @@
 // Здесь, а не в `lib/home-sections.ts`: тот словарь едет в клиентский бандл шапки,
 // а типы компонентов каталога ему не нужны.
 
-import type { CatalogData, CatalogSport } from '@/components/catalog/catalog-data';
+import type { CatalogSport } from '@/components/catalog/catalog-data';
+import type { UpcomingSessionItem } from '@/components/schedule';
 import type { TrainerDirectoryItem } from '@/components/trainers';
-import type { Club, PlatformOverview, Trainer } from '@sporthub/types';
+import type { Club, PlatformOverview, Tag } from '@sporthub/types';
 
 /** Вид спорта главной — тот же срез, что у каталога (38.80: с цветом). */
 export type HomeSport = CatalogSport;
 
 /**
- * ⚠️ 38.79a: рабочая часть переезжает на `/catalog`, её данные — `CatalogData`.
- * Главная пока несёт их же (секции рабочей части ещё стоят и здесь) — шаг 38.79b
- * оставит витрине только своё: сводку, шесть клубов и четырёх тренеров.
+ * Данные витрины (38.79b): главная — ровно макет, рабочая часть — на `/catalog`
+ * (`CatalogData`). Здесь только то, что читают герой и карусели.
  */
-export type HomeData = CatalogData & {
+export type HomeData = {
   /** Четыре числа героя — `GET /api/stats/overview`, четыре `count` на бэкенде (38.30). */
   overview: PlatformOverview;
-  /** Витрина (38.79b): шесть клубов и четыре тренера по рейтингу — запросом с `limit`. */
+  /** Виды спорта — лента героя, подсказки поиска, категория на карточке клуба. */
+  sports: HomeSport[];
+  tags: Tag[];
+  /** Занятия дня для «Сегодня в фокусе» в герое, ближайшее — первым; дата словами. */
+  upcomingSessions: UpcomingSessionItem[];
+  upcomingSessionsLabel: string;
+  /** Витрина: шесть клубов и четыре тренера по рейтингу — запросом с `limit`. */
   showcaseClubs: Club[];
   showcaseTrainers: TrainerDirectoryItem[];
-  /** Лидеры каталога — запросом `sort=rating&limit=1`; пусто — каталог пуст. */
-  featuredClub?: Club;
-  featuredTrainer?: Trainer;
-  /** Подпись услуги лидера-тренера: из справочника, иначе биография. */
-  featuredTrainerTitle?: string;
 };
 
 /** Входные свойства секции: одни и те же данные дня у каждой. */

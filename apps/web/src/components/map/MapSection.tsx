@@ -12,7 +12,7 @@ import type { Club } from '@sporthub/types';
 import { MainMap } from '@/components/map/MainMap';
 import { YandexMapProvider } from '@/components/map/YandexMapProvider';
 import type { MapSport } from '@/components/map/useMapMarkers';
-import { HOME_SECTIONS } from '@/lib/home-sections';
+import { CATALOG_SECTIONS } from '@/lib/catalog-sections';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
@@ -24,7 +24,7 @@ type MapSectionProps = {
 
 export function MapSection({ clubs, trainers, sports }: MapSectionProps) {
   return (
-    <section id={HOME_SECTIONS.map.id} className="space-y-4">
+    <section id={CATALOG_SECTIONS.map.id} className="space-y-4">
       <div>
         <p className="t-eyebrow text-lime-hov">Выдача на карте</p>
         <h2 className="t-h2 mt-2 text-ink">Карта</h2>

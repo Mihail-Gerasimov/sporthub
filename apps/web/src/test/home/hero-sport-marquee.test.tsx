@@ -62,4 +62,16 @@ describe('HeroSportMarquee (Phase 30.10)', () => {
     const initials = screen.getAllByText('П').filter((el) => el.tagName.toLowerCase() === 'span');
     expect(initials.length).toBe(2);
   });
+
+  // a11y-прогон 38.96 (MED): буква-значок вида на тёмной плашке героя — зелёная,
+  // не графит: `text-ink` на `bg-lime-soft` поверх плашки давал 1,24:1.
+  it('буква-значок вида — text-lime на подложке lime-soft, без text-ink', () => {
+    render(<HeroSportMarquee sports={[{ id: 3, name: 'Плавание' }]} />);
+
+    const badge = screen.getAllByText('П')[0];
+
+    expect(badge.className).toContain('text-lime');
+    expect(badge.className).toContain('bg-lime-soft');
+    expect(badge.className).not.toMatch(/\btext-ink\b|var\(--ui-ink\)/);
+  });
 });

@@ -19,7 +19,7 @@ import { CitySelector } from '@/components/search/CitySelector';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SportFilters } from '@/components/search/SportFilters';
 import { cn } from '@/lib/utils';
-import { HOME_SECTIONS } from '@/lib/home-sections';
+import { CATALOG_SECTIONS } from '@/lib/catalog-sections';
 import { countRu, PLURAL } from '@/lib/plural';
 import { useFilterStore, type DiscoveryMode } from '@/stores/useFilterStore';
 
@@ -100,7 +100,7 @@ export function SearchControlsPreview({
   const query = searchQuery.trim();
 
   return (
-    <section id={HOME_SECTIONS.discover.id} aria-label={HOME_SECTIONS.discover.label}>
+    <section id={CATALOG_SECTIONS.discover.id} aria-label={CATALOG_SECTIONS.discover.label}>
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
