@@ -83,12 +83,12 @@ export function MapActiveCard({ marker, onClose }: MapActiveCardProps) {
         <p className="truncate font-body text-[11px] text-muted">{marker.address}</p>
         <div className="mt-1 flex items-center gap-2.5">
           {marker.rating > 0 ? (
-            <span className="inline-flex items-center gap-[3px] font-display text-[13px] tabular-nums text-ink">
+            <span className="inline-flex items-center gap-[3px] font-display text-[13px] font-black tabular-nums text-ink">
               <StarIcon />
               {marker.rating.toFixed(1)}
             </span>
           ) : null}
-          <span className="font-display text-[14px] tabular-nums tracking-[0.02em] text-lime-hov">
+          <span className="font-display text-[14px] font-black tabular-nums tracking-[0.02em] text-lime-hov">
             от {formatPrice(marker.priceFrom)}
           </span>
         </div>

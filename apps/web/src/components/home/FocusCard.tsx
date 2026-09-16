@@ -72,10 +72,10 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
           ) : null}
         </div>
         <div>
-          <p className="m-0 font-display text-[40px] leading-[0.9] tracking-[0.02em] tabular-nums">
+          <p className="m-0 font-display text-[40px] leading-[0.9] font-black tracking-[0.02em] tabular-nums">
             {focus?.startTime ?? '—:—'}
           </p>
-          <h3 className="m-0 mt-1 font-display text-[20px] leading-tight uppercase">
+          <h3 className="m-0 mt-1 font-display text-[20px] leading-tight font-black uppercase">
             {focus?.title ?? FOCUS.emptyTitle}
           </h3>
           <p className="m-0 mt-0.5 font-body text-[12px] text-plate-muted">
@@ -128,7 +128,7 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
         {/* Живой счётчик — наш контракт (реестр № 44); справа — вход к секции слотов */}
         <p className="m-0 mt-3 flex items-center justify-between gap-3 border-t border-line pt-3 font-body text-[12px] text-muted">
           <span>
-            <strong className="font-display text-[14px] text-lime-hov tabular-nums">
+            <strong className="font-display text-[14px] font-black text-lime-hov tabular-nums">
               {countRu(sessions.length, PLURAL.sessions)}
             </strong>{' '}
             {FOCUS.today}
