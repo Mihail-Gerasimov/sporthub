@@ -104,6 +104,16 @@ describe('Минималистичный стиль карточек', () => {
       expect(card.querySelector('.size-14.rounded-\\[14px\\]')).not.toBeNull();
     });
 
+    // 38.105: витринная карточка — та же в режиме showcase: риска, аватар 56 и тени те же.
+    it('showcase: риска, аватар 56×56 радиусом 14, тень покоя и подъём — те же', () => {
+      render(<TrainerCard trainer={stubTrainer} variant="showcase" />);
+      const card = screen.getByTestId('trainer-card');
+      expect(card.className).toContain('shadow-card');
+      expect(card.className).toContain('hover:-translate-y-[3px]');
+      expect(card.querySelector('.h-\\[3px\\]')).not.toBeNull();
+      expect(card.querySelector('.size-14.rounded-\\[14px\\]')).not.toBeNull();
+    });
+
     it('не содержит декоративных кругов и теней на аватаре (упрощённый дизайн)', () => {
       render(<TrainerCard trainer={stubTrainer} />);
       const card = screen.getByTestId('trainer-card');

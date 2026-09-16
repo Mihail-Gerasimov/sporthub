@@ -66,7 +66,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     }
   });
 
-  it('карусель тренеров: заголовок из словаря, карточки тренеров с площадкой и окном', async () => {
+  it('карусель тренеров: заголовок из словаря, карточки тренеров в режиме витрины', async () => {
     render(await Home());
 
     const trainers = section('trainers');
@@ -77,9 +77,12 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(
       within(trainers).getAllByRole('article', { name: /^Карточка тренера: / }).length,
     ).toBeGreaterThan(0);
-    // Карточка тренера — та же, что в каталоге: площадка и ближайшее окно на месте.
-    expect(within(trainers).getAllByText('Площадка').length).toBeGreaterThan(0);
-    expect(within(trainers).getAllByText('Ближайшее окно').length).toBeGreaterThan(0);
+    // Карточка тренера — та же, что в каталоге, в режиме showcase (38.105): без площадки
+    // и окна, зато «Доступен сейчас» и точка — от расписания дня, как в каталоге.
+    for (const card of within(trainers).getAllByRole('article', { name: /^Карточка тренера: / })) {
+      expect(card).toHaveAttribute('data-variant', 'showcase');
+    }
+    expect(within(trainers).queryByText('Площадка')).not.toBeInTheDocument();
   });
 
   it('витрина не знает фильтров стора: запрос без совпадений не пустит карусели', async () => {

@@ -1,23 +1,28 @@
 'use client';
 
 /*
- * TrainerCard — карточка тренера по эталону витрины (фаза 38, шаг 38.74;
- * `HomePage.tsx:120-160`, чек-лист эталона step-45…48).
+ * TrainerCard — карточка тренера по эталону витрины (фаза 38, шаги 38.74 и 38.105;
+ * `HomePage.tsx:120-160` «Сертифицированные тренеры», чек-лист эталона step-45…48).
  *
- * Форма — из макета: белая карточка радиусом 18 с отступом 18 и тенью покоя, при
- * наведении рамка зеленеет, карточка поднимается на 3px, зелёная риска сверху растёт
- * 20 → 36px; аватар 56×56 радиусом 14 — с зелёной рамкой и точкой у доступного;
- * имя display 16, специализация 11px, звезда 10px с рейтингом и отзывами, справа
- * цена «от N»; чип «Доступен сейчас» — 10px на зелёной подложке с точкой.
+ * Два режима одной карточки (`variant`):
+ * - `showcase` — карточка макета на главной: белая радиусом 18 с отступом 18 и тенью
+ *   покоя, при наведении рамка зеленеет, карточка поднимается на 3px, зелёная риска
+ *   сверху растёт 20 → 36px; аватар 56×56 радиусом 14 — с зелёной рамкой и точкой
+ *   у доступного; имя display 16, специализация 11px, звезда 10px с рейтингом
+ *   и отзывами, справа цена «от N»; чип «Доступен сейчас». Больше ничего: площадка,
+ *   ближайшее окно, чипы, лента специализаций и цитата остаются в API и на детальной
+ *   странице (решение заказчика 16.09, Э13).
+ * - `catalog` (по умолчанию, выдача `/catalog`) — то же плюс наше ниже: sport-tag,
+ *   «N лет опыта», «Группа», «N окон», «Площадка / Ближайшее окно» (у макета только
+ *   булев индикатор, у нас конкретное окно), лента специализаций, цитата и «К записи» —
+ *   отдельная ссылка на ближайшее окно.
  *
  * Логика — наша (реестр № 97–108): «доступен сейчас» — не флаг, а расписание дня
- * (`availableSlotsCount` — свободные окна сегодня, которые ещё впереди по часам зала);
- * вся карточка ведёт на СТРАНИЦУ тренера растянутой ссылкой с именем, «К записи» —
- * отдельная ссылка на ближайшее окно (вложенных `<a>` нет: обёртки вокруг `<article>`
- * не существует); ниже остаётся наше — sport-tag, «N лет опыта», «Группа», «Площадка /
- * Ближайшее окно» (у макета только булев индикатор, у нас конкретное окно), лента
- * специализаций, цитата. Знак «проверено» — по `verifiedAt` (38.52). Ротация тона
- * и водяной знак сняты: макет однотонный. Hover имени — классом (реестр № 108).
+ * (`availableSlotsCount` — свободные окна сегодня по предикату домена `isSlotOpenToday`);
+ * вся карточка ведёт на СТРАНИЦУ тренера растянутой ссылкой с именем (вложенных `<a>`
+ * нет: обёртки вокруг `<article>` не существует). Расстояние не рисуется: геолокации
+ * у площадки нет, «0.0 км» было фальшивым числом (Д-17). Знак «проверено» — по
+ * `verifiedAt` (38.52). Hover имени — классом (реестр № 108).
  *
  * Аватар — `avatarUrl`; без адреса или при ошибке загрузки — инициалы на подложке.
  * STUB: загрузки фото на площадке нет (долг Д-10), инициалы стоят вместо снимка,
@@ -33,17 +38,25 @@ import { cn, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
+/** Режим карточки: витрина главной — карточка макета; каталог — плюс наш хвост. */
+export type TrainerCardVariant = 'catalog' | 'showcase';
+
 type TrainerCardProps = {
   trainer: TrainerDirectoryItem;
   /** Подсветка карточки при выборе на карте — зелёная рамка вместо обычной. */
   highlighted?: boolean;
+  variant?: TrainerCardVariant;
 };
 
 /** Чип «характеристика» — опыт, группа, вид спорта. */
 const CHIP =
   'inline-flex items-center whitespace-nowrap rounded-full border border-line bg-card-2 px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-ink';
 
-export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) {
+export function TrainerCard({
+  trainer,
+  highlighted = false,
+  variant = 'catalog',
+}: TrainerCardProps) {
   const [photoBroken, setPhotoBroken] = useState(false);
   const showPhoto = trainer.avatarUrl !== '' && !photoBroken;
   // «Доступен сейчас» — есть свободное окно сегодня, ещё впереди по часам зала.
@@ -54,10 +67,8 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
   // Специализация под именем — первая услуга, иначе био; цитата не дублирует её.
   const headline = trainer.primaryOfferingTitle ?? trainer.bio ?? '';
   const quote = headline === trainer.bio ? '' : (trainer.bio ?? '');
-  const distanceLabel =
-    trainer.distanceKm === null
-      ? `${trainer.availableSlotsCount} ${pluralRu(trainer.availableSlotsCount, PLURAL.windows)}`
-      : `${trainer.distanceKm.toFixed(1)} км`;
+  // Окна дня словами — вместо расстояния, которого у площадки нет (Д-17).
+  const windowsLabel = `${trainer.availableSlotsCount} ${pluralRu(trainer.availableSlotsCount, PLURAL.windows)}`;
   const slotLabel =
     trainer.nextSlotDate && trainer.nextSlotStartTime
       ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
@@ -70,6 +81,7 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
   return (
     <article
       data-testid="trainer-card"
+      data-variant={variant}
       data-highlighted={highlighted ? 'true' : 'false'}
       data-available={available ? 'true' : 'false'}
       aria-label={`Карточка тренера: ${trainer.name}`}
@@ -176,64 +188,69 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
         </span>
       ) : null}
 
-      {/* Наше: чипы характеристик — вид спорта, опыт, группа, расстояние или окна. */}
-      <div className="mt-3.5 flex flex-wrap items-center gap-2">
-        {trainer.sports[0] ? <span className={CHIP}>{trainer.sports[0].name}</span> : null}
-        <span className={CHIP}>{trainer.experienceYears} лет опыта</span>
-        {isGroup ? (
-          <span className={cn(CHIP, 'border-lime/30 bg-lime-soft text-lime-hov')}>Группа</span>
-        ) : null}
-        <span className="font-body text-xs font-medium text-muted">{distanceLabel}</span>
-      </div>
+      {/* Ниже — наше, только в каталоге; в витрине карточка кончается чипом. */}
+      {variant === 'catalog' ? (
+        <>
+          {/* Наше: чипы характеристик — вид спорта, опыт, группа, окна дня. */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2">
+            {trainer.sports[0] ? <span className={CHIP}>{trainer.sports[0].name}</span> : null}
+            <span className={CHIP}>{trainer.experienceYears} лет опыта</span>
+            {isGroup ? (
+              <span className={cn(CHIP, 'border-lime/30 bg-lime-soft text-lime-hov')}>Группа</span>
+            ) : null}
+            <span className="font-body text-xs font-medium text-muted">{windowsLabel}</span>
+          </div>
 
-      {/* Наше: площадка и ближайшее окно — конкретное, а не булев индикатор макета. */}
-      <div className="mt-3.5 grid grid-cols-1 gap-3 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:grid-cols-[1fr_auto] sm:gap-x-6">
-        <div className="min-w-0">
-          <p className="m-0 mb-1 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-muted">
-            Площадка
-          </p>
-          <p className="m-0 line-clamp-1 font-body text-[13px] font-semibold leading-[1.3] text-ink">
-            {trainer.venueLabel || 'Без привязки'}
-          </p>
-          {trainer.venueName && trainer.venueAddress ? (
-            <p className="m-0 mt-0.5 line-clamp-1 font-body text-[11px] leading-tight text-muted">
-              {trainer.venueAddress}
+          {/* Наше: площадка и ближайшее окно — конкретное, а не булев индикатор макета. */}
+          <div className="mt-3.5 grid grid-cols-1 gap-3 rounded-[14px] border border-line bg-card-2 px-4 py-3.5 sm:grid-cols-[1fr_auto] sm:gap-x-6">
+            <div className="min-w-0">
+              <p className="m-0 mb-1 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-muted">
+                Площадка
+              </p>
+              <p className="m-0 line-clamp-1 font-body text-[13px] font-semibold leading-[1.3] text-ink">
+                {trainer.venueLabel || 'Без привязки'}
+              </p>
+              {trainer.venueName && trainer.venueAddress ? (
+                <p className="m-0 mt-0.5 line-clamp-1 font-body text-[11px] leading-tight text-muted">
+                  {trainer.venueAddress}
+                </p>
+              ) : null}
+            </div>
+            <div className="min-w-0">
+              <p className="m-0 mb-1 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-muted">
+                Ближайшее окно
+              </p>
+              <p className="m-0 line-clamp-1 font-body text-[13px] font-semibold leading-[1.3] text-ink">
+                {slotLabel}
+              </p>
+            </div>
+          </div>
+
+          {/* Наше: лента специализаций — под растянутой ссылкой, декоративная (без drag
+              и паузы): клик по чипу ведёт на страницу тренера (над ссылкой — только знак и «К записи»). */}
+          <div className="-mx-[18px] mt-3.5">
+            <ChipMarquee items={tagItems} variant="solid" accent="lime" interactive={false} />
+          </div>
+
+          {/* Наше: цитата и «К записи» — отдельная ссылка на ближайшее окно; над растянутой
+              ссылкой возвышается только она, цитата — под ней. */}
+          <div className="mt-auto flex items-center justify-between gap-4 border-t border-line pt-3.5">
+            <p className="m-0 line-clamp-2 font-body text-[12px] italic leading-[1.45] text-muted">
+              {quote}
             </p>
-          ) : null}
-        </div>
-        <div className="min-w-0">
-          <p className="m-0 mb-1 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-muted">
-            Ближайшее окно
-          </p>
-          <p className="m-0 line-clamp-1 font-body text-[13px] font-semibold leading-[1.3] text-ink">
-            {slotLabel}
-          </p>
-        </div>
-      </div>
-
-      {/* Наше: лента специализаций — под растянутой ссылкой, декоративная (без drag
-          и паузы): клик по чипу ведёт на страницу тренера (над ссылкой — только знак и «К записи»). */}
-      <div className="-mx-[18px] mt-3.5">
-        <ChipMarquee items={tagItems} variant="solid" accent="lime" interactive={false} />
-      </div>
-
-      {/* Наше: цитата и «К записи» — отдельная ссылка на ближайшее окно; над растянутой
-          ссылкой возвышается только она, цитата — под ней. */}
-      <div className="mt-auto flex items-center justify-between gap-4 border-t border-line pt-3.5">
-        <p className="m-0 line-clamp-2 font-body text-[12px] italic leading-[1.45] text-muted">
-          {quote}
-        </p>
-        <Link
-          href={ctaHref}
-          aria-label={`К записи: ${trainer.name}`}
-          className="relative z-[2] inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-body text-[11px] font-bold uppercase tracking-[0.14em] text-lime-hov no-underline transition-colors hover:text-ink"
-        >
-          К записи
-          <span aria-hidden="true" className="text-[14px]">
-            →
-          </span>
-        </Link>
-      </div>
+            <Link
+              href={ctaHref}
+              aria-label={`К записи: ${trainer.name}`}
+              className="relative z-[2] inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-body text-[11px] font-bold uppercase tracking-[0.14em] text-lime-hov no-underline transition-colors hover:text-ink"
+            >
+              К записи
+              <span aria-hidden="true" className="text-[14px]">
+                →
+              </span>
+            </Link>
+          </div>
+        </>
+      ) : null}
     </article>
   );
 }

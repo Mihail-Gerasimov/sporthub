@@ -4,8 +4,8 @@
 // Витрина, а не выдача: шесть клубов и четыре тренера приходят запросом
 // (`sort=rating&limit=N`, `load-home-data.ts`), фильтров стора карусели не знают —
 // отбор под фильтр живёт на `/catalog`. Карточки — те же, что в каталоге
-// (`ClubCard`, `TrainerCard`), в режиме `showcase` — плитка макета без хвоста
-// (38.104), на одном `ui/CardSlider` (сторож `carousel-single`).
+// (`ClubCard`, `TrainerCard`), в режиме `showcase` — карточки макета без хвоста
+// (38.104, 38.105), на одном `ui/CardSlider` (сторож `carousel-single`).
 //
 // Почему не компоненты `ui` целиком: карусель и карточки — уже `ui`; своя здесь
 // только секция с якорем словаря и ссылка «Все …», ставящая режим стора.
@@ -58,7 +58,7 @@ export function HomeTrainers({ data }: HomeSectionProps) {
           tools={<ShowcaseAllLink mode="trainers">{SHOWCASE.trainers.all}</ShowcaseAllLink>}
         >
           {data.showcaseTrainers.map((trainer) => (
-            <TrainerCard key={trainer.id} trainer={trainer} />
+            <TrainerCard key={trainer.id} trainer={trainer} variant="showcase" />
           ))}
         </CardSlider>
       </HomeContainer>

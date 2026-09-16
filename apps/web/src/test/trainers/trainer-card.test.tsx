@@ -13,7 +13,7 @@
  * Подпись `aria-label="Карточка тренера: …"` — контракт единственности
  * (сторож `trainer-card-single`).
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerCard } from '@/components/trainers/TrainerCard';
@@ -220,15 +220,92 @@ describe('TrainerCard (38.74)', () => {
     expect(screen.getByText('Без привязки')).toBeInTheDocument();
   });
 
-  it('расстояние либо «N окон» со склонением из словаря', () => {
+  it('«N окон» со склонением из словаря; расстояния нет ни в одном режиме — «0.0 км» было фальшивым (Д-17, 38.105)', () => {
     const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
 
-    expect(screen.getByText('1.8 км')).toBeInTheDocument();
+    expect(screen.getByText('5 окон')).toBeInTheDocument();
+    expect(screen.queryByText(/км/)).not.toBeInTheDocument();
 
     unmount();
     render(<TrainerCard trainer={{ ...baseTrainer, distanceKm: null, availableSlotsCount: 3 }} />);
 
     expect(screen.getByText('3 окна')).toBeInTheDocument();
+
+    unmount();
+    render(<TrainerCard trainer={baseTrainer} variant="showcase" />);
+
+    expect(screen.queryByText(/км/)).not.toBeInTheDocument();
+  });
+
+  describe('variant="showcase" — карточка макета «Сертифицированные тренеры» (38.105)', () => {
+    it('та же карточка и подпись: аватар с точкой «свободен сегодня», имя-ссылка на всю карточку, специализация, рейтинг с отзывами, «от цена», чип', () => {
+      render(
+        <TrainerCard
+          trainer={{
+            ...baseTrainer,
+            rating: 4.9,
+            reviewCount: 31,
+            verifiedAt: '2026-09-15T10:00:00.000Z',
+          }}
+          variant="showcase"
+        />,
+      );
+
+      const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+
+      expect(card).toHaveAttribute('data-testid', 'trainer-card');
+      expect(card).toHaveAttribute('data-variant', 'showcase');
+      expect(card).toHaveAttribute('data-available', 'true');
+      expect(within(card).getByRole('img', { name: 'Марина Соколова' })).toHaveAttribute(
+        'src',
+        '/images/trainers/marina.jpg',
+      );
+      expect(within(card).getByText('Персональная тренировка')).toBeInTheDocument();
+      expect(within(card).getByRole('img', { name: 'Рейтинг: 4.9 из 5' })).toBeInTheDocument();
+      expect(within(card).getByText('(31)')).toBeInTheDocument();
+      expect(within(card).getByText(/^от\s+1\s?400/)).toBeInTheDocument();
+      expect(within(card).getByText('Доступен сейчас')).toBeInTheDocument();
+      expect(within(card).getByTestId('verified-badge')).toBeInTheDocument();
+
+      const link = within(card).getByRole('link', { name: 'Марина Соколова' });
+
+      expect(link).toHaveAttribute('href', '/trainers/marina-sokolova');
+      expect(link.className).toContain('after:inset-0');
+      // Единственная ссылка: «К записи» в витрине нет — вся карточка ведёт на тренера.
+      expect(within(card).getAllByRole('link')).toHaveLength(1);
+    });
+
+    it('площадка, окно, чипы опыта, лента специализаций и цитата в витрине не рисуются', () => {
+      render(<TrainerCard trainer={baseTrainer} variant="showcase" />);
+
+      const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+
+      expect(within(card).queryByText('Площадка')).not.toBeInTheDocument();
+      expect(within(card).queryByText('Ближайшее окно')).not.toBeInTheDocument();
+      expect(within(card).queryByText('9 лет опыта')).not.toBeInTheDocument();
+      expect(within(card).queryByText('Подготовка к соревнованиям')).not.toBeInTheDocument();
+      expect(within(card).queryByText('Тренер по плаванию.')).not.toBeInTheDocument();
+      expect(card.querySelector('.chip-track')).toBeNull();
+      expect(within(card).queryByRole('link', { name: /К записи/ })).not.toBeInTheDocument();
+    });
+
+    it('занятый тренер в витрине — без точки и чипа; без режима — каталожная карточка как прежде', () => {
+      const { unmount } = render(<TrainerCard trainer={busyTrainer} variant="showcase" />);
+
+      expect(screen.getByTestId('trainer-card')).toHaveAttribute('data-available', 'false');
+      expect(screen.queryByText('Доступен сейчас')).not.toBeInTheDocument();
+
+      unmount();
+      render(<TrainerCard trainer={baseTrainer} />);
+
+      const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+
+      expect(card).toHaveAttribute('data-variant', 'catalog');
+      expect(within(card).getByText('Площадка')).toBeInTheDocument();
+      expect(
+        within(card).getByRole('link', { name: 'К записи: Марина Соколова' }),
+      ).toBeInTheDocument();
+    });
   });
 
   it('highlighted → атрибут и зелёная рамка', () => {
