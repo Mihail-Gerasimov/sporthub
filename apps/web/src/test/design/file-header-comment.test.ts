@@ -58,7 +58,6 @@ export const LEGACY_HEADERLESS: string[] = [
   'src/test/admin/analytics-charts2.test.tsx',
   'src/test/clubs/club-detail-page-client.test.tsx',
   'src/test/clubs/club-list.test.tsx',
-  'src/test/clubs/popular-nearby.test.tsx',
   'src/test/lib/notification-types.test.ts',
   'src/test/mocks/server-only.ts',
   'src/test/profile/athlete-achievements.test.ts',
