@@ -10,12 +10,7 @@ import { startTransition, useMemo, useState } from 'react';
 import { AthleteBookingTimeline } from '@/components/profile/athlete/AthleteBookingTimeline';
 import { BOOKING_STATUS_TONES } from '@/components/profile/booking-status-tone';
 import { Badge, Button, Card, Modal } from '@/components/ui';
-import {
-  DISCIPLINE_CONFIG,
-  getWeekStartKey,
-  hoursUntilSlotStart,
-  shiftDateKey,
-} from '@sporthub/domain';
+import { computeCancelReason, getWeekStartKey, shiftDateKey } from '@sporthub/domain';
 import { cn, findBookingSlot, formatDate } from '@/lib/utils';
 import { selectBookingActorUserId, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -82,33 +77,6 @@ function formatWeekLabel(weekStart: string): string {
   const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
 
   return `${formatDate(weekStart, options)} — ${formatDate(weekEnd, options)}`;
-}
-
-/** client-side превью late-cancel (сервер пересчитывает авторитетно).
- *
- * Часы до начала считает общий помощник по поясу зала: своя формула строила момент
- * в поясе браузера и промахивалась мимо окна ровно на смещение пояса зрителя.
- */
-function isLateCancel(
-  slot: Pick<Schedule, 'date' | 'startTime'> | undefined,
-  policy: Booking['cancellationPolicySnapshot'],
-  now: Date,
-): boolean {
-  if (!slot) {
-    return false;
-  }
-
-  const freeUntilHours = DISCIPLINE_CONFIG.lateCancel.freeUntil[policy ?? 'free_until_24h'];
-
-  if (!Number.isFinite(freeUntilHours)) {
-    return false;
-  }
-
-  if (freeUntilHours === 0) {
-    return true;
-  }
-
-  return hoursUntilSlotStart(slot, now) < freeUntilHours;
 }
 
 export function AthleteSchedule({
@@ -369,7 +337,10 @@ function AthleteBookingDrawer({
       return;
     }
 
-    if (isLateCancel(slot, booking.cancellationPolicySnapshot, new Date())) {
+    // Превью поздней отмены — ТЕМ ЖЕ правилом, которым сервер выставит `cancelReason`:
+    // своя копия здесь расходилась с доменом (без слота фронт говорил «вовремя»,
+    // сервер писал `late`), и человек не видел предупреждения там, где оно нужно.
+    if (computeCancelReason(booking, slot ?? null, new Date()) === 'late') {
       setIsLateWarnOpen(true);
       return;
     }

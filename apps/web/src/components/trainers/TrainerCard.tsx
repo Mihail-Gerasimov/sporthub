@@ -30,7 +30,7 @@ import Link from 'next/link';
 
 import { ChipMarquee, VerifiedBadge } from '@/components/ui';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
-import { pluralRu } from '@/lib/plural';
+import { PLURAL, pluralRu } from '@/lib/plural';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
@@ -275,7 +275,7 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
 }
 
 /** Склонение «окно» по числу — общим правилом `lib/plural`. */
-const pluralizeOkno = (n: number) => pluralRu(n, ['окно', 'окна', 'окон']);
+const pluralizeOkno = (n: number) => pluralRu(n, PLURAL.windows);
 
 /**
  * Mini-помощник: ряд из 5 SVG-звёзд (в синхрон с ClubCard.Stars).

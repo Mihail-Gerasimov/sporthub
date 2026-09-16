@@ -6,7 +6,7 @@
 import Link from 'next/link';
 
 import { Badge, Card, VerifiedBadge } from '@/components/ui';
-import { countRu } from '@/lib/plural';
+import { PLURAL, countRu } from '@/lib/plural';
 import { HIDE_KIND_LABELS, HIDE_KIND_SHOWS_REASON } from '@sporthub/domain';
 import type { Club, EntityId, HideKindValue, Trainer } from '@sporthub/types';
 
@@ -20,7 +20,7 @@ type ProviderPublicationsSectionProps = {
 };
 
 /** Склонение «отзыв» по количеству — общим правилом `lib/plural`. */
-const pluralizeReviews = (n: number) => countRu(n, ['отзыв', 'отзыва', 'отзывов']);
+const pluralizeReviews = (n: number) => countRu(n, PLURAL.reviews);
 
 /** Карточка публикации (клуб или тренер) */
 function PublicationCard({

@@ -1,9 +1,9 @@
 // Тесты русского склонения по числу (шаг 38.53): одно правило вместо десяти копий.
 import { describe, expect, it } from 'vitest';
 
-import { countRu, pluralRu } from '@/lib/plural';
+import { PLURAL, countRu, pluralRu } from '@/lib/plural';
 
-const REVIEW = ['отзыв', 'отзыва', 'отзывов'] as const;
+const REVIEW = PLURAL.reviews;
 
 describe('pluralRu / countRu', () => {
   it('различает три формы, включая «11–14» и «21»', () => {
@@ -30,6 +30,12 @@ describe('pluralRu / countRu', () => {
 
   it('countRu ставит число перед словом', () => {
     expect(countRu(3, REVIEW)).toBe('3 отзыва');
-    expect(countRu(0, ['тренер', 'тренера', 'тренеров'])).toBe('0 тренеров');
+    expect(countRu(0, PLURAL.trainers)).toBe('0 тренеров');
+  });
+
+  it('в словаре у каждого слова три разные формы', () => {
+    for (const [word, forms] of Object.entries(PLURAL)) {
+      expect(new Set(forms).size, word).toBe(3);
+    }
   });
 });

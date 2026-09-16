@@ -46,14 +46,15 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
   // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).
-  'src/components/clubs/ClubDetailPageClient.tsx': 642,
+  'src/components/clubs/ClubDetailPageClient.tsx': 641,
   'src/components/layout/NotificationBell.tsx': 224,
   'src/components/map/MainMap.tsx': 228,
   'src/components/profile/AccountCredentialsSection.tsx': 358,
   'src/components/profile/PublishClubModal.tsx': 488,
   'src/components/profile/PublishTrainerModal.tsx': 768,
   'src/components/profile/athlete/AthleteDashboard.tsx': 214,
-  'src/components/profile/athlete/AthleteSchedule.tsx': 374,
+  // Правка по ревью 38.25: своя копия правила отмены снята, зовётся computeCancelReason.
+  'src/components/profile/athlete/AthleteSchedule.tsx': 352,
   'src/components/profile/athlete/AthleteStats.tsx': 479,
   'src/components/profile/notifications/NotificationsListPage.tsx': 411,
   'src/components/profile/provider-helpers.ts': 240,
@@ -64,7 +65,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/provider/ProviderPublications.tsx': 238,
   'src/components/profile/provider/ProviderStats.tsx': 365,
   'src/components/trainers/TrainerCard.tsx': 219,
-  'src/components/trainers/TrainerDetailPageClient.tsx': 722,
+  'src/components/trainers/TrainerDetailPageClient.tsx': 721,
   // 38.52: знак «проверено» в карточке и поле в справочнике тренеров; потолки опущены.
   'src/components/trainers/trainer-preview.ts': 275,
   'src/components/ui/CardSlider.tsx': 370,

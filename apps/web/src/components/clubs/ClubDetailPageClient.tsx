@@ -28,7 +28,7 @@ import { z } from 'zod';
 
 import { Button, Rating, VerifiedBadge } from '@/components/ui';
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
-import { countRu } from '@/lib/plural';
+import { PLURAL, countRu } from '@/lib/plural';
 import {
   DetailScheduleWeek,
   type DetailScheduleSlot,
@@ -177,11 +177,10 @@ function getReviewValidationErrors(form: ReviewFormState): ReviewFormErrors {
 }
 
 /* Подписи-счётчики: склонение — общим правилом `lib/plural` (38.53). */
-const pluralizeTrainers = (n: number) => countRu(n, ['тренер', 'тренера', 'тренеров']);
-const pluralizeDirections = (n: number) =>
-  countRu(n, ['направление', 'направления', 'направлений']);
-const pluralizeReviews = (n: number) => countRu(n, ['отзыв', 'отзыва', 'отзывов']);
-const pluralizeSlots = (n: number) => countRu(n, ['слот', 'слота', 'слотов']);
+const pluralizeTrainers = (n: number) => countRu(n, PLURAL.trainers);
+const pluralizeDirections = (n: number) => countRu(n, PLURAL.directions);
+const pluralizeReviews = (n: number) => countRu(n, PLURAL.reviews);
+const pluralizeSlots = (n: number) => countRu(n, PLURAL.slots);
 
 export function ClubDetailPageClient({
   amenities,

@@ -1,6 +1,6 @@
 // Тесты AthleteSchedule (Step 25.4): единый список bookings с фильтрами,
 // группировкой по неделям, drawer с таймлайном + late-cancel warning.
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithToast as render } from '@/test/helpers/render-with-toast';
@@ -299,5 +299,86 @@ describe('AthleteSchedule (Step 25.4)', () => {
     // Проверяем заголовок warning-модалки + наличие кнопки «Оставить запись».
     expect(screen.getByRole('heading', { name: /Поздняя отмена/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Оставить запись/i })).toBeInTheDocument();
+  });
+
+  // Зеркальный случай (правка по ревью 38.25): отмена в окне — без модалки, запрос ушёл.
+  it('отмена вовремя (за 30 часов при free_until_24h) идёт без предупреждения — сразу DELETE', async () => {
+    authenticateAthlete();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // NOW = 2026-04-22T12:00Z; слот 2026-04-23T18:00 по часам зала — до начала ~30 ч.
+    const bookings: Booking[] = [
+      makeBooking({
+        id: 51,
+        scheduleId: 11,
+        status: 'confirmed',
+        date: '2026-04-23',
+        cancellationPolicySnapshot: 'free_until_24h',
+      }),
+    ];
+    const schedule: Schedule[] = [
+      makeSlot({
+        id: 11,
+        date: '2026-04-23',
+        startTime: '18:00',
+        endTime: '19:00',
+        title: 'Завтра',
+      }),
+    ];
+
+    render(
+      <AthleteSchedule
+        bookings={bookings}
+        schedule={schedule}
+        clubs={clubs}
+        trainers={trainers}
+        sports={sports}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Детали/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Отменить запись/i }));
+    });
+
+    expect(screen.queryByRole('heading', { name: /Поздняя отмена/i })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/bookings/51', { method: 'DELETE' });
+  });
+
+  it('без слота отмена считается поздней — как её посчитает сервер', () => {
+    // Правило одно — доменное `computeCancelReason`: прежняя копия во фронте без слота
+    // говорила «вовремя», а сервер писал `late`, и предупреждения человек не видел.
+    authenticateAthlete();
+
+    const bookings: Booking[] = [
+      makeBooking({
+        id: 52,
+        scheduleId: 999,
+        status: 'confirmed',
+        date: '2026-04-23',
+        cancellationPolicySnapshot: 'free_until_24h',
+      }),
+    ];
+
+    render(
+      <AthleteSchedule
+        bookings={bookings}
+        schedule={[]}
+        clubs={clubs}
+        trainers={trainers}
+        sports={sports}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Детали/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Отменить запись/i }));
+
+    expect(screen.getByRole('heading', { name: /Поздняя отмена/i })).toBeInTheDocument();
   });
 });

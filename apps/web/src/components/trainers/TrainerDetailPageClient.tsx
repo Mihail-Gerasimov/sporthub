@@ -31,7 +31,7 @@ import { z } from 'zod';
 
 import { Button, Rating, VerifiedBadge } from '@/components/ui';
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
-import { countRu } from '@/lib/plural';
+import { PLURAL, countRu } from '@/lib/plural';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import {
   DetailScheduleWeek,
@@ -171,11 +171,10 @@ function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pil
 }
 
 /* Подписи-счётчики: склонение — общим правилом `lib/plural` (38.53). */
-const pluralizeReviews = (n: number) => countRu(n, ['отзыв', 'отзыва', 'отзывов']);
-const pluralizeServices = (n: number) => countRu(n, ['услуга', 'услуги', 'услуг']);
-const pluralizeDirections = (n: number) =>
-  countRu(n, ['направление', 'направления', 'направлений']);
-const pluralizeSlots = (n: number) => countRu(n, ['слот', 'слота', 'слотов']);
+const pluralizeReviews = (n: number) => countRu(n, PLURAL.reviews);
+const pluralizeServices = (n: number) => countRu(n, PLURAL.services);
+const pluralizeDirections = (n: number) => countRu(n, PLURAL.directions);
+const pluralizeSlots = (n: number) => countRu(n, PLURAL.slots);
 
 /* Метка формата услуги. */
 function getFormatLabel(format: Offering['format']): string {
