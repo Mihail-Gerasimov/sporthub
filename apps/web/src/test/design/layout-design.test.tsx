@@ -31,14 +31,25 @@ describe('Минималистичный стиль layout-компоненто�
     // Шаг 38.34: логотип — `BrandLogo` (два бегуна + словомарка из BRAND_WORDMARK),
     // ведёт на главную и назван для экранного диктора именем площадки. Прежняя
     // марка-квадрат «S» и eyebrow с именем сняты.
-    it('логотип в шапке — BrandLogo на плашке, ссылкой на главную, без тени', () => {
+    it('логотип в шапке — BrandLogo ссылкой на главную, без тени', () => {
       render(<Header />);
       const header = screen.getByRole('banner');
       const logo = screen.getByRole('img', { name: BRAND_NAME });
       expect(header.contains(logo)).toBe(true);
       expect(logo.closest('a')?.getAttribute('href')).toBe('/');
       expect(logo.className).not.toMatch(/\bshadow-/);
-      expect(screen.getByText(BRAND_WORDMARK.tail).className).toContain('text-plate-ink');
+    });
+
+    // Шаг 38.57: шапка по эталону — белая, липкая, 64px; тёмная плашка ушла.
+    it('шапка белая и липкая, навигация — из словаря, хвост словомарки тёмный', () => {
+      render(<Header />);
+      const header = screen.getByRole('banner');
+      expect(header.className).toContain('sticky');
+      expect(header.className).toContain('bg-card');
+      expect(header.className).not.toContain('bg-plate');
+      expect(screen.getByText(BRAND_WORDMARK.tail).className).toContain('text-ink');
+      const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
+      expect(nav.querySelectorAll('a')).toHaveLength(5);
     });
   });
 
