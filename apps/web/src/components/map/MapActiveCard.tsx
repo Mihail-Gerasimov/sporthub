@@ -8,8 +8,6 @@
  * Почему не `ui/Card`: та — карточка потока с наведением; эта — слой над картой
  * с собственным положением и без ховера.
  */
-import Link from 'next/link';
-
 import { Button, VerifiedBadge } from '@/components/ui';
 import type { MapMarkerData } from '@/components/map/useMapMarkers';
 import { formatPrice } from '@/lib/utils';
@@ -91,19 +89,10 @@ export function MapActiveCard({ marker, onClose }: MapActiveCardProps) {
       </div>
 
       <div className="flex shrink-0 flex-col gap-1.5">
-        {/* Ссылка в виде главной кнопки: `ui/Button` — только `<button>`, а путь к странице обязан быть ссылкой. */}
-        <Link
-          href={detailHref(marker)}
-          className="inline-flex items-center justify-center rounded-[9px] bg-lime px-3.5 py-[7px] font-display text-[12px] font-extrabold tracking-[0.04em] text-ink uppercase no-underline shadow-glow transition-[transform,box-shadow] hover:-translate-y-px hover:shadow-floating"
-        >
+        <Button href={detailHref(marker)} size="xs">
           Подробнее
-        </Link>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onClose}
-          className="min-h-0 rounded-[9px] border px-3.5 py-[5px] font-body text-[11px] font-semibold tracking-normal normal-case"
-        >
+        </Button>
+        <Button variant="outline" size="xs" onClick={onClose}>
           Закрыть
         </Button>
       </div>

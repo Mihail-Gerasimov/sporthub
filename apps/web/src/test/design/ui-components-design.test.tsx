@@ -58,6 +58,40 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
         /#[0-9a-f]{3,8}|-(red|green|gray)-\d/i,
       );
     });
+
+    // Ревью 38.80: путь к странице обязан быть ссылкой, а вид — тем же, что у кнопки:
+    // второй «кнопки-ссылки» со своими классами быть не должно.
+    it('с `href` — ссылка next/link в тех же классах варианта и размера, без `type`', () => {
+      render(
+        <Button href="/clubs/atlant" variant="primary" size="xs">
+          Подробнее
+        </Button>,
+      );
+      const link = screen.getByRole('link', { name: 'Подробнее' });
+      expect(link).toHaveAttribute('href', '/clubs/atlant');
+      expect(link).not.toHaveAttribute('type');
+      expect(link.className).toContain('shadow-glow');
+      expect(link.className).toContain('font-display');
+      expect(link.className).toContain('rounded-[9px]');
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    it('размер xs — мини-кнопка слоя над картой и строк расписания: радиус 9, обводка 1px, 12px', () => {
+      render(<Button size="xs">Закрыть</Button>);
+      const button = screen.getByRole('button');
+      expect(button.className).toContain('rounded-[9px]');
+      expect(button.className).toContain('text-[12px]');
+      expect(button.className).not.toContain('border-2');
+      expect(button.className).not.toContain('rounded-button');
+    });
+
+    it('вариант soft — мягкая зелёная подложка с тёмно-зелёным текстом, без тени', () => {
+      render(<Button variant="soft">Записаться</Button>);
+      const button = screen.getByRole('button');
+      expect(button.className).toContain('bg-lime-soft');
+      expect(button.className).toContain('text-lime-hov');
+      expect(button.className).not.toMatch(/\bshadow-/);
+    });
   });
 
   describe('Badge', () => {

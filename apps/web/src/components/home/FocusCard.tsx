@@ -4,7 +4,7 @@
  * тенью и тонкой светлой обводкой; тёмная верхняя зона высотой 200 (в макете — фото
  * клуба: фото у клубов нет — долг Д-10, зона несёт время и имя первого занятия),
  * ниже — «Ближайшие занятия» до трёх строк: время display-шрифтом, название и клуб,
- * справа кнопка. Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
+ * справа кнопка — `ui/Button` размера `xs` ссылкой (ревью 38.80). Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
  * «Записаться» → `/booking/{id}`, живой счётчик «N занятий сегодня» со склонением
  * из словаря `PLURAL`; плавающие виджеты макета не переносятся (статистика — вне фазы).
  * У счётчика — ссылка «Все слоты» на якорь секции слотов из словаря (38.88): прежняя
@@ -17,6 +17,7 @@
 import Link from 'next/link';
 
 import type { UpcomingSessionItem } from '@/components/schedule';
+import { Button } from '@/components/ui';
 import { FOCUS } from '@/lib/home-copy';
 import { homeSectionHref } from '@/lib/home-sections';
 import { countRu, PLURAL } from '@/lib/plural';
@@ -35,12 +36,12 @@ const ROWS = 3;
 /** Порог «мест мало»: красная кнопка в макете стоит на двух местах. */
 const LOW_SPOTS = 2;
 
-/** Кнопка строки: первое занятие зовёт записаться, остальные называют места. */
-function rowButtonClass(index: number, spots: number): string {
-  if (index === 0) return 'border-lime/30 bg-lime-soft text-lime-hov';
-  if (spots <= LOW_SPOTS) return 'border-red/30 bg-red/10 text-red';
+/** Вариант кнопки строки: первое занятие зовёт записаться, мало мест — красная, остальные нейтральные. */
+function rowButtonVariant(index: number, spots: number): 'soft' | 'danger' | 'outline' {
+  if (index === 0) return 'soft';
+  if (spots <= LOW_SPOTS) return 'danger';
 
-  return 'border-line bg-bg text-muted';
+  return 'outline';
 }
 
 export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
@@ -105,16 +106,15 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
                     {session.clubName}
                   </span>
                 </span>
-                <Link
+                <Button
                   href={`/booking/${session.id}`}
                   aria-label={`${FOCUS.cta}: ${session.title}, ${session.startTime}`}
-                  className={cn(
-                    'shrink-0 rounded-[8px] border px-3 py-[5px] font-body text-[10px] font-extrabold no-underline transition-colors hover:border-lime hover:text-lime-hov',
-                    rowButtonClass(index, session.availableSpots),
-                  )}
+                  variant={rowButtonVariant(index, session.availableSpots)}
+                  size="xs"
+                  className="shrink-0"
                 >
                   {index === 0 ? FOCUS.cta : FOCUS.spots(session.availableSpots)}
-                </Link>
+                </Button>
               </li>
             ))}
           </ul>

@@ -109,11 +109,11 @@ const twoMarkers = [
   },
 ];
 
-async function renderLoaded(markers: unknown[] = []) {
+async function renderLoaded(markers: unknown[] = [], sports = defaultProps.sports) {
   mockUseYandexMap.mockReturnValue({ isLoaded: true, error: null });
   mockUseMapMarkers.mockReturnValue(markers);
   await act(async () => {
-    render(<MainMap {...defaultProps} />);
+    render(<MainMap {...defaultProps} sports={sports} />);
   });
 }
 
@@ -300,6 +300,17 @@ describe('MainMap (38.80): маркеры-капли, активное сост�
   it('без маркеров легенды нет', async () => {
     await renderLoaded([]);
     expect(screen.queryByRole('list', { name: 'Виды спорта' })).toBeNull();
+  });
+
+  // Ревью 38.80: пока ни у одного вида нет цвета (до миграции и на базе без сида),
+  // легенда была бы N одинаковых точек с разными названиями — то есть врала бы.
+  it('пока ни у одного вида на карте нет цвета — легенды нет', async () => {
+    await renderLoaded(
+      twoMarkers.map((marker) => ({ ...marker, sportColor: undefined })),
+      defaultProps.sports.map(({ id, name }) => ({ id, name })),
+    );
+    expect(screen.queryByRole('list', { name: 'Виды спорта' })).toBeNull();
+    expect(screen.queryByText('Виды спорта')).toBeNull();
   });
 
   it('обратная половина: в коде карты нет ни innerHTML, ни словаря цветов', async () => {
