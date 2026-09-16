@@ -1,6 +1,6 @@
 /**
- * Контракт дизайна страниц — проверяет, что hero-секция
- * и страницы следуют минималистичному стилю.
+ * Контракт дизайна страниц — герой главной: тёмная плашка, свечение токеном,
+ * описание витрины в герое (переписан на шаге 38.65).
  */
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,25 +40,23 @@ describe('Минималистичный стиль страниц', () => {
   });
 
   describe('Home page hero', () => {
-    // Phase 28: новый дизайн UI Kit использует радиальные градиенты на hero billboard
-    // (lime + orange атмосфера) для энергии. Раньше (светлая палитра) действовало
-    // правило «никаких radial-gradient». Теперь — наоборот: ждём декоративный фон.
-    it('hero-секция содержит атмосферные radial-gradient декорации (UI Kit)', async () => {
+    // Шаг 38.65: герой — тёмная плашка со свечением ТОКЕНОМ (`--ui-decor-plate-glow`),
+    // а не hex в разметке; прежняя проверка искала строку `radial-gradient` в HTML —
+    // после чистки 38.14 градиент живёт в globals.css, и HTML его не содержит.
+    it('hero-секция — тёмная плашка со свечением токеном, названа для диктора', async () => {
       render(await Home());
-      const main = screen.getByRole('main');
-      const heroSection = main.querySelector('section');
-      expect(heroSection).not.toBeNull();
-      // Hero-billboard имеет радиальные градиенты в before:[background:radial-gradient(...)]
-      // Ищем подстроку в className любого элемента секции (включая саму section).
-      const heroHTML = heroSection!.outerHTML;
-      expect(heroHTML).toContain('radial-gradient');
+      const hero = screen.getByRole('region', { name: 'Главный экран' });
+      expect(hero.className).toContain('bg-plate');
+      expect(hero.className).toContain('var(--ui-decor-plate-glow)');
+      expect(hero.className).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(/i);
     });
 
-    it('hero-описание использует leading-relaxed', async () => {
+    it('описание витрины стоит в герое и написано приглушённым текстом плашки', async () => {
       render(await Home());
-      // Шаг 38.33: старое имя из героя ушло; текст переписывается на 38.64 (`home-copy`).
+      const hero = screen.getByRole('region', { name: 'Главный экран' });
       const description = screen.getByText(/собирает клубы/);
-      expect(description.className).toContain('leading-relaxed');
+      expect(hero.contains(description)).toBe(true);
+      expect(description.className).toContain('text-plate-muted');
     });
   });
 });

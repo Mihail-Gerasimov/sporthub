@@ -139,23 +139,19 @@
     color-mix(in srgb, var(--ui-ink) 18%, transparent) 0 2px,
     transparent 2px 8px
   );
-  /* Свечение контраст-плашки героя: зелёное пятно справа сверху + светлая штриховка */
-  --ui-decor-plate-glow:
-    radial-gradient(
-      ellipse 600px 400px at 100% 0%,
-      color-mix(in srgb, var(--ui-lime) 16%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 400px 300px at 0% 100%,
-      color-mix(in srgb, var(--ui-lime) 8%, transparent),
-      transparent 60%
-    ),
-    repeating-linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--ui-plate-ink) 2.5%, transparent) 0 1px,
-      transparent 1px 16px
-    );
+  /* Свечение контраст-плашки героя — по эталону (шаг 38.65): пятно 600×500 справа
+   * сверху, зелёный 7% в центре, растворяется к 70%; штриховки в макете нет. */
+  --ui-decor-plate-glow: radial-gradient(
+    ellipse 300px 250px at calc(100% - 144px) 144px,
+    color-mix(in srgb, var(--ui-lime) 7%, transparent) 0%,
+    transparent 70%
+  );
+  /* Свечение призыва: то же пятно 700×400, по центру секции. */
+  --ui-decor-plate-glow-center: radial-gradient(
+    ellipse 350px 200px at 50% 50%,
+    color-mix(in srgb, var(--ui-lime) 7%, transparent) 0%,
+    transparent 70%
+  );
 }
 
 @theme inline {
@@ -296,6 +292,21 @@ body {
     calc(88px * var(--ui-scale-display))
   );
   line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+/* Заголовок героя (шаг 38.65): макет `clamp(2.8rem, 5vw, 4.6rem)` 900 → Sofia на ступень
+ * выше и ×1,069 по кеглю; интерлиньяж 0.95, трекинг −0.01em. */
+.t-hero {
+  font-family: var(--ui-font-display);
+  font-weight: var(--ui-weight-hero);
+  font-size: clamp(
+    calc(2.8rem * var(--ui-scale-display)),
+    calc(5vw * var(--ui-scale-display)),
+    calc(4.6rem * var(--ui-scale-display))
+  );
+  line-height: 0.95;
   letter-spacing: -0.01em;
   text-transform: uppercase;
 }
