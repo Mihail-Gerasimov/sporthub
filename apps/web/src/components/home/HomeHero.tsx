@@ -55,7 +55,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
               <svg
                 viewBox="0 0 12 12"
                 aria-hidden="true"
-                className="size-3 shrink-0 text-plate-line"
+                className="size-3 shrink-0 text-plate-muted"
               >
                 <path
                   d="m4.5 2.5 3.5 3.5-3.5 3.5"

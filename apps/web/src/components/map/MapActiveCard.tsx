@@ -1,6 +1,7 @@
 /**
  * Карточка выбранной точки внизу карты (шаг 38.80) — по эталону (`App.tsx:1467-1490`):
- * белая, радиус 16, плавающая тень, картинка 56×56, имя display-шрифтом, знак
+ * белая, радиус 16, плавающая тень, картинка 56×56, имя пресетом карточки (Inter 19/700,
+ * 38.109), знак
  * проверки, адрес, рейтинг со звездой и «от цены», справа — «Подробнее» и «Закрыть».
  * Заменяет прежний попап маркера (реестр № 71): путь к странице сохранён ссылкой
  * `/clubs/{slug}` или `/trainers/{slug}` — ссылка, а не переход по клику на всё.
@@ -76,7 +77,7 @@ export function MapActiveCard({ marker, onClose }: MapActiveCardProps) {
 
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
-          <h3 className="t-h4 truncate text-ink">{marker.name}</h3>
+          <h3 className="t-card-title truncate text-ink">{marker.name}</h3>
           {marker.verifiedAt ? <VerifiedBadge ownerType={marker.type} /> : null}
         </div>
         <p className="truncate font-body text-[11px] text-muted">{marker.address}</p>

@@ -54,8 +54,10 @@ export const REQUIRED_TOKENS = [
   '--ui-tint-sky',
   '--ui-tint-violet',
   '--ui-tint-orange',
+  '--ui-tint-emerald',
   '--ui-hue-sky',
   '--ui-hue-violet',
+  '--ui-hue-emerald',
   '--ui-red',
   '--ui-gold',
   // Контраст-плашка: тёмный фон героя и шапки с собственным текстом и линиями.
@@ -263,6 +265,8 @@ const AA_PAIRS: Array<[text: string, surface: string]> = [
   ['--ui-muted', '--ui-tint-sky'],
   ['--ui-muted', '--ui-tint-violet'],
   ['--ui-muted', '--ui-tint-orange'],
+  ['--ui-ink', '--ui-tint-emerald'],
+  ['--ui-muted', '--ui-tint-emerald'],
 ];
 
 describe('Сторож: контракт токенов палитры (38.7)', () => {

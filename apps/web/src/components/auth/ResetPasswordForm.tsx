@@ -93,7 +93,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   if (token === '') {
     return (
       <Card className="space-y-4 p-6">
-        <h1 className="t-h3 text-ink">Ссылка неполная</h1>
+        <h1 className="t-h2 text-ink">Ссылка неполная</h1>
         <p className="text-sm text-muted">
           В адресе нет значения ссылки. Открой письмо ещё раз и перейди по ссылке целиком — почтовые
           программы иногда переносят её на две строки.
@@ -111,7 +111,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   if (isDone) {
     return (
       <Card className="space-y-4 p-6">
-        <h1 className="t-h3 text-ink">Пароль изменён</h1>
+        <h1 className="t-h2 text-ink">Пароль изменён</h1>
         <p className="text-sm text-muted">
           Прежние входы на всех устройствах отключены — так и задумано: если доступ к аккаунту
           увели, смена пароля обязана выставить чужого сразу. Войди заново с новым паролем.
@@ -130,7 +130,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <Card className="p-6">
       <form noValidate className="space-y-5" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <h1 className="t-h3 text-ink">Новый пароль</h1>
+          <h1 className="t-h2 text-ink">Новый пароль</h1>
           <p className="text-sm text-muted">
             Придумай пароль и подтверди его. После смены все прежние входы отключатся.
           </p>

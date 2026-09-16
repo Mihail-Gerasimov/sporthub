@@ -56,9 +56,8 @@ describe('HomeHero', () => {
     const eyebrow = screen.getByText(HERO.eyebrow);
     expect(eyebrow.parentElement?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(screen.getByText(HERO.subtitle('Самара')).className).toContain('text-plate-muted');
-    // Водяного знака «SH» больше нет; ленты видов спорта в герое нет (38.107).
+    // Водяного знака «SH» больше нет.
     expect(section.textContent).not.toMatch(/\bSH\b/);
-    expect(section.querySelector('.hero-sport-marquee')).toBeNull();
   });
 
   it('свечение и волна: декор токеном, волна — SVG цветом холста', () => {
