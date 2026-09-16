@@ -125,6 +125,29 @@ describe('ClubCard (Phase 28)', () => {
     expect(screen.getByText('Детские секции')).toBeInTheDocument();
   });
 
+  // Фаза 38, шаг 38.52: знак «проверено» — по полю `verifiedAt`, с подписью по виду лица.
+  it('у проверенного клуба рядом с городом стоит знак «Клуб проверен» с подсказкой', () => {
+    render(
+      <ClubCard
+        club={{ ...baseClub, verifiedAt: '2026-09-15T10:00:00.000Z' }}
+        sports={sports}
+        tags={tags}
+      />,
+    );
+
+    const badge = screen.getByTestId('verified-badge');
+
+    expect(badge).toHaveTextContent('Клуб проверен');
+    expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
+  });
+
+  it('без verifiedAt знака «проверено» нет', () => {
+    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+    expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
+    expect(screen.queryByText(/проверен/i)).not.toBeInTheDocument();
+  });
+
   it('фильтрует tagIds которых нет в справочнике (без fallback #N)', () => {
     const clubWithUnknown = { ...baseClub, tagIds: [1, 999, 2] };
     render(<ClubCard club={clubWithUnknown} sports={sports} tags={tags} />);

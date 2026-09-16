@@ -28,7 +28,7 @@
  */
 import Link from 'next/link';
 
-import { ChipMarquee } from '@/components/ui';
+import { ChipMarquee, VerifiedBadge } from '@/components/ui';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 
@@ -54,8 +54,7 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
   const isNew = trainer.reviewCount === 0 && trainer.rating === 0;
 
   // Группа — для exp-row chip. Null если у тренера нет primaryOffering.
-  const isGroup =
-    trainer.primaryOfferingFormat === 'group' || trainer.primaryOfferingFormat === 'mini_group';
+  const isGroup = ['group', 'mini_group'].includes(trainer.primaryOfferingFormat ?? '');
 
   // Headline — название первой услуги, fallback на bio. Если в карточке
   // headline уже = bio, в quote-row не дублируем (оставляем пустым).
@@ -124,11 +123,15 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
           </span>
         ) : null}
 
-        {/* Top row: city-pill + trainer-avatar 84×84 */}
+        {/* Top row: city-pill (+ знак «проверено», 38.52) + trainer-avatar 84×84 */}
         <div className="relative z-[1] flex items-start justify-between gap-3.5">
-          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
-            {formatCityDisplay(trainer.city)}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+              {formatCityDisplay(trainer.city)}
+            </span>
+            {/* Знак — только у проверенной карточки, по полю `verifiedAt`. */}
+            {trainer.verifiedAt ? <VerifiedBadge ownerType="trainer" /> : null}
+          </div>
 
           <div className="flex size-[84px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-[16px] border border-[var(--ui-line)] bg-[var(--ui-card)] p-2">
             <span className="font-display text-[22px] uppercase leading-none tracking-[0.02em] text-[var(--ui-ink)]">
@@ -271,16 +274,11 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
 }
 
 /**
- * Русское склонение слова «окно» по числу: 1 окно, 2-4 окна, иначе окон.
- * Используется в distance-fallback когда у тренера нет distanceKm.
+ * Русское склонение слова «окно» по числу: 1 окно, 2–4 окна, иначе окон.
+ * Формы выбирает `Intl.PluralRules` — правило языка, а не ручная арифметика остатков.
  */
-function pluralizeOkno(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'окно';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'окна';
-  return 'окон';
-}
+const OKNO_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = { one: 'окно', few: 'окна' };
+const pluralizeOkno = (n: number) => OKNO_FORMS[new Intl.PluralRules('ru-RU').select(n)] ?? 'окон';
 
 /**
  * Mini-помощник: ряд из 5 SVG-звёзд (в синхрон с ClubCard.Stars).

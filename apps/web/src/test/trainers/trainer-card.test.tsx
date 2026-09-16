@@ -233,6 +233,22 @@ describe('TrainerCard (Phase 28)', () => {
     expect(screen.getByText('5 окон')).toBeInTheDocument();
   });
 
+  // Фаза 38, шаг 38.52: знак «проверено» — по полю `verifiedAt`, подпись по виду лица.
+  it('у проверенного тренера стоит знак «Тренер проверен» с подсказкой', () => {
+    render(<TrainerCard trainer={{ ...baseTrainer, verifiedAt: '2026-09-15T10:00:00.000Z' }} />);
+
+    const badge = screen.getByTestId('verified-badge');
+
+    expect(badge).toHaveTextContent('Тренер проверен');
+    expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
+  });
+
+  it('без verifiedAt знака «проверено» нет', () => {
+    render(<TrainerCard trainer={baseTrainer} />);
+
+    expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
+  });
+
   it('highlighted=true → атрибут data-highlighted="true"', () => {
     render(<TrainerCard trainer={baseTrainer} highlighted />);
     expect(screen.getByTestId('trainer-card').getAttribute('data-highlighted')).toBe('true');

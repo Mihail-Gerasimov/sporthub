@@ -5,6 +5,7 @@ import type {
   Club,
   Coordinates,
   EntityId,
+  ISODateTimeString,
   Offering,
   OfferingFormat,
   Schedule,
@@ -41,6 +42,8 @@ export type TrainerDirectoryItem = {
   specialtyNames: string[];
   rating: number;
   reviewCount: number;
+  /** Когда площадка проверила карточку; пусто — знака «проверено» нет (38.52). */
+  verifiedAt?: ISODateTimeString;
   priceFrom: number;
   sportIds: EntityId[];
   sports: TrainerPreviewSport[];
@@ -140,9 +143,7 @@ export function buildTrainerDirectory({
   }
 
   for (const slot of schedule) {
-    if (slot.ownerType !== 'trainer' || slot.trainerId === undefined) {
-      continue;
-    }
+    if (slot.ownerType !== 'trainer' || slot.trainerId === undefined) continue;
 
     const currentSchedule = trainerScheduleByTrainerId.get(slot.trainerId) ?? [];
     currentSchedule.push(slot);
@@ -180,9 +181,7 @@ export function buildTrainerDirectory({
         trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
       const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;
 
-      if (!coordinates || !address) {
-        return [];
-      }
+      if (!coordinates || !address) return [];
 
       const venueName = venueClub?.name ?? null;
       const venueLabel = venueName ?? address;
@@ -216,6 +215,7 @@ export function buildTrainerDirectory({
           specialtyNames,
           rating: trainer.rating,
           reviewCount: trainer.reviewCount,
+          verifiedAt: trainer.verifiedAt,
           // Phase 24 Step 24.11: min price по всем offerings — иначе fallback trainer.priceFrom.
           priceFrom:
             offeringsForTrainer.length > 0

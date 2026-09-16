@@ -23,7 +23,7 @@
  */
 import Link from 'next/link';
 
-import { ChipMarquee } from '@/components/ui';
+import { ChipMarquee, VerifiedBadge } from '@/components/ui';
 import { buildDictMap, formatCityDisplay, formatPrice } from '@/lib/utils';
 import type { Club, Sport, Tag } from '@sporthub/types';
 
@@ -102,11 +102,15 @@ export function ClubCard({
           </span>
         ) : null}
 
-        {/* Top row: city-pill + preview-pill */}
+        {/* Top row: city-pill (+ знак «проверено», 38.52) + preview-pill */}
         <div className="relative z-[1] flex items-start justify-between gap-3">
-          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
-            {formatCityDisplay(club.city)}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
+              {formatCityDisplay(club.city)}
+            </span>
+            {/* Знак рисуется только у проверенной публикации: решает поле `verifiedAt`. */}
+            {club.verifiedAt ? <VerifiedBadge ownerType="club" /> : null}
+          </div>
           <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-transparent px-2.5 py-[5px] font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
             Фото preview
           </span>
