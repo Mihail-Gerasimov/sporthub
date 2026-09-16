@@ -29,7 +29,6 @@ export const MIN_CYRILLIC = 10;
 export const LEGACY_HEADERLESS: string[] = [
   'src/components/auth/AuthModal.tsx',
   'src/components/auth/index.ts',
-  'src/components/clubs/PopularNearby.tsx',
   'src/components/clubs/filterClubs.ts',
   'src/components/clubs/index.ts',
   'src/components/layout/AppShell.tsx',
@@ -47,7 +46,6 @@ export const LEGACY_HEADERLESS: string[] = [
   'src/components/search/CatalogResultsSection.tsx',
   'src/components/search/SearchBar.tsx',
   'src/components/search/index.ts',
-  'src/components/trainers/PopularTrainers.tsx',
   'src/components/trainers/filterTrainers.ts',
   'src/components/trainers/index.ts',
   'src/components/trainers/trainer-preview.ts',

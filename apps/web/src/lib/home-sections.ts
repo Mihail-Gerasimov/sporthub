@@ -47,8 +47,8 @@ export const HOME_SECTIONS = {
   results: { id: 'results', label: 'Выдача' },
   /** Карточки клубов и тренеров под текущие фильтры. */
   catalog: { id: 'catalog', label: 'Карточки' },
-  /** Популярное рядом — карусель по рейтингу (сводится с выдачей на 38.79). */
-  popular: { id: 'popular', label: 'Популярное' },
+  /** Подборка лучших по рейтингу под те же фильтры, что у выдачи (38.79). */
+  popular: { id: 'popular', label: 'Лучшие по рейтингу' },
   /** Ближайшие слоты и окна для записи. */
   availability: { id: 'availability', label: 'Слоты' },
 } as const satisfies Record<string, HomeSection>;

@@ -14,7 +14,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
-import { CTA, FEATURES, HERO, STEPS } from '@/lib/home-copy';
+import { CTA, FEATURES, HERO, POPULAR, STEPS } from '@/lib/home-copy';
 import { HOME_SECTION_KEYS, HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
@@ -102,7 +102,7 @@ describe('Home page', () => {
     render(await Home());
 
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: POPULAR.title.clubs })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     // Карточки выдачи — по одной на клуб стенда (популярное рисует их ещё раз — 38.79).
@@ -115,7 +115,7 @@ describe('Home page', () => {
 
     // Карта не меняется при переключении режима.
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: POPULAR.title.trainers })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Тренеры под текущие фильтры' }),
@@ -180,7 +180,8 @@ describe('Home page', () => {
         'Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета провайдера.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('popular-nearby-empty')).toBeInTheDocument();
+    const popular = document.getElementById(HOME_SECTIONS.popular.id) as HTMLElement;
+    expect(within(popular).getByText(POPULAR.empty.clubs)).toBeInTheDocument();
     expect(
       screen.getByText(
         'На сегодня в расписании нет новых слотов. Проверь другие секции или открой клуб, чтобы посмотреть ближайшие даты.',
@@ -189,7 +190,7 @@ describe('Home page', () => {
 
     switchToTrainers();
 
-    expect(screen.getByTestId('popular-trainers-empty')).toBeInTheDocument();
+    expect(within(popular).getByText(POPULAR.empty.trainers)).toBeInTheDocument();
     // Phase 28.12: новая копия empty-state TrainerAvailability — короче.
     expect(
       screen.getByText(

@@ -1,10 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+// Тесты подборки «лучшие по рейтингу» (фаза 38, шаг 38.79): один `CardSlider`
+// на оба режима, отбор — теми же фильтрами, что у выдачи.
+//
+// ⚠️ Главный случай — «подборка следует за фильтром»: прогон 38.5 (step-13) нашёл,
+// что после чипа «Йога» в «популярном» оставались все клубы, тогда как выдача фильтр
+// применяла. Своей карусели у блока больше нет — стрелки и пустое состояние берутся
+// из `CardSlider` (сторож `carousel-single`).
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PopularNearby } from '@/components/clubs/PopularNearby';
+import { POPULAR } from '@/lib/home-copy';
 import { useFilterStore } from '@/stores/useFilterStore';
 import type { Club, Sport } from '@sporthub/types';
 import type { TrainerDirectoryItem } from '@/components/trainers';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+}));
 
 const sports: Pick<Sport, 'id' | 'name' | 'icon'>[] = [
   { id: 1, name: 'Йога', icon: '🧘' },
@@ -242,73 +254,83 @@ const trainers: TrainerDirectoryItem[] = [
   },
 ];
 
-describe('PopularNearby', () => {
+describe('PopularNearby (38.79)', () => {
   beforeEach(() => {
     useFilterStore.setState({
       discoveryMode: 'clubs',
       searchQuery: '',
       selectedSportId: null,
+      selectedCity: '',
     });
   });
 
-  it('показывает топ-клубы по рейтингу в горизонтальном скролле', () => {
+  /** Имена карточек слайдера по порядку слайдов. */
+  const cardNames = (pattern: RegExp) =>
+    screen
+      .getAllByRole('article', { name: pattern })
+      .map((card) => card.getAttribute('aria-label'));
+
+  it('шесть лучших клубов по рейтингу — в общем CardSlider, названном по содержимому', () => {
     render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
-    expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
-    expect(screen.getByTestId('popular-nearby-scroll').className).toContain('overflow-x-auto');
-    expect(screen.getByTestId('popular-nearby-scroll').className).toContain('py-3');
+    expect(screen.getByRole('heading', { name: POPULAR.title.clubs })).toBeInTheDocument();
+    // Карусель — общая: стрелки CardSlider, своих кнопок прокрутки нет.
+    expect(screen.getByRole('button', { name: 'Назад' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Прокрутить/ })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-card-slider-rail]')).not.toBeNull();
 
-    // Phase 28.8: ClubCard перевёрстана — testid поменялся на 'club-card',
-    // variant больше нет, hover-эффект отдан на уровень <article>.
-    const carouselCards = screen.getAllByTestId('club-card');
-    expect(carouselCards).toHaveLength(6);
-
-    const clubLinks = screen.getAllByRole('link');
-    const clubNames = clubLinks.map((link) => link.getAttribute('href'));
-
-    expect(clubNames).toEqual([
-      '/clubs/balance-yoga-house',
-      '/clubs/volna-aquatic-club',
-      '/clubs/motion-dance-hub',
-      '/clubs/north-ring-boxing-lab',
-      '/clubs/forge-crossfit-arena',
-      '/clubs/vector-fitness-club',
+    expect(cardNames(/^Карточка клуба: /)).toEqual([
+      'Карточка клуба: Balance Yoga House',
+      'Карточка клуба: Volna Aquatic Club',
+      'Карточка клуба: Motion Dance Hub',
+      'Карточка клуба: North Ring Boxing Lab',
+      'Карточка клуба: Forge Crossfit Arena',
+      'Карточка клуба: Vector Fitness Club',
     ]);
   });
 
-  it('показывает кнопки прокрутки и листает слайдер влево и вправо', () => {
+  it('подборка следует за фильтром выдачи: вид спорта оставляет только его клубы', () => {
+    // Йога (id 1) — у Balance Yoga House и Motion Dance Hub; остальные обязаны уйти.
+    useFilterStore.setState({ selectedSportId: 1 });
     render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
-    const scrollContainer = screen.getByTestId('popular-nearby-scroll');
-    const scrollByMock = vi.fn();
-
-    scrollContainer.scrollBy = scrollByMock;
-
-    fireEvent.click(screen.getByRole('button', { name: 'Прокрутить популярные клубы влево' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Прокрутить популярные клубы вправо' }));
-
-    expect(scrollByMock).toHaveBeenNthCalledWith(1, {
-      left: -360,
-      behavior: 'smooth',
-    });
-    expect(scrollByMock).toHaveBeenNthCalledWith(2, {
-      left: 360,
-      behavior: 'smooth',
-    });
+    expect(cardNames(/^Карточка клуба: /)).toEqual([
+      'Карточка клуба: Balance Yoga House',
+      'Карточка клуба: Motion Dance Hub',
+    ]);
   });
 
-  it('в trainer-mode показывает популярные карточки тренеров', () => {
-    useFilterStore.setState({
-      discoveryMode: 'trainers',
-      searchQuery: '',
-      selectedSportId: null,
-    });
+  it('подборка следует за строкой поиска и городом так же, как выдача', () => {
+    useFilterStore.setState({ searchQuery: 'boxing' });
+    const { unmount } = render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
+    expect(cardNames(/^Карточка клуба: /)).toEqual(['Карточка клуба: North Ring Boxing Lab']);
+
+    unmount();
+    useFilterStore.setState({ searchQuery: '', selectedCity: 'Тольятти' });
     render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
 
-    expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
-    expect(screen.getByTestId('popular-trainers-scroll')).toBeInTheDocument();
-    expect(screen.getByText('Анна Миронова')).toBeInTheDocument();
-    expect(screen.getByText('Марина Соколова')).toBeInTheDocument();
+    // Ни одного клуба в другом городе — честное пустое состояние слайдера.
+    expect(screen.queryByRole('article', { name: /^Карточка клуба: / })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-card-slider-empty]')).toHaveTextContent(
+      POPULAR.empty.clubs,
+    );
+  });
+
+  it('в режиме тренеров — лучшие тренеры по рейтингу, тем же слайдером и теми же фильтрами', () => {
+    useFilterStore.setState({ discoveryMode: 'trainers' });
+    const { unmount } = render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
+
+    expect(screen.getByRole('heading', { name: POPULAR.title.trainers })).toBeInTheDocument();
+    expect(cardNames(/^Карточка тренера: /)).toEqual([
+      'Карточка тренера: Анна Миронова',
+      'Карточка тренера: Марина Соколова',
+    ]);
+
+    unmount();
+    useFilterStore.setState({ selectedSportId: 3 });
+    render(<PopularNearby clubs={clubs} sports={sports} trainers={trainers} />);
+
+    expect(cardNames(/^Карточка тренера: /)).toEqual(['Карточка тренера: Марина Соколова']);
   });
 });

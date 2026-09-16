@@ -1,5 +1,4 @@
 export { filterTrainers } from '@/components/trainers/filterTrainers';
-export { PopularTrainers } from '@/components/trainers/PopularTrainers';
 export { TrainerAvailability } from '@/components/trainers/TrainerAvailability';
 export { TrainerCard } from '@/components/trainers/TrainerCard';
 export { TrainerList } from '@/components/trainers/TrainerList';

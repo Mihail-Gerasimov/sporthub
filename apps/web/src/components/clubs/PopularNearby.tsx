@@ -1,138 +1,87 @@
 'use client';
 
-import { useRef } from 'react';
+// Подборка «лучшие по рейтингу» на главной (фаза 38, шаг 38.79) — клубы или тренеры
+// по режиму поиска, в общем `CardSlider`.
+//
+// ⚠️ Две правды закрыты этим шагом. Первая: блок брал ПОЛНЫЙ список и не смотрел
+// на фильтры — после чипа «Йога» в «популярном» оставались все клубы, тогда как выдача
+// фильтр применяла (найдено прогоном 38.5, step-13). Теперь отбор — теми же функциями
+// и тем же стором, что у выдачи (`filterClubs` / `filterTrainers`), поверх него —
+// порядок по рейтингу, отзывам и расстоянию и срез в шесть карточек. Вторая: у блока
+// была своя карусель (`scrollBy`, две копии — клубы и тренеры), третья на площадке
+// рядом с `CardSlider` и `ChipMarquee`; сведена в `CardSlider` — стрелки, точки, drag
+// и пустое состояние оттуда (сторож `carousel-single`).
+//
+// Блок назван тем, что показывает: геолокации у площадки нет, «рядом» обещать нечего.
+// Отбор в памяти — действующее ограничение до страницы каталога (долг Д-15).
 
 import { ClubCard } from '@/components/clubs/ClubCard';
-import { PopularTrainers } from '@/components/trainers';
-import { Badge, Button, Card } from '@/components/ui';
+import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
+import { filterTrainers } from '@/components/trainers/filterTrainers';
+import { TrainerCard } from '@/components/trainers/TrainerCard';
+import { CardSlider } from '@/components/ui';
+import { POPULAR } from '@/lib/home-copy';
 import { useFilterStore } from '@/stores/useFilterStore';
-import type { Club, Sport, Tag } from '@sporthub/types';
+import type { Club, Tag } from '@sporthub/types';
 
-import type { TrainerDirectoryItem } from '@/components/trainers';
-
-type PopularNearbySport = Pick<Sport, 'id' | 'name' | 'icon'>;
+import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
 type PopularNearbyProps = {
   clubs: Club[];
-  sports: PopularNearbySport[];
+  sports: ClubListSport[];
   /** Справочник тегов для резолвинга tagIds → имена в карточках */
   tags?: Tag[];
   trainers: TrainerDirectoryItem[];
 };
 
-const POPULAR_NEARBY_SCROLL_STEP = 360;
+/** Сколько карточек в подборке. */
+const POPULAR_LIMIT = 6;
 
-function sortByPopularity(clubs: Club[]): Club[] {
-  return [...clubs].sort((left, right) => {
-    if (right.rating !== left.rating) {
-      return right.rating - left.rating;
-    }
+/** То, по чему сравниваются и клубы, и тренеры: рейтинг, отзывы, расстояние. */
+type Ranked = { rating: number; reviewCount: number; distanceKm: number | null };
 
-    if (right.reviewCount !== left.reviewCount) {
-      return right.reviewCount - left.reviewCount;
-    }
+/** Порядок подборки: рейтинг, при равенстве — отзывы, затем ближе — выше. */
+function byPopularity(left: Ranked, right: Ranked): number {
+  if (right.rating !== left.rating) return right.rating - left.rating;
+  if (right.reviewCount !== left.reviewCount) return right.reviewCount - left.reviewCount;
 
-    return left.distanceKm - right.distanceKm;
-  });
+  return (
+    (left.distanceKm ?? Number.POSITIVE_INFINITY) - (right.distanceKm ?? Number.POSITIVE_INFINITY)
+  );
 }
 
 export function PopularNearby({ clubs, sports, tags = [], trainers }: PopularNearbyProps) {
   const discoveryMode = useFilterStore((state) => state.discoveryMode);
-  const popularClubs = sortByPopularity(clubs).slice(0, 6);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const searchQuery = useFilterStore((state) => state.searchQuery);
+  const selectedSportId = useFilterStore((state) => state.selectedSportId);
+  const selectedCity = useFilterStore((state) => state.selectedCity);
 
-  if (discoveryMode === 'trainers') {
-    return <PopularTrainers trainers={trainers} />;
-  }
-
-  function scrollCarousel(direction: 'left' | 'right') {
-    scrollContainerRef.current?.scrollBy({
-      left: direction === 'left' ? -POPULAR_NEARBY_SCROLL_STEP : POPULAR_NEARBY_SCROLL_STEP,
-      behavior: 'smooth',
-    });
-  }
+  // Тот же отбор, что у выдачи, — и только потом порядок и срез.
+  const filters = { searchQuery, selectedCity, selectedSportId };
+  const items =
+    discoveryMode === 'clubs'
+      ? [...filterClubs({ clubs, sports, tags, ...filters })]
+          .sort(byPopularity)
+          .slice(0, POPULAR_LIMIT)
+      : [...filterTrainers({ trainers, ...filters })].sort(byPopularity).slice(0, POPULAR_LIMIT);
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-            Nearby highlights
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink">Популярное рядом</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-            Быстрый горизонтальный ряд с клубами, которые сильнее всего выделяются по рейтингу и
-            отзывам.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Badge tone="accent">Топ по рейтингу</Badge>
-          <Badge tone="outline">MVP без геолокации</Badge>
-        </div>
-      </div>
-
-      {popularClubs.length === 0 ? (
-        <Card data-testid="popular-nearby-empty" className="bg-panel-strong">
-          <p className="text-sm leading-relaxed text-muted">
-            Клубный каталог пока пуст. После первой публикации здесь появятся новые клубы, которые
-            можно будет открыть из главной страницы.
-          </p>
-        </Card>
-      ) : (
-        <>
-          <div className="-mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
-            <div className="mb-3 flex items-center justify-start gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="min-w-10 px-0"
-                aria-label="Прокрутить популярные клубы влево"
-                onClick={() => {
-                  scrollCarousel('left');
-                }}
-              >
-                <span aria-hidden="true">←</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="min-w-10 px-0"
-                aria-label="Прокрутить популярные клубы вправо"
-                onClick={() => {
-                  scrollCarousel('right');
-                }}
-              >
-                <span aria-hidden="true">→</span>
-              </Button>
-            </div>
-
-            <div
-              ref={scrollContainerRef}
-              data-testid="popular-nearby-scroll"
-              className="scrollbar-hidden overflow-x-auto py-3"
-            >
-              <div className="flex min-w-max items-stretch gap-4">
-                {popularClubs.map((club) => (
-                  <div
-                    key={club.id}
-                    className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
-                  >
-                    <ClubCard club={club} sports={sports} tags={tags} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <Card className="bg-panel-strong">
-            <p className="text-sm leading-relaxed text-muted">
-              На MVP блок «рядом» пока не использует геолокацию. Здесь показывается топ-клубов по
-              рейтингу и отзывам, чтобы быстро подсветить сильные места каталога.
-            </p>
-          </Card>
-        </>
-      )}
-    </section>
+    <CardSlider
+      eyebrow={POPULAR.eyebrow[discoveryMode]}
+      title={POPULAR.title[discoveryMode]}
+      accent={discoveryMode === 'clubs' ? 'lime' : 'orange'}
+      sliderId={`popular-${discoveryMode}`}
+      total={items.length}
+      countLabel={POPULAR.countLabel}
+      emptyMessage={POPULAR.empty[discoveryMode]}
+    >
+      {discoveryMode === 'clubs'
+        ? (items as Club[]).map((club) => (
+            <ClubCard key={club.id} club={club} sports={sports} tags={tags} />
+          ))
+        : (items as TrainerDirectoryItem[]).map((trainer) => (
+            <TrainerCard key={trainer.id} trainer={trainer} />
+          ))}
+    </CardSlider>
   );
 }

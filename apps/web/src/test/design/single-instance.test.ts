@@ -54,13 +54,6 @@ export const CAROUSEL_CALL = /(?<!window)\.scrollBy\(/;
 export const CAROUSEL_TRACK = /translateX\(/;
 export const CAROUSEL_CONTROLS = /aria-label=[{"'`]+(Назад|Вперёд|Прокрутить)/;
 
-/** Сегодняшние карусели — три; на 38.79 остаётся `[HOMES.carousel]`. */
-export const CAROUSELS_TODAY = [
-  'src/components/clubs/PopularNearby.tsx',
-  'src/components/trainers/PopularTrainers.tsx',
-  'src/components/ui/CardSlider.tsx',
-];
-
 // Текст без комментариев: блочных и строчных (до конца строки).
 // ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.
 function stripComments(text: string): string {
@@ -129,9 +122,9 @@ describe('Сторожа единственности (38.12)', () => {
     expect(await filesDrawing(CARD_LABELS.trainerCard)).toEqual([HOMES.trainerCard]);
   });
 
-  // ⚠️ На шаге 38.79 заменить ожидание на `[HOMES.carousel]`: сведение каруселей.
+  // Шаг 38.79: карусель одна — `CardSlider`; своя прокрутка «популярного» сведена в неё.
   it('carousel-single: каруселей ровно столько, сколько приколото', async () => {
-    expect(await filesDrawing(isCarousel)).toEqual(CAROUSELS_TODAY);
+    expect(await filesDrawing(isCarousel)).toEqual([HOMES.carousel]);
   });
 
   it('сторожа обходят настоящие файлы, а не пустоту', async () => {

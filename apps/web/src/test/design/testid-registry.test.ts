@@ -304,7 +304,9 @@ describe('Сторож: реестр контрактов разметки (38.1
     expect(files).toContain('src/components/clubs/ClubCard.tsx');
     expect(files).toContain('src/app/page.tsx');
     expect(files.some((file) => file.startsWith('src/components/profile'))).toBe(false);
-    expect(testidsIn(text).length).toBeGreaterThan(15);
+    // Порог — ниже нынешнего числа контрактов (38.79 снял четыре у «популярного»):
+    // проверка стережёт пустоту области, а не точное число.
+    expect(testidsIn(text).length).toBeGreaterThan(10);
   });
 
   it('сторож видит подмену на подставном тексте', () => {
