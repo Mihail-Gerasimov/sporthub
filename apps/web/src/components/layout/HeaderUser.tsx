@@ -6,6 +6,10 @@
 // без лиц → личный кабинет. Подпись доступности НАЗЫВАЕТ ТО, КУДА ВЕДЁТ (дефект,
 // найденный MCP-прогоном 10.09.2026: «личный кабинет» вело в клуб).
 //
+// Полное имя (шаг 38.60) — подсказкой `Hint` на аватаре, а не `title=` на обрезанной
+// строке: `title` не читается с клавиатуры и не показывается на касание; `Hint`
+// открывается по наведению, фокусу и касанию и всегда описывает аватар для диктора.
+//
 // Выход: работу от чужого лица заканчивает сервер — без его ответа со страницы
 // не уходим; обычный выход ждёт сервер, иначе главная отрисуется под ещё живой сессией.
 'use client';
@@ -14,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { Hint } from '@/components/ui/Hint';
 import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -70,10 +75,7 @@ export function HeaderUser() {
 
       {/* Плашка: имя и подпись кабинета — с точки меню и выше */}
       <div className="hidden min-w-0 flex-col items-end text-right leading-tight menu:flex">
-        <p
-          className="max-w-[140px] truncate font-body text-[12px] font-bold text-ink"
-          title={user.name}
-        >
+        <p className="max-w-[140px] truncate font-body text-[12px] font-bold text-ink">
           {user.name}
         </p>
         {cabinetLabel ? (
@@ -83,27 +85,29 @@ export function HeaderUser() {
         ) : null}
       </div>
 
-      {isAdminDirect ? (
-        <Link
-          href={SERVICE_PORTAL_SECTIONS.users}
-          aria-label="Панель управления"
-          className={AVATAR_CLASS}
-        >
-          {accountInitial}
-        </Link>
-      ) : primaryCabinet ? (
-        <Link
-          href={primaryCabinet.href}
-          aria-label={`Перейти в кабинет: ${primaryCabinet.title}`}
-          className={AVATAR_CLASS}
-        >
-          {accountInitial}
-        </Link>
-      ) : (
-        <div role="img" aria-label={`Аватар ${user.name}`} className={AVATAR_CLASS}>
-          {accountInitial}
-        </div>
-      )}
+      <Hint text={user.name}>
+        {isAdminDirect ? (
+          <Link
+            href={SERVICE_PORTAL_SECTIONS.users}
+            aria-label="Панель управления"
+            className={AVATAR_CLASS}
+          >
+            {accountInitial}
+          </Link>
+        ) : primaryCabinet ? (
+          <Link
+            href={primaryCabinet.href}
+            aria-label={`Перейти в кабинет: ${primaryCabinet.title}`}
+            className={AVATAR_CLASS}
+          >
+            {accountInitial}
+          </Link>
+        ) : (
+          <div role="img" aria-label={`Аватар ${user.name}`} tabIndex={0} className={AVATAR_CLASS}>
+            {accountInitial}
+          </div>
+        )}
+      </Hint>
 
       <button
         type="button"

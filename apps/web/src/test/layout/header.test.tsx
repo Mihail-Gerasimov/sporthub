@@ -60,13 +60,36 @@ describe('Header', () => {
 
     render(<Header />);
 
-    expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+    // Имя стоит и в плашке, и в подсказке аватара (38.60) — берём плашку.
+    expect(screen.getByText('Марина Крылова', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText('CrossFit Garage')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Перейти в кабинет/ })).toHaveAttribute(
       'href',
       '/profile/club/3',
     );
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+  });
+
+  // Шаг 38.60: полное имя — подсказкой на аватаре (наведение, фокус, касание, диктор),
+  // а не `title=` на обрезанной строке, которого с клавиатуры не достать.
+  it('полное имя — описанием аватара через Hint, без title на плашке', () => {
+    useAuthStore.setState({
+      ...AUTH_STORE_DEFAULT_STATE,
+      user: { name: 'Марина Крылова-Достоевская', email: 'marina@studio.local' },
+      isAuthenticated: true,
+      accountKind: 'person',
+      faces: [{ kind: 'club', id: 3, name: 'CrossFit Garage' }],
+      activeFaceKey: 'club:3',
+      status: 'ready',
+    });
+    render(<Header />);
+    const avatar = screen.getByRole('link', { name: /Перейти в кабинет/ });
+    const describedBy = avatar.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)?.textContent).toBe('Марина Крылова-Достоевская');
+    expect(screen.getByText('Марина Крылова-Достоевская', { selector: 'p' })).not.toHaveAttribute(
+      'title',
+    );
   });
 
   it('у человека без лиц услуг ссылка ведёт в личный кабинет и не пропадает', () => {
@@ -137,7 +160,8 @@ describe('Header', () => {
 
     render(<Header />);
 
-    expect(screen.getByText('Марина Крылова')).toBeInTheDocument();
+    // Имя стоит и в плашке, и в подсказке аватара (38.60) — берём плашку.
+    expect(screen.getByText('Марина Крылова', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText('CrossFit Garage')).toBeInTheDocument();
   });
 });
