@@ -69,6 +69,24 @@ describe('ProviderPublicationsSection', () => {
     expect(screen.getByText(/3 отзыв/)).toBeInTheDocument();
   });
 
+  // Фаза 38, шаг 38.53: владелец видит знак проверки у себя в кабинете.
+  it('проверенная публикация несёт знак «проверено» без своего фокуса — карточка целиком ссылка', () => {
+    renderInFaceCabinet(
+      <ProviderPublicationsSection
+        clubs={[{ ...clubs[0], verifiedAt: '2026-09-15T10:00:00.000Z' }]}
+        trainers={trainers}
+      />,
+    );
+
+    const badges = screen.getAllByTestId('verified-badge');
+
+    // Ровно один — у клуба; тренер в фикстуре не проверен.
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveTextContent('Клуб проверен');
+    expect(badges[0]).not.toHaveAttribute('tabindex');
+    expect(screen.getByRole('link', { name: 'Volna Aquatic Club' })).toContainElement(badges[0]);
+  });
+
   it('рендерит ссылки на детальные страницы', () => {
     renderInFaceCabinet(<ProviderPublicationsSection clubs={clubs} trainers={trainers} />);
 

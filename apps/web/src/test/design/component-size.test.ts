@@ -45,7 +45,8 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/admin/ModerationPage.tsx': 361,
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
-  'src/components/clubs/ClubDetailPageClient.tsx': 667,
+  // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).
+  'src/components/clubs/ClubDetailPageClient.tsx': 642,
   'src/components/layout/NotificationBell.tsx': 224,
   'src/components/map/MainMap.tsx': 228,
   'src/components/profile/AccountCredentialsSection.tsx': 358,
@@ -63,7 +64,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/provider/ProviderPublications.tsx': 238,
   'src/components/profile/provider/ProviderStats.tsx': 365,
   'src/components/trainers/TrainerCard.tsx': 219,
-  'src/components/trainers/TrainerDetailPageClient.tsx': 747,
+  'src/components/trainers/TrainerDetailPageClient.tsx': 722,
   // 38.52: знак «проверено» в карточке и поле в справочнике тренеров; потолки опущены.
   'src/components/trainers/trainer-preview.ts': 275,
   'src/components/ui/CardSlider.tsx': 370,

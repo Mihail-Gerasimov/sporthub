@@ -143,6 +143,26 @@ describe('TrainerDetailPageClient', () => {
     vi.useRealTimers();
   });
 
+  // Фаза 38, шаг 38.53: тренер проверяется наравне с клубом — знак по `verifiedAt`.
+  it('у проверенного тренера в hero стоит знак «Тренер проверен», у обычного — нет', () => {
+    const { unmount } = render(
+      <TrainerDetailPageClient
+        {...defaultProps}
+        trainer={{ ...trainer, verifiedAt: '2026-09-15T10:00:00.000Z' }}
+      />,
+    );
+
+    const badge = screen.getByTestId('verified-badge');
+
+    expect(badge).toHaveTextContent('Тренер проверен');
+    expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
+
+    unmount();
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
+  });
+
   it('рендерит имя тренера, bio, специализации и виды спорта', () => {
     render(<TrainerDetailPageClient {...defaultProps} />);
 

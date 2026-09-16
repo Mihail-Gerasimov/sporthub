@@ -29,8 +29,9 @@ import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Button, Rating } from '@/components/ui';
+import { Button, Rating, VerifiedBadge } from '@/components/ui';
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
+import { countRu } from '@/lib/plural';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import {
   DetailScheduleWeek,
@@ -169,45 +170,12 @@ function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pil
   );
 }
 
-/* Склонение «N отзывов»: 1 отзыв / 2-4 отзыва / 5+ отзывов. */
-function pluralizeReviews(count: number): string {
-  const lastTwo = count % 100;
-  const last = count % 10;
-  if (lastTwo >= 11 && lastTwo <= 14) return `${count} отзывов`;
-  if (last === 1) return `${count} отзыв`;
-  if (last >= 2 && last <= 4) return `${count} отзыва`;
-  return `${count} отзывов`;
-}
-
-/* Склонение «N услуг»: 1 услуга / 2-4 услуги / 5+ услуг. */
-function pluralizeServices(count: number): string {
-  const lastTwo = count % 100;
-  const last = count % 10;
-  if (lastTwo >= 11 && lastTwo <= 14) return `${count} услуг`;
-  if (last === 1) return `${count} услуга`;
-  if (last >= 2 && last <= 4) return `${count} услуги`;
-  return `${count} услуг`;
-}
-
-/* Склонение «N направлений». */
-function pluralizeDirections(count: number): string {
-  const lastTwo = count % 100;
-  const last = count % 10;
-  if (lastTwo >= 11 && lastTwo <= 14) return `${count} направлений`;
-  if (last === 1) return `${count} направление`;
-  if (last >= 2 && last <= 4) return `${count} направления`;
-  return `${count} направлений`;
-}
-
-/* Склонение «N слотов». */
-function pluralizeSlots(count: number): string {
-  const lastTwo = count % 100;
-  const last = count % 10;
-  if (lastTwo >= 11 && lastTwo <= 14) return `${count} слотов`;
-  if (last === 1) return `${count} слот`;
-  if (last >= 2 && last <= 4) return `${count} слота`;
-  return `${count} слотов`;
-}
+/* Подписи-счётчики: склонение — общим правилом `lib/plural` (38.53). */
+const pluralizeReviews = (n: number) => countRu(n, ['отзыв', 'отзыва', 'отзывов']);
+const pluralizeServices = (n: number) => countRu(n, ['услуга', 'услуги', 'услуг']);
+const pluralizeDirections = (n: number) =>
+  countRu(n, ['направление', 'направления', 'направлений']);
+const pluralizeSlots = (n: number) => countRu(n, ['слот', 'слота', 'слотов']);
 
 /* Метка формата услуги. */
 function getFormatLabel(format: Offering['format']): string {
@@ -424,6 +392,8 @@ export function TrainerDetailPageClient({
               {trainer.city ? <Chip variant="solid">{formatCityDisplay(trainer.city)}</Chip> : null}
               <Chip>{trainer.experienceYears} лет опыта</Chip>
               <Chip>{pluralizeReviews(trainer.reviewCount)}</Chip>
+              {/* Знак проверки площадкой (38.53) — по полю `verifiedAt`. */}
+              {trainer.verifiedAt ? <VerifiedBadge ownerType="trainer" /> : null}
             </div>
 
             <div className="flex flex-col gap-3">

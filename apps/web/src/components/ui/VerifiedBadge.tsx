@@ -33,14 +33,25 @@ type VerifiedBadgeProps = {
   ownerType: CatalogOwnerType;
   /** Классы обёртки подсказки: положение в потоке решает потребитель. */
   className?: string;
+  /**
+   * Знак в порядке табуляции — иначе с клавиатуры подсказку не открыть. Выключается
+   * там, где знак лежит внутри ссылки на всю карточку: второй фокус внутри ссылки
+   * читался бы диктором как вложенный элемент управления.
+   */
+  focusable?: boolean;
 };
 
-export function VerifiedBadge({ ownerType, className }: VerifiedBadgeProps) {
+export function VerifiedBadge({ ownerType, className, focusable = true }: VerifiedBadgeProps) {
   const copy = VERIFIED_COPY[ownerType];
 
   return (
     <Hint text={copy.hint} className={className}>
-      <Badge tone="accent" tabIndex={0} data-testid="verified-badge" className="gap-1.5">
+      <Badge
+        tone="accent"
+        tabIndex={focusable ? 0 : undefined}
+        data-testid="verified-badge"
+        className="gap-1.5"
+      >
         {/* Галочка декоративная: имя знаку даёт подпись рядом. */}
         <svg
           aria-hidden="true"

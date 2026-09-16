@@ -24,6 +24,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type FocusEvent,
@@ -35,6 +36,18 @@ import { cn } from '@/lib/utils';
 
 /** Сколько миллисекунд после касания эмулированные события мыши считаются его эхом. */
 const TOUCH_ECHO_MS = 700;
+
+/** Отступ от края окна, ближе которого пузырь не подходит. */
+const EDGE_GAP_PX = 8;
+
+/**
+ * Куда прижат пузырь — атрибут `data-align` на самом пузыре. По умолчанию — по центру
+ * триггера; у края окна — к тому краю, за который он вылезал бы: карточка в правом
+ * столбце выдачи иначе прятала бы половину подсказки за пределами экрана.
+ * Атрибут ставится в layout-эффекте прямо на элемент: это правка DOM по замеру,
+ * а не состояние React — состояние здесь только вызывало бы второй рендер.
+ */
+type HintAlign = 'center' | 'start' | 'end';
 
 type HintProps = {
   /** Текст подсказки — он же доступное описание триггера. */
@@ -48,12 +61,32 @@ type HintProps = {
 export function Hint({ text, children, className }: HintProps) {
   const id = useId();
   const rootRef = useRef<HTMLSpanElement | null>(null);
+  const bubbleRef = useRef<HTMLSpanElement | null>(null);
   const lastTouchAt = useRef(0);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [touched, setTouched] = useState(false);
 
   const open = hovered || focused || touched;
+
+  // Пузырь измеряется в своём положении по умолчанию и, если вылезает за окно,
+  // прижимается к краю. До отрисовки — чтобы человек не видел прыжка.
+  useLayoutEffect(() => {
+    const bubble = bubbleRef.current;
+
+    if (!bubble) return;
+
+    // Закрытый пузырь возвращается к центру: следующий замер идёт от положения по умолчанию.
+    let align: HintAlign = 'center';
+    const rect = open ? bubble.getBoundingClientRect() : null;
+
+    if (rect !== null && rect.width > 0) {
+      if (rect.right > window.innerWidth - EDGE_GAP_PX) align = 'end';
+      else if (rect.left < EDGE_GAP_PX) align = 'start';
+    }
+
+    bubble.dataset.align = align;
+  }, [open]);
 
   /** Эхо касания: событие мыши или фокуса, пришедшее сразу за touchstart. */
   const isTouchEcho = useCallback(() => Date.now() - lastTouchAt.current < TOUCH_ECHO_MS, []);
@@ -118,10 +151,12 @@ export function Hint({ text, children, className }: HintProps) {
     >
       {cloneElement(children, { 'aria-describedby': id })}
       <span
+        ref={bubbleRef}
         role="tooltip"
         id={id}
         hidden={!open}
-        className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-[16rem] -translate-x-1/2 rounded-[10px] border border-line bg-card px-3 py-2 font-body text-xs font-medium normal-case tracking-normal text-ink shadow-floating"
+        data-align="center"
+        className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-[min(16rem,calc(100vw-1rem))] -translate-x-1/2 rounded-[10px] border border-line bg-card px-3 py-2 font-body text-xs font-medium normal-case tracking-normal text-ink shadow-floating data-[align=end]:left-auto data-[align=end]:right-0 data-[align=end]:translate-x-0 data-[align=start]:left-0 data-[align=start]:translate-x-0"
       >
         {text}
       </span>

@@ -30,6 +30,7 @@ import Link from 'next/link';
 
 import { ChipMarquee, VerifiedBadge } from '@/components/ui';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
+import { pluralRu } from '@/lib/plural';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
@@ -273,12 +274,8 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
   );
 }
 
-/**
- * Русское склонение слова «окно» по числу: 1 окно, 2–4 окна, иначе окон.
- * Формы выбирает `Intl.PluralRules` — правило языка, а не ручная арифметика остатков.
- */
-const OKNO_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = { one: 'окно', few: 'окна' };
-const pluralizeOkno = (n: number) => OKNO_FORMS[new Intl.PluralRules('ru-RU').select(n)] ?? 'окон';
+/** Склонение «окно» по числу — общим правилом `lib/plural`. */
+const pluralizeOkno = (n: number) => pluralRu(n, ['окно', 'окна', 'окон']);
 
 /**
  * Mini-помощник: ряд из 5 SVG-звёзд (в синхрон с ClubCard.Stars).

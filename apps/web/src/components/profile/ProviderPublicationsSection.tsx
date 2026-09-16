@@ -1,9 +1,12 @@
 // Секция «Мои публикации» кабинета провайдера — единый список клубов и тренеров.
+// Шаг 38.53: карточка проверенной площадкой публикации несёт знак «проверено» —
+// тот же компонент, что в каталоге; владелец видит его у себя, а не только гость.
 'use client';
 
 import Link from 'next/link';
 
-import { Badge, Card } from '@/components/ui';
+import { Badge, Card, VerifiedBadge } from '@/components/ui';
+import { countRu } from '@/lib/plural';
 import { HIDE_KIND_LABELS, HIDE_KIND_SHOWS_REASON } from '@sporthub/domain';
 import type { Club, EntityId, HideKindValue, Trainer } from '@sporthub/types';
 
@@ -16,17 +19,8 @@ type ProviderPublicationsSectionProps = {
   onDelete?: (entityType: 'club' | 'trainer', entityId: EntityId) => void;
 };
 
-/** Склонение слова «отзыв» по количеству */
-function pluralizeReviews(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-
-  if (mod100 >= 11 && mod100 <= 19) return `${count} отзывов`;
-  if (mod10 === 1) return `${count} отзыв`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} отзыва`;
-
-  return `${count} отзывов`;
-}
+/** Склонение «отзыв» по количеству — общим правилом `lib/plural`. */
+const pluralizeReviews = (n: number) => countRu(n, ['отзыв', 'отзыва', 'отзывов']);
 
 /** Карточка публикации (клуб или тренер) */
 function PublicationCard({
@@ -38,6 +32,7 @@ function PublicationCard({
   isHidden,
   hideReason,
   hiddenKind,
+  verifiedAt,
   onEdit,
   onDelete,
 }: {
@@ -58,6 +53,8 @@ function PublicationCard({
    * своим выводом.
    */
   hiddenKind?: HideKindValue;
+  /** Когда площадка проверила публикацию; пусто — знака нет. */
+  verifiedAt?: string;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
@@ -75,6 +72,13 @@ function PublicationCard({
         <h3 className="text-base font-semibold text-ink group-hover:text-accent-strong">{name}</h3>
         <Badge tone={type === 'Клуб' ? 'success' : 'outline'}>{type}</Badge>
       </div>
+
+      {/* Знак проверки площадкой: карточка целиком — ссылка, поэтому знак без своего фокуса. */}
+      {verifiedAt ? (
+        <div className="mt-2">
+          <VerifiedBadge ownerType={type === 'Клуб' ? 'club' : 'trainer'} focusable={false} />
+        </div>
+      ) : null}
 
       {/* Признак скрытия: подпись и показ причины различают архив и модерацию */}
       {isHidden && (
@@ -158,6 +162,7 @@ export function ProviderPublicationsSection({
               isHidden={club.status === 'hidden'}
               hiddenKind={club.hiddenKind}
               hideReason={club.hideReason}
+              verifiedAt={club.verifiedAt}
               onEdit={
                 onEdit
                   ? () => {
@@ -186,6 +191,7 @@ export function ProviderPublicationsSection({
               isHidden={trainer.status === 'hidden'}
               hiddenKind={trainer.hiddenKind}
               hideReason={trainer.hideReason}
+              verifiedAt={trainer.verifiedAt}
               onEdit={
                 onEdit
                   ? () => {

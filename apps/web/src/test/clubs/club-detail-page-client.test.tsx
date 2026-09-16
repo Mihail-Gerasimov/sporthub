@@ -181,6 +181,45 @@ describe('ClubDetailPageClient', () => {
     expect(screen.getByTestId('club-trainer-card-1')).toBeInTheDocument();
   });
 
+  // Фаза 38, шаг 38.53: знак проверки площадкой — по полю `verifiedAt`.
+  it('у проверенного клуба в hero стоит знак «Клуб проверен» с подсказкой, у обычного — нет', () => {
+    const { unmount } = render(
+      <ClubDetailPageClient
+        amenities={amenities}
+        club={{ ...club, verifiedAt: '2026-09-15T10:00:00.000Z' }}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        specialties={specialties}
+        sports={sports}
+        tags={tags}
+        trainers={trainers}
+      />,
+    );
+
+    const badge = screen.getByTestId('verified-badge');
+
+    expect(badge).toHaveTextContent('Клуб проверен');
+    expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
+
+    unmount();
+    render(
+      <ClubDetailPageClient
+        amenities={amenities}
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        specialties={specialties}
+        sports={sports}
+        tags={tags}
+        trainers={trainers}
+      />,
+    );
+
+    expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
+  });
+
   it('для гостя показывает auth-подсказки вместо действий вошедшего', async () => {
     render(
       <ClubDetailPageClient

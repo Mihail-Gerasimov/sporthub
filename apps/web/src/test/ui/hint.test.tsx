@@ -108,6 +108,27 @@ describe('Hint', () => {
     expect(screen.getByRole('tooltip', { hidden: true })).not.toBeVisible();
   });
 
+  it('у правого края окна пузырь прижимается к краю, а не уезжает за него', () => {
+    // jsdom геометрию не считает: правый край пузыря подставляется за границу окна.
+    const measure = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ left: 900, right: 1100, width: 200, top: 0, bottom: 20 } as DOMRect);
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1000 });
+
+    try {
+      renderHint();
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Проверен' }));
+
+      expect(screen.getByRole('tooltip')).toHaveAttribute('data-align', 'end');
+
+      // Ушёл курсор — положение сброшено к центру: следующий замер идёт с нуля.
+      fireEvent.mouseLeave(screen.getByRole('button', { name: 'Проверен' }));
+      expect(screen.getByRole('tooltip', { hidden: true })).toHaveAttribute('data-align', 'center');
+    } finally {
+      measure.mockRestore();
+    }
+  });
+
   it('текст подсказки — один элемент: описание и пузырь не дублируются', () => {
     renderHint();
 
