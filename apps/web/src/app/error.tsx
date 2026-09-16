@@ -8,8 +8,13 @@
 // в фазе 32 именно так пустая страница дожила до боевого сервера.
 //
 // Теперь сбой доходит сюда, и страница говорит правду.
+//
+// 38.83: вид — как у страниц фазы 38 (`coming-soon`, «не найдено»): рубрика,
+// заголовок шкалы `t-h1`, кнопка — `ui/Button`; слова прежние.
 
 import { useEffect } from 'react';
+
+import { Button } from '@/components/ui/Button';
 
 type ErrorPageProps = {
   error: Error & { digest?: string };
@@ -23,23 +28,17 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-6 px-4 text-center">
-      <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Сервис временно недоступен</h1>
-
-      <p className="text-base text-muted">
+    <main className="mx-auto flex min-h-[60vh] w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
+      <p className="t-eyebrow">Сбой</p>
+      <h1 className="t-h1 text-ink">Сервис временно недоступен</h1>
+      <p className="max-w-xl font-body text-base leading-relaxed text-muted">
         Не удалось получить данные. Это сбой на нашей стороне, а не пустой каталог — попробуйте
         обновить страницу через минуту.
       </p>
-
-      <button
-        type="button"
-        onClick={reset}
-        className="rounded-full bg-accent px-6 py-3 text-base font-medium text-ink transition hover:opacity-90"
-      >
-        Попробовать снова
-      </button>
-
-      {error.digest ? <p className="text-sm text-muted">Код обращения: {error.digest}</p> : null}
+      <Button onClick={reset}>Попробовать снова</Button>
+      {error.digest ? (
+        <p className="font-body text-sm text-muted">Код обращения: {error.digest}</p>
+      ) : null}
     </main>
   );
 }
