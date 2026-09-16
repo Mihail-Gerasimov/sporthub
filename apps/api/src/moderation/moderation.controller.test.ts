@@ -824,6 +824,9 @@ describe('Верификация публикаций', () => {
           passwordHash: DEMO_PASSWORD_HASH,
           favoriteClubIds: [],
         },
+        // ⚠️ Администраторов ТРОЕ (38.50, образец 37.73): «одна строка на всех» —
+        // главное свойство общей очереди, и на стенде с одним администратором
+        // оно не проверяется вовсе: одна строка и три выглядят одинаково.
         {
           id: 11,
           createdAt: '2026-01-01T00:00:00.000Z',
@@ -831,6 +834,16 @@ describe('Верификация публикаций', () => {
           name: 'Админ 2',
           email: 'a2@test.local',
           phone: '+7 (900) 000-00-11',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 12,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 3',
+          email: 'a3@test.local',
+          phone: '+7 (900) 000-00-12',
           passwordHash: DEMO_PASSWORD_HASH,
           favoriteClubIds: [],
         },
@@ -1055,7 +1068,6 @@ describe('Верификация публикаций', () => {
 
     expect(owner?.payload.reason).toBe('Документы не подтвердились');
     expect(JSON.stringify(owner?.payload)).not.toContain('actorUserId');
-    // Одна строка при двух администраторах в срезе — общая очередь (38.50).
     expect(oversight).toHaveLength(1);
     expect(oversight[0]).toMatchObject({ addresseeKind: 'supervision' });
     expect(oversight[0].payload).toMatchObject({
@@ -1064,6 +1076,32 @@ describe('Верификация публикаций', () => {
       subjectType: 'club',
       subjectId: 1,
     });
+  });
+
+  it('отзыв при ТРЁХ администраторах даёт ОДНУ надзорную строку (38.50)', async () => {
+    // Копии по числу администраторов сломали бы разбор: «этим занялись» стало бы
+    // личным, и второй не увидел бы, что первый уже взялся. Трое — в срезе выше.
+    const admins = await readRows<{ accountKind?: string }>('users');
+
+    expect(admins.filter((row) => row.accountKind === 'admin')).toHaveLength(3);
+
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+    await moderate(adminCookie, {
+      action: 'unverify',
+      entityType: 'club',
+      entityId: 1,
+      reason: 'Документы не подтвердились',
+    });
+
+    const rows = await readRows<{ type: string; addresseeKind: string; userId?: number }>(
+      'notifications',
+    );
+    const oversight = rows.filter((row) => row.type === 'oversight_verification_revoked');
+
+    expect(oversight).toHaveLength(1);
+    // Строка бесхозная — общая, а не чья-то личная копия.
+    expect(oversight[0].addresseeKind).toBe('supervision');
+    expect(oversight[0].userId).toBeUndefined();
   });
 
   it('отозвать неподтверждённую нельзя — 409 с текстом из словаря', async () => {
