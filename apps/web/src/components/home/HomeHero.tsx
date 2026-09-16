@@ -9,7 +9,8 @@
  * Поиск и счётчики — свои компоненты (38.67, 38.69); герой оставляет им места
  * по разметке эталона и принимает их как слоты. Правая колонка — `FocusCard` (38.70),
  * герой рисует её сам по данным дня. Без слотов секция рисуется целой, с ними —
- * как в макете. Тексты — из `lib/home-copy.ts`.
+ * как в макете. Тексты — из `lib/home-copy.ts`. Рядом с плашкой — город из стора
+ * фильтров (`HeroCityBadge`, 38.78): тот же, что в селекторе, а не литерал.
  *
  * Почему не `ui/*`: секция-плашка с собственной сеткой и волной — единственная
  * на площадке, компонент общего вида под неё не нужен; кнопки и карточки внутри
@@ -18,6 +19,7 @@
 import type { ReactNode } from 'react';
 
 import { FocusCard } from '@/components/home/FocusCard';
+import { HeroCityBadge } from '@/components/home/HeroCityBadge';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { HERO } from '@/lib/home-copy';
 
@@ -40,13 +42,16 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
       <div className="relative mx-auto w-full max-w-[1320px] px-6 pt-[72px]">
         <div className="grid items-center gap-14 xl:grid-cols-[1fr_min(480px,42%)]">
           <div className="min-w-0">
-            {/* Плашка над заголовком: метка + текст. Не кнопка и не ссылка, как в эталоне. */}
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/10 py-[5px] pr-3.5 pl-2 font-body">
-              <span className="rounded-full bg-lime px-2.5 py-0.5 text-[9px] font-black tracking-[0.08em] text-ink uppercase">
-                {HERO.eyebrowTag}
-              </span>
-              <span className="text-[12px] font-semibold text-plate-muted">{HERO.eyebrow}</span>
-            </p>
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              {/* Плашка над заголовком: метка + текст. Не кнопка и не ссылка, как в эталоне. */}
+              <p className="inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/10 py-[5px] pr-3.5 pl-2 font-body">
+                <span className="rounded-full bg-lime px-2.5 py-0.5 text-[9px] font-black tracking-[0.08em] text-ink uppercase">
+                  {HERO.eyebrowTag}
+                </span>
+                <span className="text-[12px] font-semibold text-plate-muted">{HERO.eyebrow}</span>
+              </p>
+              <HeroCityBadge />
+            </div>
 
             <h1 className="t-hero mb-4 text-plate-ink">
               {HERO.titleLines.map((line) => (

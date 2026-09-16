@@ -1,15 +1,37 @@
 /**
  * Герой главной (шаг 38.65): тексты из словаря, H1 display-шрифтом в три строки
  * с зелёной третьей, тёмная плашка со свечением и волной, слоты под поиск,
- * счётчики и правую колонку; водяного знака «SH» нет.
+ * счётчики и правую колонку; водяного знака «SH» нет. Город в бейдже героя —
+ * из селектора (38.78, тупик № 32): читается из стора фильтров, не литералом.
  */
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeHero } from '@/components/home/HomeHero';
 import { HERO } from '@/lib/home-copy';
+import { homeSectionHref } from '@/lib/home-sections';
+import { useFilterStore } from '@/stores/useFilterStore';
 
 describe('HomeHero', () => {
+  beforeEach(() => {
+    useFilterStore.setState({ selectedCity: 'Самара' });
+  });
+
+  it('город в бейдже — из стора фильтров, следует за селектором и ведёт к нему', () => {
+    useFilterStore.setState({ selectedCity: 'Казань' });
+    render(<HomeHero />);
+
+    const badge = screen.getByRole('link', { name: 'Город: Казань' });
+    expect(badge).toHaveAttribute('href', homeSectionHref('discover'));
+
+    // Смена города в селекторе — та же запись стора — меняет бейдж без литералов.
+    act(() => {
+      useFilterStore.getState().setSelectedCity('тольятти');
+    });
+    expect(screen.getByRole('link', { name: 'Город: Тольятти' })).toBeInTheDocument();
+    expect(screen.queryByText('Казань')).toBeNull();
+  });
+
   it('H1 — из словаря, display-шрифтом, три строки, третья зелёная', () => {
     render(<HomeHero />);
     const h1 = screen.getByRole('heading', { level: 1 });
