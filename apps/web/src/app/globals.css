@@ -83,6 +83,18 @@
   /* Soft-warning (status-pending бейджи, warn-action в логах админки).
    * Не путать с --ui-orange (cancel/reject): gold = «на проверке», не «отклонено». */
   --ui-gold: #f59e0b;
+  /* Подложки плиток «Возможности» — 6% оттенка на белом, как в макете (`HomePage.tsx:227-236`,
+     `f.color`): лайм, небо, фиолет, оранжевый. Токены здесь — один раз, плитки читают их
+     классами `bg-tint-*` (38.110); текст на них — чернила и приглушённый, пары считает
+     tokens-contract (≥ 5:1). */
+  --ui-tint-lime: rgba(126, 217, 0, 0.06);
+  --ui-tint-sky: rgba(14, 165, 233, 0.06);
+  --ui-tint-violet: rgba(139, 92, 246, 0.06);
+  --ui-tint-orange: rgba(249, 115, 22, 0.06);
+  /* Цвета значков плиток, которых нет в палитре (лайм и оранжевый уже есть) — значения
+     макета (`#0ea5e9`, `#8b5cf6`); это графика, не текст: небо на белом 2,8:1 — как в макете. */
+  --ui-hue-sky: #0ea5e9;
+  --ui-hue-violet: #8b5cf6;
 
   /* ===== Контраст-плашка: тёмный фон героя и шапки =====
    * Единственные тёмные острова на светлой странице. У плашки свой текст, свой
@@ -187,6 +199,12 @@
   --color-orange-hov: var(--ui-orange-hov);
   --color-orange-soft: var(--ui-orange-soft);
   --color-orange-text: var(--ui-orange-text);
+  --color-tint-lime: var(--ui-tint-lime);
+  --color-tint-sky: var(--ui-tint-sky);
+  --color-tint-violet: var(--ui-tint-violet);
+  --color-tint-orange: var(--ui-tint-orange);
+  --color-hue-sky: var(--ui-hue-sky);
+  --color-hue-violet: var(--ui-hue-violet);
   --color-red: var(--ui-red);
   --color-gold: var(--ui-gold);
   --color-plate: var(--ui-plate);

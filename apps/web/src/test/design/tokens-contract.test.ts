@@ -50,6 +50,12 @@ export const REQUIRED_TOKENS = [
   '--ui-orange-hov',
   '--ui-orange-soft',
   '--ui-orange-text',
+  '--ui-tint-lime',
+  '--ui-tint-sky',
+  '--ui-tint-violet',
+  '--ui-tint-orange',
+  '--ui-hue-sky',
+  '--ui-hue-violet',
   '--ui-red',
   '--ui-gold',
   // Контраст-плашка: тёмный фон героя и шапки с собственным текстом и линиями.
@@ -248,6 +254,15 @@ const AA_PAIRS: Array<[text: string, surface: string]> = [
   ['--ui-orange-text', '--ui-card'],
   ['--ui-orange-text', '--ui-card-2'],
   ['--ui-orange-text', '--ui-orange-soft'],
+  // Плитки «Возможности» (38.110): чернила и приглушённый на каждой подложке-оттенке.
+  ['--ui-ink', '--ui-tint-lime'],
+  ['--ui-ink', '--ui-tint-sky'],
+  ['--ui-ink', '--ui-tint-violet'],
+  ['--ui-ink', '--ui-tint-orange'],
+  ['--ui-muted', '--ui-tint-lime'],
+  ['--ui-muted', '--ui-tint-sky'],
+  ['--ui-muted', '--ui-tint-violet'],
+  ['--ui-muted', '--ui-tint-orange'],
 ];
 
 describe('Сторож: контракт токенов палитры (38.7)', () => {
@@ -268,6 +283,8 @@ describe('Сторож: контракт токенов палитры (38.7)', 
     // макета текстом на мягкой оранжевой подложке — тоже.
     expect(contrastRatio('#6b7280', '#f4f6f9')!).toBeLessThan(4.5);
     expect(contrastRatio('#f97316', 'rgba(249, 115, 22, 0.12)')!).toBeLessThan(3);
+    // Подложка плитки при 40% оттенка (не 6%) уронила бы приглушённый текст ниже AA.
+    expect(contrastRatio('#626b7a', 'rgba(139, 92, 246, 0.4)')!).toBeLessThan(4.5);
     expect(contrastRatio('rgba(255, 255, 255, 0.45)', '#111111')!).toBeGreaterThan(4.5);
   });
 
