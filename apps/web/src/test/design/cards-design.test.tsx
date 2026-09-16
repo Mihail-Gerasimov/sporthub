@@ -54,7 +54,6 @@ const stubTrainer: TrainerDirectoryItem = {
   specialtyNames: ['Подготовка к соревнованиям'],
   address: 'ул. Спартаковская, 10',
   coordinates: { lat: 55.75, lng: 37.62 },
-  distanceKm: 3.0,
   venueLabel: 'Зал «Спарта»',
   venueName: 'Спарта',
   venueAddress: 'ул. Спартаковская, 10',

@@ -50,7 +50,6 @@ export type TrainerDirectoryItem = {
   city: string;
   address: string;
   coordinates: Coordinates;
-  distanceKm: number | null;
   venueName: string | null;
   venueLabel: string;
   venueAddress: string;
@@ -232,7 +231,6 @@ export function buildTrainerDirectory({
         city: trainer.city ?? venueClub?.city ?? DEFAULT_CITY,
         address,
         coordinates,
-        distanceKm: venueClub?.distanceKm ?? null,
         venueName,
         venueLabel,
         venueAddress: address,

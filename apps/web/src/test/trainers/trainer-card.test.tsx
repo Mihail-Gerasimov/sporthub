@@ -36,7 +36,6 @@ const baseTrainer: TrainerDirectoryItem = {
   city: 'Самара',
   address: 'ул. Лесная, 23к1',
   coordinates: { lat: 53.2129, lng: 50.1245 },
-  distanceKm: 1.8,
   venueName: 'Volna Aquatic Club',
   venueLabel: 'Volna Aquatic Club',
   venueAddress: 'ул. Лесная, 23к1',
@@ -227,7 +226,7 @@ describe('TrainerCard (38.74)', () => {
     expect(screen.queryByText(/км/)).not.toBeInTheDocument();
 
     unmount();
-    render(<TrainerCard trainer={{ ...baseTrainer, distanceKm: null, availableSlotsCount: 3 }} />);
+    render(<TrainerCard trainer={{ ...baseTrainer, availableSlotsCount: 3 }} />);
 
     expect(screen.getByText('3 окна')).toBeInTheDocument();
 
@@ -305,10 +304,10 @@ describe('TrainerCard (38.74)', () => {
       const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
 
       expect(card).toHaveAttribute('data-variant', 'catalog');
-      // Имя в каталоге — `t-h3` (38.109).
+      // Имя в каталоге — тоже `t-h4` (16px, как в макете), не `t-h3` (ревью довеска).
       expect(
         within(card).getByRole('link', { name: 'Марина Соколова' }).closest('h3')?.className,
-      ).toContain('t-h3');
+      ).toContain('t-h4');
       expect(within(card).getByText('Площадка')).toBeInTheDocument();
       expect(
         within(card).getByRole('link', { name: 'К записи: Марина Соколова' }),

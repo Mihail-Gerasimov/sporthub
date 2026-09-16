@@ -140,7 +140,6 @@ function trainer(id: number): TrainerDirectoryItem {
     city: 'Самара',
     address: 'ул. Ленина, 2',
     coordinates: { lat: 53.2, lng: 50.1 },
-    distanceKm: null,
     venueName: null,
     venueLabel: '',
     venueAddress: '',

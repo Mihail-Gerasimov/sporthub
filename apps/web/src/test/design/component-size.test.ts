@@ -46,7 +46,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
   // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).
-  'src/components/clubs/ClubDetailPageClient.tsx': 641,
+  'src/components/clubs/ClubDetailPageClient.tsx': 640,
   'src/components/layout/NotificationBell.tsx': 224,
   'src/components/profile/AccountCredentialsSection.tsx': 358,
   'src/components/profile/PublishClubModal.tsx': 488,
@@ -66,7 +66,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   // 38.74: карточка тренера переписана по эталону и ушла под порог — запись снята.
   'src/components/trainers/TrainerDetailPageClient.tsx': 721,
   // 38.52: знак «проверено» в карточке и поле в справочнике тренеров; потолки опущены.
-  'src/components/trainers/trainer-preview.ts': 273,
+  'src/components/trainers/trainer-preview.ts': 271,
   'src/components/ui/CardSlider.tsx': 370,
   // 38.43: тексты темы «Публикации» уехали в свой модуль.
   'src/lib/notification-copy.ts': 206,

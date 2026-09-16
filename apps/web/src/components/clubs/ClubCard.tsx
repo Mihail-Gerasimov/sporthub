@@ -34,7 +34,7 @@ import type { Club, Sport, Tag } from '@sporthub/types';
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 /** Режим карточки: витрина главной — только плитка фото; каталог — плитка и хвост. */
-export type ClubCardVariant = 'catalog' | 'showcase';
+type ClubCardVariant = 'catalog' | 'showcase';
 
 type ClubCardProps = {
   club: Club;

@@ -357,7 +357,7 @@ export function ClubDetailPageClient({
             <div className="flex flex-wrap gap-2">
               <Chip variant="solid">{formatCityDisplay(club.city)}</Chip>
               <Chip>{pluralizeReviews(club.reviewCount)}</Chip>
-              <Chip>{club.distanceKm.toFixed(1)} км</Chip>
+              {/* Расстояния нет: геолокации у площадки нет, «0.0 км» было фальшивым (Д-17, 38.104). */}
               {/* Знак проверки площадкой (38.53) — по полю `verifiedAt`. */}
               {club.verifiedAt ? <VerifiedBadge ownerType="club" /> : null}
             </div>

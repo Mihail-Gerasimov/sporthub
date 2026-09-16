@@ -61,7 +61,6 @@ function makeTrainer(overrides: Partial<TrainerDirectoryItem> = {}): TrainerDire
     city: 'Самара',
     address: 'ул. Ленина, 1',
     coordinates: defaultCoords,
-    distanceKm: null,
     venueName: null,
     venueLabel: '',
     venueAddress: '',
