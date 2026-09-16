@@ -261,43 +261,6 @@
   --breakpoint-2k: 1920px;
 }
 
-* {
-  border-color: var(--ui-line);
-}
-
-html {
-  background: var(--ui-bg-deep);
-}
-
-/* body — светлый фон с двойным радиальным градиентом для атмосферы (Phase 31).
- * Mint 5% top-left + orange 4% bottom-right даёт лёгкую энергию без AI-slop.
- */
-body {
-  min-height: 100vh;
-  background:
-    radial-gradient(
-      ellipse 1200px 600px at 20% 0%,
-      color-mix(in srgb, var(--ui-lime) 5%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 800px 500px at 90% 100%,
-      color-mix(in srgb, var(--ui-orange) 4%, transparent),
-      transparent 60%
-    ),
-    var(--ui-bg-deep);
-  color: var(--ui-ink);
-  font-family: var(--ui-font-body);
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-::selection {
-  background: var(--ui-lime);
-  color: var(--ui-bg);
-}
-
 /* ===== Заголовки — display-шрифтом по умолчанию (шаг 38.14a; 38.109 — только h1/h2) =====
  * Preflight Tailwind сбрасывает заголовки на `inherit`, и h1 без класса `.t-*`
  * молча уходил в Inter («Запись на занятие» на /booking). Базовое правило закрывает
@@ -306,6 +269,59 @@ body {
  * и названия клубов. Утилиты (`font-body`, `font-semibold`) сильнее базового слоя.
  */
 @layer base {
+  /* Обводка по умолчанию — токен линии. В слое base, а не вне слоёв: правило вне слоя
+     сильнее утилит, и `border-lime/20`, `border-transparent`, `hover:border-lime` по всей
+     площадке рисовались серым (аудит 17.09, п. 1). */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--ui-line);
+  }
+
+  html {
+    background: var(--ui-bg-deep);
+  }
+
+  /* body — светлый фон с двойным радиальным градиентом для атмосферы (Phase 31).
+   * Mint 5% top-left + orange 4% bottom-right даёт лёгкую энергию без AI-slop.
+   */
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(
+        ellipse 1200px 600px at 20% 0%,
+        color-mix(in srgb, var(--ui-lime) 5%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 800px 500px at 90% 100%,
+        color-mix(in srgb, var(--ui-orange) 4%, transparent),
+        transparent 60%
+      ),
+      var(--ui-bg-deep);
+    color: var(--ui-ink);
+    font-family: var(--ui-font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--ui-lime);
+    color: var(--ui-bg);
+  }
+
+  /* Скрыть нативные стрелки у number-инпутов */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
   h1,
   h2 {
     font-family: var(--ui-font-display);
@@ -313,431 +329,426 @@ body {
   }
 }
 
-/* ===== Типографические утилиты (точная шкала из UI Kit) =====
- * Используются как className="t-display" / "t-h1" / ... в JSX.
- * Tailwind utility-классы (text-*, font-*, leading-*) тоже работают;
- * .t-* — это именованные семантические пресеты для главных типографических ролей.
+/* ===== Классы площадки — слой components (аудит 17.09, п. 1) =====
+ * Ниже утилит Tailwind: класс задаёт пресет, а утилита рядом с ним (`text-lime`,
+ * `mb-4`) его уточняет, а не проигрывает каскаду, как было с `.t-eyebrow { color }`.
  */
-.t-display {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-hero);
-  font-size: clamp(48px, 6vw, 88px);
-  line-height: 0.92;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-}
-
-/* Заголовок героя (шаг 38.65): макет `clamp(2.8rem, 5vw, 4.6rem)` 900 → Sofia на ступень
- * выше и ×1,069 по кеглю; интерлиньяж 0.95, трекинг −0.01em. */
-.t-hero {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-hero);
-  font-size: clamp(2.8rem, 5vw, 4.6rem);
-  line-height: 0.95;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-}
-
-/* Заголовок призыва (шаг 38.75): макет `clamp(2.2rem, 5vw, 4.2rem)` 900, интерлиньяж 0.92. */
-.t-cta {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-hero);
-  font-size: clamp(2.2rem, 5vw, 4.2rem);
-  line-height: 0.92;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-}
-
-/* H1 страницы (каталог, `App.tsx:1612`): clamp(2.4rem, 4.5vw, 4rem) — 64,8px на 1440. */
-.t-h1 {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-hero);
-  font-size: clamp(2.4rem, 4.5vw, 4rem);
-  line-height: 0.9;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-}
-
-/* H2 секций (`HomePage.tsx:509`): clamp(1.8rem, 3vw, 2.8rem) — 43,2px на 1440, интерлиньяж 0,95. */
-.t-h2 {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-heading);
-  font-size: clamp(1.8rem, 3vw, 2.8rem);
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-/* Заголовок карточки шага / крупной карточки (38.109): Inter полужирный обычным
- * регистром, 20px — решение заказчика по стенду (макет по коду: Barlow 900 20px). */
-.t-h3 {
-  font-family: var(--ui-font-body);
-  font-weight: 600;
-  font-size: 20px;
-  line-height: 1.25;
-  letter-spacing: -0.005em;
-}
-
-/* Заголовок плитки и имя в карточке витрины (38.109): Inter полужирный 16px обычным
- * регистром (макет по коду: Barlow 900 16px). */
-.t-h4 {
-  font-family: var(--ui-font-body);
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.3;
-}
-
-/* Имя клуба в карточке витрины (38.109, ревью): макет `HomePage.tsx:99` — 19px,
- * интерлиньяж 1, Barlow 900 → Inter 700 (решение заказчика: карточки — Inter). */
-.t-card-title {
-  font-family: var(--ui-font-body);
-  font-weight: 700;
-  font-size: 19px;
-  line-height: 1;
-}
-
-.t-body {
-  font-family: var(--ui-font-body);
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 1.55;
-}
-
-.t-small {
-  font-family: var(--ui-font-body);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.t-eyebrow {
-  font-family: var(--ui-font-body);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  /* Цвета у класса нет (ревью 38.79c): на светлом — `text-lime-hov` утилитой, на плашке —
-     `text-lime`; цвет в классе бил каскадом утилиту и красил призыв тёмно-зелёным. */
-}
-
-.t-mono {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.t-num {
-  font-family: var(--ui-font-display);
-  font-weight: var(--ui-weight-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ===== Phase 28.6 — фон hero карточек клубов и тренеров (3 тона) =====
- * Двухслойный фон (диагональный луч + штриховка 135°) для .club-hero/.trainer-hero.
- * Tailwind не умеет многослойный bg в одной утилите — поэтому 3 готовых класса
- * в globals.css. Применяются на <span aria-hidden> внутри hero-блока с
- * absolute inset-0 (см. ClubCard/TrainerCard в Step 28.8/28.9).
- */
-.hero-bg-lime {
-  background:
-    linear-gradient(
-      118deg,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--ui-lime) 18%, transparent) 60%,
-      color-mix(in srgb, var(--ui-lime) 5%, transparent) 70%,
-      transparent 78%
-    ),
-    var(--ui-decor-hatch);
-}
-
-.hero-bg-orange {
-  background:
-    linear-gradient(
-      118deg,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--ui-orange) 18%, transparent) 60%,
-      color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
-      transparent 78%
-    ),
-    var(--ui-decor-hatch);
-}
-
-/* Штриховка-заглушка блока без фото (карточка клуба, детальные страницы).
- * ⚠️ Только `background-image`: сокращённое `background` сбрасывало цвет подложки,
- * и `bg-card-2` / `bg-plate` у потребителей исчезали (найдено проходом 38.87). */
-.hero-bg-blank {
-  background-image: var(--ui-decor-hatch-strong);
-}
-
-/* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
- * Когда все чипы влезают в контейнер карточки — marquee переходит в статику:
- * убираем edge-маску, убираем cursor:grab. Класс ставит JS-эффект внутри
- * src/components/ui/ChipMarquee.tsx после измерения scrollWidth/containerW.
- */
-/* Края ленты растворяются: альфа-маска, цвет `#000` здесь — только альфа-канал
- * (исключение поимённо в стороже no-raw-colors). */
-.chip-marquee {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000 24px,
-    #000 calc(100% - 24px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000 24px,
-    #000 calc(100% - 24px),
-    transparent 100%
-  );
-}
-
-.chip-marquee.no-loop {
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-
-.chip-marquee.no-loop .chip-track {
-  cursor: default;
-}
-
-.chip-track.is-dragging {
-  cursor: grabbing;
-}
-
-/* ===== Логотип: вбегание бегунов (шаг 38.34) =====
- * Два бегуна выезжают слева с задержкой 0,05 с и 0,18 с — кривая с перелётом,
- * как в макете (`App.tsx:114-121`). При `prefers-reduced-motion` бегуны стоят.
- */
-@keyframes brand-run {
-  from {
-    transform: translateX(-72px);
-    opacity: 0;
+@layer components {
+  /* ===== Типографические утилиты (точная шкала из UI Kit) =====
+   * Используются как className="t-display" / "t-h1" / ... в JSX.
+   * Tailwind utility-классы (text-*, font-*, leading-*) тоже работают;
+   * .t-* — это именованные семантические пресеты для главных типографических ролей.
+   */
+  .t-display {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-hero);
+    font-size: clamp(48px, 6vw, 88px);
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
-  15% {
-    opacity: 1;
+
+  /* Заголовок героя (шаг 38.65): макет `clamp(2.8rem, 5vw, 4.6rem)` 900 → Sofia на ступень
+   * выше и ×1,069 по кеглю; интерлиньяж 0.95, трекинг −0.01em. */
+  .t-hero {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-hero);
+    font-size: clamp(2.8rem, 5vw, 4.6rem);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+
+  /* Заголовок призыва (шаг 38.75): макет `clamp(2.2rem, 5vw, 4.2rem)` 900, интерлиньяж 0.92. */
+  .t-cta {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-hero);
+    font-size: clamp(2.2rem, 5vw, 4.2rem);
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
-}
 
-.brand-runner-1 {
-  animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.05s both;
-}
+  /* H1 страницы (каталог, `App.tsx:1612`): clamp(2.4rem, 4.5vw, 4rem) — 64,8px на 1440. */
+  .t-h1 {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-hero);
+    font-size: clamp(2.4rem, 4.5vw, 4rem);
+    line-height: 0.9;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
 
-.brand-runner-2 {
-  animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.18s both;
-}
+  /* H2 секций (`HomePage.tsx:509`): clamp(1.8rem, 3vw, 2.8rem) — 43,2px на 1440, интерлиньяж 0,95. */
+  .t-h2 {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-heading);
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    line-height: 0.95;
+    text-transform: uppercase;
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  .brand-runner-1,
+  /* Заголовок карточки шага / крупной карточки (38.109): Inter полужирный обычным
+   * регистром, 20px — решение заказчика по стенду (макет по коду: Barlow 900 20px). */
+  .t-h3 {
+    font-family: var(--ui-font-body);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+  }
+
+  /* Заголовок плитки и имя в карточке витрины (38.109): Inter полужирный 16px обычным
+   * регистром (макет по коду: Barlow 900 16px). */
+  .t-h4 {
+    font-family: var(--ui-font-body);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  /* Имя клуба в карточке витрины (38.109, ревью): макет `HomePage.tsx:99` — 19px,
+   * интерлиньяж 1, Barlow 900 → Inter 700 (решение заказчика: карточки — Inter). */
+  .t-card-title {
+    font-family: var(--ui-font-body);
+    font-weight: 700;
+    font-size: 19px;
+    line-height: 1;
+  }
+
+  .t-body {
+    font-family: var(--ui-font-body);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .t-small {
+    font-family: var(--ui-font-body);
+    font-weight: 500;
+    font-size: 13px;
+  }
+
+  .t-eyebrow {
+    font-family: var(--ui-font-body);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    /* Цвета у класса нет (ревью 38.79c): на светлом — `text-lime-hov` утилитой, на плашке —
+       `text-lime`; цвет в классе бил каскадом утилиту и красил призыв тёмно-зелёным. */
+  }
+
+  .t-mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .t-num {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-heading);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== Phase 28.6 — фон hero карточек клубов и тренеров (3 тона) =====
+   * Двухслойный фон (диагональный луч + штриховка 135°) для .club-hero/.trainer-hero.
+   * Tailwind не умеет многослойный bg в одной утилите — поэтому 3 готовых класса
+   * в globals.css. Применяются на <span aria-hidden> внутри hero-блока с
+   * absolute inset-0 (см. ClubCard/TrainerCard в Step 28.8/28.9).
+   */
+  .hero-bg-lime {
+    background:
+      linear-gradient(
+        118deg,
+        transparent 0%,
+        transparent 55%,
+        color-mix(in srgb, var(--ui-lime) 18%, transparent) 60%,
+        color-mix(in srgb, var(--ui-lime) 5%, transparent) 70%,
+        transparent 78%
+      ),
+      var(--ui-decor-hatch);
+  }
+
+  .hero-bg-orange {
+    background:
+      linear-gradient(
+        118deg,
+        transparent 0%,
+        transparent 55%,
+        color-mix(in srgb, var(--ui-orange) 18%, transparent) 60%,
+        color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
+        transparent 78%
+      ),
+      var(--ui-decor-hatch);
+  }
+
+  /* Штриховка-заглушка блока без фото (карточка клуба, детальные страницы).
+   * ⚠️ Только `background-image`: сокращённое `background` сбрасывало цвет подложки,
+   * и `bg-card-2` / `bg-plate` у потребителей исчезали (найдено проходом 38.87). */
+  .hero-bg-blank {
+    background-image: var(--ui-decor-hatch-strong);
+  }
+
+  /* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
+   * Когда все чипы влезают в контейнер карточки — marquee переходит в статику:
+   * убираем edge-маску, убираем cursor:grab. Класс ставит JS-эффект внутри
+   * src/components/ui/ChipMarquee.tsx после измерения scrollWidth/containerW.
+   */
+  /* Края ленты растворяются: альфа-маска, цвет `#000` здесь — только альфа-канал
+   * (исключение поимённо в стороже no-raw-colors). */
+  .chip-marquee {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 24px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 24px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+  }
+
+  .chip-marquee.no-loop {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .chip-marquee.no-loop .chip-track {
+    cursor: default;
+  }
+
+  .chip-track.is-dragging {
+    cursor: grabbing;
+  }
+
+  /* ===== Логотип: вбегание бегунов (шаг 38.34) =====
+   * Два бегуна выезжают слева с задержкой 0,05 с и 0,18 с — кривая с перелётом,
+   * как в макете (`App.tsx:114-121`). При `prefers-reduced-motion` бегуны стоят.
+   */
+  @keyframes brand-run {
+    from {
+      transform: translateX(-72px);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .brand-runner-1 {
+    animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.05s both;
+  }
+
   .brand-runner-2 {
-    animation: none;
+    animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.18s both;
   }
-}
 
-/* ===== Штриховка-заглушка аватара (отзывы на детальных страницах) =====
- * Только `background-image`: цвет подложки остаётся классом (`bg-card-2`),
- * штрих — общий декор `--ui-decor-hatch-strong`.
- */
-.hatch-soft {
-  background-image: var(--ui-decor-hatch-strong);
-}
-
-/* ===== Phase 28.12 — стили карточки слота (TrainerSlotCard) =====
- * Hero рендерит диагональный lime/orange-луч + штриховку 135° через
- * псевдоэлемент `::before`, чтобы не плодить лишние spans и не клипать
- * контент. Tone-модификаторы `.tone-orange` / `.tone-blank` на корне
- * карточки переопределяют фон луча.
- *
- * `.slot-hero` ставит grid из 3 рядов под фикс. высоту блока: head
- * (eyebrow + capacity) → name (clamp 2 строки, ~44px) → sport (clamp 1).
- * Watermark номера — `.hero-wm` (display 88px opacity 0.04, absolute,
- * pointer-events:none). Все цвета — через `var(--ui-*)`.
- */
-.slot-hero {
-  grid-template-rows: auto 44px 22px;
-}
-
-.slot-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      118deg,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--ui-lime) 16%, transparent) 60%,
-      color-mix(in srgb, var(--ui-lime) 4%, transparent) 70%,
-      transparent 78%
-    ),
-    var(--ui-decor-hatch);
-}
-
-.slot-card.tone-orange .slot-hero::before {
-  background:
-    linear-gradient(
-      118deg,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--ui-orange) 18%, transparent) 60%,
-      color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
-      transparent 78%
-    ),
-    var(--ui-decor-hatch);
-}
-
-.slot-card.tone-blank .slot-hero::before {
-  background: var(--ui-decor-hatch-strong);
-}
-
-/* Эйбр карточки слота — приглушённый в любом тоне (38.14a, контраст): оранжевый текст
- * `--ui-orange` на card-2 даёт 2,4:1, тон карточки несут луч на герое и цена. */
-.slot-card .slot-eyebrow.lime {
-  color: var(--ui-muted);
-}
-
-/* slot-box-val: цена и время — display-шрифт + tabular-nums + nowrap, никогда
- * не уходит в 2 строки. Fluid font-size через clamp + container queries:
- * при сжатии колонки шрифт уменьшается, но не переносится. */
-.slot-box {
-  container-type: inline-size;
-}
-
-.slot-box-val {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  font-size: clamp(13px, 6cqw, 17px);
-}
-
-/* ===== Phase 28.18 — pulse-индикатор автообновления (LogsPage) =====
- * Лайм-точка в auto-status пульсирует через расширяющийся `box-shadow`,
- * показывая что polling работает. Класс ставится только когда autoPolling=true.
- * Уважаем `prefers-reduced-motion`: пользователь с включённой опцией
- * «уменьшать анимации» (epilepsy/vestibular sensitivity) видит статичную точку.
- */
-@keyframes admin-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-lime) 35%, transparent);
+  @media (prefers-reduced-motion: reduce) {
+    .brand-runner-1,
+    .brand-runner-2 {
+      animation: none;
+    }
   }
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ui-lime) 5%, transparent);
+
+  /* ===== Штриховка-заглушка аватара (отзывы на детальных страницах) =====
+   * Только `background-image`: цвет подложки остаётся классом (`bg-card-2`),
+   * штрих — общий декор `--ui-decor-hatch-strong`.
+   */
+  .hatch-soft {
+    background-image: var(--ui-decor-hatch-strong);
   }
-}
 
-.admin-pulse-dot {
-  animation: admin-pulse 1.6s ease-in-out infinite;
-}
+  /* ===== Phase 28.12 — стили карточки слота (TrainerSlotCard) =====
+   * Hero рендерит диагональный lime/orange-луч + штриховку 135° через
+   * псевдоэлемент `::before`, чтобы не плодить лишние spans и не клипать
+   * контент. Tone-модификаторы `.tone-orange` / `.tone-blank` на корне
+   * карточки переопределяют фон луча.
+   *
+   * `.slot-hero` ставит grid из 3 рядов под фикс. высоту блока: head
+   * (eyebrow + capacity) → name (clamp 2 строки, ~44px) → sport (clamp 1).
+   * Watermark номера — `.hero-wm` (display 88px opacity 0.04, absolute,
+   * pointer-events:none). Все цвета — через `var(--ui-*)`.
+   */
+  .slot-hero {
+    grid-template-rows: auto 44px 22px;
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  .slot-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        118deg,
+        transparent 0%,
+        transparent 55%,
+        color-mix(in srgb, var(--ui-lime) 16%, transparent) 60%,
+        color-mix(in srgb, var(--ui-lime) 4%, transparent) 70%,
+        transparent 78%
+      ),
+      var(--ui-decor-hatch);
+  }
+
+  .slot-card.tone-orange .slot-hero::before {
+    background:
+      linear-gradient(
+        118deg,
+        transparent 0%,
+        transparent 55%,
+        color-mix(in srgb, var(--ui-orange) 18%, transparent) 60%,
+        color-mix(in srgb, var(--ui-orange) 5%, transparent) 70%,
+        transparent 78%
+      ),
+      var(--ui-decor-hatch);
+  }
+
+  .slot-card.tone-blank .slot-hero::before {
+    background: var(--ui-decor-hatch-strong);
+  }
+
+  /* Эйбр карточки слота — приглушённый в любом тоне (38.14a, контраст): оранжевый текст
+   * `--ui-orange` на card-2 даёт 2,4:1, тон карточки несут луч на герое и цена. */
+  .slot-card .slot-eyebrow.lime {
+    color: var(--ui-muted);
+  }
+
+  /* slot-box-val: цена и время — display-шрифт + tabular-nums + nowrap, никогда
+   * не уходит в 2 строки. Fluid font-size через clamp + container queries:
+   * при сжатии колонки шрифт уменьшается, но не переносится. */
+  .slot-box {
+    container-type: inline-size;
+  }
+
+  .slot-box-val {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    font-size: clamp(13px, 6cqw, 17px);
+  }
+
+  /* ===== Phase 28.18 — pulse-индикатор автообновления (LogsPage) =====
+   * Лайм-точка в auto-status пульсирует через расширяющийся `box-shadow`,
+   * показывая что polling работает. Класс ставится только когда autoPolling=true.
+   * Уважаем `prefers-reduced-motion`: пользователь с включённой опцией
+   * «уменьшать анимации» (epilepsy/vestibular sensitivity) видит статичную точку.
+   */
+  @keyframes admin-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-lime) 35%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--ui-lime) 5%, transparent);
+    }
+  }
+
   .admin-pulse-dot {
-    animation: none;
+    animation: admin-pulse 1.6s ease-in-out infinite;
   }
-}
 
-/* ===== Существующие утилиты (сохранены из светлой палитры) ===== */
-.scrollbar-hidden {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+  @media (prefers-reduced-motion: reduce) {
+    .admin-pulse-dot {
+      animation: none;
+    }
+  }
 
-.scrollbar-hidden::-webkit-scrollbar {
-  display: none;
-}
+  /* ===== Существующие утилиты (сохранены из светлой палитры) ===== */
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-/* Скрыть нативные стрелки у number-инпутов */
-input[type='number']::-webkit-inner-spin-button,
-input[type='number']::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
 
-input[type='number'] {
-  -moz-appearance: textfield;
-}
+  /* ===== Phase 29 fix: тёмная тема карты Yandex Maps ===== */
+  /*
+    Yandex Maps v3 публично не предоставляет dark-theme API. Применяем
+    CSS-фильтр **только к canvas-элементу** карты (тайлы YMaps рисуются
+    на canvas), а маркеры, карточка и легенда — это DOM-элементы (см.
+    `map-marker-element.ts`, `MapActiveCard`, `MapLegend`) и они НЕ canvas. Селектор
+    `[data-map-theme='dark'] canvas` затемнит только тайлы, маркеры останутся
+    в цветах своих видов спорта.
+    Это убирает потребность в counter-invert и делает решение «без геморроя».
+  */
+  [data-map-theme='dark'] canvas {
+    filter: grayscale(1) invert(1);
+  }
 
-/* ===== Phase 29 fix: тёмная тема карты Yandex Maps ===== */
-/*
-  Yandex Maps v3 публично не предоставляет dark-theme API. Применяем
-  CSS-фильтр **только к canvas-элементу** карты (тайлы YMaps рисуются
-  на canvas), а маркеры, карточка и легенда — это DOM-элементы (см.
-  `map-marker-element.ts`, `MapActiveCard`, `MapLegend`) и они НЕ canvas. Селектор
-  `[data-map-theme='dark'] canvas` затемнит только тайлы, маркеры останутся
-  в цветах своих видов спорта.
-  Это убирает потребность в counter-invert и делает решение «без геморроя».
-*/
-[data-map-theme='dark'] canvas {
-  filter: grayscale(1) invert(1);
-}
-
-/* ===== Маркер-капля карты (шаг 38.80, эталон `App.tsx:1053-1061`) ===== */
-/*
-  Структуру капли строит `map-marker-element.ts` DOM-узлами; здесь — весь её вид.
-  Цвет вида приходит атрибутом `fill` из справочника; у вида без цвета атрибута нет,
-  и каплю красит приглушённый токен. Активная капля — зелёная, крупнее и со свечением:
-  правило CSS сильнее атрибута, поэтому цвет вида ей не мешает.
-*/
-.map-marker-pin {
-  display: block;
-  width: 32px;
-  height: 40px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  transform-origin: bottom center;
-  transition:
-    transform 0.2s,
-    filter 0.2s;
-  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--ui-ink) 40%, transparent));
-}
-
-.map-marker-pin > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.map-marker-pin:hover {
-  transform: scale(1.12);
-}
-
-.map-marker-pin:focus-visible {
-  outline: none;
-  filter: drop-shadow(0 0 0 3px color-mix(in srgb, var(--ui-lime) 50%, transparent));
-}
-
-.map-marker-pin .map-marker-drop:not([fill]) {
-  fill: var(--ui-muted);
-}
-
-.map-marker-pin .map-marker-core {
-  fill: var(--ui-card);
-  fill-opacity: 0.9;
-}
-
-.map-marker-pin.is-active {
-  transform: scale(1.3);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ui-lime) 90%, transparent));
-}
-
-.map-marker-pin.is-active .map-marker-drop {
-  fill: var(--ui-lime);
-}
-
-/* Точка легенды: без цвета из справочника — тот же приглушённый токен, что у капли */
-.map-legend-dot:not([fill]) {
-  fill: var(--ui-muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
+  /* ===== Маркер-капля карты (шаг 38.80, эталон `App.tsx:1053-1061`) ===== */
+  /*
+    Структуру капли строит `map-marker-element.ts` DOM-узлами; здесь — весь её вид.
+    Цвет вида приходит атрибутом `fill` из справочника; у вида без цвета атрибута нет,
+    и каплю красит приглушённый токен. Активная капля — зелёная, крупнее и со свечением:
+    правило CSS сильнее атрибута, поэтому цвет вида ей не мешает.
+  */
   .map-marker-pin {
-    transition: none;
+    display: block;
+    width: 32px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transform-origin: bottom center;
+    transition:
+      transform 0.2s,
+      filter 0.2s;
+    filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--ui-ink) 40%, transparent));
+  }
+
+  .map-marker-pin > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .map-marker-pin:hover {
+    transform: scale(1.12);
+  }
+
+  .map-marker-pin:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 0 3px color-mix(in srgb, var(--ui-lime) 50%, transparent));
+  }
+
+  .map-marker-pin .map-marker-drop:not([fill]) {
+    fill: var(--ui-muted);
+  }
+
+  .map-marker-pin .map-marker-core {
+    fill: var(--ui-card);
+    fill-opacity: 0.9;
+  }
+
+  .map-marker-pin.is-active {
+    transform: scale(1.3);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ui-lime) 90%, transparent));
+  }
+
+  .map-marker-pin.is-active .map-marker-drop {
+    fill: var(--ui-lime);
+  }
+
+  /* Точка легенды: без цвета из справочника — тот же приглушённый токен, что у капли */
+  .map-legend-dot:not([fill]) {
+    fill: var(--ui-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-marker-pin {
+      transition: none;
+    }
   }
 }
