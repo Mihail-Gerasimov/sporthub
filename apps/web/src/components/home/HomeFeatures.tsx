@@ -34,6 +34,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { HomeContainer } from '@/components/home/HomeContainer';
 import { FEATURES } from '@/lib/home-copy';
 import { catalogSectionHref, type CatalogSectionKey } from '@/lib/catalog-sections';
 import { HOME_SECTIONS } from '@/lib/home-sections';
@@ -156,12 +157,12 @@ export function HomeFeatures() {
       aria-label={HOME_SECTIONS.features.label}
       className="border-t border-line bg-card py-16 md:py-[72px]"
     >
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
+      <HomeContainer>
         <div className="mb-10">
           <p className="m-0 mb-2.5 font-body text-[10px] font-bold uppercase tracking-[0.12em] text-lime-hov">
             {FEATURES.eyebrow}
           </p>
-          <h2 id="home-features-title" className="t-h2 m-0 uppercase leading-[0.95] text-ink">
+          <h2 id="home-features-title" className="t-h2 m-0 text-ink">
             {FEATURES.titleLines.map((line, index) => (
               <span key={line} className={index === 0 ? undefined : 'block'}>
                 {line}
@@ -170,7 +171,7 @@ export function HomeFeatures() {
           </h2>
         </div>
 
-        <ul className="m-0 grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 lg:grid-cols-4">
           {FEATURES.items.map((feature) => {
             const target = FEATURE_TARGETS[feature.key];
             const tint = FEATURE_TINTS[feature.key];
@@ -213,7 +214,7 @@ export function HomeFeatures() {
             );
           })}
         </ul>
-      </div>
+      </HomeContainer>
     </section>
   );
 }

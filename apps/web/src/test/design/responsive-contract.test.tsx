@@ -254,12 +254,13 @@ describe('Контракт адаптива: колонка героя и сет
     expect(aside?.className).not.toMatch(/\b(sm|md|lg):block\b/);
   });
 
-  it('«возможности» — столбик, две плитки с sm, четыре с lg; «три шага» — столбик, три с md; лидеры — 1→2 с md', () => {
+  it('«возможности» — две плитки в ряд с базы, четыре с lg (макет: 2 колонки до 1100); «три шага» — столбик, три с md; лидеры — 1→2 с md', () => {
     render(<HomeFeatures />);
     const features = screen.getByRole('list');
-    expect(features.className).toContain('grid-cols-1');
-    expect(features.className).toContain('sm:grid-cols-2');
+    // Макет (`HomePage.tsx:243-262`): плитки парами на любой ширине, четыре в ряд с широких.
+    expect(features.className).toContain('grid-cols-2');
     expect(features.className).toContain('lg:grid-cols-4');
+    expect(features.className).not.toMatch(/\bgrid-cols-1\b|sm:grid-cols-2/);
 
     const { container: stepsRoot } = render(<HomeSteps />);
     const steps = stepsRoot.querySelector('ol');
