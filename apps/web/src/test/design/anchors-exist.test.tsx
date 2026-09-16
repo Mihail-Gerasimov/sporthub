@@ -17,6 +17,11 @@
 // ⚠️ Два режима, и оба обязательны: слоты клубов и окна тренеров взаимоисключающие —
 // `UpcomingSessions` рисует один из двух блоков по `discoveryMode`, и якорь, живущий
 // только в одном режиме, во втором был бы тупиком.
+//
+// Третья половина (38.89): якорь ведёт туда, что обещает подпись. `#results` из шапки
+// скроллил на КАРТУ (реестр № 6), а пункт «Подборки» — на форму поиска (№ 5): цель
+// существовала, но врала подпись. Теперь `#results` держит карточки выдачи, у карты
+// свой якорь, а подпись секции в разметке равна подписи её записи в словаре.
 
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -114,6 +119,30 @@ for (const mode of MODES) {
         .filter((id) => !DICTIONARY_IDS.includes(id));
 
       expect(stray, `секции мимо словаря: ${stray.join(', ')}`).toEqual([]);
+    });
+
+    it('«Выдача» — карточки, а не карта; подпись секции в разметке равна подписи в словаре', async () => {
+      render(<AppShell>{await Home()}</AppShell>);
+
+      const cards = 'article[aria-label^="Карточка"]';
+      const results = document.getElementById(HOME_SECTIONS.results.id);
+      const map = document.getElementById(HOME_SECTIONS.map.id);
+
+      expect(results?.querySelectorAll(cards).length).toBeGreaterThan(0);
+      expect(map?.querySelector(cards)).toBeNull();
+
+      // Пункт меню подписан из словаря — секция обязана называться так же (диверсия:
+      // литерал «Подборки» в aria-label формы поиска).
+      const lying = topLevelSections()
+        .filter((section) => section.hasAttribute('aria-label'))
+        .map((section) => ({
+          id: section.id,
+          label: section.getAttribute('aria-label'),
+          expected: Object.values(HOME_SECTIONS).find((entry) => entry.id === section.id)?.label,
+        }))
+        .filter((entry) => entry.label !== entry.expected);
+
+      expect(lying, `подпись врёт: ${JSON.stringify(lying)}`).toEqual([]);
     });
   });
 }

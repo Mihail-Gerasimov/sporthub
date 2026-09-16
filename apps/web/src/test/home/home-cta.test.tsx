@@ -19,7 +19,8 @@ describe('HomeCta', () => {
 
   it('тёмная секция со свечением токеном; рубрика, H2 и текст — из словаря', () => {
     render(<HomeCta />);
-    const section = screen.getByRole('region', { name: CTA.eyebrow });
+    // Подпись региона — из словаря секций, как у пункта меню (сторож anchors-exist, 38.89).
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.cta.label });
     // Якорь секции — из словаря, не литералом (ревью 38.65).
     expect(section.id).toBe(HOME_SECTIONS.cta.id);
     expect(section.className).toContain('bg-plate');

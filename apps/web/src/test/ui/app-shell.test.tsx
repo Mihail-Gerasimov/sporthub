@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppShell } from '@/components/layout/AppShell';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -29,9 +30,11 @@ describe('AppShell', () => {
     const primaryNavigation = screen.getByRole('navigation', { name: 'Основная навигация' });
     const mobileNavigation = screen.getByRole('navigation', { name: 'Мобильная навигация' });
 
-    expect(within(primaryNavigation).getByRole('link', { name: 'Подборки' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: 'Выдача' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: 'Слоты' })).toBeInTheDocument();
+    for (const key of ['discover', 'results', 'availability'] as const) {
+      expect(
+        within(primaryNavigation).getByRole('link', { name: HOME_SECTIONS[key].label }),
+      ).toBeInTheDocument();
+    }
 
     expect(within(mobileNavigation).getByRole('link', { name: 'Главная' })).toBeInTheDocument();
     expect(within(mobileNavigation).getByRole('link', { name: 'Поиск' })).toBeInTheDocument();

@@ -106,7 +106,7 @@ describe('Home page', () => {
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     // Карточки выдачи — по одной на клуб стенда (популярное рисует их ещё раз — 38.79).
-    const catalog = document.getElementById(HOME_SECTIONS.catalog.id) as HTMLElement;
+    const catalog = document.getElementById(HOME_SECTIONS.results.id) as HTMLElement;
     expect(within(catalog).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
       fixtureClubs.length,
     );

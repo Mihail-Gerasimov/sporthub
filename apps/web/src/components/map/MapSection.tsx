@@ -24,7 +24,7 @@ type MapSectionProps = {
 
 export function MapSection({ clubs, trainers, sports }: MapSectionProps) {
   return (
-    <section id={HOME_SECTIONS.results.id} className="space-y-4">
+    <section id={HOME_SECTIONS.map.id} className="space-y-4">
       <div>
         <p className="t-eyebrow">Выдача на карте</p>
         <h2 className="t-h2 mt-2 text-ink">Карта</h2>

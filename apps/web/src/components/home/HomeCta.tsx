@@ -44,7 +44,7 @@ export function HomeCta() {
   return (
     <section
       id={HOME_SECTIONS.cta.id}
-      aria-label={CTA.eyebrow}
+      aria-label={HOME_SECTIONS.cta.label}
       className="relative overflow-hidden bg-plate py-20 text-plate-ink before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow-center)]"
     >
       <div className="relative mx-auto flex w-full max-w-[1320px] flex-col items-center px-6 text-center">

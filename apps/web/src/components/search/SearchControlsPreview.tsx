@@ -100,7 +100,7 @@ export function SearchControlsPreview({
   const query = searchQuery.trim();
 
   return (
-    <section id={HOME_SECTIONS.discover.id} aria-label="Поиск и фильтры">
+    <section id={HOME_SECTIONS.discover.id} aria-label={HOME_SECTIONS.discover.label}>
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

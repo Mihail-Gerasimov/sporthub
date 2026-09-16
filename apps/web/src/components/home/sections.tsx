@@ -16,12 +16,7 @@ import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHeroSection } from '@/components/home/HomeHeroSection';
 import { HomeLeaders } from '@/components/home/HomeLeaders';
 import { HomeSteps } from '@/components/home/HomeSteps';
-import {
-  HomeCatalog,
-  HomeDiscover,
-  HomePopular,
-  HomeResults,
-} from '@/components/home/HomeWorkbench';
+import { HomeDiscover, HomeMap, HomePopular, HomeResults } from '@/components/home/HomeWorkbench';
 import { HomeAvailability } from '@/components/home/HomeAvailability';
 import type { HomeSectionKey } from '@/lib/home-sections';
 
@@ -32,8 +27,8 @@ export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeS
   features: HomeFeatures,
   cta: HomeCta,
   discover: HomeDiscover,
+  map: HomeMap,
   results: HomeResults,
-  catalog: HomeCatalog,
   popular: HomePopular,
   availability: HomeAvailability,
 };

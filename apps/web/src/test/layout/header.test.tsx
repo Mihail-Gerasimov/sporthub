@@ -22,6 +22,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { Header } from '@/components/layout/Header';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -42,9 +43,13 @@ describe('Header', () => {
 
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Подборки' })).toHaveAttribute('href', '/#discover');
-    expect(screen.getByRole('link', { name: 'Выдача' })).toHaveAttribute('href', '/#results');
-    expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('href', '/#availability');
+    // Пункты главной — подписью и адресом из словаря секций (38.89: «Подборки» врала).
+    for (const key of ['discover', 'results', 'availability'] as const) {
+      expect(screen.getByRole('link', { name: HOME_SECTIONS[key].label })).toHaveAttribute(
+        'href',
+        `/#${HOME_SECTIONS[key].id}`,
+      );
+    }
   });
 
   it('у человека с лицом услуг ссылка ведёт в кабинет ЛИЦА и подписана его именем', () => {

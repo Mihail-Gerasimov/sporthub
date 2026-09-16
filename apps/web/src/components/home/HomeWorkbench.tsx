@@ -1,5 +1,8 @@
-// Рабочая часть главной из словаря секций (шаг 38.66): поиск, карта, карточки, популярное.
+// Рабочая часть главной из словаря секций (шаг 38.66): поиск, карта, выдача, популярное.
 // Слоты — в своём файле `HomeAvailability` (38.81): у них клиентский отбор по стору.
+//
+// 38.89: «Выдача» — карточки, а не карта. `#results` из шапки и «Найти» скроллил на
+// карту (реестр № 6); теперь у карты свой якорь `map`, а `results` держит карточки.
 //
 // Каждая секция — тонкая обёртка над прежними блоками: они получают данные дня
 // из `HomeData`, а не из разметки страницы. Отбор здесь по-прежнему в памяти —
@@ -28,7 +31,7 @@ export function HomeDiscover({ data }: HomeSectionProps) {
   );
 }
 
-export function HomeResults({ data }: HomeSectionProps) {
+export function HomeMap({ data }: HomeSectionProps) {
   return (
     <HomeContainer>
       <MapSection clubs={data.clubs} sports={data.sports} trainers={data.trainerDirectory} />
@@ -36,9 +39,9 @@ export function HomeResults({ data }: HomeSectionProps) {
   );
 }
 
-export function HomeCatalog({ data }: HomeSectionProps) {
+export function HomeResults({ data }: HomeSectionProps) {
   return (
-    <section id={HOME_SECTIONS.catalog.id} aria-label={HOME_SECTIONS.catalog.label}>
+    <section id={HOME_SECTIONS.results.id} aria-label={HOME_SECTIONS.results.label}>
       <HomeContainer>
         <CatalogResultsSection
           clubs={data.clubs}
