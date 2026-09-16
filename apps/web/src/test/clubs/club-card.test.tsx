@@ -56,6 +56,17 @@ const baseClub: Club = {
 
 const ratedClub: Club = { ...baseClub, rating: 4.8, reviewCount: 12 };
 
+/** Классы позиционирования у элементов строго между предком и потомком. */
+function positionedAncestorsBetween(ancestor: HTMLElement, node: HTMLElement): string[] {
+  const found: string[] = [];
+
+  for (let el = node.parentElement; el !== null && el !== ancestor; el = el.parentElement) {
+    if (/\b(relative|absolute|fixed|sticky)\b/.test(el.className)) found.push(el.className);
+  }
+
+  return found;
+}
+
 describe('ClubCard (38.73)', () => {
   beforeEach(() => {
     // Мокаем rAF — ChipMarquee внутри карточки не будет реально анимироваться.
@@ -84,6 +95,21 @@ describe('ClubCard (38.73)', () => {
     // Растянутая ссылка: псевдоэлемент на всю карточку, а не обёртка `<a>`.
     expect(link.className).toContain('after:absolute');
     expect(link.className).toContain('after:inset-0');
+  });
+
+  it('между article и ссылкой нет позиционированных предков: `after:inset-0` растягивается от карточки (прогон 38.96)', () => {
+    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+    const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+    const link = screen.getByRole('link', { name: 'Volna Aquatic Club' });
+
+    // ⚠️ Геометрию jsdom не считает, поэтому — структура: псевдоэлемент считается от
+    // ближайшего позиционированного предка. Прежде им был `div.absolute` низа фото,
+    // и кликабельными были 70px из 350 — фото, описание и углы ссылкой не были.
+    expect(positionedAncestorsBetween(card, link)).toEqual([]);
+    expect(card.className).toMatch(/\brelative\b/);
+    // Описание под фото — внутри той же карточки: растянутая ссылка накрывает и его.
+    expect(within(card).getByText(baseClub.shortDescription)).toBeInTheDocument();
   });
 
   it('категория — первый вид спорта клуба из справочника', () => {

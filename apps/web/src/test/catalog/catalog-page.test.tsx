@@ -76,6 +76,26 @@ describe('Страница /catalog (38.79a)', () => {
     expect(screen.queryByRole('article', { name: /^Карточка клуба: / })).not.toBeInTheDocument();
   });
 
+  it('карточка клуба в выдаче — вся ссылка: описание лежит в карточке, между article и ссылкой нет позиционированных предков', async () => {
+    render(await CatalogPage());
+
+    const [card] = within(section('results')).getAllByRole('article', {
+      name: /^Карточка клуба: /,
+    });
+    const link = within(card).getByRole('link', { name: fixtureClubs[0].name });
+    const positioned: string[] = [];
+
+    for (let el = link.parentElement; el !== null && el !== card; el = el.parentElement) {
+      if (/\b(relative|absolute|fixed|sticky)\b/.test(el.className)) positioned.push(el.className);
+    }
+
+    // Прогон 38.96: псевдоэлемент `after:inset-0` считался от низа фото — клик по
+    // описанию клуба никуда не вёл. Позиционированный предок ссылки — сама карточка.
+    expect(positioned).toEqual([]);
+    expect(within(card).getByText(fixtureClubs[0].shortDescription)).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', `/clubs/${fixtureClubs[0].slug}`);
+  });
+
   it('запрос из стора героя главной применяется здесь: ноль в счёте, пустая выдача', async () => {
     useFilterStore.setState({ searchQuery: 'кабачковая икра' });
     render(await CatalogPage());

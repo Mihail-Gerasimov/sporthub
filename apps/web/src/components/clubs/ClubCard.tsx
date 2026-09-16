@@ -84,8 +84,15 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
     >
       {/* Фото 180 с затемнением снизу: низ зоны — тёмная плашка под белым текстом,
           поэтому подложка — `bg-plate`; заглушка без фото кладёт свою светлую сверху.
-          `alt=""` — имя стоит рядом ссылкой, диктор читал бы его дважды. */}
-      <div className="relative h-[180px] overflow-hidden bg-plate">
+          `alt=""` — имя стоит рядом ссылкой, диктор читал бы его дважды.
+
+          ⚠️ Зона — grid с одной ячейкой, а не `relative` + `absolute` (правка по
+          прогону 38.96): фото, затемнение и текст лежат в одной ячейке и рисуются
+          по порядку, без позиционирования. Иначе растянутая ссылка с именем
+          (`after:inset-0`) считалась бы от ближайшего позиционированного предка —
+          низа фото, — и кликабельными были бы 70px из 350: «вся карточка — ссылка»
+          не работала. Единственный позиционированный предок ссылки — сам `article`. */}
+      <div className="grid h-[180px] grid-rows-[180px] bg-plate">
         {showPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- адрес фото из данных, размер фиксирован
           <img
@@ -93,10 +100,10 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
             alt=""
             loading="lazy"
             onError={() => setPhotoBroken(true)}
-            className="h-full w-full object-cover opacity-[0.88] transition-opacity duration-200 group-hover:opacity-100"
+            className="h-full w-full [grid-area:1/1] object-cover opacity-[0.88] transition-opacity duration-200 group-hover:opacity-100"
           />
         ) : (
-          <div className="hero-bg-blank flex h-full items-center justify-center bg-card-2">
+          <div className="hero-bg-blank flex items-center justify-center [grid-area:1/1] bg-card-2">
             <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
               Фото клуба
             </span>
@@ -104,14 +111,15 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
         )}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 [background:var(--ui-decor-photo-shade)]"
+          className="pointer-events-none [grid-area:1/1] [background:var(--ui-decor-photo-shade)]"
         />
 
-        {/* Слева сверху — категория и знак проверки; справа — цена. */}
+        {/* Слева сверху — категория и знак проверки; справа — цена. Позиционированы
+            от `article`: верх карточки — верх фото. */}
         <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
           <div className="relative z-[2] flex flex-wrap items-center gap-1.5">
             {category ? (
-              <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold text-lime-hov">
+              <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold text-ink">
                 {category}
               </span>
             ) : null}
@@ -124,7 +132,7 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
         </div>
 
         {/* Снизу — имя (ссылка на всю карточку), рейтинг, отзывы, расстояние. */}
-        <div className="absolute inset-x-0 bottom-0 px-4 py-3.5">
+        <div className="flex flex-col justify-end [grid-area:1/1] px-4 py-3.5">
           <h3 className="m-0 font-display text-[19px] font-black leading-none text-plate-ink">
             <Link
               href={`/clubs/${club.slug}`}
