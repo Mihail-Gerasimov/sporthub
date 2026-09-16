@@ -35,7 +35,9 @@ export const RUN_TAG = process.env.E2E_RUN_TAG || 'e2e-phase35';
  * к 38.100 в живой базе лежало 4015 сессий администратора от браузерных прогонов,
  * ни один из которых не разлогинивался. Правило: **прогон разлогинивается сам** —
  * `cleanupRun()` снимает сессии учёток сида, заведённые ПОСЛЕ старта прогона
- * (номер последней сессии снимается при загрузке модуля, то есть до первого входа).
+ * (номер последней сессии снимается при загрузке модуля, то есть до первого входа;
+ * прогону через MCP, где модуль грузится только на уборке, границу называет
+ * `E2E_SESSIONS_SINCE` — см. ниже).
  * Человек, вошедший под учёткой сида во время прогона, будет разлогинен вместе с ним:
  * стенд на время прогона — прогону.
  */
@@ -70,8 +72,33 @@ function psql(sql) {
   ).trim();
 }
 
-/** Последняя сессия в базе на момент старта прогона — граница «своих» входов под сидом. */
-const SESSION_ID_AT_START = Number(psql('SELECT coalesce(max(id), 0) FROM sessions;'));
+/**
+ * Граница «своих» входов под сидом.
+ *
+ * По умолчанию — последняя сессия в базе на момент загрузки модуля (то есть до первого
+ * входа прогона). ⚠️ Шаг 38.112: в прогоне через MCP модуль грузится только на уборке —
+ * граница совпала бы с концом прогона, и десять сессий администратора, заведённых
+ * входами прогона, остались бы в базе (так и вышло 16.09). Тогда границу называет
+ * окружение `E2E_SESSIONS_SINCE`: номер сессии (только цифры) — снимаются сессии сида
+ * с бо́льшим номером; либо момент времени ISO (`2026-09-16T16:45:00Z`) — снимаются
+ * заведённые не раньше него. Иная форма — отказ до первого запроса, а не SQL с мусором.
+ */
+const SESSIONS_SINCE = process.env.E2E_SESSIONS_SINCE?.trim();
+const SESSION_ID_AT_START = SESSIONS_SINCE
+  ? null
+  : Number(psql('SELECT coalesce(max(id), 0) FROM sessions;'));
+
+/** Условие границы для `DELETE FROM sessions` — по номеру или по времени. */
+function sessionsBoundaryWhere() {
+  if (!SESSIONS_SINCE) return `id > ${SESSION_ID_AT_START}`;
+  if (/^\d+$/.test(SESSIONS_SINCE)) return `id > ${Number(SESSIONS_SINCE)}`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(SESSIONS_SINCE)) {
+    return `created_at >= '${SESSIONS_SINCE}'::timestamptz`;
+  }
+  throw new Error(
+    `E2E_SESSIONS_SINCE: ожидался номер сессии или момент ISO с зоной, получено «${SESSIONS_SINCE}»`,
+  );
+}
 
 /** Условие «учётка сида» по домену почты — для отбора сессий, не людей. */
 const seedEmailWhere = () =>
@@ -83,7 +110,7 @@ const seedEmailWhere = () =>
  */
 export function logoutSeedSessions() {
   const removed = psql(
-    `WITH d AS (DELETE FROM sessions WHERE id > ${SESSION_ID_AT_START} AND user_id IN (SELECT id FROM users WHERE ${seedEmailWhere()}) RETURNING 1) SELECT count(*) FROM d;`,
+    `WITH d AS (DELETE FROM sessions WHERE ${sessionsBoundaryWhere()} AND user_id IN (SELECT id FROM users WHERE ${seedEmailWhere()}) RETURNING 1) SELECT count(*) FROM d;`,
   );
   return Number(removed);
 }
