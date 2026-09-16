@@ -161,6 +161,26 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
     }
   }
 
+  // Строки классов ВНЕ тегов — константы и тернарии (`accent === 'lime' ? … : 'bg-orange-soft
+  // text-orange'`): предка у них нет, и раньше сторож их не видел (диверсия д-Z осталась
+  // зелёной). Строка с цветом заливки текстом и без своей плашки — красная; строка
+  // с плашкой (`'bg-plate text-lime'`) — нет. Файлы на плашке чужого файла — исключены.
+  if (!RENDERED_ON_PLATE.includes(file) && !BRAND_MARK.includes(file)) {
+    const outsideTags = body.replace(/<\/?[A-Za-z][\w.]*(?:\s[^<>]*?)?\/?>/g, ' ');
+
+    for (const literal of outsideTags.matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)) {
+      const text = literal[2];
+
+      if (!/\s/.test(text.trim())) continue; // одно слово — не строка классов
+      if (!GREEN_TEXT.test(text) || PLATE.test(text)) continue;
+
+      const line = body.slice(0, literal.index).split('\n').length;
+      offenders.push(
+        `строка ${line}: цвет заливки текстом в строке классов вне тега — ${text.match(GREEN_TEXT)![0]}`,
+      );
+    }
+  }
+
   return offenders;
 }
 
@@ -296,6 +316,14 @@ describe('Сторож: зелёный текст только на плашке
     expect(
       greenTextOffenders('src/x/Y.tsx', '<span className="bg-lime/10 text-lime-hov">x</span>'),
     ).toEqual([]);
+    // Строка классов вне тега (константа, тернарий) с цветом заливки текстом — красная.
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        "const counter = accent === 'lime' ? 'bg-lime-soft text-lime-hov' : 'bg-orange-soft text-orange';",
+      ),
+    ).toHaveLength(1);
+    expect(greenTextOffenders('src/x/Y.tsx', "const plate = 'bg-plate text-lime';")).toEqual([]);
     // Оранжевый текстом на светлом — красный; на плашке (LIVE) — верный; `text-orange-text` — нет.
     expect(
       greenTextOffenders('src/x/Y.tsx', '<span className="bg-orange-soft text-orange">x</span>'),

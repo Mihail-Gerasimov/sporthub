@@ -362,7 +362,7 @@ export function ProviderBookingsInbox({
               'rounded-pill px-4 py-2 text-sm font-semibold transition-colors',
               tab === key
                 ? 'bg-accent text-ink'
-                : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent',
+                : 'border border-line bg-panel text-ink hover:border-accent hover:text-lime-hov',
             )}
           >
             {TAB_LABELS[key]}{' '}

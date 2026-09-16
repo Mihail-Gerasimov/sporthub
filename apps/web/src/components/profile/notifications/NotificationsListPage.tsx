@@ -464,7 +464,7 @@ export function NotificationsListPage({
               setShowOnlyUnread(event.target.checked);
               setOffset(0);
             }}
-            className="size-4 rounded border-line text-accent focus:ring-accent"
+            className="size-4 rounded border-line accent-lime focus:ring-accent"
           />
           Только непрочитанные
         </label>

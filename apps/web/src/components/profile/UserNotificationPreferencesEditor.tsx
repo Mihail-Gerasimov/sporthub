@@ -261,7 +261,7 @@ export function UserNotificationPreferencesEditor({ userId, notificationPreferen
                         checked={checked}
                         disabled={isRequired}
                         onChange={(event) => handleToggle(type, event.target.checked)}
-                        className="size-4 rounded border-line text-accent focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        className="size-4 rounded border-line accent-lime focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
                       />
                       <span className="text-sm text-ink">{label}</span>
                       {isRequired ? <Badge tone="outline">Нельзя отключить</Badge> : null}

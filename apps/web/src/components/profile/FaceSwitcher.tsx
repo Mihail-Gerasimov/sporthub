@@ -74,7 +74,7 @@ export function FaceSwitcher({ className }: { className?: string }) {
                 'inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-4',
                 active
                   ? 'border-transparent bg-lime text-ink focus-visible:ring-lime/30'
-                  : 'border-line bg-panel text-ink hover:border-accent hover:text-accent focus-visible:ring-accent/15',
+                  : 'border-line bg-panel text-ink hover:border-accent hover:text-lime-hov focus-visible:ring-accent/15',
                 archived && !active && 'text-muted',
               )}
             >
