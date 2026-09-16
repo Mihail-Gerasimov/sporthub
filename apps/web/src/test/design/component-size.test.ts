@@ -48,7 +48,6 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).
   'src/components/clubs/ClubDetailPageClient.tsx': 641,
   'src/components/layout/NotificationBell.tsx': 224,
-  'src/components/map/MainMap.tsx': 228,
   'src/components/profile/AccountCredentialsSection.tsx': 358,
   'src/components/profile/PublishClubModal.tsx': 488,
   'src/components/profile/PublishTrainerModal.tsx': 768,

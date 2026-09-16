@@ -23,7 +23,7 @@
 // `el.style.cssText = '…'` и `style="…"` внутри HTML-строки для `innerHTML`. Ловятся
 // теми же парами «файл + свойство» (`cssText` и `style="` — свойство `<html>`).
 // Старые файлы, которые ещё не переписаны, — в `LEGACY_IMPERATIVE` с потолком, только
-// убывает: `MainMap.tsx` рисует маркеры и попап строками до 38.80.
+// убывает; с 38.80 список пуст.
 
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -46,12 +46,10 @@ export const ALLOWED_PAIRS: Record<string, string[]> = {
 };
 
 /**
- * Старые файлы с императивными стилями и потолок вхождений. Только убывает:
- * `MainMap.tsx` переписывается на 38.80 (маркеры-капли, карточка снизу).
+ * Старые файлы с императивными стилями и потолок вхождений. Только убывает;
+ * пуст с шага 38.80: `MainMap.tsx` переписан (маркеры-капли DOM-узлами, вид — классами).
  */
-export const LEGACY_IMPERATIVE: Record<string, number> = {
-  'src/components/map/MainMap.tsx': 9,
-};
+export const LEGACY_IMPERATIVE: Record<string, number> = {};
 
 // Текст без комментариев: блочных и строчных (до конца строки).
 // ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.

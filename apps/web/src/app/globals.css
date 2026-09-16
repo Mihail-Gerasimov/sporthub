@@ -691,11 +691,78 @@ input[type='number'] {
 /*
   Yandex Maps v3 публично не предоставляет dark-theme API. Применяем
   CSS-фильтр **только к canvas-элементу** карты (тайлы YMaps рисуются
-  на canvas), а маркеры и popup'ы — это DOM-элементы (см. createMarkerElement
-  в MainMap.tsx) и они НЕ canvas. Селектор `[data-map-theme='dark'] canvas`
-  затемнит только тайлы, маркеры останутся в исходных цветах (#d85a32).
+  на canvas), а маркеры, карточка и легенда — это DOM-элементы (см.
+  `map-marker-element.ts`, `MapActiveCard`, `MapLegend`) и они НЕ canvas. Селектор
+  `[data-map-theme='dark'] canvas` затемнит только тайлы, маркеры останутся
+  в цветах своих видов спорта.
   Это убирает потребность в counter-invert и делает решение «без геморроя».
 */
 [data-map-theme='dark'] canvas {
   filter: grayscale(1) invert(1);
+}
+
+/* ===== Маркер-капля карты (шаг 38.80, эталон `App.tsx:1053-1061`) ===== */
+/*
+  Структуру капли строит `map-marker-element.ts` DOM-узлами; здесь — весь её вид.
+  Цвет вида приходит атрибутом `fill` из справочника; у вида без цвета атрибута нет,
+  и каплю красит приглушённый токен. Активная капля — зелёная, крупнее и со свечением:
+  правило CSS сильнее атрибута, поэтому цвет вида ей не мешает.
+*/
+.map-marker-pin {
+  display: block;
+  width: 32px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-origin: bottom center;
+  transition:
+    transform 0.2s,
+    filter 0.2s;
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--ui-ink) 40%, transparent));
+}
+
+.map-marker-pin > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-marker-pin:hover {
+  transform: scale(1.12);
+}
+
+.map-marker-pin:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 0 3px color-mix(in srgb, var(--ui-lime) 50%, transparent));
+}
+
+.map-marker-pin .map-marker-drop:not([fill]) {
+  fill: var(--ui-muted);
+}
+
+.map-marker-pin .map-marker-core {
+  fill: var(--ui-card);
+  fill-opacity: 0.9;
+}
+
+.map-marker-pin.is-active {
+  transform: scale(1.3);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ui-lime) 90%, transparent));
+}
+
+.map-marker-pin.is-active .map-marker-drop {
+  fill: var(--ui-lime);
+}
+
+/* Точка легенды: без цвета из справочника — тот же приглушённый токен, что у капли */
+.map-legend-dot:not([fill]) {
+  fill: var(--ui-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-marker-pin {
+    transition: none;
+  }
 }

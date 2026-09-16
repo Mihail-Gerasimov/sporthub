@@ -1,5 +1,6 @@
-// Тесты useMapMarkers (Step 19.7)
-// Покрывают: фильтрация по discoveryMode, sportId, city, исключение невалидных координат, empty state
+// Тесты useMapMarkers (Step 19.7; 38.80 — цвет вида и данные карточки снизу)
+// Покрывают: фильтрация по discoveryMode, sportId, city, исключение невалидных координат,
+// empty state; цвет маркера приходит из справочника видов (поле `color`), не из словаря в коде.
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -36,8 +37,9 @@ function callUseMapMarkers(
 const validCoords: Coordinates = { lat: 53.2, lng: 50.1 };
 const invalidCoords: Coordinates = { lat: 0, lng: 0 };
 
+// Цвет вида — поле справочника; у «Бокса» его нет: маркер без цвета, не из словаря.
 const sports = [
-  { id: 1, name: 'Йога', icon: '🧘' },
+  { id: 1, name: 'Йога', icon: '🧘', color: '#8b5cf6' },
   { id: 2, name: 'Бокс', icon: '🥊' },
 ];
 
@@ -197,11 +199,49 @@ describe('useMapMarkers (Step 19.7)', () => {
       id: 1,
       slug: 'yoga-studio',
       name: 'Йога-студия',
+      sportId: 1,
       sportName: 'Йога',
+      sportColor: '#8b5cf6',
       address: 'ул. Мира, 5',
       rating: 4.8,
+      priceFrom: 500,
+      imageUrl: '',
+      verifiedAt: undefined,
       coordinates: { lat: 53.2, lng: 50.1 },
       type: 'club',
+    });
+  });
+
+  it('цвет вида — из справочника: без поля `color` маркер без цвета, словаря в коде нет', () => {
+    const clubBox = makeClub({ id: 2, sportIds: [2], name: 'Бокс Клуб', slug: 'box-club' });
+    const [marker] = callUseMapMarkers({ clubs: [clubBox], trainers: [], sports });
+    expect(marker.sportId).toBe(2);
+    expect(marker.sportColor).toBeUndefined();
+
+    // Тот же вид с цветом в справочнике — цвет у маркера появляется без правки кода.
+    const [colored] = callUseMapMarkers({
+      clubs: [clubBox],
+      trainers: [],
+      sports: [{ id: 2, name: 'Бокс', color: '#ef4444' }],
+    });
+    expect(colored.sportColor).toBe('#ef4444');
+  });
+
+  it('карточка снизу: у тренера — аватар, цена и знак проверки из справочника', () => {
+    mockFilterState.discoveryMode = 'trainers';
+    const trainer = makeTrainer({
+      avatarUrl: '/avatars/t.jpg',
+      priceFrom: 1500,
+      verifiedAt: '2026-09-01T00:00:00.000Z',
+    });
+    const [marker] = callUseMapMarkers({ clubs: [], trainers: [trainer], sports });
+    expect(marker).toMatchObject({
+      type: 'trainer',
+      imageUrl: '/avatars/t.jpg',
+      priceFrom: 1500,
+      verifiedAt: '2026-09-01T00:00:00.000Z',
+      sportId: 2,
+      sportColor: undefined,
     });
   });
 

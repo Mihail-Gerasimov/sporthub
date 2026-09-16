@@ -3,21 +3,36 @@
  * Фильтрует по discoveryMode, sportId, city из useFilterStore.
  * Исключает сущности без валидных координат (lat=0, lng=0).
  * Получает данные через props, НЕ делает API-вызовов.
+ *
+ * Шаг 38.80: маркер несёт цвет вида спорта — из справочника видов (поле `color`),
+ * а не из словаря в коде; пока у вида цвета нет — маркер без цвета, капля берёт
+ * токен по умолчанию. Плюс данные карточки снизу: картинка, цена, знак проверки.
  */
 import { useMemo } from 'react';
 
-import type { Club, Coordinates, EntityId } from '@sporthub/types';
+import type { Club, Coordinates, EntityId, ISODateTimeString } from '@sporthub/types';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 import { isValidCoordinates } from '@/lib/utils';
 import { useFilterStore } from '@/stores/useFilterStore';
+
+/** Вид спорта, каким его читает карта: имя для подписи, цвет — если справочник его несёт. */
+export type MapSport = { id: EntityId; name: string; color?: string };
 
 export type MapMarkerData = {
   id: EntityId;
   slug: string;
   name: string;
+  /** Первый вид сущности; `null` — вид не найден в справочнике. */
+  sportId: EntityId | null;
   sportName: string;
+  /** Цвет вида из справочника; пусто — у вида цвета ещё нет. */
+  sportColor?: string;
   address: string;
   rating: number;
+  priceFrom: number;
+  /** Картинка карточки снизу: первое фото клуба или аватар тренера; пусто — заглушка. */
+  imageUrl: string;
+  verifiedAt?: ISODateTimeString;
   coordinates: Coordinates;
   type: 'club' | 'trainer';
 };
@@ -25,13 +40,12 @@ export type MapMarkerData = {
 type UseMapMarkersOptions = {
   clubs: Club[];
   trainers: TrainerDirectoryItem[];
-  sports: Array<{ id: EntityId; name: string }>;
+  sports: MapSport[];
 };
 
-/** Получить название первого вида спорта сущности */
-function getSportName(sportIds: EntityId[], sports: Array<{ id: EntityId; name: string }>): string {
-  const sport = sports.find((s) => sportIds.includes(s.id));
-  return sport?.name ?? '';
+/** Первый вид спорта сущности из справочника — подпись и цвет маркера. */
+function getSport(sportIds: EntityId[], sports: MapSport[]): MapSport | undefined {
+  return sports.find((s) => sportIds.includes(s.id));
 }
 
 export function useMapMarkers({ clubs, trainers, sports }: UseMapMarkersOptions): MapMarkerData[] {
@@ -53,16 +67,24 @@ export function useMapMarkers({ clubs, trainers, sports }: UseMapMarkersOptions)
           if (normalizedCity && club.city.trim().toLowerCase() !== normalizedCity) return false;
           return true;
         })
-        .map((club) => ({
-          id: club.id,
-          slug: club.slug,
-          name: club.name,
-          sportName: getSportName(club.sportIds, sports),
-          address: club.address,
-          rating: club.rating,
-          coordinates: club.coordinates,
-          type: 'club' as const,
-        }));
+        .map((club) => {
+          const sport = getSport(club.sportIds, sports);
+          return {
+            id: club.id,
+            slug: club.slug,
+            name: club.name,
+            sportId: sport?.id ?? null,
+            sportName: sport?.name ?? '',
+            sportColor: sport?.color,
+            address: club.address,
+            rating: club.rating,
+            priceFrom: club.priceFrom,
+            imageUrl: club.imageUrls[0] ?? '',
+            verifiedAt: club.verifiedAt,
+            coordinates: club.coordinates,
+            type: 'club' as const,
+          };
+        });
     }
 
     return trainers
@@ -74,15 +96,23 @@ export function useMapMarkers({ clubs, trainers, sports }: UseMapMarkersOptions)
         if (normalizedCity && trainer.city.trim().toLowerCase() !== normalizedCity) return false;
         return true;
       })
-      .map((trainer) => ({
-        id: trainer.id,
-        slug: trainer.slug,
-        name: trainer.name,
-        sportName: getSportName(trainer.sportIds, sports),
-        address: trainer.address,
-        rating: trainer.rating,
-        coordinates: trainer.coordinates,
-        type: 'trainer' as const,
-      }));
+      .map((trainer) => {
+        const sport = getSport(trainer.sportIds, sports);
+        return {
+          id: trainer.id,
+          slug: trainer.slug,
+          name: trainer.name,
+          sportId: sport?.id ?? null,
+          sportName: sport?.name ?? '',
+          sportColor: sport?.color,
+          address: trainer.address,
+          rating: trainer.rating,
+          priceFrom: trainer.priceFrom,
+          imageUrl: trainer.avatarUrl,
+          verifiedAt: trainer.verifiedAt,
+          coordinates: trainer.coordinates,
+          type: 'trainer' as const,
+        };
+      });
   }, [clubs, trainers, sports, discoveryMode, selectedSportId, selectedCity]);
 }

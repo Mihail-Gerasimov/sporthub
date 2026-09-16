@@ -6,7 +6,7 @@
 // ⚠️ Фаза 38, шаг 38.25: случай «бейдж надёжности рисуется по числу из карточки»
 // переписан в обратный — механизма нет, и поле в ответе бейджа не возвращает
 // (реестр `phase-38-reliability-cut.md`, Т16). Шаг 38.76 перепишет набор целиком.
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
@@ -61,7 +61,13 @@ describe('Home page', () => {
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'MVP в разработке' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
+    // Переключателей два — в герое (38.67) и в рабочей части; стор один. Кликаем
+    // в герое: тот же стор, та же выдача ниже.
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Главный экран' })).getByRole('button', {
+        name: 'Тренеры',
+      }),
+    );
 
     expect(
       screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
@@ -137,7 +143,13 @@ describe('Home page', () => {
       ),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'По тренерам и направлениям' }));
+    // Переключателей два — в герое (38.67) и в рабочей части; стор один. Кликаем
+    // в герое: тот же стор, та же выдача ниже.
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Главный экран' })).getByRole('button', {
+        name: 'Тренеры',
+      }),
+    );
 
     expect(screen.getByTestId('popular-trainers-empty')).toBeInTheDocument();
     // Phase 28.12: новая копия empty-state TrainerAvailability — короче.
