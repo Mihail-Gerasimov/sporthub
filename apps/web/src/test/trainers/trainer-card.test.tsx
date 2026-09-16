@@ -141,6 +141,8 @@ describe('TrainerCard (38.74)', () => {
     const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
 
     expect(screen.getByText('Доступен сейчас')).toBeInTheDocument();
+    // Подложка чипа — 8% лайма, как в макете (аудит 38.112, п. 13).
+    expect(screen.getByText('Доступен сейчас').className).toContain('bg-lime/8');
     expect(screen.getByTestId('trainer-card')).toHaveAttribute('data-available', 'true');
 
     unmount();

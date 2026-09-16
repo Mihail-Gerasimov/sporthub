@@ -184,7 +184,7 @@ export function TrainerCard({
       </div>
 
       {available ? (
-        <span className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[6px] border border-lime/20 bg-lime/10 px-2.5 py-[3px] font-body text-[10px] font-bold text-lime-hov">
+        <span className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[6px] border border-lime/20 bg-lime/8 px-2.5 py-[3px] font-body text-[10px] font-bold text-lime-hov">
           <span aria-hidden="true" className="size-[5px] rounded-full bg-lime" />
           Доступен сейчас
         </span>

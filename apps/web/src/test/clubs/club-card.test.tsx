@@ -153,6 +153,12 @@ describe('ClubCard (38.73)', () => {
     expect(track.className).not.toContain('cursor-grab');
   });
 
+  it('чип категории — без лишней высоты строки: leading-none (аудит 38.112, п. 12)', () => {
+    render(<ClubCard club={baseClub} sports={sports} />);
+
+    expect(screen.getByText('Плавание').className).toContain('leading-none');
+  });
+
   it('категория — первый вид спорта клуба из справочника', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
 

@@ -317,7 +317,7 @@ export function CardSlider({
   // Empty state — нет карточек, показываем только заголовок и сообщение.
   if (total === 0) {
     return (
-      <section id={sliderId} className="space-y-6">
+      <section id={sliderId} className="flex flex-col gap-9">
         <header className="flex flex-col gap-2">
           <span className={EYEBROW_CLASS}>{eyebrow}</span>
           <h2 className="t-h2 text-ink">{title}</h2>
@@ -385,9 +385,9 @@ export function CardSlider({
   // Шапка — ОДНА разметка на все ширины (ревью 38.106: ветка по `isLgUp` из JS
   // прыгала при гидрации на lg): ниже lg — рубрика и заголовок, ниже ряд
   // «инструменты · стрелки»; с lg — в одну строку, инструменты и стрелки справа.
-  // Отступ до карточек — 36px (12 + 24), как в макете.
+  // Низ шапки выровнен по краю (`lg:items-end`, макет `flex-end`); отступ до карточек — `gap-9` секции.
   const renderHeader = () => (
-    <header className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
+    <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-5">
       <div className="flex min-w-0 flex-col gap-2">
         <span className={EYEBROW_CLASS}>{eyebrow}</span>
         <h2 className="t-h2 text-ink">{title}</h2>
@@ -400,7 +400,9 @@ export function CardSlider({
   );
 
   return (
-    <section id={sliderId} className="space-y-6">
+    // Шапка → карточки 36px (макет): `gap-9` на секции; `mb-3` у шапки проигрывал
+    // `space-y-6` родителя (аудит главной 38.112, п. 9). Точки — внутри блока ленты.
+    <section id={sliderId} className="flex flex-col gap-9">
       {renderHeader()}
 
       <div className="relative">
@@ -431,20 +433,20 @@ export function CardSlider({
             ))}
           </div>
         </div>
-      </div>
 
-      <div className={`mt-2 flex items-center justify-center gap-2 ${hideFromMd}`}>
-        {Array.from({ length: maxIdx + 1 }, (_, i) => (
-          <button
-            key={i}
-            type="button"
-            data-card-slider-dot
-            data-active={i === safeIdx ? 'true' : 'false'}
-            onClick={() => setIdx(i)}
-            aria-label={`Слайд ${i + 1}`}
-            className={`h-1 w-7 cursor-pointer rounded-full border-0 bg-line p-0 transition-[background,width] duration-200 data-[active=true]:w-10 ${dotActiveClass}`}
-          />
-        ))}
+        <div className={`mt-4 flex items-center justify-center gap-2 ${hideFromMd}`}>
+          {Array.from({ length: maxIdx + 1 }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              data-card-slider-dot
+              data-active={i === safeIdx ? 'true' : 'false'}
+              onClick={() => setIdx(i)}
+              aria-label={`Слайд ${i + 1}`}
+              className={`h-1 w-7 cursor-pointer rounded-full border-0 bg-line p-0 transition-[background,width] duration-200 data-[active=true]:w-10 ${dotActiveClass}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

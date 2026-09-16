@@ -145,6 +145,18 @@ describe('Главная — витринные карусели (38.79b)', () =
     const header = heading.closest('header') as HTMLElement;
 
     expect(heading.className).toContain('t-h2');
+    // Аудит 38.112 (п. 9–11): шапка → карточки 36 (`gap-9` секции, без `space-y`),
+    // низ шапки по краю, «Все тренеры» на холсте в белой секции, «Все клубы» — белая.
+    const slider = heading.closest('section') as HTMLElement;
+    expect(slider.className).toContain('gap-9');
+    expect(slider.className).not.toContain('space-y');
+    expect(header.className).toContain('lg:items-end');
+    expect(within(header).getByRole('link', { name: SHOWCASE.clubs.all }).className).toContain(
+      'bg-card',
+    );
+    expect(
+      within(section('trainers')).getByRole('link', { name: SHOWCASE.trainers.all }).className,
+    ).toContain('bg-bg');
     expect(within(clubs).getByText(SHOWCASE.clubs.eyebrow).className).toMatch(
       /text-\[10px\].*text-lime-hov|text-lime-hov.*text-\[10px\]/,
     );

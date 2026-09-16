@@ -117,7 +117,7 @@ export function ClubCard({
         <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             {category ? (
-              <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold text-ink">
+              <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold leading-none text-ink">
                 {category}
               </span>
             ) : null}
