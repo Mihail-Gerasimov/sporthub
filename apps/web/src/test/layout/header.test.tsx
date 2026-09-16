@@ -23,9 +23,10 @@ vi.mock('next/navigation', () => ({
 
 import { Header } from '@/components/layout/Header';
 import { catalogSectionHref } from '@/lib/catalog-sections';
-import { useFilterStore } from '@/stores/useFilterStore';
 import { HOME_SECTIONS } from '@/lib/home-sections';
+import { HEADER_NAV } from '@/lib/navigation';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
+import { useFilterStore } from '@/stores/useFilterStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 describe('Header', () => {
@@ -40,19 +41,15 @@ describe('Header', () => {
     vi.restoreAllMocks();
   });
 
-  it('в гостевом состоянии показывает кнопку входа', () => {
+  it('в гостевом состоянии показывает кнопку входа; колокольчика у гостя нет', () => {
     render(<Header />);
 
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
-    // Пункты — из словаря навигации: секции витрины адресом из словаря секций (38.89:
-    // «Подборки» врала), каталог — из словаря секций каталога (38.79c).
-    for (const key of ['steps', 'features'] as const) {
-      expect(screen.getByRole('link', { name: HOME_SECTIONS[key].label })).toHaveAttribute(
-        'href',
-        `/#${HOME_SECTIONS[key].id}`,
-      );
-    }
+    // Колокольчик у гостя из макета не рисуется — у гостя нет ящика (38.108, названо);
+    // вошедшему он есть — проверка ниже, иначе это «зелёное от пустоты».
+    expect(screen.queryByRole('button', { name: /^Уведомления/ })).not.toBeInTheDocument();
+    // Каталог — из словаря секций каталога (38.79c).
     expect(screen.getByRole('link', { name: 'Клубы' })).toHaveAttribute(
       'href',
       catalogSectionHref('results'),
@@ -61,6 +58,22 @@ describe('Header', () => {
       'href',
       catalogSectionHref('results'),
     );
+  });
+
+  // Шаг 38.108: шапка — ровно макет (`App.tsx` ~2778). Секции витрины «Как это работает»
+  // и «Возможности» из навигации ушли; «Мой Спорт» макета — позже, решением заказчика.
+  it('навигация — ровно пункты словаря: Клубы · Тренеры · Командные · Маркет, без секций витрины', () => {
+    render(<Header />);
+    const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
+    const links = [...nav.querySelectorAll('a')];
+    expect(links.map((a) => a.textContent)).toEqual(['Клубы', 'Тренеры', 'Командные', 'Маркет']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(HEADER_NAV.map((i) => i.href));
+    for (const key of ['steps', 'features'] as const) {
+      expect(
+        screen.queryByRole('link', { name: HOME_SECTIONS[key].label }),
+      ).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('Мой Спорт')).not.toBeInTheDocument();
   });
 
   it('«Тренеры» и «Клубы» переключают режим стора на клике — как чип сегмента (38.79c)', () => {
@@ -72,7 +85,7 @@ describe('Header', () => {
     expect(useFilterStore.getState().discoveryMode).toBe('clubs');
     // Пункт без режима стор не трогает.
     useFilterStore.setState({ discoveryMode: 'trainers' });
-    fireEvent.click(screen.getByRole('link', { name: HOME_SECTIONS.steps.label }));
+    fireEvent.click(screen.getByRole('link', { name: 'Командные' }));
     expect(useFilterStore.getState().discoveryMode).toBe('trainers');
   });
 
@@ -136,6 +149,8 @@ describe('Header', () => {
       '/profile/me',
     );
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+    // Колокольчик — только вошедшему (пара к гостевой проверке выше).
+    expect(screen.getByRole('button', { name: /^Уведомления/ })).toBeInTheDocument();
   });
 
   it('«Выйти» гасит сессию на сервере и возвращает гостевое состояние', async () => {

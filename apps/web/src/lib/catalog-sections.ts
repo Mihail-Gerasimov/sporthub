@@ -48,7 +48,7 @@ export const CATALOG_SECTION_KEYS = Object.keys(CATALOG_SECTIONS) as CatalogSect
 
 /**
  * Адрес страницы каталога — один на все ссылки. Наружу — через `catalogSectionHref`;
- * сам путь без якоря нужен пункту «Каталог» мобильного дока (38.79c).
+ * сам путь без якоря нужен вкладке «Клубы» мобильного дока (38.79c, 38.108).
  */
 export const CATALOG_PATH = '/catalog';
 

@@ -1,6 +1,9 @@
 /**
  * Подвал (шаг 38.61): тёмная плашка, логотип ссылкой на главную, ссылки из словаря
  * навигации, копирайт с именем площадки и годом из часов; блока «Статус» нет.
+ * Шаг 38.108: ссылки — тот же словарь, что шапка (Клубы · Тренеры · Командные · Маркет);
+ * «Лента» из подвала макета (`HomePage.tsx` ~899) не переносится — один словарь,
+ * а третья ссылка на «раздел в разработке» ничего бы не добавила (названо).
  */
 import { BRAND_NAME } from '@sporthub/domain';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -26,6 +29,17 @@ describe('Footer', () => {
     expect(links.map((a) => a.getAttribute('href'))).toEqual(FOOTER_NAV.map((i) => i.href));
     // Прежних целей в никуда — `#about`, `#contacts` — нет.
     expect(links.some((a) => /#about|#contacts/.test(a.getAttribute('href') ?? ''))).toBe(false);
+  });
+
+  it('подвал — ровно шапка макета: без «Ленты» и без секций витрины (38.108)', () => {
+    render(<Footer />);
+    const nav = screen.getByRole('navigation', { name: 'Навигация в подвале' });
+    expect([...nav.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
+      'Клубы',
+      'Тренеры',
+      'Командные',
+      'Маркет',
+    ]);
   });
 
   it('логотип ведёт на главную и стоит на тёмной плашке', () => {

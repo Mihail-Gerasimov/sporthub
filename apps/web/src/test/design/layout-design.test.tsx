@@ -50,9 +50,9 @@ describe('Минималистичный стиль layout-компоненто�
       expect(header.className).not.toContain('bg-plate');
       expect(screen.getByText(BRAND_WORDMARK.tail).className).toContain('text-ink');
       const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
-      // Пунктов ровно столько, сколько в словаре (38.79c: шесть — по макету).
+      // Пунктов ровно столько, сколько в словаре (38.108: четыре — ровно шапка макета).
       expect(nav.querySelectorAll('a')).toHaveLength(HEADER_NAV.length);
-      expect(HEADER_NAV).toHaveLength(6);
+      expect(HEADER_NAV).toHaveLength(4);
     });
   });
 

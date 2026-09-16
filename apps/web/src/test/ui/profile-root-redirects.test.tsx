@@ -41,6 +41,7 @@ vi.mock('@/lib/session', () => ({ requireSession: sessionMock }));
 import LegacyAthleteCabinetRoute from '@/app/profile/athlete/[[...rest]]/page';
 import LegacyFaceCabinetRoute from '@/app/profile/provider/[[...rest]]/page';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const params = (rest?: string[]) => Promise.resolve({ rest });
 
@@ -92,10 +93,14 @@ describe('Прежние адреса кабинета лица', () => {
 });
 
 describe('Нижняя навигация', () => {
-  it('«Профиль» ведёт сразу в личный кабинет, без прохода через прежний адрес', () => {
+  it('«Мой» вошедшему ведёт сразу в личный кабинет, без прохода через прежний адрес', () => {
+    // Гостю «Мой» — кнопка входа (38.108), ссылка в кабинет есть только у вошедшего.
+    useAuthStore.getState().login({
+      user: { name: 'Алексей Смирнов', email: 'alexey@sporthub.local' },
+    });
     const { container } = render(<MobileNav />);
     const profileLink = Array.from(container.querySelectorAll('a')).find(
-      (anchor) => anchor.textContent?.trim() === 'Профиль',
+      (anchor) => anchor.textContent?.trim() === 'Мой',
     );
 
     expect(profileLink).toBeDefined();

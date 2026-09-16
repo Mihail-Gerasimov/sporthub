@@ -1,17 +1,26 @@
 // Мобильный нижний док-навигатор (шаг 38.62) — по эталону: белая полоса по низу экрана
-// с четырьмя вкладками; активная — зелёная полоска сверху, иконка на мягкой зелёной
-// подложке, тёмно-зелёная подпись. Виден до md (768), выше навигация в шапке.
-// Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Каталог / Слоты), плюс
-// «Профиль», чей адрес зависит от сессии; здесь у пунктов только SVG-иконки.
-// Подсветка учитывает хэш на любой странице (38.79c): «Слоты» — якорь каталога;
-// пункт-страница активен на своём пути, пока хэш не забрал другой пункт.
+// с вкладками; активная — зелёная полоска сверху, иконка на мягкой зелёной подложке,
+// тёмно-зелёная подпись. Виден до md (768), выше навигация в шапке.
+//
+// Пункты — ровно `BOTTOM_TABS` макета (шаг 38.108, `App.tsx` ~2700): Главная / Клубы /
+// Лента / Маркет из словаря `lib/navigation.ts` (`MOBILE_NAV`: адрес, подпись и режим
+// там, иконка здесь) плюс «Мой»: гостю — кнопка входа (модалка, кабинета у гостя нет,
+// ссылка вела бы на увод на главную), вошедшему — ссылка в личный кабинет.
+// Пункт с режимом («Клубы») ставит режим стора на клике, как `NavLink` в шапке.
+//
+// Подсветка учитывает хэш на любой странице (38.79c): пункт-якорь — по паре «путь +
+// хэш», пункт-страница — на своём пути, пока пара не принадлежит другому пункту.
+// Адрес, который делят два пункта («Лента» и «Маркет» → «в разработке»), не подсвечивает
+// никого — какой из них выбран, по адресу не узнать; подсветить оба значило бы соврать.
 'use client';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { MOBILE_NAV } from '@/lib/navigation';
+import { MOBILE_NAV, type NavItem } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useFilterStore } from '@/stores/useFilterStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 import {
@@ -23,9 +32,12 @@ import {
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-type MobileNavItem = { href: string; label: string; matchPaths: string[]; glyph: ReactNode };
+type MobileNavItem = NavItem & { matchPaths: string[]; glyph: ReactNode };
 
-/** Иконки пунктов — по подписи из словаря навигации. */
+/** Подпись пункта кабинета — его адрес зависит от сессии, в словаре его нет. */
+const CABINET_LABEL = 'Мой';
+
+/** Иконки пунктов — по подписи из словаря навигации (дом, гантель, огонь, коробка). */
 const GLYPHS: Record<string, ReactNode> = {
   Главная: (
     <path
@@ -37,79 +49,43 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
-  Каталог: (
-    <>
-      <rect
-        x="4.5"
-        y="4.5"
-        width="6"
-        height="6"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <rect
-        x="13.5"
-        y="4.5"
-        width="6"
-        height="6"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <rect
-        x="4.5"
-        y="13.5"
-        width="6"
-        height="6"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <rect
-        x="13.5"
-        y="13.5"
-        width="6"
-        height="6"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-    </>
+  Клубы: (
+    <path
+      d="M6.5 8.5v7M17.5 8.5v7M3.5 10v4M20.5 10v4M6.5 12h11"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.7"
+    />
   ),
-  Слоты: (
-    <>
-      <rect
-        x="5"
-        y="4.5"
-        width="14"
-        height="15"
-        rx="2.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M8 8.5h8M8 12h8M8 15.5h5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.7"
-      />
-    </>
+  Лента: (
+    <path
+      d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.7"
+    />
+  ),
+  Маркет: (
+    <path
+      d="M4 8.5 12 4l8 4.5v9L12 22l-8-4.5v-9ZM4 8.5 12 13l8-4.5M12 13v9"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.7"
+    />
   ),
 };
 
 const mobileNavItems: ReadonlyArray<MobileNavItem> = [
-  // Главная, поиск и слоты — из словаря: адрес и подпись там, иконка здесь.
+  // Главная, клубы, лента и маркет — из словаря: адрес, подпись и режим там, иконка здесь.
   ...MOBILE_NAV.map((item) => ({ ...item, matchPaths: [item.href], glyph: GLYPHS[item.label] })),
   {
     href: cabinetSectionPath(PERSONAL_CABINET_PATH, DEFAULT_CABINET_SECTION),
-    label: 'Профиль',
+    label: CABINET_LABEL,
     // ⚠️ Шаг 35.31. Подсвечиваем по корню `/profile`, а не по двум прежним
     // адресам: кабинетов теперь столько, сколько у человека лиц, плюс личный,
     // и перечислять их здесь значило бы держать второй список адресов.
@@ -140,8 +116,8 @@ function splitTarget(target: string): { path: string; anchor: string } {
  * Активен ли пункт. Пункт-якорь — ровно по паре «путь + хэш». Пункт-страница —
  * по своему пути (главная — только точно, кабинет — по корню), если пара
  * «путь + хэш» не принадлежит другому пункту дока: на `/catalog#availability`
- * активны «Слоты», а не «Каталог»; на `/#steps` — «Главная», якорей главной
- * в доке нет.
+ * активны «Клубы» — якорей каталога в доке нет; на `/#steps` — «Главная».
+ * Цель, которую делят два пункта, не активна ни у одного: выбор по адресу неизвестен.
  */
 function isMobileNavItemActive(
   item: MobileNavItem,
@@ -155,7 +131,9 @@ function isMobileNavItemActive(
 
   return item.matchPaths.some((target) => {
     const { path, anchor } = splitTarget(target);
+    const shared = items.filter((other) => other.matchPaths.includes(target)).length > 1;
 
+    if (shared) return false;
     if (anchor !== '') return pathname === path && hash === anchor;
     if (claimedByOther) return false;
 
@@ -166,8 +144,11 @@ function isMobileNavItemActive(
 export function MobileNav() {
   const pathname = usePathname();
   const isHeaderMenuOpen = useUIStore((state) => state.isHeaderMenuOpen);
-  // Хэш не приходит из `usePathname` — читаем окно (шаг 38.62: пункты «Поиск»
-  // и «Слоты» — якоря главной, и подсветка без хэша была слепой).
+  const openAuthModal = useUIStore((state) => state.openAuthModal);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const setDiscoveryMode = useFilterStore((state) => state.setDiscoveryMode);
+  // Хэш не приходит из `usePathname` — читаем окно (шаг 38.62: пункты-якоря
+  // без хэша подсвечивались слепо).
   // ⚠️ `next/link` ведёт `/#discover` через `history.pushState`, а на него ни
   // `hashchange`, ни смена `pathname` не поднимаются — клик по самому доку оставлял
   // бы подсветку мёртвой (тупик № 10). Поэтому клик ставит хэш сам, «назад/вперёд»
@@ -198,18 +179,13 @@ export function MobileNav() {
     >
       {mobileNavItems.map((item) => {
         const isActive = isMobileNavItemActive(item, pathname, hash, mobileNavItems);
-
-        return (
-          <Link
-            key={item.label}
-            href={item.href}
-            onClick={() => setHash(splitTarget(item.href).anchor)}
-            aria-current={isActive ? 'page' : undefined}
-            className={cn(
-              'relative flex min-w-0 flex-1 flex-col items-center gap-[3px] px-1 pt-2.5 pb-1.5 text-center font-body text-[10px] no-underline transition-colors',
-              isActive ? 'font-bold text-lime-hov' : 'font-medium text-muted hover:text-lime-hov',
-            )}
-          >
+        // Один вид у ссылки и у кнопки: у кнопки сброшены рамка и заливка браузера.
+        const className = cn(
+          'relative flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-[3px] border-0 bg-transparent px-1 pt-2.5 pb-1.5 text-center font-body text-[10px] no-underline transition-colors',
+          isActive ? 'font-bold text-lime-hov' : 'font-medium text-muted hover:text-lime-hov',
+        );
+        const body = (
+          <>
             {/* Метка активного пункта — зелёная полоска сверху, как в эталоне */}
             {isActive ? (
               <span
@@ -228,6 +204,30 @@ export function MobileNav() {
               </svg>
             </span>
             <span className="truncate">{item.label}</span>
+          </>
+        );
+
+        // «Мой» гостю — вход: кабинета у гостя нет, ссылка вела бы на увод на главную.
+        if (item.label === CABINET_LABEL && !isAuthenticated) {
+          return (
+            <button key={item.label} type="button" onClick={openAuthModal} className={className}>
+              {body}
+            </button>
+          );
+        }
+
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            onClick={() => {
+              setHash(splitTarget(item.href).anchor);
+              if (item.mode !== undefined) setDiscoveryMode(item.mode);
+            }}
+            aria-current={isActive ? 'page' : undefined}
+            className={className}
+          >
+            {body}
           </Link>
         );
       })}

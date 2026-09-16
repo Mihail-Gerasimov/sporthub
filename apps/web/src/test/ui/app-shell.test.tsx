@@ -37,6 +37,7 @@ describe('AppShell', () => {
     for (const item of MOBILE_NAV) {
       expect(within(mobileNavigation).getByRole('link', { name: item.label })).toBeInTheDocument();
     }
-    expect(within(mobileNavigation).getByRole('link', { name: 'Профиль' })).toBeInTheDocument();
+    // «Мой» гостю — кнопка входа, не ссылка (38.108): кабинета у гостя нет.
+    expect(within(mobileNavigation).getByRole('button', { name: 'Мой' })).toBeInTheDocument();
   });
 });
