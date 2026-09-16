@@ -1,16 +1,21 @@
-// Тесты главной страницы.
+// Тесты главной — витрина и рабочая часть из словаря секций (фаза 38, шаг 38.76).
 //
 // Данные приходят настоящим клиентом с заготовленного стенда ответов
 // (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
 //
-// ⚠️ Фаза 38, шаг 38.25: случай «бейдж надёжности рисуется по числу из карточки»
-// переписан в обратный — механизма нет, и поле в ответе бейджа не возвращает
-// (реестр `phase-38-reliability-cut.md`, Т16). Шаг 38.76 перепишет набор целиком.
+// Что проверяется: страница собрана ИЗ СЛОВАРЯ — каждая запись отрисована своим
+// компонентом в своём порядке; тексты витрины — из `home-copy`, а не литералами
+// теста; рабочая часть переключается одним стором с героем; витрина не ходит
+// за записями; надёжности нет ни в каком виде; пустой каталог честен.
+//
+// ⚠️ Правка по ревью 38.66: герой — во всю ширину под шапкой, `main` не держит
+// ни полей, ни потолка; контейнер — у каждой секции свой.
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
-import { HERO } from '@/lib/home-copy';
+import { CTA, FEATURES, HERO, STEPS } from '@/lib/home-copy';
+import { HOME_SECTION_KEYS, HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs } from '@/test/helpers/fixture-routes';
@@ -23,10 +28,20 @@ vi.mock('next/navigation', () => ({
     prefetch: vi.fn(),
     back: vi.fn(),
   }),
+  usePathname: () => '/',
   notFound: () => {
     throw new Error('Not found');
   },
 }));
+
+/** Переключатель героя — один стор с рабочей частью; кликаем в герое. */
+function switchToTrainers() {
+  fireEvent.click(
+    within(screen.getByRole('region', { name: HOME_SECTIONS.hero.label })).getByRole('button', {
+      name: 'Тренеры',
+    }),
+  );
+}
 
 describe('Home page', () => {
   let stub: ApiStub;
@@ -44,41 +59,71 @@ describe('Home page', () => {
     stub?.restore();
   });
 
-  it('рендерит собранную главную с ключевыми секциями и переключает discovery mode', async () => {
+  it('рисует все секции словаря в его порядке, каждую — с id из записи', async () => {
     render(await Home());
 
-    // Шаг 38.66: главная рисуется из словаря секций — герой стал `HomeHero` (38.65),
-    // заголовок читается из `HERO`; 38.76 перепишет набор на новую витрину целиком.
+    const main = screen.getByRole('main');
+    const ids = [...main.querySelectorAll('section[id]')]
+      .filter((section) => section.parentElement?.closest('section') === null)
+      .map((section) => section.id);
+
+    expect(ids).toEqual(HOME_SECTION_KEYS.map((key) => HOME_SECTIONS[key].id));
+  });
+
+  it('витрина: заголовки героя, шагов, возможностей и призыва — из словаря текстов', async () => {
+    render(await Home());
+
     const h1 = screen.getByRole('heading', { level: 1 });
     expect(h1.textContent).toContain(HERO.titleAccent);
-    expect(
-      screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
-    ).toBeInTheDocument();
-    // Карта — секция с заголовком (без API-ключа → fallback провайдера)
+    expect(screen.getByRole('heading', { name: STEPS.title })).toBeInTheDocument();
+    for (const step of STEPS.items) {
+      expect(screen.getByRole('heading', { name: step.title })).toBeInTheDocument();
+    }
+    // H2 «возможностей» — в две строки блочными span'ами: сверяем по строкам словаря.
+    const featuresTitle = screen.getByRole('heading', { level: 2, name: /Всё, что нужно/ });
+    for (const line of FEATURES.titleLines) {
+      expect(featuresTitle.textContent).toContain(line);
+    }
+    expect(screen.getByRole('button', { name: CTA.primary })).toBeInTheDocument();
+  });
+
+  it('герой стоит во всю ширину: main без полей и потолка, контейнер — внутри героя', async () => {
+    render(await Home());
+
+    const main = screen.getByRole('main');
+    expect(main.className).not.toMatch(/\bmax-w-|\bpx-/);
+
+    const hero = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
+    expect(hero.closest('[class*="max-w-"]')).toBeNull();
+    expect(hero.querySelector('[class*="max-w-"]')).not.toBeNull();
+  });
+
+  it('рабочая часть переключается одним стором с героем: клубы → тренеры', async () => {
+    render(await Home());
+
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'MVP в разработке' })).not.toBeInTheDocument();
-
-    // Переключателей два — в герое (38.67) и в рабочей части; стор один. Кликаем
-    // в герое: тот же стор, та же выдача ниже.
-    fireEvent.click(
-      within(screen.getByRole('region', { name: 'Главный экран' })).getByRole('button', {
-        name: 'Тренеры',
-      }),
+    // Карточки выдачи — по одной на клуб стенда (популярное рисует их ещё раз — 38.79).
+    const catalog = document.getElementById(HOME_SECTIONS.catalog.id) as HTMLElement;
+    expect(within(catalog).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
+      fixtureClubs.length,
     );
 
-    expect(
-      screen.getByRole('heading', { name: 'Поиск по тренерам и направлениям' }),
-    ).toBeInTheDocument();
-    // Карта не меняется при переключении mode
+    switchToTrainers();
+
+    // Карта не меняется при переключении режима.
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Популярные тренеры' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Тренеры под текущие фильтры' }),
     ).toBeInTheDocument();
+    expect(screen.getAllByRole('article', { name: /^Карточка тренера: / }).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.queryByRole('article', { name: /^Карточка клуба: / })).not.toBeInTheDocument();
   });
 
   it('витрина не ходит за записями вовсе', async () => {
@@ -129,8 +174,7 @@ describe('Home page', () => {
 
     render(await Home());
 
-    // Счётчики каталога в герое — слот 38.69; прежние плашки «N в каталоге» ушли
-    // вместе со старым героем (38.66). Пустой каталог виден по лидерам и по выдаче.
+    // Пустой каталог виден по лидерам и по выдаче; счётчики героя — из сводки.
     expect(
       screen.getByText(
         'Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета провайдера.',
@@ -143,13 +187,7 @@ describe('Home page', () => {
       ),
     ).toBeInTheDocument();
 
-    // Переключателей два — в герое (38.67) и в рабочей части; стор один. Кликаем
-    // в герое: тот же стор, та же выдача ниже.
-    fireEvent.click(
-      within(screen.getByRole('region', { name: 'Главный экран' })).getByRole('button', {
-        name: 'Тренеры',
-      }),
-    );
+    switchToTrainers();
 
     expect(screen.getByTestId('popular-trainers-empty')).toBeInTheDocument();
     // Phase 28.12: новая копия empty-state TrainerAvailability — короче.

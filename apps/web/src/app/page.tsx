@@ -123,9 +123,11 @@ export default async function Home() {
     featuredTrainerTitle,
   };
 
+  // Ни полей, ни потолка у `main`: герой и призыв — во всю ширину, как в эталоне;
+  // контейнер — у каждой секции свой (`HomeContainer` у рабочей части и лидеров).
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[var(--ui-bg-deep)] px-3 py-6 sm:px-4 md:px-6 lg:px-10">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 lg:gap-10">
+    <main className="min-h-screen overflow-x-hidden bg-bg-deep">
+      <div className="flex flex-col gap-6 pb-10 lg:gap-10">
         {HOME_SECTION_KEYS.map((key) => {
           const Section = HOME_SECTION_COMPONENTS[key];
 

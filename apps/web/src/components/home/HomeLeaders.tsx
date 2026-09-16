@@ -5,8 +5,8 @@
 // у клуба, оранжевым у тренера. Лидеров считает база (`sort=rating&limit=1`),
 // секция только показывает. Ссылками карточки станут на шаге 38.92.
 
-import { formatPrice } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import { HomeContainer } from '@/components/home/HomeContainer';
+import { cn, formatPrice } from '@/lib/utils';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 import { HOME_SECTIONS } from '@/lib/home-sections';
@@ -144,39 +144,38 @@ export function HomeLeaders({ data }: HomeSectionProps) {
   const isCatalogEmpty = featuredClub === undefined && featuredTrainer === undefined;
 
   return (
-    <section
-      id={HOME_SECTIONS.leaders.id}
-      aria-label={HOME_SECTIONS.leaders.label}
-      className="flex flex-col gap-6"
-    >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-        <LeaderCard
-          tone="lime"
-          kind="Клуб"
-          leader={
-            featuredClub
-              ? { ...featuredClub, description: featuredClub.shortDescription }
-              : undefined
-          }
-          emptyText="Клубы появятся после первой публикации из кабинета провайдера."
-        />
-        <LeaderCard
-          tone="orange"
-          kind="Тренер"
-          leader={
-            featuredTrainer
-              ? { ...featuredTrainer, description: featuredTrainerTitle ?? '' }
-              : undefined
-          }
-          emptyText="Тренеры появятся после первой публикации и первых доступных услуг."
-        />
-      </div>
+    <section id={HOME_SECTIONS.leaders.id} aria-label={HOME_SECTIONS.leaders.label}>
+      <HomeContainer className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+          <LeaderCard
+            tone="lime"
+            kind="Клуб"
+            leader={
+              featuredClub
+                ? { ...featuredClub, description: featuredClub.shortDescription }
+                : undefined
+            }
+            emptyText="Клубы появятся после первой публикации из кабинета провайдера."
+          />
+          <LeaderCard
+            tone="orange"
+            kind="Тренер"
+            leader={
+              featuredTrainer
+                ? { ...featuredTrainer, description: featuredTrainerTitle ?? '' }
+                : undefined
+            }
+            emptyText="Тренеры появятся после первой публикации и первых доступных услуг."
+          />
+        </div>
 
-      {isCatalogEmpty ? (
-        <p className="m-0 rounded-[18px] border border-dashed border-[var(--ui-line)] bg-[var(--ui-card)]/60 px-5 py-4 font-body text-[14px] leading-relaxed text-[var(--ui-muted)]">
-          Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета провайдера.
-        </p>
-      ) : null}
+        {isCatalogEmpty ? (
+          <p className="m-0 rounded-[18px] border border-dashed border-[var(--ui-line)] bg-[var(--ui-card)]/60 px-5 py-4 font-body text-[14px] leading-relaxed text-[var(--ui-muted)]">
+            Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета
+            провайдера.
+          </p>
+        ) : null}
+      </HomeContainer>
     </section>
   );
 }

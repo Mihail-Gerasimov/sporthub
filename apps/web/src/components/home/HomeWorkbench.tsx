@@ -8,6 +8,7 @@
 // `#availability` три ссылки вели в пустоту (тупик разведки, № 39).
 
 import { PopularNearby } from '@/components/clubs';
+import { HomeContainer } from '@/components/home/HomeContainer';
 import { MapSection } from '@/components/map';
 import { UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
@@ -17,27 +18,35 @@ import { HOME_SECTIONS } from '@/lib/home-sections';
 
 export function HomeDiscover({ data }: HomeSectionProps) {
   return (
-    <SearchControlsPreview
-      clubCount={data.clubs.length}
-      sports={data.sports}
-      trainerCount={data.trainerDirectory.length}
-    />
+    <HomeContainer>
+      <SearchControlsPreview
+        clubCount={data.clubs.length}
+        sports={data.sports}
+        trainerCount={data.trainerDirectory.length}
+      />
+    </HomeContainer>
   );
 }
 
 export function HomeResults({ data }: HomeSectionProps) {
-  return <MapSection clubs={data.clubs} sports={data.sports} trainers={data.trainerDirectory} />;
+  return (
+    <HomeContainer>
+      <MapSection clubs={data.clubs} sports={data.sports} trainers={data.trainerDirectory} />
+    </HomeContainer>
+  );
 }
 
 export function HomeCatalog({ data }: HomeSectionProps) {
   return (
     <section id={HOME_SECTIONS.catalog.id} aria-label={HOME_SECTIONS.catalog.label}>
-      <CatalogResultsSection
-        clubs={data.clubs}
-        sports={data.sports}
-        tags={data.tags}
-        trainers={data.trainerDirectory}
-      />
+      <HomeContainer>
+        <CatalogResultsSection
+          clubs={data.clubs}
+          sports={data.sports}
+          tags={data.tags}
+          trainers={data.trainerDirectory}
+        />
+      </HomeContainer>
     </section>
   );
 }
@@ -45,16 +54,20 @@ export function HomeCatalog({ data }: HomeSectionProps) {
 export function HomePopular({ data }: HomeSectionProps) {
   return (
     <section id={HOME_SECTIONS.popular.id} aria-label={HOME_SECTIONS.popular.label}>
-      <PopularNearby
-        clubs={data.clubs}
-        sports={data.sports}
-        tags={data.tags}
-        trainers={data.trainerDirectory}
-      />
+      <HomeContainer>
+        <PopularNearby
+          clubs={data.clubs}
+          sports={data.sports}
+          tags={data.tags}
+          trainers={data.trainerDirectory}
+        />
+      </HomeContainer>
     </section>
   );
 }
 
+// ⚠️ Слоты (38.81) переезжают к Бэкенду в свой файл вместе с клиентским отбором
+// по стору; контейнер `HomeContainer` — вместе с переездом. Здесь не трогать.
 export function HomeAvailability({ data }: HomeSectionProps) {
   return (
     <section id={HOME_SECTIONS.availability.id} aria-label={HOME_SECTIONS.availability.label}>
