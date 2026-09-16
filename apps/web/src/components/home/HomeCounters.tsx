@@ -94,22 +94,26 @@ function useCountUp(target: number, start: boolean): number {
   return reduced ? target : value;
 }
 
-/** Одно число с подписью. `tabular-nums` — цифры не «прыгают» по ширине при счёте. */
+/**
+ * Одно число с подписью — пара «термин → определение» списка `dl`: диктор читает
+ * «Клубов — 52». Бегущее число скрыто от него (`aria-hidden`), конечное — в `sr-only`:
+ * иначе незрячий слышал бы либо каждый кадр счёта, либо ничего (ревью 38.69: `aria-label`
+ * на абзаце запрещён ARIA 1.2 и пропускается). Визуально число над подписью —
+ * `flex-col-reverse`, порядок в разметке остаётся «подпись, число».
+ * `tabular-nums` — цифры не «прыгают» по ширине при счёте.
+ */
 function Counter({ label, target, start }: { label: string; target: number; start: boolean }) {
   const value = useCountUp(target, start);
 
   return (
-    <div className="min-w-0">
-      {/* Подпись — в доступном имени: диктор читает «Клубов: 52», а не голое число. */}
-      <p
-        className="m-0 font-display text-[22px] font-black leading-none text-lime tabular-nums"
-        aria-label={`${label}: ${target.toLocaleString('ru-RU')}`}
-      >
-        <span aria-hidden="true">{value.toLocaleString('ru-RU')}</span>
-      </p>
-      <p className="m-0 mt-1 font-body text-[10px] font-semibold uppercase tracking-[0.07em] text-plate-muted">
+    <div className="flex min-w-0 flex-col-reverse">
+      <dt className="mt-1 font-body text-[10px] font-semibold uppercase tracking-[0.07em] text-plate-muted">
         {label}
-      </p>
+      </dt>
+      <dd className="m-0 font-display text-[22px] font-black leading-none text-lime tabular-nums">
+        <span aria-hidden="true">{value.toLocaleString('ru-RU')}</span>
+        <span className="sr-only">{target.toLocaleString('ru-RU')}</span>
+      </dd>
     </div>
   );
 }
@@ -119,7 +123,7 @@ type HomeCountersProps = {
 };
 
 export function HomeCounters({ overview }: HomeCountersProps) {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDListElement>(null);
   // Нет наблюдателя пересечений — нет и ожидания: стартуем сразу. Разметка от этого
   // не зависит (число до первого кадра — ноль в обоих случаях), гидрация цела.
   const [inView, setInView] = useState(() => typeof IntersectionObserver === 'undefined');
@@ -146,10 +150,10 @@ export function HomeCounters({ overview }: HomeCountersProps) {
   }, []);
 
   return (
-    <div ref={rootRef} className="flex flex-wrap gap-7" role="group" aria-label="Площадка в числах">
+    <dl ref={rootRef} className="m-0 flex flex-wrap gap-7" aria-label="Площадка в числах">
       {COUNTER_KEYS.map((key) => (
         <Counter key={key} label={COUNTER_LABELS[key]} target={overview[key]} start={inView} />
       ))}
-    </div>
+    </dl>
   );
 }

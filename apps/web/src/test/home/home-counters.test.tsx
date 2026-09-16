@@ -6,13 +6,38 @@
 // Вторая половина — анимация: считает до конечного числа, при
 // `prefers-reduced-motion` показывает конечное сразу, стартует один раз по появлению.
 
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HomeCounters } from '@/components/home/HomeCounters';
 import { setMediaQueryMatches } from '@/test/setup';
 
 const OVERVIEW = { athletes: 12345, trainers: 340, clubs: 52, reviews: 4987 };
+
+/** Как число пишет компонент: разряды через узкий неразрывный пробел `ru-RU`. */
+const fmt = (value: number) => value.toLocaleString('ru-RU');
+
+/**
+ * Определение (`dd`) к термину (`dt`) по подписи: «Клубов» → его число.
+ * Разметка — пара в общем блоке, определение идёт за термином.
+ */
+function definitionOf(label: string): HTMLElement {
+  // Роль `term` имени от содержимого не берёт — ищем термин по тексту.
+  const term = screen.getByText(label, { selector: 'dt' });
+  const definition = term.parentElement?.querySelector('dd');
+
+  if (!definition) throw new Error(`у термина «${label}» нет определения`);
+
+  return definition;
+}
+
+/** Что слышит диктор: конечное число в `sr-only`, бегущее скрыто. */
+const spokenNumber = (label: string) =>
+  within(definitionOf(label)).getByText(/./, { selector: '.sr-only' }).textContent;
+
+/** Что видно на экране: бегущее число. */
+const shownNumber = (label: string) =>
+  definitionOf(label).querySelector('[aria-hidden="true"]')?.textContent;
 
 /** Наблюдатель, который «видит» блок сразу: в jsdom пересечений нет. */
 function installIntersectingObserver(): { disconnects: number } {
@@ -51,17 +76,37 @@ describe('HomeCounters', () => {
     setMediaQueryMatches({});
   });
 
-  it('числа берутся ИЗ ОТВЕТА, а не из длины массива, и подписаны для диктора', () => {
+  it('числа берутся ИЗ ОТВЕТА, а не из длины массива; диктору — подпись и конечное число', () => {
     installIntersectingObserver();
     setMediaQueryMatches({ '(prefers-reduced-motion: reduce)': true });
 
     render(<HomeCounters overview={OVERVIEW} />);
 
-    // Доступное имя связывает подпись и число: «Спортсменов: 12 345».
-    expect(screen.getByLabelText('Спортсменов: 12 345')).toBeInTheDocument();
-    expect(screen.getByLabelText('Тренеров: 340')).toBeInTheDocument();
-    expect(screen.getByLabelText('Клубов: 52')).toBeInTheDocument();
-    expect(screen.getByLabelText('Отзывов: 4 987')).toBeInTheDocument();
+    // Пары «термин → определение»: подписи — из словаря, числа — из ответа.
+    expect(screen.getAllByRole('term').map((term) => term.textContent)).toEqual([
+      'Спортсменов',
+      'Тренеров',
+      'Клубов',
+      'Отзывов',
+    ]);
+    expect(spokenNumber('Спортсменов')).toBe(fmt(12345));
+    expect(spokenNumber('Тренеров')).toBe('340');
+    expect(spokenNumber('Клубов')).toBe('52');
+    expect(spokenNumber('Отзывов')).toBe(fmt(4987));
+  });
+
+  it('бегущее число скрыто от диктора, конечное — только для него', () => {
+    installIntersectingObserver();
+
+    render(<HomeCounters overview={OVERVIEW} />);
+
+    const definition = definitionOf('Отзывов');
+    const [running, spoken] = [...definition.querySelectorAll('span')];
+
+    // Кадры счёта диктор не слышит — иначе читал бы каждый; конечное число он слышит всегда.
+    expect(running).toHaveAttribute('aria-hidden', 'true');
+    expect(spoken.className).toContain('sr-only');
+    expect(spoken.textContent).toBe(fmt(4987));
   });
 
   it('при prefers-reduced-motion конечное число показано сразу, без счёта', () => {
@@ -70,9 +115,9 @@ describe('HomeCounters', () => {
 
     render(<HomeCounters overview={OVERVIEW} />);
 
-    // Ни одного кадра не прошло — а число уже конечное.
-    expect(screen.getByLabelText('Клубов: 52')).toHaveTextContent('52');
-    expect(screen.getByLabelText('Отзывов: 4 987')).toHaveTextContent('4 987');
+    // Ни одного кадра не прошло — а на экране уже конечное.
+    expect(shownNumber('Клубов')).toBe('52');
+    expect(shownNumber('Отзывов')).toBe(fmt(4987));
   });
 
   it('с анимацией число растёт от нуля и доходит ровно до конечного', () => {
@@ -80,16 +125,14 @@ describe('HomeCounters', () => {
 
     render(<HomeCounters overview={OVERVIEW} />);
 
-    const reviews = screen.getByLabelText('Отзывов: 4 987');
-
     // До первого кадра — ноль: счёт начинается с нуля, как в эталоне.
-    expect(reviews).toHaveTextContent('0');
+    expect(shownNumber('Отзывов')).toBe('0');
 
     // Половина пути — число уже не ноль и ещё не конечное.
     act(() => {
       vi.advanceTimersByTime(450);
     });
-    const midway = Number(reviews.textContent?.replace(/\D/g, ''));
+    const midway = Number(shownNumber('Отзывов')?.replace(/\D/g, ''));
 
     expect(midway).toBeGreaterThan(0);
     expect(midway).toBeLessThan(4987);
@@ -98,8 +141,8 @@ describe('HomeCounters', () => {
     act(() => {
       vi.advanceTimersByTime(1500);
     });
-    expect(reviews).toHaveTextContent('4 987');
-    expect(screen.getByLabelText('Клубов: 52')).toHaveTextContent('52');
+    expect(shownNumber('Отзывов')).toBe(fmt(4987));
+    expect(shownNumber('Клубов')).toBe('52');
   });
 
   it('счёт стартует по появлению в поле зрения и наблюдатель отключается после первого раза', () => {
@@ -119,6 +162,6 @@ describe('HomeCounters', () => {
 
     render(<HomeCounters overview={OVERVIEW} />);
 
-    expect(screen.getByLabelText('Клубов: 52')).toHaveTextContent('52');
+    expect(shownNumber('Клубов')).toBe('52');
   });
 });

@@ -116,6 +116,81 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
   return offenders;
 }
 
+/**
+ * Стоит ли тег `<Name` в тексте файла на плашке: ребёнком элемента с `bg-plate`
+ * (по тому же стеку предков) или значением пропса у компонента-плашки —
+ * `<HomeHero counters={<HomeCounters />} />`, где `isPlate('HomeHero')` — в файле
+ * героя корень на `bg-plate`. Обратная половина записи в `RENDERED_ON_PLATE`
+ * (ревью 38.69): запись — заявление, и без этой проверки она держалась бы на слове.
+ */
+export function standsOnPlate(text: string, name: string, isPlate: (host: string) => boolean) {
+  const body = stripComments(text);
+  const tagPattern = new RegExp(`<${name}(?![\\w$])`, 'g');
+
+  for (const usage of body.matchAll(tagPattern)) {
+    const at = usage.index;
+
+    // Пропс компонента-плашки: от `<Host` до его `>` на нулевой глубине скобок
+    // тег `<Name` ещё внутри атрибутов.
+    for (const host of body.slice(0, at).matchAll(/<([A-Z][\w.]*)(?![\w$])/g)) {
+      if (!isPlate(host[1])) continue;
+
+      let depth = 0;
+      let cursor = host.index + host[0].length;
+
+      while (cursor < body.length) {
+        const char = body[cursor];
+
+        if (char === '{') depth += 1;
+        else if (char === '}') depth -= 1;
+        else if (char === '>' && depth === 0) break;
+        cursor += 1;
+      }
+
+      if (cursor > at) return true;
+    }
+
+    // Ребёнок элемента с `bg-plate` — стек предков по тегам до места употребления.
+    const stack: boolean[] = [];
+    let plateDepth = 0;
+
+    for (const match of body.slice(0, at).matchAll(/<\/?[A-Za-z][\w.]*(?:\s[^<>]*?)?\/?>/g)) {
+      const tag = match[0];
+
+      if (tag.startsWith('</')) {
+        if (stack.pop()) plateDepth -= 1;
+        continue;
+      }
+
+      if (tag.endsWith('/>')) continue;
+
+      const selfPlate = PLATE.test(classesOf(tag));
+
+      stack.push(selfPlate);
+      if (selfPlate) plateDepth += 1;
+    }
+
+    if (plateDepth > 0) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Компонент — плашка, если его КОРЕНЬ стоит на `bg-plate`/`bg-lime`: первый тег
+ * файла с `className`. Не «где-то в файле есть `bg-lime`»: у героя лаймовый бейдж
+ * внутри, у карточки — тоже, и по нему карточка стала бы плашкой.
+ */
+export function isPlateComponent(text: string): boolean {
+  for (const match of stripComments(text).matchAll(/<[A-Za-z][\w.]*(?:\s[^<>]*?)?\/?>/g)) {
+    const classes = classesOf(match[0]);
+
+    if (classes !== '') return PLATE.test(classes);
+  }
+
+  return false;
+}
+
 /** Обход `.tsx` фронта; тесты не в счёт. */
 async function collectSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -172,6 +247,70 @@ describe('Сторож: зелёный текст только на плашке
     }
 
     expect(stale, stale.join('\n')).toEqual([]);
+  });
+
+  it('каждая запись RENDERED_ON_PLATE подтверждена: её тег стоит на плашке в другом файле', async () => {
+    const files = await collectSources(path.join(WEB_ROOT, 'src'));
+    const texts = new Map<string, string>();
+
+    for (const file of files) texts.set(file, await readFile(path.join(WEB_ROOT, file), 'utf8'));
+
+    // Компонент — плашка по корню своего файла (файл — по имени тега).
+    const isPlate = (host: string) => {
+      const file = files.find((candidate) => candidate.endsWith(`/${host}.tsx`));
+
+      return file !== undefined && isPlateComponent(texts.get(file) ?? '');
+    };
+    const unproven: string[] = [];
+
+    for (const entry of RENDERED_ON_PLATE) {
+      const name = path.basename(entry, '.tsx');
+      const proven = files.some(
+        (file) => file !== entry && standsOnPlate(texts.get(file) ?? '', name, isPlate),
+      );
+
+      if (!proven) unproven.push(`${entry}: ни один файл не рисует <${name}> на bg-plate`);
+    }
+
+    expect(unproven, unproven.join('\n')).toEqual([]);
+  });
+
+  it('обратная проверка видит плашку и не видит её на подставном тексте', () => {
+    const isPlate = (host: string) => host === 'HomeHero';
+
+    // Пропс компонента-плашки — да; пропс обычного компонента — нет.
+    expect(standsOnPlate('<HomeHero counters={<HomeCounters />} />', 'HomeCounters', isPlate)).toBe(
+      true,
+    );
+    expect(standsOnPlate('<Card counters={<HomeCounters />} />', 'HomeCounters', isPlate)).toBe(
+      false,
+    );
+    // Ребёнок элемента на `bg-plate` — да; закрытая плашка выше — нет.
+    expect(
+      standsOnPlate('<div className="bg-plate"><HomeCounters /></div>', 'HomeCounters', isPlate),
+    ).toBe(true);
+    expect(
+      standsOnPlate(
+        '<div className="bg-plate">x</div>\n<div><HomeCounters /></div>',
+        'HomeCounters',
+        isPlate,
+      ),
+    ).toBe(false);
+    // Пропс плашки закрылся до тега — нет; упоминание в импорте — не тег.
+    expect(standsOnPlate('<HomeHero /> <HomeCounters />', 'HomeCounters', isPlate)).toBe(false);
+    expect(standsOnPlate("import { HomeCounters } from './x';", 'HomeCounters', isPlate)).toBe(
+      false,
+    );
+    // Плашка — по корню файла: бейдж `bg-lime` внутри карточки плашкой её не делает.
+    expect(
+      isPlateComponent(
+        '<section className="bg-plate"><span className="bg-lime">x</span></section>',
+      ),
+    ).toBe(true);
+    expect(
+      isPlateComponent('<article className="bg-card"><span className="bg-lime">x</span></article>'),
+    ).toBe(false);
+    expect(isPlateComponent('<Fragment><p className="text-ink">x</p></Fragment>')).toBe(false);
   });
 
   it('сторож обходит настоящие файлы, а не пустоту', async () => {
