@@ -1,12 +1,13 @@
 'use client';
 
-// Секция «Поиск и фильтры» главной (38.66; живой счёт выдачи — 38.82).
+// Секция «Поиск и фильтры» каталога (38.66 на главной; живой счёт выдачи — 38.82;
+// на `/catalog` — 38.79a).
 //
 // Клиентская: бейдж «N клубов в выдаче» считается по ТЕМ ЖЕ фильтрам и тому же
 // стору, что у выдачи, карты и подборки (`filterClubs` / `filterTrainers`). Прежде
 // секция была серверной и передавала длину всего каталога — при пустой выдаче
 // бейдж говорил «3 клуба в выдаче» (ревью 38.66, чек-лист step-16). Отбор в памяти —
-// действующее ограничение до страницы каталога (долг Д-15).
+// действующее ограничение до страницы каталога в запросе (долг Д-15).
 
 import { filterClubs } from '@/components/clubs/filterClubs';
 import { HomeContainer } from '@/components/home/HomeContainer';
@@ -14,9 +15,9 @@ import { SearchControlsPreview } from '@/components/search';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { useFilterStore } from '@/stores/useFilterStore';
 
-import type { HomeSectionProps } from '@/components/home/home-data';
+import type { CatalogSectionProps } from '@/components/catalog/catalog-data';
 
-export function HomeDiscover({ data }: HomeSectionProps) {
+export function CatalogDiscover({ data }: CatalogSectionProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
   const selectedCity = useFilterStore((state) => state.selectedCity);

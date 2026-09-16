@@ -17,7 +17,7 @@ vi.mock('next/navigation', () => ({
 
 import { HeroSearch } from '@/components/home/HeroSearch';
 import { SEARCH } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 const sports = [
@@ -80,7 +80,7 @@ describe('HeroSearch', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'бассейн' } });
     fireEvent.click(screen.getByRole('button', { name: SEARCH.button }));
 
-    expect(push).toHaveBeenCalledWith(homeSectionHref('results'));
+    expect(push).toHaveBeenCalledWith(catalogSectionHref('results'));
     // ⚠️ В дизайне запрос терялся: строка подменялась подписью категории.
     expect(useFilterStore.getState().searchQuery).toBe('бассейн');
   });
@@ -93,7 +93,7 @@ describe('HeroSearch', () => {
     fireEvent.change(input, { target: { value: 'бокс' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(push).toHaveBeenCalledWith(homeSectionHref('results'));
+    expect(push).toHaveBeenCalledWith(catalogSectionHref('results'));
   });
 
   // Правка по ревью 38.67: выпадашка закрывается не только по Escape и выбору.

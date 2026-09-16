@@ -11,6 +11,7 @@ import { useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SearchSuggest } from '@/components/home/SearchSuggest';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 const push = vi.fn();
@@ -117,7 +118,7 @@ describe('SearchSuggest', () => {
     ).toEqual(['🏊Плавание7', '🥊Бокс4']);
   });
 
-  it('клик по виду применяет фильтр в сторе тем же путём, что чипы, и ведёт к #results', async () => {
+  it('клик по виду применяет фильтр в сторе тем же путём, что чипы, и ведёт к выдаче каталога', async () => {
     render(<Harness />);
     await flush();
 
@@ -126,7 +127,7 @@ describe('SearchSuggest', () => {
     fireEvent.click(within(categories).getByRole('option', { name: /бокс/i }));
 
     expect(useFilterStore.getState().selectedSportId).toBe(2);
-    expect(push).toHaveBeenCalledWith('/#results');
+    expect(push).toHaveBeenCalledWith(catalogSectionHref('results'));
     // Выпадашка закрылась.
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
@@ -183,7 +184,7 @@ describe('SearchSuggest', () => {
     // Enter на пункте — выбор: последний пункт — популярный «Бокс».
     fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Enter' });
     expect(useFilterStore.getState().selectedSportId).toBe(2);
-    expect(push).toHaveBeenCalledWith('/#results');
+    expect(push).toHaveBeenCalledWith(catalogSectionHref('results'));
   });
 
   it('Escape из списка закрывает выпадашку и возвращает фокус в поле — не открывая заново', async () => {

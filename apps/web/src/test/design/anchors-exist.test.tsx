@@ -22,6 +22,11 @@
 // скроллил на КАРТУ (реестр № 6), а пункт «Подборки» — на форму поиска (№ 5): цель
 // существовала, но врала подпись. Теперь `#results` держит карточки выдачи, у карты
 // свой якорь, а подпись секции в разметке равна подписи её записи в словаре.
+//
+// ⚠️ Две страницы (38.79a): главная со словарём `HOME_SECTIONS` и каталог `/catalog`
+// со словарём `CATALOG_SECTIONS` — каждая рендерится в каркасе, каждая сверяется
+// со СВОИМ словарём. Якорь-ссылка на другую страницу (`/catalog#results` с главной)
+// проверяется по словарю той страницы: цель обязана существовать там.
 
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,8 +39,10 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
+import CatalogPage from '@/app/catalog/page';
 import Home from '@/app/page';
 import { AppShell } from '@/components/layout/AppShell';
+import { CATALOG_SECTIONS, catalogSectionHref } from '@/lib/catalog-sections';
 import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
@@ -43,11 +50,34 @@ import { createFixtureRoutes } from '@/test/helpers/fixture-routes';
 
 const MODES = ['clubs', 'trainers'] as const;
 
-/** Якорная часть адреса: `#results` и `/#results` — одна и та же цель. */
-function anchorOf(href: string): string | null {
-  const match = /^\/?#(.+)$/.exec(href);
+type SectionEntry = { id: string; label: string };
 
-  return match === null ? null : match[1];
+/** Страницы со словарём секций: что рендерить и с чем сверять. */
+const PAGES = [
+  {
+    name: 'главная',
+    path: '/',
+    render: Home,
+    dictionary: HOME_SECTIONS as Record<string, SectionEntry>,
+  },
+  {
+    name: 'каталог',
+    path: catalogSectionHref('results').split('#')[0],
+    render: CatalogPage,
+    dictionary: CATALOG_SECTIONS as Record<string, SectionEntry>,
+  },
+] as const;
+
+/** Якорная часть адреса и страница: `#results`, `/#results`, `/catalog#results`. */
+function anchorOf(href: string): { path: string; id: string } | null {
+  const match = /^(\/[^#?]*)?#(.+)$/.exec(href);
+
+  return match === null ? null : { path: match[1] ?? '', id: match[2] };
+}
+
+/** Словарь страницы по её адресу: `''` и `/` — главная. */
+function dictionaryFor(path: string): Record<string, SectionEntry> | undefined {
+  return PAGES.find((page) => page.path === (path === '' ? '/' : path))?.dictionary;
 }
 
 /** Секции верхнего уровня внутри `main`: без вложенных в другую секцию. */
@@ -61,10 +91,105 @@ function topLevelSections(): HTMLElement[] {
   );
 }
 
-const DICTIONARY_IDS: string[] = Object.values(HOME_SECTIONS).map((section) => section.id);
+for (const page of PAGES) {
+  const dictionaryIds: string[] = Object.values(page.dictionary).map((section) => section.id);
+
+  for (const mode of MODES) {
+    describe(`Якоря и секции: ${page.name} — режим «${mode}»`, () => {
+      let stub: ApiStub;
+
+      beforeEach(() => {
+        stub = installApiStub(createFixtureRoutes());
+        useFilterStore.setState({ discoveryMode: mode, searchQuery: '', selectedSportId: null });
+      });
+
+      afterEach(() => {
+        stub?.restore();
+      });
+
+      it('каждая ссылка-якорь в каркасе и на странице ведёт на существующий элемент', async () => {
+        render(<AppShell>{await page.render()}</AppShell>);
+
+        const anchors = [...document.querySelectorAll<HTMLAnchorElement>('a[href]')]
+          .map((link) => link.getAttribute('href') ?? '')
+          .map(anchorOf)
+          .filter((anchor): anchor is { path: string; id: string } => anchor !== null);
+
+        // Сторож самого теста: без якорей «все ведут куда надо» означало бы «ссылок
+        // не нашлось» — ложная зелень, на которой проект уже горел.
+        expect(anchors.length).toBeGreaterThan(0);
+
+        // Якорь на этой же странице — по разметке; на другую — по её словарю секций.
+        const dead = [...new Set(anchors.map((anchor) => `${anchor.path}#${anchor.id}`))].filter(
+          (href) => {
+            const anchor = anchorOf(href) as { path: string; id: string };
+            const samePage = anchor.path === '' || anchor.path === page.path;
+
+            if (samePage) return document.getElementById(anchor.id) === null;
+
+            const target = dictionaryFor(anchor.path);
+
+            return (
+              target === undefined ||
+              !Object.values(target).some((section) => section.id === anchor.id)
+            );
+          },
+        );
+
+        expect(dead, `якоря без цели: ${dead.join(', ')}`).toEqual([]);
+      });
+
+      it('каждая секция словаря отрисована, и ни один её id не встречается дважды', async () => {
+        render(<AppShell>{await page.render()}</AppShell>);
+
+        const missing = dictionaryIds.filter((id) => document.getElementById(id) === null);
+
+        expect(missing, `секции словаря без разметки: ${missing.join(', ')}`).toEqual([]);
+
+        const duplicates = dictionaryIds.filter(
+          (id) => document.querySelectorAll(`[id="${id}"]`).length > 1,
+        );
+
+        expect(duplicates, `id встречается дважды: ${duplicates.join(', ')}`).toEqual([]);
+      });
+
+      it('каждая секция верхнего уровня внутри main объявлена в словаре', async () => {
+        render(<AppShell>{await page.render()}</AppShell>);
+
+        const sections = topLevelSections();
+
+        expect(sections.length).toBeGreaterThan(0);
+
+        const stray = sections
+          .map((section) => section.id)
+          .filter((id) => !dictionaryIds.includes(id));
+
+        expect(stray, `секции мимо словаря: ${stray.join(', ')}`).toEqual([]);
+      });
+
+      it('подпись секции в разметке равна подписи её записи в словаре', async () => {
+        render(<AppShell>{await page.render()}</AppShell>);
+
+        // Пункт меню подписан из словаря — секция обязана называться так же (диверсия:
+        // литерал «Подборки» в aria-label формы поиска).
+        const lying = topLevelSections()
+          .filter((section) => section.hasAttribute('aria-label'))
+          .map((section) => ({
+            id: section.id,
+            label: section.getAttribute('aria-label'),
+            expected: Object.values(page.dictionary).find((entry) => entry.id === section.id)
+              ?.label,
+          }))
+          .filter((entry) => entry.label !== entry.expected);
+
+        expect(lying, `подпись врёт: ${JSON.stringify(lying)}`).toEqual([]);
+      });
+    });
+  }
+}
 
 for (const mode of MODES) {
-  describe(`Якоря и секции главной — режим «${mode}»`, () => {
+  describe(`Каталог: «Выдача» — карточки, а не карта — режим «${mode}»`, () => {
     let stub: ApiStub;
 
     beforeEach(() => {
@@ -76,73 +201,15 @@ for (const mode of MODES) {
       stub?.restore();
     });
 
-    it('каждая ссылка-якорь в каркасе и на главной ведёт на существующий элемент', async () => {
-      render(<AppShell>{await Home()}</AppShell>);
-
-      const anchors = [...document.querySelectorAll<HTMLAnchorElement>('a[href]')]
-        .map((link) => link.getAttribute('href') ?? '')
-        .map(anchorOf)
-        .filter((id): id is string => id !== null);
-
-      // Сторож самого теста: без якорей «все ведут куда надо» означало бы «ссылок
-      // не нашлось» — ложная зелень, на которой проект уже горел.
-      expect(anchors.length).toBeGreaterThan(0);
-
-      const dead = [...new Set(anchors)].filter((id) => document.getElementById(id) === null);
-
-      expect(dead, `якоря без цели: ${dead.map((id) => `#${id}`).join(', ')}`).toEqual([]);
-    });
-
-    it('каждая секция словаря отрисована, и ни один её id не встречается дважды', async () => {
-      render(<AppShell>{await Home()}</AppShell>);
-
-      const missing = DICTIONARY_IDS.filter((id) => document.getElementById(id) === null);
-
-      expect(missing, `секции словаря без разметки: ${missing.join(', ')}`).toEqual([]);
-
-      const duplicates = DICTIONARY_IDS.filter(
-        (id) => document.querySelectorAll(`[id="${id}"]`).length > 1,
-      );
-
-      expect(duplicates, `id встречается дважды: ${duplicates.join(', ')}`).toEqual([]);
-    });
-
-    it('каждая секция верхнего уровня внутри main объявлена в словаре', async () => {
-      render(<AppShell>{await Home()}</AppShell>);
-
-      const sections = topLevelSections();
-
-      expect(sections.length).toBeGreaterThan(0);
-
-      const stray = sections
-        .map((section) => section.id)
-        .filter((id) => !DICTIONARY_IDS.includes(id));
-
-      expect(stray, `секции мимо словаря: ${stray.join(', ')}`).toEqual([]);
-    });
-
-    it('«Выдача» — карточки, а не карта; подпись секции в разметке равна подписи в словаре', async () => {
-      render(<AppShell>{await Home()}</AppShell>);
+    it('в #results есть карточки режима, в #map — нет', async () => {
+      render(<AppShell>{await CatalogPage()}</AppShell>);
 
       const cards = 'article[aria-label^="Карточка"]';
-      const results = document.getElementById(HOME_SECTIONS.results.id);
-      const map = document.getElementById(HOME_SECTIONS.map.id);
+      const results = document.getElementById(CATALOG_SECTIONS.results.id);
+      const map = document.getElementById(CATALOG_SECTIONS.map.id);
 
       expect(results?.querySelectorAll(cards).length).toBeGreaterThan(0);
       expect(map?.querySelector(cards)).toBeNull();
-
-      // Пункт меню подписан из словаря — секция обязана называться так же (диверсия:
-      // литерал «Подборки» в aria-label формы поиска).
-      const lying = topLevelSections()
-        .filter((section) => section.hasAttribute('aria-label'))
-        .map((section) => ({
-          id: section.id,
-          label: section.getAttribute('aria-label'),
-          expected: Object.values(HOME_SECTIONS).find((entry) => entry.id === section.id)?.label,
-        }))
-        .filter((entry) => entry.label !== entry.expected);
-
-      expect(lying, `подпись врёт: ${JSON.stringify(lying)}`).toEqual([]);
     });
   });
 }

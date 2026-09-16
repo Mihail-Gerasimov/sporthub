@@ -10,7 +10,7 @@
  *
  * Логика наша, не макета: стор фильтров тот же, что у рабочей части, поэтому ввод
  * фильтрует живьём (реестр № 62), а кнопка и Enter дают цели — ведут к выдаче
- * `#results`, НЕ теряя введённого: в дизайне строка подменялась подписью категории.
+ * каталога `/catalog#results`, НЕ теряя введённого: в дизайне строка подменялась подписью категории.
  * Выпадашка подсказок (38.68) открывается по фокусу в поле; `↓` и `Escape` на поле
  * слушает она сама через ссылку на поле; клик вне виджета и уход фокуса за его
  * пределы закрывают её (правка по ревью 38.67) — иначе она висела бы над картой.
@@ -27,7 +27,7 @@ import type { HomeSport } from '@/components/home/home-data';
 import { SearchSuggest } from '@/components/home/SearchSuggest';
 import { Button } from '@/components/ui/Button';
 import { SEARCH } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { cn } from '@/lib/utils';
 import { useFilterStore, type DiscoveryMode } from '@/stores/useFilterStore';
 
@@ -79,10 +79,13 @@ export function HeroSearch({ sports }: HeroSearchProps) {
     if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setSuggestOpen(false);
   };
 
-  /** Цель кнопки и Enter: запрос уже в сторе, остаётся довести человека до выдачи. */
+  /**
+   * Цель кнопки и Enter: запрос уже в сторе, остаётся довести человека до выдачи —
+   * на `/catalog#results` (38.79a): стор общий, запрос переезжает вместе с ним.
+   */
   const goToResults = () => {
     setSuggestOpen(false);
-    router.push(homeSectionHref('results'));
+    router.push(catalogSectionHref('results'));
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {

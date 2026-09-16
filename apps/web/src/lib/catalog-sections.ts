@@ -1,0 +1,46 @@
+// Секции страницы каталога `/catalog` — одно объявление на весь фронт (шаг 38.79a).
+//
+// ⚠️ Зачем. Решение заказчика 16.09 (файл фазы, 2.1 п. 16): главная — ровно макет,
+// рабочая часть — поиск и фильтры, карта, выдача, слоты — переезжает на `/catalog`
+// как есть. Якоря рабочей части живут здесь, а не в `home-sections.ts`: пункт меню,
+// «Найти» в герое, «Все слоты» у счётчика и выпадашка ведут на `/catalog#…` через
+// `catalogSectionHref` — адрес секции объявлен один раз.
+//
+// ⚠️ Здесь — ТОЛЬКО ДАННЫЕ: `id` якоря и подпись, без React. Словарь читают шапка,
+// подвал и мобильный док, то есть он едет в клиентский бандл каждой страницы;
+// компонентам здесь не место (урок ревью 38.66). Карта «ключ → компонент» —
+// `components/catalog/sections.tsx`, её читает только страница каталога; компилятор
+// требует там компонент на каждый ключ отсюда.
+//
+// ⚠️ Секция каталога берёт `id` и подпись из своей записи (`CATALOG_SECTIONS.map.id`),
+// а не дублирует литералом; сторож `anchors-exist` сверяет разметку со словарём —
+// на каталоге так же, как на главной, в обоих режимах стора.
+//
+// ⚠️ Модуль нейтральный, без `'use client'`: значения читают и серверная страница,
+// и клиентская шапка (сторож `client-boundary-values`).
+
+import type { HomeSection } from '@/lib/home-sections';
+
+export const CATALOG_SECTIONS = {
+  /** Форма поиска и фильтры — подпись по содержимому (38.89). */
+  discover: { id: 'discover', label: 'Поиск и фильтры' },
+  /** Карта — свой якорь (38.89). */
+  map: { id: 'map', label: 'Карта' },
+  /** Выдача — карточки клубов и тренеров под текущие фильтры; сюда ведёт «Найти». */
+  results: { id: 'results', label: 'Выдача' },
+  /** Занятия дня и окна тренеров под теми же фильтрами (38.81). */
+  availability: { id: 'availability', label: 'Слоты' },
+} as const satisfies Record<string, HomeSection>;
+
+export type CatalogSectionKey = keyof typeof CATALOG_SECTIONS;
+
+/** Ключи в порядке словаря — порядок секций на странице. */
+export const CATALOG_SECTION_KEYS = Object.keys(CATALOG_SECTIONS) as CatalogSectionKey[];
+
+/** Адрес страницы каталога — один на все ссылки; наружу — через `catalogSectionHref`. */
+const CATALOG_PATH = '/catalog';
+
+/** Адрес секции каталога — с любой страницы: `/catalog#results`. */
+export function catalogSectionHref(key: CatalogSectionKey): string {
+  return `${CATALOG_PATH}#${CATALOG_SECTIONS[key].id}`;
+}

@@ -4,32 +4,20 @@
 // Здесь, а не в `lib/home-sections.ts`: тот словарь едет в клиентский бандл шапки,
 // а типы компонентов каталога ему не нужны.
 
-import type { TrainerAvailabilityItem, TrainerDirectoryItem } from '@/components/trainers';
-import type { UpcomingSessionItem } from '@/components/schedule';
-import type { Club, PlatformOverview, Sport, Tag, Trainer } from '@sporthub/types';
+import type { CatalogData, CatalogSport } from '@/components/catalog/catalog-data';
+import type { Club, PlatformOverview, Trainer } from '@sporthub/types';
+
+/** Вид спорта главной — тот же срез, что у каталога (38.80: с цветом). */
+export type HomeSport = CatalogSport;
 
 /**
- * Вид спорта в том виде, в каком его читают фильтры, карточки, карта и легенда главной.
- * `color` — цвет капли на карте (38.80): необязателен, у видов без цвета капля общая.
+ * ⚠️ 38.79a: рабочая часть переезжает на `/catalog`, её данные — `CatalogData`.
+ * Главная пока несёт их же (секции рабочей части ещё стоят и здесь) — шаг 38.79b
+ * оставит витрине только своё: сводку, шесть клубов и четырёх тренеров.
  */
-export type HomeSport = Pick<Sport, 'id' | 'name' | 'icon' | 'color'>;
-
-export type HomeData = {
+export type HomeData = CatalogData & {
   /** Четыре числа героя — `GET /api/stats/overview`, четыре `count` на бэкенде (38.30). */
   overview: PlatformOverview;
-  /** Полный каталог клубов — рабочая часть фильтрует в памяти (Д-15). */
-  clubs: Club[];
-  sports: HomeSport[];
-  tags: Tag[];
-  /** Справочник тренеров с адресом, ценой и ближайшим окном. */
-  trainerDirectory: TrainerDirectoryItem[];
-  /** Занятия клубов сегодня, ближайшее — первым. */
-  upcomingSessions: UpcomingSessionItem[];
-  /** Сегодняшняя дата словами: «15 сентября». */
-  upcomingSessionsLabel: string;
-  /** Свободные окна тренеров и дата ближайшего словами. */
-  trainerAvailability: TrainerAvailabilityItem[];
-  trainerAvailabilityLabel: string;
   /** Лидеры каталога — запросом `sort=rating&limit=1`; пусто — каталог пуст. */
   featuredClub?: Club;
   featuredTrainer?: Trainer;

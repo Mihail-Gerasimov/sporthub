@@ -26,7 +26,7 @@ import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs, fixtureOverview } from '@/test/helpers/fixture-routes';
 import { SEARCH } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 
 describe('главная — адреса запросов', () => {
   let stub: ApiStub;
@@ -61,7 +61,7 @@ describe('главная — адреса запросов', () => {
     }
   });
 
-  it('виджет поиска стоит в герое: запрос из поля доезжает до стора, «Найти» ведёт к выдаче (38.67)', async () => {
+  it('виджет поиска стоит в герое: запрос из поля доезжает до стора, «Найти» ведёт к выдаче каталога (38.67, 38.79a)', async () => {
     push.mockClear();
     render(await Home());
 
@@ -74,6 +74,6 @@ describe('главная — адреса запросов', () => {
     fireEvent.click(screen.getByRole('button', { name: SEARCH.button }));
 
     expect(useFilterStore.getState().searchQuery).toBe('йога');
-    expect(push).toHaveBeenCalledWith(homeSectionHref('results'));
+    expect(push).toHaveBeenCalledWith(catalogSectionHref('results'));
   });
 });

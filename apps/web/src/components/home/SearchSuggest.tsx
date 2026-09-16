@@ -8,7 +8,7 @@
  * популярность считает бэкенд числом опубликованных публикаций.
  *
  * Выбор вида — тем же путём, что чипы `SportFilters`: `setSport(id)` в сторе поиска,
- * затем переход к выдаче `/#results`. ⚠️ Введённый текст НЕ теряется: макет
+ * затем переход к выдаче каталога `/catalog#results` (38.79a). ⚠️ Введённый текст НЕ теряется: макет
  * подменял строку поиска подписью категории (`HomePage.tsx:363`), у нас запрос
  * и вид спорта — два разных фильтра, и один не затирает другой.
  *
@@ -30,7 +30,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject 
 import type { Sport } from '@sporthub/types';
 
 import { SEARCH } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 /** Сколько популярных видов спрашивать — одно число, оно же уезжает в адрес. */
@@ -120,7 +120,7 @@ export function SearchSuggest({ open, sports, inputRef, onClose }: SearchSuggest
     // Тот же путь, что у чипов: фильтр в сторе; текст запроса не трогаем.
     setSport(sportId);
     onClose();
-    router.push(homeSectionHref('results'));
+    router.push(catalogSectionHref('results'));
   };
 
   const onListKey = (event: KeyboardEvent<HTMLDivElement>) => {

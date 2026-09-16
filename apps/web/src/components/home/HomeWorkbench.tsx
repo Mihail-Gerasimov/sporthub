@@ -1,47 +1,16 @@
-// Рабочая часть главной из словаря секций (шаг 38.66): карта, выдача, популярное.
-// Слоты — в `HomeAvailability` (38.81), поиск — в `HomeDiscover` (38.82): у них
-// клиентский отбор по стору, а эти секции — серверные обёртки.
+// Подборка «лучшие по рейтингу» главной из словаря секций (шаг 38.66; отбор — 38.79).
 //
-// 38.89: «Выдача» — карточки, а не карта. `#results` из шапки и «Найти» скроллил на
-// карту (реестр № 6); теперь у карты свой якорь `map`, а `results` держит карточки.
-//
-// Каждая секция — тонкая обёртка над прежними блоками: они получают данные дня
-// из `HomeData`, а не из разметки страницы. Отбор здесь по-прежнему в памяти —
-// действующее ограничение до страницы каталога (долг Д-15). Секции «поиск» и «карта»
-// несут id в собственных корнях (`SearchControlsPreview`, `MapSection`); популярное
-// и слоты получают корень здесь — их прежние блоки корня с id не имели, и якорь
-// `#availability` три ссылки вели в пустоту (тупик разведки, № 39).
+// ⚠️ 38.79a: рабочая часть — поиск, карта, выдача, слоты — переехала на `/catalog`
+// (`components/catalog/*`); здесь осталась подборка под фильтр, которую шаг 38.79b
+// снимает по решению заказчика 16.09 (карусели витрины «Клубы» / «Тренеры»).
+// Тонкая обёртка: данные дня — из `HomeData`, отбор в памяти (долг Д-15), корень
+// с якорем словаря — здесь (прежний блок корня с id не имел).
 
 import { PopularNearby } from '@/components/clubs';
 import { HomeContainer } from '@/components/home/HomeContainer';
-import { MapSection } from '@/components/map';
-import { CatalogResultsSection } from '@/components/search';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-
-export function HomeMap({ data }: HomeSectionProps) {
-  return (
-    <HomeContainer>
-      <MapSection clubs={data.clubs} sports={data.sports} trainers={data.trainerDirectory} />
-    </HomeContainer>
-  );
-}
-
-export function HomeResults({ data }: HomeSectionProps) {
-  return (
-    <section id={HOME_SECTIONS.results.id} aria-label={HOME_SECTIONS.results.label}>
-      <HomeContainer>
-        <CatalogResultsSection
-          clubs={data.clubs}
-          sports={data.sports}
-          tags={data.tags}
-          trainers={data.trainerDirectory}
-        />
-      </HomeContainer>
-    </section>
-  );
-}
 
 export function HomePopular({ data }: HomeSectionProps) {
   return (

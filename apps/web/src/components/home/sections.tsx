@@ -16,9 +16,12 @@ import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHeroSection } from '@/components/home/HomeHeroSection';
 import { HomeLeaders } from '@/components/home/HomeLeaders';
 import { HomeSteps } from '@/components/home/HomeSteps';
-import { HomeMap, HomePopular, HomeResults } from '@/components/home/HomeWorkbench';
+import { HomePopular } from '@/components/home/HomeWorkbench';
 import { HomeAvailability } from '@/components/home/HomeAvailability';
-import { HomeDiscover } from '@/components/home/HomeDiscover';
+// ⚠️ 38.79a: секции рабочей части — компоненты каталога (`/catalog`); на главной они
+// стоят до шага 38.79b. Их тип уже `CatalogSectionProps`: `HomeData` шире `CatalogData`.
+import { CatalogDiscover } from '@/components/catalog/CatalogDiscover';
+import { CatalogMap, CatalogResults } from '@/components/catalog/CatalogWorkbench';
 import type { HomeSectionKey } from '@/lib/home-sections';
 
 export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeSectionProps>> = {
@@ -27,9 +30,9 @@ export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeS
   steps: HomeSteps,
   features: HomeFeatures,
   cta: HomeCta,
-  discover: HomeDiscover,
-  map: HomeMap,
-  results: HomeResults,
+  discover: CatalogDiscover,
+  map: CatalogMap,
+  results: CatalogResults,
   popular: HomePopular,
   availability: HomeAvailability,
 };
