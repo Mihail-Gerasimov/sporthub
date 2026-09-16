@@ -4,10 +4,11 @@
  * фокус после закрытия возвращается на кнопку.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HeaderMenu } from '@/components/layout/HeaderMenu';
 import { HEADER_NAV } from '@/lib/navigation';
+import { useUIStore } from '@/stores/useUIStore';
 
 /** Оверлей — единственный скрытый от диктора слой с затемнением; testid ему не нужен. */
 function overlayOf(container: HTMLElement): HTMLElement {
@@ -17,6 +18,10 @@ function overlayOf(container: HTMLElement): HTMLElement {
 }
 
 describe('HeaderMenu', () => {
+  beforeEach(() => {
+    useUIStore.setState({ isHeaderMenuOpen: false });
+  });
+
   it('закрыто по умолчанию; кнопка открывает панель с пунктами из словаря', () => {
     render(<HeaderMenu />);
     const button = screen.getByRole('button', { name: 'Открыть меню' });
@@ -64,5 +69,29 @@ describe('HeaderMenu', () => {
     const overlay = overlayOf(container);
     expect(overlay).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByRole('navigation', { name: 'Меню' }).className).toContain('top-16');
+  });
+
+  it('фокус заперт: Tab с последнего пункта — на кнопку, Shift+Tab с кнопки — на последний пункт', () => {
+    render(<HeaderMenu />);
+    const button = screen.getByRole('button', { name: 'Открыть меню' });
+    fireEvent.click(button);
+    const links = screen.getAllByRole('link');
+    const last = links[links.length - 1];
+
+    last.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Закрыть меню' })).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(last).toHaveFocus();
+  });
+
+  it('состояние «открыто» видно снаружи через UI-стор — док читает его', () => {
+    render(<HeaderMenu />);
+    expect(useUIStore.getState().isHeaderMenuOpen).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
+    expect(useUIStore.getState().isHeaderMenuOpen).toBe(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(useUIStore.getState().isHeaderMenuOpen).toBe(false);
   });
 });

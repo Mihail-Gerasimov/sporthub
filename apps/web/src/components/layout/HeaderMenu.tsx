@@ -8,17 +8,24 @@
 // `aria-controls` на панель, оверлей без роли и без табуляции.
 //
 // Пункты — те же `HEADER_NAV`, что и в широкой навигации: второго списка нет.
+//
+// Состояние «открыто» живёт в UI-сторе (шаг 38.62): мобильный док читает его и прячется,
+// пока панель открыта. Фокус заперт в меню: Tab с последнего пункта возвращается
+// на кнопку, Shift+Tab с кнопки — на последний пункт; под оверлей он не уходит.
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 
 import { HEADER_NAV } from '@/lib/navigation';
+import { useUIStore } from '@/stores/useUIStore';
 
 export function HeaderMenu() {
-  const [open, setOpen] = useState(false);
+  const open = useUIStore((state) => state.isHeaderMenuOpen);
+  const setOpen = useUIStore((state) => state.setHeaderMenuOpen);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
+  const lastLinkRef = useRef<HTMLAnchorElement>(null);
   const panelId = useId();
 
   // Закрытие возвращает фокус на кнопку — иначе он падает на body, и клавиатура
@@ -26,7 +33,10 @@ export function HeaderMenu() {
   const close = useCallback(() => {
     setOpen(false);
     buttonRef.current?.focus();
-  }, []);
+  }, [setOpen]);
+
+  // Уход со страницы с открытым меню не оставляет док спрятанным.
+  useEffect(() => () => setOpen(false), [setOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -34,7 +44,21 @@ export function HeaderMenu() {
     firstLinkRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape') {
+        close();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      // Ловушка фокуса: кольцо «кнопка → пункты → кнопка».
+      if (!event.shiftKey && document.activeElement === lastLinkRef.current) {
+        event.preventDefault();
+        buttonRef.current?.focus();
+      } else if (event.shiftKey && document.activeElement === buttonRef.current) {
+        event.preventDefault();
+        lastLinkRef.current?.focus();
+      }
     };
 
     document.addEventListener('keydown', onKeyDown);
@@ -83,7 +107,13 @@ export function HeaderMenu() {
               {HEADER_NAV.map((item, index) => (
                 <li key={item.label}>
                   <Link
-                    ref={index === 0 ? firstLinkRef : undefined}
+                    ref={
+                      index === 0
+                        ? firstLinkRef
+                        : index === HEADER_NAV.length - 1
+                          ? lastLinkRef
+                          : undefined
+                    }
                     href={item.href}
                     onClick={close}
                     className="flex min-h-[47px] items-center rounded-[12px] px-3.5 py-3 font-display text-[14px] font-bold tracking-[0.02em] text-ink uppercase no-underline transition-colors hover:bg-bg hover:text-lime-hov"

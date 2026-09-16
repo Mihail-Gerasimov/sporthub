@@ -1,11 +1,17 @@
-// Мобильный нижний док-навигатор. Виден только на 480 (sm-) — на md+ nav в шапке
-// уже доступна. Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Поиск / Слоты),
-// плюс «Профиль», чей адрес зависит от сессии; здесь у пунктов только SVG-иконки.
+// Мобильный нижний док-навигатор (шаг 38.62) — по эталону: белая полоса по низу экрана
+// с четырьмя вкладками; активная — зелёная полоска сверху, иконка на мягкой зелёной
+// подложке, тёмно-зелёная подпись. Виден до md (768), выше навигация в шапке.
+// Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Поиск / Слоты), плюс
+// «Профиль», чей адрес зависит от сессии; здесь у пунктов только SVG-иконки.
+// Подсветка учитывает хэш: «Поиск» и «Слоты» — якоря главной.
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 import { MOBILE_NAV } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
+import { useUIStore } from '@/stores/useUIStore';
 
 import {
   cabinetSectionPath,
@@ -90,30 +96,72 @@ const mobileNavItems: ReadonlyArray<MobileNavItem> = [
   },
 ];
 
+/** Активен ли пункт: главная — только без хэша; якорь — по хэшу; кабинет — по корню адреса. */
+function isMobileNavItemActive(item: MobileNavItem, pathname: string, hash: string): boolean {
+  return item.matchPaths.some((target) => {
+    if (target.startsWith('/#')) return pathname === '/' && hash === target.slice(1);
+    if (target === '/') return pathname === '/' && hash === '';
+
+    return pathname.startsWith(target);
+  });
+}
+
 export function MobileNav() {
   const pathname = usePathname();
+  const isHeaderMenuOpen = useUIStore((state) => state.isHeaderMenuOpen);
+  // Хэш не приходит из `usePathname` — читаем окно и слушаем его смену (шаг 38.62:
+  // пункты «Поиск» и «Слоты» — якоря главной, и подсветка без хэша была слепой).
+  const [hash, setHash] = useState('');
+
+  useEffect(() => {
+    const readHash = () => setHash(window.location.hash);
+
+    readHash();
+    window.addEventListener('hashchange', readHash);
+
+    return () => window.removeEventListener('hashchange', readHash);
+  }, [pathname]);
+
+  // Пока открыто меню шапки, док не рисуется: у обёртки шапки свой контекст наложения,
+  // и `fixed`-док лежал бы поверх оверлея, оставаясь кликабельным.
+  if (isHeaderMenuOpen) return null;
 
   return (
     <nav
       aria-label="Мобильная навигация"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center justify-between rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] px-3 py-2 shadow-floating backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-line bg-card md:hidden"
     >
       {mobileNavItems.map((item) => {
-        // Активность определяем по pathname — точное совпадение для «/», префикс для разделов.
-        const isActive = item.matchPaths.some((path) =>
-          path === '/' ? pathname === '/' : pathname.startsWith(path),
-        );
-        const colorClass = isActive ? 'text-lime-hov' : 'text-[var(--ui-muted)]';
+        const isActive = isMobileNavItemActive(item, pathname, hash);
+
         return (
           <Link
             key={item.label}
             href={item.href}
-            className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-center font-body text-[10px] font-bold uppercase tracking-[0.10em] no-underline transition-colors hover:text-lime-hov ${colorClass}`}
+            aria-current={isActive ? 'page' : undefined}
+            className={cn(
+              'relative flex min-w-0 flex-1 flex-col items-center gap-[3px] px-1 pt-2.5 pb-1.5 text-center font-body text-[10px] no-underline transition-colors',
+              isActive ? 'font-bold text-lime-hov' : 'font-medium text-muted hover:text-lime-hov',
+            )}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6">
-              {item.glyph}
-            </svg>
-            <span>{item.label}</span>
+            {/* Метка активного пункта — зелёная полоска сверху, как в эталоне */}
+            {isActive ? (
+              <span
+                aria-hidden="true"
+                className="absolute top-0 left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-b-[3px] bg-lime"
+              />
+            ) : null}
+            <span
+              className={cn(
+                'flex size-8 items-center justify-center rounded-[12px] transition-colors',
+                isActive && 'bg-lime-soft',
+              )}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
+                {item.glyph}
+              </svg>
+            </span>
+            <span className="truncate">{item.label}</span>
           </Link>
         );
       })}

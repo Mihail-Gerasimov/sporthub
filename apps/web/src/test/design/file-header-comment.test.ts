@@ -60,7 +60,6 @@ export const LEGACY_HEADERLESS: string[] = [
   'src/components/ui/index.ts',
   'src/lib/utils.ts',
   'src/stores/useFilterStore.ts',
-  'src/stores/useUIStore.ts',
   'src/test/admin/analytics-charts2.test.tsx',
   'src/test/clubs/club-detail-page-client.test.tsx',
   'src/test/clubs/club-list.test.tsx',
