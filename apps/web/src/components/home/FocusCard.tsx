@@ -51,7 +51,10 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
       aria-label={FOCUS.eyebrow}
       className="relative overflow-hidden rounded-[24px] border border-plate-ink/5 bg-card text-ink shadow-floating"
     >
-      {/* Верхняя зона: тёмная плашка с временем и именем первого занятия */}
+      {/* Верхняя зона: тёмная плашка с временем и именем первого занятия.
+          STUB: в макете здесь фото клуба (`HomePage.tsx:410`); загрузки фото на площадке
+          нет (долг Д-10) — зона несёт время и имя занятия, с появлением фото клуба
+          станет подложкой снимка с затемнением, как у карточки клуба. */}
       <div className="relative flex h-[200px] flex-col justify-between bg-plate p-4 text-plate-ink">
         <div className="flex items-center justify-between gap-2.5">
           <span className="font-body text-[10px] font-bold tracking-[0.18em] text-lime uppercase">
