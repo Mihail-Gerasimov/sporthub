@@ -23,7 +23,7 @@ const toneClassNames: Record<BadgeTone, string> = {
   accent: 'border-lime/25 bg-lime-soft text-lime-hov',
   teal: 'border-lime/25 bg-lime-soft text-lime-hov',
   success: 'border-lime/25 bg-lime-soft text-lime-hov',
-  warning: 'border-orange/25 bg-orange-soft text-orange-hov',
+  warning: 'border-orange/25 bg-orange-soft text-orange-text',
   danger: 'border-red/25 bg-red/10 text-red',
   // Ожидание решения (очереди модерации): золотой держит `pending` по палитре.
   pending: 'border-gold/30 bg-gold/10 text-gold',

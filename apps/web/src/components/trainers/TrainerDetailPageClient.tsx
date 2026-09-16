@@ -550,7 +550,7 @@ export function TrainerDetailPageClient({
                   <span
                     aria-hidden="true"
                     className={`flex size-10 items-center justify-center rounded-[12px] border border-line bg-card ${
-                      d.kind === 'sport' ? 'text-lime-hov' : 'text-orange'
+                      d.kind === 'sport' ? 'text-lime-hov' : 'text-orange-text'
                     }`}
                   >
                     {d.kind === 'sport' ? (

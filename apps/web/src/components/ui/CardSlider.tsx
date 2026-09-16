@@ -302,12 +302,12 @@ export function CardSlider({
   const navHoverClass =
     accent === 'lime'
       ? 'hover:border-lime hover:text-lime-hov'
-      : 'hover:border-[var(--ui-orange)] hover:text-[var(--ui-orange)]';
+      : 'hover:border-orange hover:text-orange-text';
 
   // Pill-счётчик и активная точка — классами по акценту, а не инлайновым стилем:
   // цвет идёт через токен, и перекраска его видит.
   const pillAccentClass =
-    accent === 'lime' ? 'bg-lime-soft text-lime-hov' : 'bg-orange-soft text-orange';
+    accent === 'lime' ? 'bg-lime-soft text-lime-hov' : 'bg-orange-soft text-orange-text';
   const dotActiveClass =
     accent === 'lime' ? 'data-[active=true]:bg-lime' : 'data-[active=true]:bg-orange';
 

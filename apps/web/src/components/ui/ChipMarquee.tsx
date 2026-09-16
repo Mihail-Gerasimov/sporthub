@@ -217,7 +217,7 @@ export function ChipMarquee({
     variant === 'solid'
       ? accent === 'lime'
         ? 'border border-lime/30 bg-lime-soft text-lime-hov'
-        : 'border border-orange/30 bg-orange-soft text-orange'
+        : 'border border-orange/30 bg-orange-soft text-orange-text'
       : 'border border-[var(--ui-line)] bg-transparent text-[var(--ui-ink)]';
 
   return (

@@ -47,9 +47,13 @@ export const BRAND_MARK: string[] = ['src/components/ui/BrandLogo.tsx'];
 /** Старые файлы и потолок нарушений. Только убывает. */
 export const LEGACY_CEILINGS: Record<string, number> = {};
 
-/** Яркий зелёный как цвет текста — все формы, с вариантами состояний. */
+/**
+ * Яркая заливка как цвет текста — все формы, с вариантами состояний: лайм и оранжевый
+ * (38.14a: `--ui-orange` текстом — 2,8:1 на белом, `--ui-orange-hov` — 3,6; на светлом
+ * текст — `text-orange-text`). На тёмной плашке оба читаемы (оранжевый — 6,9:1).
+ */
 const GREEN_TEXT =
-  /(?<![\w-])(?:(?:hover|focus|focus-visible|group-hover|active):)?text-(?:lime|accent|\[var\(--ui-(?:lime|accent)\)\])(?![\w-])/;
+  /(?<![\w-])(?:(?:hover|focus|focus-visible|group-hover|active):)?text-(?:lime|accent|orange|orange-hov|\[var\(--ui-(?:lime|accent|orange|orange-hov)\)\])(?![\w-])/;
 
 /**
  * Поверхности, на которых яркий зелёный текст читаем. `bg-lime/10` — мягкая подложка,
@@ -123,7 +127,9 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
     const line = body.slice(0, match.index).split('\n').length;
 
     if (GREEN_TEXT.test(classes) && !onPlate) {
-      offenders.push(`строка ${line}: зелёный текст на светлом — ${classes.match(GREEN_TEXT)![0]}`);
+      offenders.push(
+        `строка ${line}: цвет заливки текстом на светлом — ${classes.match(GREEN_TEXT)![0]}`,
+      );
     }
 
     // Тёмно-зелёный внутри плашки. У самого элемента-плашки — только при литеральном
@@ -289,6 +295,22 @@ describe('Сторож: зелёный текст только на плашке
     // Мягкая подложка `bg-lime/10` — не плашка: тёмно-зелёный на ней читаем.
     expect(
       greenTextOffenders('src/x/Y.tsx', '<span className="bg-lime/10 text-lime-hov">x</span>'),
+    ).toEqual([]);
+    // Оранжевый текстом на светлом — красный; на плашке (LIVE) — верный; `text-orange-text` — нет.
+    expect(
+      greenTextOffenders('src/x/Y.tsx', '<span className="bg-orange-soft text-orange">x</span>'),
+    ).toHaveLength(1);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<div className="bg-plate"><b className="text-orange">LIVE</b></div>',
+      ),
+    ).toEqual([]);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<span className="bg-orange-soft text-orange-text">x</span>',
+      ),
     ).toEqual([]);
     // Светлый текст на лайме — красный (пилюля «Сегодня»); на тёмной плашке — верный.
     expect(

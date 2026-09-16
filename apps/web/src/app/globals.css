@@ -72,6 +72,10 @@
   --ui-orange: #f97316;
   --ui-orange-hov: #ea580c;
   --ui-orange-soft: rgba(249, 115, 22, 0.12);
+  /* Оранжевый ТЕКСТОМ на светлом (38.14a, контраст): макет красит текст в #f97316 —
+     2,8:1 на белом, 2,4 на card-2; заливки остаются на --ui-orange. Принятое отступление:
+     #9a3412 — 7,3 / 6,8 (холст) / 6,2 (card-2) / 6,5 (orange-soft). Сторож считает пары. */
+  --ui-orange-text: #9a3412;
 
   /* Hard-danger (валидация формы, danger-бэйдж, hard-delete admin) */
   --ui-red: #ef4444;
@@ -182,6 +186,7 @@
   --color-orange: var(--ui-orange);
   --color-orange-hov: var(--ui-orange-hov);
   --color-orange-soft: var(--ui-orange-soft);
+  --color-orange-text: var(--ui-orange-text);
   --color-red: var(--ui-red);
   --color-gold: var(--ui-gold);
   --color-plate: var(--ui-plate);

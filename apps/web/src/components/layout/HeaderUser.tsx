@@ -117,7 +117,7 @@ export function HeaderUser() {
         onClick={() => {
           void handleLogout();
         }}
-        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-button border border-line bg-bg text-ink transition-colors hover:border-orange hover:text-orange-hov"
+        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-button border border-line bg-bg text-ink transition-colors hover:border-orange hover:text-orange-text"
       >
         <svg
           viewBox="0 0 24 24"

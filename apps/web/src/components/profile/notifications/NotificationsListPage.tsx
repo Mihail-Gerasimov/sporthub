@@ -393,7 +393,7 @@ export function NotificationsListPage({
                 data-testid="notifications-bulk-delete"
                 disabled={selectedIds.size === 0 || deleting}
                 onClick={() => requestDelete(Array.from(selectedIds))}
-                className="rounded-pill border border-orange bg-orange/10 px-4 py-2 text-sm font-semibold text-orange transition-colors hover:bg-orange hover:text-ink disabled:opacity-50"
+                className="rounded-pill border border-orange bg-orange/10 px-4 py-2 text-sm font-semibold text-orange-text transition-colors hover:bg-orange hover:text-ink disabled:opacity-50"
               >
                 Удалить выбранное ({selectedIds.size})
               </button>
@@ -551,7 +551,7 @@ export function NotificationsListPage({
                               event.stopPropagation();
                               requestDelete([notification.id]);
                             }}
-                            className="inline-flex size-8 shrink-0 items-center justify-center self-start rounded-full text-muted transition-colors hover:bg-orange/10 hover:text-orange"
+                            className="inline-flex size-8 shrink-0 items-center justify-center self-start rounded-full text-muted transition-colors hover:bg-orange/10 hover:text-orange-text"
                           >
                             <svg
                               viewBox="0 0 24 24"

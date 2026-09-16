@@ -448,7 +448,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
           data-testid="supervision-delete-resolved"
           disabled={deleting || resolvedIds.length === 0}
           onClick={() => requestDelete(resolvedIds)}
-          className="inline-flex items-center rounded-full border border-orange bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-orange transition-colors hover:bg-orange hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center rounded-full border border-orange bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-orange-text transition-colors hover:bg-orange hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           Удалить разобранные ({resolvedIds.length})
         </button>
@@ -694,7 +694,7 @@ function SupervisionCard({
           {isUnresolved ? (
             <span
               data-testid={`supervision-item-unresolved-${notification.id}`}
-              className="inline-flex items-center whitespace-nowrap rounded-full border border-orange bg-orange-soft px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-orange"
+              className="inline-flex items-center whitespace-nowrap rounded-full border border-orange bg-orange-soft px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-orange-text"
             >
               Не разобрано
             </span>

@@ -49,6 +49,7 @@ export const REQUIRED_TOKENS = [
   '--ui-orange',
   '--ui-orange-hov',
   '--ui-orange-soft',
+  '--ui-orange-text',
   '--ui-red',
   '--ui-gold',
   // Контраст-плашка: тёмный фон героя и шапки с собственным текстом и линиями.
@@ -205,11 +206,16 @@ function parseColor(value: string): [number, number, number, number] | null {
   return null;
 }
 
-/** Контраст WCAG двух цветов; полупрозрачный текст сначала кладётся на фон. */
+/**
+ * Контраст WCAG двух цветов. Полупрозрачная поверхность (`--ui-orange-soft`) сначала
+ * кладётся на белую карточку, полупрозрачный текст — на поверхность.
+ */
 export function contrastRatio(foreground: string, background: string): number | null {
   const fg = parseColor(foreground);
-  const bg = parseColor(background);
-  if (!fg || !bg) return null;
+  const raw = parseColor(background);
+  if (!fg || !raw) return null;
+  const white = [255, 255, 255, 1];
+  const bg = raw.map((c, i) => (i === 3 ? 1 : c * raw[3] + white[i] * (1 - raw[3])));
   const blended = fg.map((c, i) => (i === 3 ? 1 : c * fg[3] + bg[i] * (1 - fg[3])));
   const luminance = ([r, g, b]: number[]) => {
     const f = (c: number) => {
@@ -237,6 +243,11 @@ const AA_PAIRS: Array<[text: string, surface: string]> = [
   ['--ui-ink', '--ui-bg'],
   ['--ui-plate-ink', '--ui-plate'],
   ['--ui-plate-muted', '--ui-plate'],
+  // Оранжевый текстом на светлом — только `--ui-orange-text` (38.14a).
+  ['--ui-orange-text', '--ui-bg'],
+  ['--ui-orange-text', '--ui-card'],
+  ['--ui-orange-text', '--ui-card-2'],
+  ['--ui-orange-text', '--ui-orange-soft'],
 ];
 
 describe('Сторож: контракт токенов палитры (38.7)', () => {
@@ -253,8 +264,10 @@ describe('Сторож: контракт токенов палитры (38.7)', 
     }
 
     expect(failing).toEqual([]);
-    // Обратная половина: прежнее значение muted на холсте — ниже порога.
+    // Обратная половина: прежнее значение muted на холсте — ниже порога; оранжевый
+    // макета текстом на мягкой оранжевой подложке — тоже.
     expect(contrastRatio('#6b7280', '#f4f6f9')!).toBeLessThan(4.5);
+    expect(contrastRatio('#f97316', 'rgba(249, 115, 22, 0.12)')!).toBeLessThan(3);
     expect(contrastRatio('rgba(255, 255, 255, 0.45)', '#111111')!).toBeGreaterThan(4.5);
   });
 

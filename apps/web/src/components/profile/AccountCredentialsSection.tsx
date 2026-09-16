@@ -66,7 +66,7 @@ export function AccountCredentialsSection({ user, accountTitle }: AccountCredent
     return (
       <section
         data-testid="account-credentials-impersonation-notice"
-        className="rounded-[18px] border border-orange/40 bg-orange/10 p-4 text-sm leading-relaxed text-orange sm:p-5"
+        className="rounded-[18px] border border-orange/40 bg-orange/10 p-4 text-sm leading-relaxed text-orange-text sm:p-5"
       >
         <p className="font-display text-[14px] font-semibold uppercase tracking-wide">
           Изменения недоступны
@@ -270,7 +270,7 @@ export function AccountCredentialsSection({ user, accountTitle }: AccountCredent
                 type="button"
                 onClick={closePasswordPanel}
                 disabled={passwordState === 'submitting'}
-                className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-orange hover:text-orange disabled:opacity-50"
+                className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-orange hover:text-orange-text disabled:opacity-50"
               >
                 Отмена
               </button>
