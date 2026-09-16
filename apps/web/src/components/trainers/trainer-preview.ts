@@ -1,5 +1,5 @@
 import { APP_LIMITS, DEFAULT_CITY } from '@sporthub/types';
-import { isSlotUpcoming } from '@/lib/slot-time';
+import { isSlotOpenToday } from '@sporthub/domain';
 import { resolveNames } from '@/lib/utils';
 import type {
   Club,
@@ -95,6 +95,8 @@ type BuildTrainerDirectoryInput = {
   /** Phase 28.24: ключ «сегодня» (`YYYY-MM-DD`) — фильтр nextSlot/availableSlotsCount
    * только по сегодняшним слотам, симметрично клубному `getUpcomingSessions`. */
   targetDate: string;
+  /** Момент «сейчас» — день того же момента, что и `targetDate`; аргументом, а не из часов. */
+  now: Date;
 };
 
 type GetTrainerAvailabilityInput = {
@@ -104,6 +106,8 @@ type GetTrainerAvailabilityInput = {
   /** Phase 28.24: ключ «сегодня» (`YYYY-MM-DD`) — slot-блок «Свободные окна тренеров»
    * показывает только сегодняшние слоты, как клубный «Ближайшие занятия». */
   targetDate: string;
+  /** Момент «сейчас» — аргументом, как у `getUpcomingSessions`. */
+  now: Date;
 };
 
 function getSlotSortKey(slot: Pick<Schedule, 'date' | 'startTime'>): string {
@@ -119,6 +123,7 @@ export function buildTrainerDirectory({
   trainers,
   trainerClubLinks = [],
   targetDate,
+  now,
 }: BuildTrainerDirectoryInput): TrainerDirectoryItem[] {
   const clubsById = new Map(clubs.map((club) => [club.id, club]));
   // Phase 24 Step 24.8: confirmed links по trainerId → clubId (authoritative).
@@ -162,14 +167,11 @@ export function buildTrainerDirectory({
         },
       );
       // Phase 28.24: nextSlot и availableSlotsCount — только сегодняшние свободные
-      // слоты тренера (симметрично клубному getUpcomingSessions). Старые/будущие
-      // слоты не всплывают в карточке как «ближайшее окно».
-      // Phase 30.7: дополнительно отсекаем сегодняшние слоты, у которых endTime уже прошёл.
-      const now = new Date();
+      // окна тренера, симметрично клубному getUpcomingSessions. «Свободное окно дня» —
+      // предикат домена `isSlotOpenToday` (сегодня ∧ не началось ∧ места), один
+      // на клубы и тренеров; `targetDate` — день того же момента, что и `now`.
       const availableSlots = [...(trainerScheduleByTrainerId.get(trainer.id) ?? [])]
-        .filter((slot) => slot.date === targetDate)
-        .filter((slot) => isSlotUpcoming(slot, now))
-        .filter((slot) => slot.bookedCount < slot.capacity)
+        .filter((slot) => slot.date === targetDate && isSlotOpenToday(slot, now))
         .sort((left, right) => getSlotSortKey(left).localeCompare(getSlotSortKey(right)));
       const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
       const primaryOffering = offeringsForTrainer[0] ?? null;
@@ -273,18 +275,16 @@ export function getTrainerAvailability({
   schedule,
   trainers,
   targetDate,
+  now,
 }: GetTrainerAvailabilityInput): TrainerAvailabilityItem[] {
   const trainerById = new Map(trainers.map((trainer) => [trainer.id, trainer]));
-  const now = new Date();
 
   return (
     schedule
       .filter((slot) => slot.ownerType === 'trainer')
       .filter((slot) => slot.trainerId !== undefined)
-      .filter((slot) => slot.date === targetDate)
-      // Phase 30.7: отсекаем сегодняшние прошедшие слоты в блоке «Свободные окна тренеров».
-      .filter((slot) => isSlotUpcoming(slot, now))
-      .filter((slot) => slot.bookedCount < slot.capacity)
+      // «Свободное окно дня» — тот же предикат домена, что у справочника и клубов.
+      .filter((slot) => slot.date === targetDate && isSlotOpenToday(slot, now))
       .flatMap((slot) => {
         const trainer = trainerById.get(slot.trainerId ?? -1);
 

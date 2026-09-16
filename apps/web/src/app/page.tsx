@@ -94,11 +94,13 @@ export default async function Home() {
     trainers,
     trainerClubLinks,
     targetDate: todayDateKey,
+    now,
   });
   const trainerAvailability = getTrainerAvailability({
     schedule: trainerSchedule,
     trainers: trainerDirectory,
     targetDate: todayDateKey,
+    now,
   });
 
   // Подпись услуги лидера — из справочника тренеров (у него свой отсев: без адреса
