@@ -1090,4 +1090,42 @@ describe('Верификация публикаций', () => {
       (await readRows<{ id: number; verifiedAt?: string }>('clubs'))[0].verifiedAt,
     ).toBeUndefined();
   });
+
+  it('скрытие модератором ГАСИТ подтверждение (38.46)', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const response = await moderate(adminCookie, {
+      action: 'hide',
+      entityType: 'club',
+      entityId: 1,
+      reason: 'Жалобы',
+    });
+
+    expect(response.status).toBe(200);
+
+    const clubs = await readRows<{ id: number; verifiedAt?: string; verifiedByUserId?: number }>(
+      'clubs',
+    );
+    const club = clubs.find((row) => row.id === 1);
+
+    expect(club?.verifiedAt).toBeUndefined();
+    expect(club?.verifiedByUserId).toBeUndefined();
+  });
+
+  it('архив владельца подтверждение НЕ гасит (38.46)', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const archived = await request(harness.app.getHttpServer())
+      .delete('/api/clubs/1')
+      .set('Cookie', providerCookie);
+
+    expect(archived.status).toBe(200);
+    expect(archived.body.data.outcome).toBe('archived');
+
+    const clubs = await readRows<{ id: number; status: string; verifiedAt?: string }>('clubs');
+    const club = clubs.find((row) => row.id === 1);
+
+    expect(club?.status).toBe('hidden');
+    expect(club?.verifiedAt).toBeDefined();
+  });
 });

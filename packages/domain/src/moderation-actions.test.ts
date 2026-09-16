@@ -118,6 +118,17 @@ describe('словарь действий модерации', () => {
     }
   });
 
+  it('скрытие модератором гасит проверку — ключами с undefined (38.46)', () => {
+    const patch = MODERATION_ACTION_SPECS.hide.patch(CONTEXT);
+
+    expect('verifiedAt' in patch && patch.verifiedAt === undefined).toBe(true);
+    expect('verifiedByUserId' in patch && patch.verifiedByUserId === undefined).toBe(true);
+    // Возврат из скрытия проверку НЕ возвращает: его патч пары не касается.
+    const unhide = MODERATION_ACTION_SPECS.unhide.patch(CONTEXT);
+
+    expect('verifiedAt' in unhide).toBe(false);
+  });
+
   it('очередь надзора узнаёт об отзыве и не узнаёт о подтверждении; владелец — об обоих', () => {
     expect(MODERATION_ACTION_SPECS.verify.oversightType).toBeNull();
     expect(MODERATION_ACTION_SPECS.unverify.oversightType).toBe('oversight_verification_revoked');
