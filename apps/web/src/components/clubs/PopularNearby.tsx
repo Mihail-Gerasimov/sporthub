@@ -113,12 +113,12 @@ export function PopularNearby({ clubs, sports, tags = [], trainers }: PopularNea
               className="scrollbar-hidden overflow-x-auto py-3"
             >
               <div className="flex min-w-max items-stretch gap-4">
-                {popularClubs.map((club, i) => (
+                {popularClubs.map((club) => (
                   <div
                     key={club.id}
                     className="flex h-full w-[19.5rem] shrink-0 snap-start sm:w-[22rem]"
                   >
-                    <ClubCard club={club} sports={sports} tags={tags} index={i} />
+                    <ClubCard club={club} sports={sports} tags={tags} />
                   </div>
                 ))}
               </div>

@@ -119,10 +119,9 @@ async function filesDrawing(marker: RegExp | ((text: string) => boolean)): Promi
 }
 
 describe('Сторожа единственности (38.12)', () => {
-  // ⚠️ На шаге 38.73 заменить ожидание на `[HOMES.clubCard]`. До него подписи нет
-  // ни у кого; любая карточка с подписью раньше 38.73 — дубль, и он краснит сразу.
+  // Шаг 38.73: карточка клуба с подписью — ровно в своём файле; вторая — дубль.
   it('club-card-single: карточку клуба с подписью рисует ровно столько файлов, сколько приколото', async () => {
-    expect(await filesDrawing(CARD_LABELS.clubCard)).toEqual([]);
+    expect(await filesDrawing(CARD_LABELS.clubCard)).toEqual([HOMES.clubCard]);
   });
 
   // ⚠️ На шаге 38.74 заменить ожидание на `[HOMES.trainerCard]`.

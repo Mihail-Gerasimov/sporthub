@@ -1,20 +1,20 @@
 /*
- * Тесты ClubCard под новый дизайн Phase 28.8.
- * Карточка собрана 1-в-1 со схемы из claude-design/cards-trainers/sporthub/
- * project/SportHub Cards - Clubs.html (.club-card + child grid):
- *   hero (диагональный lime/orange/blank-луч + watermark номера + city-pill +
- *   address eyebrow + display-имя как Link) → body-meta (lime price-pill +
- *   distance) → body-desc clamp 3 → body-rating (звёзды + num + reviews +
- *   опц. badge "Новый") → tags ChipMarquee solid lime.
+ * Тесты ClubCard — карточка клуба по эталону витрины (фаза 38, шаг 38.73;
+ * `HomePage.tsx:85-118`, чек-лист эталона step-39…43).
  *
- * ⚠️ Фаза 38, шаг 38.25: два случая про бейдж надёжности сняты — предмета нет
- * (реестр `phase-38-reliability-cut.md`, Т3).
+ * Форма — из макета: фото 180 с затемнением снизу, на нём имя, рейтинг со звездой,
+ * число отзывов, пин и расстояние; слева сверху — категория, справа — плашка «от N».
+ * Логика — наша (реестр № 86–94): вся карточка ведёт на СТРАНИЦУ клуба, а не в общий
+ * каталог; бейдж «Новый», описание и лента тегов остаются; знак «проверено» по
+ * `verifiedAt`; фото — из `imageUrls[0]`, без него — заглушка с пометкой `STUB:`.
  *
- * jsdom не считает layout (scrollWidth=0), поэтому ChipMarquee внутри
- * карточки попадёт в ветку no-loop. Для тестов это ОК — нам важна только
- * структура DOM и резолв тегов в имена.
+ * Подпись `aria-label="Карточка клуба: …"` — контракт единственности (сторож
+ * `club-card-single`): вторая карточка с такой подписью — дубль.
+ *
+ * jsdom не считает layout (scrollWidth=0), поэтому ChipMarquee внутри карточки
+ * попадёт в ветку no-loop. Для тестов это ОК — важна структура DOM и тексты.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClubCard } from '@/components/clubs/ClubCard';
@@ -54,7 +54,9 @@ const baseClub: Club = {
   distanceKm: 1.8,
 };
 
-describe('ClubCard (Phase 28)', () => {
+const ratedClub: Club = { ...baseClub, rating: 4.8, reviewCount: 12 };
+
+describe('ClubCard (38.73)', () => {
   beforeEach(() => {
     // Мокаем rAF — ChipMarquee внутри карточки не будет реально анимироваться.
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
@@ -64,70 +66,119 @@ describe('ClubCard (Phase 28)', () => {
     vi.restoreAllMocks();
   });
 
-  it('рендерится как <article>, без обёртки <a> вокруг всей карточки', () => {
+  it('карточка — <article> с подписью «Карточка клуба: имя», без обёртки <a>', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    const card = screen.getByTestId('club-card');
-    expect(card.tagName).toBe('ARTICLE');
+
+    const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+
+    expect(card).toHaveAttribute('data-testid', 'club-card');
     expect(card.closest('a')).toBeNull();
   });
 
-  it('имя клуба обёрнуто в <Link href="/clubs/{slug}">', () => {
+  it('вся карточка ведёт на страницу клуба: ссылка с именем растянута на карточку', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    const nameLink = screen.getByRole('link', { name: baseClub.name });
-    expect(nameLink.getAttribute('href')).toBe(`/clubs/${baseClub.slug}`);
+
+    const link = screen.getByRole('link', { name: 'Volna Aquatic Club' });
+
+    expect(link).toHaveAttribute('href', '/clubs/volna-aquatic-club');
+    // Растянутая ссылка: псевдоэлемент на всю карточку, а не обёртка `<a>`.
+    expect(link.className).toContain('after:absolute');
+    expect(link.className).toContain('after:inset-0');
   });
 
-  it('index=0 → tone=lime + watermark "01"', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} index={0} />);
-    const card = screen.getByTestId('club-card');
-    expect(card.getAttribute('data-tone')).toBe('lime');
-    expect(card.textContent).toContain('01');
-  });
-
-  it('index=1 → tone=orange + watermark "02"', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} index={1} />);
-    const card = screen.getByTestId('club-card');
-    expect(card.getAttribute('data-tone')).toBe('orange');
-    expect(card.textContent).toContain('02');
-  });
-
-  it('index=2 → tone=blank', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} index={2} />);
-    expect(screen.getByTestId('club-card').getAttribute('data-tone')).toBe('blank');
-  });
-
-  it('reviewCount=0 && rating=0 → бейдж «Новый»', () => {
+  it('категория — первый вид спорта клуба из справочника', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    expect(screen.getByTestId('club-card-new-badge')).toBeInTheDocument();
+
+    expect(screen.getByText('Плавание')).toBeInTheDocument();
   });
 
-  it('reviewCount>0 → бейдж «Новый» отсутствует', () => {
-    render(
-      <ClubCard club={{ ...baseClub, reviewCount: 12, rating: 4.5 }} sports={sports} tags={tags} />,
-    );
+  it('цена «от N» и расстояние с одним знаком', () => {
+    render(<ClubCard club={{ ...baseClub, priceFrom: 1500, distanceKm: 2.4 }} sports={sports} />);
+
+    // Плашка цены — одной нодой: «от 1 500 ₽» читается диктором как одна фраза.
+    expect(screen.getByText(/^от\s+1\s?500/)).toBeInTheDocument();
+    expect(screen.getByText('2.4 км')).toBeInTheDocument();
+  });
+
+  it('рейтинг — одна звезда и число, для диктора подпись «Рейтинг: X из 5», рядом число отзывов', () => {
+    render(<ClubCard club={ratedClub} sports={sports} tags={tags} />);
+
+    expect(screen.getByRole('img', { name: 'Рейтинг: 4.8 из 5' })).toBeInTheDocument();
+    expect(screen.getByText('(12)')).toBeInTheDocument();
     expect(screen.queryByTestId('club-card-new-badge')).not.toBeInTheDocument();
   });
 
-  it('highlighted=true → атрибут data-highlighted="true"', () => {
-    render(<ClubCard club={baseClub} highlighted sports={sports} tags={tags} />);
-    expect(screen.getByTestId('club-card').getAttribute('data-highlighted')).toBe('true');
+  it('без рейтинга и отзывов — бейдж «Новый» вместо звезды', () => {
+    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+    expect(screen.getByTestId('club-card-new-badge')).toHaveTextContent('Новый');
+    expect(screen.queryByRole('img', { name: /Рейтинг/ })).not.toBeInTheDocument();
   });
 
-  it('highlighted=false → атрибут data-highlighted="false"', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    expect(screen.getByTestId('club-card').getAttribute('data-highlighted')).toBe('false');
+  it('фото — из imageUrls[0], с именем клуба в alt', () => {
+    render(
+      <ClubCard
+        club={{ ...baseClub, imageUrls: ['/images/clubs/volna-1.jpg'] }}
+        sports={sports}
+        tags={tags}
+      />,
+    );
+
+    const photo = screen.getByRole('img', { name: 'Volna Aquatic Club' });
+
+    expect(photo).toHaveAttribute('src', '/images/clubs/volna-1.jpg');
+    expect(screen.queryByText('Фото клуба')).not.toBeInTheDocument();
   });
 
-  it('резолвит tagIds в имена через справочник', () => {
+  it('без фото — заглушка «Фото клуба»; сломанное фото падает в неё же', () => {
+    const { unmount } = render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+    expect(screen.getByText('Фото клуба')).toBeInTheDocument();
+
+    unmount();
+    render(
+      <ClubCard
+        club={{ ...baseClub, imageUrls: ['/images/clubs/missing.jpg'] }}
+        sports={sports}
+        tags={tags}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole('img', { name: 'Volna Aquatic Club' }));
+
+    expect(screen.getByText('Фото клуба')).toBeInTheDocument();
+  });
+
+  it('highlighted → атрибут data-highlighted и зелёная рамка', () => {
+    const { unmount } = render(<ClubCard club={baseClub} sports={sports} highlighted />);
+
+    expect(screen.getByTestId('club-card')).toHaveAttribute('data-highlighted', 'true');
+    expect(screen.getByTestId('club-card').className).toContain('border-lime');
+
+    unmount();
+    render(<ClubCard club={baseClub} sports={sports} />);
+
+    expect(screen.getByTestId('club-card')).toHaveAttribute('data-highlighted', 'false');
+  });
+
+  it('описание и адрес остаются под фото', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+    expect(screen.getByText('Бассейн и пилатес рядом с набережной.')).toBeInTheDocument();
+    expect(screen.getByText('ул. Лесная, 23к1')).toBeInTheDocument();
+  });
+
+  it('резолвит tagIds в имена через справочник и не рисует неизвестные', () => {
+    render(<ClubCard club={{ ...baseClub, tagIds: [1, 999, 2] }} sports={sports} tags={tags} />);
+
     expect(screen.getByText('Бассейн')).toBeInTheDocument();
     expect(screen.getByText('Групповые')).toBeInTheDocument();
-    expect(screen.getByText('Детские секции')).toBeInTheDocument();
+    expect(screen.queryByText('#999')).not.toBeInTheDocument();
   });
 
   // Фаза 38, шаг 38.52: знак «проверено» — по полю `verifiedAt`, с подписью по виду лица.
-  it('у проверенного клуба рядом с городом стоит знак «Клуб проверен» с подсказкой', () => {
-    render(
+  it('у проверенного клуба на фото стоит знак «Клуб проверен» с подсказкой; без verifiedAt знака нет', () => {
+    const { unmount } = render(
       <ClubCard
         club={{ ...baseClub, verifiedAt: '2026-09-15T10:00:00.000Z' }}
         sports={sports}
@@ -139,44 +190,11 @@ describe('ClubCard (Phase 28)', () => {
 
     expect(badge).toHaveTextContent('Клуб проверен');
     expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
-  });
+    expect(within(screen.getByTestId('club-card')).getByTestId('verified-badge')).toBe(badge);
 
-  it('без verifiedAt знака «проверено» нет', () => {
+    unmount();
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
 
     expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
-    expect(screen.queryByText(/проверен/i)).not.toBeInTheDocument();
-  });
-
-  it('фильтрует tagIds которых нет в справочнике (без fallback #N)', () => {
-    const clubWithUnknown = { ...baseClub, tagIds: [1, 999, 2] };
-    render(<ClubCard club={clubWithUnknown} sports={sports} tags={tags} />);
-    expect(screen.getByText('Бассейн')).toBeInTheDocument();
-    expect(screen.getByText('Групповые')).toBeInTheDocument();
-    expect(screen.queryByText('#999')).not.toBeInTheDocument();
-  });
-
-  it('отображает price-pill с formatPrice и distance', () => {
-    render(
-      <ClubCard
-        club={{ ...baseClub, priceFrom: 1500, distanceKm: 2.4 }}
-        sports={sports}
-        tags={tags}
-      />,
-    );
-    // formatPrice добавляет неразрывные пробелы и валюту
-    expect(screen.getByText(/1[\s  ]500[\s  ]?₽/)).toBeInTheDocument();
-    expect(screen.getByText(/2\.4 км/)).toBeInTheDocument();
-    expect(screen.getByText('от')).toBeInTheDocument();
-  });
-
-  it('city eyebrow содержит "г. Самара"', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    expect(screen.getByText(/г\. Самара/)).toBeInTheDocument();
-  });
-
-  it('eyebrow с адресом отображает club.address', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    expect(screen.getByText(baseClub.address)).toBeInTheDocument();
   });
 });

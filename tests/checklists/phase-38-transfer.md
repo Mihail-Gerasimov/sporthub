@@ -254,7 +254,7 @@
 | `data-card-slider-slide`               | `ui/CardSlider.tsx:453`                  | слайд; из него читается ширина шага (`:160`, `:200`)        |
 | `data-card-slider-dot` + `data-active` | `ui/CardSlider.tsx:469-470`              | точки; `data-active` — единственный признак текущего слайда |
 | `data-card-slider-empty`               | `ui/CardSlider.tsx:292`                  | пустое состояние слайдера                                   |
-| `data-tone`                            | `ClubCard.tsx:90`, `TrainerCard.tsx:118` | ротация акцента                                             |
+| `data-tone`                            | `TrainerCard.tsx:118`; у клуба снят 38.73 | ротация акцента (макет однотонный — у карточки клуба снята) |
 | `data-highlighted`                     | `ClubCard.tsx:91`, `TrainerCard.tsx:119` | подсветка выбранного на карте                               |
 | `data-map-theme`                       | `map/MainMap.tsx:293`                    | к нему привязан CSS-фильтр темы карты                       |
 | `data-chip-original`                   | `ui/ChipMarquee.tsx:58,62`               | различает оригиналы и клоны ленты                           |

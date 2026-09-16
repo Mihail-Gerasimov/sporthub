@@ -146,6 +146,14 @@
     color-mix(in srgb, var(--ui-lime) 7%, transparent) 0%,
     transparent 70%
   );
+  /* Затемнение фото карточки витрины (шаг 38.73, эталон step-39): прозрачное до 35%,
+   * к низу — чернила на 78%; поверх него белые имя и рейтинг. Цвет — доля чернил
+   * через color-mix, без сырого rgba в разметке. */
+  --ui-decor-photo-shade: linear-gradient(
+    to bottom,
+    transparent 35%,
+    color-mix(in srgb, var(--ui-ink) 78%, transparent) 100%
+  );
   /* Свечение призыва: то же пятно 700×400, по центру секции. */
   --ui-decor-plate-glow-center: radial-gradient(
     ellipse 350px 200px at 50% 50%,

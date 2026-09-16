@@ -49,14 +49,13 @@ export function ClubList({ clubs, selectedClubId = null, sports, tags = [] }: Cl
       total={filteredClubs.length}
       emptyMessage="По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид спорта."
     >
-      {filteredClubs.map((club, i) => (
+      {filteredClubs.map((club) => (
         <ClubCard
           key={club.id}
           club={club}
           highlighted={selectedClubId === club.id}
           sports={sports}
           tags={tags}
-          index={i}
         />
       ))}
     </CardSlider>

@@ -1,204 +1,185 @@
 'use client';
 
 /*
- * ClubCard — карточка клуба под новый дизайн Phase 28.8.
- * Структура 1-в-1 с claude-design/cards-trainers/sporthub/project/
- * SportHub Cards - Clubs.html (.club-card + child grid):
- *   - Hero (min-h 176/164/152 на 1024+/768/480) с диагональным
- *     lime/orange/blank-лучом (классы .hero-bg-{tone} из globals.css),
- *     watermark номера ранга, city-pill, preview-pill, address (accent eyebrow)
- *     и display-именем (Link на /clubs/{slug}).
- *   - Body-grid с фикс. высотой row для desc (72px / 84px на 480) — карточки
- *     в одном слайдере выровнены по высоте независимо от длины контента.
- *   - body-meta: lime price-pill + distance.
- *   - body-rating: SVG-звёзды + display num + N отзывов + опц. бейдж «Новый».
- *   - Tags ChipMarquee — solid lime-soft, последний, isLast=true.
+ * ClubCard — карточка клуба по эталону витрины (фаза 38, шаг 38.73; `HomePage.tsx:85-118`,
+ * чек-лист эталона step-39…43).
  *
- * Важно: вокруг <article> НЕТ обёртки <Link> — в нашем стеке это даёт
- * nested <a> при наличии inner CTA (TrainerCard). Поэтому Link только
- * на name (display-заголовок). Hover-эффект бордера — на самой <article>
- * через :hover в Tailwind.
+ * Форма — из макета: белая карточка радиусом 18 с тенью покоя `shadow-card`, при
+ * наведении поднимается на 4px и получает плавающую тень; фото 180 с затемнением снизу
+ * (токен `--ui-decor-photo-shade`, не hex в разметке), на нём имя display-шрифтом 19,
+ * звезда 10px и рейтинг, число отзывов, пин и расстояние; слева сверху — категория
+ * (первый вид спорта), справа — плашка «от N» на тёмной подложке.
  *
- * isFeatured удалён в Step 28.7 — поле больше не существует.
+ * Логика — наша (реестр № 86–94): вся карточка ведёт на СТРАНИЦУ клуба (`/clubs/{slug}`),
+ * а не в общий каталог, как в макете, — ссылка с именем растянута псевдоэлементом на всю
+ * карточку, обёртки `<a>` вокруг `<article>` нет (вложенные ссылки внутри были бы
+ * невалидны). Ниже фото остаётся наше: описание, адрес, бейдж «Новый» без рейтинга,
+ * лента тегов. Знак «проверено» — по `verifiedAt` (38.52). Ротация тона и водяной
+ * знак номера сняты: макет однотонный.
+ *
+ * Фото — `imageUrls[0]`; без адреса или при ошибке загрузки — заглушка «Фото клуба»
+ * на штриховке. STUB: загрузки фото на площадке нет (долг Д-10), заглушка стоит,
+ * пока владелец не сможет загрузить снимок; тогда пустой `imageUrls` станет редкостью.
  */
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { ChipMarquee, VerifiedBadge } from '@/components/ui';
-import { buildDictMap, formatCityDisplay, formatPrice } from '@/lib/utils';
+import { buildDictMap, cn, formatPrice } from '@/lib/utils';
 import type { Club, Sport, Tag } from '@sporthub/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
-
-type ClubTone = 'lime' | 'orange' | 'blank';
-const TONE_CYCLE: ClubTone[] = ['lime', 'orange', 'blank'];
 
 type ClubCardProps = {
   club: Club;
   sports: ClubCardSport[];
   /** Справочник тегов для резолвинга tagIds → имена в marquee */
   tags?: Tag[];
-  /** Индекс карточки в слайдере (0-based) — для watermark и tone-ротации. */
-  index?: number;
-  /** Подсветка карточки при выборе на карте — accent-бордер вместо line. */
+  /** Подсветка карточки при выборе на карте — зелёная рамка вместо обычной. */
   highlighted?: boolean;
 };
 
-export function ClubCard({
-  club,
-  sports: _sports,
-  tags = [],
-  index,
-  highlighted = false,
-}: ClubCardProps) {
-  // wm — двузначный номер ранга («01», «02», …) для watermark hero. Если
-  // index не передан (карточка вне слайдера) — watermark не показываем.
-  const wm = index !== undefined ? String(index + 1).padStart(2, '0') : '';
-  const tone: ClubTone = TONE_CYCLE[(index ?? 0) % 3]!;
+/** Пин расстояния — 9px, приглушённый. */
+function PinIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-[9px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    >
+      <path d="M12 21c-1.6-2-6-7.3-6-11a6 6 0 1 1 12 0c0 3.7-4.4 9-6 11Z" />
+      <circle cx="12" cy="10" r="2.2" />
+    </svg>
+  );
+}
 
-  // «Новый» — клуб ещё не оценивали (нет ни рейтинга, ни отзывов).
+export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubCardProps) {
+  const [photoBroken, setPhotoBroken] = useState(false);
+  const photo = club.imageUrls[0];
+  const showPhoto = photo !== undefined && !photoBroken;
+  const sportById = buildDictMap(sports);
+  const category = club.sportIds.map((id) => sportById.get(id)?.name).find(Boolean);
+  const tagItems = buildDictMap(tags);
+  const tagChips = club.tagIds.flatMap((id) => {
+    const name = tagItems.get(id)?.name;
+
+    return name === undefined ? [] : [{ label: name }];
+  });
+  // «Новый» — ни рейтинга, ни отзывов: звезде нечего показывать.
   const isNew = club.reviewCount === 0 && club.rating === 0;
-
-  // Резолвинг tagIds → имена через справочник; неизвестные id отбрасываются.
-  const tagMap = buildDictMap(tags);
-  const tagItems = club.tagIds
-    .map((id) => tagMap.get(id)?.name)
-    .filter((label): label is string => Boolean(label))
-    .map((label) => ({ label }));
-
-  // Hover-цвет бордера зависит от tone (lime/orange) — для blank остаётся lime.
-  const hoverBorderClass =
-    tone === 'orange' ? 'hover:border-[var(--ui-orange)]' : 'hover:border-[var(--ui-lime)]';
-
-  // Цвет address-eyebrow — accent по tone. На mist hero (Step 31.10) светлый mint
-  // теряется, поэтому для lime/blank используем graphite muted (Step 31.12).
-  const addressColorClass =
-    tone === 'orange' ? 'text-[var(--ui-orange)]' : 'text-[var(--ui-muted)]';
-
-  // Цвет hover на имени-Link
-  const nameHoverClass =
-    tone === 'orange' ? 'hover:text-[var(--ui-orange)]' : 'hover:text-lime-hov';
 
   return (
     <article
       data-testid="club-card"
-      data-tone={tone}
       data-highlighted={highlighted ? 'true' : 'false'}
-      className={`relative grid h-full grid-rows-[auto_auto_72px_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors sm:grid-rows-[auto_auto_84px_auto_auto] md:grid-rows-[auto_auto_72px_auto_auto] ${
-        highlighted ? 'border-[var(--ui-lime)]' : 'border-[var(--ui-line)]'
-      } ${hoverBorderClass}`}
+      aria-label={`Карточка клуба: ${club.name}`}
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-[18px] border bg-card shadow-card transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:shadow-floating',
+        highlighted ? 'border-lime' : 'border-line',
+      )}
     >
-      {/* Hero — диагональный луч + watermark + city-pill + name */}
-      <div className="relative flex min-h-[176px] flex-col justify-between overflow-hidden border-b border-[var(--ui-line-2)] bg-[var(--ui-card-2)] p-5">
-        {/* Двухслойный фон через готовый класс из globals.css (Step 28.6) */}
-        <span aria-hidden="true" className={`absolute inset-0 hero-bg-${tone}`} />
-
-        {/* Watermark номера ранга */}
-        {wm ? (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute right-[14px] bottom-[6px] select-none font-display text-[92px] leading-[0.85] tracking-[-0.02em] text-ink/[0.04]"
-          >
-            {wm}
-          </span>
-        ) : null}
-
-        {/* Top row: city-pill (+ знак «проверено», 38.52) + preview-pill */}
-        <div className="relative z-[1] flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-card/60 px-3 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]">
-              {formatCityDisplay(club.city)}
+      {/* Фото 180 с затемнением снизу: низ зоны — тёмная плашка под белым текстом,
+          поэтому подложка — `bg-plate`; заглушка без фото кладёт свою светлую сверху. */}
+      <div className="relative h-[180px] overflow-hidden bg-plate">
+        {showPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element -- адрес фото из данных, размер фиксирован
+          <img
+            src={photo}
+            alt={club.name}
+            loading="lazy"
+            onError={() => setPhotoBroken(true)}
+            className="h-full w-full object-cover opacity-[0.88] transition-opacity duration-200 group-hover:opacity-100"
+          />
+        ) : (
+          <div className="hero-bg-blank flex h-full items-center justify-center bg-card-2">
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+              Фото клуба
             </span>
-            {/* Знак рисуется только у проверенной публикации: решает поле `verifiedAt`. */}
+          </div>
+        )}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 [background:var(--ui-decor-photo-shade)]"
+        />
+
+        {/* Слева сверху — категория и знак проверки; справа — цена. */}
+        <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+          <div className="relative z-[2] flex flex-wrap items-center gap-1.5">
+            {category ? (
+              <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold text-lime-hov">
+                {category}
+              </span>
+            ) : null}
             {club.verifiedAt ? <VerifiedBadge ownerType="club" /> : null}
           </div>
-          <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-transparent px-2.5 py-[5px] font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ui-muted)]">
-            Фото preview
+          <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-display text-[12px] font-extrabold tabular-nums text-plate-ink">
+            от {formatPrice(club.priceFrom)}
           </span>
         </div>
 
-        {/* Bottom: address (accent eyebrow) + name (Link, display clamp 2) */}
-        <div className="relative z-[1] flex items-end justify-between gap-5">
-          <div className="min-w-0 flex-1">
-            <p
-              className={`mb-2.5 font-body text-[11px] font-bold uppercase leading-tight tracking-[0.18em] ${addressColorClass}`}
+        {/* Снизу — имя (ссылка на всю карточку), рейтинг, отзывы, расстояние. */}
+        <div className="absolute inset-x-0 bottom-0 px-4 py-3.5">
+          <h3 className="m-0 font-display text-[19px] font-black leading-none text-plate-ink">
+            <Link
+              href={`/clubs/${club.slug}`}
+              className="no-underline after:absolute after:inset-0 after:z-[1] after:content-['']"
             >
-              {club.address}
-            </p>
-            <h3 className="line-clamp-2 font-display text-[22px] uppercase leading-[1.05] tracking-[-0.005em] text-[var(--ui-ink)]">
-              <Link href={`/clubs/${club.slug}`} className={`transition-colors ${nameHoverClass}`}>
-                {club.name}
-              </Link>
-            </h3>
+              {club.name}
+            </Link>
+          </h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-plate-muted">
+            {isNew ? (
+              <span
+                data-testid="club-card-new-badge"
+                className="rounded-[5px] border border-plate-line px-1.5 py-px font-body font-bold uppercase tracking-[0.14em] text-plate-ink"
+              >
+                Новый
+              </span>
+            ) : (
+              <>
+                <span
+                  role="img"
+                  aria-label={`Рейтинг: ${club.rating.toFixed(1)} из 5`}
+                  className="inline-flex items-center gap-1.5"
+                >
+                  {/* Звезда 10px, зелёная на тёмном затемнении фото — как в макете. */}
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="size-2.5 fill-current text-lime"
+                  >
+                    <path d="m12 3.2 2.72 5.52 6.09.89-4.4 4.29 1.04 6.07L12 17.09l-5.45 2.88 1.04-6.07-4.4-4.29 6.09-.89L12 3.2Z" />
+                  </svg>
+                  <span className="font-display text-[11px] font-bold tabular-nums text-plate-ink">
+                    {club.rating.toFixed(1)}
+                  </span>
+                </span>
+                <span>({club.reviewCount})</span>
+              </>
+            )}
+            <span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-1">
+              <PinIcon />
+              {club.distanceKm.toFixed(1)} км
+            </span>
           </div>
         </div>
       </div>
 
-      {/* body-meta: lime price-pill + distance */}
-      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-5 sm:px-4">
-        <span className="inline-flex items-center gap-1 rounded-[10px] bg-lime px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-ink">
-          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em]">от</span>
-          {formatPrice(club.priceFrom)}
-        </span>
-        <span className="inline-flex items-center gap-1.5 font-body text-xs font-medium text-[var(--ui-muted)] before:h-1 before:w-1 before:rounded-full before:bg-[var(--ui-muted)]">
-          {club.distanceKm.toFixed(1)} км
-        </span>
-      </div>
-
-      {/* body-desc — clamp 3 lines (4 на 480), фикс. высота row */}
-      <p className="line-clamp-3 px-[22px] pt-3.5 font-body text-[13px] leading-[1.6] text-[var(--ui-muted)] sm:line-clamp-4 sm:px-4">
+      {/* Ниже фото — наше: описание, адрес, лента тегов. */}
+      <p className="m-0 line-clamp-3 px-4 pt-3.5 font-body text-[13px] leading-[1.6] text-muted">
         {club.shortDescription}
       </p>
-
-      {/* body-rating: звёзды + num + reviews + опц. «Новый» */}
-      <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-4 sm:px-4">
-        <Stars rating={club.rating} />
-        <span className="font-display text-[13px] tabular-nums leading-none text-[var(--ui-ink)]">
-          {club.rating.toFixed(1)}
-        </span>
-        <span className="font-body text-xs font-medium text-[var(--ui-muted)]">
-          {club.reviewCount} отзывов
-        </span>
-        {isNew ? (
-          <span
-            data-testid="club-card-new-badge"
-            className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ui-ink)]"
-          >
-            Новый
-          </span>
-        ) : null}
+      <p className="m-0 px-4 pt-2 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        {club.address}
+      </p>
+      <div className="relative z-[2] mt-auto">
+        <ChipMarquee items={tagChips} variant="solid" accent="lime" isLast />
       </div>
-
-      {/* Tags ChipMarquee — solid lime-soft, последний (margin-bottom учтён) */}
-      <ChipMarquee items={tagItems} variant="solid" accent="lime" isLast />
     </article>
-  );
-}
-
-/**
- * Mini-помощник: ряд из 5 SVG-звёзд. Заполненные — золотые (`text-gold`),
- * пустые — цвета бордера. 1-в-1 с дизайном из SportHub Cards - Clubs.html.
- */
-function Stars({ rating }: { rating: number }) {
-  const filled = Math.round(rating);
-  return (
-    <span
-      role="img"
-      aria-label={`Рейтинг: ${rating.toFixed(1)} из 5`}
-      className="inline-flex gap-[3px]"
-    >
-      {Array.from({ length: 5 }).map((_, i) => (
-        <svg
-          key={i}
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="currentColor"
-          aria-hidden="true"
-          className={i < filled ? 'text-gold' : 'text-[var(--ui-line)]'}
-        >
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
-        </svg>
-      ))}
-    </span>
   );
 }

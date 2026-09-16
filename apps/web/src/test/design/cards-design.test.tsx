@@ -105,9 +105,24 @@ describe('Минималистичный стиль карточек', () => {
     });
   });
 
-  describe('ClubCard', () => {
-    // Phase 28.8: address eyebrow в новом дизайне имеет letter-spacing 0.18em
-    // (UI Kit eyebrow), порог поднят с 0.15 → 0.20em.
+  describe('ClubCard (38.73 — эталон витрины)', () => {
+    it('покой — тень карточки, наведение — подъём и плавающая тень; цвета токенами', () => {
+      render(<ClubCard club={stubClub} sports={[stubSport]} />);
+      const card = screen.getByTestId('club-card');
+      expect(card.className).toContain('shadow-card');
+      expect(card.className).toContain('hover:-translate-y-1');
+      expect(card.className).toContain('hover:shadow-floating');
+      expect(card.className).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(/i);
+    });
+
+    it('фото 180 с затемнением снизу токеном, а не градиентом в разметке', () => {
+      render(<ClubCard club={stubClub} sports={[stubSport]} />);
+      const card = screen.getByTestId('club-card');
+      const shade = card.querySelector('[class*="--ui-decor-photo-shade"]');
+      expect(shade).not.toBeNull();
+      expect(card.querySelector('.h-\\[180px\\]')).not.toBeNull();
+    });
+
     it('tracking адреса не превышает 0.20em', () => {
       render(<ClubCard club={stubClub} sports={[stubSport]} />);
       const address = screen.getByText('ул. Тестовая, 1');
