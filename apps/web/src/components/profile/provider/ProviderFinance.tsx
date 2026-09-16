@@ -4,6 +4,7 @@
 'use client';
 
 import { Badge, Card } from '@/components/ui';
+import { BRAND_NAME } from '@sporthub/domain';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 export function ProviderFinance() {
@@ -45,7 +46,7 @@ export function ProviderFinance() {
         </header>
         <p className="mt-4 text-sm leading-relaxed text-muted">
           График и история выплат на ваш расчётный счёт. После интеграции эквайринга суммы будут
-          агрегироваться автоматически с учётом комиссии SportHub.
+          агрегироваться автоматически с учётом комиссии {BRAND_NAME}.
         </p>
       </Card>
 

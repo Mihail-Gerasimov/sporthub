@@ -38,8 +38,8 @@ export function getAthleteReviewItems({
       rating: review.rating,
       targetName:
         review.trainerId !== undefined
-          ? (trainerNames.get(review.trainerId) ?? 'Тренер SportHub')
-          : (clubNames.get(review.clubId ?? -1) ?? 'Клуб SportHub'),
+          ? (trainerNames.get(review.trainerId) ?? 'Тренер')
+          : (clubNames.get(review.clubId ?? -1) ?? 'Клуб'),
       targetTypeLabel: review.trainerId !== undefined ? 'Отзыв о тренере' : 'Отзыв о клубе',
       text: review.text,
     }))

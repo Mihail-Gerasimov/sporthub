@@ -58,7 +58,7 @@ function getBookingTypeLabel(booking: Pick<Booking, 'ownerType' | 'clubId' | 'tr
     return 'Услуга тренера';
   }
 
-  return 'Занятие SportHub';
+  return 'Занятие';
 }
 
 function getBookingTimeLabel(slot: Pick<Schedule, 'startTime' | 'endTime'> | undefined) {
@@ -127,7 +127,7 @@ export function getAthleteUpcomingProfileBookings({
   return activeFutureBookings
     .map((booking) => {
       const slot = findBookingSlot(booking, scheduleItems);
-      const clubName = clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub';
+      const clubName = clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб';
 
       return {
         bookingTypeLabel: getBookingTypeLabel(booking),
@@ -143,8 +143,8 @@ export function getAthleteUpcomingProfileBookings({
         statusLabel: ATHLETE_BOOKING_STATUS_LABELS[booking.status],
         statusTone: BOOKING_STATUS_TONES[booking.status],
         timeLabel: getBookingTimeLabel(slot),
-        title: slot?.title ?? 'Занятие SportHub',
-        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
+        title: slot?.title ?? 'Занятие',
+        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер',
         ...(booking.cancellationPolicySnapshot
           ? { cancellationPolicySnapshot: booking.cancellationPolicySnapshot }
           : {}),

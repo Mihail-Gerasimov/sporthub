@@ -82,13 +82,13 @@ export function getAthleteHistoryItems({
       return {
         id: booking.id,
         clubId: getBookingClubId(booking),
-        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб SportHub',
+        clubName: clubNames.get(getBookingClubId(booking) ?? -1) ?? 'Клуб',
         date: booking.date,
         formatLabel: getHistoryFormatLabel(scheduleItem),
         reviewStatusLabel,
         startTime: scheduleItem?.startTime ?? 'Время уточняется',
         title: scheduleItem?.title ?? 'Завершённое занятие',
-        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер SportHub',
+        trainerName: trainerNames.get(getBookingTrainerId(booking) ?? -1) ?? 'Тренер',
       } satisfies AthleteHistoryItem;
     })
     .sort((left, right) => {

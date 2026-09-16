@@ -79,7 +79,7 @@ function getProviderBookingTypeLabel(
     return 'Услуга тренера';
   }
 
-  return 'Запись SportHub';
+  return 'Запись';
 }
 
 /** Собирает строку времени слота в единый лейбл для карточки. */
@@ -216,13 +216,13 @@ export function getProviderIncomingBookings(
           : 'Локация уточняется';
       const trainerName =
         resolvedTrainerId !== null
-          ? (trainerById.get(resolvedTrainerId)?.name ?? 'Тренер SportHub')
-          : 'Тренер SportHub';
+          ? (trainerById.get(resolvedTrainerId)?.name ?? 'Тренер')
+          : 'Тренер';
       const startTime = slot?.startTime ?? 'Время уточняется';
 
       return {
         athleteEmail: athlete?.email ?? 'Email уточняется',
-        athleteName: athlete?.name ?? 'Спортсмен SportHub',
+        athleteName: athlete?.name ?? 'Спортсмен',
         athleteUserId: booking.userId,
         bookingTypeLabel: getProviderBookingTypeLabel(booking),
         contextLabel: getProviderBookingContextLabel({
@@ -243,7 +243,7 @@ export function getProviderIncomingBookings(
         statusLabel: PROVIDER_BOOKING_STATUS_LABELS[booking.status],
         statusTone: BOOKING_STATUS_TONES[booking.status],
         timeLabel: getProviderBookingTimeLabel(slot),
-        title: slot?.title ?? 'Занятие SportHub',
+        title: slot?.title ?? 'Занятие',
         totalPrice: booking.totalPrice,
       } satisfies ProviderIncomingBooking;
     })

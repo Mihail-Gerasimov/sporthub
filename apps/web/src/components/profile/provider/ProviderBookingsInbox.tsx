@@ -200,8 +200,7 @@ export function ProviderBookingsInbox({
       const bTrainer = getBookingTrainerId(booking);
       const clubName = bClub !== null ? (clubById.get(bClub)?.name ?? '') : '';
       const trainerName = bTrainer !== null ? (trainerById.get(bTrainer)?.name ?? '') : '';
-      const contextLabel =
-        [trainerName, clubName].filter(Boolean).join(' · ') || 'Занятие SportHub';
+      const contextLabel = [trainerName, clubName].filter(Boolean).join(' · ') || 'Занятие';
       const locationLabel = slot?.room
         ? `${clubName || trainerName || 'Площадка'} · ${slot.room}`
         : clubName || trainerName || 'Площадка';
@@ -214,8 +213,8 @@ export function ProviderBookingsInbox({
         booking,
         slot,
         offering,
-        title: offering?.title ?? slot?.title ?? 'Занятие SportHub',
-        athleteName: athlete?.name ?? 'Спортсмен SportHub',
+        title: offering?.title ?? slot?.title ?? 'Занятие',
+        athleteName: athlete?.name ?? 'Спортсмен',
         athleteEmail: athlete?.email ?? '',
         contextLabel,
         locationLabel,

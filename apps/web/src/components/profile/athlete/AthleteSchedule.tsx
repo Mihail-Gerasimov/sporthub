@@ -158,7 +158,7 @@ export function AthleteSchedule({
           return {
             booking,
             slot,
-            title: slot?.title ?? 'Занятие SportHub',
+            title: slot?.title ?? 'Занятие',
             clubName,
             trainerName,
           };
@@ -205,7 +205,7 @@ export function AthleteSchedule({
     return {
       booking: opened,
       slot,
-      title: slot?.title ?? 'Занятие SportHub',
+      title: slot?.title ?? 'Занятие',
       clubName,
     };
   }, [opened, scheduleById, clubById]);
@@ -287,7 +287,7 @@ function BookingRow({ item, onOpen }: { item: EnrichedBooking; onOpen: () => voi
           </Badge>
         </div>
         <p className="mt-3 text-base font-semibold text-ink">{title}</p>
-        <p className="mt-1 text-xs text-muted">{trainerName || clubName || 'Занятие SportHub'}</p>
+        <p className="mt-1 text-xs text-muted">{trainerName || clubName || 'Занятие'}</p>
       </div>
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">Дата</p>

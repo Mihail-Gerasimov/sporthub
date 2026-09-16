@@ -153,7 +153,7 @@ function mapReviewsWithAuthors(
 ): ReviewWithAuthor[] {
   return reviews.map((review) => ({
     ...review,
-    authorName: reviewAuthors[review.userId] ?? 'Спортсмен SportHub',
+    authorName: reviewAuthors[review.userId] ?? 'Спортсмен',
   }));
 }
 
@@ -266,7 +266,7 @@ export function ClubDetailPageClient({
         // Phase 30.7: сегодняшние прошедшие слоты не показываем (TZ-safe сравнение).
         .filter((s) => isSlotUpcoming(s, now))
         .map((slot) => {
-          const trainerName = trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер SportHub';
+          const trainerName = trainerNames.get(slot.trainerId ?? -1) ?? 'Тренер';
           return {
             id: slot.id,
             date: slot.date,
@@ -352,8 +352,7 @@ export function ClubDetailPageClient({
       setReviewItems((currentValue) => [
         {
           ...payload.data,
-          authorName:
-            sessionUser?.name ?? reviewAuthors[payload.data.userId] ?? 'Спортсмен SportHub',
+          authorName: sessionUser?.name ?? reviewAuthors[payload.data.userId] ?? 'Спортсмен',
         },
         ...currentValue,
       ]);
@@ -772,7 +771,7 @@ export function ClubDetailPageClient({
                       ? // ⚠️ Отзыв принимается только после посещения (фаза 34, решение
                         // заказчика от 08.09.2026). Раньше оценку мог поставить кто угодно
                         // кому угодно, и она сразу двигала публичный рейтинг.
-                        `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен SportHub'}. Оставить его можно после посещения занятия.`
+                        `Отзыв будет отправлен как ${sessionUser?.name ?? 'Спортсмен'}. Оставить его можно после посещения занятия.`
                       : REVIEW_REQUIRES_LOGIN_HINT}
                   </p>
                   <Button type="submit" aria-label="Отправить отзыв" loading={isSubmittingReview}>

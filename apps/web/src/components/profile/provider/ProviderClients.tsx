@@ -445,7 +445,7 @@ export function ProviderClients({
                       className="flex w-full flex-col gap-3 rounded-card border border-line bg-canvas p-4 text-left transition-colors hover:border-accent"
                     >
                       <p className="text-base font-semibold text-ink">
-                        {client.user?.name ?? 'Спортсмен SportHub'}
+                        {client.user?.name ?? 'Спортсмен'}
                       </p>
                       <p className="text-xs text-muted">{client.user?.email ?? ''}</p>
 
@@ -529,7 +529,7 @@ export function ProviderClients({
           <div className="flex flex-col gap-5" data-testid="provider-clients-drawer">
             <div className="flex flex-col gap-1">
               <p className="text-base font-semibold text-ink">
-                {openedClient.user?.name ?? 'Клиент SportHub'}
+                {openedClient.user?.name ?? 'Клиент'}
               </p>
               {openedClient.user?.email ? (
                 <p className="text-xs text-muted">{openedClient.user.email}</p>
