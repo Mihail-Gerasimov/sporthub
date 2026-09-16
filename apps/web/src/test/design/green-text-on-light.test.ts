@@ -45,6 +45,18 @@ export const RENDERED_ON_PLATE: string[] = [
  */
 export const BRAND_MARK: string[] = ['src/components/ui/BrandLogo.tsx'];
 
+/**
+ * Значки — графика, а не текст (38.110, 38.71): яркий зелёный красит SVG-иконку 22px
+ * на белом квадрате, как `GREEN` макета у плиток «Возможности» и шагов; правило
+ * контраста текста к рисунку не применяется (как и к `hue-sky`, 2,8:1). Исключение
+ * названо здесь, а не спрятано за переменной или одним словом в строке классов;
+ * обратная половина ниже — в каждом файле списка есть `<svg`.
+ */
+export const ICON_GREEN: string[] = [
+  'src/components/home/HomeFeatures.tsx',
+  'src/components/home/HomeSteps.tsx',
+];
+
 /** Старые файлы и потолок нарушений. Только убывает. */
 export const LEGACY_CEILINGS: Record<string, number> = {};
 
@@ -107,6 +119,9 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
   const stack: boolean[] = [];
   const limeStack: boolean[] = [];
   let plateDepth = RENDERED_ON_PLATE.includes(file) || BRAND_MARK.includes(file) ? 1 : 0;
+  // Значки: яркий зелёный допустим только у тега, который оборачивает рисунок — следом
+  // идёт `<svg` или выражение с иконкой (`{icons[…]}`); текст в тех же файлах проверяется.
+  const iconFile = ICON_GREEN.includes(file);
   let limeDepth = 0;
 
   // Теги JSX по порядку: открывающие, закрывающие, самозакрывающиеся.
@@ -127,7 +142,13 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
     const selfLime = LIME.test(classes);
     const line = body.slice(0, match.index).split('\n').length;
 
-    if (GREEN_TEXT.test(classes) && !onPlate) {
+    const wrapsIcon =
+      iconFile &&
+      /^\s*(?:<svg\b|\{[^}]*icons?\b[^}]*\})/i.test(
+        body.slice(match.index + tag.length, match.index + tag.length + 160),
+      );
+
+    if (GREEN_TEXT.test(classes) && !onPlate && !wrapsIcon) {
       offenders.push(
         `строка ${line}: цвет заливки текстом на светлом — ${classes.match(GREEN_TEXT)![0]}`,
       );
@@ -483,7 +504,20 @@ describe('Сторож: зелёный текст только на плашке
     expect(files.length).toBeGreaterThan(100);
     expect(files).toContain('src/app/page.tsx');
     expect(files).toContain('src/components/layout/MobileNav.tsx');
-    for (const file of [...RENDERED_ON_PLATE, ...BRAND_MARK]) expect(files).toContain(file);
+    for (const file of [...RENDERED_ON_PLATE, ...BRAND_MARK, ...ICON_GREEN]) {
+      expect(files).toContain(file);
+    }
+  });
+
+  it('файлы ICON_GREEN красят зелёным графику: в каждом есть <svg', async () => {
+    for (const file of ICON_GREEN) {
+      const text = stripComments(await readFile(path.join(WEB_ROOT, file), 'utf8'));
+
+      expect(text, `${file}: значков нет — исключение без предмета`).toMatch(/<svg\b/);
+      expect(text, `${file}: ярко-зелёного нет — запись снять`).toMatch(
+        /(?<![\w-])text-lime(?![\w-])/,
+      );
+    }
   });
 
   it('сторож видит нарушение и не путает плашку на подставном тексте', () => {
@@ -537,5 +571,21 @@ describe('Сторож: зелёный текст только на плашке
     ).toEqual([]);
     // Комментарий — не нарушение.
     expect(greenTextOffenders(file, '{/* <p className="text-lime">x</p> */}')).toEqual([]);
+    // Значок в файле ICON_GREEN — законно только у тега, оборачивающего рисунок;
+    // текст в том же файле — по-прежнему нарушение.
+    expect(
+      greenTextOffenders(
+        ICON_GREEN[0],
+        '<span className="text-lime"><svg aria-hidden="true" /></span>',
+      ),
+    ).toEqual([]);
+    expect(
+      greenTextOffenders(ICON_GREEN[0], '<span className="text-lime">{icons[key]}</span>'),
+    ).toEqual([]);
+    expect(greenTextOffenders(ICON_GREEN[0], '<p className="text-lime">x</p>')).toHaveLength(1);
+    // Вне списка тот же тег со значком — нарушение: исключение поимённое.
+    expect(
+      greenTextOffenders(file, '<span className="text-lime"><svg aria-hidden="true" /></span>'),
+    ).toHaveLength(1);
   });
 });

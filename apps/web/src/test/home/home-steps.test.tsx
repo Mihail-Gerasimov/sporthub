@@ -87,6 +87,8 @@ describe('HomeSteps', () => {
 
     expect(box?.className).toContain('bg-tint-lime');
     expect(box?.className).not.toContain('bg-lime-soft');
+    // Значок — графика: яркий зелёный макета, как у плиток «Возможности».
+    expect(box?.className).toMatch(/\btext-lime\b/);
   });
 
   it('третий шаг — без дневника и челленджей (решение заказчика)', () => {

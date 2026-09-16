@@ -119,8 +119,10 @@ export function HomeSteps() {
                   {step.number}
                 </span>
                 {/* Подложка бокса — `tint-lime` (6 %): у макета 8 %, ближайший токен; `lime-soft` (12 %) читают
-                    семнадцать компонентов, второй токен ради одного бокса не заводится (аудит 38.71, п. 15). */}
-                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-tint-lime text-lime-hov">
+                    семнадцать компонентов, второй токен ради одного бокса не заводится (аудит 38.71, п. 15).
+                    Значок — яркий `text-lime`, как `GREEN` макета: графика 22px, не текст; правило контраста
+                    текста к нему не относится (то же решение, что у плиток «Возможности»). */}
+                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-tint-lime text-lime">
                   {STEP_ICONS[step.key]}
                 </span>
               </div>

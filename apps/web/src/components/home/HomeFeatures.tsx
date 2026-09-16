@@ -132,9 +132,9 @@ function hrefOf(target: FeatureTarget): string {
  *
  * ⚠️ Значок «онлайн-записи» — яркий `text-lime`, как `GREEN` в макете: это ГРАФИКА 22px
  * на белом квадрате, а не текст, и правило контраста текста (яркий зелёный на светлом —
- * только `text-lime-hov`) к нему не относится — как и к `hue-sky` (2,8:1). Сторож
- * `green-text-on-light` читает литералы `className` и этой таблицы не видит — здесь это
- * названо, а не спрятано за переменной: единственное место с ярким зелёным вне плашки.
+ * только `text-lime-hov`) к нему не относится — как и к `hue-sky` (2,8:1). Исключение
+ * названо в стороже `green-text-on-light` списком `ICON_GREEN` (вместе с иконками шагов),
+ * а не спрятано за переменной.
  */
 const FEATURE_TINTS: Record<FeatureKey, { surface: string; icon: string }> = {
   booking: { surface: 'bg-tint-lime', icon: 'text-lime' },
