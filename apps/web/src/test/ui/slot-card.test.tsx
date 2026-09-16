@@ -57,11 +57,14 @@ describe('SlotCard', () => {
 
     const { rerender } = render(<SlotCard {...makeProps({ availableSpots: 2 })} />);
 
-    expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
-    expect(screen.getByText(/Свободно/i).className).not.toMatch(/lime/);
+    // Тон «мало мест» — обводка и подложка красные, буквы чернилами (AA на светлом:
+    // `text-red` даёт 3,2:1); зелёного в пилюле нет.
+    expect(screen.getByText(/Свободно/i).className).toMatch(/border-red|bg-red/);
+    expect(screen.getByText(/Свободно/i).className).toMatch(/text-ink/);
+    expect(screen.getByText(/Свободно/i).className).not.toMatch(/text-red|lime/);
 
     rerender(<SlotCard {...makeProps({ availableSpots: 1 })} />);
-    expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
+    expect(screen.getByText(/Свободно/i).className).toMatch(/bg-red/);
 
     rerender(<SlotCard {...makeProps({ availableSpots: 3 })} />);
     expect(screen.getByText(/Свободно/i).className).toMatch(/text-lime-hov/);
