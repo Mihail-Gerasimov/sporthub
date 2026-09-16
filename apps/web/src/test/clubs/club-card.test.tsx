@@ -159,12 +159,76 @@ describe('ClubCard (38.73)', () => {
     expect(screen.getByText('Плавание')).toBeInTheDocument();
   });
 
-  it('цена «от N» и расстояние с одним знаком', () => {
-    render(<ClubCard club={{ ...baseClub, priceFrom: 1500, distanceKm: 2.4 }} sports={sports} />);
+  it('цена «от N» одной нодой; расстояния нет ни в одном режиме — «0.0 км» было фальшивым числом (Д-17, 38.104)', () => {
+    const { unmount } = render(
+      <ClubCard club={{ ...baseClub, priceFrom: 1500, distanceKm: 2.4 }} sports={sports} />,
+    );
 
     // Плашка цены — одной нодой: «от 1 500 ₽» читается диктором как одна фраза.
     expect(screen.getByText(/^от\s+1\s?500/)).toBeInTheDocument();
-    expect(screen.getByText('2.4 км')).toBeInTheDocument();
+    expect(screen.queryByText(/км/)).not.toBeInTheDocument();
+
+    unmount();
+    render(<ClubCard club={{ ...baseClub, distanceKm: 2.4 }} sports={sports} variant="showcase" />);
+
+    expect(screen.queryByText(/км/)).not.toBeInTheDocument();
+  });
+
+  describe('variant="showcase" — фото-плитка макета «Топовые залы» (38.104)', () => {
+    it('та же карточка и подпись; на фото — категория, «от цена», имя, рейтинг с отзывами, знак; вся плитка — ссылка', () => {
+      render(
+        <ClubCard
+          club={{
+            ...baseClub,
+            rating: 4.8,
+            reviewCount: 64,
+            verifiedAt: '2026-09-15T10:00:00.000Z',
+          }}
+          sports={sports}
+          tags={tags}
+          variant="showcase"
+        />,
+      );
+
+      const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+
+      expect(card).toHaveAttribute('data-testid', 'club-card');
+      expect(card).toHaveAttribute('data-variant', 'showcase');
+      expect(within(card).getByText('Плавание')).toBeInTheDocument();
+      expect(within(card).getByText(/^от\s+900/)).toBeInTheDocument();
+      expect(within(card).getByRole('img', { name: 'Рейтинг: 4.8 из 5' })).toBeInTheDocument();
+      expect(within(card).getByText('(64)')).toBeInTheDocument();
+      expect(within(card).getByTestId('verified-badge')).toBeInTheDocument();
+
+      const link = within(card).getByRole('link', { name: 'Volna Aquatic Club' });
+
+      expect(link).toHaveAttribute('href', '/clubs/volna-aquatic-club');
+      expect(link.className).toContain('after:inset-0');
+      expect(positionedAncestorsBetween(card, link)).toEqual([]);
+    });
+
+    it('описание, адрес и лента тегов в витрине не рисуются — они живут в API и на детальной', () => {
+      render(<ClubCard club={baseClub} sports={sports} tags={tags} variant="showcase" />);
+
+      const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+
+      expect(within(card).queryByText(baseClub.shortDescription)).not.toBeInTheDocument();
+      expect(within(card).queryByText(baseClub.address)).not.toBeInTheDocument();
+      expect(card.querySelector('.chip-track')).toBeNull();
+      // Плитка — одна зона фото 180, без хвоста.
+      expect(card.querySelector('.h-\\[180px\\]')).not.toBeNull();
+    });
+
+    it('без режима — каталожная карточка как прежде: описание, адрес и теги на месте', () => {
+      render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
+
+      const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+
+      expect(card).toHaveAttribute('data-variant', 'catalog');
+      expect(within(card).getByText(baseClub.shortDescription)).toBeInTheDocument();
+      expect(within(card).getByText(baseClub.address)).toBeInTheDocument();
+      expect(card.querySelector('.chip-track')).not.toBeNull();
+    });
   });
 
   it('рейтинг — одна звезда и число, для диктора подпись «Рейтинг: X из 5», рядом число отзывов', () => {

@@ -1,21 +1,24 @@
 'use client';
 
 /*
- * ClubCard — карточка клуба по эталону витрины (фаза 38, шаг 38.73; `HomePage.tsx:85-118`,
- * чек-лист эталона step-39…43).
+ * ClubCard — карточка клуба по эталону витрины (фаза 38, шаги 38.73 и 38.104;
+ * `HomePage.tsx:78-118` «Топовые залы», чек-лист эталона step-39…43).
  *
- * Форма — из макета: белая карточка радиусом 18 с тенью покоя `shadow-card`, при
- * наведении поднимается на 4px и получает плавающую тень; фото 180 с затемнением снизу
- * (токен `--ui-decor-photo-shade`, не hex в разметке), на нём имя display-шрифтом 19,
- * звезда 10px и рейтинг, число отзывов, пин и расстояние; слева сверху — категория
- * (первый вид спорта), справа — плашка «от N» на тёмной подложке.
+ * Два режима одной карточки (`variant`):
+ * - `showcase` — фото-плитка макета на главной: фото 180 с затемнением снизу
+ *   (токен `--ui-decor-photo-shade`), на нём имя display-шрифтом 19, звезда 10px
+ *   и рейтинг, число отзывов; слева сверху — категория (первый вид спорта) и знак
+ *   «проверено», справа — плашка «от N». Больше ничего: описание, адрес и теги
+ *   остаются в API и на детальной странице (решение заказчика 16.09, Э13).
+ * - `catalog` (по умолчанию, выдача `/catalog`) — та же плитка плюс наше ниже фото:
+ *   описание, адрес, бейдж «Новый» без рейтинга, лента тегов.
  *
- * Логика — наша (реестр № 86–94): вся карточка ведёт на СТРАНИЦУ клуба (`/clubs/{slug}`),
- * а не в общий каталог, как в макете, — ссылка с именем растянута псевдоэлементом на всю
- * карточку, обёртки `<a>` вокруг `<article>` нет (вложенные ссылки внутри были бы
- * невалидны). Ниже фото остаётся наше: описание, адрес, бейдж «Новый» без рейтинга,
- * лента тегов. Знак «проверено» — по `verifiedAt` (38.52). Ротация тона и водяной
- * знак номера сняты: макет однотонный.
+ * Логика — наша (реестр № 86–94): вся карточка ведёт на СТРАНИЦУ клуба
+ * (`/clubs/{slug}`), а не в общий каталог, как в макете, — ссылка с именем растянута
+ * псевдоэлементом на всю карточку, обёртки `<a>` вокруг `<article>` нет (вложенные
+ * ссылки внутри были бы невалидны). Расстояние не рисуется ни в одном режиме:
+ * геолокации у площадки нет, «0.0 км» было фальшивым числом (Д-17). Знак
+ * «проверено» — по `verifiedAt` (38.52). Ротация тона и водяной знак сняты.
  *
  * Фото — `imageUrls[0]`; без адреса или при ошибке загрузки — заглушка «Фото клуба»
  * на штриховке. STUB: загрузки фото на площадке нет (долг Д-10), заглушка стоит,
@@ -30,34 +33,26 @@ import type { Club, Sport, Tag } from '@sporthub/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
+/** Режим карточки: витрина главной — только плитка фото; каталог — плитка и хвост. */
+export type ClubCardVariant = 'catalog' | 'showcase';
+
 type ClubCardProps = {
   club: Club;
   sports: ClubCardSport[];
-  /** Справочник тегов для резолвинга tagIds → имена в marquee */
+  /** Справочник тегов для резолвинга tagIds → имена в marquee (только `catalog`). */
   tags?: Tag[];
   /** Подсветка карточки при выборе на карте — зелёная рамка вместо обычной. */
   highlighted?: boolean;
+  variant?: ClubCardVariant;
 };
 
-/** Пин расстояния — 9px, приглушённый. */
-function PinIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="size-[9px]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    >
-      <path d="M12 21c-1.6-2-6-7.3-6-11a6 6 0 1 1 12 0c0 3.7-4.4 9-6 11Z" />
-      <circle cx="12" cy="10" r="2.2" />
-    </svg>
-  );
-}
-
-export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubCardProps) {
+export function ClubCard({
+  club,
+  sports,
+  tags = [],
+  highlighted = false,
+  variant = 'catalog',
+}: ClubCardProps) {
   const [photoBroken, setPhotoBroken] = useState(false);
   const photo = club.imageUrls[0];
   const showPhoto = photo !== undefined && !photoBroken;
@@ -75,6 +70,7 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
   return (
     <article
       data-testid="club-card"
+      data-variant={variant}
       data-highlighted={highlighted ? 'true' : 'false'}
       aria-label={`Карточка клуба: ${club.name}`}
       className={cn(
@@ -177,27 +173,31 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
                 <span>({club.reviewCount})</span>
               </>
             )}
-            <span aria-hidden="true">·</span>
-            <span className="inline-flex items-center gap-1">
-              <PinIcon />
-              {club.distanceKm.toFixed(1)} км
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Ниже фото — наше: описание, адрес, лента тегов. */}
-      <p className="m-0 line-clamp-3 px-4 pt-3.5 font-body text-[13px] leading-[1.6] text-muted">
-        {club.shortDescription}
-      </p>
-      <p className="m-0 px-4 pt-2 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-        {club.address}
-      </p>
-      {/* Лента тегов — под растянутой ссылкой, декоративная (без drag и паузы):
-          клик по тегу ведёт на страницу клуба. */}
-      <div className="mt-auto">
-        <ChipMarquee items={tagChips} variant="solid" accent="lime" isLast interactive={false} />
-      </div>
+      {/* Ниже фото — наше, только в каталоге: описание, адрес, лента тегов — под
+          растянутой ссылкой, декоративная (без drag и паузы): клик ведёт на клуб. */}
+      {variant === 'catalog' ? (
+        <>
+          <p className="m-0 line-clamp-3 px-4 pt-3.5 font-body text-[13px] leading-[1.6] text-muted">
+            {club.shortDescription}
+          </p>
+          <p className="m-0 px-4 pt-2 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            {club.address}
+          </p>
+          <div className="mt-auto">
+            <ChipMarquee
+              items={tagChips}
+              variant="solid"
+              accent="lime"
+              isLast
+              interactive={false}
+            />
+          </div>
+        </>
+      ) : null}
     </article>
   );
 }

@@ -60,6 +60,10 @@ describe('Главная — витринные карусели (38.79b)', () =
       'href',
       `/clubs/${fixtureClubs[0].slug}`,
     );
+    // Витрина — плитка макета (38.104): без описания, адреса и тегов.
+    for (const card of within(clubs).getAllByRole('article', { name: /^Карточка клуба: / })) {
+      expect(card).toHaveAttribute('data-variant', 'showcase');
+    }
   });
 
   it('карусель тренеров: заголовок из словаря, карточки тренеров с площадкой и окном', async () => {

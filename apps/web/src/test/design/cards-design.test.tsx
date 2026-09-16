@@ -137,5 +137,20 @@ describe('Минималистичный стиль карточек', () => {
       expect(trackingMatch).not.toBeNull();
       expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.2);
     });
+
+    // 38.104: витринная плитка — та же карточка в режиме showcase, те же тень, подъём,
+    // фото 180 с затемнением токеном; хвоста (описание, адрес, теги) нет.
+    it('showcase: те же тень, подъём и затемнение токеном; ни адреса, ни тегов', () => {
+      render(<ClubCard club={stubClub} sports={[stubSport]} variant="showcase" />);
+      const card = screen.getByTestId('club-card');
+      expect(card.className).toContain('shadow-card');
+      expect(card.className).toContain('hover:-translate-y-1');
+      expect(card.className).toContain('hover:shadow-floating');
+      expect(card.className).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(/i);
+      expect(card.querySelector('[class*="--ui-decor-photo-shade"]')).not.toBeNull();
+      expect(card.querySelector('.h-\\[180px\\]')).not.toBeNull();
+      expect(screen.queryByText('ул. Тестовая, 1')).not.toBeInTheDocument();
+      expect(card.querySelector('.chip-track')).toBeNull();
+    });
   });
 });
