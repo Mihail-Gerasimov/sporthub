@@ -22,10 +22,12 @@ export default async function Home() {
   // Момент передаётся явно: один на день и на отбор занятий (38.81).
   const data = await loadHomeData(new Date());
 
-  // Ни полей, ни потолка у `main`: герой и призыв — во всю ширину, как в эталоне;
-  // контейнер — у каждой секции свой (`HomeContainer` у каруселей).
+  // `<main>` — один, у каркаса (`AppShell`): свой здесь был бы вложенным, и диктор
+  // объявлял «основное содержимое» дважды (a11y-проход, MED). Ни полей, ни потолка
+  // у корня: герой и призыв — во всю ширину, как в эталоне; контейнер — у каждой
+  // секции свой (`HomeContainer` у каруселей).
   return (
-    <main className="min-h-screen overflow-x-hidden bg-bg-deep">
+    <div className="min-h-screen overflow-x-hidden bg-bg-deep">
       <div className="flex flex-col gap-6 pb-10 lg:gap-10">
         {HOME_SECTION_KEYS.map((key) => {
           const Section = HOME_SECTION_COMPONENTS[key];
@@ -33,6 +35,6 @@ export default async function Home() {
           return <Section key={key} data={data} />;
         })}
       </div>
-    </main>
+    </div>
   );
 }

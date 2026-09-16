@@ -10,7 +10,8 @@
 // Теперь сбой доходит сюда, и страница говорит правду.
 //
 // 38.83: вид — как у страниц фазы 38 (`coming-soon`, «не найдено»): рубрика,
-// заголовок шкалы `t-h1`, кнопка — `ui/Button`; слова прежние.
+// заголовок шкалы `t-h1`, кнопка — `ui/Button`; слова прежние. Корень — `div`:
+// `<main>` один, у каркаса (a11y-проход, MED).
 
 import { useEffect } from 'react';
 
@@ -28,7 +29,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <main className="mx-auto flex min-h-[60vh] w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
+    <div className="mx-auto flex min-h-[60vh] w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
       <p className="t-eyebrow text-lime-hov">Сбой</p>
       <h1 className="t-h1 text-ink">Сервис временно недоступен</h1>
       <p className="max-w-xl font-body text-base leading-relaxed text-muted">
@@ -39,6 +40,6 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       {error.digest ? (
         <p className="font-body text-sm text-muted">Код обращения: {error.digest}</p>
       ) : null}
-    </main>
+    </div>
   );
 }

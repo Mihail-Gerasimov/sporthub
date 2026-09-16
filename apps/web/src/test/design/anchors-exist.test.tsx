@@ -167,6 +167,19 @@ for (const page of PAGES) {
         expect(stray, `секции мимо словаря: ${stray.join(', ')}`).toEqual([]);
       });
 
+      it('«основное содержимое» одно: main — у каркаса, страница его не вкладывает (a11y, MED)', async () => {
+        render(<AppShell>{await page.render()}</AppShell>);
+
+        // Диктор объявлял «основное содержимое» дважды: страница рисовала свой `<main>`
+        // внутри `<main>` каркаса. Теперь main один, и все секции словаря — внутри него.
+        const mains = document.querySelectorAll('main');
+
+        expect(mains).toHaveLength(1);
+        for (const section of topLevelSections()) {
+          expect(section.closest('main')).toBe(mains[0]);
+        }
+      });
+
       it('подпись секции в разметке равна подписи её записи в словаре', async () => {
         render(<AppShell>{await page.render()}</AppShell>);
 

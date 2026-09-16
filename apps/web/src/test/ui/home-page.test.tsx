@@ -51,10 +51,11 @@ describe('Home page', () => {
   });
 
   it('рисует все секции словаря в его порядке, каждую — с id из записи; последняя — призыв', async () => {
-    render(await Home());
+    const { container } = render(await Home());
 
-    const main = screen.getByRole('main');
-    const ids = [...main.querySelectorAll('section[id]')]
+    // Своего `<main>` у страницы нет — он один, у каркаса (a11y-проход, MED).
+    expect(container.querySelector('main')).toBeNull();
+    const ids = [...container.querySelectorAll('section[id]')]
       .filter((section) => section.parentElement?.closest('section') === null)
       .map((section) => section.id);
 
@@ -83,11 +84,11 @@ describe('Home page', () => {
     expect(screen.getByRole('button', { name: CTA.primary })).toBeInTheDocument();
   });
 
-  it('герой стоит во всю ширину: main без полей и потолка, контейнер — внутри героя', async () => {
-    render(await Home());
+  it('герой стоит во всю ширину: корень страницы без полей и потолка, контейнер — внутри героя', async () => {
+    const { container } = render(await Home());
 
-    const main = screen.getByRole('main');
-    expect(main.className).not.toMatch(/\bmax-w-|\bpx-/);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).not.toMatch(/\bmax-w-|\bpx-/);
 
     const hero = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
     expect(hero.closest('[class*="max-w-"]')).toBeNull();

@@ -26,8 +26,9 @@ export const dynamic = 'force-dynamic';
 export default async function CatalogPage() {
   const data = await loadCatalogData(new Date());
 
+  // `<main>` — один, у каркаса (`AppShell`): свой здесь был бы вложенным (a11y, MED).
   return (
-    <main className="min-h-screen overflow-x-hidden bg-bg-deep">
+    <div className="min-h-screen overflow-x-hidden bg-bg-deep">
       <div className="flex flex-col gap-6 py-6 lg:gap-10 lg:py-10">
         {CATALOG_SECTION_KEYS.map((key) => {
           const Section = CATALOG_SECTION_COMPONENTS[key];
@@ -35,6 +36,6 @@ export default async function CatalogPage() {
           return <Section key={key} data={data} />;
         })}
       </div>
-    </main>
+    </div>
   );
 }

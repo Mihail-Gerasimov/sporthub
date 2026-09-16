@@ -43,10 +43,11 @@ describe('Страница /catalog (38.79a)', () => {
   });
 
   it('рисует все секции словаря в его порядке, каждую — с id из записи', async () => {
-    render(await CatalogPage());
+    const { container } = render(await CatalogPage());
 
-    const main = screen.getByRole('main');
-    const ids = [...main.querySelectorAll('section[id]')]
+    // Своего `<main>` у страницы нет — он один, у каркаса (a11y-проход, MED).
+    expect(container.querySelector('main')).toBeNull();
+    const ids = [...container.querySelectorAll('section[id]')]
       .filter((el) => el.parentElement?.closest('section') === null)
       .map((el) => el.id);
 
