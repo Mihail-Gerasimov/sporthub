@@ -12,8 +12,9 @@
 //       разлогинит всех и перепишет 474 импорта ради строки, которую никто не видит;
 //       «Администратор SportHub» — данные живого администратора, остаётся (решение
 //       заказчика);
-//   (б) второе написание нового имени — литерал «ПРОСПОРТ», «ПРО» или «СПОРТ» в кавычках
-//       вне `brand.ts` — нарушение: логотип обязан читать `BRAND_WORDMARK`.
+//   (б) второе написание нового имени — «ПРОСПОРТ», «ПРО» или «СПОРТ» литералом
+//       в кавычках ИЛИ текстом JSX (`<span>ПРО</span>`), любым регистром, и латинское
+//       «ProSport» — вне `brand.ts` нарушение: логотип обязан читать `BRAND_WORDMARK`.
 //
 // Комментарии снимаются до разбора: пояснение «раньше было SportHub» законно.
 // Вне проверки — `prisma-client/**` (генерированный), `src/test/**`, `dist`.
@@ -53,8 +54,13 @@ export const IDENTIFIERS: RegExp[] = [
 /** Старое имя в любом написании. */
 const OLD_NAME = /sport\s*hub/gi;
 
-/** Второе написание нового имени — литерал в кавычках. */
-const NEW_NAME_LITERAL = /['"`](?:ПРОСПОРТ|ПРО|СПОРТ)['"`]/g;
+/**
+ * Второе написание нового имени — два вида. Половины словомарки — ТОЧНО в верхнем
+ * регистре: «спорт» строчными в тексте героя («Найди спорт») — обычное слово, а не имя.
+ * Целое имя — любым регистром и латиницей: «Проспорт», «ProSport».
+ */
+const NEW_NAME_LITERAL = /['"`](?:ПРОСПОРТ|ПРО|СПОРТ)['"`]|>\s*(?:ПРОСПОРТ|ПРО|СПОРТ)\s*</g;
+const NEW_NAME_LOOSE = /проспорт|pro\s*sport/gi;
 
 /**
  * Старые файлы и потолок вхождений. Только убывает. Пуст с шага 38.33: все 26 файлов
@@ -87,7 +93,12 @@ export function oldBrandIn(text: string): string[] {
 export function newBrandLiteralsIn(relativePath: string, text: string): string[] {
   if (normalize(relativePath) === BRAND_HOME) return [];
 
-  return [...stripComments(text).matchAll(NEW_NAME_LITERAL)].map((m) => m[0]);
+  const body = stripComments(text);
+
+  return [
+    ...[...body.matchAll(NEW_NAME_LITERAL)].map((m) => m[0]),
+    ...[...body.matchAll(NEW_NAME_LOOSE)].map((m) => m[0]),
+  ];
 }
 
 async function collectCode(directory: string): Promise<string[]> {
@@ -200,6 +211,23 @@ describe('Сторож: бренд объявлен один раз (38.33)', ()
       ),
     ).toEqual(["'ПРО'", "'СПОРТ'"]);
     expect(newBrandLiteralsIn(BRAND_HOME, "export const BRAND_NAME = 'ПРОСПОРТ';")).toEqual([]);
+    // Текст JSX между тегами, другой регистр и латиница — тоже второе написание.
+    expect(
+      newBrandLiteralsIn(
+        'apps/web/src/components/ui/BrandLogo.tsx',
+        '<span>ПРО</span><span>СПОРТ</span>',
+      ),
+    ).toEqual(['>ПРО<', '>СПОРТ<']);
+    expect(newBrandLiteralsIn('apps/web/src/lib/x.ts', "const t = 'Проспорт';")).toEqual([
+      'Проспорт',
+    ]);
+    // Слово «спорт» строчными в тексте — не половина словомарки.
+    expect(
+      newBrandLiteralsIn('apps/web/src/app/page.tsx', 'Найди <span>спорт</span> в своём ритме'),
+    ).toEqual([]);
+    expect(newBrandLiteralsIn('apps/web/src/lib/x.ts', "title: 'ProSport — вход'")).toEqual([
+      'ProSport',
+    ]);
     // Слово в тексте без кавычек — не второе написание.
     expect(
       newBrandLiteralsIn('apps/web/src/lib/x.ts', 'const t = `${BRAND_NAME} собирает клубы`;'),
