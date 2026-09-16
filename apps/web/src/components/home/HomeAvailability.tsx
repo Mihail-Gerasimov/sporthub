@@ -6,6 +6,10 @@
 // секция применяет сама по стору поиска — поэтому она получает каталог клубов
 // и справочники, по которым правило выдачи ищет. Отбор в памяти — действующее
 // ограничение (долг Д-15), как у карточек рядом.
+//
+// Почему не `ui/*`: своей разметки у секции нет — только `section` с якорем словаря
+// и `HomeContainer`; карусель и карточки внутри — уже `ui/CardSlider` и `ui/SlotCard`
+// через `UpcomingSessions`.
 
 import { HomeContainer } from '@/components/home/HomeContainer';
 import { UpcomingSessions } from '@/components/schedule';
