@@ -117,22 +117,35 @@ describe('HomeFeatures', () => {
     expect(useUIStore.getState().isAuthModalOpen).toBe(true);
   });
 
-  it('у каждой плитки свой тон по ключу: подложка bg-tint-* и значок в тон, ни один не повторяется', () => {
+  it('у каждой плитки свой тон ПО КЛЮЧУ записи: подложка bg-tint-* и значок в тон, ни один не повторяется', () => {
     signIn();
     render(<HomeFeatures />);
 
-    const links = screen.getAllByRole('link');
-    const surfaces = links.map((link) => link.className.match(/\bbg-tint-[a-z]+\b/)?.[0]);
-    const iconTones = links.map(
-      (link) => link.querySelector('svg')?.parentElement?.className.match(/\btext-[a-z-]+\b/)?.[0],
-    );
+    // Тон — по ключу записи словаря, а не по позиции: плитка находится по заголовку.
+    const expectedSurface: Record<string, string> = {
+      booking: 'bg-tint-lime',
+      stats: 'bg-tint-sky',
+      progress: 'bg-tint-emerald',
+      reviews: 'bg-tint-orange',
+    };
+    const iconTones = new Set<string>();
 
-    // Четыре плитки — четыре разных подложки и четыре разных тона значка (макет, 38.110).
-    expect(surfaces).toEqual(['bg-tint-lime', 'bg-tint-sky', 'bg-tint-violet', 'bg-tint-orange']);
-    expect(new Set(iconTones).size).toBe(4);
-    expect(iconTones.every((tone) => tone !== undefined)).toBe(true);
-    // Одна общая подложка на всех — прежний вид — ушла.
-    expect(links.some((link) => link.className.includes('bg-lime-soft'))).toBe(false);
+    for (const item of FEATURES.items) {
+      const tile = screen.getByRole('link', { name: new RegExp(item.title, 'i') });
+      const iconTone = tile
+        .querySelector('svg')
+        ?.parentElement?.className.match(/\btext-[a-z-]+\b/)?.[0];
+
+      expect(tile.className, `подложка «${item.title}»`).toContain(expectedSurface[item.key]);
+      expect(iconTone, `тон значка «${item.title}»`).toBeDefined();
+      iconTones.add(iconTone ?? '');
+    }
+
+    // Четыре плитки — четыре разных тона значка (макет, 38.110); общая подложка прежнего вида ушла.
+    expect(iconTones.size).toBe(FEATURES.items.length);
+    expect(
+      screen.getAllByRole('link').some((link) => link.className.includes('bg-lime-soft')),
+    ).toBe(false);
   });
 
   it('заголовок плитки — .t-h4 словаря обычным регистром (38.109)', () => {

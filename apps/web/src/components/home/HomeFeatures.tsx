@@ -126,14 +126,19 @@ function hrefOf(target: FeatureTarget): string {
 }
 
 /**
- * Тон плитки по ключу записи: подложка (`bg-tint-*`, 6 % оттенка на белом) и цвет значка.
- * Значок «онлайн-записи» — тёмно-зелёный, а не яркий: яркий зелёный на белом нечитаем
- * (сторож `green-text-on-light`); у макета там `GREEN`, здесь — та же семантика токеном.
+ * Тон плитки по ключу записи: подложка (`bg-tint-*`, 6 % оттенка на белом) и цвет значка —
+ * по макету (`HomePage.tsx:227-236`): зелёный, голубой, изумруд, оранжевый.
+ *
+ * ⚠️ Значок «онлайн-записи» — яркий `text-lime`, как `GREEN` в макете: это ГРАФИКА 22px
+ * на белом квадрате, а не текст, и правило контраста текста (яркий зелёный на светлом —
+ * только `text-lime-hov`) к нему не относится — как и к `hue-sky` (2,8:1). Сторож
+ * `green-text-on-light` читает литералы `className` и этой таблицы не видит — здесь это
+ * названо, а не спрятано за переменной: единственное место с ярким зелёным вне плашки.
  */
 const FEATURE_TINTS: Record<FeatureKey, { surface: string; icon: string }> = {
-  booking: { surface: 'bg-tint-lime', icon: 'text-lime-hov' },
+  booking: { surface: 'bg-tint-lime', icon: 'text-lime' },
   stats: { surface: 'bg-tint-sky', icon: 'text-hue-sky' },
-  progress: { surface: 'bg-tint-violet', icon: 'text-hue-violet' },
+  progress: { surface: 'bg-tint-emerald', icon: 'text-hue-emerald' },
   reviews: { surface: 'bg-tint-orange', icon: 'text-orange' },
 };
 
