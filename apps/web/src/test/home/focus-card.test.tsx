@@ -54,7 +54,8 @@ describe('FocusCard', () => {
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     const low = screen.getByRole('link', { name: 'Записаться: Занятие 3, 13:00' });
-    expect(low).toHaveTextContent('2 мест');
+    // Подпись и порог — из lib/slot-spots: склонение верное, красная с двух мест.
+    expect(low).toHaveTextContent('2 места');
     expect(low.className).toContain('text-red');
     expect(screen.getByText('4 занятия')).toBeInTheDocument();
     expect(screen.getByText('сегодня')).toBeInTheDocument();

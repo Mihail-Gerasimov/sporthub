@@ -15,7 +15,7 @@
  *   3. в коде фронта нет `min-w-[N]` от 320px (и от 20rem);
  *   4. правая колонка героя есть только с `xl` (принятое отступление 24b: эталон прячет
  *      с 1100, у нас точка 1280);
- *   5. сетки: «возможности» 2→4 (`lg`), «три шага» 1→3 (`md`), лидеры 1→2 (`md`),
+ *   5. сетки: «возможности» 1→2→4 (`sm`/`lg`), «три шага» 1→3 (`md`), лидеры 1→2 (`md`),
  *      выдача клубов 1→2→3 и тренеров 1→2→4 (`md`/`xl`) — по видимым слайдам.
  */
 import { render, screen } from '@testing-library/react';
@@ -45,7 +45,7 @@ import { WEB_ROOT } from '../web-root';
 
 /**
  * Семь точек площадки — по содержимому:
- *   sm 480 — большой телефон: две плитки «возможностей» в ряд;
+ *   sm 480 — большой телефон: две плитки «возможностей» в ряд (ниже — столбик);
  *   md 768 — планшет: док уходит, «три шага» и лидеры в ряд, выдача по две;
  *   menu 960 — пять пунктов, колокольчик и плашка человека помещаются в шапку;
  *   lg 1024 — четыре плитки «возможностей» в ряд;
@@ -256,12 +256,12 @@ describe('Контракт адаптива: колонка героя и сет
     expect(aside?.className).not.toMatch(/\b(sm|md|lg):block\b/);
   });
 
-  it('«возможности» — две плитки в ряд, четыре с lg; «три шага» — столбик, три с md; лидеры — 1→2 с md', () => {
+  it('«возможности» — столбик, две плитки с sm, четыре с lg; «три шага» — столбик, три с md; лидеры — 1→2 с md', () => {
     render(<HomeFeatures />);
     const features = screen.getByRole('list');
-    expect(features.className).toContain('grid-cols-2');
+    expect(features.className).toContain('grid-cols-1');
+    expect(features.className).toContain('sm:grid-cols-2');
     expect(features.className).toContain('lg:grid-cols-4');
-    expect(features.className).not.toContain('grid-cols-1');
 
     const { container: stepsRoot } = render(<HomeSteps />);
     const steps = stepsRoot.querySelector('ol');

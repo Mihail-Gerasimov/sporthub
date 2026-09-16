@@ -5,7 +5,8 @@
  * клуба: фото у клубов нет — долг Д-10, зона несёт время и имя первого занятия),
  * ниже — «Ближайшие занятия» до трёх строк: время display-шрифтом, название и клуб,
  * справа кнопка — `ui/Button` размера `xs` ссылкой (ревью 38.80). Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
- * «Записаться» → `/booking/{id}`, живой счётчик «N занятий сегодня» со склонением
+ * «Записаться» → `/booking/{id}`, подпись мест и порог «мало» — из `lib/slot-spots`
+ * (одно правило со слотами, 38.81), живой счётчик «N занятий сегодня» со склонением
  * из словаря `PLURAL`; плавающие виджеты макета не переносятся (статистика — вне фазы).
  * У счётчика — ссылка «Все слоты» на якорь секции слотов из словаря (38.88): прежняя
  * кнопка героя «Смотреть слоты и окна» вела в никуда (тупик № 1), в герое эталона
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui';
 import { FOCUS } from '@/lib/home-copy';
 import { homeSectionHref } from '@/lib/home-sections';
 import { countRu, PLURAL } from '@/lib/plural';
+import { isLowSpots, spotsLabel } from '@/lib/slot-spots';
 import { cn } from '@/lib/utils';
 
 type FocusCardProps = {
@@ -33,13 +35,10 @@ type FocusCardProps = {
 /** Сколько строк расписания показывает карточка — как в макете. */
 const ROWS = 3;
 
-/** Порог «мест мало»: красная кнопка в макете стоит на двух местах. */
-const LOW_SPOTS = 2;
-
 /** Вариант кнопки строки: первое занятие зовёт записаться, мало мест — красная, остальные нейтральные. */
 function rowButtonVariant(index: number, spots: number): 'soft' | 'danger' | 'outline' {
   if (index === 0) return 'soft';
-  if (spots <= LOW_SPOTS) return 'danger';
+  if (isLowSpots(spots)) return 'danger';
 
   return 'outline';
 }
@@ -113,7 +112,7 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
                   size="xs"
                   className="shrink-0"
                 >
-                  {index === 0 ? FOCUS.cta : FOCUS.spots(session.availableSpots)}
+                  {index === 0 ? FOCUS.cta : spotsLabel(session.availableSpots)}
                 </Button>
               </li>
             ))}

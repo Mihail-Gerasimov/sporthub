@@ -625,15 +625,6 @@ body {
   color: var(--ui-muted);
 }
 
-/* capacity-pill ВСЕГДА лайм (правило handoff'а — без orange/red вариантов
- * даже при availableSpots=1). Семантика: positive = «есть куда записаться».
- * Step 31.12: текст переведён на graphite muted для контраста на mint-soft фоне. */
-.capacity-pill.lime {
-  background: var(--ui-lime-soft);
-  color: var(--ui-muted);
-  border: 1px solid color-mix(in srgb, var(--ui-lime) 28%, transparent);
-}
-
 /* slot-box-val: цена и время — display-шрифт + tabular-nums + nowrap, никогда
  * не уходит в 2 строки. Fluid font-size через clamp + container queries:
  * при сжатии колонки шрифт уменьшается, но не переносится. */
