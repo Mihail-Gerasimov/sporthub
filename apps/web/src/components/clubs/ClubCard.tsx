@@ -115,16 +115,22 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
         />
 
         {/* Слева сверху — категория и знак проверки; справа — цена. Позиционированы
-            от `article`: верх карточки — верх фото. */}
-        <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
-          <div className="relative z-[2] flex flex-wrap items-center gap-1.5">
+            от `article`: верх карточки — верх фото. Над растянутой ссылкой (`z-[2]`)
+            стоит ТОЛЬКО знак — у него подсказка по наведению; категория и цена лежат
+            под ссылкой, иначе клик по ним никуда не вёл (приёмка, проход 1). */}
+        <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {category ? (
               <span className="rounded-[5px] bg-lime px-2 py-0.5 font-body text-[9px] font-bold text-ink">
                 {category}
               </span>
             ) : null}
             {/* Без фокуса: знак стоит раньше ссылки с именем, второй стоп до неё сбивал бы порядок. */}
-            {club.verifiedAt ? <VerifiedBadge ownerType="club" focusable={false} /> : null}
+            {club.verifiedAt ? (
+              <span className="pointer-events-auto relative z-[2]">
+                <VerifiedBadge ownerType="club" focusable={false} />
+              </span>
+            ) : null}
           </div>
           <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-display text-[12px] font-extrabold tabular-nums text-plate-ink">
             от {formatPrice(club.priceFrom)}
@@ -187,7 +193,8 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
       <p className="m-0 px-4 pt-2 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
         {club.address}
       </p>
-      <div className="relative z-[2] mt-auto">
+      {/* Лента тегов — под растянутой ссылкой: клик по тегу ведёт на страницу клуба. */}
+      <div className="mt-auto">
         <ChipMarquee items={tagChips} variant="solid" accent="lime" isLast />
       </div>
     </article>

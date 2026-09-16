@@ -97,6 +97,12 @@ type BuildTrainerDirectoryInput = {
   targetDate: string;
   /** Момент «сейчас» — день того же момента, что и `targetDate`; аргументом, а не из часов. */
   now: Date;
+  /**
+   * Порядок справочника: `rating` — рейтинг, отзывы, имя (каталог в памяти, Д-15);
+   * `given` — как пришло: витрина берёт четвёрку запросом `sort=rating&limit=4`,
+   * где ничьи разводит номер (38.31), и пересортировка по имени ломала бы порядок ответа.
+   */
+  order?: 'rating' | 'given';
 };
 
 type GetTrainerAvailabilityInput = {
@@ -124,6 +130,7 @@ export function buildTrainerDirectory({
   trainerClubLinks = [],
   targetDate,
   now,
+  order = 'rating',
 }: BuildTrainerDirectoryInput): TrainerDirectoryItem[] {
   const clubsById = new Map(clubs.map((club) => [club.id, club]));
   // Phase 24 Step 24.8: confirmed links по trainerId → clubId (authoritative).
@@ -155,119 +162,119 @@ export function buildTrainerDirectory({
     trainerScheduleByTrainerId.set(slot.trainerId, currentSchedule);
   }
 
-  return trainers
-    .flatMap((trainer) => {
-      const offeringsForTrainer = [...(trainerOfferingsByTrainerId.get(trainer.id) ?? [])].sort(
-        (left, right) => {
-          if (left.price !== right.price) {
-            return left.price - right.price;
-          }
+  const items = trainers.flatMap((trainer) => {
+    const offeringsForTrainer = [...(trainerOfferingsByTrainerId.get(trainer.id) ?? [])].sort(
+      (left, right) => {
+        if (left.price !== right.price) {
+          return left.price - right.price;
+        }
 
-          return left.title.localeCompare(right.title, 'ru');
-        },
-      );
-      // Phase 28.24: nextSlot и availableSlotsCount — только сегодняшние свободные
-      // окна тренера, симметрично клубному getUpcomingSessions. «Свободное окно дня» —
-      // предикат домена `isSlotOpenToday` (сегодня ∧ не началось ∧ места), один
-      // на клубы и тренеров; `targetDate` — день того же момента, что и `now`.
-      const availableSlots = [...(trainerScheduleByTrainerId.get(trainer.id) ?? [])]
-        .filter((slot) => slot.date === targetDate && isSlotOpenToday(slot, now))
-        .sort((left, right) => getSlotSortKey(left).localeCompare(getSlotSortKey(right)));
-      const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
-      const primaryOffering = offeringsForTrainer[0] ?? null;
-      const nextSlot = availableSlots[0] ?? null;
-      // Phase 24 Step 24.9c: venueClub в каталоге — ТОЛЬКО через confirmed TrainerClubLink.
-      const linkClubId = confirmedClubIdByTrainerId.get(trainer.id);
-      const venueClub = linkClubId !== undefined ? (clubsById.get(linkClubId) ?? null) : null;
-      const coordinates =
-        trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
-      const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;
+        return left.title.localeCompare(right.title, 'ru');
+      },
+    );
+    // Phase 28.24: nextSlot и availableSlotsCount — только сегодняшние свободные
+    // окна тренера, симметрично клубному getUpcomingSessions. «Свободное окно дня» —
+    // предикат домена `isSlotOpenToday` (сегодня ∧ не началось ∧ места), один
+    // на клубы и тренеров; `targetDate` — день того же момента, что и `now`.
+    const availableSlots = [...(trainerScheduleByTrainerId.get(trainer.id) ?? [])]
+      .filter((slot) => slot.date === targetDate && isSlotOpenToday(slot, now))
+      .sort((left, right) => getSlotSortKey(left).localeCompare(getSlotSortKey(right)));
+    const sportsForTrainer = sports.filter((sport) => trainer.sportIds.includes(sport.id));
+    const primaryOffering = offeringsForTrainer[0] ?? null;
+    const nextSlot = availableSlots[0] ?? null;
+    // Phase 24 Step 24.9c: venueClub в каталоге — ТОЛЬКО через confirmed TrainerClubLink.
+    const linkClubId = confirmedClubIdByTrainerId.get(trainer.id);
+    const venueClub = linkClubId !== undefined ? (clubsById.get(linkClubId) ?? null) : null;
+    const coordinates =
+      trainer.coordinates ?? primaryOffering?.coordinates ?? venueClub?.coordinates ?? null;
+    const address = primaryOffering?.address ?? trainer.address ?? venueClub?.address ?? null;
 
-      if (!coordinates || !address) return [];
+    if (!coordinates || !address) return [];
 
-      const venueName = venueClub?.name ?? null;
-      const venueLabel = venueName ?? address;
+    const venueName = venueClub?.name ?? null;
+    const venueLabel = venueName ?? address;
 
-      // Резолвим имена специализаций из справочника
-      const specialtyNames = resolveNames(trainer.specialtyIds, specialties);
+    // Резолвим имена специализаций из справочника
+    const specialtyNames = resolveNames(trainer.specialtyIds, specialties);
 
-      const searchText = [
-        trainer.name,
-        trainer.bio,
-        specialtyNames.join(' '),
-        sportsForTrainer.map((sport) => sport.name).join(' '),
-        offeringsForTrainer
-          .map((offering) => `${offering.title} ${offering.description}`)
-          .join(' '),
-        venueName ?? '',
+    const searchText = [
+      trainer.name,
+      trainer.bio,
+      specialtyNames.join(' '),
+      sportsForTrainer.map((sport) => sport.name).join(' '),
+      offeringsForTrainer.map((offering) => `${offering.title} ${offering.description}`).join(' '),
+      venueName ?? '',
+      address,
+    ]
+      .join(' ')
+      .toLocaleLowerCase('ru-RU');
+
+    return [
+      {
+        id: trainer.id,
+        name: trainer.name,
+        slug: trainer.slug,
+        bio: trainer.bio,
+        avatarUrl: trainer.avatarUrl,
+        experienceYears: trainer.experienceYears,
+        specialtyIds: trainer.specialtyIds,
+        specialtyNames,
+        rating: trainer.rating,
+        reviewCount: trainer.reviewCount,
+        verifiedAt: trainer.verifiedAt,
+        // Phase 24 Step 24.11: min price по всем offerings — иначе fallback trainer.priceFrom.
+        priceFrom:
+          offeringsForTrainer.length > 0
+            ? Math.min(...offeringsForTrainer.map((offering) => offering.price))
+            : trainer.priceFrom,
+        sportIds: trainer.sportIds,
+        sports: sportsForTrainer,
+        city: trainer.city ?? venueClub?.city ?? DEFAULT_CITY,
         address,
-      ]
-        .join(' ')
-        .toLocaleLowerCase('ru-RU');
+        coordinates,
+        distanceKm: venueClub?.distanceKm ?? null,
+        venueName,
+        venueLabel,
+        venueAddress: address,
+        primaryOfferingId: primaryOffering?.id ?? null,
+        primaryOfferingTitle: primaryOffering?.title ?? null,
+        primaryOfferingFormat: primaryOffering?.format ?? null,
+        nextSlotId: nextSlot?.id ?? null,
+        nextSlotDate: nextSlot?.date ?? null,
+        nextSlotStartTime: nextSlot?.startTime ?? null,
+        availableSlotsCount: availableSlots.length,
+        offeringTitles: offeringsForTrainer.map((offering) => offering.title),
+        // Phase 24 Step 24.11: preview-массив услуг с venue-резолвом по trainerClubLinkId.
+        offerings: offeringsForTrainer.map((offering) => ({
+          id: offering.id,
+          title: offering.title,
+          format: offering.format,
+          price: offering.price,
+          durationMinutes: offering.durationMinutes,
+          venueClubName:
+            offering.trainerClubLinkId !== undefined
+              ? (clubNameByLinkId.get(offering.trainerClubLinkId) ?? null)
+              : null,
+          trainerClubLinkId: offering.trainerClubLinkId ?? null,
+        })),
+        searchText,
+      } satisfies TrainerDirectoryItem,
+    ];
+  });
 
-      return [
-        {
-          id: trainer.id,
-          name: trainer.name,
-          slug: trainer.slug,
-          bio: trainer.bio,
-          avatarUrl: trainer.avatarUrl,
-          experienceYears: trainer.experienceYears,
-          specialtyIds: trainer.specialtyIds,
-          specialtyNames,
-          rating: trainer.rating,
-          reviewCount: trainer.reviewCount,
-          verifiedAt: trainer.verifiedAt,
-          // Phase 24 Step 24.11: min price по всем offerings — иначе fallback trainer.priceFrom.
-          priceFrom:
-            offeringsForTrainer.length > 0
-              ? Math.min(...offeringsForTrainer.map((offering) => offering.price))
-              : trainer.priceFrom,
-          sportIds: trainer.sportIds,
-          sports: sportsForTrainer,
-          city: trainer.city ?? venueClub?.city ?? DEFAULT_CITY,
-          address,
-          coordinates,
-          distanceKm: venueClub?.distanceKm ?? null,
-          venueName,
-          venueLabel,
-          venueAddress: address,
-          primaryOfferingId: primaryOffering?.id ?? null,
-          primaryOfferingTitle: primaryOffering?.title ?? null,
-          primaryOfferingFormat: primaryOffering?.format ?? null,
-          nextSlotId: nextSlot?.id ?? null,
-          nextSlotDate: nextSlot?.date ?? null,
-          nextSlotStartTime: nextSlot?.startTime ?? null,
-          availableSlotsCount: availableSlots.length,
-          offeringTitles: offeringsForTrainer.map((offering) => offering.title),
-          // Phase 24 Step 24.11: preview-массив услуг с venue-резолвом по trainerClubLinkId.
-          offerings: offeringsForTrainer.map((offering) => ({
-            id: offering.id,
-            title: offering.title,
-            format: offering.format,
-            price: offering.price,
-            durationMinutes: offering.durationMinutes,
-            venueClubName:
-              offering.trainerClubLinkId !== undefined
-                ? (clubNameByLinkId.get(offering.trainerClubLinkId) ?? null)
-                : null,
-            trainerClubLinkId: offering.trainerClubLinkId ?? null,
-          })),
-          searchText,
-        } satisfies TrainerDirectoryItem,
-      ];
-    })
-    .sort((left, right) => {
-      if (right.rating !== left.rating) {
-        return right.rating - left.rating;
-      }
+  if (order === 'given') return items;
 
-      if (right.reviewCount !== left.reviewCount) {
-        return right.reviewCount - left.reviewCount;
-      }
+  return items.sort((left, right) => {
+    if (right.rating !== left.rating) {
+      return right.rating - left.rating;
+    }
 
-      return left.name.localeCompare(right.name, 'ru');
-    });
+    if (right.reviewCount !== left.reviewCount) {
+      return right.reviewCount - left.reviewCount;
+    }
+
+    return left.name.localeCompare(right.name, 'ru');
+  });
 }
 
 export function getTrainerAvailability({

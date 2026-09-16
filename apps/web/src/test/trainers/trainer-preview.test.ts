@@ -108,3 +108,29 @@ describe('trainer-preview: свободное окно дня — предика
     ]);
   });
 });
+
+describe('trainer-preview: порядок справочника (ревью 38.79b, п. 3)', () => {
+  // Две ничьи по рейтингу и отзывам: сортировка справочника развела бы их по имени,
+  // запрос `sort=rating` — по номеру (38.31). Порядок из запроса обязан дойти до карусели.
+  const yana: Trainer = { ...trainer, id: 9, name: 'Яна Тест', slug: 'yana-test' };
+  const anna: Trainer = { ...trainer, id: 11, name: 'Анна Тест', slug: 'anna-test' };
+  const build = (order?: 'rating' | 'given') =>
+    buildTrainerDirectory({
+      clubs: [],
+      offerings: [],
+      schedule: [],
+      sports: SPORTS,
+      trainers: [yana, anna],
+      targetDate: TODAY,
+      now: NOW,
+      ...(order === undefined ? {} : { order }),
+    }).map((item) => item.name);
+
+  it('по умолчанию — рейтинг, отзывы, имя: «Анна» раньше «Яны»', () => {
+    expect(build()).toEqual(['Анна Тест', 'Яна Тест']);
+  });
+
+  it('order: given — как пришло: порядок запроса не пересортировывается', () => {
+    expect(build('given')).toEqual(['Яна Тест', 'Анна Тест']);
+  });
+});

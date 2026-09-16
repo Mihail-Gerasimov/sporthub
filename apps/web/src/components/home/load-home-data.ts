@@ -75,6 +75,7 @@ export async function loadHomeData(now: Date): Promise<HomeData> {
     showcaseClubs,
     // Карточка тренера — та же, что в каталоге: площадка, услуга, ближайшее окно и
     // «доступен сейчас» считаются справочником по четырём тренерам витрины.
+    // Порядок — из ответа `sort=rating&limit=4`, справочник его не пересортировывает.
     showcaseTrainers: buildTrainerDirectory({
       clubs,
       offerings,
@@ -85,6 +86,7 @@ export async function loadHomeData(now: Date): Promise<HomeData> {
       trainerClubLinks,
       targetDate: todayDateKey,
       now,
+      order: 'given',
     }),
   };
 }

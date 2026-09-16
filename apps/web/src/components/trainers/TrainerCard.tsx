@@ -211,20 +211,22 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
         </div>
       </div>
 
-      {/* Наше: лента специализаций (над растянутой ссылкой — у ленты свой drag). */}
-      <div className="relative z-[2] -mx-[18px] mt-3.5">
+      {/* Наше: лента специализаций — под растянутой ссылкой: клик по чипу ведёт на
+          страницу тренера (приёмка, проход 1: над ссылкой — только знак и «К записи»). */}
+      <div className="-mx-[18px] mt-3.5">
         <ChipMarquee items={tagItems} variant="solid" accent="lime" />
       </div>
 
-      {/* Наше: цитата и «К записи» — отдельная ссылка на ближайшее окно. */}
-      <div className="relative z-[2] mt-auto flex items-center justify-between gap-4 border-t border-line pt-3.5">
+      {/* Наше: цитата и «К записи» — отдельная ссылка на ближайшее окно; над растянутой
+          ссылкой возвышается только она, цитата — под ней. */}
+      <div className="mt-auto flex items-center justify-between gap-4 border-t border-line pt-3.5">
         <p className="m-0 line-clamp-2 font-body text-[12px] italic leading-[1.45] text-muted">
           {quote}
         </p>
         <Link
           href={ctaHref}
           aria-label={`К записи: ${trainer.name}`}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-body text-[11px] font-bold uppercase tracking-[0.14em] text-lime-hov no-underline transition-colors hover:text-ink"
+          className="relative z-[2] inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-body text-[11px] font-bold uppercase tracking-[0.14em] text-lime-hov no-underline transition-colors hover:text-ink"
         >
           К записи
           <span aria-hidden="true" className="text-[14px]">

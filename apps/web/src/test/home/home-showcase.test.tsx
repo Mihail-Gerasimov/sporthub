@@ -106,6 +106,26 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(useFilterStore.getState().discoveryMode).toBe('clubs');
   });
 
+  it('порядок карусели «Тренеры» = порядок ответа sort=rating&limit=4, ничьи не пересортировываются по имени', async () => {
+    // Равные рейтинг и отзывы: справочник развёл бы по имени («Анна» раньше «Яны»),
+    // запрос разводит по номеру (38.31) — карусель обязана показать как пришло.
+    const tie = { rating: 4.9, reviewCount: 10 };
+    const asAnswered = [
+      { ...fixtureTrainers[2], ...tie, id: 9, name: 'Яна Тест', slug: 'yana-test' },
+      { ...fixtureTrainers[0], ...tie, id: 11, name: 'Анна Тест', slug: 'anna-test' },
+    ];
+    stub.restore();
+    stub = installApiStub({ ...createFixtureRoutes(), '/trainers': asAnswered });
+
+    render(await Home());
+
+    const names = within(section('trainers'))
+      .getAllByRole('article', { name: /^Карточка тренера: / })
+      .map((card) => card.getAttribute('aria-label'));
+
+    expect(names).toEqual(['Карточка тренера: Яна Тест', 'Карточка тренера: Анна Тест']);
+  });
+
   it('пустой каталог честен: карусели говорят словами словаря', async () => {
     stub.restore();
     stub = installApiStub({

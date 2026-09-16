@@ -94,6 +94,24 @@ describe('TrainerCard (38.74)', () => {
     );
   });
 
+  it('над растянутой ссылкой возвышаются только знак «проверено» и «К записи»: цитата и лента — под ней (приёмка, проход 1)', () => {
+    render(<TrainerCard trainer={{ ...baseTrainer, verifiedAt: '2026-09-15T10:00:00.000Z' }} />);
+
+    const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+    const raised = [...card.querySelectorAll<HTMLElement>('[class*="z-[2]"]')];
+
+    expect(raised.length).toBeGreaterThan(0);
+    for (const el of raised) {
+      const isBadge = el.querySelector('[data-testid="verified-badge"]') !== null;
+      const isCta = el.tagName === 'A' && /К записи/.test(el.textContent ?? '');
+
+      expect(isBadge || isCta, el.className).toBe(true);
+    }
+    // Цитата и лента специализаций — под ссылкой: клик по ним ведёт на страницу тренера.
+    expect(screen.getByText('Тренер по плаванию.').closest('[class*="z-[2]"]')).toBeNull();
+    expect(screen.getByText('Подготовка к соревнованиям').closest('[class*="z-[2]"]')).toBeNull();
+  });
+
   it('без ближайшего окна «К записи» ведёт на профиль, а окно — «Слоты скоро появятся»', () => {
     render(<TrainerCard trainer={busyTrainer} />);
 

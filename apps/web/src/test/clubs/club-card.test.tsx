@@ -112,6 +112,31 @@ describe('ClubCard (38.73)', () => {
     expect(within(card).getByText(baseClub.shortDescription)).toBeInTheDocument();
   });
 
+  it('над растянутой ссылкой возвышается только знак «проверено»: категория и лента тегов — под ней (приёмка, проход 1)', () => {
+    render(
+      <ClubCard
+        club={{ ...baseClub, verifiedAt: '2026-09-15T10:00:00.000Z' }}
+        sports={sports}
+        tags={tags}
+      />,
+    );
+
+    const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
+    // Всё, что стоит выше ссылки (`z-[2]`), — мёртвая зона для клика по карточке:
+    // прежде это были блок категории и лента тегов. Исключение одно — знак с подсказкой.
+    const raised = [...card.querySelectorAll<HTMLElement>('[class*="z-[2]"]')];
+
+    expect(raised.length).toBeGreaterThan(0);
+    for (const el of raised) {
+      expect(
+        el.querySelector('[data-testid="verified-badge"]') ??
+          el.closest('[data-testid="verified-badge"]'),
+      ).not.toBeNull();
+      expect(el.textContent).not.toContain('Плавание');
+    }
+    expect(screen.getByText('Плавание').closest('[class*="z-[2]"]')).toBeNull();
+  });
+
   it('категория — первый вид спорта клуба из справочника', () => {
     render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
 
