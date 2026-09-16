@@ -163,6 +163,26 @@ export function getWeekStartKey(date: DateKey): DateKey {
 }
 
 /**
+ * Не началось ли ещё занятие (шаг 38.81): слоты витрины — только те, куда ещё
+ * можно прийти к началу; идущее занятие ещё «не прошло» (`isSlotUpcoming`),
+ * но записываться на него поздно.
+ *
+ * Сравнение строковое, как у `isSlotUpcoming`: обе стороны приведены к календарю
+ * и часам зала, пояс процесса и летнее время ни при чём.
+ */
+export function isSlotAhead(
+  slot: Pick<SlotTimes, 'date' | 'startTime'>,
+  now: Date = new Date(),
+  timeZone: string = DEFAULT_TIME_ZONE,
+): boolean {
+  const today = getDateKeyInTimeZone(now, timeZone);
+
+  if (slot.date !== today) return slot.date > today;
+
+  return slot.startTime > getTimeKeyInTimeZone(now, timeZone);
+}
+
+/**
  * Не закончилось ли занятие.
  *
  * Сравнение строковое и потому не зависит ни от пояса процесса, ни от перехода

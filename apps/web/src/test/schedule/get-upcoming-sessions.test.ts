@@ -1,274 +1,235 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+// Тесты отбора занятий клубов для витрины (шаг 38.81).
+//
+// Шесть пунктов решения — шесть кейсов: сегодня → ещё не началось → есть места →
+// те же фильтры, что у выдачи → по времени начала → первые N. Момент «сейчас»
+// приходит аргументом, а не из часов процесса: отбор воспроизводим без подмены
+// таймеров. Диверсия «слот без мест остался» — красный третий кейс.
+
+import { describe, expect, it } from 'vitest';
 
 import { getUpcomingSessions } from '@/components/schedule/getUpcomingSessions';
 import type { Club, Schedule } from '@sporthub/types';
 
-/* Phase 30.7: фиксируем системное время на ~01:00 Samara (21:00 UTC предыдущего дня),
-   чтобы все слоты с date='2026-03-17' и любыми endTime были в будущем относительно
-   проверки isSlotUpcoming (TZ-safe). */
-beforeAll(() => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date('2026-03-16T21:00:00.000Z'));
-});
+const TODAY = '2026-03-17';
+/** 09:00 в Самаре (UTC+4) — между утренними и дневными слотами стенда. */
+const NOW = new Date('2026-03-17T05:00:00.000Z');
 
-afterAll(() => {
-  vi.useRealTimers();
-});
-
-const clubs: Club[] = [
-  {
-    id: 1,
+function club(overrides: Partial<Club> & Pick<Club, 'id' | 'name'>): Club {
+  return {
     createdAt: '2026-03-17T09:00:00.000Z',
-    name: 'Volna Aquatic Club',
-    slug: 'volna-aquatic-club',
-    description: 'Клуб с бассейном и восстановительными программами',
-    shortDescription: 'Бассейн, пилатес и утренние группы.',
+    slug: overrides.name.toLowerCase().replace(/\s+/g, '-'),
+    description: 'Описание клуба',
+    shortDescription: 'Коротко о клубе',
     city: 'Самара',
     address: 'ул. Лесная, 23к1',
     phone: '+7 (846) 200-11-01',
-    email: 'hello@volna-club.ru',
-    website: 'https://volna-club.ru',
+    email: 'hello@club.local',
+    website: 'https://club.local',
     coordinates: { lat: 53.2129, lng: 50.1245 },
     sportIds: [3, 8],
-    imageUrls: ['/images/clubs/volna-1.jpg'],
-    amenityIds: [1],
-    tagIds: [1],
+    imageUrls: [],
+    amenityIds: [],
+    tagIds: [],
     rating: 4.8,
     reviewCount: 64,
     priceFrom: 900,
     distanceKm: 1.8,
-  },
-  {
-    id: 3,
+    ...overrides,
+  };
+}
+
+function slot(
+  overrides: Partial<Schedule> & Pick<Schedule, 'id' | 'clubId' | 'startTime' | 'endTime'>,
+): Schedule {
+  return {
     createdAt: '2026-03-17T09:00:00.000Z',
-    name: 'Balance Yoga House',
-    slug: 'balance-yoga-house',
-    description: 'Камерная студия йоги и пилатеса',
-    shortDescription: 'Йога и пилатес в центре города.',
-    city: 'Самара',
-    address: 'ул. Молодогвардейская, 86',
-    phone: '+7 (846) 200-11-03',
-    email: 'hello@balance-house.ru',
-    website: 'https://balance-house.ru',
-    coordinates: { lat: 53.1957, lng: 50.1006 },
-    sportIds: [1, 8],
-    imageUrls: ['/images/clubs/balance-1.jpg'],
-    amenityIds: [1],
-    tagIds: [1],
-    rating: 4.9,
-    reviewCount: 72,
-    priceFrom: 850,
-    distanceKm: 2.3,
-  },
+    trainerId: 1,
+    sportId: 3,
+    title: `Занятие ${overrides.id}`,
+    description: 'Описание занятия',
+    date: TODAY,
+    durationMinutes: 60,
+    level: 'all_levels',
+    capacity: 10,
+    bookedCount: 4,
+    price: 1000,
+    room: 'Зал A',
+    ...overrides,
+  };
+}
+
+const CLUBS: Club[] = [
+  club({ id: 1, name: 'Volna Aquatic Club', sportIds: [3, 8] }),
+  club({ id: 3, name: 'Balance Yoga House', sportIds: [1, 8], city: 'Тольятти' }),
 ];
 
-const schedule: Schedule[] = [
-  {
-    id: 31,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    trainerId: 1,
-    sportId: 3,
-    title: 'Вечерняя техника кроля',
-    description: 'Работа над техникой рук и ног.',
-    date: '2026-03-17',
-    startTime: '19:00',
-    endTime: '20:00',
-    durationMinutes: 60,
-    level: 'intermediate',
-    capacity: 14,
-    bookedCount: 8,
-    price: 1150,
-    room: 'Бассейн A',
-  },
-  {
-    id: 32,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    trainerId: 2,
-    sportId: 8,
-    title: 'Пилатес для спины',
-    description: 'Мягкая работа на центр тела и разгрузку спины.',
-    date: '2026-03-17',
-    startTime: '12:00',
-    endTime: '12:55',
-    durationMinutes: 55,
-    level: 'beginner',
-    capacity: 12,
-    bookedCount: 9,
-    price: 950,
-    room: 'Зал Balance',
-  },
-  {
-    id: 33,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
-    trainerId: 5,
-    sportId: 1,
-    title: 'Утренняя хатха-йога',
-    description: 'Спокойная практика на мобилизацию и дыхание.',
-    date: '2026-03-17',
-    startTime: '09:00',
-    endTime: '10:00',
-    durationMinutes: 60,
-    level: 'all_levels',
-    capacity: 12,
-    bookedCount: 6,
-    price: 900,
-    room: 'Зал Light',
-  },
-  {
-    id: 34,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
-    trainerId: 6,
-    sportId: 8,
-    title: 'Pilates Core',
-    description: 'Контроль центра тела и плавная силовая работа.',
-    date: '2026-03-17',
-    startTime: '13:00',
-    endTime: '13:55',
-    durationMinutes: 55,
-    level: 'beginner',
-    capacity: 10,
-    bookedCount: 7,
-    price: 950,
-    room: 'Зал Light',
-  },
-  {
-    id: 35,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    trainerId: 1,
-    sportId: 3,
-    title: 'Утреннее плавание',
-    description: 'Техника дыхания и работа на скольжение.',
-    date: '2026-03-17',
-    startTime: '07:30',
-    endTime: '08:30',
-    durationMinutes: 60,
-    level: 'all_levels',
-    capacity: 14,
-    bookedCount: 8,
-    price: 1100,
-    room: 'Бассейн A',
-  },
-  {
-    id: 36,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
-    trainerId: 5,
-    sportId: 1,
-    title: 'Вечерний flow',
-    description: 'Практика на баланс и расслабление.',
-    date: '2026-03-17',
-    startTime: '18:30',
-    endTime: '19:30',
-    durationMinutes: 60,
-    level: 'intermediate',
-    capacity: 12,
-    bookedCount: 10,
-    price: 950,
-    room: 'Зал Flow',
-  },
-  {
-    id: 37,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    trainerId: 2,
-    sportId: 8,
-    title: 'Поздний recovery-пилатес',
-    description: 'Расслабляющая практика на восстановление.',
-    date: '2026-03-17',
-    startTime: '20:30',
-    endTime: '21:20',
-    durationMinutes: 50,
-    level: 'all_levels',
-    capacity: 12,
-    bookedCount: 5,
-    price: 900,
-    room: 'Зал Balance',
-  },
-  {
-    id: 38,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 3,
-    trainerId: 6,
-    sportId: 8,
-    title: 'Полностью занятый слот',
-    description: 'Слот без свободных мест.',
-    date: '2026-03-17',
-    startTime: '16:00',
-    endTime: '16:55',
-    durationMinutes: 55,
-    level: 'beginner',
-    capacity: 10,
-    bookedCount: 10,
-    price: 950,
-    room: 'Зал Light',
-  },
-  {
-    id: 39,
-    createdAt: '2026-03-17T09:00:00.000Z',
-    clubId: 1,
-    trainerId: 1,
-    sportId: 3,
-    title: 'Завтрашнее плавание',
-    description: 'Слот на другую дату.',
-    date: '2026-03-18',
-    startTime: '08:00',
-    endTime: '09:00',
-    durationMinutes: 60,
-    level: 'all_levels',
-    capacity: 14,
-    bookedCount: 5,
-    price: 1100,
-    room: 'Бассейн A',
-  },
+const SPORTS = [
+  { id: 1, name: 'Йога', icon: '🧘' },
+  { id: 3, name: 'Плавание', icon: '🏊' },
+  { id: 8, name: 'Пилатес', icon: '🤸' },
 ];
 
-describe('getUpcomingSessions', () => {
-  it('возвращает только сегодняшние занятия со свободными местами, отсортированные по времени', () => {
-    const sessions = getUpcomingSessions({
-      clubs,
-      schedule,
-      targetDate: '2026-03-17',
+const select = (
+  schedule: Schedule[],
+  extra: Partial<Parameters<typeof getUpcomingSessions>[0]> = {},
+) => getUpcomingSessions({ clubs: CLUBS, schedule, targetDate: TODAY, now: NOW, ...extra });
+
+describe('getUpcomingSessions — шесть пунктов отбора', () => {
+  it('1. только сегодня: вчера и завтра — мимо', () => {
+    const sessions = select([
+      slot({ id: 1, clubId: 1, startTime: '10:00', endTime: '11:00' }),
+      slot({ id: 2, clubId: 1, startTime: '10:00', endTime: '11:00', date: '2026-03-18' }),
+      slot({ id: 3, clubId: 1, startTime: '10:00', endTime: '11:00', date: '2026-03-16' }),
+    ]);
+
+    expect(sessions.map((session) => session.id)).toEqual([1]);
+  });
+
+  it('2. только не начавшиеся: идущее занятие ещё «не прошло», но в витрине его нет', () => {
+    const sessions = select([
+      // 08:30–09:30 — идёт прямо сейчас (09:00): записываться поздно.
+      slot({ id: 1, clubId: 1, startTime: '08:30', endTime: '09:30' }),
+      // Ровно 09:00 — началось.
+      slot({ id: 2, clubId: 1, startTime: '09:00', endTime: '10:00' }),
+      // 09:01 — ещё впереди.
+      slot({ id: 3, clubId: 1, startTime: '09:01', endTime: '10:00' }),
+      // Утреннее — давно прошло.
+      slot({ id: 4, clubId: 1, startTime: '07:00', endTime: '08:00' }),
+    ]);
+
+    expect(sessions.map((session) => session.id)).toEqual([3]);
+  });
+
+  it('3. только со свободными местами: слот без мест прячется, освободилось — вернулся при следующей загрузке', () => {
+    const full = slot({
+      id: 1,
+      clubId: 1,
+      startTime: '12:00',
+      endTime: '13:00',
+      capacity: 10,
+      bookedCount: 10,
+    });
+    const free = slot({
+      id: 2,
+      clubId: 1,
+      startTime: '13:00',
+      endTime: '14:00',
+      capacity: 10,
+      bookedCount: 9,
     });
 
-    expect(sessions).toHaveLength(6);
-    expect(sessions.map((session) => session.id)).toEqual([35, 33, 32, 34, 36, 31]);
-    expect(sessions.map((session) => session.availableSpots)).toEqual([6, 6, 3, 3, 2, 6]);
-    expect(sessions.map((session) => session.clubName)).toEqual([
-      'Volna Aquatic Club',
-      'Balance Yoga House',
-      'Volna Aquatic Club',
-      'Balance Yoga House',
-      'Balance Yoga House',
-      'Volna Aquatic Club',
+    expect(select([full, free]).map((session) => session.id)).toEqual([2]);
+    expect(select([full, free])[0].availableSpots).toBe(1);
+
+    // Место освободилось — следующий отбор его показывает; механизма «вернуть» нет.
+    const freed = { ...full, bookedCount: 9 };
+
+    expect(select([freed, free]).map((session) => session.id)).toEqual([1, 2]);
+  });
+
+  it('4. те же фильтры, что у выдачи: вид спорта, город, запрос', () => {
+    const schedule = [
+      slot({ id: 1, clubId: 1, sportId: 3, startTime: '12:00', endTime: '13:00' }),
+      slot({ id: 2, clubId: 1, sportId: 8, startTime: '13:00', endTime: '14:00' }),
+      slot({ id: 3, clubId: 3, sportId: 1, startTime: '14:00', endTime: '15:00' }),
+      slot({ id: 4, clubId: 3, sportId: 8, startTime: '15:00', endTime: '16:00' }),
+    ];
+    const base = { searchQuery: '', selectedSportId: null, selectedCity: '', sports: SPORTS };
+
+    // Без фильтров — все четыре, как без аргумента.
+    expect(select(schedule, { filters: base }).map((session) => session.id)).toEqual([1, 2, 3, 4]);
+
+    // Вид спорта: пилатес есть у обоих клубов — но только слоты ПИЛАТЕСА, не все слоты клубов.
+    expect(
+      select(schedule, { filters: { ...base, selectedSportId: 8 } }).map((session) => session.id),
+    ).toEqual([2, 4]);
+
+    // Город — правило выдачи, регистр не важен.
+    expect(
+      select(schedule, { filters: { ...base, selectedCity: 'тольятти' } }).map(
+        (session) => session.id,
+      ),
+    ).toEqual([3, 4]);
+
+    // Запрос — по тексту клуба, как в выдаче: «yoga» находит Balance Yoga House.
+    expect(
+      select(schedule, { filters: { ...base, searchQuery: 'yoga' } }).map((session) => session.id),
+    ).toEqual([3, 4]);
+
+    // Запрос по названию вида из справочника — тоже правило выдачи.
+    expect(
+      select(schedule, { filters: { ...base, searchQuery: 'плавание' } }).map(
+        (session) => session.id,
+      ),
+    ).toEqual([1, 2]);
+  });
+
+  it('5. по времени начала, при равенстве — по названию', () => {
+    const sessions = select([
+      slot({ id: 1, clubId: 1, startTime: '18:00', endTime: '19:00', title: 'Бокс' }),
+      slot({ id: 2, clubId: 1, startTime: '12:00', endTime: '13:00', title: 'Йога' }),
+      slot({ id: 3, clubId: 3, startTime: '12:00', endTime: '13:00', title: 'Аквааэробика' }),
+      slot({ id: 4, clubId: 1, startTime: '09:30', endTime: '10:30', title: 'Плавание' }),
+    ]);
+
+    expect(sessions.map((session) => `${session.startTime} ${session.title}`)).toEqual([
+      '09:30 Плавание',
+      '12:00 Аквааэробика',
+      '12:00 Йога',
+      '18:00 Бокс',
     ]);
   });
 
-  it('Phase 30.7: сегодняшние слоты с прошедшим endTime не попадают в выдачу', () => {
-    /* Перетаскиваем системное время на 14:00 Samara (10:00 UTC) — слот id=35
-       с endTime='08:30' уже прошёл и должен быть отсечён, остальные с endTime
-       после 14:00 Samara (33→09:00 ❌, 36→19:30 ✓, 37→21:20 ✓ и т.д.) пропадут
-       или останутся согласно времени. Конкретно проверяем ТОЛЬКО что слот с
-       endTime '08:30' исчезает, а слот '19:30' остаётся. */
-    vi.setSystemTime(new Date('2026-03-17T10:00:00.000Z')); // 14:00 Samara
+  it('6. первые N — после всех отсевов и сортировки; N — одна константа', () => {
+    const schedule = Array.from({ length: 9 }, (_, index) =>
+      slot({
+        id: index + 1,
+        clubId: 1,
+        startTime: `${String(10 + index).padStart(2, '0')}:00`,
+        endTime: `${String(11 + index).padStart(2, '0')}:00`,
+      }),
+    );
 
-    const sessions = getUpcomingSessions({
-      clubs,
-      schedule,
-      targetDate: '2026-03-17',
+    expect(select(schedule)).toHaveLength(6);
+    expect(select(schedule, { limit: 2 }).map((session) => session.id)).toEqual([1, 2]);
+    // Срез — ПОСЛЕ отсева: полный слот в начале дня место в шестёрке не занимает.
+    const withFull = [{ ...schedule[0], bookedCount: 10 }, ...schedule.slice(1)];
+
+    expect(select(withFull).map((session) => session.id)).toEqual([2, 3, 4, 5, 6, 7]);
+  });
+
+  it('слот клуба, которого нет в списке (скрыт, архив), не показывается', () => {
+    const sessions = select([slot({ id: 1, clubId: 99, startTime: '12:00', endTime: '13:00' })]);
+
+    expect(sessions).toEqual([]);
+  });
+
+  it('карточка несёт всё, что нужно слоту: клуб, зал, цена, время, места', () => {
+    const [session] = select([
+      slot({
+        id: 7,
+        clubId: 1,
+        startTime: '12:00',
+        endTime: '13:00',
+        title: 'Кроль',
+        price: 1150,
+        room: 'Бассейн A',
+        capacity: 14,
+        bookedCount: 8,
+      }),
+    ]);
+
+    expect(session).toEqual({
+      id: 7,
+      title: 'Кроль',
+      clubId: 1,
+      clubName: 'Volna Aquatic Club',
+      date: TODAY,
+      startTime: '12:00',
+      endTime: '13:00',
+      price: 1150,
+      room: 'Бассейн A',
+      availableSpots: 6,
     });
-
-    const ids = sessions.map((s) => s.id);
-    /* id=35 (07:30-08:30) — уже прошёл → не виден */
-    expect(ids).not.toContain(35);
-    /* id=36 (18:30-19:30) — ещё впереди → виден */
-    expect(ids).toContain(36);
-
-    /* Возвращаем системное время после теста — другие it'ы используют старое */
-    vi.setSystemTime(new Date('2026-03-16T21:00:00.000Z'));
   });
 });

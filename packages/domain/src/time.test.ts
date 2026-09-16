@@ -14,6 +14,7 @@ import {
   getTimeKeyInTimeZone,
   getWeekStartKey,
   hoursUntilSlotStart,
+  isSlotAhead,
   isSlotUpcoming,
   shiftDateKey,
   zonedDateTime,
@@ -88,6 +89,21 @@ describe('Занятие ещё не прошло', () => {
     // 07:31 UTC = 11:31 — уже закончилось.
     expect(isSlotUpcoming(SLOT, new Date('2026-08-20T07:31:00.000Z'))).toBe(false);
     expect(isSlotUpcoming(SLOT, new Date('2026-08-19T23:00:00.000Z'))).toBe(true);
+  });
+});
+
+describe('Занятие ещё не началось (38.81)', () => {
+  it('сравнивает начало по часам зала: идущее занятие уже не впереди', () => {
+    // 05:59 UTC = 09:59 в Самаре — до начала минута.
+    expect(isSlotAhead(SLOT, new Date('2026-08-20T05:59:00.000Z'))).toBe(true);
+    // 06:00 UTC = 10:00 — началось ровно сейчас: записываться поздно.
+    expect(isSlotAhead(SLOT, new Date('2026-08-20T06:00:00.000Z'))).toBe(false);
+    // 07:00 UTC = 11:00 — идёт (ещё не прошло по `isSlotUpcoming`), но не впереди.
+    expect(isSlotAhead(SLOT, new Date('2026-08-20T07:00:00.000Z'))).toBe(false);
+    expect(isSlotUpcoming(SLOT, new Date('2026-08-20T07:00:00.000Z'))).toBe(true);
+    // Другой день — по календарю: вчера нет, завтра да.
+    expect(isSlotAhead(SLOT, new Date('2026-08-21T01:00:00.000Z'))).toBe(false);
+    expect(isSlotAhead(SLOT, new Date('2026-08-19T23:00:00.000Z'))).toBe(true);
   });
 });
 
