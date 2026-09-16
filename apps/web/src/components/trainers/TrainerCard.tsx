@@ -211,10 +211,10 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
         </div>
       </div>
 
-      {/* Наше: лента специализаций — под растянутой ссылкой: клик по чипу ведёт на
-          страницу тренера (приёмка, проход 1: над ссылкой — только знак и «К записи»). */}
+      {/* Наше: лента специализаций — под растянутой ссылкой, декоративная (без drag
+          и паузы): клик по чипу ведёт на страницу тренера (над ссылкой — только знак и «К записи»). */}
       <div className="-mx-[18px] mt-3.5">
-        <ChipMarquee items={tagItems} variant="solid" accent="lime" />
+        <ChipMarquee items={tagItems} variant="solid" accent="lime" interactive={false} />
       </div>
 
       {/* Наше: цитата и «К записи» — отдельная ссылка на ближайшее окно; над растянутой

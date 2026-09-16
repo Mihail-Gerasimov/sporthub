@@ -7,7 +7,7 @@
  * мокаем layout-свойства через Object.defineProperty. requestAnimationFrame
  * мокаем чтобы tick не запускался автоматически.
  */
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
@@ -172,5 +172,55 @@ describe('ChipMarquee', () => {
     expect(disconnect).toHaveBeenCalled();
 
     globalThis.IntersectionObserver = originalIO;
+  });
+
+  // Ревью f07dc4d (LOW): в карточках лента лежит под растянутой ссылкой — указатель
+  // бьёт в псевдоэлемент ссылки, и drag с паузой по наведению недостижимы. В карточке
+  // лента декоративная: слушатели не вешаются, курсор обычный; детальные страницы —
+  // интерактивные, как прежде.
+  describe('interactive={false} — декоративная лента в карточке', () => {
+    it('drag не вешается: pointerdown не даёт is-dragging, mouseenter не ставит паузу', () => {
+      MOCK_CONTAINER_W = 200;
+      MOCK_CONTENT_W = 800;
+      const addTrack = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
+      const items = ['A', 'B', 'C'].map((label) => ({ label }));
+      const { container } = render(
+        <ChipMarquee items={items} variant="solid" accent="lime" interactive={false} />,
+      );
+      const track = container.querySelector('.chip-track') as HTMLElement;
+      const marquee = container.querySelector('.chip-marquee') as HTMLElement;
+
+      // Только слушатели самой ленты: React вешает свои на корень для всех событий.
+      const listened = addTrack.mock.calls
+        .filter((_, i) => [track, marquee].includes(addTrack.mock.contexts[i] as HTMLElement))
+        .map(([type]) => type);
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'mouseenter', 'mouseleave']) {
+        expect(listened, `слушатель ${type} повешен`).not.toContain(type);
+      }
+
+      fireEvent.pointerDown(track, { clientX: 10, pointerId: 1 });
+      expect(track.classList.contains('is-dragging')).toBe(false);
+      fireEvent.mouseEnter(marquee);
+      // Курсор — обычный, не grab: тянуть нечего.
+      expect(track.className).not.toContain('cursor-grab');
+    });
+
+    it('по умолчанию (детальная страница) лента интерактивна: drag и пауза на месте', () => {
+      MOCK_CONTAINER_W = 200;
+      MOCK_CONTENT_W = 800;
+      const addTrack = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
+      const items = ['A', 'B', 'C'].map((label) => ({ label }));
+      const { container } = render(<ChipMarquee items={items} variant="solid" accent="lime" />);
+      const track = container.querySelector('.chip-track') as HTMLElement;
+
+      const marquee = container.querySelector('.chip-marquee') as HTMLElement;
+      const listened = addTrack.mock.calls
+        .filter((_, i) => [track, marquee].includes(addTrack.mock.contexts[i] as HTMLElement))
+        .map(([type]) => type);
+      expect(listened).toEqual(expect.arrayContaining(['pointerdown', 'mouseenter']));
+      fireEvent.pointerDown(track, { clientX: 10, pointerId: 1 });
+      expect(track.classList.contains('is-dragging')).toBe(true);
+      expect(track.className).toContain('cursor-grab');
+    });
   });
 });

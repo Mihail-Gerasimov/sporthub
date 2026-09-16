@@ -112,6 +112,22 @@ describe('TrainerCard (38.74)', () => {
     expect(screen.getByText('Подготовка к соревнованиям').closest('[class*="z-[2]"]')).toBeNull();
   });
 
+  it('лента чипов в карточке декоративная: под растянутой ссылкой drag недостижим — не вешается (ревью f07dc4d)', () => {
+    const addTrack = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
+    render(<TrainerCard trainer={baseTrainer} />);
+
+    const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+    const track = card.querySelector('.chip-track') as HTMLElement;
+
+    expect(track).not.toBeNull();
+    // Слушатели самой ленты (React вешает свои на корень для всех событий).
+    const onTrack = addTrack.mock.calls
+      .filter((_, i) => addTrack.mock.contexts[i] === track)
+      .map(([type]) => type);
+    expect(onTrack).not.toContain('pointerdown');
+    expect(track.className).not.toContain('cursor-grab');
+  });
+
   it('без ближайшего окна «К записи» ведёт на профиль, а окно — «Слоты скоро появятся»', () => {
     render(<TrainerCard trainer={busyTrainer} />);
 

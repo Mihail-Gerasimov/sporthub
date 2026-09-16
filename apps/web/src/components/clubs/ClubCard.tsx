@@ -193,9 +193,10 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
       <p className="m-0 px-4 pt-2 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
         {club.address}
       </p>
-      {/* Лента тегов — под растянутой ссылкой: клик по тегу ведёт на страницу клуба. */}
+      {/* Лента тегов — под растянутой ссылкой, декоративная (без drag и паузы):
+          клик по тегу ведёт на страницу клуба. */}
       <div className="mt-auto">
-        <ChipMarquee items={tagChips} variant="solid" accent="lime" isLast />
+        <ChipMarquee items={tagChips} variant="solid" accent="lime" isLast interactive={false} />
       </div>
     </article>
   );

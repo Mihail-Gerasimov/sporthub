@@ -1,20 +1,28 @@
 'use client';
 
 /*
- * ChipMarquee — бесконечная горизонтальная лента чипов с pause-on-hover
- * и pointer-drag scrub. Реализация 1-в-1 с setupMarquee() из
- * claude-design/cards-trainers/sporthub/project/SportHub Cards - Clubs.html.
+ * ChipMarquee — бесконечная горизонтальная лента чипов. Реализация 1-в-1
+ * с setupMarquee() из claude-design/cards-trainers/sporthub/project/SportHub
+ * Cards - Clubs.html.
  *
- * Логика:
+ * Два режима — по потребителю:
+ * - `interactive` (по умолчанию; детальные страницы клуба и тренера): hover
+ *   на marquee → пауза, pointer drag (мышь+touch) → скраб с setPointerCapture,
+ *   отпустил → автоплей с текущей позиции (lastT обнуляется, чтобы не было прыжка),
+ *   курсор grab.
+ * - `interactive={false}` (карточки выдачи и витрины — ClubCard, TrainerCard):
+ *   лента ДЕКОРАТИВНАЯ. Она лежит под растянутой на карточку ссылкой, указатель
+ *   бьёт в её псевдоэлемент, и drag с паузой там недостижимы — слушатели не
+ *   вешаются вовсе, курсор обычный (ревью f07dc4d). Автоплей и клоны — те же.
+ *
+ * Общее для обоих:
  * - Если контент влезает в контейнер (scrollWidth ≤ containerW) —
  *   добавляется класс .no-loop, marquee становится статикой без анимации,
  *   без mask-fade и без cursor:grab.
  * - Иначе клонируем оригинальные чипы пока контент не покроет контейнер
  *   с запасом, и запускаем requestAnimationFrame на скорости speedPxPerSec.
- * - Hover на marquee → пауза. Pointer drag (мышь+touch) → скраб с
- *   setPointerCapture, отпустил → возобновляется автоплей с текущей
- *   позиции (lastT обнуляется чтобы не было прыжка).
- * - Resize → пересчёт loopLen с дебаунсом 120 мс.
+ * - IntersectionObserver ставит паузу вне viewport; resize → пересчёт loopLen
+ *   с дебаунсом 120 мс.
  *
  * При items.length === 0 — компонент не рендерится (returns null).
  */
@@ -32,6 +40,11 @@ type ChipMarqueeProps = {
   speedPxPerSec?: number;
   /** Если true — добавить нижний отступ (последний marquee в карточке). */
   isLast?: boolean;
+  /**
+   * Пауза по наведению и drag. `false` — в карточках под растянутой ссылкой:
+   * указатель туда не доходит, лента декоративная (см. шапку файла).
+   */
+  interactive?: boolean;
 };
 
 export function ChipMarquee({
@@ -40,6 +53,7 @@ export function ChipMarquee({
   accent,
   speedPxPerSec = 32,
   isLast = false,
+  interactive = true,
 }: ChipMarqueeProps) {
   const marqueeRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -134,8 +148,11 @@ export function ChipMarquee({
       pausedByHover = false;
       lastT = 0;
     }
-    marquee.addEventListener('mouseenter', handleEnter);
-    marquee.addEventListener('mouseleave', handleLeave);
+    // Декоративной ленте (карточки) ни пауза, ни drag не достаются: слушатели не вешаются.
+    if (interactive) {
+      marquee.addEventListener('mouseenter', handleEnter);
+      marquee.addEventListener('mouseleave', handleLeave);
+    }
 
     // Phase 30.8: IntersectionObserver — пауза rAF когда marquee вне viewport.
     // Сбрасываем lastT при возврате во viewport, чтобы следующий dt был ≈0
@@ -178,11 +195,13 @@ export function ChipMarquee({
         /* ignore */
       }
     }
-    track.addEventListener('pointerdown', handleDown);
-    track.addEventListener('pointermove', handleMove);
-    track.addEventListener('pointerup', endDrag);
-    track.addEventListener('pointercancel', endDrag);
-    track.addEventListener('lostpointercapture', endDrag as EventListener);
+    if (interactive) {
+      track.addEventListener('pointerdown', handleDown);
+      track.addEventListener('pointermove', handleMove);
+      track.addEventListener('pointerup', endDrag);
+      track.addEventListener('pointercancel', endDrag);
+      track.addEventListener('lostpointercapture', endDrag as EventListener);
+    }
 
     let resizeTO: ReturnType<typeof setTimeout> | null = null;
     function handleResize() {
@@ -208,7 +227,7 @@ export function ChipMarquee({
       window.removeEventListener('resize', handleResize);
       if (resizeTO) clearTimeout(resizeTO);
     };
-  }, [items, speedPxPerSec]);
+  }, [items, speedPxPerSec, interactive]);
 
   if (items.length === 0) return null;
 
@@ -231,7 +250,7 @@ export function ChipMarquee({
         // его «требуемая» ширина (max-content) больше не давит на ширину
         // карточки, overflow:hidden родителя корректно обрезает выезжающие
         // чипы. Без этого min-content propagation расширял slide на 1440.
-        className="chip-track absolute top-0 left-0 flex h-full w-max cursor-grab touch-pan-y select-none items-center gap-2.5 px-[22px] will-change-transform"
+        className={`chip-track absolute top-0 left-0 flex h-full w-max touch-pan-y select-none items-center gap-2.5 px-[22px] will-change-transform ${interactive ? 'cursor-grab' : ''}`}
       >
         {items.map((item, i) => (
           <span
