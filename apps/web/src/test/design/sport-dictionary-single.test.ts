@@ -95,7 +95,7 @@ describe('Сторож: виды спорта не литералом (38.64)', 
 
     expect(files).toContain('src/lib/home-copy.ts');
     expect(files).toContain('src/app/page.tsx');
-    expect(files).toContain('src/components/home/HeroSportMarquee.tsx');
+    expect(files).toContain('src/components/home/HeroSearch.tsx');
   });
 
   it('сторож видит литеральный список на подставном тексте', () => {

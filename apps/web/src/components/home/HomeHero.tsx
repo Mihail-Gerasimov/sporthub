@@ -10,8 +10,9 @@
  * по разметке эталона и принимает их как слоты. Правая колонка — `FocusCard` (38.70),
  * герой рисует её сам по данным дня. Без слотов секция рисуется целой, с ними —
  * как в макете. Тексты — из `lib/home-copy.ts`; `id` и подпись секции — из словаря
- * секций, не литералом. Рядом с плашкой — город из стора фильтров (`HeroCityBadge`,
- * 38.78): тот же, что в селекторе, а не литерал.
+ * секций, не литералом. Город — в подзаголовке из стора фильтров (`HeroSubtitle`,
+ * 38.78/38.107): тот же, что в селекторе каталога; чипа города и ленты видов спорта
+ * в герое нет — в макете их нет (38.107).
  *
  * Почему не `ui/*`: секция-плашка с собственной сеткой и волной — единственная
  * на площадке, компонент общего вида под неё не нужен; кнопки и карточки внутри
@@ -20,7 +21,7 @@
 import type { ReactNode } from 'react';
 
 import { FocusCard } from '@/components/home/FocusCard';
-import { HeroCityBadge } from '@/components/home/HeroCityBadge';
+import { HeroSubtitle } from '@/components/home/HeroSubtitle';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { HERO } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
@@ -44,16 +45,28 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
       <div className="relative mx-auto w-full max-w-[1320px] px-6 pt-[72px]">
         <div className="grid items-center gap-14 xl:grid-cols-[1fr_min(480px,42%)]">
           <div className="min-w-0">
-            <div className="mb-6 flex flex-wrap items-center gap-2">
-              {/* Плашка над заголовком: метка + текст. Не кнопка и не ссылка, как в эталоне. */}
-              <p className="inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/10 py-[5px] pr-3.5 pl-2 font-body">
-                <span className="rounded-full bg-lime px-2.5 py-0.5 text-[9px] font-black tracking-[0.08em] text-ink uppercase">
-                  {HERO.eyebrowTag}
-                </span>
-                <span className="text-[12px] font-semibold text-plate-muted">{HERO.eyebrow}</span>
-              </p>
-              <HeroCityBadge />
-            </div>
+            {/* Плашка над заголовком (`HomePage.tsx:283-294`): метка + текст + шеврон-декор.
+                Не кнопка и не ссылка — в макете у неё нет обработчика. */}
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/10 py-[5px] pr-3.5 pl-2 font-body">
+              <span className="rounded-full bg-lime px-2.5 py-0.5 text-[9px] font-black tracking-[0.08em] text-ink uppercase">
+                {HERO.eyebrowTag}
+              </span>
+              <span className="text-[12px] font-semibold text-plate-muted">{HERO.eyebrow}</span>
+              <svg
+                viewBox="0 0 12 12"
+                aria-hidden="true"
+                className="size-3 shrink-0 text-plate-line"
+              >
+                <path
+                  d="m4.5 2.5 3.5 3.5-3.5 3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.6"
+                />
+              </svg>
+            </p>
 
             <h1 className="t-hero mb-4 text-plate-ink">
               {HERO.titleLines.map((line) => (
@@ -64,9 +77,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
               <span className="block text-lime">{HERO.titleAccent}</span>
             </h1>
 
-            <p className="mb-8 max-w-[480px] font-body text-[15px] leading-[1.7] text-plate-muted">
-              {HERO.subtitle}
-            </p>
+            <HeroSubtitle />
 
             {search ? <div className="relative mb-9">{search}</div> : null}
             {counters}
