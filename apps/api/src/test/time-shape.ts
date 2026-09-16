@@ -19,6 +19,8 @@ export const VOLATILE_KEYS: ReadonlySet<string> = new Set([
   'rejectedAt',
   'revokedAt',
   'hiddenAt',
+  // Проверка площадкой (38.55): «когда подтверждено» — метка времени, как и скрытие.
+  'verifiedAt',
   'completedAt',
   'timestamp',
   'uptime',

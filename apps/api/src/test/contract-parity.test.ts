@@ -101,8 +101,13 @@ const KNOWN_DIFFERENCES: Record<string, string> = {
   // `?sort=rating&limit=4`, `/stats/overview` (54 → 57). Прежние 54 не изменились
   // ни на байт — проверено сравнением снимков; добавление — не пересъёмка.
   //
+  // Шаг 38.55: ДОБАВЛЕНЫ два вызова верификации — `POST /api/moderation (verify)`
+  // и `GET /api/publications?verified=false` (57 → 59); снят режим
+  // `GET /api/bookings?scope=clients` — в эталоне его не было, снятие сверки
+  // не задело. Прежние 57 снова не изменились ни на байт.
+  //
   // Непустой список — это всегда обещание, которое пришлось изменить. Пустой —
-  // обещание держится. Следующая пересъёмка — 38.55, после `verifiedAt`.
+  // обещание держится.
   //
   // ⚠️ Пересъёмка — не способ погасить красный тест. До неё изменённое обещание
   // обязано быть названо здесь, а не спрятано: `KNOWN_DIFFERENCES` работает как
@@ -421,6 +426,33 @@ export const CALLS: Call[] = [
     method: 'post',
     url: '/api/moderation',
     body: { action: 'hide', entityType: 'club', entityId: 1, reason: 'Снимок' },
+  },
+  // Верификация (38.55): подтверждение отдаёт публикацию с парой «когда + кем»
+  // (дата маскируется как всякая метка времени), очередь непроверенных — отбор
+  // в запросе. Клуб 2 — потому что клуб 1 к этому месту уже скрыт вызовом выше,
+  // а скрытую подтвердить нельзя (409).
+  {
+    name: 'POST /api/moderation (verify)',
+    as: 3,
+    method: 'post',
+    url: '/api/moderation',
+    body: { action: 'verify', entityType: 'club', entityId: 2 },
+  },
+  {
+    name: 'GET /api/publications?verified=false',
+    method: 'get',
+    url: '/api/publications?verified=false',
+    as: 3,
+    // Клуб 2 подтверждён досевом: без этого в срезе фикстур не проверен никто,
+    // и отбор был бы снят в эталон на выдаче, которую он ничего не отбрасывает.
+    prepare: (harness: TestHarness) =>
+      harness.writeMany({
+        clubs: fixtureCollections.clubs.map((club) =>
+          club.id === 2
+            ? { ...club, verifiedAt: '2026-09-15T12:00:00.000Z', verifiedByUserId: 3 }
+            : club,
+        ),
+      }),
   },
   { name: 'GET /api/analytics', method: 'get', url: '/api/analytics', as: 3 },
   {

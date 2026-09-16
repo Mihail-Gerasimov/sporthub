@@ -251,17 +251,6 @@ export class PrismaBookingsRepository implements BookingsRepository {
       conditions.push(PrismaBookingsRepository.ownerCondition(filter.owners));
     }
 
-    if (filter.clientsOf !== undefined) {
-      // «Записи людей, которые ходили к этим публикациям» — связью, а не списком
-      // номеров. Prisma разворачивает такое условие в подзапрос, то есть весь отбор
-      // остаётся в базе: набор клиентов не доезжает до приложения и не может стать
-      // ни массивом в памяти, ни фильтром после чтения. Публикации внутри условия
-      // разбираются теми же четырьмя колонками, что и в `owners`.
-      conditions.push({
-        user: { bookings: { some: PrismaBookingsRepository.ownerCondition(filter.clientsOf) } },
-      });
-    }
-
     const date: Record<string, Date> = {};
 
     if (filter.dateFrom !== undefined) date.gte = fromDateKey(filter.dateFrom);
@@ -348,27 +337,14 @@ export class PrismaBookingsRepository implements BookingsRepository {
       parts.push(PrismaBookingsRepository.ownerSqlCondition(filter.owners));
     }
 
-    if (filter.clientsOf !== undefined) {
-      // Тот же смысл, что и у ветки `clientsOf` в построителе: сначала база находит
-      // людей, ходивших к этим публикациям, и только потом отбирает их записи.
-      // Подзапрос, а не два обращения подряд: список номеров клиентов не должен
-      // существовать в приложении даже на мгновение — иначе у провайдера с сотнями
-      // клиентов он поедет по проводу вместо условия.
-      parts.push(
-        Prisma.sql`user_id IN (SELECT user_id FROM bookings
-                                WHERE ${PrismaBookingsRepository.ownerSqlCondition(filter.clientsOf)})`,
-      );
-    }
-
     return parts.length === 0 ? Prisma.sql`TRUE` : Prisma.join(parts, ' AND ');
   }
 
   /**
    * «Запись относится к одной из перечисленных публикаций» — выражением SQL.
    *
-   * Близнец `ownerCondition` для сырых запросов. Вынесено отдельно, потому что
-   * потребителей у выражения стало два (`owners` и подзапрос `clientsOf`), а разойтись
-   * им нельзя: обе ветки обязаны понимать владельца и площадку одинаково.
+   * Близнец `ownerCondition` для сырых запросов: обе формы обязаны понимать
+   * владельца и площадку одинаково, поэтому колонки перечислены здесь один раз.
    */
   private static ownerSqlCondition(owners: OwnerIdFilter): Prisma.Sql {
     const { clubIds, trainerIds } = owners;

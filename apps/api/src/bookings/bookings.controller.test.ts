@@ -448,12 +448,11 @@ describe('Маршруты записей', () => {
   // - `?scope=owner` — записи ПУБЛИКАЦИЙ провайдера. Раньше страница спрашивала их
   //   веером: по запросу на каждый свой клуб и каждого тренера, и в каждом стоял
   //   `scope=all`.
-  // - `?scope=clients` — история ЛЮДЕЙ, которые к этим публикациям записывались.
-  //   Она нужна бейджу надёжности: он считается по всей истории атлета, а не по
-  //   той её части, что пришлась на этого провайдера. Отобрать её по одному
-  //   человеку за запрос нельзя — клиентов бывают сотни.
+  // - `?scope=clients` — БЫЛ: история людей, ходивших к публикациям, по всей
+  //   площадке — ради бейджа надёжности клиента. Снят шагом 38.55 вместе
+  //   с надёжностью: другого читателя у истории по всей площадке не было.
   //
-  // В обоих режимах личность берётся из сессии, публикации — по индексу владельца,
+  // Личность берётся из сессии, публикации — по индексу владельца,
   // а сужение уходит условием в запрос.
   describe('GET /api/bookings — срезы кабинета провайдера', () => {
     beforeEach(async () => {
@@ -675,181 +674,36 @@ describe('Маршруты записей', () => {
       });
     });
 
-    describe('?scope=clients — история клиентов провайдера', () => {
-      it('провайдер получает всю историю своих клиентов', async () => {
+    // ⚠️ Шаг 38.55. Срез `?scope=clients` снят: единственный его читатель — бейдж
+    // надёжности клиента по всей его истории — вырезан вместе с надёжностью, а раздел
+    // «Клиенты» читает только записи самого лица (они приходят срезом `owner`).
+    // Два кейса ниже жили в снятом блоке и зеркала у `owner` не имели — переехали.
+    describe('снятый срез клиентов и общие правила пары лица', () => {
+      it('?scope=clients больше не режим — 400 «Некорректные параметры запроса»', async () => {
+        // Именно отказ, а не тихая подмена на `owner`: клиент, продолжающий слать
+        // снятый режим, обязан узнать об этом, а не получить другой набор под тем же именем.
         const response = await request(server())
           .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(2));
-
-        expect(response.status).toBe(200);
-        // 7 — запись к самому провайдеру, 9 — та же голова у чужого провайдера.
-        expect(ids(response.body)).toEqual([7, 9]);
-      });
-
-      it('чужие клиенты в срез не попадают', async () => {
-        // ⚠️ Контрольная группа и одновременно диверсия: снять сужение по клиентам —
-        // и здесь окажется запись 8, то есть история человека, который к провайдеру
-        // не приходил ни разу.
-        const response = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(2));
-
-        expect(ids(response.body)).not.toContain(8);
-      });
-
-      it('у каждого провайдера свои клиенты', async () => {
-        // Клуб 3 ведёт провайдер 5, и его клиенты — оба атлета: у одного запись 8,
-        // у другого 9. Значит срез считается от публикаций СПРАШИВАЮЩЕГО, а не отдаёт
-        // всем одно и то же.
-        const response = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(5));
-
-        expect(response.status).toBe(200);
-        expect(ids(response.body)).toEqual([7, 8, 9]);
-      });
-
-      it('человек без лиц услуг получает отказ, а не историю чужих клиентов', async () => {
-        // Шаг 35.19b, тот же довод, что и у среза публикаций: клиенты — это
-        // владение, а не право роли. Прежняя роль тренера у пользователя 6
-        // не значит ничего: публикаций нет — клиентов нет, и маршрут говорит
-        // об этом отказом, а не пустым списком.
-        const response = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(6));
-
-        expect(response.status).toBe(403);
-        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
-      });
-
-      it('появилось лицо — появился и срез, и чужие клиенты в него не попали', async () => {
-        // Половина прежней проверки, которую отказ закрыть не может: сужение
-        // по клиентам не должно теряться. В клуб пользователя 6 приходил атлет 4,
-        // и его история — обе записи, включая занятие у соседа (ради этого режим
-        // и заведён). Атлет 1 к нему не приходил ни разу, и ни одной его записи
-        // в срезе быть не должно.
-        await giveSixthAClub();
-
-        const response = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(6));
-
-        expect(response.status).toBe(200);
-        expect(ids(response.body)).toEqual([8, 10]);
-        expect(ids(response.body), 'в срез попала история чужого клиента').not.toContain(7);
-      });
-
-      it('срез сужается набором статусов', async () => {
-        const response = await request(server())
-          .get('/api/bookings?scope=clients&status=completed')
-          .set('Cookie', await as(2));
-
-        expect(ids(response.body)).toEqual([7]);
-      });
-
-      it('гостю срез клиентов не отдаётся', async () => {
-        const response = await request(server()).get('/api/bookings?scope=clients');
-
-        expect(response.status).toBe(401);
-      });
-
-      it('спортсмену срез клиентов закрыт', async () => {
-        // У человека без публикаций клиентов не бывает — и маршрут говорит об этом
-        // прямо, вместо того чтобы отдать пустой список и сделать вид, что всё в порядке.
-        const response = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', await as(1));
-
-        expect(response.status).toBe(403);
-        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
-      });
-
-      it('срез сужается до ОДНОГО лица: клиенты клубов не сливаются в кучу', async () => {
-        // ⚠️ Шаг 35.27a, решение заказчика 19. До него владелец четырёх клубов
-        // видел клиентов всех четырёх одной кучей: срез считался по ЧЕЛОВЕКУ.
-        // Теперь лицо можно назвать, и тогда клиенты у каждого свои.
-        //
-        // Провайдер 5 получает второй клуб (4) с собственным клиентом — атлетом 6.
-        const [clubs, schedule, bookings] = await Promise.all([
-          harness.read<Record<string, unknown>[]>('clubs'),
-          harness.read<Record<string, unknown>[]>('schedule'),
-          harness.read<Record<string, unknown>[]>('bookings'),
-        ]);
-
-        await harness.writeMany({
-          clubs: [
-            ...clubs,
-            { ...rowById(clubs, 3), id: 4, name: 'Второй клуб пятого', slug: 'vtoroy-pyatogo' },
-          ],
-          schedule: [...schedule, { ...rowById(schedule, 2), id: 3, ownerId: 4, bookedCount: 1 }],
-          bookings: [
-            ...bookings,
-            booking(11, {
-              userId: 6,
-              scheduleId: 3,
-              status: 'completed',
-              ownerType: 'club',
-              ownerId: 4,
-              clubId: 4,
-              trainerId: undefined,
-            }),
-          ],
-        });
-
-        const cookie = await as(5);
-
-        // Без названного лица — прежнее поведение: клиенты всех лиц человека.
-        // Старая страница переживает выкатку.
-        const merged = await request(server())
-          .get('/api/bookings?scope=clients')
-          .set('Cookie', cookie);
-
-        expect(ids(merged.body)).toEqual([7, 8, 9, 11]);
-
-        // С названным лицом — только его клиенты. Атлета 6 в клубе 3 не было.
-        const first = await request(server())
-          .get('/api/bookings?scope=clients&faceType=club&faceId=3')
-          .set('Cookie', cookie);
-
-        expect(first.status).toBe(200);
-        expect(ids(first.body)).toEqual([7, 8, 9]);
-        expect(ids(first.body), 'клиент второго клуба попал в срез первого').not.toContain(11);
-
-        // И зеркально: у второго клуба свой единственный клиент.
-        const second = await request(server())
-          .get('/api/bookings?scope=clients&faceType=club&faceId=4')
-          .set('Cookie', cookie);
-
-        expect(ids(second.body)).toEqual([11]);
-      });
-
-      it('чужое лицо в срезе — 403, а не чужие клиенты', async () => {
-        // Лицо приезжает строкой запроса, поэтому владение сверяется. Пустой ответ
-        // здесь соврал бы про причину — назвать чужой клуб и получить его клиентов
-        // нечем, и сказать об этом надо прямо.
-        const response = await request(server())
-          .get('/api/bookings?scope=clients&faceType=club&faceId=3')
-          .set('Cookie', await as(2));
-
-        expect(response.status).toBe(403);
-        expect(response.body).toEqual({ success: false, error: 'Недостаточно прав' });
-      });
-
-      it('половина пары лица отклоняется — 400', async () => {
-        const response = await request(server())
-          .get('/api/bookings?scope=clients&faceType=club')
           .set('Cookie', await as(2));
 
         expect(response.status).toBe(400);
         expect(response.body.error).toBe('Некорректные параметры запроса');
       });
 
-      it('администратору срез клиентов закрыт — у него свой полный', async () => {
-        // Решение заказчика 13: администратор — не человек площадки, лиц услуг
-        // он не заводит, и своих клиентов у него нет. Разбирать площадку он ходит
-        // через `?scope=all` — единственный срез, который ему положен.
+      it('половина пары лица отклоняется — 400', async () => {
         const response = await request(server())
-          .get('/api/bookings?scope=clients')
+          .get('/api/bookings?scope=owner&faceType=club')
+          .set('Cookie', await as(2));
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Некорректные параметры запроса');
+      });
+
+      it('администратору срез публикаций закрыт — у него свой полный', async () => {
+        // Решение заказчика 13: администратор — не человек площадки, лиц услуг
+        // он не заводит. Разбирать площадку он ходит через `?scope=all`.
+        const response = await request(server())
+          .get('/api/bookings?scope=owner')
           .set('Cookie', await as(3));
 
         expect(response.status).toBe(403);

@@ -1967,6 +1967,126 @@
       "error": "Недостаточно прав"
     }
   },
+  "POST /api/moderation (verify)": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": 2,
+        "createdAt": "<время>",
+        "name": "Iron Gym",
+        "slug": "iron-gym",
+        "description": "Тренажёрный зал полного цикла.",
+        "shortDescription": "Тренажёрный зал полного цикла.",
+        "city": "Самара",
+        "address": "ул. Советская, 10",
+        "phone": "+7 (846) 200-11-02",
+        "coordinates": {
+          "lat": 53.2001,
+          "lng": 50.11
+        },
+        "sportIds": [
+          4
+        ],
+        "imageUrls": [
+          "/images/clubs/iron-gym-1.jpg"
+        ],
+        "amenityIds": [
+          2
+        ],
+        "tagIds": [
+          1
+        ],
+        "rating": 4.5,
+        "reviewCount": 2,
+        "priceFrom": 800,
+        "distanceKm": 3,
+        "managedByUserId": 2,
+        "source": "seed",
+        "status": "published",
+        "awaitingRecheck": false,
+        "verifiedAt": "<время>",
+        "verifiedByUserId": 3
+      }
+    }
+  },
+  "GET /api/publications?verified=false": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "name": "Volna Aquatic Club",
+          "type": "club",
+          "city": "Самара",
+          "sportIds": [
+            3,
+            8
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2,
+          "awaitingRecheck": false
+        },
+        {
+          "id": 3,
+          "name": "Balance Yoga House",
+          "type": "club",
+          "city": "Самара",
+          "sportIds": [
+            1,
+            8
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "awaitingRecheck": false
+        },
+        {
+          "id": 1,
+          "name": "Марина Соколова",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            3
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2,
+          "awaitingRecheck": false
+        },
+        {
+          "id": 3,
+          "name": "Алексей Петров",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            4
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2,
+          "awaitingRecheck": false
+        },
+        {
+          "id": 5,
+          "name": "Анна Миронова",
+          "type": "trainer",
+          "city": "Самара",
+          "sportIds": [
+            1
+          ],
+          "status": "published",
+          "createdAt": "<время>",
+          "managedByUserId": 2,
+          "awaitingRecheck": false
+        }
+      ],
+      "total": 5,
+      "offset": 0,
+      "limit": 50
+    }
+  },
   "GET /api/analytics": {
     "status": 200,
     "body": {
