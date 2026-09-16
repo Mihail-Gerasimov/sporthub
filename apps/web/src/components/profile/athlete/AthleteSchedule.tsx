@@ -231,7 +231,7 @@ export function AthleteSchedule({
               'rounded-pill px-4 py-2 text-sm font-semibold transition-colors',
               filter === key
                 ? 'bg-accent text-ink'
-                : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent',
+                : 'border border-line bg-panel text-ink hover:border-accent hover:text-accent-strong',
             )}
           >
             {FILTER_LABEL[key]}
@@ -413,7 +413,7 @@ function AthleteBookingDrawer({
               {booking.clubId !== undefined ? (
                 <Link
                   href={`/clubs/${booking.clubId}`}
-                  className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+                  className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
                 >
                   Посмотреть клуб
                 </Link>
@@ -421,7 +421,7 @@ function AthleteBookingDrawer({
               {booking.trainerId !== undefined ? (
                 <Link
                   href={`/trainers/${booking.trainerId}`}
-                  className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+                  className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
                 >
                   Посмотреть тренера
                 </Link>

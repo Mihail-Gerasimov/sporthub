@@ -7,7 +7,7 @@
  * — Внешний wrapper: inline-flex + bg-card-2 + 1px line-border + rounded-full
  *   + padding 6px + gap 4px. На 480 — overflow-x-auto + scrollbar-hidden,
  *   чтобы пункты не переносились на 2 строки.
- * — Каждая ссылка: rounded-full + px-4 py-2 + Oswald 700 11px UPPERCASE
+ * — Каждая ссылка: rounded-full + px-4 py-2 + body 700 11px UPPERCASE
  *   letter-spacing 0.16em + whitespace-nowrap.
  * — Активная (по `pathname.startsWith(item.href + '/')` или строгому равенству):
  *   bg-lime + text-ink. Неактивная: text-muted, hover:text-ink.

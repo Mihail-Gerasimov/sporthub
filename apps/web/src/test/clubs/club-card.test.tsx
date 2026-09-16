@@ -3,7 +3,7 @@
  * Карточка собрана 1-в-1 со схемы из claude-design/cards-trainers/sporthub/
  * project/SportHub Cards - Clubs.html (.club-card + child grid):
  *   hero (диагональный lime/orange/blank-луч + watermark номера + city-pill +
- *   address eyebrow + Bowlby-имя как Link) → body-meta (lime price-pill +
+ *   address eyebrow + display-имя как Link) → body-meta (lime price-pill +
  *   distance) → body-desc clamp 3 → body-rating (звёзды + num + reviews +
  *   опц. badge "Новый") → tags ChipMarquee solid lime.
  *

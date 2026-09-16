@@ -61,7 +61,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/provider/ProviderLinks.tsx': 670,
   'src/components/profile/provider/ProviderPublications.tsx': 238,
   'src/components/profile/provider/ProviderStats.tsx': 365,
-  'src/components/trainers/TrainerCard.tsx': 224,
+  'src/components/trainers/TrainerCard.tsx': 222,
   'src/components/trainers/TrainerDetailPageClient.tsx': 747,
   'src/components/trainers/trainer-preview.ts': 276,
   'src/components/ui/CardSlider.tsx': 370,

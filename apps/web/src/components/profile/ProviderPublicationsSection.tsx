@@ -72,7 +72,7 @@ function PublicationCard({
       className="group rounded-card border border-line bg-canvas p-4 transition-colors hover:border-accent"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold text-ink group-hover:text-accent">{name}</h3>
+        <h3 className="text-base font-semibold text-ink group-hover:text-accent-strong">{name}</h3>
         <Badge tone={type === 'Клуб' ? 'success' : 'outline'}>{type}</Badge>
       </div>
 
@@ -100,7 +100,7 @@ function PublicationCard({
           {onEdit ? (
             <button
               type="button"
-              className="text-xs font-semibold text-ink transition-colors hover:text-accent"
+              className="text-xs font-semibold text-ink transition-colors hover:text-accent-strong"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();

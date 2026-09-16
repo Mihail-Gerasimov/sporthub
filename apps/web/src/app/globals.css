@@ -104,7 +104,8 @@
   --ui-danger: var(--ui-red);
 
   /* ===== Радиусы (точные значения из UI Kit) ===== */
-  --ui-radius-pill: 999px; /* Кнопки, бэйджи, чипы, аватары, bell, нав-меню */
+  --ui-radius-pill: 999px; /* Бэйджи, чипы, аватары, bell, нав-меню */
+  --ui-radius-button: 12px; /* Кнопки — как в макете ПРОСПОРТ (решение заказчика, 38.14a) */
   --ui-radius-card: 18px; /* Карточки секций, specimen, swatch */
   --ui-radius-card-lg: 14px; /* Search-field, мелкие карточки внутри состояний */
   --ui-radius-modal: 24px; /* Модалки, hero-блоки */
@@ -207,6 +208,7 @@
   --radius-card: var(--ui-radius-card);
   --radius-card-lg: var(--ui-radius-card-lg);
   --radius-pill: var(--ui-radius-pill);
+  --radius-button: var(--ui-radius-button);
   --radius-modal: var(--ui-radius-modal);
   --radius-mark: var(--ui-radius-mark);
 
@@ -260,6 +262,21 @@ body {
 ::selection {
   background: var(--ui-lime);
   color: var(--ui-bg);
+}
+
+/* ===== Заголовки — display-шрифтом по умолчанию (шаг 38.14a) =====
+ * Preflight Tailwind сбрасывает заголовки на `inherit`, и h1 без класса `.t-*`
+ * молча уходил в Inter («Запись на занятие» на /booking). Базовое правило закрывает
+ * это для всех h1–h3 разом; регистр не трогается — в h1 живут и названия клубов.
+ * Утилиты (`font-body`, `font-semibold`) по-прежнему сильнее базового слоя.
+ */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-heading);
+  }
 }
 
 /* ===== Типографические утилиты (точная шкала из UI Kit) =====

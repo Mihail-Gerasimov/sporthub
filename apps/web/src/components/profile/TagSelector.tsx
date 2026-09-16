@@ -138,7 +138,7 @@ export function TagSelector({
             aria-label="Добавить"
             onClick={handleOpen}
             disabled={disabled}
-            className="rounded-pill border border-dashed border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            className="rounded-pill border border-dashed border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent hover:text-accent-strong disabled:opacity-50"
           >
             + Добавить
           </button>

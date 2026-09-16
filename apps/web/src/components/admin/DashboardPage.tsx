@@ -4,7 +4,7 @@
  * быстрым действием «войти как пользователь».
  *
  * Phase 28.20:
- * — sec-head: eyebrow `Admin · Users` + Bowlby + sub `N пользователей · M показано`
+ * — sec-head: eyebrow `Admin · Users` + display + sub `N пользователей · M показано`
  *   + sec-pill «обновлено сейчас» справа (статика);
  * — toolbar: search-input + lime-solid кнопка `Фильтры ⌃` (toggle ротация);
  * — filters-panel collapsible: grid 2-col Лица услуг / Статус;

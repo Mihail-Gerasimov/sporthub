@@ -136,7 +136,7 @@ export default async function Home() {
           </span>
 
           {/* Grid: явный grid-cols-1 на mobile (без него grid создаёт авто-колонку
-              под максимум contento и H1 в Bowlby растягивает её до ~988px → горизонтальный
+              под максимум contento и H1 display-шрифтом растягивает её до ~988px → горизонтальный
               скролл на 480). min-w-0 на детях разрешает им сжиматься ниже content-size. */}
           <div className="relative z-10 grid grid-cols-1 gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start">
             {/* === Левая колонка: badges + H1 + lede + sport rail + CTA === */}
@@ -155,7 +155,7 @@ export default async function Home() {
                 </span>
               </div>
 
-              {/* H1 — Bowlby clamp, ключевое слово lime.
+              {/* H1 — display clamp, ключевое слово lime.
                   max-w ставим только с lg+ (на mobile H1 ширина = ширина контейнера). */}
               <h1 className="m-0 w-full font-display text-[clamp(36px,8vw,72px)] uppercase leading-[0.92] tracking-[-0.01em] text-plate-ink lg:max-w-[720px] lg:text-[clamp(48px,5.4vw,84px)]">
                 Найди <span className="text-[var(--ui-lime)]">спорт</span> в своём ритме
@@ -185,7 +185,7 @@ export default async function Home() {
                 </Link>
                 <Link
                   href="/#availability"
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-plate-line bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-plate-ink no-underline transition-all hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)] sm:text-[13px]"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border-2 border-plate-line bg-transparent px-6 py-3 font-body text-[12px] font-bold uppercase tracking-[0.10em] text-plate-ink no-underline transition-all hover:border-[var(--ui-lime)] hover:text-lime-hov sm:text-[13px]"
                 >
                   Смотреть слоты и окна
                 </Link>
@@ -295,8 +295,8 @@ export default async function Home() {
                         {featuredClub.reviewCount}
                       </span>
                     </div>
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-lime)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-plate-ink">
-                      <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-lime px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-ink">
+                      <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em]">
                         от
                       </span>
                       {formatPrice(featuredClub.priceFrom)}
@@ -359,8 +359,8 @@ export default async function Home() {
                         {featuredTrainer.reviewCount}
                       </span>
                     </div>
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-[var(--ui-orange)] px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-plate-ink">
-                      <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap rounded-[14px] bg-orange px-4 py-3 font-display text-[16px] tabular-nums tracking-[0.02em] text-ink">
+                      <span className="mr-1 font-body text-[9px] font-bold uppercase tracking-[0.18em]">
                         от
                       </span>
                       {formatPrice(featuredTrainer.priceFrom)}

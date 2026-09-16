@@ -397,7 +397,7 @@ export function PublishClubModal({
         <section>
           <button
             type="button"
-            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent"
+            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent-strong"
             onClick={() => {
               setPhotoNotice(true);
             }}

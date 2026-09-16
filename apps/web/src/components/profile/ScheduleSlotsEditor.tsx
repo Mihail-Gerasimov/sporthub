@@ -199,7 +199,7 @@ export function ScheduleSlotsEditor({
       {slots.length < maxSlots ? (
         <button
           type="button"
-          className="inline-flex w-fit items-center gap-2 rounded-pill border border-dashed border-line bg-panel px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-accent hover:text-accent"
+          className="inline-flex w-fit items-center gap-2 rounded-pill border border-dashed border-line bg-panel px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-accent hover:text-accent-strong"
           onClick={addSlot}
         >
           Добавить слот

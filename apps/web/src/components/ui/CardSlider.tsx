@@ -35,7 +35,7 @@ type CardSliderProps = {
   total: number;
   /** Маленькое UPPERCASE-eyebrow над заголовком */
   eyebrow: string;
-  /** Главный заголовок секции (Bowlby) */
+  /** Главный заголовок секции (display) */
   title: string;
   /** Цвет акцента: lime — для клубов/слотов, orange — для тренеров */
   accent: 'lime' | 'orange';

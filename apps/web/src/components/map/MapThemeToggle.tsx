@@ -50,7 +50,7 @@ export function MapThemeToggle({ className }: MapThemeToggleProps) {
       aria-pressed={isDark}
       title={label}
       className={cn(
-        'inline-flex size-10 items-center justify-center rounded-full border border-line bg-card text-muted transition-colors hover:border-lime hover:text-lime focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime/30 md:size-11',
+        'inline-flex size-10 items-center justify-center rounded-full border border-line bg-card text-muted transition-colors hover:border-lime hover:text-lime-hov focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime/30 md:size-11',
         className,
       )}
       data-testid="map-theme-toggle"

@@ -80,7 +80,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
           <Link
             href="/"
-            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent/30 hover:text-accent"
+            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent/30 hover:text-accent-strong"
           >
             Назад на главную
           </Link>

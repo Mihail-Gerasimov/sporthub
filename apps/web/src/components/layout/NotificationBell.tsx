@@ -230,7 +230,7 @@ export function NotificationBell() {
           setIsOpen((prev) => !prev);
           void refetch();
         }}
-        className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] text-[var(--ui-ink)] transition-colors hover:border-[var(--ui-lime)] hover:text-[var(--ui-lime)]"
+        className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] text-[var(--ui-ink)] transition-colors hover:border-[var(--ui-lime)] hover:text-lime-hov"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -269,7 +269,7 @@ export function NotificationBell() {
             </span>
             <Link
               href={allNotificationsHref}
-              className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-[var(--ui-lime)] hover:underline"
+              className="font-body text-[11px] font-semibold uppercase tracking-[0.10em] text-lime-hov hover:underline"
               onClick={() => setIsOpen(false)}
             >
               Все уведомления

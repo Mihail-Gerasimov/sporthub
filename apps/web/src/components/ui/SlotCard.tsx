@@ -14,7 +14,7 @@
  *
  * Структура:
  *  - Hero: eyebrow + capacity-pill (всегда лайм со склонением «1 место /
- *    2-4 места / 5+ мест»), name (Bowlby, line-clamp 2), sport (Oswald
+ *    2-4 места / 5+ мест»), name (display, line-clamp 2), sport (body
  *    muted, line-clamp 1), watermark номера (`index+1`), диагональный
  *    lime/orange луч + штриховка через `.slot-hero::before`.
  *  - Boxes: «Время» / «Стоимость» — fluid font-size + tabular-nums + nowrap.
@@ -31,9 +31,9 @@ import { formatPrice } from '@/lib/utils';
 type SlotCardProps = {
   /** Eyebrow в hero — UPPERCASE-метка типа слота (например «Персональная услуга» или «Групповое занятие»). */
   eyebrow: string;
-  /** Главное имя в hero (Bowlby): тренер для trainer-режима, название занятия для clubs. */
+  /** Главное имя в hero (display): тренер для trainer-режима, название занятия для clubs. */
   name: string;
-  /** Подзаголовок под name (Oswald muted): вид спорта для тренеров, имя клуба для clubs. */
+  /** Подзаголовок под name (body muted): вид спорта для тренеров, имя клуба для clubs. */
   sport: string;
   /** Сколько мест свободно — для capacity-pill с правильным склонением. */
   availableSpots: number;

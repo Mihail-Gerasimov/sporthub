@@ -519,7 +519,7 @@ export function AuthModal() {
                 className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
                   activeTab === 'login'
                     ? 'bg-lime text-ink shadow-card'
-                    : 'text-ink hover:bg-panel hover:text-accent'
+                    : 'text-ink hover:bg-panel hover:text-accent-strong'
                 }`}
                 onClick={() => {
                   setActiveTab('login');
@@ -536,7 +536,7 @@ export function AuthModal() {
                 className={`rounded-pill px-4 py-3 text-sm font-semibold transition-colors ${
                   activeTab === 'register'
                     ? 'bg-lime text-ink shadow-card'
-                    : 'text-ink hover:bg-panel hover:text-accent'
+                    : 'text-ink hover:bg-panel hover:text-accent-strong'
                 }`}
                 onClick={() => {
                   setActiveTab('register');
@@ -608,7 +608,7 @@ export function AuthModal() {
 
                 <button
                   type="button"
-                  className="w-full text-sm font-semibold text-muted underline-offset-4 transition-colors hover:text-accent hover:underline"
+                  className="w-full text-sm font-semibold text-muted underline-offset-4 transition-colors hover:text-accent-strong hover:underline"
                   onClick={() => {
                     setView('forgot');
                   }}

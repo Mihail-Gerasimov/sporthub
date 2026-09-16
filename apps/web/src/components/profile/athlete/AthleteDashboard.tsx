@@ -262,7 +262,7 @@ export function AthleteDashboard({
         </Link>
         <Link
           href={cabinetSectionPath(PERSONAL_CABINET_PATH, 'schedule')}
-          className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+          className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
         >
           Моё расписание
         </Link>

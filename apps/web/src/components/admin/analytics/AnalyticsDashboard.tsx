@@ -2,7 +2,7 @@
  * Клиентский дашборд аналитики (Phase 28.17).
  *
  * Рендерит:
- * 1. sec-head — eyebrow «Admin · Overview» + Bowlby «Аналитика» + sub-описание +
+ * 1. sec-head — eyebrow «Admin · Overview» + display «Аналитика» + sub-описание +
  *    статичный live-pill справа (lime-точка через CSS-псевдоэлемент, без анимации
  *    и без таймера — просто индикатор «данные актуальны»).
  * 2. AnalyticsFilters — segmented period + 2 кастомных select (Город / Спорт).
@@ -104,7 +104,7 @@ export function AnalyticsDashboard({ sports }: AnalyticsDashboardProps) {
 
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
-      {/* Sec-head: eyebrow + Bowlby title + sub + live-pill справа */}
+      {/* Sec-head: eyebrow + display title + sub + live-pill справа */}
       <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
           <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">

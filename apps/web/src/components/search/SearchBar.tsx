@@ -65,7 +65,7 @@ export function SearchBar() {
       <button
         type="button"
         aria-label="Определить район"
-        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-card border border-line bg-panel px-4 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-card border border-line bg-panel px-4 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
       >
         <LocationIcon />
         <span>Рядом</span>

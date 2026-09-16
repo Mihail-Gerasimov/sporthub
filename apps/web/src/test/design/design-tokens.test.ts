@@ -137,6 +137,14 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(offenders).toEqual([]);
   });
 
+  // 38.14a: h1 без `.t-*` уходил в Inter — базовое правило слоя base отдаёт всем h1–h3
+  // display-шрифт и вес заголовка.
+  it('h1–h3 получают display-шрифт и вес заголовка базовым правилом', () => {
+    const block = globalsCss.match(/@layer base \{[\s\S]*?h1,\s*h2,\s*h3 \{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toContain('font-family: var(--ui-font-display)');
+    expect(block).toContain('font-weight: var(--ui-weight-heading)');
+  });
+
   // --- @theme маппинг ---
   it('содержит @theme inline блок с цветовыми маппингами', () => {
     expect(globalsCss).toContain('@theme inline');

@@ -5,7 +5,7 @@
  *
  * Структура страницы (по порядку секций):
  *   1. Hero (2-col на lg+, 1-col иначе): placeholder с avatar-disc 132×132
- *      (инициалы Bowlby) + «Фото тренера» слева; meta-col справа
+ *      (инициалы display) + «Фото тренера» слева; meta-col справа
  *      (chips → eyebrow → name → rating + addr → описание → stat-rail
  *      Цена/Услуг → stat-rail Контакты → ChipMarquee специализаций → CTA).
  *   2. Specializations — sport+specialty grid 2-col с orange-icon.
@@ -150,7 +150,7 @@ function SectionEmptyState({ children, testId }: { children: ReactNode; testId?:
   );
 }
 
-/* Sec-head: eyebrow + Bowlby title слева + sec-pill счётчик справа. */
+/* Sec-head: eyebrow + display title слева + sec-pill счётчик справа. */
 function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pill?: string }) {
   return (
     <header className="mb-4 flex flex-wrap items-end justify-between gap-3">

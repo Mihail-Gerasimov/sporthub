@@ -3,7 +3,7 @@
  * Хронологическая лента событий с фильтрами, пагинацией и автообновлением.
  *
  * Phase 28.18:
- * — sec-head: eyebrow `Admin · Activity Logs` + Bowlby `Логи активности` +
+ * — sec-head: eyebrow `Admin · Activity Logs` + display `Логи активности` +
  *   actions-блок справа (`↻ Обновить` ghost-button + auto-status pill с точкой);
  * — auto-status pulse: серая точка когда off, лайм + box-shadow pulse 1.6s когда on
  *   (см. .admin-pulse-dot в globals.css, уважает prefers-reduced-motion);
@@ -236,7 +236,7 @@ export function LogsPage() {
 
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
-      {/* Sec-head: eyebrow + Bowlby title + actions-блок справа */}
+      {/* Sec-head: eyebrow + display title + actions-блок справа */}
       <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
           <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">

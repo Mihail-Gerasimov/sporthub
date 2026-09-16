@@ -412,7 +412,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
 
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
-      {/* Sec-head по канону панели: eyebrow → Bowlby-заголовок → подпись со счётчиком */}
+      {/* Sec-head по канону панели: eyebrow → display-заголовок → подпись со счётчиком */}
       <header className="flex min-w-0 flex-col gap-1.5">
         <p className="m-0 text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
           Admin · Supervision
@@ -439,7 +439,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
           data-testid="supervision-mark-all"
           disabled={markingAll || unreadCount === 0}
           onClick={() => setConfirmingMarkAll(true)}
-          className="inline-flex items-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:cursor-not-allowed disabled:opacity-40"
         >
           Отметить всё разобранным
         </button>
@@ -480,7 +480,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
                   'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
                   isActive
                     ? 'border-lime bg-lime text-ink'
-                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime',
+                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime-hov',
                 )}
               >
                 {NOTIFICATION_GROUP_LABELS[group]}
@@ -513,7 +513,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
                   'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors',
                   isActive
                     ? 'border-lime bg-lime text-ink'
-                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime',
+                    : 'border-line bg-transparent text-muted hover:border-lime hover:text-lime-hov',
                 )}
               >
                 {STATE_LABELS[value]}
@@ -594,7 +594,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
               data-testid="supervision-mark-all-cancel"
               onClick={() => setConfirmingMarkAll(false)}
               disabled={markingAll}
-              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
             >
               Отмена
             </button>
@@ -630,7 +630,7 @@ export function AdminNotificationsPage({ initialFeed }: AdminNotificationsPagePr
               data-testid="supervision-delete-cancel"
               onClick={cancelDelete}
               disabled={deleting}
-              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+              className="rounded-full border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
             >
               Отмена
             </button>
@@ -719,7 +719,7 @@ function SupervisionCard({
             <Link
               href={target.href}
               data-testid={`supervision-open-${notification.id}`}
-              className="rounded-[4px] text-ink transition-colors hover:text-lime focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+              className="rounded-[4px] text-ink transition-colors hover:text-lime-hov focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
             >
               {copy.title}
             </Link>
@@ -764,7 +764,7 @@ function SupervisionCard({
               aria-label={`Разобрать: ${copy.title}`}
               disabled={busy}
               onClick={onResolve}
-              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:cursor-not-allowed disabled:opacity-40"
             >
               Разобрать
             </button>
@@ -775,7 +775,7 @@ function SupervisionCard({
               aria-label={`Вернуть в очередь: ${copy.title}`}
               disabled={busy}
               onClick={onReturn}
-              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-colors hover:border-lime hover:text-lime disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center rounded-full border border-line bg-card-2 px-3 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-colors hover:border-lime hover:text-lime-hov disabled:cursor-not-allowed disabled:opacity-40"
             >
               Вернуть в очередь
             </button>

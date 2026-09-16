@@ -6,7 +6,7 @@
  * и действиями hide/unhide.
  *
  * Phase 28.19:
- * — sec-head: eyebrow + Bowlby title + sub с количеством карточек;
+ * — sec-head: eyebrow + display title + sub с количеством карточек;
  * — toolbar: grid `1.4fr + 4×1fr` на 1440, `1.2fr + 4×1fr` на 1280, `1fr 1fr`
  *   на 1024/768/480 с search full-width;
  * — item-card: grid `1fr 220px` на 1280+, 1-col на ≤1024 (action в новой строке);

@@ -9,7 +9,7 @@
  *
  * Стилизация — `.claude/skills/frontend-design/SKILL.md`:
  * - rounded-[18px] карточка с border-line на bg-card-2;
- * - eyebrow Account · Профиль (Oswald 700 11px) + Bowlby «Учётные данные»;
+ * - eyebrow Account · Профиль (body 700 11px) + display «Учётные данные»;
  * - mobile-first, минимальные отступы (gap-3 / p-4 sm:p-5);
  * - email/тип кабинета — `font-mono` для технических значений;
  * - кнопки rounded-full, без теней.
@@ -255,7 +255,7 @@ export function AccountCredentialsSection({ user, accountTitle }: AccountCredent
               data-testid="account-password-trigger"
               onClick={() => setPasswordOpen(true)}
               disabled={submitsDisabled}
-              className="rounded-pill border border-line bg-card px-3.5 py-1.5 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+              className="rounded-pill border border-line bg-card px-3.5 py-1.5 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
             >
               Сменить пароль
             </button>
@@ -401,7 +401,7 @@ function PasswordField({
           <button
             type="button"
             onClick={onToggleShow}
-            className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-lime hover:text-lime"
+            className="rounded-pill border border-line bg-card px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-muted hover:border-lime hover:text-lime-hov"
             aria-label={show ? 'Скрыть пароль' : 'Показать пароль'}
           >
             {show ? 'Скрыть' : 'Показать'}

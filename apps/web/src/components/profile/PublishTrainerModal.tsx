@@ -509,7 +509,7 @@ export function PublishTrainerModal({
         <section>
           <button
             type="button"
-            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent"
+            className="flex size-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-canvas transition-colors hover:border-accent hover:text-accent-strong"
             onClick={() => {
               setPhotoNotice(true);
             }}
@@ -768,8 +768,8 @@ export function PublishTrainerModal({
                     aria-pressed={form.offeringFormat === f}
                     className={`rounded-pill border px-4 py-2 text-sm font-semibold transition-colors ${
                       form.offeringFormat === f
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
+                        ? 'border-accent bg-accent/10 text-accent-strong'
+                        : 'border-line bg-panel text-ink hover:border-accent hover:text-accent-strong'
                     }`}
                     onClick={() => {
                       // Клик по выбранному — снимает выбор

@@ -55,7 +55,7 @@ export function ImpersonationBanner() {
         <button
           type="button"
           onClick={handleReturn}
-          className="rounded-pill border border-warning/40 bg-panel px-3 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+          className="rounded-pill border border-warning/40 bg-panel px-3 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
         >
           Вернуться в панель
         </button>

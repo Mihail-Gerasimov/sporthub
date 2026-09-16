@@ -34,13 +34,15 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       },
     );
 
-    it('подпись — display-шрифтом в верхнем регистре, обводка 2px, круглая', () => {
+    it('подпись — display-шрифтом в верхнем регистре, обводка 2px, радиус 12px как в макете', () => {
       render(<Button>Найти</Button>);
       const button = screen.getByRole('button');
       expect(button.className).toContain('font-display');
       expect(button.className).toContain('uppercase');
       expect(button.className).toContain('border-2');
-      expect(button.className).toContain('rounded-pill');
+      // 38.14a: радиус кнопок — 12px из макета (решение заказчика), не pill.
+      expect(button.className).toContain('rounded-button');
+      expect(button.className).not.toContain('rounded-pill');
     });
 
     it('трекинг подписи не превышает 0.05em', () => {

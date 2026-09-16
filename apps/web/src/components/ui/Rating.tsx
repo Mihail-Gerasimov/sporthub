@@ -11,7 +11,7 @@ export type RatingProps = Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> & {
   onChange?: (value: number) => void;
   disabled?: boolean;
   /* Скрыть встроенную цифру рейтинга — нужно когда снаружи рендерится свой
-   * span с шрифтом Bowlby (detail-страницы клуба и тренера). */
+   * span с шрифтом display (detail-страницы клуба и тренера). */
   hideValue?: boolean;
 };
 

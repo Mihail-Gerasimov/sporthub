@@ -52,7 +52,7 @@ export function ProfileBreadcrumb({ items, cabinetPath }: Props) {
       data-testid="profile-breadcrumb"
       className="mb-3 text-sm text-muted"
     >
-      <Link href={dashboardHref} className="transition-colors hover:text-accent">
+      <Link href={dashboardHref} className="transition-colors hover:text-accent-strong">
         Обзор
       </Link>
       <span className="mx-2">/</span>

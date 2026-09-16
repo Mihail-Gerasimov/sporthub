@@ -379,7 +379,7 @@ export function NotificationsListPage({
               onClick={() => {
                 void markAllAndRefresh();
               }}
-              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong disabled:opacity-50"
             >
               Отметить всё как прочитанное
             </button>
@@ -400,7 +400,7 @@ export function NotificationsListPage({
               <button
                 type="button"
                 onClick={toggleSelectionMode}
-                className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime"
+                className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime-hov"
               >
                 Отмена
               </button>
@@ -411,7 +411,7 @@ export function NotificationsListPage({
               data-testid="notifications-toggle-selection"
               onClick={toggleSelectionMode}
               disabled={notifications.length === 0}
-              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
             >
               Выбрать
             </button>
@@ -448,7 +448,7 @@ export function NotificationsListPage({
               className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 isActive
                   ? 'border-accent bg-accent text-ink'
-                  : 'border-line bg-panel text-ink hover:border-accent hover:text-accent'
+                  : 'border-line bg-panel text-ink hover:border-accent hover:text-accent-strong'
               }`}
             >
               {NOTIFICATION_GROUP_LABELS[group]}
@@ -612,7 +612,7 @@ export function NotificationsListPage({
               type="button"
               onClick={cancelDelete}
               disabled={deleting}
-              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+              className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
             >
               Отмена
             </button>

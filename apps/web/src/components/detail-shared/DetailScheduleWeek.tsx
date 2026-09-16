@@ -12,7 +12,7 @@
  * - При клике на день показываем slot-grid этого дня (1 col на base/md,
  *   2 col на lg+). Если слотов в выбранном дне нет → empty-state
  *   «Тренировок нет в этот день» (per-day empty, не для всей недели).
- * - Slot-row: sportName eyebrow + title Bowlby + sub (готовая строка
+ * - Slot-row: sportName eyebrow + title display + sub (готовая строка
  *   приходит снаружи: на club «время, тренер»; на trainer «время, зал»)
  *   + chips (свободные места + зал) + price + CTA «Записаться».
  * - CTA: вошедший человек → <Link> на /booking/[id], гость → <button> вызывает

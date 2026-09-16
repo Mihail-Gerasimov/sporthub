@@ -7,16 +7,16 @@
  *   - Hero (min-h 176/164/152 на 1024+/768/480) с диагональным
  *     lime/orange/blank-лучом (классы .hero-bg-{tone} из globals.css),
  *     watermark номера ранга, city-pill, preview-pill, address (accent eyebrow)
- *     и Bowlby-именем (Link на /clubs/{slug}).
+ *     и display-именем (Link на /clubs/{slug}).
  *   - Body-grid с фикс. высотой row для desc (72px / 84px на 480) — карточки
  *     в одном слайдере выровнены по высоте независимо от длины контента.
  *   - body-meta: lime price-pill + distance.
- *   - body-rating: SVG-звёзды + Bowlby num + N отзывов + опц. бейдж «Новый».
+ *   - body-rating: SVG-звёзды + display num + N отзывов + опц. бейдж «Новый».
  *   - Tags ChipMarquee — solid lime-soft, последний, isLast=true.
  *
  * Важно: вокруг <article> НЕТ обёртки <Link> — в нашем стеке это даёт
  * nested <a> при наличии inner CTA (TrainerCard). Поэтому Link только
- * на name (Bowlby-заголовок). Hover-эффект бордера — на самой <article>
+ * на name (display-заголовок). Hover-эффект бордера — на самой <article>
  * через :hover в Tailwind.
  *
  * isFeatured удалён в Step 28.7 — поле больше не существует.
@@ -112,7 +112,7 @@ export function ClubCard({
           </span>
         </div>
 
-        {/* Bottom: address (accent eyebrow) + name (Link, Bowlby clamp 2) */}
+        {/* Bottom: address (accent eyebrow) + name (Link, display clamp 2) */}
         <div className="relative z-[1] flex items-end justify-between gap-5">
           <div className="min-w-0 flex-1">
             <p
@@ -131,10 +131,8 @@ export function ClubCard({
 
       {/* body-meta: lime price-pill + distance */}
       <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-5 sm:px-4">
-        <span className="inline-flex items-center gap-1 rounded-[10px] bg-[var(--ui-lime)] px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)]">
-          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-75">
-            от
-          </span>
+        <span className="inline-flex items-center gap-1 rounded-[10px] bg-lime px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-ink">
+          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em]">от</span>
           {formatPrice(club.priceFrom)}
         </span>
         <span className="inline-flex items-center gap-1.5 font-body text-xs font-medium text-[var(--ui-muted)] before:h-1 before:w-1 before:rounded-full before:bg-[var(--ui-muted)]">

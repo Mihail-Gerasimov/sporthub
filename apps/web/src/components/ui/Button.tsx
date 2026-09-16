@@ -1,7 +1,8 @@
 'use client';
 
 // Кнопка дизайн-системы: четыре варианта, три размера, состояние загрузки.
-// Вид — по эталону ПРОСПОРТ (шаг 38.14): подпись display-шрифтом в верхнем регистре,
+// Вид — по эталону ПРОСПОРТ (шаги 38.14, 38.14a): радиус 12px (`rounded-button`, как
+// в макете — решение заказчика), подпись display-шрифтом в верхнем регистре,
 // solid-primary с зелёным свечением и подъёмом на 1px при наведении — единственный
 // вариант с тенью и с transform; остальные меняют только обводку, фон и цвет.
 // Цвета — только токенами: перекраска кнопки = правка `globals.css`.
@@ -68,7 +69,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         type={type}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-pill border-2 font-display font-bold tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40',
+          'inline-flex items-center justify-center gap-2 rounded-button border-2 font-display font-bold tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40',
           variantClassNames[variant],
           sizeClassNames[size],
           fullWidth && 'w-full',

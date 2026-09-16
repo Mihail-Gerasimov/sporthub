@@ -179,7 +179,7 @@ export function AdminUpdatePasswordModal({
               type="button"
               onClick={handleCopy}
               data-testid="admin-update-password-copy"
-              className="rounded-pill border border-line bg-panel px-3 py-2 text-xs font-semibold text-ink hover:border-lime hover:text-lime"
+              className="rounded-pill border border-line bg-panel px-3 py-2 text-xs font-semibold text-ink hover:border-lime hover:text-lime-hov"
             >
               Скопировать
             </button>
@@ -207,7 +207,7 @@ export function AdminUpdatePasswordModal({
             type="button"
             onClick={handleClose}
             disabled={submitting}
-            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime disabled:opacity-50"
+            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-lime hover:text-lime-hov disabled:opacity-50"
           >
             Отмена
           </button>
@@ -235,7 +235,7 @@ export function AdminUpdatePasswordModal({
               type="button"
               onClick={handleGenerate}
               data-testid="admin-update-password-generate"
-              className="rounded-pill border border-line bg-panel px-3 py-1 text-[11px] font-semibold text-ink hover:border-lime hover:text-lime"
+              className="rounded-pill border border-line bg-panel px-3 py-1 text-[11px] font-semibold text-ink hover:border-lime hover:text-lime-hov"
             >
               Сгенерировать
             </button>
@@ -256,7 +256,7 @@ export function AdminUpdatePasswordModal({
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="rounded-pill border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-muted hover:border-lime hover:text-lime"
+              className="rounded-pill border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-muted hover:border-lime hover:text-lime-hov"
               aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
             >
               {showPassword ? 'Скрыть' : 'Показать'}

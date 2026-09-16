@@ -357,7 +357,7 @@ export function ProviderClients({
           <div className="mt-5">
             <Link
               href={`${cabinetPath}/publications`}
-              className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+              className="inline-flex min-h-12 items-center justify-center rounded-pill border border-line bg-panel px-5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
             >
               Опубликовать услугу
             </Link>

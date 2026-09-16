@@ -118,7 +118,7 @@ export function MobileNav() {
           <Link
             key={item.label}
             href={item.href}
-            className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-center font-body text-[10px] font-bold uppercase tracking-[0.10em] no-underline transition-colors hover:text-[var(--ui-lime)] ${colorClass}`}
+            className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-center font-body text-[10px] font-bold uppercase tracking-[0.10em] no-underline transition-colors hover:text-lime-hov ${colorClass}`}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6">
               {item.glyph}

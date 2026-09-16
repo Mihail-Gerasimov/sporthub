@@ -4,7 +4,7 @@
  * Phase 28.22: полная перевёрстка визуала под dark-палитру SportHub.
  *
  * Структура страницы (по порядку секций):
- *   1. Hero (1-col без gallery): meta-chips → eyebrow → name (Bowlby)
+ *   1. Hero (1-col без gallery): meta-chips → eyebrow → name (display)
  *      → addr → rating → описание → stat-rail (Контакты / Цена от)
  *      → ChipMarquee (теги + удобства) → CTA-row.
  *   2. Sport focus — направления клуба (icon + name + sub).
@@ -128,7 +128,7 @@ function SectionEmptyState({ children, testId }: { children: ReactNode; testId?:
   );
 }
 
-/* Sec-head: eyebrow + Bowlby title слева + sec-pill счётчик справа. */
+/* Sec-head: eyebrow + display title слева + sec-pill счётчик справа. */
 function SecHead({ eyebrow, title, pill }: { eyebrow: string; title: string; pill?: string }) {
   return (
     <header className="mb-4 flex flex-wrap items-end justify-between gap-3">

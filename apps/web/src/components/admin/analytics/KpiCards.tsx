@@ -4,7 +4,7 @@
  * 6 метрик в адаптивной сетке: 2 col mobile → 3 col на 1024/768 → 6 col на 1280+.
  *
  * Каждая карточка: иконка 22×22 квадратик + label uppercase muted +
- * Bowlby-число (44px на 1280+, 38px на 1024, 36px на 768, 30px на 480) +
+ * display-число (44px на 1280+, 38px на 1024, 36px на 768, 30px на 480) +
  * sub-описание (clamp 2 строки). По макету — БЕЗ спарклайнов, trend-бейджей,
  * прогресс-кольца (CSS-код для них в HTML заготовлен дизайнером, но не
  * используется).
@@ -205,7 +205,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
               </span>
             </div>
 
-            {/* value: Bowlby + tabular-nums */}
+            {/* value: display + tabular-nums */}
             {isLoading ? (
               <Skeleton data-testid="kpi-skeleton" className="h-10 w-16" />
             ) : (
@@ -219,7 +219,7 @@ export function KpiCards({ kpi, isLoading }: KpiCardsProps) {
               </p>
             )}
 
-            {/* sub: Oswald 500 12px muted line-clamp-2 */}
+            {/* sub: body 500 12px muted line-clamp-2 */}
             {!isLoading && card.getSubtitle ? (
               <p className="m-0 line-clamp-2 text-xs font-medium leading-[1.4] text-muted">
                 {card.getSubtitle(kpi)}

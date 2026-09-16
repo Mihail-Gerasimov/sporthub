@@ -6,13 +6,13 @@
  * SportHub Cards - Trainers.html (.trainer-card + child grid):
  *   - Hero (min-h 200/184/178) с диагональным orange/lime/blank-лучом,
  *     watermark номера ранга, city-pill (top-left) + trainer-avatar 84×84
- *     (rounded-[16px], dark card-2 фон, инициалы Bowlby + photo-tag «Фото»),
- *     role («Персональный тренер», accent eyebrow), имя как <Link> Bowlby
+ *     (rounded-[16px], dark card-2 фон, инициалы display + photo-tag «Фото»),
+ *     role («Персональный тренер», accent eyebrow), имя как <Link> display
  *     clamp 2, sport-tag (текстовый chip справа).
  *   - Body-grid с фикс. headline 48px (clamp 2 lines).
  *   - body-meta: orange/lime price-pill + distance/окна.
  *   - exp-row: experience tag + опц. group-chip (orange-soft / lime-soft).
- *   - body-rating: SVG-звёзды + Bowlby num + reviews + опц. бейдж «Новый».
+ *   - body-rating: SVG-звёзды + display num + reviews + опц. бейдж «Новый».
  *   - meta-box «Площадка / Ближайшее окно» (2 cols на 768+, 1 на 480).
  *   - Tags ChipMarquee — solid orange (или lime для tone-lime).
  *   - Quote-row с border-top: bio + CTA «К записи →» (отдельный <Link>).
@@ -171,11 +171,9 @@ export function TrainerCard({ trainer, index, highlighted = false }: TrainerCard
       {/* body-meta: orange/lime price-pill + distance */}
       <div className="flex flex-wrap items-center gap-3.5 px-[22px] pt-5 sm:px-4">
         <span
-          className={`inline-flex items-center gap-1 rounded-[10px] px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-[var(--ui-bg)] ${accentBgClass}`}
+          className={`inline-flex items-center gap-1 rounded-[10px] px-3 py-[7px] font-display text-[13px] tabular-nums tracking-[0.02em] text-ink ${accentBgClass}`}
         >
-          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em] opacity-[0.78]">
-            от
-          </span>
+          <span className="font-body text-[9px] font-bold uppercase tracking-[0.18em]">от</span>
           {formatPrice(trainer.priceFrom)}
         </span>
         <span className="inline-flex items-center gap-1.5 font-body text-xs font-medium text-[var(--ui-muted)] before:h-1 before:w-1 before:rounded-full before:bg-[var(--ui-muted)]">

@@ -3,7 +3,7 @@
  * Карточка собрана 1-в-1 со схемы из claude-design/cards-trainers/sporthub/
  * project/SportHub Cards - Trainers.html (.trainer-card + child grid):
  *   hero (диагональный orange/lime/blank-луч + watermark + city-pill +
- *   avatar 84×84 + role + Bowlby-имя как Link + sport-tag) → body-meta
+ *   avatar 84×84 + role + display-имя как Link + sport-tag) → body-meta
  *   (orange/lime price-pill + distance/окна) → exp-row (опыт + group-chip)
  *   → headline 48px clamp 2 → body-rating + опц. «Новый» → meta-box
  *   «Площадка/Окно» → tags ChipMarquee → quote-row с CTA «К записи».
