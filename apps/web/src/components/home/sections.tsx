@@ -16,8 +16,9 @@ import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHeroSection } from '@/components/home/HomeHeroSection';
 import { HomeLeaders } from '@/components/home/HomeLeaders';
 import { HomeSteps } from '@/components/home/HomeSteps';
-import { HomeDiscover, HomeMap, HomePopular, HomeResults } from '@/components/home/HomeWorkbench';
+import { HomeMap, HomePopular, HomeResults } from '@/components/home/HomeWorkbench';
 import { HomeAvailability } from '@/components/home/HomeAvailability';
+import { HomeDiscover } from '@/components/home/HomeDiscover';
 import type { HomeSectionKey } from '@/lib/home-sections';
 
 export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeSectionProps>> = {

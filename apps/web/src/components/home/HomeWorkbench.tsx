@@ -1,5 +1,6 @@
-// Рабочая часть главной из словаря секций (шаг 38.66): поиск, карта, выдача, популярное.
-// Слоты — в своём файле `HomeAvailability` (38.81): у них клиентский отбор по стору.
+// Рабочая часть главной из словаря секций (шаг 38.66): карта, выдача, популярное.
+// Слоты — в `HomeAvailability` (38.81), поиск — в `HomeDiscover` (38.82): у них
+// клиентский отбор по стору, а эти секции — серверные обёртки.
 //
 // 38.89: «Выдача» — карточки, а не карта. `#results` из шапки и «Найти» скроллил на
 // карту (реестр № 6); теперь у карты свой якорь `map`, а `results` держит карточки.
@@ -14,22 +15,10 @@
 import { PopularNearby } from '@/components/clubs';
 import { HomeContainer } from '@/components/home/HomeContainer';
 import { MapSection } from '@/components/map';
-import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
+import { CatalogResultsSection } from '@/components/search';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-
-export function HomeDiscover({ data }: HomeSectionProps) {
-  return (
-    <HomeContainer>
-      <SearchControlsPreview
-        clubCount={data.clubs.length}
-        sports={data.sports}
-        trainerCount={data.trainerDirectory.length}
-      />
-    </HomeContainer>
-  );
-}
 
 export function HomeMap({ data }: HomeSectionProps) {
   return (
