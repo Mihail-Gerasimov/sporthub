@@ -11,8 +11,13 @@
  * выглядели кликабельными и не вели никуда (`cursor:default`, тупик № 10
  * приложения Б). Цели — из словаря секций каталога (слоты живут на `/catalog`,
  * 38.79) и фиксированных маршрутов кабинета; их существование стережёт
- * `home-features.test.tsx` тем же способом, что `menu-routes-exist`. У макета у каждой плитки свой цветной фон из восьми
- * `rgba` — у нас подложка одна, токеном: восемь оттенков вне палитры.
+ * `home-features.test.tsx` тем же способом, что `menu-routes-exist`.
+ *
+ * Подложки — по макету (38.110, довесок Э13): у каждой плитки свой оттенок на 6 % и значок
+ * в тон (`HomePage.tsx:227-236`). Оттенки — токены `--ui-tint-*` / `--ui-hue-*` из
+ * `globals.css` (Основа, 38.110), классы `bg-tint-*` и `text-hue-*`; тон берётся по КЛЮЧУ
+ * записи словаря, как иконка и цель. Заголовок плитки — Inter полужирный обычным регистром
+ * (правило 38.109), не display-шрифт.
  *
  * ⚠️ Гостю плитка в кабинет — не ссылка (ревью 38.72): `/profile/me/*` уводит
  * гостя `307 → /` без возврата, и он оказывается наверху той же главной — тупик.
@@ -34,6 +39,7 @@ import { catalogSectionHref, type CatalogSectionKey } from '@/lib/catalog-sectio
 import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { cn } from '@/lib/utils';
 
 const ICON_CLASS = 'size-[22px]';
 
@@ -119,8 +125,20 @@ function hrefOf(target: FeatureTarget): string {
   return 'section' in target ? catalogSectionHref(target.section) : target.cabinet;
 }
 
+/**
+ * Тон плитки по ключу записи: подложка (`bg-tint-*`, 6 % оттенка на белом) и цвет значка.
+ * Значок «онлайн-записи» — тёмно-зелёный, а не яркий: яркий зелёный на белом нечитаем
+ * (сторож `green-text-on-light`); у макета там `GREEN`, здесь — та же семантика токеном.
+ */
+const FEATURE_TINTS: Record<FeatureKey, { surface: string; icon: string }> = {
+  booking: { surface: 'bg-tint-lime', icon: 'text-lime-hov' },
+  stats: { surface: 'bg-tint-sky', icon: 'text-hue-sky' },
+  progress: { surface: 'bg-tint-violet', icon: 'text-hue-violet' },
+  reviews: { surface: 'bg-tint-orange', icon: 'text-orange' },
+};
+
 const TILE_CLASS =
-  'block h-full w-full cursor-pointer rounded-[16px] border border-line bg-lime-soft/60 px-[18px] py-5 text-left text-ink no-underline transition-[border-color] hover:border-lime focus-visible:border-lime focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-lime/25';
+  'block h-full w-full cursor-pointer rounded-[16px] border border-line px-[18px] py-5 text-left text-ink no-underline transition-[border-color] hover:border-lime focus-visible:border-lime focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-lime/25';
 
 export function HomeFeatures() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -150,12 +168,19 @@ export function HomeFeatures() {
         <ul className="m-0 grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.items.map((feature) => {
             const target = FEATURE_TARGETS[feature.key];
+            const tint = FEATURE_TINTS[feature.key];
             const body = (
               <>
-                <span className="mb-3.5 inline-flex size-11 items-center justify-center rounded-[13px] bg-card text-lime-hov shadow-card">
+                <span
+                  className={cn(
+                    'mb-3.5 inline-flex size-11 items-center justify-center rounded-[13px] bg-card shadow-card',
+                    tint.icon,
+                  )}
+                >
                   {icons[feature.key]}
                 </span>
-                <span className="t-h4 mb-1.5 block uppercase tracking-[0.02em] text-ink">
+                {/* Заголовок плитки — Inter полужирный обычным регистром (38.109), 16px как в макете. */}
+                <span className="mb-1.5 block font-body text-[16px] leading-[1.3] font-semibold text-ink">
                   {feature.title}
                 </span>
                 <span className="block font-body text-[12px] leading-[1.6] text-muted">
@@ -169,11 +194,15 @@ export function HomeFeatures() {
             return (
               <li key={feature.key} className="min-w-0">
                 {guestGate ? (
-                  <button type="button" onClick={openAuthModal} className={TILE_CLASS}>
+                  <button
+                    type="button"
+                    onClick={openAuthModal}
+                    className={cn(TILE_CLASS, tint.surface)}
+                  >
                     {body}
                   </button>
                 ) : (
-                  <Link href={hrefOf(target)} className={TILE_CLASS}>
+                  <Link href={hrefOf(target)} className={cn(TILE_CLASS, tint.surface)}>
                     {body}
                   </Link>
                 )}

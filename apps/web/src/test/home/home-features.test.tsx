@@ -36,9 +36,9 @@ function signIn() {
   });
 }
 
-/** Заголовок плитки — текст `.t-h4` внутри интерактива. */
+/** Заголовок плитки — тот из словаря, что стоит внутри интерактива. */
 const titleOf = (tile: HTMLElement) =>
-  within(tile).getByText(/./, { selector: '.t-h4' }).textContent ?? '';
+  FEATURES.items.find((item) => within(tile).queryByText(item.title) !== null)?.title ?? '';
 
 describe('HomeFeatures', () => {
   beforeEach(() => {
@@ -115,6 +115,37 @@ describe('HomeFeatures', () => {
     expect(useUIStore.getState().isAuthModalOpen).toBe(false);
     fireEvent.click(buttons[1]);
     expect(useUIStore.getState().isAuthModalOpen).toBe(true);
+  });
+
+  it('у каждой плитки свой тон по ключу: подложка bg-tint-* и значок в тон, ни один не повторяется', () => {
+    signIn();
+    render(<HomeFeatures />);
+
+    const links = screen.getAllByRole('link');
+    const surfaces = links.map((link) => link.className.match(/\bbg-tint-[a-z]+\b/)?.[0]);
+    const iconTones = links.map(
+      (link) => link.querySelector('svg')?.parentElement?.className.match(/\btext-[a-z-]+\b/)?.[0],
+    );
+
+    // Четыре плитки — четыре разных подложки и четыре разных тона значка (макет, 38.110).
+    expect(surfaces).toEqual(['bg-tint-lime', 'bg-tint-sky', 'bg-tint-violet', 'bg-tint-orange']);
+    expect(new Set(iconTones).size).toBe(4);
+    expect(iconTones.every((tone) => tone !== undefined)).toBe(true);
+    // Одна общая подложка на всех — прежний вид — ушла.
+    expect(links.some((link) => link.className.includes('bg-lime-soft'))).toBe(false);
+  });
+
+  it('заголовок плитки — Inter полужирный обычным регистром, не display-шрифт (38.109)', () => {
+    signIn();
+    render(<HomeFeatures />);
+
+    for (const item of FEATURES.items) {
+      const title = screen.getByText(item.title);
+
+      expect(title.className).toContain('font-body');
+      expect(title.className).toContain('font-semibold');
+      expect(title.className).not.toMatch(/uppercase|font-display|t-h[1-4]/);
+    }
   });
 
   it('иконки скрыты от диктора, подпись плитки — имя интерактива', () => {
