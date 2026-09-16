@@ -156,9 +156,9 @@ describe('Impersonation flow (Step 17.5)', () => {
       const { container } = render(<ImpersonationBanner />);
 
       const banner = container.firstChild as HTMLElement;
-      // Фон должен быть плотным (bg-warning), а не полупрозрачным (bg-warning/10)
-      expect(banner.className).toContain('bg-warning');
-      expect(banner.className).not.toMatch(/bg-warning\/\d/);
+      // Фон должен быть плотным (bg-orange — токен warning), а не полупрозрачным (шаг 38.63)
+      expect(banner.className).toContain('bg-orange');
+      expect(banner.className).not.toMatch(/bg-orange\/\d/);
     });
 
     it('кнопка «Вернуться в панель» гасит подмену НА СЕРВЕРЕ и делает redirect', async () => {

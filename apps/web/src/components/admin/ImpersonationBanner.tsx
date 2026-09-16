@@ -44,9 +44,10 @@ export function ImpersonationBanner() {
   }
 
   return (
-    <div className="border-b border-warning bg-warning px-4 py-2">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-sm">
-        <p className="font-medium text-ink">
+    // Шаг 38.63: оранжевая плашка предупреждения на токенах; текст тёмный, номер моно-стеком.
+    <div className="border-b border-orange-hov bg-orange px-4 py-2 text-ink">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 font-body text-sm">
+        <p className="m-0 font-medium">
           Вы работаете от имени <span className="font-semibold">{user?.name}</span>{' '}
           <span className="font-mono text-muted">#{user?.id}</span>
           {/* Кто работает на самом деле — чтобы подмену нельзя было принять за свой вход. */}
@@ -55,7 +56,7 @@ export function ImpersonationBanner() {
         <button
           type="button"
           onClick={handleReturn}
-          className="rounded-pill border border-warning/40 bg-panel px-3 py-1 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent-strong"
+          className="rounded-button border border-ink/20 bg-card px-3 py-1.5 font-body text-xs font-semibold text-ink transition-colors hover:border-lime hover:text-lime-hov"
         >
           Вернуться в панель
         </button>

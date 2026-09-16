@@ -68,7 +68,9 @@ describe('HeaderMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
     const overlay = overlayOf(container);
     expect(overlay).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByRole('navigation', { name: 'Меню' }).className).toContain('top-16');
+    // Панель считает от шапки (`top-full`), а не от окна: над шапкой может стоять плашка подмены.
+    expect(screen.getByRole('navigation', { name: 'Меню' }).className).toContain('top-full');
+    expect(screen.getByRole('navigation', { name: 'Меню' }).className).not.toMatch(/\bfixed\b/);
   });
 
   it('фокус заперт: Tab с последнего пункта — на кнопку, Shift+Tab с кнопки — на последний пункт', () => {

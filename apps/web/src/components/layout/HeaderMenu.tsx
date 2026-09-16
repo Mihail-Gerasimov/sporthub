@@ -2,6 +2,10 @@
 // выпадающая панель по эталону — оверлей `rgba(0,0,0,.35)`, панель под шапкой
 // с отступами 12/20/18 и мягкой тенью, пункты 14px 700 display-шрифтом высотой 47.
 //
+// ⚠️ Панель и оверлей позиционируются от `<header>` (`absolute top-full`), а не от окна:
+// высота шапки объявлена один раз — в самой шапке, — и над ней может стоять плашка
+// работы от чужого лица (шаг 38.63); `fixed top-64px` лёг бы на шапку.
+//
 // Отличие от макета — сознательное: `Escape` закрывает панель (в макете — только клик
 // по оверлею), фокус после закрытия возвращается на кнопку, первый пункт получает
 // фокус при открытии. Панель — это диалог навигации: `aria-expanded` на кнопке,
@@ -96,12 +100,12 @@ export function HeaderMenu() {
           <div
             aria-hidden="true"
             onClick={close}
-            className="fixed inset-x-0 top-16 bottom-0 z-[199] bg-ink/35"
+            className="absolute inset-x-0 top-full z-[199] h-screen bg-ink/35"
           />
           <nav
             id={panelId}
             aria-label="Меню"
-            className="fixed inset-x-0 top-16 z-[200] border-b border-line bg-card px-5 pt-3 pb-[18px] shadow-floating"
+            className="absolute inset-x-0 top-full z-[200] border-b border-line bg-card px-5 pt-3 pb-[18px] shadow-floating"
           >
             <ul className="m-0 flex list-none flex-col gap-1 p-0">
               {HEADER_NAV.map((item, index) => (
