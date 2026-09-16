@@ -12,24 +12,28 @@
  * фильтрует живьём (реестр № 62), а кнопка и Enter дают цели — ведут к выдаче
  * `#results`, НЕ теряя введённого: в дизайне строка подменялась подписью категории.
  * Выпадашка подсказок (38.68) открывается по фокусу в поле; `↓` и `Escape` на поле
- * слушает она сама через ссылку на поле.
+ * слушает она сама через ссылку на поле; клик вне виджета и уход фокуса за его
+ * пределы закрывают её (правка по ревью 38.67) — иначе она висела бы над картой.
  *
  * Почему не `ui/Input`: у поля героя рамка 1.5px в цвет каретки, иконка внутри
  * и подложка холста на белой карточке — форма эталона, а не поля формы кабинета.
+ * Кнопка «Найти» — `ui/Button primary`: ховер подъёмом и тенью, без смены фона
+ * (тёмно-зелёная заливка под тёмным текстом давала бы ≈3.2:1).
  */
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 
+import type { HomeSport } from '@/components/home/home-data';
 import { SearchSuggest } from '@/components/home/SearchSuggest';
+import { Button } from '@/components/ui/Button';
 import { SEARCH } from '@/lib/home-copy';
 import { homeSectionHref } from '@/lib/home-sections';
 import { cn } from '@/lib/utils';
 import { useFilterStore, type DiscoveryMode } from '@/stores/useFilterStore';
-import type { Sport } from '@sporthub/types';
 
 type HeroSearchProps = {
   /** Категории выпадашки — виды спорта из справочника, как у чипов рабочей части. */
-  sports: readonly Pick<Sport, 'id' | 'name' | 'icon'>[];
+  sports: readonly HomeSport[];
 };
 
 const MODES: readonly DiscoveryMode[] = ['clubs', 'trainers'];
@@ -41,7 +45,28 @@ export function HeroSearch({ sports }: HeroSearchProps) {
   const setDiscoveryMode = useFilterStore((state) => state.setDiscoveryMode);
   const setSearch = useFilterStore((state) => state.setSearch);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
+
+  // Клик (касание) вне виджета закрывает выпадашку — как любой всплывающий список.
+  useEffect(() => {
+    if (!suggestOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setSuggestOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [suggestOpen]);
+
+  /** Фокус ушёл за пределы виджета (Tab дальше по странице) — выпадашка закрывается. */
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setSuggestOpen(false);
+  };
 
   /** Цель кнопки и Enter: запрос уже в сторе, остаётся довести человека до выдачи. */
   const goToResults = () => {
@@ -57,7 +82,7 @@ export function HeroSearch({ sports }: HeroSearchProps) {
   };
 
   return (
-    <div className="rounded-[18px] bg-card p-2 shadow-floating">
+    <div ref={rootRef} onBlur={handleBlur} className="rounded-[18px] bg-card p-2 shadow-floating">
       {/* Переключатель: два сегмента на подложке холста, активный — зелёный со свечением. */}
       <div
         role="group"
@@ -120,25 +145,27 @@ export function HeroSearch({ sports }: HeroSearchProps) {
             onClose={() => setSuggestOpen(false)}
           />
         </div>
-        <button
-          type="button"
+        <Button
+          size="md"
           onClick={goToResults}
-          className="inline-flex shrink-0 items-center gap-[7px] whitespace-nowrap rounded-[12px] border-0 bg-lime px-6 py-[13px] font-display text-[14px] font-black tracking-[0.04em] text-ink transition-colors hover:bg-lime-hov"
+          className="shrink-0 px-6 tracking-[0.04em]"
+          trailingIcon={
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-[14px]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          }
         >
           {SEARCH.button}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="size-[14px]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </button>
+        </Button>
       </div>
     </div>
   );

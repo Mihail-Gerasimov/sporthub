@@ -96,6 +96,57 @@ describe('HeroSearch', () => {
     expect(push).toHaveBeenCalledWith(homeSectionHref('results'));
   });
 
+  // Правка по ревью 38.67: выпадашка закрывается не только по Escape и выбору.
+  it('выпадашка закрывается по клику вне виджета и по уходу фокуса за его пределы', async () => {
+    render(
+      <>
+        <HeroSearch sports={sports} />
+        <button type="button">Снаружи</button>
+      </>,
+    );
+
+    const input = screen.getByRole('searchbox');
+
+    await act(async () => {
+      input.focus();
+    });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    // Клик вне: pointerdown по документу за пределами виджета.
+    await act(async () => {
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'Снаружи' }));
+    });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+    // Снова открыть (в jsdom клик по документу фокус не уводит — уводим сами)
+    // и увести фокус Tab'ом наружу.
+    await act(async () => {
+      input.blur();
+      input.focus();
+    });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Снаружи' }).focus();
+    });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('фокус внутри виджета — на «Найти» или на пункт выпадашки — её не закрывает', async () => {
+    render(<HeroSearch sports={sports} />);
+
+    const input = screen.getByRole('searchbox');
+
+    await act(async () => {
+      input.focus();
+    });
+    await act(async () => {
+      screen.getByRole('option', { name: /Йога/ }).focus();
+    });
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
   it('выпадашка подсказок открывается по фокусу в поле и закрывается по Escape', async () => {
     render(<HeroSearch sports={sports} />);
 
