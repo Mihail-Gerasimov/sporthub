@@ -60,7 +60,7 @@ export function HomeCta() {
           ))}
           <span className="block text-lime">{CTA.titleAccent}</span>
         </h2>
-        <p className="mb-8 max-w-[440px] font-body text-[15px] leading-[1.7] text-plate-muted">
+        <p className="mb-10 max-w-[440px] font-body text-[15px] leading-[1.7] text-plate-muted">
           {CTA.body}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
