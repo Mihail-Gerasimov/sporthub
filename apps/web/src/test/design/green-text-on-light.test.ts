@@ -27,7 +27,11 @@ import { describe, expect, it } from 'vitest';
 import { WEB_ROOT } from '../web-root';
 
 /** Компоненты, чей корень стоит на плашке другого файла. */
-export const RENDERED_ON_PLATE: string[] = ['src/components/home/HeroSportMarquee.tsx'];
+export const RENDERED_ON_PLATE: string[] = [
+  'src/components/home/HeroSportMarquee.tsx',
+  // Ряд счётчиков — слот `counters` героя (38.69), рисуется на его плашке.
+  'src/components/home/HomeCounters.tsx',
+];
 
 /**
  * Логотип — знак, а не текст: зелёная половина словомарки и зелёный бегун — фирменный
