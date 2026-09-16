@@ -8,8 +8,11 @@ import type { TrainerAvailabilityItem, TrainerDirectoryItem } from '@/components
 import type { UpcomingSessionItem } from '@/components/schedule';
 import type { Club, PlatformOverview, Sport, Tag, Trainer } from '@sporthub/types';
 
-/** Вид спорта в том виде, в каком его читают фильтры и карточки главной. */
-export type HomeSport = Pick<Sport, 'id' | 'name' | 'icon'>;
+/**
+ * Вид спорта в том виде, в каком его читают фильтры, карточки, карта и легенда главной.
+ * `color` — цвет капли на карте (38.80): необязателен, у видов без цвета капля общая.
+ */
+export type HomeSport = Pick<Sport, 'id' | 'name' | 'icon' | 'color'>;
 
 export type HomeData = {
   /** Четыре числа героя — `GET /api/stats/overview`, четыре `count` на бэкенде (38.30). */

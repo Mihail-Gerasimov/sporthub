@@ -78,11 +78,8 @@ export default async function Home() {
     schedule: clubSchedule,
     targetDate: todayDateKey,
   });
-  const searchFilterSports = sports.map((sport) => ({
-    id: sport.id,
-    name: sport.name,
-    icon: sport.icon,
-  }));
+  // Цвет вида (38.80) едет до карты и легенды вместе с именем и иконкой.
+  const searchFilterSports = sports.map(({ id, name, icon, color }) => ({ id, name, icon, color }));
   const trainerDirectory = buildTrainerDirectory({
     clubs,
     offerings,
