@@ -23,7 +23,7 @@
  * `data-testid="slot-card"` — из реестра (приложение Б, строка 8), остаётся.
  */
 import { Button } from '@/components/ui/Button';
-import { isLowSpots, spotsLabel } from '@/lib/slot-spots';
+import { LOW_SPOTS_TONE, isLowSpots, spotsLabel } from '@/lib/slot-spots';
 import { cn, formatPrice } from '@/lib/utils';
 
 type SlotCardProps = {
@@ -104,13 +104,8 @@ export function SlotCard({
           <span
             className={cn(
               'inline-flex flex-shrink-0 items-center rounded-full border px-[11px] py-[5px] font-body text-[10px] font-bold tracking-[0.16em] whitespace-nowrap uppercase',
-              // Красная подпись — обводкой и подложкой, текст чернилами: `text-red`
-              // (#ef4444) на светлом — 3,2:1, ниже AA (MCP-прогон 38.96); тёмно-красного
-              // текстового токена, как `orange-text`, в палитре нет — принято обозначить
-              // «мало мест» тоном пилюли, а не цветом букв.
-              low
-                ? 'border-red/40 bg-red/10 text-ink'
-                : 'border-lime/30 bg-lime-soft text-lime-hov',
+              // «Мало мест» — тоном пилюли из правила слотов (`LOW_SPOTS_TONE`), не цветом букв.
+              low ? LOW_SPOTS_TONE : 'border-lime/30 bg-lime-soft text-lime-hov',
             )}
           >
             Свободно {spotsLabel(availableSpots)}

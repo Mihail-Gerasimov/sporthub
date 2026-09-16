@@ -12,6 +12,7 @@ import { FocusCard } from '@/components/home/FocusCard';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { FOCUS } from '@/lib/home-copy';
 import { catalogSectionHref } from '@/lib/catalog-sections';
+import { LOW_SPOTS_TONE } from '@/lib/slot-spots';
 
 const session = (id: number, extra: Partial<UpcomingSessionItem> = {}): UpcomingSessionItem => ({
   id,
@@ -46,7 +47,7 @@ describe('FocusCard', () => {
     );
   });
 
-  it('расписание — не больше трёх строк; мало мест — красная подпись; счётчик считает все занятия дня', () => {
+  it('расписание — не больше трёх строк; мало мест — тон пилюли слота; счётчик считает все занятия дня', () => {
     render(
       <FocusCard
         sessions={[session(1), session(2), session(3, { availableSpots: 2 }), session(4)]}
@@ -57,7 +58,9 @@ describe('FocusCard', () => {
     const low = screen.getByRole('link', { name: 'Записаться: Занятие 3, 13:00' });
     // Подпись и порог — из lib/slot-spots: склонение верное, красная с двух мест.
     expect(low).toHaveTextContent('2 места');
-    expect(low.className).toContain('text-red');
+    // «Мало мест» — тон пилюли слота (обводка и подложка красным, буквы чернилами), не text-red.
+    expect(low.className).toContain(LOW_SPOTS_TONE);
+    expect(low.className).not.toContain('text-red');
     expect(screen.getByText('4 занятия')).toBeInTheDocument();
     expect(screen.getByText('сегодня')).toBeInTheDocument();
   });

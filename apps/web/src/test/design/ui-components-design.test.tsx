@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { LOW_SPOTS_TONE } from '@/lib/slot-spots';
 
 describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
   describe('Button', () => {
@@ -24,7 +25,7 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(button.className).toContain('hover:-translate-y-px');
     });
 
-    it.each(['secondary', 'outline', 'ghost'] as const)(
+    it.each(['secondary', 'outline', 'ghost', 'alert'] as const)(
       'вариант %s — без тени и без подъёма: меняются обводка, фон и цвет',
       (variant) => {
         render(<Button variant={variant}>Подробнее</Button>);
@@ -95,6 +96,13 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(button.className).toContain('text-[12px]');
       expect(button.className).not.toContain('border-2');
       expect(button.className).not.toContain('rounded-button');
+    });
+
+    it('вариант alert — тон «мало мест» из правила слотов: буквы чернилами, не text-red', () => {
+      render(<Button variant="alert">2 места</Button>);
+      const button = screen.getByRole('button');
+      expect(button.className).toContain(LOW_SPOTS_TONE);
+      expect(button.className).not.toContain('text-red');
     });
 
     it('вариант soft — мягкая зелёная подложка с тёмно-зелёным текстом, без тени', () => {

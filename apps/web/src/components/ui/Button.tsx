@@ -21,9 +21,10 @@ import {
   type Ref,
 } from 'react';
 
+import { LOW_SPOTS_TONE } from '@/lib/slot-spots';
 import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'outline' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'outline' | 'ghost' | 'danger' | 'alert';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 /**
@@ -35,7 +36,9 @@ type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
  * - `outline` — нейтральная обводка, при наведении зеленеет обводка и текст;
  * - `ghost` — без обводки и фона, при наведении светлая подложка;
  * - `danger` — красная обводка для необратимого или строгого действия (скрыть,
- *   отозвать), при наведении заливается красным.
+ *   отозвать), при наведении заливается красным;
+ * - `alert` — «мало мест» (38.70): тон пилюли слота из `lib/slot-spots` — красные обводка
+ *   и подложка, буквы чернилами (`text-red` на светлом ниже AA); одни классы с пилюлей.
  */
 const variantClassNames: Record<ButtonVariant, string> = {
   primary:
@@ -47,6 +50,7 @@ const variantClassNames: Record<ButtonVariant, string> = {
   ghost: 'border-transparent bg-transparent text-ink hover:bg-card-2 focus-visible:ring-ink/10',
   danger:
     'border-red/45 bg-card text-red hover:border-red hover:bg-red hover:text-card focus-visible:ring-red/20',
+  alert: `${LOW_SPOTS_TONE} hover:border-red/70 focus-visible:ring-red/20`,
 };
 
 /**

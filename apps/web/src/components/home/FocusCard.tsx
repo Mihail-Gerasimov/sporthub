@@ -35,10 +35,14 @@ type FocusCardProps = {
 /** Сколько строк расписания показывает карточка — как в макете. */
 const ROWS = 3;
 
-/** Вариант кнопки строки: первое занятие зовёт записаться, мало мест — красная, остальные нейтральные. */
-function rowButtonVariant(index: number, spots: number): 'soft' | 'danger' | 'outline' {
+/**
+ * Вариант кнопки строки: первое занятие зовёт записаться, мало мест — тон «мало мест»
+ * (тот же, что у пилюли карточки слота: красные обводка и подложка, буквы чернилами —
+ * `text-red` на белом 3,76:1, ниже AA), остальные нейтральные.
+ */
+function rowButtonVariant(index: number, spots: number): 'soft' | 'alert' | 'outline' {
   if (index === 0) return 'soft';
-  if (isLowSpots(spots)) return 'danger';
+  if (isLowSpots(spots)) return 'alert';
 
   return 'outline';
 }

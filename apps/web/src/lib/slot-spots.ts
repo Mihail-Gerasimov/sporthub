@@ -18,6 +18,14 @@ export function isLowSpots(availableSpots: number): boolean {
   return availableSpots <= LOW_SPOTS;
 }
 
+/**
+ * Тон «мало мест» — одни классы на пилюлю карточки слота и кнопку строки в «Сегодня
+ * в фокусе»: красным — обводка и подложка, буквы чернилами. `text-red` (#ef4444)
+ * на светлом даёт 3,2–3,8:1, ниже AA (прогоны 38.96 и финальный); тёмно-красного
+ * текстового токена в палитре нет — «мало» обозначает тон пилюли, а не цвет букв.
+ */
+export const LOW_SPOTS_TONE = 'border-red/40 bg-red/10 text-ink';
+
 /** «1 место», «3 места», «10 мест». */
 export function spotsLabel(availableSpots: number): string {
   return countRu(availableSpots, PLURAL.places);
