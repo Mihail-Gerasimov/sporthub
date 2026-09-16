@@ -76,6 +76,7 @@ export class PrismaSportsRepository implements SportsRepository {
     icon: string;
     imageUrl: string;
     isPopular: boolean;
+    color: string | null;
   }): Sport {
     return {
       id: row.id,
@@ -86,6 +87,9 @@ export class PrismaSportsRepository implements SportsRepository {
       icon: row.icon,
       imageUrl: row.imageUrl,
       isPopular: row.isPopular,
+      // Пустая колонка — нет поля в ответе (undefined не сериализуется), а не `null`:
+      // контракт поля необязательный, старый клиент разницы не видит.
+      color: row.color ?? undefined,
     };
   }
 
@@ -112,6 +116,7 @@ export class PrismaSportsRepository implements SportsRepository {
         icon: string;
         imageUrl: string;
         isPopular: boolean;
+        color: string | null;
         publicationCount: number;
       }[]
     >`
@@ -123,6 +128,7 @@ export class PrismaSportsRepository implements SportsRepository {
              s.icon,
              s.image_url AS "imageUrl",
              s.is_popular AS "isPopular",
+             s.color,
              (COALESCE(c.cnt, 0) + COALESCE(t.cnt, 0))::int AS "publicationCount"
         FROM sports s
         LEFT JOIN (

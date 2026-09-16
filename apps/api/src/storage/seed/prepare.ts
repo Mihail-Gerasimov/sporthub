@@ -222,6 +222,7 @@ export function prepareRows(source: SourceData, options: PrepareOptions = {}): P
     icon: sport.icon,
     imageUrl: sport.imageUrl,
     isPopular: sport.isPopular,
+    color: sport.color ?? null,
   }));
 
   const simpleDictionary = <TItem extends { id: EntityId; createdAt: string; name: string }>(

@@ -9,6 +9,12 @@
 // Поэтому набор зафиксирован здесь дословно, каким он был на момент съёмки эталона.
 // Менять его нельзя без пересъёмки эталона: любая правка сдвинет ответы `GET /api/sports`
 // и всего, что показывает направления.
+//
+// Шаг 38.80: у каждого вида — цвет на карте (`color`, `#rrggbb`), эталон переснят.
+// Шесть цветов — из легенды карты макета (`prosport/src/app/App.tsx`, `catColors`:
+// кроссфит, йога, плавание, единоборства, зал, танцы). Бокса, пилатеса и борьбы
+// у макета нет — их цвета взяты из его же палитры секторов (`SeatingWidgetFull.tsx`:
+// amber, emerald, indigo), а не выдуманы; заменить — правка одной строки здесь.
 
 import type { Sport } from '@sporthub/types';
 
@@ -22,6 +28,7 @@ export const fixtureSports: Sport[] = [
     icon: '🧘',
     imageUrl: '/images/sports/yoga.jpg',
     isPopular: true,
+    color: '#8b5cf6',
   },
   {
     id: 2,
@@ -32,6 +39,7 @@ export const fixtureSports: Sport[] = [
     icon: '🥊',
     imageUrl: '/images/sports/boxing.jpg',
     isPopular: true,
+    color: '#f59e0b',
   },
   {
     id: 3,
@@ -42,6 +50,7 @@ export const fixtureSports: Sport[] = [
     icon: '🏊',
     imageUrl: '/images/sports/swimming.jpg',
     isPopular: true,
+    color: '#3b82f6',
   },
   {
     id: 4,
@@ -52,6 +61,7 @@ export const fixtureSports: Sport[] = [
     icon: '🏋️',
     imageUrl: '/images/sports/crossfit.jpg',
     isPopular: true,
+    color: '#ef4444',
   },
   {
     id: 5,
@@ -62,6 +72,7 @@ export const fixtureSports: Sport[] = [
     icon: '💃',
     imageUrl: '/images/sports/dance.jpg',
     isPopular: true,
+    color: '#ec4899',
   },
   {
     id: 6,
@@ -72,6 +83,7 @@ export const fixtureSports: Sport[] = [
     icon: '🏋️‍♂️',
     imageUrl: '/images/sports/gym.jpg',
     isPopular: true,
+    color: '#6b7280',
   },
   {
     id: 7,
@@ -82,6 +94,7 @@ export const fixtureSports: Sport[] = [
     icon: '🥋',
     imageUrl: '/images/sports/martial-arts.jpg',
     isPopular: false,
+    color: '#f97316',
   },
   {
     id: 8,
@@ -92,6 +105,7 @@ export const fixtureSports: Sport[] = [
     icon: '🤸',
     imageUrl: '/images/sports/pilates.jpg',
     isPopular: true,
+    color: '#10b981',
   },
   {
     id: 9,
@@ -102,5 +116,6 @@ export const fixtureSports: Sport[] = [
     icon: '',
     imageUrl: '',
     isPopular: true,
+    color: '#6366f1',
   },
 ];

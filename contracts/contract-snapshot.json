@@ -12,7 +12,8 @@
           "description": "Практики для гибкости, дыхания и баланса в спокойном ритме.",
           "icon": "🧘",
           "imageUrl": "/images/sports/yoga.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#8b5cf6"
         },
         {
           "id": 2,
@@ -22,7 +23,8 @@
           "description": "Тренировки на технику ударов, координацию и выносливость.",
           "icon": "🥊",
           "imageUrl": "/images/sports/boxing.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#f59e0b"
         },
         {
           "id": 3,
@@ -32,7 +34,8 @@
           "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
           "icon": "🏊",
           "imageUrl": "/images/sports/swimming.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#3b82f6"
         },
         {
           "id": 4,
@@ -42,7 +45,8 @@
           "description": "Интенсивные функциональные тренировки с прогрессией нагрузки.",
           "icon": "🏋️",
           "imageUrl": "/images/sports/crossfit.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#ef4444"
         },
         {
           "id": 5,
@@ -52,7 +56,8 @@
           "description": "Современные танцевальные направления для взрослых и подростков.",
           "icon": "💃",
           "imageUrl": "/images/sports/dance.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#ec4899"
         },
         {
           "id": 6,
@@ -62,7 +67,8 @@
           "description": "Силовые и общефизические тренировки в зале с программой под цель.",
           "icon": "🏋️‍♂️",
           "imageUrl": "/images/sports/gym.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#6b7280"
         },
         {
           "id": 7,
@@ -72,7 +78,8 @@
           "description": "Группы по технике, выносливости и самообороне.",
           "icon": "🥋",
           "imageUrl": "/images/sports/martial-arts.jpg",
-          "isPopular": false
+          "isPopular": false,
+          "color": "#f97316"
         },
         {
           "id": 8,
@@ -82,7 +89,8 @@
           "description": "Мягкая работа с осанкой, центром тела и контролем движения.",
           "icon": "🤸",
           "imageUrl": "/images/sports/pilates.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#10b981"
         },
         {
           "id": 9,
@@ -92,7 +100,8 @@
           "description": "",
           "icon": "",
           "imageUrl": "",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#6366f1"
         }
       ]
     }
@@ -111,6 +120,7 @@
           "icon": "🧘",
           "imageUrl": "/images/sports/yoga.jpg",
           "isPopular": true,
+          "color": "#8b5cf6",
           "publicationCount": 2
         },
         {
@@ -122,6 +132,7 @@
           "icon": "🏊",
           "imageUrl": "/images/sports/swimming.jpg",
           "isPopular": true,
+          "color": "#3b82f6",
           "publicationCount": 2
         },
         {
@@ -133,6 +144,7 @@
           "icon": "🏋️",
           "imageUrl": "/images/sports/crossfit.jpg",
           "isPopular": true,
+          "color": "#ef4444",
           "publicationCount": 2
         }
       ]
@@ -604,7 +616,8 @@
             "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
             "icon": "🏊",
             "imageUrl": "/images/sports/swimming.jpg",
-            "isPopular": true
+            "isPopular": true,
+            "color": "#3b82f6"
           },
           {
             "id": 8,
@@ -614,7 +627,8 @@
             "description": "Мягкая работа с осанкой, центром тела и контролем движения.",
             "icon": "🤸",
             "imageUrl": "/images/sports/pilates.jpg",
-            "isPopular": true
+            "isPopular": true,
+            "color": "#10b981"
           }
         ],
         "trainers": [],
@@ -1200,7 +1214,8 @@
           "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
           "icon": "🏊",
           "imageUrl": "/images/sports/swimming.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#3b82f6"
         },
         "sport": {
           "id": 3,
@@ -1210,7 +1225,8 @@
           "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
           "icon": "🏊",
           "imageUrl": "/images/sports/swimming.jpg",
-          "isPopular": true
+          "isPopular": true,
+          "color": "#3b82f6"
         },
         "sports": [
           {
@@ -1221,7 +1237,8 @@
             "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
             "icon": "🏊",
             "imageUrl": "/images/sports/swimming.jpg",
-            "isPopular": true
+            "isPopular": true,
+            "color": "#3b82f6"
           }
         ],
         "schedule": [

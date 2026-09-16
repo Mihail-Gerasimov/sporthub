@@ -83,6 +83,9 @@ model Sport {
   icon        String   @map("icon") @db.VarChar(100)
   imageUrl    String   @map("image_url") @db.VarChar(500)
   isPopular   Boolean  @default(false) @map("is_popular")
+  // Цвет вида на карте `#rrggbb` (шаг 38.80). Пустой у видов, заведённых до колонки;
+  // формат стережёт CHECK `sports_color_hex` (scripts/db-constraints.mjs).
+  color       String?  @map("color") @db.VarChar(7)
 
   clubs             ClubSport[]
   trainers          TrainerSport[]

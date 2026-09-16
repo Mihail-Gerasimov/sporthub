@@ -147,6 +147,7 @@ export async function exportSourceShape(client: PrismaClient): Promise<SourceDat
     icon: row.icon,
     imageUrl: row.imageUrl,
     isPopular: row.isPopular,
+    color: row.color ?? undefined,
   }));
 
   const simple = <TItem extends { id: number; createdAt: string; name: string }>(

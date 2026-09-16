@@ -174,6 +174,17 @@ export const CHECK_CONSTRAINTS = {
     table: 'trainers',
     expression: 'verified_by_user_id IS NULL OR verified_at IS NOT NULL',
   },
+  /**
+   * Цвет вида спорта на карте — `#rrggbb` строчными или пусто (фаза 38, шаг 38.80).
+   *
+   * Формат нужен карте буквально: капля маркера и точка легенды получают строку как
+   * есть, и «red» или «#ABC» дали бы серые капли молча. Проверка регулярным
+   * выражением — диалект PostgreSQL, как и всё в этом файле.
+   */
+  sports_color_hex: {
+    table: 'sports',
+    expression: "color IS NULL OR color ~ '^#[0-9a-f]{6}$'",
+  },
   offerings_owner_one: {
     table: 'offerings',
     expression:

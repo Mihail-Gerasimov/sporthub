@@ -57,6 +57,8 @@ describe('Справочники', () => {
         icon: row.icon,
         imageUrl: row.imageUrl,
         isPopular: row.isPopular,
+        // Цвет на карте (38.80) — сид пишет его при вставке; пустой не бывает у видов сида.
+        color: row.color ?? undefined,
       })),
     ).toStrictEqual(fixtureSports);
   });
