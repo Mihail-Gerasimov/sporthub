@@ -1,4 +1,6 @@
 import Link from 'next/link';
+
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import { BRAND_NAME } from '@sporthub/domain';
 
 const footerLinks = [
@@ -12,9 +14,9 @@ export function Footer() {
     <footer className="border-t border-line bg-panel/90" aria-label="Подвал сайта">
       <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-            {BRAND_NAME}
-          </p>
+          <Link href="/" className="inline-flex text-inherit no-underline" aria-label="На главную">
+            <BrandLogo size="sm" />
+          </Link>
           <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
             Городская витрина для спорта без лишнего шума.
           </h2>

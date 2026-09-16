@@ -2,7 +2,7 @@
  * Контракт дизайна layout-компонентов — проверяет,
  * что Header и Footer следуют минималистичному стилю.
  */
-import { BRAND_NAME } from '@sporthub/domain';
+import { BRAND_NAME, BRAND_WORDMARK } from '@sporthub/domain';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,36 +28,26 @@ describe('Минималистичный стиль layout-компоненто�
   });
 
   describe('Header', () => {
-    it('лого-иконка не содержит shadow-floating (минимализм)', () => {
+    // Шаг 38.34: логотип — `BrandLogo` (два бегуна + словомарка из BRAND_WORDMARK),
+    // ведёт на главную и назван для экранного диктора именем площадки. Прежняя
+    // марка-квадрат «S» и eyebrow с именем сняты.
+    it('логотип в шапке — BrandLogo на плашке, ссылкой на главную, без тени', () => {
       render(<Header />);
-      // Лого-иконка — элемент с текстом "S" внутри header
       const header = screen.getByRole('banner');
-      const logoIcon = header.querySelector('span.flex.items-center.justify-center');
-      expect(logoIcon).not.toBeNull();
-      expect(logoIcon!.className).not.toContain('shadow-floating');
-    });
-
-    // Eyebrow с именем площадки: letter-spacing 0.18em (точное значение из UI Kit).
-    // Раньше действовало правило «минимализм tracking ≤ 0.15em», предел поднят до 0.20em.
-    // Шаг 38.33: имя берётся из `BRAND_NAME`, а не литералом.
-    it('tracking подзаголовка с именем площадки не превышает 0.20em (UI Kit eyebrow)', () => {
-      render(<Header />);
-      const sportHubLabel = screen.getByText(BRAND_NAME);
-      const trackingMatch = sportHubLabel.className.match(/tracking-\[([0-9.]+)em\]/);
-      expect(trackingMatch).not.toBeNull();
-      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.2);
+      const logo = screen.getByRole('img', { name: BRAND_NAME });
+      expect(header.contains(logo)).toBe(true);
+      expect(logo.closest('a')?.getAttribute('href')).toBe('/');
+      expect(logo.className).not.toMatch(/\bshadow-/);
+      expect(screen.getByText(BRAND_WORDMARK.tail).className).toContain('text-plate-ink');
     });
   });
 
   describe('Footer', () => {
-    it('tracking заголовка с именем площадки не превышает 0.15em', () => {
+    it('логотип в подвале — BrandLogo размера sm, ссылкой на главную', () => {
       render(<Footer />);
-      const footerLabels = screen.getAllByText(BRAND_NAME);
-      // Footer содержит имя площадки как label
-      const footerLabel = footerLabels[0];
-      const trackingMatch = footerLabel.className.match(/tracking-\[([0-9.]+)em\]/);
-      expect(trackingMatch).not.toBeNull();
-      expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.15);
+      const logo = screen.getByRole('img', { name: BRAND_NAME });
+      expect(logo.closest('a')?.getAttribute('href')).toBe('/');
+      expect(logo.querySelector('svg')?.getAttribute('class')).toContain('h-7');
     });
 
     it('описание проекта использует leading-relaxed вместо leading-7', () => {

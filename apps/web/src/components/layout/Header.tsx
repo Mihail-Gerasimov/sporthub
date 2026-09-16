@@ -9,7 +9,8 @@
 'use client';
 
 import Link from 'next/link';
-import { BRAND_NAME } from '@sporthub/domain';
+
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
@@ -70,21 +71,11 @@ export function Header() {
   return (
     <header className="relative border-b border-plate-line bg-plate text-plate-ink after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,var(--ui-lime)_50%,transparent)] after:opacity-60">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-4 md:gap-6 md:px-6 lg:px-10">
-        {/* Лого: марка + (на md+ tagline, на lg+ ещё eyebrow) */}
+        {/* Логотип: два бегуна и словомарка (шаг 38.34); на md+ рядом tagline */}
         <Link href="/" className="flex shrink-0 items-center gap-3 text-inherit no-underline">
-          {/* Лого-марка 44×44 с инкрустированным гранжем через ::before */}
-          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--ui-lime)] font-display text-[22px] leading-none text-[var(--ui-ink)] before:pointer-events-none before:absolute before:inset-0 before:opacity-[0.35] before:[background:var(--ui-decor-grunge)]">
-            S
-          </span>
-          {/* Текст-лого: скрыт на sm (480-), tagline появляется на md (768+),
-              eyebrow «SPORTHUB» — только на lg (1024+) */}
-          <span className="hidden min-w-0 flex-col leading-none md:flex">
-            <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-plate-muted lg:inline">
-              {BRAND_NAME}
-            </span>
-            <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-plate-ink lg:text-base">
-              Найди свой ритм
-            </span>
+          <BrandLogo tone="plate" />
+          <span className="hidden whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-plate-muted md:inline">
+            Найди свой ритм
           </span>
         </Link>
 

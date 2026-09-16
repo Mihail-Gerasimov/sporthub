@@ -420,6 +420,39 @@ body {
   cursor: grabbing;
 }
 
+/* ===== Логотип: вбегание бегунов (шаг 38.34) =====
+ * Два бегуна выезжают слева с задержкой 0,05 с и 0,18 с — кривая с перелётом,
+ * как в макете (`App.tsx:114-121`). При `prefers-reduced-motion` бегуны стоят.
+ */
+@keyframes brand-run {
+  from {
+    transform: translateX(-72px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.brand-runner-1 {
+  animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.05s both;
+}
+
+.brand-runner-2 {
+  animation: brand-run 0.52s cubic-bezier(0.34, 1.35, 0.64, 1) 0.18s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-runner-1,
+  .brand-runner-2 {
+    animation: none;
+  }
+}
+
 /* ===== Штриховка-заглушка аватара (отзывы на детальных страницах) =====
  * Только `background-image`: цвет подложки остаётся классом (`bg-card-2`),
  * штрих — общий декор `--ui-decor-hatch-strong`.
