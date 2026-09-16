@@ -73,6 +73,22 @@ describe('HomeSteps', () => {
     }
   });
 
+  it('отступы секции и шапки — числами макета: 64 сверху, 56 снизу, шапка 44 (аудит 38.71)', () => {
+    render(<HomeSteps />);
+
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.steps.label });
+
+    expect(section.className).toMatch(/\bpt-16\b/);
+    expect(section.className).toMatch(/\bpb-14\b/);
+    expect(section.className).not.toMatch(/py-1[46]/);
+    expect(section.querySelector('.mb-11')).not.toBeNull();
+    // Бокс иконки — ближайший к 8 % макета токен подложки, не 12 %.
+    const box = section.querySelector('svg')?.parentElement;
+
+    expect(box?.className).toContain('bg-tint-lime');
+    expect(box?.className).not.toContain('bg-lime-soft');
+  });
+
   it('третий шаг — без дневника и челленджей (решение заказчика)', () => {
     render(<HomeSteps />);
 

@@ -1,8 +1,9 @@
 /**
  * «Три шага до первой тренировки» — секция главной (шаг 38.71).
  *
- * По эталону (`HomePage.tsx:502-540`): рубрика и H2 по центру, одна белая полоса
- * радиусом 22 с разделителями `border`, а не `gap`; в карточке шага — номер
+ * По эталону (`HomePage.tsx:502-540`): секция 64/56 сверху/снизу, шапка с отступом 44,
+ * рубрика и H2 по центру, одна белая полоса радиусом 22 с разделителями `border`,
+ * а не `gap`; в карточке шага — номер
  * крупным display-шрифтом еле видимой заливкой (40px, 5 % чернил — как в макете),
  * иконка 44×44 на мягкой зелёной подложке, заголовок и абзац. Ховера нет вовсе
  * (эталон, step-30). Заголовок шага — `.t-h3` словаря типографики (38.109): Inter
@@ -91,10 +92,10 @@ export function HomeSteps() {
     <section
       id={HOME_SECTIONS.steps.id}
       aria-label={HOME_SECTIONS.steps.label}
-      className="py-14 md:py-16"
+      className="pt-16 pb-14"
     >
       <HomeContainer>
-        <div className="mb-10 text-center">
+        <div className="mb-11 text-center">
           <p className="m-0 mb-2.5 font-body text-[10px] font-bold uppercase tracking-[0.12em] text-lime-hov">
             {STEPS.eyebrow}
           </p>
@@ -117,7 +118,9 @@ export function HomeSteps() {
                 >
                   {step.number}
                 </span>
-                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-lime-soft text-lime-hov">
+                {/* Подложка бокса — `tint-lime` (6 %): у макета 8 %, ближайший токен; `lime-soft` (12 %) читают
+                    семнадцать компонентов, второй токен ради одного бокса не заводится (аудит 38.71, п. 15). */}
+                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-tint-lime text-lime-hov">
                   {STEP_ICONS[step.key]}
                 </span>
               </div>
