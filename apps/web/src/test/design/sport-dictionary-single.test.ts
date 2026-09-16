@@ -10,7 +10,7 @@
 // области. Названия для сверки — сегодняшний засев базы; это единственное место
 // в коде фронта, где они написаны буквами, и оно — тест.
 //
-// Область — витрина: `components/home/**`, `lib/home-copy.ts`, `lib/home-sections.ts`.
+// Область — витрина: `app/page.tsx`, `components/home/**`, `lib/home-copy.ts`, `lib/home-sections.ts`.
 
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -20,7 +20,12 @@ import { describe, expect, it } from 'vitest';
 import { WEB_ROOT } from '../web-root';
 
 /** Область витрины. */
-export const AREA = ['src/components/home', 'src/lib/home-copy.ts', 'src/lib/home-sections.ts'];
+export const AREA = [
+  'src/app/page.tsx',
+  'src/components/home',
+  'src/lib/home-copy.ts',
+  'src/lib/home-sections.ts',
+];
 
 /** Названия видов спорта из засева — для узнавания литерального списка. */
 const SPORT_NAMES = [
@@ -89,6 +94,7 @@ describe('Сторож: виды спорта не литералом (38.64)', 
     const files = await areaFiles();
 
     expect(files).toContain('src/lib/home-copy.ts');
+    expect(files).toContain('src/app/page.tsx');
     expect(files).toContain('src/components/home/HeroSportMarquee.tsx');
   });
 
