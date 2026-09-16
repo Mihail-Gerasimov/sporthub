@@ -110,7 +110,7 @@ function Counter({ label, target, start }: { label: string; target: number; star
       <dt className="mt-1 font-body text-[10px] font-semibold uppercase tracking-[0.07em] text-plate-muted">
         {label}
       </dt>
-      <dd className="m-0 font-display text-[22px] font-black leading-none text-lime tabular-nums">
+      <dd className="m-0 font-display text-[20px] font-black leading-none text-lime tabular-nums">
         <span aria-hidden="true">{value.toLocaleString('ru-RU')}</span>
         <span className="sr-only">{target.toLocaleString('ru-RU')}</span>
       </dd>
