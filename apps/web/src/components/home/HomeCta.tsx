@@ -55,12 +55,13 @@ export function HomeCta() {
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {isAuthenticated && primaryCabinet ? (
-            <Link
+            <Button
               href={primaryCabinet.href}
-              className="inline-flex items-center justify-center rounded-button bg-lime px-[34px] py-3.5 font-display text-[15px] font-bold tracking-[0.04em] text-ink uppercase no-underline shadow-glow transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-floating"
+              size="lg"
+              className="px-[34px] hover:-translate-y-0.5"
             >
               {CTA.primaryAuthenticated}
-            </Link>
+            </Button>
           ) : (
             <Button size="lg" onClick={openAuthModal} className="px-[34px] hover:-translate-y-0.5">
               {CTA.primary}

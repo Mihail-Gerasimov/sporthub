@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { Button } from '@/components/ui/Button';
 import { Hint } from '@/components/ui/Hint';
 import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
@@ -56,13 +57,9 @@ export function HeaderUser() {
 
   if (!isAuthenticated || !user) {
     return (
-      <button
-        type="button"
-        onClick={openAuthModal}
-        className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-button bg-lime px-5 py-2.5 font-display text-[13px] font-bold tracking-[0.04em] text-ink uppercase shadow-glow transition-[transform,box-shadow] hover:-translate-y-px hover:shadow-floating"
-      >
+      <Button size="sm" onClick={openAuthModal} className="shrink-0">
         Войти
-      </button>
+      </Button>
     );
   }
 

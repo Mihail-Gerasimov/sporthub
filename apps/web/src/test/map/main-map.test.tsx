@@ -241,10 +241,12 @@ describe('MainMap (38.80): маркеры-капли, активное сост�
     // Знак проверки — только у публикации с `verifiedAt`.
     expect(within(card).getByText('Клуб проверен')).toBeInTheDocument();
     // Путь к странице сохранён (реестр № 71): ссылка, а не переход по клику на всю карточку.
-    expect(within(card).getByRole('link', { name: 'Подробнее' })).toHaveAttribute(
-      'href',
-      '/clubs/yoga-studio',
-    );
+    const detail = within(card).getByRole('link', { name: 'Подробнее' });
+    expect(detail).toHaveAttribute('href', '/clubs/yoga-studio');
+    // Ссылка в виде primary-кнопки — классами `ui/Button`, не своей копией (ревью 38.80).
+    expect(detail.className).toContain('shadow-glow');
+    expect(detail.className).toContain('font-display');
+    expect(detail.className).toContain('rounded-[9px]');
 
     // Второй маркер — выбор переезжает.
     act(() => {

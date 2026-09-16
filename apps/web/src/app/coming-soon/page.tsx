@@ -6,7 +6,8 @@
 // (долги Д-7, Д-8); имя раздела страница не знает: адрес один на все.
 import { BRAND_NAME } from '@sporthub/domain';
 import type { Metadata } from 'next';
-import Link from 'next/link';
+
+import { Button } from '@/components/ui/Button';
 
 export const metadata: Metadata = {
   title: `Раздел в разработке — ${BRAND_NAME}`,
@@ -21,12 +22,9 @@ export default function ComingSoonPage() {
         Этот раздел появится в следующих обновлениях. Пока здесь пусто — клубы, тренеры и ближайшие
         слоты уже ждут на главной.
       </p>
-      <Link
-        href="/"
-        className="inline-flex items-center rounded-button border-2 border-lime bg-card px-6 py-3 font-display text-sm font-bold tracking-[0.04em] text-ink uppercase transition-colors hover:bg-lime"
-      >
+      <Button href="/" variant="secondary">
         На главную
-      </Link>
+      </Button>
     </main>
   );
 }
