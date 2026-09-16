@@ -22,7 +22,11 @@ import { formatDate, getDateKeyInTimeZone } from '@/lib/utils';
 
 import type { CatalogData } from '@/components/catalog/catalog-data';
 
-export async function loadCatalogData(now: Date): Promise<CatalogData> {
+/** Сырые списки каталога — то, что страница спрашивает у бэкенда. */
+export type CatalogSources = Awaited<ReturnType<typeof fetchCatalogSources>>;
+
+/** Девять вызовов одним `Promise.all`: полный каталог, расписания, услуги, справочники, связи. */
+export async function fetchCatalogSources() {
   const [
     clubs,
     clubSchedule,
@@ -47,6 +51,32 @@ export async function loadCatalogData(now: Date): Promise<CatalogData> {
     getTrainerClubLinks({ status: 'confirmed' }),
   ]);
 
+  return {
+    clubs,
+    clubSchedule,
+    offerings,
+    specialties,
+    sports,
+    tags,
+    trainerSchedule,
+    trainers,
+    trainerClubLinks,
+  };
+}
+
+/** Данные каталога из сырых списков: занятия дня, справочник тренеров, окна, подписи дат. */
+export function buildCatalogData(sources: CatalogSources, now: Date): CatalogData {
+  const {
+    clubs,
+    clubSchedule,
+    offerings,
+    specialties,
+    sports,
+    tags,
+    trainerSchedule,
+    trainers,
+    trainerClubLinks,
+  } = sources;
   const todayDateKey = getDateKeyInTimeZone(now);
   // Цвет вида (38.80) едет до карты и легенды вместе с именем и иконкой.
   const catalogSports = sports.map(({ id, name, icon, color }) => ({ id, name, icon, color }));
@@ -89,4 +119,8 @@ export async function loadCatalogData(now: Date): Promise<CatalogData> {
       month: 'long',
     }),
   };
+}
+
+export async function loadCatalogData(now: Date): Promise<CatalogData> {
+  return buildCatalogData(await fetchCatalogSources(), now);
 }

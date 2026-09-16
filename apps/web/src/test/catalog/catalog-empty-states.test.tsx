@@ -1,18 +1,18 @@
-// Пустые состояния рабочей части главной (фаза 38, шаг 38.82; чек-лист step-16).
+// Пустые состояния рабочей части (фаза 38, шаг 38.82; чек-лист step-16) — на `/catalog`,
+// куда рабочая часть переехала шагом 38.79a.
 //
-// Запрос, не дающий совпадений: каждая секция рабочей части — поиск, выдача, карта,
-// подборка, слоты — говорит понятным текстом, что пусто, и у человека есть способ
-// сбросить: чип «Сбросить запрос: …» в блоке поиска. Счёт «N клубов в выдаче» —
-// ЖИВОЙ, по тем же фильтрам, что у выдачи: прежде бейдж брал длину всего каталога
-// и при пустой выдаче говорил «3 клуба в выдаче» (ревью 38.66, LOW).
+// Запрос, не дающий совпадений: каждая секция — поиск, выдача, карта, слоты — говорит
+// понятным текстом, что пусто, и у человека есть способ сбросить: чип «Сбросить
+// запрос: …» в блоке поиска. Счёт «N клубов в выдаче» — ЖИВОЙ, по тем же фильтрам,
+// что у выдачи: прежде бейдж брал длину всего каталога и при пустой выдаче говорил
+// «3 клуба в выдаче» (ревью 38.66, LOW).
 //
 // Данные — настоящим клиентом со стенда ответов (`helpers/api-stub`).
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Home from '@/app/page';
-import { POPULAR } from '@/lib/home-copy';
-import { HOME_SECTIONS } from '@/lib/home-sections';
+import CatalogPage from '@/app/catalog/page';
+import { CATALOG_SECTIONS } from '@/lib/catalog-sections';
 import { PLURAL, countRu } from '@/lib/plural';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
@@ -20,7 +20,7 @@ import { createFixtureRoutes, fixtureClubs, fixtureTrainers } from '@/test/helpe
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
-  usePathname: () => '/',
+  usePathname: () => '/catalog',
   notFound: () => {
     throw new Error('Not found');
   },
@@ -29,10 +29,10 @@ vi.mock('next/navigation', () => ({
 /** Запрос, которого нет ни в одном имени, описании, теге и виде спорта стенда. */
 const NO_MATCH = 'кабачковая икра';
 
-const section = (key: keyof typeof HOME_SECTIONS) =>
-  document.getElementById(HOME_SECTIONS[key].id) as HTMLElement;
+const section = (key: keyof typeof CATALOG_SECTIONS) =>
+  document.getElementById(CATALOG_SECTIONS[key].id) as HTMLElement;
 
-describe('Home — пустые состояния рабочей части (38.82)', () => {
+describe('Каталог — пустые состояния рабочей части (38.82)', () => {
   let stub: ApiStub;
 
   beforeEach(() => {
@@ -48,8 +48,8 @@ describe('Home — пустые состояния рабочей части (38
     stub?.restore();
   });
 
-  it('клубы: счёт выдачи — ноль, выдача и подборка — текстом, карточек нет, карта на месте', async () => {
-    render(await Home());
+  it('клубы: счёт выдачи — ноль, выдача и слоты — текстом, карточек нет, карта на месте', async () => {
+    render(await CatalogPage());
 
     expect(
       within(section('discover')).getByText(`${countRu(0, PLURAL.clubs)} в выдаче`),
@@ -58,7 +58,6 @@ describe('Home — пустые состояния рабочей части (38
 
     const resultsEmpty = section('results').querySelector('[data-card-slider-empty]');
     expect(resultsEmpty?.textContent).toMatch(/не найдено/);
-    expect(within(section('popular')).getByText(POPULAR.empty.clubs)).toBeInTheDocument();
     // Слоты следуют за фильтрами (38.81): под запросом без совпадений — пустое состояние.
     expect(section('availability').querySelector('[data-card-slider-empty]')?.textContent).toMatch(
       /нет новых слотов/,
@@ -68,9 +67,9 @@ describe('Home — пустые состояния рабочей части (38
     expect(section('map')).not.toBeNull();
   });
 
-  it('тренеры: то же — ноль в счёте, пустая выдача и подборка', async () => {
+  it('тренеры: то же — ноль в счёте, пустая выдача', async () => {
     useFilterStore.setState({ discoveryMode: 'trainers' });
-    render(await Home());
+    render(await CatalogPage());
 
     expect(
       within(section('discover')).getByText(`${countRu(0, PLURAL.trainers)} в выдаче`),
@@ -79,11 +78,10 @@ describe('Home — пустые состояния рабочей части (38
     expect(section('results').querySelector('[data-card-slider-empty]')?.textContent).toMatch(
       /не найдено/,
     );
-    expect(within(section('popular')).getByText(POPULAR.empty.trainers)).toBeInTheDocument();
   });
 
   it('способ сбросить — чип «Сбросить запрос» в блоке поиска: после него выдача и счёт возвращаются', async () => {
-    render(await Home());
+    render(await CatalogPage());
 
     fireEvent.click(
       within(section('discover')).getByRole('button', { name: `Сбросить запрос: ${NO_MATCH}` }),
@@ -103,7 +101,7 @@ describe('Home — пустые состояния рабочей части (38
 
   it('счёт выдачи следует за фильтром вида спорта, а не за длиной каталога', async () => {
     useFilterStore.setState({ searchQuery: '' });
-    render(await Home());
+    render(await CatalogPage());
 
     // Плавание (id 3) — у части клубов и тренеров стенда; счёт равен числу карточек выдачи.
     fireEvent.click(within(section('discover')).getByRole('button', { name: 'Плавание' }));

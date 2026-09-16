@@ -15,6 +15,7 @@ import { HomeCta } from '@/components/home/HomeCta';
 import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHeroSection } from '@/components/home/HomeHeroSection';
 import { HomeLeaders } from '@/components/home/HomeLeaders';
+import { HomeClubs, HomeTrainers } from '@/components/home/HomeShowcase';
 import { HomeSteps } from '@/components/home/HomeSteps';
 import { HomePopular } from '@/components/home/HomeWorkbench';
 import { HomeAvailability } from '@/components/home/HomeAvailability';
@@ -29,6 +30,8 @@ export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeS
   leaders: HomeLeaders,
   steps: HomeSteps,
   features: HomeFeatures,
+  clubs: HomeClubs,
+  trainers: HomeTrainers,
   cta: HomeCta,
   discover: CatalogDiscover,
   map: CatalogMap,

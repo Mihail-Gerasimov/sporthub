@@ -5,6 +5,7 @@
 // а типы компонентов каталога ему не нужны.
 
 import type { CatalogData, CatalogSport } from '@/components/catalog/catalog-data';
+import type { TrainerDirectoryItem } from '@/components/trainers';
 import type { Club, PlatformOverview, Trainer } from '@sporthub/types';
 
 /** Вид спорта главной — тот же срез, что у каталога (38.80: с цветом). */
@@ -18,6 +19,9 @@ export type HomeSport = CatalogSport;
 export type HomeData = CatalogData & {
   /** Четыре числа героя — `GET /api/stats/overview`, четыре `count` на бэкенде (38.30). */
   overview: PlatformOverview;
+  /** Витрина (38.79b): шесть клубов и четыре тренера по рейтингу — запросом с `limit`. */
+  showcaseClubs: Club[];
+  showcaseTrainers: TrainerDirectoryItem[];
   /** Лидеры каталога — запросом `sort=rating&limit=1`; пусто — каталог пуст. */
   featuredClub?: Club;
   featuredTrainer?: Trainer;

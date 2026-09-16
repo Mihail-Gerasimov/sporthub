@@ -129,6 +129,8 @@ const homeData: HomeData = {
   upcomingSessionsLabel: '16 сентября',
   trainerAvailability: [],
   trainerAvailabilityLabel: '16 сентября',
+  showcaseClubs: [],
+  showcaseTrainers: [],
 };
 
 const clubs = [fixtureClub, fixtureClub2, fixtureClub3];

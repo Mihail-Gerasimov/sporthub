@@ -101,8 +101,11 @@ describe('Home page', () => {
   it('рабочая часть переключается одним стором с героем: клубы → тренеры', async () => {
     render(await Home());
 
+    // Подборка под фильтр — до её снятия (38.79b): заголовок ищется внутри её секции,
+    // витринная карусель «Тренеры» называется так же.
+    const popular = document.getElementById(HOME_SECTIONS.popular.id) as HTMLElement;
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: POPULAR.title.clubs })).toBeInTheDocument();
+    expect(within(popular).getByRole('heading', { name: POPULAR.title.clubs })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ближайшие занятия' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Клубы под текущие фильтры' })).toBeInTheDocument();
     // Карточки выдачи — по одной на клуб стенда (популярное рисует их ещё раз — 38.79).
@@ -115,7 +118,9 @@ describe('Home page', () => {
 
     // Карта не меняется при переключении режима.
     expect(screen.getByRole('heading', { name: 'Карта' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: POPULAR.title.trainers })).toBeInTheDocument();
+    expect(
+      within(popular).getByRole('heading', { name: POPULAR.title.trainers }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Свободные окна тренеров' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Тренеры под текущие фильтры' }),
@@ -123,7 +128,10 @@ describe('Home page', () => {
     expect(screen.getAllByRole('article', { name: /^Карточка тренера: / }).length).toBeGreaterThan(
       0,
     );
-    expect(screen.queryByRole('article', { name: /^Карточка клуба: / })).not.toBeInTheDocument();
+    // В выдаче клубов нет; витринная карусель «Клубы» режима не знает и стоит как была.
+    expect(
+      within(catalog).queryByRole('article', { name: /^Карточка клуба: / }),
+    ).not.toBeInTheDocument();
   });
 
   it('витрина не ходит за записями вовсе', async () => {

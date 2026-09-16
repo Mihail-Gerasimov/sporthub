@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppShell } from '@/components/layout/AppShell';
-import { HOME_SECTIONS } from '@/lib/home-sections';
+import { HEADER_NAV, MOBILE_NAV } from '@/lib/navigation';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -30,15 +30,13 @@ describe('AppShell', () => {
     const primaryNavigation = screen.getByRole('navigation', { name: 'Основная навигация' });
     const mobileNavigation = screen.getByRole('navigation', { name: 'Мобильная навигация' });
 
-    for (const key of ['discover', 'results', 'availability'] as const) {
-      expect(
-        within(primaryNavigation).getByRole('link', { name: HOME_SECTIONS[key].label }),
-      ).toBeInTheDocument();
+    // Пункты — из словаря навигации (38.79c): тест не держит свой список подписей.
+    for (const item of HEADER_NAV) {
+      expect(within(primaryNavigation).getByRole('link', { name: item.label })).toBeInTheDocument();
     }
-
-    expect(within(mobileNavigation).getByRole('link', { name: 'Главная' })).toBeInTheDocument();
-    expect(within(mobileNavigation).getByRole('link', { name: 'Поиск' })).toBeInTheDocument();
-    expect(within(mobileNavigation).getByRole('link', { name: 'Слоты' })).toBeInTheDocument();
+    for (const item of MOBILE_NAV) {
+      expect(within(mobileNavigation).getByRole('link', { name: item.label })).toBeInTheDocument();
+    }
     expect(within(mobileNavigation).getByRole('link', { name: 'Профиль' })).toBeInTheDocument();
   });
 });

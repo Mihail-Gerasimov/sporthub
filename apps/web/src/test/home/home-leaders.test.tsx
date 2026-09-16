@@ -67,6 +67,8 @@ function dataWith(over: Partial<HomeData>): HomeData {
     upcomingSessionsLabel: '18 марта',
     trainerAvailability: [],
     trainerAvailabilityLabel: '18 марта',
+    showcaseClubs: [],
+    showcaseTrainers: [],
     ...over,
   };
 }

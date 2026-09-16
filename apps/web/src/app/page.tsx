@@ -8,11 +8,12 @@
 // поиск, карта и слоты фильтруют в памяти по построению (действующее ограничение, Д-15).
 //
 // Карта: внутренняя логика `MapSection` (Yandex Maps, фаза 19) не трогается.
-import { loadCatalogData } from '@/components/catalog/load-catalog-data';
+import { buildCatalogData, fetchCatalogSources } from '@/components/catalog/load-catalog-data';
+import { loadHomeData } from '@/components/home/load-home-data';
 import { HOME_SECTION_COMPONENTS } from '@/components/home/sections';
 import type { HomeData } from '@/components/home/home-data';
 import { HOME_SECTION_KEYS } from '@/lib/home-sections';
-import { getPlatformOverview, getPublishedClubs, getPublishedTrainers } from '@/lib/server-api';
+import { getPublishedClubs, getPublishedTrainers } from '@/lib/server-api';
 
 // Витрина читает живые JSON-данные после publish/edit/delete провайдеров.
 export const dynamic = 'force-dynamic';
@@ -20,22 +21,21 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   // Момент передаётся явно: один на день и на отбор занятий (38.81).
   const now = new Date();
+  // ⚠️ 38.79a: данные рабочей части — общим загрузчиком с `/catalog`, пока её секции
+  // ещё стоят и на главной; шаг 38.79b оставит витрине только своё.
+  const sources = await fetchCatalogSources();
+  const catalog = buildCatalogData(sources, now);
   const [
-    // ⚠️ 38.79a: данные рабочей части — общим загрузчиком с `/catalog`, пока её секции
-    // ещё стоят и на главной; шаг 38.79b оставит витрине только своё.
-    catalog,
+    showcase,
     // Лидеры каталога — запросом (шаг 38.31): лучший по рейтингу, при равенстве —
     // по числу отзывов, ничьи разводит номер. Пришли отсортированными и обрезанными
     // базой — берётся первая строка.
     [featuredClub],
     [featuredTrainer],
-    // Счётчики героя — четыре `count` на бэкенде, а не длины списков (38.30, д-20).
-    overview,
   ] = await Promise.all([
-    loadCatalogData(now),
+    loadHomeData({ now, catalog, references: sources }),
     getPublishedClubs({ sort: 'rating', limit: 1 }),
     getPublishedTrainers({ sort: 'rating', limit: 1 }),
-    getPlatformOverview(),
   ]);
 
   // Подпись услуги лидера — из справочника тренеров (у него свой отсев: без адреса
@@ -44,13 +44,7 @@ export default async function Home() {
     catalog.trainerDirectory.find((item) => item.id === featuredTrainer?.id)
       ?.primaryOfferingTitle ?? featuredTrainer?.bio;
 
-  const data: HomeData = {
-    ...catalog,
-    overview,
-    featuredClub,
-    featuredTrainer,
-    featuredTrainerTitle,
-  };
+  const data: HomeData = { ...showcase, featuredClub, featuredTrainer, featuredTrainerTitle };
 
   // Ни полей, ни потолка у `main`: герой и призыв — во всю ширину, как в эталоне;
   // контейнер — у каждой секции свой (`HomeContainer` у рабочей части и лидеров).
