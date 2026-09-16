@@ -26,6 +26,26 @@ import { cleanupPlans, cleanupStatements } from './cleanup-publications.mjs';
  */
 export const RUN_TAG = process.env.E2E_RUN_TAG || 'e2e-phase35';
 
+/**
+ * Домены учёток сида, под которыми прогоны входят помимо своих людей
+ * (администратор `admin@sporthub.local`, владельцы демо-площадок).
+ *
+ * ⚠️ Шаг 38.100. Люди прогона уносятся вместе с сессиями (ниже — явным
+ * `DELETE FROM sessions`), а вход под учёткой СИДА следа по признаку не оставляет:
+ * к 38.100 в живой базе лежало 4015 сессий администратора от браузерных прогонов,
+ * ни один из которых не разлогинивался. Правило: **прогон разлогинивается сам** —
+ * `cleanupRun()` снимает сессии учёток сида, заведённые ПОСЛЕ старта прогона
+ * (номер последней сессии снимается при загрузке модуля, то есть до первого входа).
+ * Человек, вошедший под учёткой сида во время прогона, будет разлогинен вместе с ним:
+ * стенд на время прогона — прогону.
+ */
+export const SEED_EMAIL_DOMAINS = [
+  'sporthub.local',
+  'arena.local',
+  'studio.local',
+  'trainer.local',
+];
+
 /** Хеш пароля `sporthub123` — тот же, что у людей сида. */
 const PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$kZOypsO+wlMzc4WtYnCnfA$i6JooAm2PGSA/2Rh8P0X6XJoe9KQ3tF1+Oi4kBpE3y8';
@@ -48,6 +68,24 @@ function psql(sql) {
     ['exec', '-i', 'sporthub_postgres', 'psql', '-U', 'sporthub', '-d', 'sporthub', '-tAc', sql],
     { encoding: 'utf8' },
   ).trim();
+}
+
+/** Последняя сессия в базе на момент старта прогона — граница «своих» входов под сидом. */
+const SESSION_ID_AT_START = Number(psql('SELECT coalesce(max(id), 0) FROM sessions;'));
+
+/** Условие «учётка сида» по домену почты — для отбора сессий, не людей. */
+const seedEmailWhere = () =>
+  SEED_EMAIL_DOMAINS.map((domain) => `email LIKE '%@${domain}'`).join(' OR ');
+
+/**
+ * Разлогинить прогон: снять сессии учёток сида, заведённые после старта прогона.
+ * Зовётся из `cleanupRun()`; отдельно — для зондов, которые людей прогона не заводят.
+ */
+export function logoutSeedSessions() {
+  const removed = psql(
+    `WITH d AS (DELETE FROM sessions WHERE id > ${SESSION_ID_AT_START} AND user_id IN (SELECT id FROM users WHERE ${seedEmailWhere()}) RETURNING 1) SELECT count(*) FROM d;`,
+  );
+  return Number(removed);
 }
 
 /** Завести людей прогона. Идемпотентно: повторный запуск ничего не удваивает. */
@@ -101,7 +139,10 @@ export function cleanupRun({ subjects = [] } = {}) {
   // у неё нет, и найти её по спискам номеров нельзя — номеров больше не существует.
   // Поэтому выход «людей прогона нет — убирать нечего» действует только когда
   // и предметов не названо.
-  if (ids.length === 0 && subjects.length === 0) return { users: 0, clubs: 0, trainers: 0 };
+  // Даже пустому прогону есть что убрать: входы под учётками сида (38.100).
+  if (ids.length === 0 && subjects.length === 0) {
+    return { users: 0, clubs: 0, trainers: 0, sessions: logoutSeedSessions() };
+  }
 
   const list = ids.join(',');
   const idsOf = (table) =>
@@ -153,7 +194,10 @@ export function cleanupRun({ subjects = [] } = {}) {
     `WITH d AS (DELETE FROM users WHERE id IN (${list}) RETURNING 1) SELECT count(*) FROM d;`,
   );
 
-  return { users: Number(users), clubs: clubIds.length, trainers: trainerIds.length };
+  // Прогон разлогинивается сам: сессии учёток сида, заведённые с его старта (38.100).
+  const sessions = logoutSeedSessions();
+
+  return { users: Number(users), clubs: clubIds.length, trainers: trainerIds.length, sessions };
 }
 
 /** Прочитать что-нибудь из базы: проверки смотрят в данные, а не в ответ маршрута. */
