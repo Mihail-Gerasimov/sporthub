@@ -53,6 +53,26 @@ describe('HomeSteps', () => {
     expect(new Set(icons).size).toBe(STEPS.items.length);
   });
 
+  it('заголовки шагов — Inter полужирный обычным регистром, не display; номера — крупные приглушённые (38.109)', () => {
+    const { container } = render(<HomeSteps />);
+
+    for (const heading of screen.getAllByRole('heading', { level: 3 })) {
+      expect(heading.className).toContain('font-body');
+      expect(heading.className).toContain('font-semibold');
+      expect(heading.className).not.toMatch(/uppercase|font-display|t-h[1-4]/);
+    }
+
+    const numbers = [...container.querySelectorAll('[aria-hidden="true"]')].filter((node) =>
+      /^\d\d$/.test(node.textContent ?? ''),
+    );
+
+    expect(numbers).toHaveLength(STEPS.items.length);
+    for (const number of numbers) {
+      expect(number.className).toMatch(/text-\[40px\]/);
+      expect(number.className).toMatch(/text-ink\/\[0\.05\]/);
+    }
+  });
+
   it('третий шаг — без дневника и челленджей (решение заказчика)', () => {
     render(<HomeSteps />);
 
