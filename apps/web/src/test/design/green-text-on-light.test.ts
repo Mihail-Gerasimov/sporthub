@@ -57,6 +57,13 @@ const GREEN_TEXT =
  */
 const PLATE = /(?<![\w-])bg-(?:plate|lime|\[var\(--ui-(?:plate|lime)\)\])(?![\w\-/])/;
 
+/** Лаймовая заливка — отдельно от тёмной плашки: светлый текст на ней нечитаем (1,64:1). */
+const LIME = /(?<![\w-])bg-(?:lime|\[var\(--ui-lime\)\])(?![\w\-/])/;
+
+/** Светлый текст — цвета холста и белого: на плашке верно, на лайме — нет. */
+const LIGHT_TEXT =
+  /(?<![\w-])text-(?:bg|card|plate-ink|\[var\(--ui-(?:bg|card|plate-ink)\)\])(?![\w-])/;
+
 /** Тёмно-зелёный как цвет текста — на плашке нечитаем (3,1:1). */
 const DARK_GREEN_TEXT =
   /(?<![\w-])(?:(?:hover|focus|focus-visible|group-hover|active):)?text-(?:lime-hov|accent-strong|\[var\(--ui-(?:lime-hov|accent-strong)\)\])(?![\w-])/;
@@ -91,9 +98,11 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
   const file = normalize(relativePath);
   const body = stripComments(text);
   const offenders: string[] = [];
-  // Стек предков: сколько из них — плашки.
+  // Стек предков: сколько из них — плашки; отдельно — сколько лаймовых заливок.
   const stack: boolean[] = [];
+  const limeStack: boolean[] = [];
   let plateDepth = RENDERED_ON_PLATE.includes(file) || BRAND_MARK.includes(file) ? 1 : 0;
+  let limeDepth = 0;
 
   // Теги JSX по порядку: открывающие, закрывающие, самозакрывающиеся.
   const tags = body.matchAll(/<\/?[A-Za-z][\w.]*(?:\s[^<>]*?)?\/?>/g);
@@ -103,12 +112,14 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
 
     if (tag.startsWith('</')) {
       if (stack.pop()) plateDepth -= 1;
+      if (limeStack.pop()) limeDepth -= 1;
       continue;
     }
 
     const classes = classesOf(tag);
     const onPlate = plateDepth > 0 || PLATE.test(classes);
     const selfPlate = PLATE.test(classes);
+    const selfLime = LIME.test(classes);
     const line = body.slice(0, match.index).split('\n').length;
 
     if (GREEN_TEXT.test(classes) && !onPlate) {
@@ -125,6 +136,13 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
       );
     }
 
+    // Светлый текст на лаймовой заливке (пилюля «Сегодня»: `text-bg` на `bg-lime` — 1,64:1).
+    if (LIGHT_TEXT.test(classes) && (limeDepth > 0 || (selfLime && literalClasses))) {
+      offenders.push(
+        `строка ${line}: светлый текст на лаймовой заливке — ${classes.match(LIGHT_TEXT)![0]}`,
+      );
+    }
+
     if (OPACITY.test(classes) && plateDepth > 0 && !selfPlate) {
       offenders.push(`строка ${line}: ${classes.match(OPACITY)![0]} на тексте внутри плашки`);
     }
@@ -132,6 +150,8 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
     if (!tag.endsWith('/>')) {
       stack.push(selfPlate);
       if (selfPlate) plateDepth += 1;
+      limeStack.push(selfLime);
+      if (selfLime) limeDepth += 1;
     }
   }
 
@@ -269,6 +289,25 @@ describe('Сторож: зелёный текст только на плашке
     // Мягкая подложка `bg-lime/10` — не плашка: тёмно-зелёный на ней читаем.
     expect(
       greenTextOffenders('src/x/Y.tsx', '<span className="bg-lime/10 text-lime-hov">x</span>'),
+    ).toEqual([]);
+    // Светлый текст на лайме — красный (пилюля «Сегодня»); на тёмной плашке — верный.
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<span className="rounded-full bg-lime text-bg">Сегодня</span>',
+      ),
+    ).toHaveLength(1);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<div className="bg-lime"><b className="text-card">x</b></div>',
+      ),
+    ).toHaveLength(1);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<div className="bg-plate"><b className="text-plate-ink">x</b></div>',
+      ),
     ).toEqual([]);
     // Сам элемент-плашка с литеральным классом — красный; в тернарии — нет.
     expect(

@@ -45,10 +45,10 @@ export function ClubAvailability({ dateLabel, sessions, onSelect }: ClubAvailabi
    * сам CardSlider — здесь только pill+date. */
   const tools = (
     <>
-      <span className="inline-flex items-center rounded-full bg-[var(--ui-lime)] px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ui-bg)] whitespace-nowrap">
+      <span className="inline-flex items-center rounded-full bg-lime px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em] text-ink whitespace-nowrap">
         Сегодня
       </span>
-      <span className="inline-flex items-center rounded-full border border-[var(--ui-line)] bg-transparent px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ui-ink)] whitespace-nowrap">
+      <span className="inline-flex items-center rounded-full border border-line bg-transparent px-3.5 py-2 font-body text-[11px] font-bold uppercase tracking-[0.16em] text-ink whitespace-nowrap">
         {dateLabel}
       </span>
     </>

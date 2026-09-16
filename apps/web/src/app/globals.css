@@ -620,13 +620,8 @@ body {
   background: var(--ui-decor-hatch-strong);
 }
 
-/* tone-orange также окрашивает eyebrow «Персональная услуга» в orange */
-.slot-card.tone-orange .slot-eyebrow.lime {
-  color: var(--ui-orange);
-}
-
-/* slot-eyebrow на mist hero — после swap светлый mint теряется,
- * используем graphite muted для читаемости (Step 31.12). */
+/* Эйбр карточки слота — приглушённый в любом тоне (38.14a, контраст): оранжевый текст
+ * `--ui-orange` на card-2 даёт 2,4:1, тон карточки несут луч на герое и цена. */
 .slot-card .slot-eyebrow.lime {
   color: var(--ui-muted);
 }
