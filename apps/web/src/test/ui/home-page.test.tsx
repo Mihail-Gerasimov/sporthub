@@ -19,6 +19,7 @@ import { HOME_SECTION_KEYS, HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs } from '@/test/helpers/fixture-routes';
+import { DEFAULT_CITY } from '@sporthub/types';
 
 /* Мок next/navigation для useRouter (виджет поиска героя, ссылки витрины) */
 vi.mock('next/navigation', () => ({
@@ -79,8 +80,13 @@ describe('Home page', () => {
     for (const line of FEATURES.titleLines) {
       expect(featuresTitle.textContent).toContain(line);
     }
-    expect(screen.getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: SHOWCASE.trainers.title })).toBeInTheDocument();
+    // Заголовки каруселей — с городом из стора (38.106).
+    expect(
+      screen.getByRole('heading', { name: SHOWCASE.clubs.title(DEFAULT_CITY) }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: SHOWCASE.trainers.title(DEFAULT_CITY) }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: CTA.primary })).toBeInTheDocument();
   });
 

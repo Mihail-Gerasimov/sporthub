@@ -24,6 +24,7 @@ import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs, fixtureTrainers } from '@/test/helpers/fixture-routes';
+import { DEFAULT_CITY } from '@sporthub/types';
 
 const section = (key: 'clubs' | 'trainers') =>
   document.getElementById(HOME_SECTIONS[key].id) as HTMLElement;
@@ -52,7 +53,9 @@ describe('Главная — витринные карусели (38.79b)', () =
 
     const clubs = section('clubs');
 
-    expect(within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
+    expect(
+      within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title(DEFAULT_CITY) }),
+    ).toBeInTheDocument();
     expect(within(clubs).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
       fixtureClubs.length,
     );
@@ -72,7 +75,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     const trainers = section('trainers');
 
     expect(
-      within(trainers).getByRole('heading', { name: SHOWCASE.trainers.title }),
+      within(trainers).getByRole('heading', { name: SHOWCASE.trainers.title(DEFAULT_CITY) }),
     ).toBeInTheDocument();
     expect(
       within(trainers).getAllByRole('article', { name: /^Карточка тренера: / }).length,
@@ -128,7 +131,9 @@ describe('Главная — витринные карусели (38.79b)', () =
     render(await Home());
 
     const clubs = section('clubs');
-    const heading = within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title });
+    const heading = within(clubs).getByRole('heading', {
+      name: SHOWCASE.clubs.title(DEFAULT_CITY),
+    });
 
     expect(heading.className).toContain('t-h2');
     expect(within(clubs).getByText(SHOWCASE.clubs.eyebrow).className).toContain('text-lime-hov');
@@ -136,6 +141,24 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(within(clubs).getByRole('link', { name: SHOWCASE.clubs.all }).closest('header')).toBe(
       heading.closest('header'),
     );
+  });
+
+  it('заголовки секций несут город из стора — как подзаголовок героя: сменился город — сменились заголовки', async () => {
+    useFilterStore.setState({ selectedCity: 'Тольятти' });
+    render(await Home());
+
+    expect(
+      within(section('clubs')).getByRole('heading', { name: SHOWCASE.clubs.title('Тольятти') }),
+    ).toBeInTheDocument();
+    expect(
+      within(section('trainers')).getByRole('heading', {
+        name: SHOWCASE.trainers.title('Тольятти'),
+      }),
+    ).toBeInTheDocument();
+    // Город стоит в заголовке именительным падежом после тире, как в герое:
+    // склонять названия городов словарём нельзя — их список живёт в базе.
+    expect(SHOWCASE.clubs.title('Тольятти')).toMatch(/— Тольятти$/);
+    expect(SHOWCASE.trainers.title('Тольятти')).toMatch(/— Тольятти$/);
   });
 
   it('«Все клубы» и «Все тренеры» ведут в выдачу каталога и ставят режим стора', async () => {
