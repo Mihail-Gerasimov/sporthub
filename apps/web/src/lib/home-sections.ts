@@ -14,6 +14,7 @@
 // Шаг 38.66 дополнит запись компонентом секции; сегодня здесь то, что на главной
 // есть: поиск с подборками, выдача на карте и слоты.
 
+import { HomeCta } from '@/components/home/HomeCta';
 import { HomeHero } from '@/components/home/HomeHero';
 
 /**
@@ -30,6 +31,8 @@ export const HOME_SECTIONS = {
   results: { id: 'results', label: 'Выдача' },
   /** Ближайшие слоты и окна для записи. */
   availability: { id: 'availability', label: 'Слоты' },
+  /** Финальный призыв (38.75). */
+  cta: { id: 'cta', label: 'Начать', component: HomeCta },
 } as const;
 
 export type HomeSectionKey = keyof typeof HOME_SECTIONS;

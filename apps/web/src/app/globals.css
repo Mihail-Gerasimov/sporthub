@@ -311,6 +311,20 @@ body {
   text-transform: uppercase;
 }
 
+/* Заголовок призыва (шаг 38.75): макет `clamp(2.2rem, 5vw, 4.2rem)` 900, интерлиньяж 0.92. */
+.t-cta {
+  font-family: var(--ui-font-display);
+  font-weight: var(--ui-weight-hero);
+  font-size: clamp(
+    calc(2.2rem * var(--ui-scale-display)),
+    calc(5vw * var(--ui-scale-display)),
+    calc(4.2rem * var(--ui-scale-display))
+  );
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
 .t-h1 {
   font-family: var(--ui-font-display);
   font-weight: var(--ui-weight-hero);
