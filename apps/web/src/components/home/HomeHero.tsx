@@ -48,7 +48,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
           <div className="min-w-0">
             {/* Плашка над заголовком (`HomePage.tsx:283-294`): метка + текст + шеврон-декор.
                 Не кнопка и не ссылка — в макете у неё нет обработчика. */}
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/10 py-[5px] pr-3.5 pl-2 font-body">
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/8 py-[5px] pr-3.5 pl-2 font-body">
               <span className="rounded-full bg-lime px-2.5 py-0.5 text-[9px] font-black tracking-[0.08em] text-ink uppercase">
                 {HERO.eyebrowTag}
               </span>
@@ -84,8 +84,9 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
             {counters}
           </div>
 
+          {/* Карточка в колонке со сдвигом 32 слева (`HomePage.tsx:405`: left 32 → ширина 448) */}
           {focus ? (
-            <div className="relative hidden min-w-0 xl:block" data-hero-aside>
+            <div className="relative hidden min-w-0 xl:block xl:pl-8" data-hero-aside>
               <FocusCard sessions={focus.sessions} dateLabel={focus.dateLabel} />
             </div>
           ) : null}

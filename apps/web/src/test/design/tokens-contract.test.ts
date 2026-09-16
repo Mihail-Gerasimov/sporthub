@@ -70,6 +70,8 @@ export const REQUIRED_TOKENS = [
   '--ui-radius-modal',
   '--ui-shadow-card',
   '--ui-shadow-floating',
+  '--ui-shadow-hero',
+  '--ui-shadow-deep',
 ];
 
 /**

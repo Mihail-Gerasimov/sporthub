@@ -1,7 +1,7 @@
 /**
  * «Сегодня в фокусе» — правая колонка героя (шаг 38.70), в виде эталона
  * (`HomePage.tsx:403-456`, чек-лист step-23/24): белая карточка радиусом 24 с глубокой
- * тенью и тонкой светлой обводкой; тёмная верхняя зона высотой 200 (в макете — фото
+ * тенью (`shadow-deep`, 0 32 80 .5) и обводкой white .06; тёмная верхняя зона высотой 200 (в макете — фото
  * клуба: фото у клубов нет — долг Д-10, зона несёт время и имя первого занятия),
  * ниже — «Ближайшие занятия» до трёх строк: время display-шрифтом, название и клуб,
  * справа кнопка — `ui/Button` размера `xs` ссылкой (ревью 38.80). Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
@@ -53,7 +53,7 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
   return (
     <aside
       aria-label={FOCUS.eyebrow}
-      className="relative overflow-hidden rounded-[24px] border border-plate-ink/5 bg-card text-ink shadow-floating"
+      className="relative overflow-hidden rounded-[24px] border border-plate-ink/[0.06] bg-card text-ink shadow-deep"
     >
       {/* Верхняя зона: тёмная плашка с временем и именем первого занятия.
           STUB: в макете здесь фото клуба (`HomePage.tsx:410`); загрузки фото на площадке
