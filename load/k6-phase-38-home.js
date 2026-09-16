@@ -12,8 +12,10 @@
  *                  ОГРАНИЧЕНИЕ (долг Д-15): отбор идёт в памяти по всему каталогу,
  *                  и порог здесь мягче витринного намеренно — он меряет цену долга,
  *                  а не прячет её;
- *   • `page`     — сама страница `GET /` у фронта: цена отрисовки для гостя целиком,
- *                  вместе со всеми серверными вызовами выше.
+ *   • `page`     — сами страницы у фронта: `GET /` (витрина — макет, 38.79) и
+ *                  `GET /catalog` (рабочая часть переехала туда решением заказчика):
+ *                  цена отрисовки для гостя целиком, вместе со всеми серверными
+ *                  вызовами выше. Порог один и тот же у обеих страниц.
  *
  * ⚠️ Три урока прошлых замеров, без которых профиль бессмыслен (35.45, 37.62):
  *   1. доля ошибок считает ОБОРВАННЫЕ соединения: k6 отдаёт им `status === 0`,
@@ -51,6 +53,8 @@ const statsLatency = new Trend('home_stats', true);
 const showcaseLatency = new Trend('home_showcase', true);
 const workingLatency = new Trend('home_working', true);
 const pageLatency = new Trend('home_page', true);
+/** Страница каталога — своя метрика, чтобы главная и каталог не усреднялись. */
+const catalogPageLatency = new Trend('catalog_page', true);
 const failures = new Rate('error_rate');
 const failuresByStep = new Counter('failures_by_step');
 /** Витрина отдала больше, чем просили, — `limit` перестал доезжать до запроса. */
@@ -107,7 +111,9 @@ export const options = {
     ...(runs('working') ? { home_working: ['p(95)<600'] } : {}),
     // Страница целиком: тот же порог, что у кабинета спортсмена в профиле фазы 33
     // (1500 мс) — главная не вправе быть дороже кабинета.
-    ...(runs('page') ? { home_page: ['p(95)<1500'] } : {}),
+    // После переезда рабочей части (38.79) тот же порог — у `/catalog`: адрес добавлен,
+    // порог не менялся.
+    ...(runs('page') ? { home_page: ['p(95)<1500'], catalog_page: ['p(95)<1500'] } : {}),
   },
 };
 
@@ -235,18 +241,28 @@ export function working() {
   envelope(track(workingLatency, http.get(`${API}/api/schedule`), 'schedule'), 'schedule');
 }
 
-/** Страница целиком у фронта — гость без cookie. */
-export function page() {
-  const response = track(
-    pageLatency,
-    http.get(`${WEB}/`, { headers: { Accept: 'text/html' } }),
-    'page',
-  );
-
+/** Проверки страницы гостя: ответила, есть заголовок, не заглушка недоступности. */
+function pageChecks(label, response) {
   check(response, {
-    'page: 200': (r) => r.status === 200,
-    'page: есть H1': (r) => typeof r.body === 'string' && /<h1/.test(r.body),
-    'page: не «Сервис временно недоступен»': (r) =>
+    [`${label}: 200`]: (r) => r.status === 200,
+    [`${label}: есть H1`]: (r) => typeof r.body === 'string' && /<h1/.test(r.body),
+    [`${label}: не «Сервис временно недоступен»`]: (r) =>
       typeof r.body === 'string' && !r.body.includes('Сервис временно недоступен'),
   });
+}
+
+/** Обе страницы гостя без cookie на каждой итерации: главная (витрина) и каталог (рабочая часть). */
+export function page() {
+  pageChecks(
+    'page',
+    track(pageLatency, http.get(`${WEB}/`, { headers: { Accept: 'text/html' } }), 'page'),
+  );
+  pageChecks(
+    'catalog',
+    track(
+      catalogPageLatency,
+      http.get(`${WEB}/catalog`, { headers: { Accept: 'text/html' } }),
+      'catalog',
+    ),
+  );
 }
