@@ -23,8 +23,11 @@ import { SHOWCASE } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
+import { setMediaQueryMatches } from '@/test/setup';
 import { createFixtureRoutes, fixtureClubs, fixtureTrainers } from '@/test/helpers/fixture-routes';
-import { DEFAULT_CITY } from '@sporthub/types';
+
+/** Медиа lg: с этой точки витрина — сетка макета. */
+const LG = { '(min-width: 768px)': true, '(min-width: 1024px)': true };
 
 const section = (key: 'clubs' | 'trainers') =>
   document.getElementById(HOME_SECTIONS[key].id) as HTMLElement;
@@ -34,6 +37,7 @@ describe('Главная — витринные карусели (38.79b)', () =
 
   beforeEach(() => {
     stub = installApiStub(createFixtureRoutes());
+    setMediaQueryMatches({});
     useFilterStore.setState({ discoveryMode: 'clubs', searchQuery: '', selectedSportId: null });
   });
 
@@ -53,9 +57,7 @@ describe('Главная — витринные карусели (38.79b)', () =
 
     const clubs = section('clubs');
 
-    expect(
-      within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title(DEFAULT_CITY) }),
-    ).toBeInTheDocument();
+    expect(within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
     expect(within(clubs).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
       fixtureClubs.length,
     );
@@ -75,7 +77,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     const trainers = section('trainers');
 
     expect(
-      within(trainers).getByRole('heading', { name: SHOWCASE.trainers.title(DEFAULT_CITY) }),
+      within(trainers).getByRole('heading', { name: SHOWCASE.trainers.title }),
     ).toBeInTheDocument();
     expect(
       within(trainers).getAllByRole('article', { name: /^Карточка тренера: / }).length,
@@ -116,49 +118,65 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(
       within(section('clubs')).getAllByRole('article', { name: /^Карточка клуба: / }),
     ).toHaveLength(fixtureClubs.length);
-    // Стрелки и точки с lg спрятаны: у сетки листать нечего.
-    for (const name of ['Назад', 'Вперёд']) {
-      expect(within(section('clubs')).getByRole('button', { name }).className).toContain(
-        'lg:hidden',
-      );
-    }
+    // Стрелки и точки с lg спрятаны — одним классом на обёртке: у сетки листать нечего.
+    expect(
+      within(section('clubs')).getByRole('button', { name: 'Вперёд' }).parentElement?.className,
+    ).toContain('lg:hidden');
     expect(
       section('clubs').querySelector('[data-card-slider-dot]')?.parentElement?.className,
     ).toContain('lg:hidden');
   });
 
-  it('заголовки секций — шкала t-h2, рубрика зелёная; «Все …» — справа от заголовка (38.106)', async () => {
+  it('на lg: шапка одной разметкой — рубрика 10px зелёная, заголовок t-h2, «Все …» в той же шапке справа; секции и контейнер по макету', async () => {
+    setMediaQueryMatches(LG);
     render(await Home());
 
     const clubs = section('clubs');
-    const heading = within(clubs).getByRole('heading', {
-      name: SHOWCASE.clubs.title(DEFAULT_CITY),
-    });
+    const heading = within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title });
+    const header = heading.closest('header') as HTMLElement;
 
     expect(heading.className).toContain('t-h2');
-    expect(within(clubs).getByText(SHOWCASE.clubs.eyebrow).className).toContain('text-lime-hov');
-    // Кнопка «Все клубы» стоит в шапке секции рядом с заголовком, а не под лентой.
-    expect(within(clubs).getByRole('link', { name: SHOWCASE.clubs.all }).closest('header')).toBe(
-      heading.closest('header'),
+    expect(within(clubs).getByText(SHOWCASE.clubs.eyebrow).className).toMatch(
+      /text-\[10px\].*text-lime-hov|text-lime-hov.*text-\[10px\]/,
     );
+    // Одна разметка на все ширины: ряд с lg классами, а не ветка по JS (ревью: прыжок при гидрации).
+    expect(header.className).toContain('lg:flex-row');
+    expect(within(header).getByRole('link', { name: SHOWCASE.clubs.all })).toBeInTheDocument();
+    // Секции макета: 72px по вертикали, верхняя линия, у тренеров белый фон; контейнер 1320/24.
+    expect(clubs.className).toContain('py-[72px]');
+    expect(clubs.className).toContain('border-t');
+    expect(section('trainers').className).toContain('bg-card');
+    const container = clubs.querySelector('[class*="max-w-"]') as HTMLElement;
+    expect(container.className).toContain('max-w-[1320px]');
+    expect(container.className).toContain('px-6');
   });
 
-  it('заголовки секций несут город из стора — как подзаголовок героя: сменился город — сменились заголовки', async () => {
-    useFilterStore.setState({ selectedCity: 'Тольятти' });
+  it('на lg сетка ведёт себя как сетка: «Вперёд» выключена, pointerdown ленту не двигает', async () => {
+    setMediaQueryMatches(LG);
     render(await Home());
 
-    expect(
-      within(section('clubs')).getByRole('heading', { name: SHOWCASE.clubs.title('Тольятти') }),
-    ).toBeInTheDocument();
-    expect(
-      within(section('trainers')).getByRole('heading', {
-        name: SHOWCASE.trainers.title('Тольятти'),
-      }),
-    ).toBeInTheDocument();
-    // Город стоит в заголовке именительным падежом после тире, как в герое:
-    // склонять названия городов словарём нельзя — их список живёт в базе.
-    expect(SHOWCASE.clubs.title('Тольятти')).toMatch(/— Тольятти$/);
-    expect(SHOWCASE.trainers.title('Тольятти')).toMatch(/— Тольятти$/);
+    const clubs = section('clubs');
+    const rail = clubs.querySelector('[data-card-slider-rail]') as HTMLElement;
+
+    expect(within(clubs).getByRole('button', { name: 'Вперёд' })).toBeDisabled();
+    expect(rail.style.transform).toBe('');
+    fireEvent.pointerDown(rail.parentElement as HTMLElement, {
+      clientX: 300,
+      pointerId: 1,
+      button: 0,
+    });
+    fireEvent.pointerMove(rail.parentElement as HTMLElement, { clientX: 100, pointerId: 1 });
+    expect(rail.style.transform).toBe('');
+    // Обёртка ленты в сетке не режет тень и подъём верхнего ряда (ревью).
+    expect((rail.parentElement as HTMLElement).className).toContain('lg:overflow-visible');
+  });
+
+  it('заголовки без города и без «по рейтингу»: витринный запрос города не знает (ревью О-2)', async () => {
+    render(await Home());
+
+    expect(SHOWCASE.clubs.title).not.toMatch(/город|Самар|рейтинг/i);
+    expect(SHOWCASE.trainers.title).not.toMatch(/город|Самар|рейтинг/i);
+    expect(screen.getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
   });
 
   it('«Все клубы» и «Все тренеры» ведут в выдачу каталога и ставят режим стора', async () => {

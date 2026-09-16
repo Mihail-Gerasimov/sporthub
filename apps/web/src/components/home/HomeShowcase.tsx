@@ -1,12 +1,9 @@
-'use client';
-
 // Витринные секции главной «Клубы» и «Тренеры» (шаги 38.79b, 38.106) — макет
-// `HomePage.tsx:582-692`: рубрика, заголовок с городом, справа «Все …», ниже
-// карточки — с `lg` сеткой (клубы 3×2, тренеры четыре в ряд), ниже `lg` — той же
-// лентой `CardSlider` со свайпом (`gridFromLg`), один компонент.
-//
-// Клиентские: заголовок несёт город из стора фильтров (`SHOWCASE.*.title(city)`),
-// как подзаголовок героя; данные витрины приходят со страницы готовыми.
+// `HomePage.tsx:582-692`: секция 72px по вертикали с верхней линией (у тренеров —
+// на белом), рубрика, заголовок, справа «Все …», ниже карточки — с `lg` сеткой
+// (клубы 3×2, тренеры четыре в ряд), ниже `lg` — той же лентой `CardSlider`
+// со свайпом (`gridFromLg`), один компонент. Серверные: стора им не нужно —
+// заголовки без города (ревью О-2: витринный запрос города не знает).
 //
 // Витрина, а не выдача: шесть клубов и четыре тренера приходят запросом
 // (`sort=rating&limit=N`, `load-home-data.ts`), фильтров стора карусели не знают —
@@ -24,19 +21,20 @@ import { TrainerCard } from '@/components/trainers';
 import { CardSlider } from '@/components/ui';
 import { SHOWCASE } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-import { useFilterStore } from '@/stores/useFilterStore';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 
 export function HomeClubs({ data }: HomeSectionProps) {
-  const city = useFilterStore((state) => state.selectedCity);
-
   return (
-    <section id={HOME_SECTIONS.clubs.id} aria-label={HOME_SECTIONS.clubs.label}>
+    <section
+      id={HOME_SECTIONS.clubs.id}
+      aria-label={HOME_SECTIONS.clubs.label}
+      className="border-t border-line py-[72px]"
+    >
       <HomeContainer>
         <CardSlider
           eyebrow={SHOWCASE.clubs.eyebrow}
-          title={SHOWCASE.clubs.title(city)}
+          title={SHOWCASE.clubs.title}
           accent="lime"
           sliderId="showcase-clubs"
           total={data.showcaseClubs.length}
@@ -55,14 +53,16 @@ export function HomeClubs({ data }: HomeSectionProps) {
 }
 
 export function HomeTrainers({ data }: HomeSectionProps) {
-  const city = useFilterStore((state) => state.selectedCity);
-
   return (
-    <section id={HOME_SECTIONS.trainers.id} aria-label={HOME_SECTIONS.trainers.label}>
+    <section
+      id={HOME_SECTIONS.trainers.id}
+      aria-label={HOME_SECTIONS.trainers.label}
+      className="border-t border-line bg-card py-[72px]"
+    >
       <HomeContainer>
         <CardSlider
           eyebrow={SHOWCASE.trainers.eyebrow}
-          title={SHOWCASE.trainers.title(city)}
+          title={SHOWCASE.trainers.title}
           accent="orange"
           sliderId="showcase-trainers"
           total={data.showcaseTrainers.length}

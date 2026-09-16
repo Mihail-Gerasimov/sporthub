@@ -31,6 +31,7 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+import { ChevronIcon } from '@/components/ui/ChevronIcon';
 
 /** Сколько номеров страниц показываем разом — окно вокруг текущей. */
 const MAX_VISIBLE_PAGE_BUTTONS = 5;
@@ -63,35 +64,8 @@ const SHAPE_STYLES: Record<
   },
 };
 
-const ICON_CHEV_LEFT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="size-3.5"
-    aria-hidden="true"
-  >
-    <path d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const ICON_CHEV_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2.4"
-    className="size-3.5"
-    aria-hidden="true"
-  >
-    <path d="M9 6l6 6-6 6" />
-  </svg>
-);
+const ICON_CHEV_LEFT = <ChevronIcon direction="left" className="size-3.5" strokeWidth={2.4} />;
+const ICON_CHEV_RIGHT = <ChevronIcon direction="right" className="size-3.5" strokeWidth={2.4} />;
 
 /**
  * Окно номеров вокруг текущей страницы: не больше `MAX_VISIBLE_PAGE_BUTTONS`

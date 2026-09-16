@@ -7,9 +7,7 @@
  * Phase 28.6: применяется в ClubList/TrainerList для выдачи под фильтр.
  * Phase 28.12: расширен — добавлены опц. props `tools` (кастомный блок
  * вместо pill-счётчика) и `visibleByBp` (тернарный адаптив 1↔2↔3
- * через два mediaQuery'я). Адаптивный listing-head: на lg+ — одна
- * flex-row с tools справа; на <lg — три ряда (eyebrow+стрелки / title /
- * tools-без-стрелок). Используется в TrainerAvailability (slot-блок).
+ * через два mediaQuery'я). Используется в TrainerAvailability (slot-блок).
  *
  * Дизайн взят из claude-design/cards-trainers/sporthub/project/
  * SportHub Cards - Clubs.html (28.6) и slots-availability/sporthub/
@@ -22,13 +20,16 @@
  * `carousel-single`). Переключение — классами (`lg:grid`), без мигания
  * при гидрации; JS лишь снимает сдвиг и drag.
  *
- * Шапка секции — по макету (`HomePage.tsx:582-600`): рубрика зелёная, заголовок
- * шкалы `t-h2`, справа `tools` — кнопка «Все …».
+ * Шапка секции — по макету (`HomePage.tsx:582-600`): рубрика 10px зелёная, заголовок
+ * шкалы `t-h2`, справа `tools` — кнопка «Все …»; одна разметка на все ширины
+ * (ниже lg инструменты и стрелки — рядом под заголовком), без ветки по JS.
  *
  * При total=0 рендерится empty-state, сам rail не создаётся.
  */
 import { Children, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+
+import { ChevronIcon } from '@/components/ui/ChevronIcon';
 
 type VisibleByBp = {
   /** ≤ md (по дефолту mobile) */
@@ -81,24 +82,8 @@ type CardSliderProps = {
   gridFromLg?: 2 | 3 | 4;
 };
 
-/** Стрелка prev/next — одна иконка на две кнопки, путь — аргументом. */
-function ArrowIcon({ d }: { d: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={d} />
-    </svg>
-  );
-}
+/** Рубрика секции — по макету: 10px, полужирная, зелёная, разрядка 0.12em. */
+const EYEBROW_CLASS = 'font-body text-[10px] font-bold uppercase tracking-[0.12em] text-lime-hov';
 
 const NAV_BUTTON_CLASS =
   'flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors disabled:pointer-events-none disabled:opacity-35';
@@ -130,9 +115,8 @@ export function CardSlider({
   // Текущий индекс левого края rail-контейнера (шаг = 1 карточка).
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(fallbackVisible);
-  // Phase 28.12: для условного рендера listing-head в одну строку (lg+)
-  // или в три ряда (<lg). Используем тот же 1024px брейкпоинт что и
-  // старое API.
+  // 1024px — та же точка, что у сетки `gridFromLg`: с lg листать нечего (maxIdx 0).
+  // Шапку по этому флагу больше не ветвим (ревью 38.106): она одной разметкой.
   const [isLgUp, setIsLgUp] = useState(false);
   const railRef = useRef<HTMLDivElement | null>(null);
 
@@ -332,9 +316,7 @@ export function CardSlider({
     return (
       <section id={sliderId} className="space-y-6">
         <header className="flex flex-col gap-2">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
-            {eyebrow}
-          </span>
+          <span className={EYEBROW_CLASS}>{eyebrow}</span>
           <h2 className="t-h2 text-ink">{title}</h2>
         </header>
         <p
@@ -381,78 +363,38 @@ export function CardSlider({
         onClick={() => go(-1)}
         disabled={safeIdx <= 0}
         aria-label="Назад"
-        className={`${NAV_BUTTON_CLASS} ${navHoverClass} ${hideFromLg}`}
+        className={`${NAV_BUTTON_CLASS} ${navHoverClass}`}
       >
-        <ArrowIcon d="M15 6l-6 6 6 6" />
+        <ChevronIcon direction="left" />
       </button>
       <button
         type="button"
         onClick={() => go(1)}
         disabled={safeIdx >= maxIdx}
         aria-label="Вперёд"
-        className={`${NAV_BUTTON_CLASS} ${navHoverClass} ${hideFromLg}`}
+        className={`${NAV_BUTTON_CLASS} ${navHoverClass}`}
       >
-        <ArrowIcon d="M9 6l6 6-6 6" />
+        <ChevronIcon direction="right" />
       </button>
     </div>
   );
 
-  // Адаптивный 3-рядный header применяется ТОЛЬКО когда передан
-  // кастомный `tools` (Phase 28.12 — слот-блок «Свободные окна тренеров»):
-  // на lg+ одна flex-row с tools справа; на <lg — три ряда (eyebrow+стрелки
-  // / title / tools-без-стрелок). Без `tools` — старое поведение
-  // ClubList/TrainerList (`flex-col` на 480-, `sm:flex-row` на ≥480 в
-  // одну строку с pill-счётчиком + стрелками справа).
-  const renderHeader = () => {
-    if (tools) {
-      if (isLgUp) {
-        return (
-          <header className="mb-2 flex items-center justify-between gap-5">
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
-                {eyebrow}
-              </span>
-              <h2 className="t-h2 text-ink">{title}</h2>
-            </div>
-            <div className="ml-auto flex flex-shrink-0 items-center gap-3">
-              {tools}
-              {navButtons}
-            </div>
-          </header>
-        );
-      }
-
-      return (
-        <header className="mb-2 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
-              {eyebrow}
-            </span>
-            {navButtons}
-          </div>
-          <h2 className="t-h2 text-ink">{title}</h2>
-          <div className="flex flex-wrap items-center gap-2">{tools}</div>
-        </header>
-      );
-    }
-
-    // Старое поведение (28.6/28.10) — ClubList/TrainerList: на 480-
-    // header в 2 ряда (title-block над tools), на ≥480 — одна строка.
-    return (
-      <header className="mb-2 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-col gap-2">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
-            {eyebrow}
-          </span>
-          <h2 className="t-h2 text-ink">{title}</h2>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-3">
-          {defaultTools}
-          {navButtons}
-        </div>
-      </header>
-    );
-  };
+  // Шапка — ОДНА разметка на все ширины (ревью 38.106: ветка по `isLgUp` из JS
+  // прыгала при гидрации на lg): ниже lg — рубрика и заголовок, ниже ряд
+  // «инструменты · стрелки»; с lg — в одну строку, инструменты и стрелки справа.
+  // Отступ до карточек — 36px (12 + 24), как в макете.
+  const renderHeader = () => (
+    <header className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
+      <div className="flex min-w-0 flex-col gap-2">
+        <span className={EYEBROW_CLASS}>{eyebrow}</span>
+        <h2 className="t-h2 text-ink">{title}</h2>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:justify-end">
+        {tools ?? defaultTools}
+        {navButtons}
+      </div>
+    </header>
+  );
 
   return (
     <section id={sliderId} className="space-y-6">
@@ -460,7 +402,7 @@ export function CardSlider({
 
       <div className="relative">
         <div
-          className={`overflow-hidden rounded-[22px] ${maxIdx > 0 ? 'cursor-grab touch-pan-y select-none' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
+          className={`overflow-hidden rounded-[22px] ${gridFromLg !== undefined ? 'lg:overflow-visible lg:rounded-none' : ''} ${maxIdx > 0 ? 'cursor-grab touch-pan-y select-none' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}

@@ -19,7 +19,7 @@
  *      «Клубы» 1→2→3 и «Тренеры» 1→2→4 (`md`/`xl`) на главной и выдача клубов/тренеров
  *      теми же слайдами на `/catalog` (38.79b: рабочая часть уехала на каталог).
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -299,7 +299,16 @@ describe('Контракт адаптива: колонка героя и сет
     const clubsRail = clubsRoot.querySelector<HTMLElement>('[data-card-slider-rail]');
     expect(clubsRail?.className).toContain('lg:grid-cols-3');
     expect(clubsRail?.style.transform).toBe('');
-    expect(clubsRoot.querySelector('[aria-label="Вперёд"]')?.className).toContain('lg:hidden');
+    // Не только классами: на lg листать нечего — «Вперёд» выключена, drag ленту не двигает.
+    expect(clubsRoot.querySelector('[aria-label="Вперёд"]')).toBeDisabled();
+    const wrapper = clubsRail?.parentElement as HTMLElement;
+    fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
+    expect(clubsRail?.style.transform).toBe('');
+    // Стрелки и точки спрятаны с lg — на обёртке, одним классом.
+    expect(clubsRoot.querySelector('[aria-label="Вперёд"]')?.parentElement?.className).toContain(
+      'lg:hidden',
+    );
 
     const { container: trainersRoot } = render(<HomeTrainers data={homeData} />);
     expect(trainersRoot.querySelector('[data-card-slider-rail]')?.className).toContain(

@@ -2,6 +2,7 @@ export { Badge } from '@/components/ui/Badge';
 export { Button } from '@/components/ui/Button';
 export { Card } from '@/components/ui/Card';
 export { CardSlider } from '@/components/ui/CardSlider';
+export { ChevronIcon } from '@/components/ui/ChevronIcon';
 export { Chip } from '@/components/ui/Chip';
 export { Hint } from '@/components/ui/Hint';
 export { ChipMarquee } from '@/components/ui/ChipMarquee';

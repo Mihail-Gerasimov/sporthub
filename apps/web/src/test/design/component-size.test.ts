@@ -67,7 +67,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/trainers/TrainerDetailPageClient.tsx': 721,
   // 38.52: знак «проверено» в карточке и поле в справочнике тренеров; потолки опущены.
   'src/components/trainers/trainer-preview.ts': 271,
-  'src/components/ui/CardSlider.tsx': 370,
+  'src/components/ui/CardSlider.tsx': 319,
   // 38.43: тексты темы «Публикации» уехали в свой модуль.
   'src/lib/notification-copy.ts': 206,
   // 38.32: сняты четыре мёртвых экспорта, витринные вызовы получили параметры.
