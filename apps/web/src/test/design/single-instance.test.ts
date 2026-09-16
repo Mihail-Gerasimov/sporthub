@@ -124,9 +124,9 @@ describe('Сторожа единственности (38.12)', () => {
     expect(await filesDrawing(CARD_LABELS.clubCard)).toEqual([HOMES.clubCard]);
   });
 
-  // ⚠️ На шаге 38.74 заменить ожидание на `[HOMES.trainerCard]`.
+  // Шаг 38.74: карточка тренера с подписью — ровно в своём файле; вторая — дубль.
   it('trainer-card-single: карточку тренера с подписью рисует ровно столько файлов, сколько приколото', async () => {
-    expect(await filesDrawing(CARD_LABELS.trainerCard)).toEqual([]);
+    expect(await filesDrawing(CARD_LABELS.trainerCard)).toEqual([HOMES.trainerCard]);
   });
 
   // ⚠️ На шаге 38.79 заменить ожидание на `[HOMES.carousel]`: сведение каруселей.

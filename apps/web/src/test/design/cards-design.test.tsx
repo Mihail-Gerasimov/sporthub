@@ -83,25 +83,32 @@ const stubTrainer: TrainerDirectoryItem = {
 };
 
 describe('Минималистичный стиль карточек', () => {
-  describe('TrainerCard', () => {
-    it('не содержит декоративных кругов (упрощённый дизайн)', () => {
+  describe('TrainerCard (38.74 — эталон витрины)', () => {
+    it('покой — тень карточки, наведение — подъём, зелёная рамка и плавающая тень; цвета токенами', () => {
       render(<TrainerCard trainer={stubTrainer} />);
       const card = screen.getByTestId('trainer-card');
-      // Декоративные круги были absolute + rounded-full + border-panel
-      const decorativeCircles = card.querySelectorAll(
-        '.rounded-full.border.border-panel\\/25, .rounded-full.border.border-panel\\/20',
-      );
-      expect(decorativeCircles.length).toBe(0);
+      expect(card.className).toContain('shadow-card');
+      expect(card.className).toContain('hover:-translate-y-[3px]');
+      expect(card.className).toContain('hover:border-lime/40');
+      expect(card.className).toContain('hover:shadow-floating');
+      expect(card.className).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(/i);
     });
 
-    it('аватар-контейнер не содержит shadow-floating', () => {
+    it('зелёная риска сверху 20px, при наведении 36px; аватар 56×56 радиусом 14', () => {
       render(<TrainerCard trainer={stubTrainer} />);
       const card = screen.getByTestId('trainer-card');
-      // Аватар-контейнер — элемент с rounded-[2rem]
-      const avatarContainer = card.querySelector('[class*="rounded-\\[2rem\\]"]');
-      if (avatarContainer) {
-        expect(avatarContainer.className).not.toContain('shadow-floating');
-      }
+      const rule = card.querySelector('.h-\\[3px\\]');
+      expect(rule).not.toBeNull();
+      expect(rule?.className).toContain('w-5');
+      expect(rule?.className).toContain('group-hover:w-9');
+      expect(card.querySelector('.size-14.rounded-\\[14px\\]')).not.toBeNull();
+    });
+
+    it('не содержит декоративных кругов и теней на аватаре (упрощённый дизайн)', () => {
+      render(<TrainerCard trainer={stubTrainer} />);
+      const card = screen.getByTestId('trainer-card');
+      expect(card.querySelector('.rounded-full.blur-')).toBeNull();
+      expect(card.querySelector('.size-14')?.className).not.toContain('shadow-floating');
     });
   });
 

@@ -101,12 +101,12 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
               className="scrollbar-hidden overflow-x-auto py-3"
             >
               <div className="flex min-w-max items-stretch gap-4">
-                {popularTrainers.map((trainer, i) => (
+                {popularTrainers.map((trainer) => (
                   <div
                     key={trainer.id}
                     className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
                   >
-                    <TrainerCard trainer={trainer} index={i} />
+                    <TrainerCard trainer={trainer} />
                   </div>
                 ))}
               </div>

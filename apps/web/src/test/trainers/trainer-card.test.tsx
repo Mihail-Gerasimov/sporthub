@@ -1,20 +1,19 @@
 /*
- * Тесты TrainerCard под новый дизайн Phase 28.9.
- * Карточка собрана 1-в-1 со схемы из claude-design/cards-trainers/sporthub/
- * project/SportHub Cards - Trainers.html (.trainer-card + child grid):
- *   hero (диагональный orange/lime/blank-луч + watermark + city-pill +
- *   avatar 84×84 + role + display-имя как Link + sport-tag) → body-meta
- *   (orange/lime price-pill + distance/окна) → exp-row (опыт + group-chip)
- *   → headline 48px clamp 2 → body-rating + опц. «Новый» → meta-box
- *   «Площадка/Окно» → tags ChipMarquee → quote-row с CTA «К записи».
+ * Тесты TrainerCard — карточка тренера по эталону витрины (фаза 38, шаг 38.74;
+ * `HomePage.tsx:120-160`, чек-лист эталона step-45…48).
  *
- * ⚠️ Фаза 38, шаг 38.25: три случая про бейдж надёжности сняты — предмета нет
- * (реестр `phase-38-reliability-cut.md`, Т4).
+ * Форма — из макета: белая карточка радиусом 18 с отступом 18, зелёная риска сверху,
+ * аватар 56×56 с зелёной рамкой и точкой у доступного, имя, специализация, звезда
+ * с рейтингом и отзывами, цена «от N», чип «Доступен сейчас». Логика — наша (реестр
+ * № 97–108): чип считается от расписания дня, а не флагом; вся карточка ведёт на
+ * СТРАНИЦУ тренера; «К записи» — отдельная ссылка на ближайшее окно; «Площадка /
+ * Ближайшее окно», «N лет опыта», «Группа», sport-tag, лента специализаций и цитата
+ * остаются; знак «проверено» по `verifiedAt`; hover имени — классом, не строкой.
  *
- * jsdom не считает layout (scrollWidth=0), ChipMarquee внутри карточки
- * пройдёт по ветке no-loop. Для тестов важна только структура DOM.
+ * Подпись `aria-label="Карточка тренера: …"` — контракт единственности
+ * (сторож `trainer-card-single`).
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrainerCard } from '@/components/trainers/TrainerCard';
@@ -53,7 +52,15 @@ const baseTrainer: TrainerDirectoryItem = {
   searchText: 'марина соколова плавание volna aquatic club',
 };
 
-describe('TrainerCard (Phase 28)', () => {
+const busyTrainer: TrainerDirectoryItem = {
+  ...baseTrainer,
+  nextSlotId: null,
+  nextSlotDate: null,
+  nextSlotStartTime: null,
+  availableSlotsCount: 0,
+};
+
+describe('TrainerCard (38.74)', () => {
   beforeEach(() => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
@@ -62,206 +69,151 @@ describe('TrainerCard (Phase 28)', () => {
     vi.restoreAllMocks();
   });
 
-  it('рендерится как <article>, без обёртки <a> вокруг всей карточки', () => {
+  it('карточка — <article> с подписью «Карточка тренера: имя», без обёртки <a>', () => {
     render(<TrainerCard trainer={baseTrainer} />);
-    const card = screen.getByTestId('trainer-card');
-    expect(card.tagName).toBe('ARTICLE');
+
+    const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
+
+    expect(card).toHaveAttribute('data-testid', 'trainer-card');
     expect(card.closest('a')).toBeNull();
   });
 
-  it('два независимых Link — на имя (/trainers/[slug]) и на CTA «К записи»', () => {
+  it('две независимые ссылки: имя растянуто на карточку → страница тренера, «К записи» → окно', () => {
     render(<TrainerCard trainer={baseTrainer} />);
 
-    const nameLink = screen.getByRole('link', { name: 'Марина Соколова' });
-    expect(nameLink.getAttribute('href')).toBe('/trainers/marina-sokolova');
+    const name = screen.getByRole('link', { name: 'Марина Соколова' });
 
-    const ctaLink = screen.getByRole('link', { name: /К записи/i });
-    expect(ctaLink.getAttribute('href')).toBe('/booking/1');
-
-    // Имя НЕ внутри CTA-Link и наоборот
-    expect(nameLink.contains(ctaLink)).toBe(false);
-    expect(ctaLink.contains(nameLink)).toBe(false);
+    expect(name).toHaveAttribute('href', '/trainers/marina-sokolova');
+    expect(name.className).toContain('after:absolute');
+    // Hover имени — классом, а не собранной строкой (реестр № 108).
+    expect(name.className).toContain('hover:text-lime-hov');
+    expect(screen.getByRole('link', { name: /К записи/ })).toHaveAttribute('href', '/booking/1');
   });
 
-  it('CTA href = /trainers/[slug] если nextSlotId=null', () => {
-    const noSlotTrainer: TrainerDirectoryItem = { ...baseTrainer, nextSlotId: null };
-    render(<TrainerCard trainer={noSlotTrainer} />);
+  it('без ближайшего окна «К записи» ведёт на профиль, а окно — «Слоты скоро появятся»', () => {
+    render(<TrainerCard trainer={busyTrainer} />);
 
-    const ctaLink = screen.getByRole('link', { name: /К записи/i });
-    expect(ctaLink.getAttribute('href')).toBe('/trainers/marina-sokolova');
+    expect(screen.getByRole('link', { name: /К записи/ })).toHaveAttribute(
+      'href',
+      '/trainers/marina-sokolova',
+    );
+    expect(screen.getByText('Слоты скоро появятся')).toBeInTheDocument();
   });
 
-  it('slot текст = «Слоты скоро появятся» если nextSlotDate=null', () => {
-    const noSlotTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      nextSlotId: null,
-      nextSlotDate: null,
-      nextSlotStartTime: null,
-    };
-    render(<TrainerCard trainer={noSlotTrainer} />);
-    expect(screen.getByText(/Слоты скоро появятся/)).toBeInTheDocument();
+  it('чип «Доступен сейчас» — от расписания дня: есть свободное окно — чип, зелёная рамка и точка; нет — ничего', () => {
+    const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
+
+    expect(screen.getByText('Доступен сейчас')).toBeInTheDocument();
+    expect(screen.getByTestId('trainer-card')).toHaveAttribute('data-available', 'true');
+
+    unmount();
+    render(<TrainerCard trainer={busyTrainer} />);
+
+    expect(screen.queryByText('Доступен сейчас')).not.toBeInTheDocument();
+    expect(screen.getByTestId('trainer-card')).toHaveAttribute('data-available', 'false');
   });
 
-  it('index=0 → tone=orange + watermark "01"', () => {
-    render(<TrainerCard trainer={baseTrainer} index={0} />);
-    const card = screen.getByTestId('trainer-card');
-    expect(card.getAttribute('data-tone')).toBe('orange');
-    expect(card.textContent).toContain('01');
+  it('аватар 56×56 — из avatarUrl с именем в alt; без адреса или при ошибке — инициалы', () => {
+    const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
+
+    const photo = screen.getByRole('img', { name: 'Марина Соколова' });
+
+    expect(photo).toHaveAttribute('src', '/images/trainers/marina.jpg');
+
+    fireEvent.error(photo);
+
+    expect(screen.queryByRole('img', { name: 'Марина Соколова' })).not.toBeInTheDocument();
+    expect(screen.getByText('МС')).toBeInTheDocument();
+
+    unmount();
+    render(<TrainerCard trainer={{ ...baseTrainer, avatarUrl: '' }} />);
+
+    expect(screen.getByText('МС')).toBeInTheDocument();
   });
 
-  it('index=1 → tone=lime + watermark "02"', () => {
-    render(<TrainerCard trainer={baseTrainer} index={1} />);
-    const card = screen.getByTestId('trainer-card');
-    expect(card.getAttribute('data-tone')).toBe('lime');
-    expect(card.textContent).toContain('02');
+  it('специализация под именем — название первой услуги, иначе био', () => {
+    const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
+
+    expect(screen.getByText('Персональная тренировка')).toBeInTheDocument();
+
+    unmount();
+    render(<TrainerCard trainer={{ ...baseTrainer, primaryOfferingTitle: null }} />);
+
+    expect(screen.getAllByText('Тренер по плаванию.').length).toBeGreaterThan(0);
   });
 
-  it('index=2 → tone=blank', () => {
-    render(<TrainerCard trainer={baseTrainer} index={2} />);
-    expect(screen.getByTestId('trainer-card').getAttribute('data-tone')).toBe('blank');
-  });
+  it('рейтинг со звездой и подписью для диктора, отзывы и цена; без рейтинга — «Новый»', () => {
+    const { unmount } = render(
+      <TrainerCard trainer={{ ...baseTrainer, rating: 4.9, reviewCount: 31 }} />,
+    );
 
-  it('reviewCount=0 && rating=0 → бейдж «Новый»', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.getByTestId('trainer-card-new-badge')).toBeInTheDocument();
-  });
-
-  it('reviewCount>0 → бейдж «Новый» отсутствует', () => {
-    render(<TrainerCard trainer={{ ...baseTrainer, reviewCount: 28, rating: 4.9 }} />);
+    expect(screen.getByRole('img', { name: 'Рейтинг: 4.9 из 5' })).toBeInTheDocument();
+    expect(screen.getByText('(31)')).toBeInTheDocument();
+    expect(screen.getByText(/^от\s+1\s?400/)).toBeInTheDocument();
     expect(screen.queryByTestId('trainer-card-new-badge')).not.toBeInTheDocument();
-  });
 
-  it('primaryOfferingFormat="group" → отображает chip «Группа»', () => {
-    const groupTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      primaryOfferingFormat: 'group',
-    };
-    render(<TrainerCard trainer={groupTrainer} />);
-    expect(screen.getByText('Группа')).toBeInTheDocument();
-  });
-
-  it('primaryOfferingFormat="mini_group" → отображает chip «Группа»', () => {
-    const miniTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      primaryOfferingFormat: 'mini_group',
-    };
-    render(<TrainerCard trainer={miniTrainer} />);
-    expect(screen.getByText('Группа')).toBeInTheDocument();
-  });
-
-  it('primaryOfferingFormat="personal" → chip «Группа» отсутствует', () => {
+    unmount();
     render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.queryByText('Группа')).not.toBeInTheDocument();
+
+    expect(screen.getByTestId('trainer-card-new-badge')).toHaveTextContent('Новый');
+    expect(screen.queryByRole('img', { name: /Рейтинг/ })).not.toBeInTheDocument();
   });
 
-  it('отображает venue.name в meta-box и опционально sub (venueAddress)', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
+  it('наше остаётся: sport-tag, «N лет опыта», «Группа» по формату, площадка и окно, специализации лентой', () => {
+    render(<TrainerCard trainer={{ ...baseTrainer, primaryOfferingFormat: 'mini_group' }} />);
+
+    expect(screen.getByText('Плавание')).toBeInTheDocument();
+    expect(screen.getByText('9 лет опыта')).toBeInTheDocument();
+    expect(screen.getByText('Группа')).toBeInTheDocument();
     expect(screen.getByText('Площадка')).toBeInTheDocument();
     expect(screen.getByText('Volna Aquatic Club')).toBeInTheDocument();
     expect(screen.getByText('Ближайшее окно')).toBeInTheDocument();
+    expect(screen.getByText('Подготовка к соревнованиям')).toBeInTheDocument();
   });
 
-  it('venueLabel пустой → fallback «Без привязки»', () => {
-    const noVenueTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      venueName: null,
-      venueLabel: '',
-      venueAddress: '',
-    };
-    render(<TrainerCard trainer={noVenueTrainer} />);
+  it('«Группа» не рисуется у персонального формата; без площадки — «Без привязки»', () => {
+    render(
+      <TrainerCard
+        trainer={{ ...baseTrainer, venueName: null, venueLabel: '', venueAddress: '' }}
+      />,
+    );
+
+    expect(screen.queryByText('Группа')).not.toBeInTheDocument();
     expect(screen.getByText('Без привязки')).toBeInTheDocument();
   });
 
-  it('headline = primaryOfferingTitle когда оно есть', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.getByText('Персональная тренировка')).toBeInTheDocument();
-  });
+  it('расстояние либо «N окон» со склонением из словаря', () => {
+    const { unmount } = render(<TrainerCard trainer={baseTrainer} />);
 
-  it('headline = bio когда primaryOfferingTitle = null', () => {
-    const noOfferingTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      primaryOfferingTitle: null,
-    };
-    render(<TrainerCard trainer={noOfferingTrainer} />);
-    expect(screen.getByText('Тренер по плаванию.')).toBeInTheDocument();
-  });
+    expect(screen.getByText('1.8 км')).toBeInTheDocument();
 
-  it('quote-row пуст когда headline === bio (не дублируем)', () => {
-    const sameTrainer: TrainerDirectoryItem = {
-      ...baseTrainer,
-      primaryOfferingTitle: null,
-      bio: 'Уникальное био тренера.',
-    };
-    render(<TrainerCard trainer={sameTrainer} />);
-    // bio показывается в headline, в quote — не должно быть второго вхождения
-    const matches = screen.getAllByText('Уникальное био тренера.');
-    expect(matches).toHaveLength(1);
-  });
-
-  it('отображает sport-tag из trainer.sports[0]', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.getByText('Плавание')).toBeInTheDocument();
-  });
-
-  it('city eyebrow содержит "г. Самара"', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.getByText(/г\. Самара/)).toBeInTheDocument();
-  });
-
-  it('experience tag = "{N} лет опыта"', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.getByText('9 лет опыта')).toBeInTheDocument();
-  });
-
-  it('distance fallback с правильным склонением (1 окно / 3 окна / 5 окон)', () => {
-    const t1: TrainerDirectoryItem = {
-      ...baseTrainer,
-      distanceKm: null,
-      availableSlotsCount: 1,
-    };
-    const { unmount } = render(<TrainerCard trainer={t1} />);
-    expect(screen.getByText('1 окно')).toBeInTheDocument();
     unmount();
+    render(<TrainerCard trainer={{ ...baseTrainer, distanceKm: null, availableSlotsCount: 3 }} />);
 
-    const t3: TrainerDirectoryItem = { ...baseTrainer, distanceKm: null, availableSlotsCount: 3 };
-    const { unmount: u2 } = render(<TrainerCard trainer={t3} />);
     expect(screen.getByText('3 окна')).toBeInTheDocument();
-    u2();
+  });
 
-    const t5: TrainerDirectoryItem = { ...baseTrainer, distanceKm: null, availableSlotsCount: 5 };
-    render(<TrainerCard trainer={t5} />);
-    expect(screen.getByText('5 окон')).toBeInTheDocument();
+  it('highlighted → атрибут и зелёная рамка', () => {
+    render(<TrainerCard trainer={baseTrainer} highlighted />);
+
+    expect(screen.getByTestId('trainer-card')).toHaveAttribute('data-highlighted', 'true');
+    expect(screen.getByTestId('trainer-card').className).toContain('border-lime');
   });
 
   // Фаза 38, шаг 38.52: знак «проверено» — по полю `verifiedAt`, подпись по виду лица.
-  it('у проверенного тренера стоит знак «Тренер проверен» с подсказкой', () => {
-    render(<TrainerCard trainer={{ ...baseTrainer, verifiedAt: '2026-09-15T10:00:00.000Z' }} />);
+  it('у проверенного тренера стоит знак «Тренер проверен» с подсказкой; без verifiedAt знака нет', () => {
+    const { unmount } = render(
+      <TrainerCard trainer={{ ...baseTrainer, verifiedAt: '2026-09-15T10:00:00.000Z' }} />,
+    );
 
     const badge = screen.getByTestId('verified-badge');
 
     expect(badge).toHaveTextContent('Тренер проверен');
     expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
-  });
 
-  it('без verifiedAt знака «проверено» нет', () => {
+    unmount();
     render(<TrainerCard trainer={baseTrainer} />);
 
     expect(screen.queryByTestId('verified-badge')).not.toBeInTheDocument();
-  });
-
-  it('highlighted=true → атрибут data-highlighted="true"', () => {
-    render(<TrainerCard trainer={baseTrainer} highlighted />);
-    expect(screen.getByTestId('trainer-card').getAttribute('data-highlighted')).toBe('true');
-  });
-
-  it('отображает имена specialties как чипы в marquee', () => {
-    const trainerWithNames: TrainerDirectoryItem = {
-      ...baseTrainer,
-      specialtyIds: [1, 2],
-      specialtyNames: ['Подготовка к соревнованиям', 'Реабилитация'],
-    };
-    render(<TrainerCard trainer={trainerWithNames} />);
-    expect(screen.getByText('Подготовка к соревнованиям')).toBeInTheDocument();
-    expect(screen.getByText('Реабилитация')).toBeInTheDocument();
   });
 });

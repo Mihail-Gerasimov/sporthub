@@ -43,12 +43,11 @@ export function TrainerList({ selectedTrainerId = null, trainers }: TrainerListP
       total={filteredTrainers.length}
       emptyMessage="По текущему запросу тренеров не найдено. Попробуй очистить поиск или выбрать другое направление."
     >
-      {filteredTrainers.map((trainer, i) => (
+      {filteredTrainers.map((trainer) => (
         <TrainerCard
           key={trainer.id}
           highlighted={selectedTrainerId === trainer.id}
           trainer={trainer}
-          index={i}
         />
       ))}
     </CardSlider>

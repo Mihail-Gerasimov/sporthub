@@ -63,7 +63,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/profile/provider/ProviderLinks.tsx': 670,
   'src/components/profile/provider/ProviderPublications.tsx': 238,
   'src/components/profile/provider/ProviderStats.tsx': 365,
-  'src/components/trainers/TrainerCard.tsx': 219,
+  // 38.74: карточка тренера переписана по эталону и ушла под порог — запись снята.
   'src/components/trainers/TrainerDetailPageClient.tsx': 721,
   // 38.52: знак «проверено» в карточке и поле в справочнике тренеров; потолки опущены.
   'src/components/trainers/trainer-preview.ts': 275,

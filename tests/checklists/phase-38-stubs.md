@@ -17,6 +17,7 @@
 | `apps/api/src/repositories/prisma/entities.repository.ts` | запись и чтение той же переходной колонки `sportId`                   | вместе со схемой                                                                   | долг, вне фазы |
 | `packages/types/src/types.ts`                             | поле `Trainer.sportId` в контракте — переходная совместимость         | `primarySportId`                                                                   | долг, вне фазы |
 | `apps/web/src/components/clubs/ClubCard.tsx`               | заглушка «Фото клуба» на карточке витрины, пока у клуба нет `imageUrls[0]` | загрузка фото владельцем — долг Д-10; заглушка остаётся честным пустым состоянием | долг, вне фазы |
+| `apps/web/src/components/trainers/TrainerCard.tsx`         | инициалы вместо фото тренера на карточке витрины, пока нет `avatarUrl`      | загрузка фото тренером — долг Д-10                                                 | долг, вне фазы |
 
 ## Как добавить заглушку
 
