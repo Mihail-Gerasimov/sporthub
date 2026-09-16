@@ -1,6 +1,6 @@
 // Phase 24: централизованные наборы статусов booking для фильтрации в helper'ах.
 // Импортируются из athlete-bookings, provider-helpers, athlete-achievements, athlete-favorites
-// и будущих reliability-утилит (Step 24.12). Единый источник правды вместо локальных Set'ов
+// (Step 24.12). Единый источник правды вместо локальных Set'ов
 // в каждом компоненте — снижает риск рассинхрона при добавлении новых статусов FSM.
 
 import type { BookingStatus } from '@sporthub/types';

@@ -81,17 +81,8 @@ const HISTORICAL_LOG_ACTION = /\breliability_recompute\b/g;
  * вернулась, — это не «ещё не вырезано», а «вернулось», и он краснит сторож.
  */
 const PENDING: Record<string, string> = {
-  // Бэкенд — шаг 38.23: вычищен, записей нет.
-  // Фронт — шаг 38.25: вычищен, включая переименование набора статусов истории
-  // клиента (`CLIENT_HISTORY_STATUSES` в `booking-scopes.ts` и `face-scope.ts`).
-  // Одна строка осталась: текст уведомления о неявке обещает влияние на рейтинг —
-  // файл на волне 2 закреплён за другим агентом, правка одной строки ждёт его.
-  'apps/web/src/lib/notification-copy.ts': '38.25',
-  // Домен и типы — шаг 38.26.
-  'packages/domain/src/discipline-config.ts': '38.26',
-  'packages/domain/src/index.ts': '38.26',
-  'packages/domain/src/reliability.ts': '38.26',
-  'packages/types/src/types.ts': '38.26',
+  // Этап Э3 закрыт (38.22–38.26): список пуст. Новая запись здесь — не «ещё
+  // не вырезано», а «вернулось»: см. правило у объявления.
 };
 
 /**

@@ -51,7 +51,7 @@ const COPY_MAP: Record<NotificationType, CopyResolver> = {
   }),
   booking_no_show: () => ({
     title: 'Отмечено «не пришёл»',
-    description: 'Провайдер зафиксировал неявку. Это влияет на ваш рейтинг надёжности.',
+    description: 'Провайдер зафиксировал неявку — занятие засчитано как пропущенное.',
   }),
   booking_auto_expired: () => ({
     title: 'Тренировка отменена автоматически',

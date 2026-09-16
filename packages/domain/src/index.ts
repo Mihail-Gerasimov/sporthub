@@ -1,7 +1,7 @@
 // Точка входа пакета @sporthub/domain.
 // Чистая доменная логика без ввода-вывода: она не знает ни про файловую систему,
 // ни про HTTP, ни про SQL. Поэтому её одинаково используют и фронт (apps/web),
-// и бэкенд (apps/api) — расчёт надёжности не имеет права разойтись между ними.
+// и бэкенд (apps/api) — одно правило не имеет права разойтись между ними.
 export * from './account-kind';
 export * from './brand';
 export * from './booking-status';
@@ -13,7 +13,6 @@ export * from './athlete-timeline-format';
 export * from './notification-types';
 export * from './notification-addressee';
 export * from './permissions';
-export * from './reliability';
 export * from './sorting';
 export * from './text-normalization';
 export * from './trainer-sports';
