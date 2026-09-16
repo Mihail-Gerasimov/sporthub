@@ -90,34 +90,66 @@ export function appendixA(markdown: string): string {
   return start < 0 ? markdown : markdown.slice(start, end < 0 ? undefined : end);
 }
 
-/** Строки таблицы приложения А: 7 ячеек, вторая — testid в обратных кавычках. */
+/** Ячейки строки таблицы без крайних пустых от ведущей и замыкающей `|`. */
+function tableCells(line: string): string[] {
+  const cells = line.split('|').map((cell) => cell.trim());
+
+  // Ведущая `|` даёт пустую первую ячейку; замыкающая — пустую последнюю (их может
+  // быть и две, если строку выровняли с лишней `|` — ревью 38.13a).
+  while (cells.length > 0 && cells[0] === '') cells.shift();
+  while (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+
+  return cells;
+}
+
+/**
+ * Строки таблицы приложения А — по ИМЕНАМ колонок из её шапки (`testid`, `Статус`,
+ * `Причина`, `Переехал в`), а не по счёту ячеек: прежний разбор ждал ровно семь и на
+ * строке с лишней `|` молча давал ноль строк — зелёный сторож над пустотой.
+ * Шапка не найдена или без нужных колонок — ноль строк; обратная половина внизу
+ * приколота к числу записей и это заметит.
+ */
 export function parseTestidRows(markdown: string): TestidRow[] {
   const rows: TestidRow[] = [];
+  let columns: Record<'testid' | 'status' | 'reason' | 'movedTo', number> | null = null;
 
   for (const line of appendixA(markdown).split('\n')) {
     if (!line.startsWith('|')) continue;
 
-    const cells = line
-      .split('|')
-      .slice(1, -1)
-      .map((cell) => cell.trim());
+    const cells = tableCells(line);
 
-    if (cells.length !== 7) continue;
+    if (columns === null) {
+      const index = (name: string) => cells.findIndex((cell) => cell.toLowerCase() === name);
+      const header = {
+        testid: index('testid'),
+        status: index('статус'),
+        reason: index('причина'),
+        movedTo: index('переехал в'),
+      };
 
-    const testid = cells[1].match(/^`([^`]+)`/);
+      if (Object.values(header).every((i) => i >= 0)) columns = header;
+      continue;
+    }
+
+    if (cells.length <= Math.max(...Object.values(columns))) continue;
+
+    const testid = cells[columns.testid].match(/^`([^`]+)`/);
 
     if (!testid) continue;
 
     rows.push({
       testid: testid[1],
-      status: cells[4].replace(/\*/g, '').trim(),
-      reason: cells[5],
-      movedTo: cells[6].replace(/`/g, '').trim(),
+      status: cells[columns.status].replace(/\*/g, '').trim(),
+      reason: cells[columns.reason],
+      movedTo: cells[columns.movedTo].replace(/`/g, '').trim(),
     });
   }
 
   return rows;
 }
+
+/** Строк в приложении А на день правки — реестр только растёт (новые testid), не тает. */
+const APPENDIX_ROWS_TODAY = 22;
 
 /** Data-атрибуты из таблицы «Атрибуты-контракты»: все `data-*` в первой ячейке. */
 export function parseDataAttributes(markdown: string): { name: string; removed: boolean }[] {
@@ -220,7 +252,8 @@ describe('Сторож: реестр контрактов разметки (38.1
     const present = new Set(testidsIn((await areaText()).text));
     const missing: string[] = [];
 
-    expect(rows.length).toBeGreaterThan(15);
+    // Обратная половина: разобрано не меньше, чем записано на день правки.
+    expect(rows.length).toBeGreaterThanOrEqual(APPENDIX_ROWS_TODAY);
 
     for (const row of rows) {
       if (row.status === 'остаётся' && !present.has(normalizeTemplate(row.testid))) {
@@ -319,11 +352,14 @@ describe('Сторож: реестр контрактов разметки (38.1
     // Переменная — непроверяемый контракт, половина (б) его не пропустит.
     expect(testidsIn('data-testid={testId}')).toEqual(['<непроверяемый>']);
 
-    // Строка реестра разбирается со статусом, причиной и новым именем.
+    // Строка реестра разбирается со статусом, причиной и новым именем — по шапке;
+    // лишняя замыкающая `|` (строка выровнена с пустой ячейкой) разбор не ломает.
+    const header =
+      '| # | testid | Файл:строка | Достижим с главной | Статус | Причина | Переехал в | |';
     const row =
-      '| 2 | `club-card` | `x.tsx:1` | да | переехал | карточка витрины | `catalog-club-card` |';
+      '| 2 | `club-card` | `x.tsx:1` | да | переехал | карточка витрины | `catalog-club-card` | |';
 
-    expect(parseTestidRows(row)).toEqual([
+    expect(parseTestidRows(`${header}\n${row}`)).toEqual([
       {
         testid: 'club-card',
         status: 'переехал',
@@ -331,6 +367,8 @@ describe('Сторож: реестр контрактов разметки (38.1
         movedTo: 'catalog-club-card',
       },
     ]);
+    // Без шапки с именами колонок строк нет — и это ловит приколотое число.
+    expect(parseTestidRows(row)).toEqual([]);
     // Пустая причина — узнаётся (диверсия д-15).
     expect(isBlank('—')).toBe(true);
     expect(isBlank('решение заказчика')).toBe(false);
@@ -357,7 +395,7 @@ describe('Сторож: реестр контрактов разметки (38.1
     // Строки основного реестра (не приложения А) за контракты не принимаются.
     expect(
       parseTestidRows(
-        '| 75 | `MapPreviewSection` | `x` | y | нет | ВЫКИНУТЬ | z |\n# А)\n| 1 | `a` | `x` | y | остаётся | — | — |\n# Б)\n| 2 | `b` | `x` | y | нет | z | w |',
+        `| 75 | \`MapPreviewSection\` | \`x\` | y | нет | ВЫКИНУТЬ | z |\n# А)\n${header}\n| 1 | \`a\` | \`x\` | y | остаётся | — | — |\n# Б)\n| 2 | \`b\` | \`x\` | y | нет | z | w |`,
       ).map((r) => r.testid),
     ).toEqual(['a']);
   });
