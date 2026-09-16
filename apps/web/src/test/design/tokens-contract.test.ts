@@ -185,7 +185,79 @@ export function decorShorthandOffenders(css: string): string[] {
   return offenders;
 }
 
+/** Цвет `#rrggbb` или `rgba(r, g, b, a)` → [r, g, b, a]. */
+function parseColor(value: string): [number, number, number, number] | null {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
+  if (hex) {
+    const n = parseInt(hex[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
+  }
+  const rgba = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)$/i.exec(
+    value.trim(),
+  );
+  if (rgba)
+    return [
+      Number(rgba[1]),
+      Number(rgba[2]),
+      Number(rgba[3]),
+      rgba[4] === undefined ? 1 : Number(rgba[4]),
+    ];
+  return null;
+}
+
+/** Контраст WCAG двух цветов; полупрозрачный текст сначала кладётся на фон. */
+export function contrastRatio(foreground: string, background: string): number | null {
+  const fg = parseColor(foreground);
+  const bg = parseColor(background);
+  if (!fg || !bg) return null;
+  const blended = fg.map((c, i) => (i === 3 ? 1 : c * fg[3] + bg[i] * (1 - fg[3])));
+  const luminance = ([r, g, b]: number[]) => {
+    const f = (c: number) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const [hi, lo] = [luminance(blended), luminance(bg)].sort((a, b) => b - a);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Пары «текст на поверхности», которые палитра обязана держать на AA (4,5:1):
+ * приглушённый и тёмно-зелёный текст на светлых поверхностях, чернила на лайме,
+ * белый и приглушённый белый на плашке. Порог — по WCAG для обычного текста.
+ */
+const AA_PAIRS: Array<[text: string, surface: string]> = [
+  ['--ui-muted', '--ui-bg'],
+  ['--ui-muted', '--ui-card'],
+  ['--ui-muted', '--ui-card-2'],
+  ['--ui-lime-hov', '--ui-bg'],
+  ['--ui-lime-hov', '--ui-card'],
+  ['--ui-ink', '--ui-lime'],
+  ['--ui-ink', '--ui-bg'],
+  ['--ui-plate-ink', '--ui-plate'],
+  ['--ui-plate-muted', '--ui-plate'],
+];
+
 describe('Сторож: контракт токенов палитры (38.7)', () => {
+  it('пары палитры «текст на поверхности» держат AA 4,5:1 (38.97: muted на холсте был 4,47)', () => {
+    const { root } = readGlobals();
+    const values = new Map(declaredTokens(root).map((t) => [t.name, t.value]));
+    const failing: string[] = [];
+
+    for (const [text, surface] of AA_PAIRS) {
+      const ratio = contrastRatio(values.get(text) ?? '', values.get(surface) ?? '');
+
+      if (ratio === null) failing.push(`${text} на ${surface}: цвет не разобран`);
+      else if (ratio < 4.5) failing.push(`${text} на ${surface}: ${ratio.toFixed(2)}:1`);
+    }
+
+    expect(failing).toEqual([]);
+    // Обратная половина: прежнее значение muted на холсте — ниже порога.
+    expect(contrastRatio('#6b7280', '#f4f6f9')!).toBeLessThan(4.5);
+    expect(contrastRatio('rgba(255, 255, 255, 0.45)', '#111111')!).toBeGreaterThan(4.5);
+  });
+
   it('декор-токены — только `background-image`; сокращённое `background:` лишь у псевдоэлементов', () => {
     const css = stripComments(readFileSync(GLOBALS_PATH, 'utf8'));
     expect(decorShorthandOffenders(css)).toEqual([]);
