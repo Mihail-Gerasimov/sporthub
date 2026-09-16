@@ -7,14 +7,16 @@
  *   1. Hero (1-col без gallery): meta-chips → eyebrow → name (Bowlby)
  *      → addr → rating → описание → stat-rail (Контакты / Цена от)
  *      → ChipMarquee (теги + удобства) → CTA-row.
- *   2. Reliability — секция с ReliabilityBadge showDetails (как было).
- *   3. Sport focus — направления клуба (icon + name + sub).
- *   4. Coaching team — coach-grid 2-col с watermark номера, Link на тренера.
- *   5. Weekly schedule — DetailScheduleWeek (week-tabs anchor today).
- *   6. Reviews + form — review-list (+ Rating справа) и форма отзыва
+ *   2. Sport focus — направления клуба (icon + name + sub).
+ *   3. Coaching team — coach-grid 2-col с watermark номера, Link на тренера.
+ *   4. Weekly schedule — DetailScheduleWeek (week-tabs anchor today).
+ *   5. Reviews + form — review-list (+ Rating справа) и форма отзыва
  *      (zod + POST /api/reviews + auth-gating — БЕЗ ИЗМЕНЕНИЙ).
  *
- * Логика отзыва, booking-href `/booking/[id]`, ReliabilityBadge — без
+ * ⚠️ Фаза 38, шаг 38.25: секция «Надёжность» вырезана вместе с механизмом
+ * (решение заказчика 15.09.2026).
+ *
+ * Логика отзыва, booking-href `/booking/[id]` — без
  * изменений. Изменилось расписание: показываем ТОЛЬКО слоты текущей
  * ISO-недели (anchor today), переключение по day-tabs внутри
  * DetailScheduleWeek.
@@ -24,14 +26,13 @@ import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Button, Rating, ReliabilityBadge } from '@/components/ui';
+import { Button, Rating } from '@/components/ui';
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
 import {
   DetailScheduleWeek,
   type DetailScheduleSlot,
 } from '@/components/detail-shared/DetailScheduleWeek';
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
-import type { ReliabilityResult } from '@sporthub/domain';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import { useToastStore } from '@/stores/useToastStore';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
@@ -67,8 +68,6 @@ type ClubDetailPageClientProps = {
   sports: Sport[];
   tags: Tag[];
   trainers: Trainer[];
-  /** Phase 25 Step 25.13: рейтинг надёжности клуба. Если передан — рендерится секция «Надёжность». */
-  reliability?: ReliabilityResult;
 };
 
 type ReviewFormState = {
@@ -226,7 +225,6 @@ export function ClubDetailPageClient({
   sports,
   tags,
   trainers,
-  reliability,
 }: ClubDetailPageClientProps) {
   const sessionUser = useAuthStore((state) => state.user);
   // ⚠️ Шаг 35.34. Кто записывается и пишет отзывы — любой вошедший человек,
@@ -526,28 +524,6 @@ export function ClubDetailPageClient({
             </div>
           </div>
         </section>
-
-        {/* ═══ Reliability ═══ */}
-        {reliability ? (
-          <section
-            data-testid="club-reliability-section"
-            className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
-                  Reliability
-                </p>
-                <h2 className="font-display text-[22px] text-ink md:text-[26px]">Надёжность</h2>
-                <p className="mt-2 max-w-prose font-body text-sm leading-relaxed text-muted">
-                  Рейтинг считается по фактическим записям: completed vs no_show. Помогает атлетам
-                  выбрать клуб осознанно.
-                </p>
-              </div>
-              <ReliabilityBadge reliability={reliability} showDetails />
-            </div>
-          </section>
-        ) : null}
 
         {/* ═══ Sport focus — Направления клуба ═══ */}
         <section

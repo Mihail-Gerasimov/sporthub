@@ -30,7 +30,6 @@ import {
   getTrainerClubLinks,
 } from '@/lib/server-api';
 import { formatDate, formatPrice, getDateKeyInTimeZone } from '@/lib/utils';
-import { reliabilityByEntityId } from '@/lib/reliability-map';
 
 // Витрина читает живые JSON-данные после publish/edit/delete провайдеров.
 export const dynamic = 'force-dynamic';
@@ -72,15 +71,6 @@ export default async function Home() {
     getPublishedClubs({ sort: 'rating', limit: 1 }),
     getPublishedTrainers({ sort: 'rating', limit: 1 }),
   ]);
-
-  // Публичные бейджи надёжности приходят ГОТОВЫМИ вместе с карточками каталога.
-  //
-  // ⚠️ Раньше страница считала их сама и ради этого забирала записи ВСЕЙ площадки —
-  // тысячи строк с ценами и историей статусов ради двух чисел на карточку. Когда
-  // фаза 34 закрыла полный срез записей от гостя, главная перестала открываться
-  // вовсе: витрина требовала входа не ради данных, а ради бейджа.
-  const reliabilityByClubId = reliabilityByEntityId(clubs);
-  const reliabilityByTrainerId = reliabilityByEntityId(trainers);
 
   // Момент передаётся явно: без аргумента форматирование берёт время в обход
   // подменённых часов, и зафиксировать расчёт тестом становится нечем.
@@ -416,16 +406,12 @@ export default async function Home() {
           sports={searchFilterSports}
           tags={tags}
           trainers={trainerDirectory}
-          reliabilityByClubId={reliabilityByClubId}
-          reliabilityByTrainerId={reliabilityByTrainerId}
         />
         <PopularNearby
           clubs={clubs}
           sports={searchFilterSports}
           tags={tags}
           trainers={trainerDirectory}
-          reliabilityByClubId={reliabilityByClubId}
-          reliabilityByTrainerId={reliabilityByTrainerId}
         />
         <UpcomingSessions
           dateLabel={upcomingSessionsLabel}

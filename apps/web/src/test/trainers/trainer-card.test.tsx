@@ -5,9 +5,11 @@
  *   hero (диагональный orange/lime/blank-луч + watermark + city-pill +
  *   avatar 84×84 + role + Bowlby-имя как Link + sport-tag) → body-meta
  *   (orange/lime price-pill + distance/окна) → exp-row (опыт + group-chip)
- *   → headline 48px clamp 2 → body-rating + опц. «Новый» → опц.
- *   ReliabilityBadge отдельной строкой → meta-box «Площадка/Окно» →
- *   tags ChipMarquee → quote-row с CTA «К записи».
+ *   → headline 48px clamp 2 → body-rating + опц. «Новый» → meta-box
+ *   «Площадка/Окно» → tags ChipMarquee → quote-row с CTA «К записи».
+ *
+ * ⚠️ Фаза 38, шаг 38.25: три случая про бейдж надёжности сняты — предмета нет
+ * (реестр `phase-38-reliability-cut.md`, Т4).
  *
  * jsdom не считает layout (scrollWidth=0), ChipMarquee внутри карточки
  * пройдёт по ветке no-loop. Для тестов важна только структура DOM.
@@ -234,50 +236,6 @@ describe('TrainerCard (Phase 28)', () => {
   it('highlighted=true → атрибут data-highlighted="true"', () => {
     render(<TrainerCard trainer={baseTrainer} highlighted />);
     expect(screen.getByTestId('trainer-card').getAttribute('data-highlighted')).toBe('true');
-  });
-
-  it('ReliabilityBadge рендерится при badge=danger', () => {
-    render(
-      <TrainerCard
-        trainer={baseTrainer}
-        reliability={{
-          totalRelevant: 10,
-          completedCount: 6,
-          noShowCount: 4,
-          lateCancelCount: 0,
-          rejectedByProviderCount: 0,
-          completionRate: 0.6,
-          badge: 'danger',
-          isNewUser: false,
-        }}
-      />,
-    );
-    expect(screen.getByTestId('reliability-badge-danger')).toBeInTheDocument();
-  });
-
-  it('ReliabilityBadge скрыт при isNewUser=true (не дублирует rating-row «Новый»)', () => {
-    render(
-      <TrainerCard
-        trainer={baseTrainer}
-        reliability={{
-          totalRelevant: 1,
-          completedCount: 1,
-          noShowCount: 0,
-          lateCancelCount: 0,
-          rejectedByProviderCount: 0,
-          completionRate: 1,
-          badge: null,
-          isNewUser: true,
-        }}
-      />,
-    );
-    expect(screen.queryByTestId('reliability-badge-new')).not.toBeInTheDocument();
-  });
-
-  it('ReliabilityBadge не рендерится если reliability не передан', () => {
-    render(<TrainerCard trainer={baseTrainer} />);
-    expect(screen.queryByTestId('reliability-badge-warning')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('reliability-badge-danger')).not.toBeInTheDocument();
   });
 
   it('отображает имена specialties как чипы в marquee', () => {

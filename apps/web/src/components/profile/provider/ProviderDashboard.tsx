@@ -12,10 +12,9 @@ import {
   getProviderReviews,
   getProviderTrainers,
 } from '@/components/profile/provider-helpers';
-import { Badge, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Card } from '@/components/ui';
 import { ACTIVE_BOOKING_STATUSES } from '@sporthub/domain';
 import { DISCIPLINE_CONFIG, getSlotEndAt, shiftDateKey } from '@sporthub/domain';
-import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
 import {
   findBookingSlot,
   getBookingClubId,
@@ -294,8 +293,8 @@ export function ProviderDashboard({
           Опубликуйте первую услугу
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted">
-          У вас пока нет ни клубов, ни тренеров. Начните с публикации — и здесь появятся записи,
-          рейтинг надёжности и метрики.
+          У вас пока нет ни клубов, ни тренеров. Начните с публикации — и здесь появятся записи и
+          метрики.
         </p>
         <div className="mt-6">
           <Link
@@ -399,7 +398,7 @@ export function ProviderDashboard({
         </div>
       </section>
 
-      {/* Club-side блок: список клубов + reliability + подсекции при желании. */}
+      {/* Club-side блок: список клубов + подсекции при желании. */}
       {hasClubSide ? (
         <Card className="p-6 sm:p-8" data-testid="provider-dashboard-clubs">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -407,26 +406,22 @@ export function ProviderDashboard({
             <Badge tone="outline">{providerClubs.length}</Badge>
           </div>
           <ul className="mt-4 flex flex-col gap-3">
-            {providerClubs.map((club) => {
-              const reliability = computeClubReliability(bookings, club.id);
-              return (
-                <li
-                  key={club.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-canvas p-4"
-                >
-                  <div>
-                    <p className="text-base font-semibold text-ink">{club.name}</p>
-                    <p className="mt-1 text-xs text-muted">{club.city}</p>
-                  </div>
-                  <ReliabilityBadge reliability={reliability} compact />
-                </li>
-              );
-            })}
+            {providerClubs.map((club) => (
+              <li
+                key={club.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-canvas p-4"
+              >
+                <div>
+                  <p className="text-base font-semibold text-ink">{club.name}</p>
+                  <p className="mt-1 text-xs text-muted">{club.city}</p>
+                </div>
+              </li>
+            ))}
           </ul>
         </Card>
       ) : null}
 
-      {/* Trainer-side блок: список тренеров + reliability + per-offering разбивка при multi-offering. */}
+      {/* Trainer-side блок: список тренеров + per-offering разбивка при multi-offering. */}
       {hasTrainerSide ? (
         <Card className="p-6 sm:p-8" data-testid="provider-dashboard-trainers">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -435,7 +430,6 @@ export function ProviderDashboard({
           </div>
           <ul className="mt-4 flex flex-col gap-4">
             {providerTrainers.map((trainer) => {
-              const reliability = computeTrainerReliability(bookings, trainer.id);
               const offeringsForTrainer = trainerOfferingsBreakdown.get(trainer.id) ?? [];
               const showPerOffering = offeringsForTrainer.length > 1;
 
@@ -445,10 +439,7 @@ export function ProviderDashboard({
                   className="rounded-card border border-line bg-canvas p-4"
                   data-testid={`provider-dashboard-trainer-${trainer.id}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-base font-semibold text-ink">{trainer.name}</p>
-                    <ReliabilityBadge reliability={reliability} compact />
-                  </div>
+                  <p className="text-base font-semibold text-ink">{trainer.name}</p>
 
                   {showPerOffering ? (
                     <ul

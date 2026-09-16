@@ -46,9 +46,7 @@ export const LEGACY_DEAD_EXPORTS: Record<string, string[]> = {
   'src/components/admin/AdminNotificationsPage.tsx': ['SUPERVISION_GROUP_TABS'],
   // Снять или дать потребителя в записи (Э9, 38.81).
   'src/components/booking/BookingAuthGate.tsx': ['BookingAuthGate'],
-  // Кабинет спортсмена: тест есть, страницы нет — снять вместе с тестом (Э3, 38.25).
-  'src/components/profile/AthleteUpcomingBookingCard.tsx': ['AthleteUpcomingBookingCard'],
-  'src/components/profile/ProviderBookingsSection.tsx': ['ProviderBookingsSection'],
+  // 38.25: `AthleteUpcomingBookingCard` и `ProviderBookingsSection` сняты вместе с тестами.
   'src/components/profile/ProviderSettingsSection.tsx': ['ProviderSettingsSection'],
   'src/components/profile/athlete-history.ts': ['getAthleteHistoryItems'],
   'src/components/profile/profile-nav-items.ts': ['getPersonalNavItems', 'getFaceNavItems'],

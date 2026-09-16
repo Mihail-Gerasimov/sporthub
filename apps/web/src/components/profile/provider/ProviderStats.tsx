@@ -1,18 +1,20 @@
 // Stats провайдера (Step 25.11): метрики per-entity с drill-down per-offering
-// для multi-offering тренеров. Часы проведено (completed), completion/cancel/no_show
-// rates, heatmap «день × час», топ-5 offerings, ReliabilityBadge каждой entity и
-// помесячный completionRate. Все расчёты на лету из bookings + schedule — без
-// хранимых snapshot'ов. Default window — 12 мес, toggle «всё время».
+// для multi-offering тренеров. Часы проведено (completed), cancel/no_show rates,
+// heatmap «день × час», топ-5 offerings. Все расчёты на лету из bookings + schedule —
+// без хранимых snapshot'ов. Default window — 12 мес, toggle «всё время».
+//
+// ⚠️ Фаза 38, шаг 38.25: блок «Надёжность моих клубов/тренеров», KPI доли доведённых
+// и её помесячный график вырезаны вместе с механизмом (решение заказчика 15.09.2026):
+// помесячный график был той же формулой под другим заголовком.
 'use client';
 
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { Card, ReliabilityBadge } from '@/components/ui';
-import { computeClubReliability, computeTrainerReliability } from '@sporthub/domain';
+import { Card } from '@/components/ui';
 import { getWeekStartKey, zonedDateTime } from '@sporthub/domain';
-import { formatMonthLabel, getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
+import { getCurrentMonthKey, getMonthKey, shiftMonthKey } from '@/lib/month-keys';
 import { cn, findBookingSlot, getBookingClubId, getBookingTrainerId } from '@/lib/utils';
 import { useCabinetFaces } from '@/components/profile/cabinet-context';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -152,14 +154,6 @@ export function ProviderStats({
     return Math.round((minutes / 60) * 10) / 10;
   }, [filteredBookings, scheduleById]);
 
-  const completionRate = useMemo(() => {
-    const completed = filteredBookings.filter((b) => b.status === 'completed').length;
-    const noShow = filteredBookings.filter((b) => b.status === 'no_show').length;
-    const relevant = completed + noShow;
-    if (relevant === 0) return null;
-    return Math.round((completed / relevant) * 100);
-  }, [filteredBookings]);
-
   const noShowRate = useMemo(() => {
     const completed = filteredBookings.filter((b) => b.status === 'completed').length;
     const noShow = filteredBookings.filter((b) => b.status === 'no_show').length;
@@ -220,26 +214,6 @@ export function ProviderStats({
       .slice(0, 5);
   }, [filteredBookings, offeringById]);
 
-  // Completion rate помесячно (по booking.date).
-  const monthlyCompletionRate = useMemo(() => {
-    const countsByMonth = new Map<string, { completed: number; relevant: number }>();
-    for (const booking of filteredBookings) {
-      if (booking.status !== 'completed' && booking.status !== 'no_show') continue;
-      const key = getMonthKey(booking.date);
-      const entry = countsByMonth.get(key) ?? { completed: 0, relevant: 0 };
-      if (booking.status === 'completed') entry.completed += 1;
-      entry.relevant += 1;
-      countsByMonth.set(key, entry);
-    }
-
-    return Array.from(countsByMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, { completed, relevant }]) => ({
-        month: formatMonthLabel(key),
-        rate: relevant === 0 ? 0 : Math.round((completed / relevant) * 100),
-      }));
-  }, [filteredBookings]);
-
   // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
   // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
   // до похода за ними. Осталась одна причина ничего не рисовать: ответ
@@ -255,8 +229,8 @@ export function ProviderStats({
       <Card className="p-6 sm:p-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Статистика</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          Только ваши данные: часы проведено, загрузка offerings, completion/no_show/cancel rate,
-          популярные слоты и рейтинг надёжности по каждой публикации.
+          Только ваши данные: часы проведено, загрузка offerings, no_show/cancel rate и популярные
+          слоты.
         </p>
       </Card>
 
@@ -334,18 +308,6 @@ export function ProviderStats({
                 {totalHours}
               </p>
               <p className="mt-2 text-xs text-muted">Сумма по completed в окне</p>
-            </div>
-            <div className="rounded-card border border-line bg-panel p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                Completion rate
-              </p>
-              <p
-                className="mt-3 text-3xl font-semibold text-ink"
-                data-testid="provider-stats-completion-rate"
-              >
-                {completionRate === null ? '—' : `${completionRate}%`}
-              </p>
-              <p className="mt-2 text-xs text-muted">completed / (completed + no_show)</p>
             </div>
             <div className="rounded-card border border-line bg-panel p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
@@ -471,96 +433,6 @@ export function ProviderStats({
               </ResponsiveContainer>
             )}
           </Card>
-
-          {/* Completion rate помесячно. */}
-          <Card className="flex flex-col gap-3 p-5 sm:p-6">
-            <h3 className="font-display text-lg font-semibold text-ink">
-              Completion rate помесячно
-            </h3>
-            {monthlyCompletionRate.length === 0 ? (
-              <p className="text-sm text-muted">Нет данных за выбранный период</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={monthlyCompletionRate}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ui-line)" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 12, fill: 'var(--ui-muted)' }}
-                    tickLine={false}
-                    axisLine={{ stroke: 'var(--ui-line)' }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12, fill: 'var(--ui-muted)' }}
-                    tickLine={false}
-                    axisLine={{ stroke: 'var(--ui-line)' }}
-                    unit="%"
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--ui-panel)',
-                      border: '1px solid var(--ui-line)',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                    }}
-                  />
-                  <Bar
-                    dataKey="rate"
-                    name="Completion rate %"
-                    fill="var(--ui-success)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Card>
-
-          {/* Reliability-бейджи моих entity (useful для быстрого self-check). */}
-          {providerClubs.length > 0 ? (
-            <Card className="flex flex-col gap-3 p-5 sm:p-6">
-              <h3 className="font-display text-lg font-semibold text-ink">
-                Надёжность моих клубов
-              </h3>
-              <ul className="flex flex-col gap-2">
-                {providerClubs.map((myClub) => {
-                  const reliability = computeClubReliability(bookings, myClub.id);
-                  return (
-                    <li
-                      key={myClub.id}
-                      data-testid={`provider-stats-club-${myClub.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-canvas p-3"
-                    >
-                      <span className="text-sm font-semibold text-ink">{myClub.name}</span>
-                      <ReliabilityBadge reliability={reliability} showDetails />
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          ) : null}
-
-          {providerTrainers.length > 0 ? (
-            <Card className="flex flex-col gap-3 p-5 sm:p-6">
-              <h3 className="font-display text-lg font-semibold text-ink">
-                Надёжность моих тренеров
-              </h3>
-              <ul className="flex flex-col gap-2">
-                {providerTrainers.map((myTrainer) => {
-                  const reliability = computeTrainerReliability(bookings, myTrainer.id);
-                  return (
-                    <li
-                      key={myTrainer.id}
-                      data-testid={`provider-stats-trainer-${myTrainer.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-canvas p-3"
-                    >
-                      <span className="text-sm font-semibold text-ink">{myTrainer.name}</span>
-                      <ReliabilityBadge reliability={reliability} showDetails />
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          ) : null}
 
           {/* Приписка о единицах для sports — для будущих per-sport разбивок; сейчас только
               как справка. */}

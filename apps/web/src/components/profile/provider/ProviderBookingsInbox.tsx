@@ -1,9 +1,12 @@
 // Inbox входящих записей для провайдера (Step 25.9): 4 таба FSM, фильтры по
 // offering / виду спорта, FSM-действия (confirm / reject / check-in completed /
 // check-in no_show / cancel) через Phase 24 API-endpoints. Карточки с acton-кнопками
-// показывают имя атлета + его ReliabilityBadge (compact+showDetails), offering-title,
-// время слота, место. В табе «Требуют check-in» карточки с <6h до конца окна 48h
-// получают красный border.
+// показывают имя атлета, offering-title, время слота, место. В табе «Требуют check-in»
+// карточки с <6h до конца окна 48h получают красный border.
+//
+// ⚠️ Фаза 38, шаг 38.25: бейдж надёжности клиента на карточке вырезан вместе
+// с механизмом (решение заказчика 15.09.2026). Отметка «не пришёл» — статус записи,
+// она остаётся.
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -11,9 +14,8 @@ import { startTransition, useMemo, useState } from 'react';
 
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
 import { RejectBookingReasonModal } from '@/components/profile/provider/RejectBookingReasonModal';
-import { Badge, Button, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotEndAt, getSlotStartAt } from '@sporthub/domain';
-import { computeAthleteReliability } from '@sporthub/domain';
 import {
   cn,
   findBookingSlot,
@@ -419,7 +421,6 @@ export function ProviderBookingsInbox({
               item.endAtMs !== null &&
               item.endAtMs + CHECK_IN_WINDOW_MS - nowMs <= APPROACHING_CHECKIN_WINDOW_MS;
 
-            const athleteReliability = computeAthleteReliability(bookings, item.booking.userId);
             const isPending = pendingActionId === item.booking.id;
 
             return (
@@ -434,10 +435,7 @@ export function ProviderBookingsInbox({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-base font-semibold text-ink">{item.athleteName}</p>
-                      <ReliabilityBadge reliability={athleteReliability} compact showDetails />
-                    </div>
+                    <p className="text-base font-semibold text-ink">{item.athleteName}</p>
                     <p className="mt-1 text-xs text-muted">{item.athleteEmail}</p>
                     <p className="mt-3 text-sm font-semibold text-ink">{item.title}</p>
                     <p className="mt-1 text-xs text-muted">

@@ -13,8 +13,6 @@
  *   - body-meta: orange/lime price-pill + distance/окна.
  *   - exp-row: experience tag + опц. group-chip (orange-soft / lime-soft).
  *   - body-rating: SVG-звёзды + Bowlby num + reviews + опц. бейдж «Новый».
- *   - ReliabilityBadge: отдельной строкой ниже rating-row, только для
- *     warning/danger (при isNewUser скрыт чтобы не дублировать «Новый»).
  *   - meta-box «Площадка / Ближайшее окно» (2 cols на 768+, 1 на 480).
  *   - Tags ChipMarquee — solid orange (или lime для tone-lime).
  *   - Quote-row с border-top: bio + CTA «К записи →» (отдельный <Link>).
@@ -30,10 +28,9 @@
  */
 import Link from 'next/link';
 
-import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
+import { ChipMarquee } from '@/components/ui';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import { formatCityDisplay, formatDate, formatPrice } from '@/lib/utils';
-import type { ReliabilityResult } from '@sporthub/domain';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
 
@@ -46,16 +43,9 @@ type TrainerCardProps = {
   index?: number;
   /** Подсветка карточки при выборе на карте — accent-бордер. */
   highlighted?: boolean;
-  /** Phase 25 Step 25.13: компактный бейдж надёжности отдельной строкой. */
-  reliability?: ReliabilityResult;
 };
 
-export function TrainerCard({
-  trainer,
-  index,
-  highlighted = false,
-  reliability,
-}: TrainerCardProps) {
+export function TrainerCard({ trainer, index, highlighted = false }: TrainerCardProps) {
   // wm — двузначный номер ранга («01», «02», …) для watermark hero.
   const wm = index !== undefined ? String(index + 1).padStart(2, '0') : '';
   const tone: TrainerTone = TONE_CYCLE[(index ?? 0) % 3]!;
@@ -117,7 +107,7 @@ export function TrainerCard({
       data-testid="trainer-card"
       data-tone={tone}
       data-highlighted={highlighted ? 'true' : 'false'}
-      className={`relative grid h-full grid-rows-[auto_auto_auto_48px_auto_auto_auto_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors ${
+      className={`relative grid h-full grid-rows-[auto_auto_auto_48px_auto_auto_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors ${
         highlighted ? 'border-[var(--ui-orange)]' : 'border-[var(--ui-line)]'
       } ${hoverBorderClass}`}
     >
@@ -230,17 +220,6 @@ export function TrainerCard({
           </span>
         ) : null}
       </div>
-
-      {/* ReliabilityBadge — отдельной строкой ниже rating-row (Phase 28).
-          Только для warning/danger (при isNewUser скрыт чтобы не дублировать
-          rating-row «Новый»). */}
-      {reliability && !reliability.isNewUser && reliability.badge !== null ? (
-        <div className="px-[22px] pt-3 sm:px-4">
-          <ReliabilityBadge reliability={reliability} compact />
-        </div>
-      ) : (
-        <span aria-hidden="true" />
-      )}
 
       {/* meta-box: 2 cols «Площадка / Ближайшее окно», на 480 — 1 col */}
       <div className="mx-[22px] mt-[18px] grid grid-cols-[1fr_auto] gap-x-7 gap-y-3.5 rounded-[14px] border border-[var(--ui-line)] bg-[var(--ui-card-2)] px-[18px] py-4 sm:mx-4 sm:grid-cols-1 sm:gap-y-3">

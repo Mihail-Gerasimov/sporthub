@@ -12,7 +12,6 @@
 import { CardSlider } from '@/components/ui';
 import { filterTrainers } from '@/components/trainers/filterTrainers';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
-import type { ReliabilityResult } from '@sporthub/domain';
 import { useFilterStore } from '@/stores/useFilterStore';
 import type { EntityId } from '@sporthub/types';
 
@@ -21,15 +20,9 @@ import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview
 type TrainerListProps = {
   selectedTrainerId?: EntityId | null;
   trainers: TrainerDirectoryItem[];
-  /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
-  reliabilityByTrainerId?: Map<EntityId, ReliabilityResult>;
 };
 
-export function TrainerList({
-  selectedTrainerId = null,
-  trainers,
-  reliabilityByTrainerId,
-}: TrainerListProps) {
+export function TrainerList({ selectedTrainerId = null, trainers }: TrainerListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
   const selectedCity = useFilterStore((state) => state.selectedCity);
@@ -56,7 +49,6 @@ export function TrainerList({
           highlighted={selectedTrainerId === trainer.id}
           trainer={trainer}
           index={i}
-          reliability={reliabilityByTrainerId?.get(trainer.id)}
         />
       ))}
     </CardSlider>

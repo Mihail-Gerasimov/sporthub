@@ -2,6 +2,9 @@
 //
 // Данные приходят настоящим клиентом с заготовленного стенда ответов
 // (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
+//
+// ⚠️ Фаза 38, шаг 38.25: случай «бейдж надёжности из поля карточки» снят —
+// предмета нет (реестр `phase-38-reliability-cut.md`, Т11).
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,7 +46,7 @@ describe('Trainer detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы' })).toBeInTheDocument();
   });
 
-  it('за записями не ходит вовсе — надёжность приезжает в карточке', async () => {
+  it('за записями не ходит вовсе', async () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('marina-sokolova')]: { trainer: fixtureTrainer },
@@ -51,33 +54,8 @@ describe('Trainer detail page', () => {
 
     await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) });
 
-    // Симметрично карточке клуба: бейдж считает бэкенд одним запросом-агрегатом.
+    // Симметрично странице клуба: публичной странице записи не нужны.
     expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
-  });
-
-  it('показывает бейдж надёжности из поля карточки', async () => {
-    stub = installApiStub({
-      ...createFixtureRoutes(),
-      [bySlug('marina-sokolova')]: {
-        trainer: {
-          ...fixtureTrainer,
-          reliability: {
-            totalRelevant: 10,
-            completedCount: 4,
-            noShowCount: 0,
-            lateCancelCount: 6,
-            rejectedByProviderCount: 0,
-            completionRate: 0.4,
-            badge: 'danger',
-            isNewUser: false,
-          },
-        },
-      },
-    });
-
-    render(await TrainerDetailPage({ params: Promise.resolve({ slug: 'marina-sokolova' }) }));
-
-    expect(screen.getByTestId('trainer-reliability-section')).toBeInTheDocument();
   });
 
   it('отдаёт notFound для несуществующего тренера', async () => {

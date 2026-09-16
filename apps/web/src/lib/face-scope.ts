@@ -38,7 +38,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { readSession } from '@/lib/session';
-import { ATHLETE_RELIABILITY_STATUSES } from '@/lib/booking-scopes';
+import { CLIENT_HISTORY_STATUSES } from '@/lib/booking-scopes';
 import type { ServiceFaceKind, ServiceFaceRef } from '@/lib/service-faces';
 import {
   getClientBookings,
@@ -115,10 +115,14 @@ export const loadFaceScope = cache(
 /**
  * Тот же срез плюс история клиентов лица.
  *
- * ⚠️ Разделам «Записи» и «Клиенты» мало записей самого лица: рядом с каждым
- * клиентом стоит бейдж его надёжности, а он обязан считаться по ВСЕЙ истории
- * человека, а не по той её части, что пришлась на это лицо. Иначе клиент,
- * пропустивший десять занятий у других, выглядел бы у нас безупречным.
+ * Разделы «Записи» и «Клиенты» получают сверх записей самого лица историю его
+ * клиентов по всей площадке — срезом `CLIENT_HISTORY_STATUSES`.
+ *
+ * ⚠️ Фаза 38, шаг 38.25: бейдж надёжности клиента, ради которого эта история
+ * читалась по ВСЕЙ площадке, вырезан. Срез оставлен по реестру вырезания
+ * (`phase-38-reliability-cut.md`, Ф5/Ф23): история клиента нужна разделу «Клиенты».
+ * Читает ли раздел что-то сверх записей самого лица — названо в отчёте шага,
+ * решение за заказчиком.
  *
  * Сузить такую историю по одному человеку за запрос нечем: клиентов у клуба бывают
  * сотни, и вместо одного запроса вышли бы сотни. Поэтому у бэкенда есть свой срез —
@@ -131,7 +135,7 @@ export const loadFaceScope = cache(
  * вовсе: страница получала отказ и падала целиком. Новый срез отдаёт ровно
  * недостающее и никому, кроме самого владельца лица, ничего не показывает.
  *
- * Статусы сужены до трёх из восьми — ровно тех, которые читает расчёт надёжности.
+ * Статусы сужены до трёх из восьми — три статуса истории клиента.
  */
 export const loadFaceScopeWithClientHistory = cache(
   async (kind: ServiceFaceKind, id: EntityId): Promise<FaceScope> => {
@@ -141,7 +145,7 @@ export const loadFaceScopeWithClientHistory = cache(
 
     const clientHistory = await getClientBookings({
       face: scope.face,
-      status: ATHLETE_RELIABILITY_STATUSES,
+      status: CLIENT_HISTORY_STATUSES,
     });
 
     return { ...scope, bookings: mergeBookingsById(scope.bookings, clientHistory) };

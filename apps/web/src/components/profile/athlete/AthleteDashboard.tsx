@@ -1,5 +1,8 @@
-// Dashboard спортсмена (Step 25.3): ближайшая тренировка, pending-countdown до auto-cancel,
-// reliability-секция (+ new-user placeholder), KPI.
+// Dashboard спортсмена (Step 25.3): ближайшая тренировка, pending-countdown до auto-cancel, KPI.
+//
+// ⚠️ Фаза 38, шаг 38.25: секция «Мой рейтинг надёжности» вырезана вместе с механизмом
+// (решение заказчика 15.09.2026). Счётчик посещений считается по записям напрямую;
+// «первая запись ещё не сделана» — это ноль завершённых, а не порог бейджа.
 //
 // ⚠️ Фаза 35, этап Э0a: верхний баннер о санкциях за неявки убран вместе с самим
 // механизмом. С ним ушёл и список пользователей во входных свойствах — он был нужен
@@ -14,9 +17,8 @@ import {
   getAthleteUpcomingProfileBookings,
   type UpcomingProfileBooking,
 } from '@/components/profile/athlete-bookings';
-import { Badge, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Card } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
-import { computeAthleteReliability } from '@sporthub/domain';
 import {
   cabinetSectionPath,
   PERSONAL_CABINET_PATH,
@@ -81,12 +83,6 @@ export function AthleteDashboard({
     [athleteUserId, bookings],
   );
 
-  const reliability = useMemo(
-    () =>
-      athleteUserId === null ? null : computeAthleteReliability(athleteBookings, athleteUserId),
-    [athleteBookings, athleteUserId],
-  );
-
   const upcomingProfileBookings = useMemo(
     () =>
       getAthleteUpcomingProfileBookings({
@@ -141,9 +137,10 @@ export function AthleteDashboard({
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [athleteBookings, schedule]);
 
-  const completedCount = reliability?.completedCount ?? 0;
+  const completedCount = athleteBookings.filter((booking) => booking.status === 'completed').length;
   const upcomingCount = activeFutureBookings.length;
-  const isNewUser = reliability?.isNewUser ?? true;
+  // Пока ни одного завершённого занятия — кабинет зовёт сделать первую запись.
+  const hasHistory = completedCount > 0;
 
   // ⚠️ Шаг 35.34. Здесь стояла плашка «Доступ ограничен» — косметика поверх
   // УЖЕ отданных данных: пускать или нет, решает серверный лейаут, и решает
@@ -155,7 +152,7 @@ export function AthleteDashboard({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Шапка: new-user → нейтральная «Сделайте первую запись», иначе — «Обзор». */}
+      {/* Шапка: без истории — нейтральная «Сделайте первую запись», иначе — «Обзор». */}
       <Card className="p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -163,12 +160,12 @@ export function AthleteDashboard({
               <Badge tone="outline">{PERSONAL_CABINET_TITLE}</Badge>
             </div>
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
-              {isNewUser ? 'Сделайте первую запись' : 'Обзор'}
+              {hasHistory ? 'Обзор' : 'Сделайте первую запись'}
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              {isNewUser
-                ? 'Выберите клуб или тренера — после первого завершённого занятия появятся метрики и рейтинг надёжности.'
-                : `Привет, ${user.name}. Здесь сводка вашей активности на платформе.`}
+              {hasHistory
+                ? `Привет, ${user.name}. Здесь сводка вашей активности на платформе.`
+                : 'Выберите клуб или тренера — после первого завершённого занятия здесь появится сводка.'}
             </p>
             {/* Мета-инфо пользователя (Phase 26 Step 26.5 — перенос из удалённого монолита). */}
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
@@ -252,56 +249,6 @@ export function AthleteDashboard({
               </li>
             ))}
           </ul>
-        </Card>
-      ) : null}
-
-      {/* Reliability-секция: для new-user — placeholder, иначе — ReliabilityBadge с деталями. */}
-      {reliability ? (
-        <Card className="p-6 sm:p-8" data-testid="athlete-dashboard-reliability">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl font-semibold text-ink">Мой рейтинг надёжности</h2>
-            {!reliability.isNewUser ? (
-              <ReliabilityBadge reliability={reliability} showDetails />
-            ) : null}
-          </div>
-          {reliability.isNewUser ? (
-            <p className="mt-4 text-sm leading-relaxed text-muted">
-              Рейтинг покажется после{' '}
-              {DISCIPLINE_CONFIG.minCompletedForBadge - reliability.completedCount} успешных
-              тренировок. Пока {reliability.completedCount} завершённых из{' '}
-              {reliability.totalRelevant}.
-            </p>
-          ) : (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Completion rate
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-ink">
-                  {Math.round(reliability.completionRate * 100)}%
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  {reliability.completedCount} из {reliability.totalRelevant}
-                </p>
-              </div>
-              <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  No-show
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{reliability.noShowCount}</p>
-                <p className="mt-1 text-xs text-muted">Фиксация провайдером</p>
-              </div>
-              <div className="rounded-card border border-line bg-canvas p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                  Late cancel
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-ink">
-                  {reliability.lateCancelCount}
-                </p>
-                <p className="mt-1 text-xs text-muted">Вне окна отмены</p>
-              </div>
-            </div>
-          )}
         </Card>
       ) : null}
 

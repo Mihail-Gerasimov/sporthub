@@ -1,5 +1,9 @@
 // Тесты AthleteStats (Step 25.5): 2 секции — Достижения + Метрики, стрики,
-// FSM-разбивка, reliability, toggle окна (12 мес ↔ всё время), empty state.
+// FSM-разбивка, toggle окна (12 мес ↔ всё время), empty state.
+//
+// ⚠️ Фаза 38, шаг 38.25: случай про секцию «Мой рейтинг надёжности» снят — предмета
+// нет (реестр `phase-38-reliability-cut.md`, Т13). Его место занял обратный: ни секции,
+// ни помесячной доли доведённых записей на странице нет даже при пяти завершённых.
 // Recharts в jsdom не рендерит SVG (нулевые размеры ResponsiveContainer) —
 // проверяем заголовки, числа и data-testid'ы, не сам canvas.
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -206,7 +210,7 @@ describe('AthleteStats (Step 25.5)', () => {
     expect(breakdown).toHaveTextContent(/Отменённые/i);
   });
 
-  it('reliability: при completed >= 5 показана секция с деталями completionRate/no_show/late_cancel', () => {
+  it('ни секции надёжности, ни помесячной доли доведённых нет даже при пяти завершённых', () => {
     authenticateAthlete();
 
     const bookings: Booking[] = Array.from({ length: 5 }, (_, i) =>
@@ -223,11 +227,11 @@ describe('AthleteStats (Step 25.5)', () => {
       />,
     );
 
-    const reliability = screen.getByTestId('athlete-stats-reliability');
-
-    expect(reliability).toHaveTextContent(/Completion rate/i);
-    expect(reliability).toHaveTextContent(/100%/);
-    expect(reliability).toHaveTextContent(/No-?show/i);
+    expect(screen.queryByTestId('athlete-stats-reliability')).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжност/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Completion rate/i)).not.toBeInTheDocument();
+    // Метрики при этом на месте: страница не опустела вместе с рейтингом.
+    expect(screen.getByTestId('athlete-stats-fsm-breakdown')).toBeInTheDocument();
   });
 
   it('toggle окна: клик по «Всё время» меняет активный период', () => {

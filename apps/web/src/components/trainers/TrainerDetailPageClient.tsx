@@ -8,17 +8,19 @@
  *      (инициалы Bowlby) + «Фото тренера» слева; meta-col справа
  *      (chips → eyebrow → name → rating + addr → описание → stat-rail
  *      Цена/Услуг → stat-rail Контакты → ChipMarquee специализаций → CTA).
- *   2. Reliability — секция с ReliabilityBadge showDetails (как было).
- *   3. Specializations — sport+specialty grid 2-col с orange-icon.
- *   4. Works at — works-card (placeholder thumb 64×64 + body + Link
+ *   2. Specializations — sport+specialty grid 2-col с orange-icon.
+ *   3. Works at — works-card (placeholder thumb 64×64 + body + Link
  *      «Перейти к клубу» в стиле btn-primary). Скрывается без affiliatedClub.
- *   5. Services — список услуг с chips (format/price/duration/venue).
- *   6. Schedule — DetailScheduleWeek (week-tabs anchor today),
+ *   4. Services — список услуг с chips (format/price/duration/venue).
+ *   5. Schedule — DetailScheduleWeek (week-tabs anchor today),
  *      sub = `${startTime} - ${endTime}` (room в отдельном chip — без дублирования).
- *   7. Reviews + Form — reviews-list + форма (zod + POST /api/reviews +
+ *   6. Reviews + Form — reviews-list + форма (zod + POST /api/reviews +
  *      auth-gating) — БЕЗ ИЗМЕНЕНИЙ.
  *
- * Логика отзыва, /booking/[id] href, ReliabilityBadge, getTrainerInitials —
+ * ⚠️ Фаза 38, шаг 38.25: секция «Надёжность» вырезана вместе с механизмом
+ * (решение заказчика 15.09.2026).
+ *
+ * Логика отзыва, /booking/[id] href, getTrainerInitials —
  * без изменений. Расписание показывает только текущую ISO-неделю
  * (anchor today), переключение по day-tabs внутри DetailScheduleWeek.
  */
@@ -27,7 +29,7 @@ import Link from 'next/link';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
 
-import { Button, Rating, ReliabilityBadge } from '@/components/ui';
+import { Button, Rating } from '@/components/ui';
 import { ChipMarquee } from '@/components/ui/ChipMarquee';
 import { getTrainerInitials } from '@/components/trainers/trainer-utils';
 import {
@@ -37,7 +39,6 @@ import {
 import { getCurrentWeekRange } from '@/components/detail-shared/utils';
 import { formatCityDisplay, formatDate, formatPhone, formatPrice } from '@/lib/utils';
 import { APP_LIMITS } from '@sporthub/types';
-import type { ReliabilityResult } from '@sporthub/domain';
 import { isSlotUpcoming } from '@/lib/slot-time';
 import {
   BOOKING_REQUIRES_LOGIN,
@@ -114,8 +115,6 @@ type TrainerDetailPageClientProps = {
   specialties: Specialty[];
   sports: Sport[];
   trainer: Trainer;
-  /** Phase 25 Step 25.13: рейтинг надёжности тренера. Если передан — рендерится секция «Надёжность». */
-  reliability?: ReliabilityResult;
 };
 
 /* Хелпер: солид-чип (lime-fill) или outline-чип (transparent + ink). */
@@ -237,7 +236,6 @@ export function TrainerDetailPageClient({
   specialties,
   sports,
   trainer,
-  reliability,
 }: TrainerDetailPageClientProps) {
   const sessionUser = useAuthStore((state) => state.user);
   // ⚠️ Шаг 35.34. Кто записывается и пишет отзывы — любой вошедший человек,
@@ -563,28 +561,6 @@ export function TrainerDetailPageClient({
             </div>
           </div>
         </section>
-
-        {/* ═══ Reliability ═══ */}
-        {reliability ? (
-          <section
-            data-testid="trainer-reliability-section"
-            className="rounded-[18px] border border-line bg-card p-5 sm:p-6"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
-                  Reliability
-                </p>
-                <h2 className="font-display text-[22px] text-ink md:text-[26px]">Надёжность</h2>
-                <p className="mt-2 max-w-prose font-body text-sm leading-relaxed text-muted">
-                  Рейтинг считается по фактическим записям клиентов: completed vs no_show. Помогает
-                  выбрать партнёра осознанно.
-                </p>
-              </div>
-              <ReliabilityBadge reliability={reliability} showDetails />
-            </div>
-          </section>
-        ) : null}
 
         {/* ═══ Specializations ═══ */}
         <section

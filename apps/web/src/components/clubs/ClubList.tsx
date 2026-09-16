@@ -16,7 +16,6 @@ import type { Club, EntityId, Tag } from '@sporthub/types';
 import { CardSlider } from '@/components/ui';
 import { ClubCard } from '@/components/clubs/ClubCard';
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
-import type { ReliabilityResult } from '@sporthub/domain';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 type ClubListProps = {
@@ -25,17 +24,9 @@ type ClubListProps = {
   /** Справочник тегов для резолвинга tagIds → имена в карточках */
   tags?: Tag[];
   selectedClubId?: EntityId | null;
-  /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
-  reliabilityByClubId?: Map<EntityId, ReliabilityResult>;
 };
 
-export function ClubList({
-  clubs,
-  selectedClubId = null,
-  sports,
-  tags = [],
-  reliabilityByClubId,
-}: ClubListProps) {
+export function ClubList({ clubs, selectedClubId = null, sports, tags = [] }: ClubListProps) {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const selectedSportId = useFilterStore((state) => state.selectedSportId);
   const selectedCity = useFilterStore((state) => state.selectedCity);
@@ -66,7 +57,6 @@ export function ClubList({
           sports={sports}
           tags={tags}
           index={i}
-          reliability={reliabilityByClubId?.get(club.id)}
         />
       ))}
     </CardSlider>

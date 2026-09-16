@@ -5,7 +5,7 @@
 // `src/test/security/protected-layouts.test.ts` — там же, где проверяется
 // и то, что уведённому данные не запрашивались вообще.
 // Тесты ProviderStats (Step 25.11): метрики per-entity и drill-down per-offering,
-// window toggle (12m ↔ all), heatmap, completion/cancel/no_show rates, empty и
+// window toggle (12m ↔ all), heatmap, cancel/no_show rates, empty и
 // access-denied. ResponsiveContainer из recharts стабает в jsdom — мокаем ResizeObserver.
 import { fireEvent, screen } from '@testing-library/react';
 import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
@@ -367,7 +367,7 @@ describe('ProviderStats (Step 25.11)', () => {
     expect(screen.getByTestId('provider-stats-heatmap')).toBeInTheDocument();
   });
 
-  it('completion rate: 4 completed + 1 no_show → 80%', () => {
+  it('no-show rate клиентов: 4 completed + 1 no_show → 20%; доли доведённых на странице нет', () => {
     authenticateProvider();
 
     const completed = Array.from({ length: 4 }, (_, index) =>
@@ -386,7 +386,13 @@ describe('ProviderStats (Step 25.11)', () => {
       />,
     );
 
-    expect(screen.getByTestId('provider-stats-completion-rate')).toHaveTextContent('80%');
+    // Фаза 38, шаг 38.25: KPI «Completion rate» и его помесячный график вырезаны
+    // вместе с надёжностью — доля доведённых была той же формулой. No-show rate
+    // остаётся: это факт о клиентах лица, не рейтинг.
+    expect(screen.getByTestId('provider-stats-no-show-rate')).toHaveTextContent('20%');
+    expect(screen.queryByTestId('provider-stats-completion-rate')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Completion rate/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжност/i)).not.toBeInTheDocument();
   });
 
   it('cancel rate: 2 cancelled_by_provider из 10 → 20%', () => {

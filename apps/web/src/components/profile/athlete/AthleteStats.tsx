@@ -1,7 +1,11 @@
 // Stats атлета (Step 25.5): две секции — Достижения и Метрики. Достижения монтируют
 // существующий AthleteAchievementsSection без изменений. Метрики — стрики, часы,
-// активность помесячно, completionRate помесячно, FSM-разбивка, reliability с деталями.
-// Всё считается на лету из bookings + schedule + reliability без хранимых snapshot'ов.
+// активность помесячно, FSM-разбивка. Всё считается на лету из bookings + schedule
+// без хранимых snapshot'ов.
+//
+// ⚠️ Фаза 38, шаг 38.25: секция «Мой рейтинг надёжности» и помесячная доля доведённых
+// записей вырезаны вместе с механизмом (решение заказчика 15.09.2026): помесячный
+// график был той же формулой под другим заголовком.
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -27,10 +31,8 @@ import {
   getAthleteAchievements,
 } from '@/components/profile/athlete-achievements';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
-import { Badge, Card, ReliabilityBadge } from '@/components/ui';
+import { Badge, Card } from '@/components/ui';
 import { computeCurrentStreak, computeMaxStreak } from '@sporthub/domain';
-import { DISCIPLINE_CONFIG } from '@sporthub/domain';
-import { computeAthleteReliability } from '@sporthub/domain';
 import {
   formatMonthLabel,
   generateMonthRange,
@@ -117,12 +119,6 @@ export function AthleteStats({
         activeFutureBookingsCount: activeFutureBookings.length,
       }),
     [achievements, activeFutureBookings.length],
-  );
-
-  const reliability = useMemo(
-    () =>
-      athleteUserId === null ? null : computeAthleteReliability(athleteBookings, athleteUserId),
-    [athleteBookings, athleteUserId],
   );
 
   const currentStreak = useMemo(
@@ -248,38 +244,6 @@ export function AthleteStats({
     }));
   }, [windowedCompleted, windowStartKey]);
 
-  // Месячный completionRate — (completed / (completed + no_show + late-cancel)) по месяцу booking.date.
-  const monthlyCompletionRate = useMemo(() => {
-    const countsByMonth = new Map<string, { completed: number; relevant: number }>();
-
-    for (const booking of athleteBookings) {
-      if (booking.status !== 'completed' && booking.status !== 'no_show') {
-        if (!(booking.status === 'cancelled_by_athlete' && booking.cancelReason === 'late')) {
-          continue;
-        }
-      }
-
-      const key = getMonthKey(booking.date);
-
-      if (windowStartKey !== null && key < windowStartKey) continue;
-
-      const entry = countsByMonth.get(key) ?? { completed: 0, relevant: 0 };
-
-      if (booking.status === 'completed') {
-        entry.completed += 1;
-      }
-      entry.relevant += 1;
-      countsByMonth.set(key, entry);
-    }
-
-    return Array.from(countsByMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, { completed, relevant }]) => ({
-        month: formatMonthLabel(key),
-        rate: relevant === 0 ? 0 : Math.round((completed / relevant) * 100),
-      }));
-  }, [athleteBookings, windowStartKey]);
-
   // FSM-разбивка — общая по всей истории атлета (не зависит от окна).
   const fsmBreakdown = useMemo(() => {
     let completed = 0;
@@ -335,8 +299,7 @@ export function AthleteStats({
               Статистика и достижения
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Ваши стрики, часы на тренировках, месячная активность и рейтинг надёжности в одном
-              месте.
+              Ваши стрики, часы на тренировках и месячная активность в одном месте.
             </p>
           </div>
         </div>
@@ -355,9 +318,7 @@ export function AthleteStats({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">Окно</p>
-                <p className="mt-1 text-sm text-ink">
-                  Часы, активность и completion rate — за выбранный период.
-                </p>
+                <p className="mt-1 text-sm text-ink">Часы и активность — за выбранный период.</p>
               </div>
               <div className="flex gap-2" role="group" aria-label="Выбор окна статистики">
                 <button
@@ -543,51 +504,6 @@ export function AthleteStats({
             )}
           </Card>
 
-          {/* Completion rate помесячно. */}
-          <Card className="flex flex-col gap-3 p-5 sm:p-6">
-            <h3 className="font-display text-lg font-semibold text-ink">
-              Completion rate помесячно
-            </h3>
-            {monthlyCompletionRate.length === 0 ? (
-              <p className="text-sm text-muted">
-                Рейтинг надёжности помесячно появится после первой завершённой тренировки.
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={monthlyCompletionRate}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ui-line)" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 12, fill: 'var(--ui-muted)' }}
-                    tickLine={false}
-                    axisLine={{ stroke: 'var(--ui-line)' }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12, fill: 'var(--ui-muted)' }}
-                    tickLine={false}
-                    axisLine={{ stroke: 'var(--ui-line)' }}
-                    unit="%"
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--ui-panel)',
-                      border: '1px solid var(--ui-line)',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                    }}
-                  />
-                  <Bar
-                    dataKey="rate"
-                    name="Completion rate %"
-                    fill="var(--ui-success)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Card>
-
           {/* FSM-разбивка: pie-диаграмма + текстовая легенда. */}
           <Card
             className="flex flex-col gap-3 p-5 sm:p-6"
@@ -633,66 +549,12 @@ export function AthleteStats({
               </div>
             )}
           </Card>
-
-          {/* Рейтинг надёжности: общая картина с деталями (аналог Dashboard). */}
-          {reliability ? (
-            <Card className="p-6 sm:p-8" data-testid="athlete-stats-reliability">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-display text-2xl font-semibold text-ink">
-                  Мой рейтинг надёжности
-                </h2>
-                {!reliability.isNewUser ? (
-                  <ReliabilityBadge reliability={reliability} showDetails />
-                ) : null}
-              </div>
-              {reliability.isNewUser ? (
-                <p className="mt-4 text-sm leading-relaxed text-muted">
-                  Рейтинг покажется после{' '}
-                  {DISCIPLINE_CONFIG.minCompletedForBadge - reliability.completedCount} успешных
-                  тренировок. Пока {reliability.completedCount} завершённых из{' '}
-                  {reliability.totalRelevant}.
-                </p>
-              ) : (
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-card border border-line bg-canvas p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      Completion rate
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-ink">
-                      {Math.round(reliability.completionRate * 100)}%
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {reliability.completedCount} из {reliability.totalRelevant}
-                    </p>
-                  </div>
-                  <div className="rounded-card border border-line bg-canvas p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      No-show
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-ink">
-                      {reliability.noShowCount}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">Фиксация провайдером</p>
-                  </div>
-                  <div className="rounded-card border border-line bg-canvas p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-                      Late cancel
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-ink">
-                      {reliability.lateCancelCount}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">Вне окна отмены</p>
-                  </div>
-                </div>
-              )}
-            </Card>
-          ) : null}
         </section>
       ) : (
         <Card className="p-6 sm:p-8" data-testid="athlete-stats-empty">
           <p className="text-base leading-relaxed text-muted">
             Пока нет данных для метрик. Как только вы запишетесь на первую тренировку, здесь
-            появятся стрики, часы и рейтинг надёжности.
+            появятся стрики, часы и активность по месяцам.
           </p>
         </Card>
       )}

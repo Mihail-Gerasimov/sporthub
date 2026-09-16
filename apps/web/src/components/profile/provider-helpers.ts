@@ -25,7 +25,7 @@ export type ProviderSummary = {
 export type ProviderIncomingBooking = {
   athleteEmail: string;
   athleteName: string;
-  /** Phase 24 Step 24.13: id атлета для резолва его reliability в UI. */
+  /** Номер спортсмена: по нему кабинет находит записи и заметки этого человека. */
   athleteUserId: number;
   bookingTypeLabel: string;
   contextLabel: string;

@@ -267,9 +267,8 @@ describe('Запросы серверных страниц кабинетов', 
 
       await FaceClientsRoute(withFace());
 
-      // Бейдж надёжности клиента считается по всей его истории, поэтому к записям
-      // публикаций добавляется история тех же людей — срез `scope=clients` по трём
-      // статусам из восьми, тем, которые читает расчёт.
+      // К записям публикаций добавляется история тех же людей — срез `scope=clients`
+      // по трём статусам истории клиента (`CLIENT_HISTORY_STATUSES`).
       const calls = bookingCalls(stub);
       expect(calls).toContain(
         '/bookings?scope=clients&faceType=club&faceId=1&status=completed%2Cno_show%2Ccancelled_by_athlete',

@@ -25,7 +25,6 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import { AthleteUpcomingBookingCard } from '@/components/profile/AthleteUpcomingBookingCard';
 import { getAthleteAchievements } from '@/components/profile/athlete-achievements';
 import { AthleteDashboard } from '@/components/profile/athlete/AthleteDashboard';
 import { AthleteSchedule } from '@/components/profile/athlete/AthleteSchedule';
@@ -210,74 +209,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Окно бесплатной отмены у атлета (Step 33.11)', () => {
-  // Занятие 22 августа в 10:00 по часам зала — это момент 2026-08-22T06:00Z.
-  const bookingBase = {
-    id: 77,
-    bookingTypeLabel: 'Услуга клуба',
-    clubName: 'Aqua Pro',
-    date: '2026-08-22',
-    endTime: '11:00',
-    locationLabel: 'Aqua Pro · Бассейн A',
-    startTime: '10:00',
-    statusLabel: 'Подтверждена',
-    statusTone: 'success' as const,
-    timeLabel: '10:00 - 11:00',
-    title: 'Утреннее плавание',
-    trainerName: 'Марина Соколова',
-  };
-
-  it('за 26 часов до начала отмена не считается поздней', async () => {
-    // 2026-08-21T04:00Z — до начала занятия ровно 26 часов по часам зала.
-    // По часам зрителя (Токио) начало наступило бы на пять часов раньше, до него
-    // оставался бы 21 час — и прежняя формула показала бы предупреждение зря.
-    freezeTimeAt('2026-08-21T04:00:00.000Z');
-
-    render(<AthleteUpcomingBookingCard booking={bookingBase} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
-    });
-
-    expect(screen.queryByText('Поздняя отмена')).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('за 22 часа до начала отмена поздняя и запрашивает подтверждение', async () => {
-    // 2026-08-21T08:00Z — до начала 22 часа по часам зала, окно 24 часа уже нарушено.
-    freezeTimeAt('2026-08-21T08:00:00.000Z');
-
-    render(<AthleteUpcomingBookingCard booking={bookingBase} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
-    });
-
-    expect(screen.getByText('Поздняя отмена')).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('без известного времени начала предупреждение не показывается', async () => {
-    // `startTime` карточки — не всегда время: когда слот не найден, туда попадает
-    // подпись «Время уточняется». Раньше из неё получался Invalid Date, и ответ
-    // выходил тем же, но случайно — через сравнение с NaN.
-    freezeTimeAt('2026-08-21T08:00:00.000Z');
-
-    render(
-      <AthleteUpcomingBookingCard
-        booking={{ ...bookingBase, startTime: 'Время уточняется', timeLabel: 'Время уточняется' }}
-      />,
-    );
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
-    });
-
-    expect(screen.queryByText('Поздняя отмена')).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-});
-
 describe('Отсчёт до авто-отмены заявки (Step 33.11)', () => {
   it('остаток считается до часа перед началом по часам зала', () => {
     // Занятие 22 августа в 10:00 зала = 2026-08-22T06:00Z, авто-отмена за час до —
@@ -336,6 +267,30 @@ describe('Расписание атлета: неделя и окно отмен
 
     expect(screen.queryByText('Поздняя отмена')).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('за 22 часа до начала отмена из карточки записи поздняя и запрашивает подтверждение', async () => {
+    // Фаза 38, шаг 38.25: случай переехал с карточки `AthleteUpcomingBookingCard`,
+    // которую не рисовала ни одна страница, — на живой путь отмены из расписания.
+    // 2026-08-21T08:00Z — до начала 22 часа по часам зала, окно 24 часа уже нарушено.
+    authenticateAthlete();
+    freezeTimeAt('2026-08-21T08:00:00.000Z');
+
+    const booking = makeBooking({ id: 1, scheduleId: 10, date: '2026-08-22' });
+    const slot = makeSchedule({ id: 10, date: '2026-08-22', startTime: '10:00' });
+
+    render(<AthleteSchedule bookings={[booking]} schedule={[slot]} clubs={[club]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Детали' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Отменить запись' }));
+    });
+
+    expect(screen.getByText('Поздняя отмена')).toBeInTheDocument();
+    // Рейтинга надёжности больше нет — предупреждение не обещает его снижения.
+    expect(screen.queryByText(/рейтинг/i)).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

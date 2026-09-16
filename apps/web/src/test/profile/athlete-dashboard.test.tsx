@@ -1,5 +1,10 @@
-// Тесты AthleteDashboard (Step 25.3): ближайшая, pending-countdown, reliability,
-// new-user flow, KPI. Read-only компонент, toast не нужен.
+// Тесты AthleteDashboard (Step 25.3): ближайшая, pending-countdown, шапка без истории,
+// KPI. Read-only компонент, toast не нужен.
+//
+// ⚠️ Фаза 38, шаг 38.25: два случая про секцию «Мой рейтинг надёжности» сняты —
+// предмета нет (реестр `phase-38-reliability-cut.md`, Т12). Их место заняли:
+// «секции надёжности нет ни при какой истории» и «шапка зовёт сделать первую запись
+// ровно пока завершённых ноль» — прежний порог в пять занятий ушёл вместе с бейджем.
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -113,7 +118,7 @@ describe('AthleteDashboard (Step 25.3)', () => {
     expect(within(pendingSection).getByText(/до авто-?отмен/i)).toBeInTheDocument();
   });
 
-  it('reliability секция: completedCount >= 5 → блок reliability с деталями виден', () => {
+  it('секции надёжности нет ни у новичка, ни у человека с десятью занятиями', () => {
     authenticateAthlete();
 
     const bookings: Booking[] = Array.from({ length: 10 }, (_, index) =>
@@ -125,30 +130,45 @@ describe('AthleteDashboard (Step 25.3)', () => {
       }),
     );
 
-    render(<AthleteDashboard bookings={bookings} />);
+    const { unmount } = render(<AthleteDashboard bookings={bookings} />);
 
-    expect(screen.getByTestId('athlete-dashboard-reliability')).toBeInTheDocument();
-    // Не new-user → нет placeholder-плашки про «покажется после N»
+    expect(screen.queryByTestId('athlete-dashboard-reliability')).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжност/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Рейтинг покажется после/i)).not.toBeInTheDocument();
+
+    unmount();
+    render(<AthleteDashboard bookings={[]} />);
+
+    expect(screen.queryByTestId('athlete-dashboard-reliability')).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжност/i)).not.toBeInTheDocument();
   });
 
-  it('new-user flow: 3 completed (< 5) → плашка «Рейтинг покажется после N тренировок»', () => {
+  it('шапка зовёт сделать первую запись, пока завершённых ноль, и одно занятие это меняет', () => {
     authenticateAthlete();
 
-    const bookings: Booking[] = Array.from({ length: 3 }, (_, index) =>
-      makeBooking({
-        id: index + 1,
-        scheduleId: 200 + index,
-        status: 'completed',
-        date: '2026-03-10',
-      }),
+    // Прежде порог был в пять занятий — это был порог бейджа надёжности. Теперь
+    // граница одна: есть хоть одно завершённое занятие или нет.
+    const { unmount } = render(
+      <AthleteDashboard
+        bookings={[
+          makeBooking({ id: 1, scheduleId: 301, status: 'confirmed', date: '2026-04-30' }),
+        ]}
+      />,
     );
 
-    render(<AthleteDashboard bookings={bookings} />);
+    expect(screen.getByRole('heading', { name: 'Сделайте первую запись' })).toBeInTheDocument();
 
-    const rel = screen.getByTestId('athlete-dashboard-reliability');
-    expect(within(rel).getByText(/Рейтинг покажется после/i)).toBeInTheDocument();
-    expect(within(rel).getByText(/2 успешн/i)).toBeInTheDocument();
+    unmount();
+    render(
+      <AthleteDashboard
+        bookings={[
+          makeBooking({ id: 2, scheduleId: 302, status: 'completed', date: '2026-03-10' }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Обзор' })).toBeInTheDocument();
+    expect(screen.queryByText(/Сделайте первую запись/)).not.toBeInTheDocument();
   });
 
   // Сторож этапа Э0a: три неявки подряд больше не поднимают верхний красный баннер
@@ -166,7 +186,7 @@ describe('AthleteDashboard (Step 25.3)', () => {
     render(<AthleteDashboard bookings={noShows} />);
 
     expect(screen.queryByText(/временно не можете создавать новые записи/i)).toBeNull();
-    // Кабинет при этом рабочий: надёжность считается и показывается.
+    // Кабинет при этом рабочий: KPI на месте.
     expect(screen.getByTestId('athlete-dashboard-kpi')).toBeInTheDocument();
   });
 

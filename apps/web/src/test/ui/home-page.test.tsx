@@ -2,6 +2,10 @@
 //
 // Данные приходят настоящим клиентом с заготовленного стенда ответов
 // (`helpers/api-stub`): подменяется транспорт, а не модуль доступа к данным.
+//
+// ⚠️ Фаза 38, шаг 38.25: случай «бейдж надёжности рисуется по числу из карточки»
+// переписан в обратный — механизма нет, и поле в ответе бейджа не возвращает
+// (реестр `phase-38-reliability-cut.md`, Т16). Шаг 38.76 перепишет набор целиком.
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,35 +71,27 @@ describe('Home page', () => {
     ).toBeInTheDocument();
   });
 
-  it('витрина не ходит за записями вовсе — надёжность приходит с карточками', async () => {
+  it('витрина не ходит за записями вовсе', async () => {
     await Home();
 
     // ⚠️ Главная проверка этого набора. Раньше страница забирала записи ВСЕЙ площадки
     // ради бейджа надёжности, и когда полный срез записей закрыли от гостя, витрина
     // стала отвечать пятисотой: вход требовался не ради данных, а ради двух чисел
-    // на карточке. Теперь их считает бэкенд, и записи странице не нужны совсем.
+    // на карточке. Бейджа больше нет, а правило «витрине записи не нужны» осталось.
     expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
   });
 
-  it('бейдж надёжности рисуется по числу из карточки каталога', async () => {
+  it('надёжности на витрине нет — даже если старый бэкенд пришлёт поле в карточке', async () => {
     stub.restore();
     stub = installApiStub({
       ...createFixtureRoutes(),
-      // Клуб с провальной надёжностью: бейдж обязан появиться, и взяться ему
-      // больше неоткуда — записей страница не спрашивает.
+      // Карточка с полем `reliability`, каким его отдавал бэкенд до шага 38.23.
+      // Фронт обязан его не заметить: бейджу взяться неоткуда — ни из поля,
+      // ни из записей, которых страница не спрашивает.
       '/clubs': [
         {
           ...fixtureClubs[0],
-          reliability: {
-            totalRelevant: 10,
-            completedCount: 4,
-            noShowCount: 0,
-            lateCancelCount: 6,
-            rejectedByProviderCount: 0,
-            completionRate: 0.4,
-            badge: 'danger',
-            isNewUser: false,
-          },
+          reliability: { completionRate: 0.4, badge: 'danger' },
         },
         ...fixtureClubs.slice(1),
       ],
@@ -103,7 +99,8 @@ describe('Home page', () => {
 
     render(await Home());
 
-    expect(screen.getAllByTestId('reliability-badge-danger').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId(/reliability-badge/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжност/i)).not.toBeInTheDocument();
   });
 
   it('показывает честный empty-state, если каталог пуст', async () => {

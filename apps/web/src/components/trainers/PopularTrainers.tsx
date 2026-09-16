@@ -4,15 +4,11 @@ import { useRef } from 'react';
 
 import { Badge, Button, Card } from '@/components/ui';
 import { TrainerCard } from '@/components/trainers/TrainerCard';
-import type { ReliabilityResult } from '@sporthub/domain';
 
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
-import type { EntityId } from '@sporthub/types';
 
 type PopularTrainersProps = {
   trainers: TrainerDirectoryItem[];
-  /** Phase 25 Step 25.13: опциональная map id→reliability для компактного бейджа. */
-  reliabilityByTrainerId?: Map<EntityId, ReliabilityResult>;
 };
 
 const POPULAR_TRAINERS_SCROLL_STEP = 360;
@@ -33,7 +29,7 @@ function sortByPopularity(trainers: TrainerDirectoryItem[]): TrainerDirectoryIte
   });
 }
 
-export function PopularTrainers({ trainers, reliabilityByTrainerId }: PopularTrainersProps) {
+export function PopularTrainers({ trainers }: PopularTrainersProps) {
   const popularTrainers = sortByPopularity(trainers).slice(0, 6);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,11 +106,7 @@ export function PopularTrainers({ trainers, reliabilityByTrainerId }: PopularTra
                     key={trainer.id}
                     className="flex h-full w-[20rem] shrink-0 snap-start sm:w-[23rem]"
                   >
-                    <TrainerCard
-                      trainer={trainer}
-                      index={i}
-                      reliability={reliabilityByTrainerId?.get(trainer.id)}
-                    />
+                    <TrainerCard trainer={trainer} index={i} />
                   </div>
                 ))}
               </div>

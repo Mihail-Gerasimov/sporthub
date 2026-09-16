@@ -12,8 +12,6 @@
  *     в одном слайдере выровнены по высоте независимо от длины контента.
  *   - body-meta: lime price-pill + distance.
  *   - body-rating: SVG-звёзды + Bowlby num + N отзывов + опц. бейдж «Новый».
- *   - ReliabilityBadge (Phase 25 Step 25.13) — отдельной строкой ниже rating-row,
- *     не в одном ряду со звёздами (чтобы строка не переполнялась).
  *   - Tags ChipMarquee — solid lime-soft, последний, isLast=true.
  *
  * Важно: вокруг <article> НЕТ обёртки <Link> — в нашем стеке это даёт
@@ -25,9 +23,8 @@
  */
 import Link from 'next/link';
 
-import { ChipMarquee, ReliabilityBadge } from '@/components/ui';
+import { ChipMarquee } from '@/components/ui';
 import { buildDictMap, formatCityDisplay, formatPrice } from '@/lib/utils';
-import type { ReliabilityResult } from '@sporthub/domain';
 import type { Club, Sport, Tag } from '@sporthub/types';
 
 type ClubCardSport = Pick<Sport, 'id' | 'name' | 'icon'>;
@@ -44,8 +41,6 @@ type ClubCardProps = {
   index?: number;
   /** Подсветка карточки при выборе на карте — accent-бордер вместо line. */
   highlighted?: boolean;
-  /** Phase 25 Step 25.13: компактный бейдж надёжности отдельной строкой. */
-  reliability?: ReliabilityResult;
 };
 
 export function ClubCard({
@@ -54,7 +49,6 @@ export function ClubCard({
   tags = [],
   index,
   highlighted = false,
-  reliability,
 }: ClubCardProps) {
   // wm — двузначный номер ранга («01», «02», …) для watermark hero. Если
   // index не передан (карточка вне слайдера) — watermark не показываем.
@@ -89,7 +83,7 @@ export function ClubCard({
       data-testid="club-card"
       data-tone={tone}
       data-highlighted={highlighted ? 'true' : 'false'}
-      className={`relative grid h-full grid-rows-[auto_auto_72px_auto_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors sm:grid-rows-[auto_auto_84px_auto_auto_auto] md:grid-rows-[auto_auto_72px_auto_auto_auto] ${
+      className={`relative grid h-full grid-rows-[auto_auto_72px_auto_auto] overflow-hidden rounded-[18px] border bg-[var(--ui-card)] transition-colors sm:grid-rows-[auto_auto_84px_auto_auto] md:grid-rows-[auto_auto_72px_auto_auto] ${
         highlighted ? 'border-[var(--ui-lime)]' : 'border-[var(--ui-line)]'
       } ${hoverBorderClass}`}
     >
@@ -171,19 +165,6 @@ export function ClubCard({
           </span>
         ) : null}
       </div>
-
-      {/* ReliabilityBadge — отдельной строкой ниже rating-row (Phase 28).
-          При isNewUser=true бейдж не рендерим — это визуально дублировало
-          бы наш собственный «Новый» в rating-row выше. ReliabilityBadge
-          остаётся только для warning/danger (несут уникальную инфу
-          completionRate). */}
-      {reliability && !reliability.isNewUser && reliability.badge !== null ? (
-        <div className="px-[22px] pt-3 sm:px-4">
-          <ReliabilityBadge reliability={reliability} compact />
-        </div>
-      ) : (
-        <span aria-hidden="true" />
-      )}
 
       {/* Tags ChipMarquee — solid lime-soft, последний (margin-bottom учтён) */}
       <ChipMarquee items={tagItems} variant="solid" accent="lime" isLast />

@@ -2,8 +2,11 @@
 //
 // Бэкенд не поднимается: страница ходит настоящим клиентом, а стенд отвечает
 // заготовленными телами (`helpers/api-stub`). Поэтому здесь же проверяется и то,
-// КАКИМ запросом страница забирает записи — карточке нужен один бейдж надёжности,
-// и тянуть ради него записи всей площадки она больше не должна.
+// что за записями страница не ходит вовсе: публичной странице они не нужны,
+// а тянуть записи всей площадки ради карточки она однажды уже пробовала.
+//
+// ⚠️ Фаза 38, шаг 38.25: случай «бейдж надёжности из поля карточки» снят —
+// предмета нет (реестр `phase-38-reliability-cut.md`, Т10).
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,7 +48,7 @@ describe('Club detail page', () => {
     expect(screen.getByRole('heading', { name: 'Отзывы клуба' })).toBeInTheDocument();
   });
 
-  it('за записями не ходит вовсе — надёжность приезжает в карточке', async () => {
+  it('за записями не ходит вовсе', async () => {
     stub = installApiStub({
       ...createFixtureRoutes(),
       [bySlug('volna-aquatic-club')]: { club: fixtureClub },
@@ -53,34 +56,10 @@ describe('Club detail page', () => {
 
     await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) });
 
-    // Раньше страница считала бейдж сама и забирала ради этого записи клуба.
-    // Считать на бэкенде дешевле на порядок: там это один запрос-агрегат.
+    // Раньше страница считала бейдж надёжности сама и забирала ради этого записи
+    // клуба; бейджа больше нет, а правило «публичная страница записей не читает»
+    // осталось.
     expect(stub.calls.filter((call) => call.startsWith('/bookings'))).toEqual([]);
-  });
-
-  it('показывает бейдж надёжности из поля карточки', async () => {
-    stub = installApiStub({
-      ...createFixtureRoutes(),
-      [bySlug('volna-aquatic-club')]: {
-        club: {
-          ...fixtureClub,
-          reliability: {
-            totalRelevant: 10,
-            completedCount: 4,
-            noShowCount: 0,
-            lateCancelCount: 6,
-            rejectedByProviderCount: 0,
-            completionRate: 0.4,
-            badge: 'danger',
-            isNewUser: false,
-          },
-        },
-      },
-    });
-
-    render(await ClubDetailPage({ params: Promise.resolve({ slug: 'volna-aquatic-club' }) }));
-
-    expect(screen.getByTestId('club-reliability-section')).toBeInTheDocument();
   });
 
   it('отдаёт notFound для несуществующего клуба', async () => {

@@ -50,9 +50,6 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
     getReviews(),
   ]);
 
-  // Симметрично карточке клуба: надёжность считает бэкенд и отдаёт числом.
-  const reliability = trainer.reliability;
-
   /* Услуги тренера */
   const trainerOfferings = offerings
     .filter((offering) => offering.ownerType === 'trainer' && offering.ownerId === trainer.id)
@@ -115,7 +112,6 @@ export default async function TrainerDetailPage({ params }: TrainerDetailPagePro
         specialties={specialties}
         sports={trainerSports}
         trainer={trainer}
-        reliability={reliability}
       />
     </>
   );

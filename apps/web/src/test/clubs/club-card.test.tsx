@@ -5,8 +5,10 @@
  *   hero (диагональный lime/orange/blank-луч + watermark номера + city-pill +
  *   address eyebrow + Bowlby-имя как Link) → body-meta (lime price-pill +
  *   distance) → body-desc clamp 3 → body-rating (звёзды + num + reviews +
- *   опц. badge "Новый") → опц. ReliabilityBadge отдельной строкой → tags
- *   ChipMarquee solid lime.
+ *   опц. badge "Новый") → tags ChipMarquee solid lime.
+ *
+ * ⚠️ Фаза 38, шаг 38.25: два случая про бейдж надёжности сняты — предмета нет
+ * (реестр `phase-38-reliability-cut.md`, Т3).
  *
  * jsdom не считает layout (scrollWidth=0), поэтому ChipMarquee внутри
  * карточки попадёт в ветку no-loop. Для тестов это ОК — нам важна только
@@ -129,34 +131,6 @@ describe('ClubCard (Phase 28)', () => {
     expect(screen.getByText('Бассейн')).toBeInTheDocument();
     expect(screen.getByText('Групповые')).toBeInTheDocument();
     expect(screen.queryByText('#999')).not.toBeInTheDocument();
-  });
-
-  it('ReliabilityBadge рендерится отдельной строкой когда reliability передан', () => {
-    render(
-      <ClubCard
-        club={baseClub}
-        sports={sports}
-        tags={tags}
-        reliability={{
-          totalRelevant: 10,
-          completedCount: 8,
-          noShowCount: 2,
-          lateCancelCount: 0,
-          rejectedByProviderCount: 0,
-          completionRate: 0.8,
-          badge: 'warning',
-          isNewUser: false,
-        }}
-      />,
-    );
-    expect(screen.getByTestId('reliability-badge-warning')).toBeInTheDocument();
-  });
-
-  it('ReliabilityBadge отсутствует если reliability не передан', () => {
-    render(<ClubCard club={baseClub} sports={sports} tags={tags} />);
-    expect(screen.queryByTestId('reliability-badge-warning')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('reliability-badge-danger')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('reliability-badge-new')).not.toBeInTheDocument();
   });
 
   it('отображает price-pill с formatPrice и distance', () => {

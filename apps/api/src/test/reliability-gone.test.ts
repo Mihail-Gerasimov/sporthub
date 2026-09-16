@@ -82,36 +82,11 @@ const HISTORICAL_LOG_ACTION = /\breliability_recompute\b/g;
  */
 const PENDING: Record<string, string> = {
   // Бэкенд — шаг 38.23: вычищен, записей нет.
-  // Фронт — шаг 38.25.
-  'apps/web/src/app/clubs/[slug]/page.tsx': '38.25',
-  'apps/web/src/app/page.tsx': '38.25',
-  'apps/web/src/app/trainers/[slug]/page.tsx': '38.25',
-  'apps/web/src/components/admin/DashboardPage.tsx': '38.25',
-  'apps/web/src/components/clubs/ClubCard.tsx': '38.25',
-  'apps/web/src/components/clubs/ClubDetailPageClient.tsx': '38.25',
-  'apps/web/src/components/clubs/ClubList.tsx': '38.25',
-  'apps/web/src/components/clubs/PopularNearby.tsx': '38.25',
-  'apps/web/src/components/profile/AthleteUpcomingBookingCard.tsx': '38.25',
-  'apps/web/src/components/profile/ProviderBookingsSection.tsx': '38.25',
-  'apps/web/src/components/profile/athlete/AthleteDashboard.tsx': '38.25',
-  'apps/web/src/components/profile/athlete/AthleteSchedule.tsx': '38.25',
-  'apps/web/src/components/profile/athlete/AthleteStats.tsx': '38.25',
-  'apps/web/src/components/profile/provider/ProviderBookingsInbox.tsx': '38.25',
-  'apps/web/src/components/profile/provider/ProviderClients.tsx': '38.25',
-  'apps/web/src/components/profile/provider/ProviderDashboard.tsx': '38.25',
-  'apps/web/src/components/profile/provider/ProviderStats.tsx': '38.25',
-  'apps/web/src/components/search/CatalogResultsSection.tsx': '38.25',
-  'apps/web/src/components/trainers/PopularTrainers.tsx': '38.25',
-  'apps/web/src/components/trainers/TrainerCard.tsx': '38.25',
-  'apps/web/src/components/trainers/TrainerDetailPageClient.tsx': '38.25',
-  'apps/web/src/components/trainers/TrainerList.tsx': '38.25',
-  'apps/web/src/components/ui/ReliabilityBadge.tsx': '38.25',
-  'apps/web/src/components/ui/index.ts': '38.25',
+  // Фронт — шаг 38.25: вычищен, включая переименование набора статусов истории
+  // клиента (`CLIENT_HISTORY_STATUSES` в `booking-scopes.ts` и `face-scope.ts`).
+  // Одна строка осталась: текст уведомления о неявке обещает влияние на рейтинг —
+  // файл на волне 2 закреплён за другим агентом, правка одной строки ждёт его.
   'apps/web/src/lib/notification-copy.ts': '38.25',
-  'apps/web/src/lib/reliability-map.ts': '38.25',
-  // Переезд, а не снятие: набор статусов истории клиента переименовывается — шаг 38.26.
-  'apps/web/src/lib/booking-scopes.ts': '38.26',
-  'apps/web/src/lib/face-scope.ts': '38.26',
   // Домен и типы — шаг 38.26.
   'packages/domain/src/discipline-config.ts': '38.26',
   'packages/domain/src/index.ts': '38.26',

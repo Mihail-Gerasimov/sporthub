@@ -11,6 +11,5 @@ export { PaginationBar } from '@/components/ui/PaginationBar';
 export type { PaginationShape } from '@/components/ui/PaginationBar';
 export { Select } from '@/components/ui/Select';
 export { Rating } from '@/components/ui/Rating';
-export { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 export { Skeleton } from '@/components/ui/Skeleton';
 export { SlotCard } from '@/components/ui/SlotCard';

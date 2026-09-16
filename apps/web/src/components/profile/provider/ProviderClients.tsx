@@ -1,7 +1,11 @@
 // CRM-раздел провайдера (Step 25.10-B). Агрегирует уникальных клиентов из bookings
-// провайдера, показывает фильтры (reliability / recency / offering / entity), карточку
-// клиента с reliability-бейджем, completed-счётчиком и топ-3 offerings; drawer —
-// полная история записей + редактируемая заметка (POST create / PATCH update / DELETE).
+// провайдера, показывает фильтры (recency / offering / entity), карточку клиента
+// с completed-счётчиком и топ-3 offerings; drawer — полная история записей
+// + редактируемая заметка (POST create / PATCH update / DELETE).
+//
+// ⚠️ Фаза 38, шаг 38.25: фильтр и бейдж надёжности клиента вырезаны вместе с механизмом
+// (решение заказчика 15.09.2026). История клиента по-прежнему приходит срезом
+// `CLIENT_HISTORY_STATUSES` — она нужна разделу и без бейджа.
 'use client';
 
 import Link from 'next/link';
@@ -10,8 +14,8 @@ import { startTransition, useEffect, useMemo, useState } from 'react';
 
 import { useCabinetPath, useCabinetFaces } from '@/components/profile/cabinet-context';
 import { getProviderClubs, getProviderTrainers } from '@/components/profile/provider-helpers';
-import { Badge, Button, Card, Modal, ReliabilityBadge } from '@/components/ui';
-import { computeAthleteReliability, zonedDateTime } from '@sporthub/domain';
+import { Badge, Button, Card, Modal } from '@/components/ui';
+import { zonedDateTime } from '@sporthub/domain';
 import {
   cn,
   findBookingSlot,
@@ -40,7 +44,6 @@ const STALE_VISIT_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000;
 // применяют схемы создания и правки заметки на бэкенде.
 const MAX_NOTE_LENGTH = APP_LIMITS.providerNoteMaxLength;
 
-type ReliabilityFilter = typeof ALL_VALUE | 'new' | 'warning' | 'danger' | 'normal';
 type RecencyFilter = typeof ALL_VALUE | 'recent' | 'stale';
 
 type OfferingCount = { offeringId: number; title: string; count: number };
@@ -48,7 +51,6 @@ type OfferingCount = { offeringId: number; title: string; count: number };
 type ClientAggregate = {
   userId: number;
   user: User | null;
-  reliability: ReturnType<typeof computeAthleteReliability>;
   totalBookings: number;
   completedCount: number;
   firstVisitMs: number | null;
@@ -90,7 +92,6 @@ export function ProviderClients({
 
   const [entityFilter, setEntityFilter] = useState<string>(ALL_VALUE);
   const [offeringFilter, setOfferingFilter] = useState<string>(ALL_VALUE);
-  const [reliabilityFilter, setReliabilityFilter] = useState<ReliabilityFilter>(ALL_VALUE);
   const [recencyFilter, setRecencyFilter] = useState<RecencyFilter>(ALL_VALUE);
   const [openedClientId, setOpenedClientId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
@@ -146,8 +147,7 @@ export function ProviderClients({
 
   const nowMs = new Date().getTime();
 
-  // Агрегация уникальных клиентов из provider bookings. reliability считается по всем
-  // bookings (не только провайдеровским), чтобы бейдж отражал полную историю клиента.
+  // Агрегация уникальных клиентов из provider bookings.
   const clientAggregates = useMemo<ClientAggregate[]>(() => {
     const groupedBookings = new Map<number, Booking[]>();
     for (const booking of providerBookings) {
@@ -160,7 +160,6 @@ export function ProviderClients({
     const aggregates: ClientAggregate[] = [];
     for (const [userId, userBookings] of groupedBookings) {
       const userData = users.find((u) => u.id === userId) ?? null;
-      const reliability = computeAthleteReliability(bookings, userId);
       const completedCount = userBookings.filter((b) => b.status === 'completed').length;
 
       // Дата визита — полночь дня в поясе зала. Раньше полночь бралась в поясе
@@ -190,7 +189,6 @@ export function ProviderClients({
       aggregates.push({
         userId,
         user: userData,
-        reliability,
         totalBookings: userBookings.length,
         completedCount,
         firstVisitMs: visitMs[0] ?? null,
@@ -202,7 +200,7 @@ export function ProviderClients({
     }
 
     return aggregates.sort((a, b) => (b.lastVisitMs ?? 0) - (a.lastVisitMs ?? 0));
-  }, [providerBookings, bookings, users, offeringById, notesByClient]);
+  }, [providerBookings, users, offeringById, notesByClient]);
 
   const filteredClients = useMemo(() => {
     return clientAggregates.filter((client) => {
@@ -222,18 +220,6 @@ export function ProviderClients({
         if (!client.bookings.some((b) => b.offeringId === offeringId)) return false;
       }
 
-      if (reliabilityFilter !== ALL_VALUE) {
-        if (reliabilityFilter === 'new' && !client.reliability.isNewUser) return false;
-        if (reliabilityFilter === 'warning' && client.reliability.badge !== 'warning') return false;
-        if (reliabilityFilter === 'danger' && client.reliability.badge !== 'danger') return false;
-        if (
-          reliabilityFilter === 'normal' &&
-          (client.reliability.isNewUser || client.reliability.badge !== null)
-        ) {
-          return false;
-        }
-      }
-
       if (recencyFilter !== ALL_VALUE) {
         const lastMs = client.lastVisitMs;
         if (lastMs === null) return false;
@@ -244,7 +230,7 @@ export function ProviderClients({
 
       return true;
     });
-  }, [clientAggregates, entityFilter, offeringFilter, reliabilityFilter, recencyFilter, nowMs]);
+  }, [clientAggregates, entityFilter, offeringFilter, recencyFilter, nowMs]);
 
   const openedClient = useMemo(
     () =>
@@ -419,21 +405,6 @@ export function ProviderClients({
               </select>
             </label>
             <label className="flex min-w-[180px] flex-col gap-1 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-              Reliability
-              <select
-                data-testid="provider-clients-filter-reliability"
-                value={reliabilityFilter}
-                onChange={(event) => setReliabilityFilter(event.target.value as ReliabilityFilter)}
-                className="rounded-pill border border-line bg-panel px-3 py-2 text-sm font-normal text-ink"
-              >
-                <option value={ALL_VALUE}>Все</option>
-                <option value="new">Новые клиенты</option>
-                <option value="normal">Надёжные</option>
-                <option value="warning">Warning</option>
-                <option value="danger">Danger</option>
-              </select>
-            </label>
-            <label className="flex min-w-[180px] flex-col gap-1 text-xs font-semibold uppercase tracking-[0.10em] text-muted">
               Последний визит
               <select
                 data-testid="provider-clients-filter-recency"
@@ -473,12 +444,9 @@ export function ProviderClients({
                       onClick={() => setOpenedClientId(client.userId)}
                       className="flex w-full flex-col gap-3 rounded-card border border-line bg-canvas p-4 text-left transition-colors hover:border-accent"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-base font-semibold text-ink">
-                          {client.user?.name ?? 'Спортсмен SportHub'}
-                        </p>
-                        <ReliabilityBadge reliability={client.reliability} compact showDetails />
-                      </div>
+                      <p className="text-base font-semibold text-ink">
+                        {client.user?.name ?? 'Спортсмен SportHub'}
+                      </p>
                       <p className="text-xs text-muted">{client.user?.email ?? ''}</p>
 
                       <div className="grid grid-cols-2 gap-2 text-xs text-muted">
@@ -568,7 +536,6 @@ export function ProviderClients({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <ReliabilityBadge reliability={openedClient.reliability} showDetails />
               <Badge tone="outline">
                 Записей: {openedClient.totalBookings} · Completed: {openedClient.completedCount}
               </Badge>

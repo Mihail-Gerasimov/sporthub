@@ -59,13 +59,6 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
       getReviews(),
     ]);
 
-  // Бейдж надёжности приезжает вместе с карточкой — числом, а не пачкой записей.
-  //
-  // ⚠️ Раньше страница считала его сама и забирала ради этого записи клуба целиком,
-  // без входа. Считать надёжность на бэкенде дешевле на порядок: там это один
-  // запрос-агрегат, а не выдача строк, из которых читаются только статусы.
-  const reliability = club.reliability;
-
   const clubSports = sports.filter((sport) => club.sportIds.includes(sport.id));
   // Phase 24 Step 24.9c: публичный список тренеров клуба — ТОЛЬКО через confirmed links.
   const clubLinks = await getTrainerClubLinks({ clubId: club.id, status: 'confirmed' });
@@ -108,7 +101,6 @@ export default async function ClubDetailPage({ params }: ClubDetailPageProps) {
         sports={clubSports}
         tags={tags}
         trainers={clubTrainers}
-        reliability={reliability}
       />
     </>
   );

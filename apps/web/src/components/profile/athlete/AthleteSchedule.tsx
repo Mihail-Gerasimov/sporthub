@@ -434,8 +434,7 @@ function AthleteBookingDrawer({
       {/* Warning при late-cancel — отдельная модалка поверх drawer'а. */}
       <Modal open={isLateWarnOpen} onClose={() => setIsLateWarnOpen(false)} title="Поздняя отмена">
         <p className="text-sm leading-relaxed text-muted">
-          Эта отмена будет засчитана как поздняя и снизит ваш рейтинг надёжности. Вы уверены, что
-          хотите продолжить?
+          Эта отмена будет засчитана как поздняя. Вы уверены, что хотите продолжить?
         </p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={() => setIsLateWarnOpen(false)}>

@@ -5,8 +5,12 @@
 // `src/test/security/protected-layouts.test.ts` — там же, где проверяется
 // и то, что уведённому данные не запрашивались вообще.
 // Тесты ProviderClients (Step 25.10-B): агрегация уникальных клиентов из bookings
-// провайдера, per-offering фильтр, reliability-фильтр, drawer с историей записей
-// и CRM-заметкой (POST создаёт, DELETE удаляет).
+// провайдера, per-offering фильтр, drawer с историей записей и CRM-заметкой
+// (POST создаёт, DELETE удаляет).
+//
+// ⚠️ Фаза 38, шаг 38.25: случай про фильтр «danger» снят — предмета нет (реестр
+// `phase-38-reliability-cut.md`, Т15). Его место занял обратный: фильтра по надёжности
+// в разделе нет, а клиент с двадцатью неявками виден наравне с остальными.
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { renderInFaceCabinet, trainerFace } from '@/test/helpers/cabinet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -297,12 +301,11 @@ describe('ProviderClients (Step 25.10-B)', () => {
     expect(screen.queryByTestId('provider-clients-card-2')).not.toBeInTheDocument();
   });
 
-  it('фильтр по reliability: выбор «danger» оставляет только клиентов с danger-бейджем', () => {
+  it('фильтра по надёжности нет, и клиент с двадцатью неявками виден наравне с остальными', () => {
     authenticateProvider();
 
-    // DISCIPLINE_CONFIG: minCompletedForBadge=5, dangerThreshold=0.75.
-    // user 1: 6 completed → completedCount≥5 (не new) + rate=1 (нет бейджа) → normal.
-    // user 2: 5 completed + 20 no_show → completedCount≥5 + rate=0.2<0.75 → danger.
+    // Прежде user 2 попадал под фильтр «danger» по доле доведённых записей.
+    // Механизма нет — клиент как клиент: карточка есть, бейджа нет.
     const normalBookings: Booking[] = Array.from({ length: 6 }, (_, index) =>
       makeBooking({
         id: 700 + index,
@@ -311,26 +314,17 @@ describe('ProviderClients (Step 25.10-B)', () => {
       }),
     );
 
-    const dangerBookings: Booking[] = [
-      ...Array.from({ length: 5 }, (_, index) =>
-        makeBooking({
-          id: 800 + index,
-          status: 'completed',
-          userId: athleteUser2.id,
-        }),
-      ),
-      ...Array.from({ length: 20 }, (_, index) =>
-        makeBooking({
-          id: 900 + index,
-          status: 'no_show',
-          userId: athleteUser2.id,
-        }),
-      ),
-    ];
+    const noShowBookings: Booking[] = Array.from({ length: 20 }, (_, index) =>
+      makeBooking({
+        id: 900 + index,
+        status: 'no_show',
+        userId: athleteUser2.id,
+      }),
+    );
 
     renderInFaceCabinet(
       <ProviderClients
-        bookings={[...normalBookings, ...dangerBookings]}
+        bookings={[...normalBookings, ...noShowBookings]}
         clubs={[club]}
         trainers={[]}
         offerings={[clubOffering]}
@@ -340,15 +334,11 @@ describe('ProviderClients (Step 25.10-B)', () => {
       />,
     );
 
-    // Изначально оба клиента видны.
     expect(screen.getByTestId('provider-clients-card-1')).toBeInTheDocument();
     expect(screen.getByTestId('provider-clients-card-2')).toBeInTheDocument();
-
-    const select = screen.getByTestId('provider-clients-filter-reliability') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'danger' } });
-
-    expect(screen.queryByTestId('provider-clients-card-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('provider-clients-card-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-clients-filter-reliability')).not.toBeInTheDocument();
+    expect(screen.queryByText(/надёжн/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/reliability-badge/)).not.toBeInTheDocument();
   });
 
   it('клик по карточке открывает drawer с именем клиента и историей записей', () => {

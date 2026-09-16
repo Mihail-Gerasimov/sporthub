@@ -345,31 +345,4 @@ describe('TrainerDetailPageClient', () => {
     // Facebook пустой — не отображается
     expect(screen.queryByRole('link', { name: /facebook/i })).not.toBeInTheDocument();
   });
-
-  // Phase 25 Step 25.13: публичная симметрия репутации на detail-странице.
-  it('рендерит секцию «Надёжность» при передаче reliability', () => {
-    render(
-      <TrainerDetailPageClient
-        {...defaultProps}
-        reliability={{
-          totalRelevant: 20,
-          completedCount: 12,
-          noShowCount: 8,
-          lateCancelCount: 0,
-          rejectedByProviderCount: 0,
-          completionRate: 0.6,
-          badge: 'danger',
-          isNewUser: false,
-        }}
-      />,
-    );
-
-    expect(screen.getByTestId('trainer-reliability-section')).toBeInTheDocument();
-    expect(screen.getByTestId('reliability-badge-danger')).toBeInTheDocument();
-  });
-
-  it('не рендерит секцию «Надёжность» если reliability не передан', () => {
-    render(<TrainerDetailPageClient {...defaultProps} />);
-    expect(screen.queryByTestId('trainer-reliability-section')).not.toBeInTheDocument();
-  });
 });

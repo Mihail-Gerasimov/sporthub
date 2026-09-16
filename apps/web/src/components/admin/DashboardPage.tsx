@@ -1,7 +1,7 @@
 /**
  * Client-component админ-Dashboard (Phase 28.20 rebrand).
  * Список пользователей платформы (без admin) с поиском, фильтрами и
- * быстрыми actions (impersonate, recompute reliability).
+ * быстрым действием «войти как пользователь».
  *
  * Phase 28.20:
  * — sec-head: eyebrow `Admin · Users` + Bowlby + sub `N пользователей · M показано`
@@ -9,11 +9,12 @@
  * — toolbar: search-input + lime-solid кнопка `Фильтры ⌃` (toggle ротация);
  * — filters-panel collapsible: grid 2-col Лица услуг / Статус;
  * — user-card: grid `1fr 440px` на 1280+, 1-col на ≤1024;
- * — action-зона атлета — одна кнопка «Пересчитать рейтинг» (фаза 35, этап Э0a:
- *   ручное послабление санкций за неявки удалено вместе с самим механизмом);
+ * — action-зона — «Войти как пользователь» (фаза 35, этап Э0a: ручное послабление
+ *   санкций за неявки удалено вместе с самим механизмом; фаза 38, шаг 38.25: кнопка
+ *   «Пересчитать рейтинг» и бейдж надёжности вырезаны вместе с механизмом — маршрута
+ *   пересчёта на бэкенде с шага 38.23 нет);
  * — pagination client-side: 15 per page, pager всегда видим;
- * — служебные записи фильтруются (как раньше), tag-бейджи «Новый/Ожидает»
- *   не вводим (ReliabilityBadge «Новый» этого достаточно).
+ * — служебные записи фильтруются (как раньше), tag-бейджи «Новый/Ожидает» не вводим.
  *
  * ⚠️ Шаг 35.24. Роли нет, и раздел больше не спрашивает «кем человек является».
  * Всё, что он показывал ролью, выводится из ВЛАДЕНИЯ: есть клуб или карточка
@@ -27,14 +28,8 @@ import { useRouter } from 'next/navigation';
 
 import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
 import { PaginationBar } from '@/components/ui/PaginationBar';
-import { ReliabilityBadge } from '@/components/ui/ReliabilityBadge';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
-import {
-  accountKindOf,
-  computeAthleteReliability,
-  isAdminKind,
-  type ReliabilityResult,
-} from '@sporthub/domain';
+import { accountKindOf, isAdminKind } from '@sporthub/domain';
 import type { AdminUser } from '@/lib/server-api';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -227,23 +222,6 @@ export function DashboardPage({ users, bookings }: DashboardPageProps) {
     router.refresh();
   }
 
-  /** Phase 24 Step 24.15: пересчёт рейтинга (no-op + лог) */
-  async function handleRecomputeReliability(userId: number) {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/recompute-reliability`, {
-        method: 'POST',
-      });
-      const body = (await response.json()) as { success: boolean; error?: string };
-      if (!response.ok || !body.success) {
-        addToast({ message: body.error ?? 'Не удалось пересчитать', tone: 'error' });
-        return;
-      }
-      addToast({ message: 'Рейтинг пересчитан', tone: 'success' });
-    } catch {
-      addToast({ message: 'Ошибка при пересчёте рейтинга', tone: 'error' });
-    }
-  }
-
   return (
     <div className="flex w-full flex-col gap-5 sm:gap-[22px]">
       {/* Sec-head */}
@@ -350,19 +328,13 @@ export function DashboardPage({ users, bookings }: DashboardPageProps) {
           {pagedUsers.map((user) => {
             const faceCount = faceCounts.get(user.id) ?? 0;
             const stats = getUserStats(user, bookings, faceCount);
-            // ⚠️ Надёжность считается КАЖДОМУ человеку, а не только «атлету»:
-            // владелец зала тоже ходит на занятия и тоже может не прийти.
-            // Прежде роль прятала его неявки от администратора совсем.
-            const reliability = computeAthleteReliability(bookings, user.id);
             return (
               <UserCard
                 key={user.id}
                 user={user}
                 faceCount={faceCount}
                 stats={stats}
-                reliability={reliability}
                 onImpersonate={() => handleImpersonate(user)}
-                onRecomputeReliability={() => handleRecomputeReliability(user.id)}
               />
             );
           })}
@@ -390,19 +362,10 @@ type UserCardProps = {
   /** Сколько у человека лиц услуг. Ноль — он только занимается сам. */
   faceCount: number;
   stats: { label: string; value: number };
-  reliability: ReliabilityResult | null;
   onImpersonate: () => void;
-  onRecomputeReliability: () => void;
 };
 
-function UserCard({
-  user,
-  faceCount,
-  stats,
-  reliability,
-  onImpersonate,
-  onRecomputeReliability,
-}: UserCardProps) {
+function UserCard({ user, faceCount, stats, onImpersonate }: UserCardProps) {
   const leadsServices = faceCount > 0;
   const userStatus = user.status ?? 'active';
 
@@ -426,7 +389,6 @@ function UserCard({
             {leadsServices ? FACES_LABELS.with : FACES_LABELS.without}
           </Badge>
           <StatusBadge status={userStatus} />
-          {reliability ? <ReliabilityBadge reliability={reliability} compact showDetails /> : null}
         </div>
 
         <p className="m-0 break-all text-[13px] font-medium text-muted">{user.email}</p>
@@ -476,11 +438,6 @@ function UserCard({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {/* ⚠️ Пересчёт надёжности доступен по КАЖДОМУ человеку, а не только
-            «атлету»: неявки бывают у всех, кто записывается, а записываться
-            может любой вошедший (решение 5.1). */}
-        <ButtonGhost onClick={onRecomputeReliability}>Пересчитать рейтинг</ButtonGhost>
-
         <ButtonPrimary onClick={onImpersonate}>Войти как пользователь</ButtonPrimary>
       </div>
 
@@ -502,18 +459,6 @@ function ButtonPrimary({ onClick, children }: { onClick: () => void; children: R
       type="button"
       onClick={onClick}
       className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-all hover:-translate-y-px hover:bg-lime-hov sm:flex-none sm:px-5"
-    >
-      {children}
-    </button>
-  );
-}
-
-function ButtonGhost({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full border border-line bg-transparent px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov sm:flex-none sm:px-5"
     >
       {children}
     </button>
