@@ -37,26 +37,52 @@ import type { DiscoveryMode } from '@/stores/useFilterStore';
 const COMING_SOON_PATH = '/coming-soon';
 
 /**
+ * Назначение пункта — ключ, а не подпись: по нему компонент выбирает иконку и узнаёт
+ * пункт (ревью 38.108: иконки дока брались по подписи, и переименование пункта
+ * в словаре молча оставляло вкладку без иконки при зелёных тестах).
+ */
+export type NavKey = 'home' | 'clubs' | 'trainers' | 'teams' | 'market' | 'feed';
+
+/**
+ * Вкладки дока: словарь плюс «Мой» (`mine`), который добавляет сам компонент.
+ * Иконки дока объявлены `Record<MobileNavKey, …>` — компилятор требует иконку на каждую.
+ */
+export type MobileNavKey = 'home' | 'clubs' | 'feed' | 'market' | 'mine';
+
+/**
+ * Пункт навигации; `mode` — режим стора, который ставит клик (выдача каталога).
+ * Ключ параметризован: словарь — `NavKey`, док добавляет свой `mine` поверх словаря.
+ */
+export type NavItem<Key extends string = NavKey> = {
+  key: Key;
+  label: string;
+  href: string;
+  mode?: DiscoveryMode;
+};
+
+/**
  * Разделы сайта вне главной: назначение → подпись и адрес. Раздел появится —
  * правится адрес здесь, меню, подвал и док узнают сами.
  */
 const SITE_SECTIONS = {
   /** Командные виды — долг Д-7. */
-  teams: { label: 'Командные', href: COMING_SOON_PATH },
+  teams: { key: 'teams', label: 'Командные', href: COMING_SOON_PATH },
   /** Маркет — долг Д-8. */
-  market: { label: 'Маркет', href: COMING_SOON_PATH },
+  market: { key: 'market', label: 'Маркет', href: COMING_SOON_PATH },
   /** Лента — вкладка дока макета; раздела нет, вне фазы. */
-  feed: { label: 'Лента', href: COMING_SOON_PATH },
-} as const;
-
-/** Пункт навигации; `mode` — режим стора, который ставит клик (выдача каталога). */
-export type NavItem = { label: string; href: string; mode?: DiscoveryMode };
+  feed: { key: 'feed', label: 'Лента', href: COMING_SOON_PATH },
+} as const satisfies Record<string, NavItem>;
 
 /** Выдача каталога в режиме: «Клубы» и «Тренеры» — один адрес, разный режим стора. */
-const CATALOG_MODES: Record<DiscoveryMode, NavItem> = {
-  clubs: { label: 'Клубы', href: catalogSectionHref('results'), mode: 'clubs' },
-  trainers: { label: 'Тренеры', href: catalogSectionHref('results'), mode: 'trainers' },
-};
+const CATALOG_MODES = {
+  clubs: { key: 'clubs', label: 'Клубы', href: catalogSectionHref('results'), mode: 'clubs' },
+  trainers: {
+    key: 'trainers',
+    label: 'Тренеры',
+    href: catalogSectionHref('results'),
+    mode: 'trainers',
+  },
+} as const satisfies Record<DiscoveryMode, NavItem>;
 
 /** Шапка — ровно макет: каталог в двух режимах и два раздела вне фазы. */
 export const HEADER_NAV: readonly NavItem[] = [
@@ -73,11 +99,11 @@ export const FOOTER_NAV: readonly NavItem[] = HEADER_NAV;
  * Мобильный док — `BOTTOM_TABS` макета без последней вкладки: «Мой» добавляет сам
  * компонент (гостю — вход, вошедшему — кабинет: адрес зависит от сессии, не от словаря).
  */
-export const MOBILE_NAV: readonly NavItem[] = [
-  { label: 'Главная', href: '/' },
+export const MOBILE_NAV: readonly NavItem<Exclude<MobileNavKey, 'mine'>>[] = [
+  { key: 'home', label: 'Главная', href: '/' },
   // Вкладка каталога — страница целиком, а не якорь выдачи: вкладка дока подсвечивается
   // на любом якоре своей страницы; режим — клубы, как обещает подпись.
-  { label: CATALOG_MODES.clubs.label, href: CATALOG_PATH, mode: CATALOG_MODES.clubs.mode },
+  { ...CATALOG_MODES.clubs, href: CATALOG_PATH },
   SITE_SECTIONS.feed,
   SITE_SECTIONS.market,
 ];

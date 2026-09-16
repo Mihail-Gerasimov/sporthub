@@ -113,7 +113,7 @@ export function HeaderMenu() {
           >
             <ul className="m-0 flex list-none flex-col gap-1 p-0">
               {HEADER_NAV.map((item, index) => (
-                <li key={item.label}>
+                <li key={item.key}>
                   <NavLink
                     ref={
                       index === 0

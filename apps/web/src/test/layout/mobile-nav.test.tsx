@@ -65,6 +65,23 @@ describe('MobileNav', () => {
     }
   });
 
+  // Ревью 38.108: иконки брались по ПОДПИСИ — переименование пункта в словаре молча
+  // оставляло вкладку без иконки при зелёных тестах. Теперь по ключу; здесь — что у
+  // каждой вкладки иконка действительно нарисована (компилятор требует запись на ключ,
+  // но пустую запись он пропустит).
+  it('у каждой вкладки дока есть иконка — по ключу пункта, не по подписи', () => {
+    signIn();
+    render(<MobileNav />);
+    const nav = screen.getByRole('navigation', { name: 'Мобильная навигация' });
+    const tabs = [...nav.querySelectorAll('a, button')];
+    expect(tabs).toHaveLength(MOBILE_NAV.length + 1);
+    for (const tab of tabs) {
+      const glyph = tab.querySelector('svg');
+      expect(glyph, tab.textContent ?? '').not.toBeNull();
+      expect(glyph?.childElementCount, tab.textContent ?? '').toBeGreaterThan(0);
+    }
+  });
+
   it('«Мой» вошедшему — ссылка в личный кабинет, без прохода через прежний адрес', () => {
     signIn();
     render(<MobileNav />);

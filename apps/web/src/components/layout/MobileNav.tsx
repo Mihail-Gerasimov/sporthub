@@ -17,7 +17,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { MOBILE_NAV, type NavItem } from '@/lib/navigation';
+import { MOBILE_NAV, type MobileNavKey, type NavItem } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useFilterStore } from '@/stores/useFilterStore';
@@ -32,14 +32,15 @@ import {
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-type MobileNavItem = NavItem & { matchPaths: string[]; glyph: ReactNode };
+type MobileNavItem = NavItem<MobileNavKey> & { matchPaths: string[]; glyph: ReactNode };
 
-/** Подпись пункта кабинета — его адрес зависит от сессии, в словаре его нет. */
-const CABINET_LABEL = 'Мой';
-
-/** Иконки пунктов — по подписи из словаря навигации (дом, гантель, огонь, коробка). */
-const GLYPHS: Record<string, ReactNode> = {
-  Главная: (
+/**
+ * Иконки вкладок — по КЛЮЧУ пункта, не по подписи (ревью 38.108: по подписи
+ * переименование в словаре молча оставляло вкладку без иконки). `Record<MobileNavKey, …>`:
+ * компилятор требует иконку на каждую вкладку — дом, гантель, огонь, коробка, человек.
+ */
+const GLYPHS: Record<MobileNavKey, ReactNode> = {
+  home: (
     <path
       d="M4.5 10.5 12 4l7.5 6.5v8a1 1 0 0 1-1 1H14v-5h-4v5H5.5a1 1 0 0 1-1-1v-8Z"
       fill="none"
@@ -49,7 +50,7 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
-  Клубы: (
+  clubs: (
     <path
       d="M6.5 8.5v7M17.5 8.5v7M3.5 10v4M20.5 10v4M6.5 12h11"
       fill="none"
@@ -58,7 +59,7 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
-  Лента: (
+  feed: (
     <path
       d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"
       fill="none"
@@ -68,7 +69,7 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
-  Маркет: (
+  market: (
     <path
       d="M4 8.5 12 4l8 4.5v9L12 22l-8-4.5v-9ZM4 8.5 12 13l8-4.5M12 13v9"
       fill="none"
@@ -78,30 +79,33 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
+  mine: (
+    <>
+      <circle cx="12" cy="8.5" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M5.5 19c1.7-3 4-4.5 6.5-4.5S16.8 16 18.5 19"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.7"
+      />
+    </>
+  ),
 };
 
 const mobileNavItems: ReadonlyArray<MobileNavItem> = [
   // Главная, клубы, лента и маркет — из словаря: адрес, подпись и режим там, иконка здесь.
-  ...MOBILE_NAV.map((item) => ({ ...item, matchPaths: [item.href], glyph: GLYPHS[item.label] })),
+  ...MOBILE_NAV.map((item) => ({ ...item, matchPaths: [item.href], glyph: GLYPHS[item.key] })),
   {
+    // Пункт кабинета — в словаре его нет: адрес зависит от сессии.
+    key: 'mine',
     href: cabinetSectionPath(PERSONAL_CABINET_PATH, DEFAULT_CABINET_SECTION),
-    label: CABINET_LABEL,
+    label: 'Мой',
     // ⚠️ Шаг 35.31. Подсвечиваем по корню `/profile`, а не по двум прежним
     // адресам: кабинетов теперь столько, сколько у человека лиц, плюс личный,
     // и перечислять их здесь значило бы держать второй список адресов.
     matchPaths: [PROFILE_ROOT],
-    glyph: (
-      <>
-        <circle cx="12" cy="8.5" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <path
-          d="M5.5 19c1.7-3 4-4.5 6.5-4.5S16.8 16 18.5 19"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.7"
-        />
-      </>
-    ),
+    glyph: GLYPHS.mine,
   },
 ];
 
@@ -208,9 +212,9 @@ export function MobileNav() {
         );
 
         // «Мой» гостю — вход: кабинета у гостя нет, ссылка вела бы на увод на главную.
-        if (item.label === CABINET_LABEL && !isAuthenticated) {
+        if (item.key === 'mine' && !isAuthenticated) {
           return (
-            <button key={item.label} type="button" onClick={openAuthModal} className={className}>
+            <button key={item.key} type="button" onClick={openAuthModal} className={className}>
               {body}
             </button>
           );
@@ -218,7 +222,7 @@ export function MobileNav() {
 
         return (
           <Link
-            key={item.label}
+            key={item.key}
             href={item.href}
             onClick={() => {
               setHash(splitTarget(item.href).anchor);

@@ -19,11 +19,11 @@ import { FOOTER_NAV, HEADER_NAV, MOBILE_NAV } from '@/lib/navigation';
 
 describe('Словарь навигации', () => {
   it('шапка — ровно макет: каталог в двух режимах и два раздела вне фазы', () => {
-    expect(HEADER_NAV.map((item) => [item.label, item.href, item.mode ?? null])).toEqual([
-      ['Клубы', catalogSectionHref('results'), 'clubs'],
-      ['Тренеры', catalogSectionHref('results'), 'trainers'],
-      ['Командные', '/coming-soon', null],
-      ['Маркет', '/coming-soon', null],
+    expect(HEADER_NAV.map((item) => [item.key, item.label, item.href, item.mode ?? null])).toEqual([
+      ['clubs', 'Клубы', catalogSectionHref('results'), 'clubs'],
+      ['trainers', 'Тренеры', catalogSectionHref('results'), 'trainers'],
+      ['teams', 'Командные', '/coming-soon', null],
+      ['market', 'Маркет', '/coming-soon', null],
     ]);
   });
 
@@ -32,13 +32,20 @@ describe('Словарь навигации', () => {
   });
 
   it('док — BOTTOM_TABS макета без «Мой»: главная, клубы (режим клубов), лента и маркет', () => {
-    expect(MOBILE_NAV.map((item) => [item.label, item.href, item.mode ?? null])).toEqual([
-      ['Главная', '/', null],
+    expect(MOBILE_NAV.map((item) => [item.key, item.label, item.href, item.mode ?? null])).toEqual([
+      ['home', 'Главная', '/', null],
       // Вкладка каталога — страница целиком: подсветка на любом её якоре, режим — клубы.
-      ['Клубы', CATALOG_PATH, 'clubs'],
-      ['Лента', '/coming-soon', null],
-      ['Маркет', '/coming-soon', null],
+      ['clubs', 'Клубы', CATALOG_PATH, 'clubs'],
+      ['feed', 'Лента', '/coming-soon', null],
+      ['market', 'Маркет', '/coming-soon', null],
     ]);
+  });
+
+  it('ключ пункта уникален в своём списке — по нему компонент берёт иконку и React-ключ', () => {
+    for (const list of [HEADER_NAV, MOBILE_NAV]) {
+      const keys = list.map((item) => item.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
   });
 
   it('секции витрины — не пункты меню: их якорей нет ни в шапке, ни в доке', () => {

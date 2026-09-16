@@ -38,7 +38,7 @@ export function Footer() {
         >
           {FOOTER_NAV.map((link) => (
             <NavLink
-              key={link.label}
+              key={link.key}
               item={link}
               className="font-body text-[12px] font-semibold text-plate-muted no-underline transition-colors hover:text-lime"
             />
