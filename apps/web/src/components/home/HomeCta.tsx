@@ -25,6 +25,13 @@ import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
+/**
+ * Главная кнопка призыва: шире обычной и поднимается на 2px, а не на 1px, как `primary`
+ * по умолчанию — сознательно, по эталону (`HomePage.tsx:873`: `translateY(-2px)`
+ * у CTA «Создать аккаунт»).
+ */
+const CTA_LIFT_CLASS = 'px-[34px] hover:-translate-y-0.5';
+
 /** Ссылка-«призрак» на тёмной плашке: как «Смотреть клубы» в эталоне. */
 const GHOST_LINK_CLASS =
   'inline-flex items-center justify-center rounded-button border border-plate-line px-7 py-3.5 font-body text-[14px] font-bold text-plate-muted no-underline transition-colors hover:border-lime hover:text-plate-ink';
@@ -55,15 +62,11 @@ export function HomeCta() {
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {isAuthenticated && primaryCabinet ? (
-            <Button
-              href={primaryCabinet.href}
-              size="lg"
-              className="px-[34px] hover:-translate-y-0.5"
-            >
+            <Button href={primaryCabinet.href} size="lg" className={CTA_LIFT_CLASS}>
               {CTA.primaryAuthenticated}
             </Button>
           ) : (
-            <Button size="lg" onClick={openAuthModal} className="px-[34px] hover:-translate-y-0.5">
+            <Button size="lg" onClick={openAuthModal} className={CTA_LIFT_CLASS}>
               {CTA.primary}
             </Button>
           )}

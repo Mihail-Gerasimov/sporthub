@@ -8,9 +8,10 @@
 //
 // Что ловится: открывающий тег `<a`, `<Link` или `<button` (кроме самого `ui/Button.tsx`),
 // в `className` которого есть вид primary-кнопки — свечение `shadow-glow` вместе
-// с display-шрифтом или радиусом кнопки, либо `rounded-button` вместе с заливкой
-// `bg-lime`. Сегмент-переключатели с `aria-pressed` светятся тоже, но шрифтом текста
-// и радиусом 9 — под правило не попадают.
+// с display-шрифтом или радиусом кнопки; `rounded-button` вместе с заливкой `bg-lime`;
+// либо заливка `bg-lime` с display-шрифтом и любым радиусом (`rounded-button` или
+// `rounded-[N]`) — так была собрана «Найти» без свечения (ревью 38.80). Сегмент-
+// переключатели с `aria-pressed` — не кнопки действия, под правило не попадают.
 //
 // Обратная половина: сторож обязан видеть свои файлы (призыв, карточка карты, шапка)
 // и обязан находить копию в подложенном фрагменте — иначе он зелёный от пустоты.
@@ -53,6 +54,9 @@ function openingTag(text: string, start: number): string {
 
 /** Признаки вида primary-кнопки в тексте классов тега. */
 function looksLikePrimaryButton(tag: string): boolean {
+  // Переключатель состояния — не кнопка действия: зелёная заливка у него законна.
+  if (/\baria-pressed\b/.test(tag)) return false;
+
   const classAttr = /className\s*=\s*(?:"[^"]*"|\{[\s\S]*?\}(?=\s*(?:[a-zA-Z-]+\s*=|\/?>)))/.exec(
     tag,
   );
@@ -60,10 +64,13 @@ function looksLikePrimaryButton(tag: string): boolean {
 
   const glow = classes.includes('shadow-glow');
   const buttonShape = classes.includes('rounded-button');
+  const anyRadius = buttonShape || /\brounded-\[\d+px\]/.test(classes);
   const display = classes.includes('font-display');
   const fill = /\bbg-lime\b/.test(classes);
 
-  return (glow && (display || buttonShape)) || (buttonShape && fill);
+  return (
+    (glow && (display || buttonShape)) || (buttonShape && fill) || (fill && display && anyRadius)
+  );
 }
 
 /** Теги файла с видом primary-кнопки: `<Link …>` — первые 60 знаков. */
@@ -129,6 +136,14 @@ describe('Сторож: главная кнопка одна — ui/Button (38.8
 
     const segment = `<button type="button" aria-pressed={active} className={cn('flex-1 rounded-[9px] font-body', active ? 'bg-lime text-ink shadow-glow' : 'text-muted')}>Клубы</button>`;
     expect(primaryLookOffenders(segment)).toEqual([]);
+
+    // Копия без свечения и с радиусом числом — «Найти» до правки (ревью 38.80, LOW 1).
+    const noGlow = `<button onClick={handleSearch} className="rounded-[12px] bg-lime px-6 font-display text-[14px] text-ink uppercase">Найти</button>`;
+    expect(primaryLookOffenders(noGlow)).toHaveLength(1);
+
+    // Тот же вид у переключателя с aria-pressed — законен.
+    const pressed = `<button type="button" aria-pressed={active} className="rounded-[9px] bg-lime font-display">Клубы</button>`;
+    expect(primaryLookOffenders(pressed)).toEqual([]);
 
     const plain = `<a href="/clubs/x" className="text-lime-hov underline">Подробнее</a>`;
     expect(primaryLookOffenders(plain)).toEqual([]);

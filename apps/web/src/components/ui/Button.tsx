@@ -9,7 +9,8 @@
 //
 // С адресом (`href`) кнопка рисуется ссылкой `next/link` в тех же классах (ревью 38.80):
 // путь к странице обязан быть ссылкой, а второй «кнопки-ссылки» со своими классами
-// быть не должно. У ссылки нет `disabled` и загрузки — она ведёт, а не ждёт.
+// быть не должно. У ссылки нет `disabled` и загрузки — она ведёт, а не ждёт: `loading`
+// в ветке ссылки не участвует (ни спиннера, ни `aria-busy`).
 
 import Link from 'next/link';
 import {
@@ -71,7 +72,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   leadingIcon?: ReactNode;
   trailingIcon?: ReactNode;
   fullWidth?: boolean;
-  /** Адрес: с ним кнопка — ссылка `next/link` в тех же классах; `disabled` и `loading` не действуют. */
+  /** Адрес: с ним кнопка — ссылка `next/link` в тех же классах; `disabled` и `loading` не участвуют. */
   href?: string;
 };
 
@@ -101,9 +102,10 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
       fullWidth && 'w-full',
       className,
     );
-    const content = (
+    // Содержимое: значки по краям; у кнопки в загрузке вместо левого значка — спиннер.
+    const content = (busy: boolean) => (
       <>
-        {loading ? (
+        {busy ? (
           <>
             <span
               aria-hidden="true"
@@ -115,13 +117,14 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
           leadingIcon && <span aria-hidden="true">{leadingIcon}</span>
         )}
         <span>{children}</span>
-        {!loading && trailingIcon ? <span aria-hidden="true">{trailingIcon}</span> : null}
+        {!busy && trailingIcon ? <span aria-hidden="true">{trailingIcon}</span> : null}
       </>
     );
 
     if (href !== undefined) {
-      // Атрибуты кнопки и ссылки различаются только в полях формы (`type`, `disabled`,
-      // `form*`, `value`) — они сняты выше; остальное (aria, id, title, onClick) общее.
+      // Выше сняты `type` и `disabled`; остальные атрибуты кнопки (aria, id, title,
+      // onClick) у ссылки те же. Поля формы (`form*`, `name`, `value`) ссылке-кнопке
+      // не задают — на `<a>` они бессмысленны, и типом их не отсекаем.
       const anchorProps = props as AnchorHTMLAttributes<HTMLAnchorElement>;
 
       return (
@@ -131,7 +134,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
           className={cn(classes, 'no-underline')}
           {...anchorProps}
         >
-          {content}
+          {content(false)}
         </Link>
       );
     }
@@ -145,7 +148,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
         aria-busy={loading || undefined}
         {...props}
       >
-        {content}
+        {content(loading)}
       </button>
     );
   },

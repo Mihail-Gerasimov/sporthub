@@ -76,6 +76,18 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(screen.queryByRole('button')).toBeNull();
     });
 
+    it('ссылка не ждёт: `href` с `loading` — без спиннера и без aria-busy (ревью 38.80)', () => {
+      render(
+        <Button href="/clubs/atlant" loading>
+          Подробнее
+        </Button>,
+      );
+      const link = screen.getByRole('link', { name: 'Подробнее' });
+      expect(link).not.toHaveAttribute('aria-busy');
+      expect(link.querySelector('.animate-spin')).toBeNull();
+      expect(link.textContent).not.toContain('Загрузка');
+    });
+
     it('размер xs — мини-кнопка слоя над картой и строк расписания: радиус 9, обводка 1px, 12px', () => {
       render(<Button size="xs">Закрыть</Button>);
       const button = screen.getByRole('button');
