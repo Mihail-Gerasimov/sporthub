@@ -29,8 +29,8 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
   const token = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
+    <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
       <ResetPasswordForm token={token} />
-    </main>
+    </div>
   );
 }

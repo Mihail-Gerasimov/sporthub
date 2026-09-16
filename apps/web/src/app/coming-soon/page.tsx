@@ -4,6 +4,7 @@
 // `menu-routes-exist` не отличил бы живой раздел от опечатки в меню. Сюда ведут
 // пункты «Командные» и «Маркет» из `lib/navigation.ts` — разделы вне фазы 38
 // (долги Д-7, Д-8); имя раздела страница не знает: адрес один на все.
+// Корень — `div`: `<main>` один, у каркаса (a11y-проход 38.97, сторож `single-main`).
 import { BRAND_NAME } from '@sporthub/domain';
 import type { Metadata } from 'next';
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function ComingSoonPage() {
   return (
-    <main className="mx-auto flex w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
       <p className="t-eyebrow text-lime-hov">Скоро</p>
       <h1 className="t-h1 text-ink">Раздел в разработке</h1>
       <p className="max-w-xl font-body text-base leading-relaxed text-muted">
@@ -25,6 +26,6 @@ export default function ComingSoonPage() {
       <Button href="/" variant="secondary">
         На главную
       </Button>
-    </main>
+    </div>
   );
 }

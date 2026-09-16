@@ -364,7 +364,7 @@ export function TrainerDetailPageClient({
   const trainerInitials = getTrainerInitials(trainer.name);
 
   return (
-    <main className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
+    <div className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
         {/* ═══ Hero — gallery (placeholder с avatar-disc) + meta-col. Hero —
          * просто grid без card-обёртки: card-стиль на gallery-блоке. ═══ */}
@@ -845,6 +845,6 @@ export function TrainerDetailPageClient({
       </div>
 
       {/* Toast-уведомления рендерятся глобально через ToastStack в AppShell (Step 24.6). */}
-    </main>
+    </div>
   );
 }
