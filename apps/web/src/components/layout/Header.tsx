@@ -9,6 +9,7 @@
 
 import Link from 'next/link';
 
+import { HeaderMenu } from '@/components/layout/HeaderMenu';
 import { HeaderUser } from '@/components/layout/HeaderUser';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { HEADER_NAV } from '@/lib/navigation';
@@ -35,6 +36,7 @@ export function Header() {
 
         <div className="flex shrink-0 items-center gap-2">
           <HeaderUser />
+          <HeaderMenu />
         </div>
       </div>
     </header>
