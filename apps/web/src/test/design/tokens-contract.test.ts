@@ -163,7 +163,40 @@ function readGlobals(): { root: string; theme: string } {
   return { root, theme };
 }
 
+/**
+ * Правила, где декор-токен стоит в сокращённом `background:`, а селектор — не
+ * псевдоэлемент. Сокращённая запись сбрасывает цвет подложки, и `bg-plate` /
+ * `bg-card-2` у элемента исчезают (найдено проходом 38.87 у `.hero-bg-blank`);
+ * у `::before`/`::after` своей подложки нет — там сокращение безвредно.
+ */
+export function decorShorthandOffenders(css: string): string[] {
+  const offenders: string[] = [];
+
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = match[1].trim();
+    const body = match[2];
+
+    if (!/(^|[\s;])background:\s*var\(--ui-decor-/.test(body)) continue;
+    if (/::(before|after)\b/.test(selector)) continue;
+
+    offenders.push(selector);
+  }
+
+  return offenders;
+}
+
 describe('Сторож: контракт токенов палитры (38.7)', () => {
+  it('декор-токены — только `background-image`; сокращённое `background:` лишь у псевдоэлементов', () => {
+    const css = stripComments(readFileSync(GLOBALS_PATH, 'utf8'));
+    expect(decorShorthandOffenders(css)).toEqual([]);
+    // Обратная половина: подставная поломка находится, псевдоэлемент — нет.
+    expect(
+      decorShorthandOffenders(
+        '.x { background: var(--ui-decor-hatch); }\n.y::before { background: var(--ui-decor-hatch); }',
+      ),
+    ).toEqual(['.x']);
+  });
+
   it('каждый обязательный токен объявлен в :root', () => {
     const names = new Set(declaredTokens(readGlobals().root).map((t) => t.name));
     const missing = REQUIRED_TOKENS.filter((token) => !names.has(token));

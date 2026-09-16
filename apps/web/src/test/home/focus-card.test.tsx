@@ -90,6 +90,13 @@ describe('FocusCard', () => {
     expect(screen.getByText('0 занятий')).toBeInTheDocument();
   });
 
+  it('верхняя зона — тёмная плашка без штриховки-заглушки: сокращённый background сбрасывал bg-plate', () => {
+    render(<FocusCard sessions={[session(1)]} dateLabel="16 сентября" />);
+    const zone = screen.getByRole('heading', { level: 3 }).parentElement?.parentElement;
+    expect(zone?.className).toContain('bg-plate');
+    expect(zone?.className).not.toContain('hero-bg-blank');
+  });
+
   it('склонение из словаря: одно занятие', () => {
     render(<FocusCard sessions={[session(1)]} dateLabel="16 сентября" />);
     expect(screen.getByText('1 занятие')).toBeInTheDocument();

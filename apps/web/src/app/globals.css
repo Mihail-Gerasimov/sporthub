@@ -432,8 +432,11 @@ body {
     var(--ui-decor-hatch);
 }
 
+/* Штриховка-заглушка блока без фото (карточка клуба, детальные страницы).
+ * ⚠️ Только `background-image`: сокращённое `background` сбрасывало цвет подложки,
+ * и `bg-card-2` / `bg-plate` у потребителей исчезали (найдено проходом 38.87). */
 .hero-bg-blank {
-  background: var(--ui-decor-hatch-strong);
+  background-image: var(--ui-decor-hatch-strong);
 }
 
 /* ===== Phase 28.6 — fallback-режим .no-loop для ChipMarquee =====
