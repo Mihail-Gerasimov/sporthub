@@ -13,6 +13,7 @@
 
 import { Body, Controller, Get, Inject, Param, Patch, Query } from '@nestjs/common';
 import { REQUIRED_NOTIFICATION_TYPES } from '@sporthub/domain';
+import { CATALOG_OWNER_TYPES } from '@sporthub/types';
 import type { NotificationType, ServiceFaceRef, User } from '@sporthub/types';
 import { z } from 'zod';
 
@@ -52,7 +53,7 @@ const patchSchema = z
  */
 const faceQuerySchema = z
   .object({
-    faceType: z.enum(['club', 'trainer']).optional(),
+    faceType: z.enum(CATALOG_OWNER_TYPES).optional(),
     faceId: z.coerce.number().int().positive().optional(),
   })
   .refine((value) => (value.faceType === undefined) === (value.faceId === undefined), {
@@ -70,7 +71,7 @@ const faceQuerySchema = z
 const preferencesSchema = z
   .object({
     preferences: z.record(z.string(), z.boolean()),
-    faceType: z.enum(['club', 'trainer']).optional(),
+    faceType: z.enum(CATALOG_OWNER_TYPES).optional(),
     faceId: z.number().int().positive().optional(),
   })
   .strict()

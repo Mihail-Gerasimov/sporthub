@@ -24,7 +24,7 @@
 
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import type { ProviderClientNote, ServiceFaceRef } from '@sporthub/types';
-import { APP_LIMITS } from '@sporthub/types';
+import { APP_LIMITS, CATALOG_OWNER_TYPES } from '@sporthub/types';
 import { z } from 'zod';
 
 import { AccessService } from '../access/access.service';
@@ -49,7 +49,7 @@ import { BOOKINGS_REPOSITORY } from '../repositories/bookings.repository';
  */
 const faceSchema = z
   .object({
-    faceType: z.enum(['club', 'trainer']).optional(),
+    faceType: z.enum(CATALOG_OWNER_TYPES).optional(),
     faceId: z.coerce.number().int().positive().optional(),
   })
   .refine(
@@ -72,7 +72,7 @@ const createSchema = z
     clientUserId: z.number().int().positive(),
     note: z.string().trim().min(1).max(APP_LIMITS.providerNoteMaxLength),
     bookingId: z.number().int().positive().optional(),
-    faceType: z.enum(['club', 'trainer']).optional(),
+    faceType: z.enum(CATALOG_OWNER_TYPES).optional(),
     faceId: z.number().int().positive().optional(),
   })
   .strict()

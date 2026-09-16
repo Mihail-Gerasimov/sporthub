@@ -35,7 +35,7 @@ import {
   notificationPayload,
 } from '@sporthub/domain';
 import type { Booking, BookingStatus } from '@sporthub/types';
-import { BOOKING_STATUSES } from '@sporthub/types';
+import { BOOKING_STATUSES, CATALOG_OWNER_TYPES } from '@sporthub/types';
 import { z } from 'zod';
 
 import { EMPTY_RESULT, type EmptyResult } from '../common/api-response';
@@ -116,7 +116,7 @@ const listQuerySchema = z
     // Лицо услуг, которым сужается срез кабинета (шаг 35.27a). Пара «вид + номер»:
     // оба поля или ни одного — половина пары это опечатка клиента, а не «отбора нет».
     // Необязательна: старая страница лица не шлёт и обязана пережить выкатку.
-    faceType: z.enum(['club', 'trainer']).optional(),
+    faceType: z.enum(CATALOG_OWNER_TYPES).optional(),
     faceId: z.coerce.number().int().positive().optional(),
     offset: z.coerce.number().int().min(0).optional(),
     limit: z.coerce.number().int().min(1).max(200).optional(),
