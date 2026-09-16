@@ -19,6 +19,7 @@ export const PLURAL = {
   slots: ['слот', 'слота', 'слотов'],
   services: ['услуга', 'услуги', 'услуг'],
   windows: ['окно', 'окна', 'окон'],
+  sessions: ['занятие', 'занятия', 'занятий'],
 } as const satisfies Record<string, PluralForms>;
 
 const RULES = new Intl.PluralRules('ru-RU');

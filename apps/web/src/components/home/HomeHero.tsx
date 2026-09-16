@@ -6,9 +6,10 @@
  * цветом холста. Правая колонка есть только на широких экранах (эталон: до 1100 её нет;
  * у нас — точка `xl`).
  *
- * Поиск, счётчики и правая колонка — свои компоненты (38.67, 38.69, 38.70); герой
- * оставляет им места по разметке эталона и принимает их как слоты: без них секция
- * рисуется целой, с ними — как в макете. Тексты — из `lib/home-copy.ts`.
+ * Поиск и счётчики — свои компоненты (38.67, 38.69); герой оставляет им места
+ * по разметке эталона и принимает их как слоты. Правая колонка — `FocusCard` (38.70),
+ * герой рисует её сам по данным дня. Без слотов секция рисуется целой, с ними —
+ * как в макете. Тексты — из `lib/home-copy.ts`.
  *
  * Почему не `ui/*`: секция-плашка с собственной сеткой и волной — единственная
  * на площадке, компонент общего вида под неё не нужен; кнопки и карточки внутри
@@ -16,6 +17,8 @@
  */
 import type { ReactNode } from 'react';
 
+import { FocusCard } from '@/components/home/FocusCard';
+import type { UpcomingSessionItem } from '@/components/schedule';
 import { HERO } from '@/lib/home-copy';
 
 type HomeHeroProps = {
@@ -23,11 +26,11 @@ type HomeHeroProps = {
   search?: ReactNode;
   /** Ряд счётчиков (38.69) — под поиском. */
   counters?: ReactNode;
-  /** Правая колонка (38.70) — карточка «Сегодня в фокусе». */
-  aside?: ReactNode;
+  /** Данные правой колонки (38.70): занятия дня и дата словами; без них колонки нет. */
+  focus?: { sessions: UpcomingSessionItem[]; dateLabel: string };
 };
 
-export function HomeHero({ search, counters, aside }: HomeHeroProps) {
+export function HomeHero({ search, counters, focus }: HomeHeroProps) {
   return (
     <section
       id="hero"
@@ -62,9 +65,9 @@ export function HomeHero({ search, counters, aside }: HomeHeroProps) {
             {counters}
           </div>
 
-          {aside ? (
+          {focus ? (
             <div className="relative hidden min-w-0 xl:block" data-hero-aside>
-              {aside}
+              <FocusCard sessions={focus.sessions} dateLabel={focus.dateLabel} />
             </div>
           ) : null}
         </div>

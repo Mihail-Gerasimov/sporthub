@@ -43,22 +43,22 @@ describe('HomeHero', () => {
     expect(wave?.parentElement?.className).toContain('text-bg');
   });
 
-  it('слоты: поиск, счётчики и правая колонка рисуются на своих местах', () => {
+  it('слоты поиска и счётчиков — на своих местах; правая колонка — FocusCard по данным дня', () => {
     render(
       <HomeHero
         search={<div data-testid="slot-search" />}
         counters={<div data-testid="slot-counters" />}
-        aside={<div data-testid="slot-aside" />}
+        focus={{ sessions: [], dateLabel: '16 сентября' }}
       />,
     );
     const section = screen.getByRole('region', { name: 'Главный экран' });
     const search = screen.getByTestId('slot-search');
     const counters = screen.getByTestId('slot-counters');
-    const aside = screen.getByTestId('slot-aside');
-    // Порядок: заголовок → поиск → счётчики; колонка — в отдельной ячейке сетки.
+    // Порядок: заголовок → поиск → счётчики; колонка — в отдельной ячейке сетки, с xl.
     expect(
       search.compareDocumentPosition(counters) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    const aside = screen.getByRole('complementary', { name: 'Сегодня в фокусе' });
     expect(aside.closest('[data-hero-aside]')).not.toBeNull();
     expect(section.querySelector('[data-hero-aside]')?.className).toContain('xl:block');
   });
