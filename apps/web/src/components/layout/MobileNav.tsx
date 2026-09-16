@@ -109,8 +109,12 @@ function isMobileNavItemActive(item: MobileNavItem, pathname: string, hash: stri
 export function MobileNav() {
   const pathname = usePathname();
   const isHeaderMenuOpen = useUIStore((state) => state.isHeaderMenuOpen);
-  // Хэш не приходит из `usePathname` — читаем окно и слушаем его смену (шаг 38.62:
-  // пункты «Поиск» и «Слоты» — якоря главной, и подсветка без хэша была слепой).
+  // Хэш не приходит из `usePathname` — читаем окно (шаг 38.62: пункты «Поиск»
+  // и «Слоты» — якоря главной, и подсветка без хэша была слепой).
+  // ⚠️ `next/link` ведёт `/#discover` через `history.pushState`, а на него ни
+  // `hashchange`, ни смена `pathname` не поднимаются — клик по самому доку оставлял
+  // бы подсветку мёртвой (тупик № 10). Поэтому клик ставит хэш сам, «назад/вперёд»
+  // ловит `popstate`, а `hashchange` остаётся для правки адреса руками.
   const [hash, setHash] = useState('');
 
   useEffect(() => {
@@ -118,8 +122,12 @@ export function MobileNav() {
 
     readHash();
     window.addEventListener('hashchange', readHash);
+    window.addEventListener('popstate', readHash);
 
-    return () => window.removeEventListener('hashchange', readHash);
+    return () => {
+      window.removeEventListener('hashchange', readHash);
+      window.removeEventListener('popstate', readHash);
+    };
   }, [pathname]);
 
   // Пока открыто меню шапки, док не рисуется: у обёртки шапки свой контекст наложения,
@@ -138,6 +146,7 @@ export function MobileNav() {
           <Link
             key={item.label}
             href={item.href}
+            onClick={() => setHash(item.href.startsWith('/#') ? item.href.slice(1) : '')}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'relative flex min-w-0 flex-1 flex-col items-center gap-[3px] px-1 pt-2.5 pb-1.5 text-center font-body text-[10px] no-underline transition-colors',

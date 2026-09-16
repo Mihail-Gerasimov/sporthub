@@ -2,7 +2,7 @@
  * Мобильный док (шаг 38.62): пункты из словаря плюс «Профиль», подсветка активного
  * по адресу И по хэшу (якоря главной), скрытие при открытом меню шапки.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let pathname = '/';
@@ -38,7 +38,29 @@ describe('MobileNav', () => {
     }
   });
 
-  it('на главной без хэша активна «Главная», с хэшем — пункт-якорь', () => {
+  // ⚠️ Клик по пункту — без ручного диспатча событий: `next/link` идёт через
+  // `pushState`, на который `hashchange` не поднимается; подсветку ставит сам клик.
+  it('клик по пункту-якорю подсвечивает его сразу, клик по «Главная» снимает', () => {
+    render(<MobileNav />);
+    fireEvent.click(screen.getByRole('link', { name: 'Слоты' }));
+    expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Главная' })).not.toHaveAttribute('aria-current');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Главная' }));
+    expect(screen.getByRole('link', { name: 'Главная' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Слоты' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('«назад/вперёд» (popstate) перечитывает хэш из адреса', () => {
+    render(<MobileNav />);
+    window.location.hash = '#availability';
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.getByRole('link', { name: 'Слоты' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('на главной без хэша активна «Главная», с хэшем (правка адреса руками) — пункт-якорь', () => {
     render(<MobileNav />);
     expect(screen.getByRole('link', { name: 'Главная' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Поиск' })).not.toHaveAttribute('aria-current');
