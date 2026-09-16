@@ -13,7 +13,8 @@ import { PERSONAL_CABINET, faceCabinet, type ServiceFace } from '@/lib/service-f
 import { renderInFaceCabinet } from '@/test/helpers/cabinet';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
-import type { User } from '@sporthub/types';
+import { NOTIFICATION_TYPE_GROUP, REQUIRED_NOTIFICATION_TYPES } from '@sporthub/domain';
+import type { NotificationType, User } from '@sporthub/types';
 
 const user: User = {
   id: 1,
@@ -57,8 +58,8 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
       // Шаг 38.55: подтверждение проверки и его отзыв названы в подписи ПОИМЁННО,
       // а не спрятаны под общим «решения по публикации»: у них другая цена —
       // знак «проверено» появился или снят, а не публикация убрана из каталога.
-      publication_verified_for_owner: 'подтверждение проверки',
-      publication_verification_revoked_for_owner: 'его отзыв',
+      publication_verified_for_owner: 'подтверждение проверки и его отзыв',
+      publication_verification_revoked_for_owner: 'подтверждение проверки и его отзыв',
     };
 
     render(<UserNotificationPreferencesEditor userId={user.id} notificationPreferences={{}} />);
@@ -74,7 +75,14 @@ describe('UserNotificationPreferencesEditor (Step 26.3)', () => {
 
     // Сторож самого теста: без него «все объяснены» означало бы «заблокированных
     // не нашлось» — ровно та форма ложной зелени, на которой этот проект уже горел.
-    expect(locked.length).toBeGreaterThanOrEqual(4);
+    // Порог — из словаря: все неотключаемые типы человеческих тем (надзорные
+    // в настройки человека не попадают), а не число, отстающее от словаря.
+    const humanRequired = REQUIRED_NOTIFICATION_TYPES.filter(
+      (type) => !NOTIFICATION_TYPE_GROUP[type].startsWith('oversight_'),
+    );
+
+    expect(humanRequired.length).toBeGreaterThanOrEqual(4);
+    expect([...locked].sort()).toEqual([...humanRequired].sort());
 
     for (const type of locked) {
       const phrase = EXPLAINED[type];
@@ -410,17 +418,17 @@ describe('тема «Публикации» в настройках челове
 
     expect(screen.getByText('Публикации')).toBeInTheDocument();
 
+    // Типы темы — из словаря, а не выписаны руками: пятый тип темы попадёт сюда сам.
+    const publicationTypes = (Object.keys(NOTIFICATION_TYPE_GROUP) as NotificationType[]).filter(
+      (type) => NOTIFICATION_TYPE_GROUP[type] === 'publications',
+    );
     const publications = screen.getByTestId('notification-preferences-group-publications');
     const toggles = within(publications).getAllByRole('checkbox');
 
-    expect(toggles).toHaveLength(4);
+    expect(publicationTypes.length).toBeGreaterThanOrEqual(4);
+    expect(toggles).toHaveLength(publicationTypes.length);
 
-    for (const type of [
-      'publication_hidden_for_owner',
-      'publication_unhidden_for_owner',
-      'publication_verified_for_owner',
-      'publication_verification_revoked_for_owner',
-    ]) {
+    for (const type of publicationTypes) {
       expect(screen.getByTestId(`notification-preferences-toggle-${type}`)).toBeDisabled();
     }
   });

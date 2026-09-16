@@ -284,12 +284,12 @@ export function ModerationPage({ sports }: ModerationPageProps) {
    * кнопок: действие с причиной открывает модалку, без причины — уходит сразу.
    */
   const handleAction = (action: ModerationAction, item: PublicationItem) => {
-    if (MODERATION_ACTION_SPECS[action].requiresReason !== false) {
-      setReasonTarget({ item, action });
-      return;
-    }
+    const spec = MODERATION_ACTION_SPECS[action];
 
-    if (action === 'unhide' && !confirm(`Показать публикацию «${item.name}»?`)) return;
+    if (spec.requiresReason !== false) return setReasonTarget({ item, action });
+    // Вопрос перед действием без причины — тоже из словаря (поле `confirmation`),
+    // а не по имени действия: сторож ветвления смотрит и на этот файл.
+    if (spec.confirmation !== false && !confirm(spec.confirmation(item.name))) return;
 
     void runAction(action, item);
   };

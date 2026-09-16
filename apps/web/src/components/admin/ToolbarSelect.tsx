@@ -1,47 +1,52 @@
 'use client';
 
 /**
- * Селект тулбара служебной панели — общий для разделов с отбором в адресе.
+ * Селект тулбара служебной панели — один на все разделы с отбором.
  *
- * Вынесен из `ModerationPage` правкой по ревью 38.54: страница подошла к потолку строк,
- * а сам селект — не про модерацию. У `Dashboard` и `Logs` живут свои копии того же
- * поля (`FilterSelect`); свести их сюда — при переписывании тех разделов.
+ * Вынесен из `ModerationPage` правкой по ревью 38.54; вторым заходом сюда сведены
+ * три копии того же поля — `FilterSelect` из «Пользователей», «Журнала» и «Аналитики»:
+ * различались радиусом, подложкой и тем, где стоит подпись.
+ *
+ * Подпись — одним из двух способов, и ровно одним:
+ *   - `label` — видимая подпись над полем, поле обёрнуто в `<label>` (разделы
+ *     с фильтрами в карточке);
+ *   - `ariaLabel` — подписи на экране нет, её роль играет первый вариант
+ *     («Все статусы»), а диктор без имени читал бы шесть одинаковых «списков»
+ *     подряд (модерация). Фаза 35 уже ловила дефект, видимый только в дереве
+ *     доступности: подпись врала, а на экране всё выглядело правильно.
  */
 import { cn } from '@/lib/utils';
 
-/**
- * Селект тулбара.
- *
- * ⚠️ `ariaLabel` обязателен. Видимой подписи у селекта нет — её роль играет
- * первый вариант («Все статусы»), и экранный диктор читал бы пять одинаковых
- * «списков» подряд. Фаза 35 уже ловила дефект, видимый только в дереве
- * доступности: подпись врала, а на экране всё выглядело правильно.
- */
-export function ToolbarSelect({
-  ariaLabel,
-  value,
-  active,
-  onChange,
-  options,
-}: {
-  ariaLabel: string;
+type ToolbarSelectProps = {
   value: string;
   active: boolean;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
-}) {
-  return (
+  disabled?: boolean;
+} & ({ label: string; ariaLabel?: never } | { ariaLabel: string; label?: never });
+
+export function ToolbarSelect({
+  label,
+  ariaLabel,
+  value,
+  active,
+  disabled = false,
+  onChange,
+  options,
+}: ToolbarSelectProps) {
+  const field = (
     <span
       className={cn(
-        'relative block rounded-[14px] border bg-card-2 transition-colors focus-within:border-lime',
+        'relative block rounded-[12px] border bg-card-2 transition-colors focus-within:border-lime',
         active ? 'border-lime' : 'border-line',
       )}
     >
       <select
         aria-label={ariaLabel}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none bg-transparent py-3.5 pl-4 pr-9 text-[13px] font-semibold text-ink outline-none"
+        className="w-full cursor-pointer appearance-none bg-transparent py-3 pl-3.5 pr-9 text-[13px] font-semibold text-ink outline-none disabled:cursor-not-allowed disabled:opacity-40"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -52,10 +57,19 @@ export function ToolbarSelect({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute right-4 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
+          'pointer-events-none absolute right-3.5 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
           active ? 'border-lime' : 'border-muted',
         )}
       />
     </span>
+  );
+
+  if (label === undefined) return field;
+
+  return (
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted">{label}</span>
+      {field}
+    </label>
   );
 }

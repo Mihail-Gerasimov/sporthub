@@ -27,6 +27,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AdminUpdatePasswordModal } from '@/components/admin/AdminUpdatePasswordModal';
+import { ToolbarSelect } from '@/components/admin/ToolbarSelect';
 import { PaginationBar } from '@/components/ui/PaginationBar';
 import { getAthleteActiveFutureBookings } from '@/components/profile/athlete-bookings';
 import { accountKindOf, isAdminKind } from '@sporthub/domain';
@@ -289,31 +290,29 @@ export function DashboardPage({ users, bookings }: DashboardPageProps) {
       {showFilters ? (
         <div className="rounded-[14px] border border-line bg-card-2 p-[18px] sm:p-[18px_22px]">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FilterField label="Лица услуг">
-              <FilterSelect
-                value={facesFilter}
-                active={facesFilter !== 'all'}
-                onChange={(v) => handleFacesChange(v as FacesFilter)}
-                options={[
-                  { value: 'all', label: 'Все' },
-                  { value: 'without', label: 'Без лиц услуг' },
-                  { value: 'with', label: 'С лицами услуг' },
-                ]}
-              />
-            </FilterField>
-            <FilterField label="Статус">
-              <FilterSelect
-                value={statusFilter}
-                active={statusFilter !== 'all'}
-                onChange={(v) => handleStatusChange(v as StatusFilter)}
-                options={[
-                  { value: 'all', label: 'Все статусы' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'banned', label: 'Banned' },
-                  { value: 'suspended', label: 'Suspended' },
-                ]}
-              />
-            </FilterField>
+            <ToolbarSelect
+              label="Лица услуг"
+              value={facesFilter}
+              active={facesFilter !== 'all'}
+              onChange={(v) => handleFacesChange(v as FacesFilter)}
+              options={[
+                { value: 'all', label: 'Все' },
+                { value: 'without', label: 'Без лиц услуг' },
+                { value: 'with', label: 'С лицами услуг' },
+              ]}
+            />
+            <ToolbarSelect
+              label="Статус"
+              value={statusFilter}
+              active={statusFilter !== 'all'}
+              onChange={(v) => handleStatusChange(v as StatusFilter)}
+              options={[
+                { value: 'all', label: 'Все статусы' },
+                { value: 'active', label: 'Active' },
+                { value: 'banned', label: 'Banned' },
+                { value: 'suspended', label: 'Suspended' },
+              ]}
+            />
           </div>
         </div>
       ) : null}
@@ -462,55 +461,6 @@ function ButtonPrimary({ onClick, children }: { onClick: () => void; children: R
     >
       {children}
     </button>
-  );
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function FilterSelect({
-  value,
-  active,
-  onChange,
-  options,
-}: {
-  value: string;
-  active: boolean;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <span
-      className={cn(
-        'relative block rounded-[10px] border bg-bg transition-colors focus-within:border-lime',
-        active ? 'border-lime' : 'border-line',
-      )}
-    >
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none bg-transparent py-2.5 pl-3.5 pr-9 text-[13px] font-semibold text-ink outline-none"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute right-3.5 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
-          active ? 'border-lime' : 'border-muted',
-        )}
-      />
-    </span>
   );
 }
 

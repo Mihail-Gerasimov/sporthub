@@ -520,11 +520,16 @@ describe('Раздел модерации — адреса запросов', ()
       renderWithToast(<ModerationPage sports={SPORTS} />);
       await waitFor(() => expect(screen.getByText('Железо')).toBeInTheDocument());
 
+      const before = publicationCalls().length;
+
       fireEvent.click(screen.getByRole('button', { name: 'Подтвердить: Железо' }));
 
       await waitFor(() =>
         expect(screen.getByText('Публикация уже подтверждена')).toBeInTheDocument(),
       );
+      // После отказа раздел перечитан ровно один раз: экран обязан совпасть с тем
+      // состоянием, из-за которого отказали, — но не молотить сервер повторами.
+      await waitFor(() => expect(publicationCalls().length).toBe(before + 1));
     });
   });
 });

@@ -37,11 +37,12 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/admin/AdminNotificationsPage.tsx': 526,
   'src/components/admin/AdminUpdatePasswordModal.tsx': 240,
   // 38.25: надёжность вырезана — двенадцать потолков ниже опущены до факта.
-  'src/components/admin/DashboardPage.tsx': 429,
+  // Второй заход ревью 38.54: FilterSelect трёх разделов сведён в ToolbarSelect.
+  'src/components/admin/DashboardPage.tsx': 381,
   // 38.44: словари подписей и тонов действий уехали в lib/log-action-labels.ts.
-  'src/components/admin/LogsPage.tsx': 379,
+  'src/components/admin/LogsPage.tsx': 339,
   // 38.54: карточка строки вынесена в ModerationItemCard, добавлена очередь проверки.
-  'src/components/admin/ModerationPage.tsx': 332,
+  'src/components/admin/ModerationPage.tsx': 330,
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
   // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).

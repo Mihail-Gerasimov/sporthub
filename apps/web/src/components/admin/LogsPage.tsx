@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { actorLabel as formatActorLabel } from '@sporthub/domain';
 
 import { BookingStatusHistoryDrawer } from '@/components/admin/BookingStatusHistoryDrawer';
+import { ToolbarSelect } from '@/components/admin/ToolbarSelect';
 import { PaginationBar, Skeleton } from '@/components/ui';
 import {
   ACTION_LABELS,
@@ -281,23 +282,21 @@ export function LogsPage() {
       {/* Фильтры в карточке */}
       <div className="rounded-[16px] border border-line bg-card-2 p-[18px] sm:p-[18px_22px]">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <FilterField label="Тип действия">
-            <FilterSelect
-              value={actionFilter}
-              active={actionFilter !== 'all'}
-              onChange={handleActionChange}
-              options={ACTION_OPTIONS}
-            />
-          </FilterField>
+          <ToolbarSelect
+            label="Тип действия"
+            value={actionFilter}
+            active={actionFilter !== 'all'}
+            onChange={handleActionChange}
+            options={ACTION_OPTIONS}
+          />
 
-          <FilterField label="Период">
-            <FilterSelect
-              value={periodFilter}
-              active={periodFilter !== 'all'}
-              onChange={handlePeriodChange}
-              options={PERIOD_OPTIONS}
-            />
-          </FilterField>
+          <ToolbarSelect
+            label="Период"
+            value={periodFilter}
+            active={periodFilter !== 'all'}
+            onChange={handlePeriodChange}
+            options={PERIOD_OPTIONS}
+          />
 
           <FilterField label="ID актора" className="md:col-span-2 lg:col-span-1">
             <span
@@ -381,46 +380,6 @@ function FilterField({
 }
 
 /** Кастомный select-wrap для админских фильтров (без трогания глобального Select) */
-function FilterSelect({
-  value,
-  active,
-  onChange,
-  options,
-}: {
-  value: string;
-  active: boolean;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <span
-      className={cn(
-        'relative block rounded-[12px] border bg-bg transition-colors focus-within:border-lime',
-        active ? 'border-lime' : 'border-line',
-      )}
-    >
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none bg-transparent py-3 pl-3.5 pr-9 text-[13px] font-medium text-ink outline-none"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute right-3.5 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
-          active ? 'border-lime' : 'border-muted',
-        )}
-      />
-    </span>
-  );
-}
-
 /** Карточка одного лога */
 function LogCard({
   log,

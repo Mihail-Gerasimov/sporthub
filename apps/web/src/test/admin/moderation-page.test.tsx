@@ -19,8 +19,8 @@ describe('ReasonModal', () => {
     );
 
     expect(screen.getByLabelText('Причина скрытия')).toBeInTheDocument();
-    expect(screen.getByText('Скрыть')).toBeInTheDocument();
-    expect(screen.getByText('Отмена')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Скрыть' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument();
     expect(screen.getByText(/Тестовый клуб/)).toBeInTheDocument();
   });
 
@@ -35,7 +35,7 @@ describe('ReasonModal', () => {
       />,
     );
 
-    expect(screen.getByText('Скрыть')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Скрыть' })).toBeDisabled();
   });
 
   it('для отзыва проверки — свои тексты: поле «Причина отзыва», кнопка «Отозвать», без имени администратора', () => {
@@ -50,7 +50,7 @@ describe('ReasonModal', () => {
     );
 
     expect(screen.getByLabelText('Причина отзыва')).toBeInTheDocument();
-    expect(screen.getByText('Отозвать')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Отозвать' })).toBeDisabled();
     expect(screen.getByText(/без имени администратора/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Причина скрытия')).not.toBeInTheDocument();
   });
@@ -71,14 +71,14 @@ describe('ReasonModal', () => {
 
     expect(hint).toBe('Причина отзыва обязательна');
     expect(screen.getByText(hint as string)).toBeInTheDocument();
-    expect(screen.getByText('Отозвать')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Отозвать' })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText('Причина отзыва'), {
       target: { value: 'Документы просрочены' },
     });
 
     expect(screen.queryByText(hint as string)).not.toBeInTheDocument();
-    expect(screen.getByText('Отозвать')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Отозвать' })).toBeEnabled();
   });
 
   it('не рендерится если open=false', () => {

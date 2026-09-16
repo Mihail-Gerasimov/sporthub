@@ -11,6 +11,7 @@
  * в `REASON_COPY` по действию; для действия без своей записи берётся общая
  * (правка по ревью 38.54): новое действие с причиной откроет модалку без правки фронта.
  *
+ * Кнопки — `ui/Button` (второй заход ревью 38.54): своих строк классов у модалки нет.
  * Причина обязательна — кнопка подтверждения заблокирована, пока поле пустое.
  * Черновик не переживает закрытие: открытая заново модалка чиста, и причина
  * одной публикации не утекает к другой (фаза 35 ловила это на модалке отказа).
@@ -18,6 +19,7 @@
 import { useState } from 'react';
 
 import { MODERATION_ACTION_SPECS, type ModerationAction } from '@sporthub/domain';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 
 type ReasonCopy = {
@@ -119,21 +121,12 @@ export function ReasonModal({
           ) : null}
         </div>
         <div className="flex flex-wrap justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="inline-flex items-center justify-center rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
-          >
+          <Button size="sm" variant="outline" onClick={handleClose}>
             Отмена
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isEmpty || loading}
-            className="inline-flex items-center justify-center rounded-full border border-red/45 bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-card disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          </Button>
+          <Button size="sm" variant="danger" onClick={handleSubmit} disabled={isEmpty || loading}>
             {loading ? copy.pendingLabel : copy.confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
