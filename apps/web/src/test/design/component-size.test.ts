@@ -41,7 +41,8 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/admin/DashboardPage.tsx': 429,
   // 38.44: словари подписей и тонов действий уехали в lib/log-action-labels.ts.
   'src/components/admin/LogsPage.tsx': 379,
-  'src/components/admin/ModerationPage.tsx': 473,
+  // 38.54: карточка строки вынесена в ModerationItemCard, добавлена очередь проверки.
+  'src/components/admin/ModerationPage.tsx': 361,
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
   'src/components/clubs/ClubDetailPageClient.tsx': 667,

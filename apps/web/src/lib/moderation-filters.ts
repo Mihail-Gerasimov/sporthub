@@ -52,11 +52,20 @@ export type ModerationType = 'all' | ServiceFaceKind;
 export const MODERATION_RECHECK_VALUES = ['all', 'awaiting'] as const;
 export type ModerationRecheck = (typeof MODERATION_RECHECK_VALUES)[number];
 
+/**
+ * Проверка площадкой (шаг 38.54) — третья очередь раздела. Тоже поверх состояния:
+ * знак «проверено» носит только опубликованная, но отбор «непроверенные» спрашивают
+ * и вместе со скрытыми, поэтому у него свой параметр.
+ */
+const MODERATION_VERIFICATION_VALUES = ['all', 'unverified', 'verified'] as const;
+export type ModerationVerification = (typeof MODERATION_VERIFICATION_VALUES)[number];
+
 /** Полный отбор раздела: ровно то, что несёт адрес. */
 export interface ModerationFilters {
   status: ModerationStatus;
   type: ModerationType;
   recheck: ModerationRecheck;
+  verification: ModerationVerification;
   city: string;
   /** Номер вида спорта строкой — так же, как его хранит `<select>`. */
   sportId: string;
@@ -72,6 +81,7 @@ export const MODERATION_DEFAULT_FILTERS: ModerationFilters = {
   status: 'all',
   type: 'all',
   recheck: 'all',
+  verification: 'all',
   city: '',
   sportId: '',
   search: '',
@@ -126,6 +136,7 @@ export function parseModerationFilters(params: ModerationQueryReader): Moderatio
     status: fromDictionary(params.get('status'), MODERATION_STATUS_VALUES, 'all'),
     type,
     recheck: fromDictionary(params.get('recheck'), MODERATION_RECHECK_VALUES, 'all'),
+    verification: fromDictionary(params.get('verification'), MODERATION_VERIFICATION_VALUES, 'all'),
     // Город — данные, а не словарь: любой непустой текст годится, отбор сделает база.
     city: params.get('city') ?? '',
     // Вид спорта — номер. Нечисловое значение ушло бы в запрос как `NaN` и молча
@@ -149,6 +160,7 @@ export function moderationAddressQuery(filters: ModerationFilters): string {
   if (filters.status !== 'all') params.set('status', filters.status);
   if (filters.type !== 'all') params.set('type', filters.type);
   if (filters.recheck !== 'all') params.set('recheck', filters.recheck);
+  if (filters.verification !== 'all') params.set('verification', filters.verification);
   if (filters.city) params.set('city', filters.city);
   if (filters.sportId) params.set('sportId', filters.sportId);
   if (filters.search.trim()) params.set('search', filters.search.trim());
@@ -178,6 +190,10 @@ export function moderationRequestQuery(filters: ModerationFilters): string {
   if (filters.sportId) params.set('sportId', filters.sportId);
   if (filters.search.trim()) params.set('search', filters.search.trim());
   if (filters.recheck === 'awaiting') params.set('awaitingRecheck', 'true');
+  // Проверенность: в адресе словом, в контракте — `verified=false|true` (38.47).
+  if (filters.verification !== 'all') {
+    params.set('verified', String(filters.verification === 'verified'));
+  }
   // Наводка из уведомления — тоже условие отбора, и место ему в запросе.
   // Искать нужную публикацию среди выданных страница не имеет права: цена такого
   // поиска росла бы вместе с каталогом, а не с выдачей.

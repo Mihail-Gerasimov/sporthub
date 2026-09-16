@@ -38,13 +38,19 @@
  * работы. Часть отбора в адресе и часть в памяти — это два источника правды:
  * они расходятся молча, и раздел после «назад» показывает не то, что в адресе.
  * Разбор адреса — одна функция на раздел (`lib/moderation-filters`).
+ *
+ * Phase 38 Step 38.54: третья очередь — проверка площадкой. Отбор «непроверенные /
+ * проверенные» уходит В ЗАПРОС (`verified=false|true`, индекс по `(status, created_at)`
+ * на бэкенде), действия «Подтвердить» и «Отозвать» — через тот же `POST /api/moderation`
+ * по словарю действий домена; отзыв — с обязательной причиной в той же модалке,
+ * что у скрытия. Карточка строки вынесена в `ModerationItemCard`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-import { HIDE_KIND_LABELS, isHideKind } from '@sporthub/domain';
-import type { City, HideKindValue } from '@sporthub/types';
+import type { ModerationAction } from '@sporthub/domain';
+import type { City } from '@sporthub/types';
 import { PaginationBar } from '@/components/ui/PaginationBar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
@@ -58,25 +64,8 @@ import {
 } from '@/lib/moderation-filters';
 import { cn } from '@/lib/utils';
 
-import { HideReasonModal } from './HideReasonModal';
-
-/** Тип элемента из GET /api/publications */
-interface PublicationItem {
-  id: number;
-  name: string;
-  type: 'club' | 'trainer';
-  city: string;
-  sportIds: number[];
-  status: string | undefined;
-  createdAt: string;
-  managedByUserId: number | undefined;
-  hideReason?: string;
-  hiddenAt?: string;
-  /** Вид скрытия: архив владельца или работа модератора (шаг 36.12). */
-  hiddenKind?: HideKindValue;
-  /** Владелец исправил скрытую публикацию, она ждёт повторной проверки. */
-  awaitingRecheck?: boolean;
-}
+import { ModerationItemCard, type PublicationItem } from './ModerationItemCard';
+import { ReasonModal, type ReasonPurpose } from './ReasonModal';
 
 interface ModerationPageProps {
   sports: Array<{ id: number; name: string }>;
@@ -141,8 +130,11 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Модалка скрытия
-  const [hideTarget, setHideTarget] = useState<PublicationItem | null>(null);
+  // Модалка причины: скрытие или отзыв проверки — одна на оба действия.
+  const [reasonTarget, setReasonTarget] = useState<{
+    item: PublicationItem;
+    purpose: ReasonPurpose;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   /**
@@ -245,44 +237,40 @@ export function ModerationPage({ sports }: ModerationPageProps) {
     fetchData();
   }, [fetchData]);
 
-  const handleHide = async (reason: string) => {
-    if (!hideTarget) return;
+  /**
+   * Одно действие модерации — по словарю домена. Причина уходит только там, где
+   * она есть: сервер сам знает, какому действию она обязательна.
+   */
+  const runAction = async (action: ModerationAction, item: PublicationItem, reason?: string) => {
     setActionLoading(true);
     try {
       await fetch('/api/moderation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'hide',
-          entityType: hideTarget.type,
-          entityId: hideTarget.id,
-          reason,
+          action,
+          entityType: item.type,
+          entityId: item.id,
+          ...(reason === undefined ? {} : { reason }),
         }),
       });
-      setHideTarget(null);
       fetchData();
     } finally {
       setActionLoading(false);
     }
   };
 
+  /** Причина из модалки: скрытие или отзыв — по её назначению. */
+  const handleReason = async (reason: string) => {
+    if (!reasonTarget) return;
+    const { item, purpose } = reasonTarget;
+    setReasonTarget(null);
+    await runAction(purpose, item, reason);
+  };
+
   const handleUnhide = async (item: PublicationItem) => {
     if (!confirm(`Показать публикацию «${item.name}»?`)) return;
-    setActionLoading(true);
-    try {
-      await fetch('/api/moderation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'unhide',
-          entityType: item.type,
-          entityId: item.id,
-        }),
-      });
-      fetchData();
-    } finally {
-      setActionLoading(false);
-    }
+    await runAction('unhide', item);
   };
 
   // Страница — из адреса: отбор и постраничность живут в нём одинаково,
@@ -319,8 +307,8 @@ export function ModerationPage({ sports }: ModerationPageProps) {
         </p>
       </header>
 
-      {/* Toolbar: search + 4 select */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,1fr))] xxl:grid-cols-[minmax(0,1.4fr)_repeat(5,minmax(0,1fr))]">
+      {/* Toolbar: search + 6 select */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,1.2fr)_repeat(6,minmax(0,1fr))] xxl:grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,1fr))]">
         <div
           className={cn(
             'relative col-span-1 sm:col-span-2 xl:col-span-1',
@@ -368,6 +356,21 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           options={[
             { value: 'all', label: 'Все публикации' },
             { value: 'awaiting', label: 'Исправленные, ждут проверки' },
+          ]}
+        />
+
+        {/* Третья очередь (38.54): проверка площадкой. Отбор — в запросе, `verified=false|true`. */}
+        <ToolbarSelect
+          ariaLabel="Проверка площадкой"
+          value={filters.verification}
+          active={filters.verification !== 'all'}
+          onChange={(value) =>
+            applyFilters({ verification: value as ModerationFilters['verification'] })
+          }
+          options={[
+            { value: 'all', label: 'Проверка: все' },
+            { value: 'unverified', label: 'Непроверенные' },
+            { value: 'verified', label: 'Проверенные' },
           ]}
         />
 
@@ -442,13 +445,15 @@ export function ModerationPage({ sports }: ModerationPageProps) {
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item) => (
-            <ItemCard
+            <ModerationItemCard
               key={`${item.type}-${item.id}`}
               item={item}
               focused={item === focusedItem}
               actionLoading={actionLoading}
-              onHide={() => setHideTarget(item)}
+              onHide={() => setReasonTarget({ item, purpose: 'hide' })}
               onUnhide={() => handleUnhide(item)}
+              onVerify={() => runAction('verify', item)}
+              onUnverify={() => setReasonTarget({ item, purpose: 'unverify' })}
             />
           ))}
         </div>
@@ -465,12 +470,13 @@ export function ModerationPage({ sports }: ModerationPageProps) {
         onPageChange={(page) => applyFilters({ page })}
       />
 
-      {/* Модалка скрытия */}
-      <HideReasonModal
-        open={!!hideTarget}
-        onClose={() => setHideTarget(null)}
-        onConfirm={handleHide}
-        entityName={hideTarget?.name ?? ''}
+      {/* Модалка причины — скрытие и отзыв проверки */}
+      <ReasonModal
+        open={reasonTarget !== null}
+        purpose={reasonTarget?.purpose ?? 'hide'}
+        onClose={() => setReasonTarget(null)}
+        onConfirm={handleReason}
+        entityName={reasonTarget?.item.name ?? ''}
         loading={actionLoading}
       />
     </div>
@@ -526,130 +532,6 @@ function ToolbarSelect({
           active ? 'border-lime' : 'border-muted',
         )}
       />
-    </span>
-  );
-}
-
-function ItemCard({
-  item,
-  focused,
-  actionLoading,
-  onHide,
-  onUnhide,
-}: {
-  item: PublicationItem;
-  /** Та самая публикация, ради которой перешли из уведомления. */
-  focused: boolean;
-  actionLoading: boolean;
-  onHide: () => void;
-  onUnhide: () => void;
-}) {
-  const isHidden = item.status === 'hidden';
-  const isPending = item.status === 'pending';
-  // Признак повторной проверки: владелец исправил то, что скрыл модератор.
-  const isAwaitingRecheck = item.awaitingRecheck === true;
-  /**
-   * Подпись скрытия берётся из словаря `@sporthub/domain` по ПРИЗНАКУ вида,
-   * а не сравнением текста причины с константой: иначе владельцу достаточно
-   * вписать служебную строку руками, чтобы его архив выглядел работой модератора.
-   * Публикации, скрытые до появления признака, остаются с прежней подписью.
-   */
-  const hiddenLabel = isHideKind(item.hiddenKind) ? HIDE_KIND_LABELS[item.hiddenKind] : 'Скрыто';
-  const dateLabel = new Date(item.createdAt).toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-
-  return (
-    <article
-      className={cn(
-        'grid grid-cols-1 items-center gap-x-4 gap-y-3.5 rounded-[16px] border bg-card p-[18px] sm:p-[18px_22px] xl:grid-cols-[1fr_220px]',
-        focused ? 'border-lime' : 'border-line',
-      )}
-    >
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
-            {item.name}
-          </h3>
-          <Badge tone={item.type === 'club' ? 'lime-fill' : 'lime-fill'}>
-            {item.type === 'club' ? 'Клуб' : 'Тренер'}
-          </Badge>
-          {isHidden ? (
-            <Badge tone="muted">{hiddenLabel}</Badge>
-          ) : isPending ? (
-            // ⚠️ «Новая», а не «На проверке»: рядом живёт вторая очередь —
-            // исправленные после скрытия. Прежняя подпись годилась обеим,
-            // и модератор не мог понять, какую именно очередь он смотрит.
-            <Badge tone="gold">Новая, на проверке</Badge>
-          ) : (
-            <Badge tone="lime-soft">Опубликовано</Badge>
-          )}
-          {/* Признак идёт рядом со скрытием, а не вместо него: публикация
-              всё ещё вне каталога, но разбирательство уже сдвинулось. */}
-          {isAwaitingRecheck ? <Badge tone="gold">Исправлено, ждёт проверки</Badge> : null}
-          {/* Бейдж наводки — рядом с состоянием, а не вместо него: он говорит,
-              ПОЧЕМУ эта строка здесь, и ничего не сообщает о самой публикации. */}
-          {focused ? <Badge tone="lime-fill">Из уведомления</Badge> : null}
-        </div>
-        <p className="m-0 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-medium text-muted">
-          {item.city && <span>{item.city}</span>}
-          {item.city ? (
-            <span
-              aria-hidden="true"
-              className="inline-block h-[3px] w-[3px] rounded-full bg-disabled"
-            />
-          ) : null}
-          <span>Создано: {dateLabel}</span>
-        </p>
-        {isHidden && item.hideReason ? (
-          <p className="m-0 text-xs font-medium text-red">Причина: {item.hideReason}</p>
-        ) : null}
-      </div>
-
-      <div className="flex justify-end">
-        {isHidden ? (
-          <button
-            type="button"
-            onClick={onUnhide}
-            disabled={actionLoading}
-            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border-0 bg-lime px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov disabled:opacity-50 sm:w-auto"
-          >
-            Показать
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onHide}
-            disabled={actionLoading}
-            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-red/45 bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-card disabled:opacity-50 sm:w-auto"
-          >
-            Скрыть
-          </button>
-        )}
-      </div>
-    </article>
-  );
-}
-
-type BadgeTone = 'lime-fill' | 'lime-soft' | 'muted' | 'gold';
-
-function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
-  const classes: Record<BadgeTone, string> = {
-    'lime-fill': 'border-transparent bg-lime text-ink',
-    'lime-soft': 'border-lime/30 bg-lime-soft text-lime-hov',
-    muted: 'border-line bg-card-2 text-muted',
-    gold: 'border-gold/30 bg-gold/10 text-gold',
-  };
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em]',
-        classes[tone],
-      )}
-    >
-      {children}
     </span>
   );
 }

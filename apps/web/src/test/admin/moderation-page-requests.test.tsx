@@ -10,7 +10,7 @@
 // страница на самом деле запросила. Диверсия д-21 — «раздел модерации просит все
 // публикации и отбирает признак в памяти» — обязана уронить этот набор.
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -110,6 +110,17 @@ const FRESH = {
   awaitingRecheck: false,
 };
 
+/** Проверенная площадкой публикация: знак и кнопка «Отозвать» (38.54). */
+const VERIFIED = {
+  ...base,
+  id: 4,
+  name: 'Проверенный',
+  type: 'club' as const,
+  status: 'published',
+  awaitingRecheck: false,
+  verifiedAt: '2026-09-15T10:00:00.000Z',
+};
+
 /** Что отвечает сервер на любой вопрос. Тесты подменяют перед рендером. */
 let served: unknown[] = [];
 
@@ -117,6 +128,9 @@ let served: unknown[] = [];
 let calls: string[] = [];
 
 const publicationCalls = () => calls.filter((url) => url.startsWith('/api/publications'));
+
+/** Тела действий модерации, ушедшие на сервер, — в порядке отправки. */
+let moderationBodies: Array<Record<string, unknown>> = [];
 
 const okJson = (data: unknown, total: number) => ({
   ok: true,
@@ -135,10 +149,17 @@ describe('Раздел модерации — адреса запросов', ()
     address.open('');
     pushMock.mockClear();
     replaceMock.mockClear();
-    global.fetch = vi.fn((input: unknown) => {
+    moderationBodies = [];
+    global.fetch = vi.fn((input: unknown, init?: { method?: string; body?: string }) => {
       const url = String(input);
 
       calls.push(url);
+
+      if (url.startsWith('/api/moderation') && init?.method === 'POST') {
+        moderationBodies.push(JSON.parse(init.body ?? '{}') as Record<string, unknown>);
+
+        return Promise.resolve(okJson({}, 0));
+      }
 
       if (url.startsWith('/api/cities')) return Promise.resolve(okJson([], 0));
 
@@ -376,6 +397,106 @@ describe('Раздел модерации — адреса запросов', ()
       fireEvent.click(screen.getByRole('button', { name: 'Весь раздел' }));
 
       await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/service-portal/moderation'));
+    });
+  });
+
+  /**
+   * Шаг 38.54: проверка площадкой. Третья очередь раздела и два новых действия.
+   *
+   * ⚠️ И здесь — подключение, а не картинка: отбор «непроверенные» обязан уехать
+   * в запрос параметром контракта `verified=false`, а не отсеяться поверх страницы
+   * (диверсия д-44 в фронтовом изводе — стенд отвечает обеими публикациями всегда).
+   */
+  describe('проверка площадкой', () => {
+    beforeEach(() => {
+      served = [VERIFIED, PLAIN, FIXED];
+    });
+
+    it('отбор «непроверенные» уходит В ЗАПРОС как verified=false, «проверенные» — verified=true', async () => {
+      render(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(publicationCalls().length).toBeGreaterThan(0));
+      expect(publicationCalls()[0]).not.toContain('verified');
+
+      fireEvent.change(screen.getByLabelText('Проверка площадкой'), {
+        target: { value: 'unverified' },
+      });
+      await waitFor(() => expect(publicationCalls().at(-1)).toContain('verified=false'));
+
+      fireEvent.change(screen.getByLabelText('Проверка площадкой'), {
+        target: { value: 'verified' },
+      });
+      await waitFor(() => expect(publicationCalls().at(-1)).toContain('verified=true'));
+    });
+
+    it('диверсия д-44 (фронт): проверенность не отбирается в памяти', async () => {
+      render(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(screen.getByText('Проверенный')).toBeInTheDocument());
+
+      fireEvent.change(screen.getByLabelText('Проверка площадкой'), {
+        target: { value: 'unverified' },
+      });
+
+      // Сервер ответил всеми тремя — все три и показаны: пропади проверенная,
+      // значит отбор случился в браузере.
+      await waitFor(() => expect(publicationCalls().at(-1)).toContain('verified=false'));
+      expect(screen.getByText('Проверенный')).toBeInTheDocument();
+      expect(screen.getByText('Железо')).toBeInTheDocument();
+    });
+
+    it('знак и действия — по состоянию: проверенной «Отозвать», опубликованной «Подтвердить», скрытой — ничего', async () => {
+      render(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(screen.getByText('Проверенный')).toBeInTheDocument());
+
+      // Знак ровно один — у проверенной; подпись по виду лица.
+      expect(screen.getAllByTestId('verified-badge')).toHaveLength(1);
+      expect(screen.getByTestId('verified-badge')).toHaveTextContent('Клуб проверен');
+
+      expect(screen.getByRole('button', { name: 'Отозвать: Проверенный' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Подтвердить: Железо' })).toBeInTheDocument();
+      // Скрытую подтверждать нельзя — предусловие `published` на сервере, кнопки нет и здесь.
+      expect(screen.queryByRole('button', { name: /Подтвердить: Волна/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Отозвать: Волна/ })).not.toBeInTheDocument();
+    });
+
+    it('«Подтвердить» шлёт action=verify без причины и перечитывает раздел', async () => {
+      render(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(screen.getByText('Железо')).toBeInTheDocument());
+
+      const before = publicationCalls().length;
+
+      fireEvent.click(screen.getByRole('button', { name: 'Подтвердить: Железо' }));
+
+      await waitFor(() => expect(moderationBodies).toHaveLength(1));
+      expect(moderationBodies[0]).toEqual({ action: 'verify', entityType: 'club', entityId: 2 });
+      await waitFor(() => expect(publicationCalls().length).toBeGreaterThan(before));
+    });
+
+    it('«Отозвать» требует причину: без неё кнопка заблокирована, с ней — action=unverify с текстом', async () => {
+      render(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(screen.getByText('Проверенный')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Отозвать: Проверенный' }));
+
+      const dialog = await screen.findByRole('dialog');
+      const confirm = within(dialog).getByRole('button', { name: 'Отозвать' });
+
+      expect(confirm).toBeDisabled();
+      expect(moderationBodies).toHaveLength(0);
+
+      fireEvent.change(within(dialog).getByLabelText('Причина отзыва'), {
+        target: { value: 'Документы просрочены' },
+      });
+      expect(confirm).toBeEnabled();
+
+      fireEvent.click(confirm);
+
+      await waitFor(() => expect(moderationBodies).toHaveLength(1));
+      expect(moderationBodies[0]).toEqual({
+        action: 'unverify',
+        entityType: 'club',
+        entityId: 4,
+        reason: 'Документы просрочены',
+      });
     });
   });
 });

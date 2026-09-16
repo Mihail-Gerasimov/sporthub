@@ -29,12 +29,13 @@ describe('Отбор раздела модерации — разбор адре
   it('годные значения читаются все до одного', () => {
     expect(
       parse(
-        'status=hidden&type=trainer&recheck=awaiting&city=Самара&sportId=3&search=волна&page=2',
+        'status=hidden&type=trainer&recheck=awaiting&verification=unverified&city=Самара&sportId=3&search=волна&page=2',
       ),
     ).toEqual({
       status: 'hidden',
       type: 'trainer',
       recheck: 'awaiting',
+      verification: 'unverified',
       city: 'Самара',
       sportId: '3',
       search: 'волна',
@@ -51,6 +52,14 @@ describe('Отбор раздела модерации — разбор адре
   it('неизвестное состояние и неизвестная очередь — как будто параметра нет', () => {
     expect(parse('status=deleted').status).toBe('all');
     expect(parse('recheck=maybe').recheck).toBe('all');
+  });
+
+  // Шаг 38.54: отбор по проверенности — третья очередь раздела.
+  it('отбор по проверенности читается, чужое значение — как будто параметра нет', () => {
+    expect(parse('verification=unverified').verification).toBe('unverified');
+    expect(parse('verification=verified').verification).toBe('verified');
+    expect(parse('verification=yes').verification).toBe('all');
+    expect(parse('verification=').verification).toBe('all');
   });
 
   it('нечисловая и отрицательная страница — первая', () => {
@@ -110,6 +119,7 @@ describe('Отбор раздела модерации — сборка адре
       status: 'hidden' as const,
       type: 'club' as const,
       recheck: 'awaiting' as const,
+      verification: 'verified' as const,
       city: 'Самара',
       sportId: '3',
       search: 'волна',
@@ -139,6 +149,7 @@ describe('Отбор раздела модерации — адрес запро
       status: 'hidden',
       type: 'club',
       recheck: 'awaiting',
+      verification: 'unverified',
       city: 'Самара',
       sportId: '3',
       search: '  волна  ',
@@ -150,12 +161,24 @@ describe('Отбор раздела модерации — адрес запро
     expect(params.get('status')).toBe('hidden');
     expect(params.get('type')).toBe('club');
     expect(params.get('awaitingRecheck')).toBe('true');
+    // Проверенность в адресе — словом, в запросе — контрактным `verified=false|true`.
+    expect(params.get('verified')).toBe('false');
     expect(params.get('city')).toBe('Самара');
     expect(params.get('sportId')).toBe('3');
     expect(params.get('search')).toBe('волна');
     // Постраничность тоже в запросе: страница 3 — это смещение на две страницы.
     expect(params.get('offset')).toBe(String(2 * MODERATION_PAGE_SIZE));
     expect(params.get('limit')).toBe(String(MODERATION_PAGE_SIZE));
+  });
+
+  it('очередь проверенных — `verified=true`; «все» параметра не шлёт', () => {
+    const verified = new URLSearchParams(
+      moderationRequestQuery({ ...MODERATION_DEFAULT_FILTERS, verification: 'verified' }),
+    );
+    const all = new URLSearchParams(moderationRequestQuery(MODERATION_DEFAULT_FILTERS));
+
+    expect(verified.get('verified')).toBe('true');
+    expect(all.has('verified')).toBe(false);
   });
 
   it('номер публикации уходит В ЗАПРОС, а не отбирается в памяти', () => {
