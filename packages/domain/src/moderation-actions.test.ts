@@ -38,6 +38,8 @@ describe('словарь действий модерации', () => {
   it('распознаёт действие по строке и отвергает остальное', () => {
     expect(isModerationAction('hide')).toBe(true);
     expect(isModerationAction('unhide')).toBe(true);
+    expect(isModerationAction('verify')).toBe(true);
+    expect(isModerationAction('unverify')).toBe(true);
     expect(isModerationAction('delete')).toBe(false);
     expect(isModerationAction(42)).toBe(false);
   });
@@ -48,7 +50,7 @@ describe('словарь действий модерации', () => {
       expect(MODERATION_ERRORS.unknownAction).toContain(action);
     }
     expect(MODERATION_ERRORS.unknownAction).toBe(
-      'Некорректное действие. Ожидается hide или unhide',
+      'Некорректное действие. Ожидается hide, unhide, verify или unverify',
     );
   });
 
@@ -95,5 +97,35 @@ describe('словарь действий модерации', () => {
   it('скрыть можно только без живых записей; возврат условий не ставит', () => {
     expect(MODERATION_ACTION_SPECS.hide.precondition).toBe('no_live_bookings');
     expect(MODERATION_ACTION_SPECS.unhide.precondition).toBeNull();
+  });
+
+  // --- Верификация (38.45–38.46) ---
+  it('verify пишет пару «когда + кем» и не требует причины; отзыв требует', () => {
+    expect(MODERATION_ACTION_SPECS.verify.patch(CONTEXT)).toEqual({
+      verifiedAt: '2026-09-15T10:00:00.000Z',
+      verifiedByUserId: 3,
+    });
+    expect(MODERATION_ACTION_SPECS.verify.requiresReason).toBe(false);
+    expect(MODERATION_ACTION_SPECS.unverify.requiresReason).toBe('Причина отзыва обязательна');
+  });
+
+  it('unverify обнуляет обе половины пары ключами с undefined', () => {
+    const patch = MODERATION_ACTION_SPECS.unverify.patch(CONTEXT);
+
+    for (const key of ['verifiedAt', 'verifiedByUserId'] as const) {
+      expect(key in patch, `в патче отзыва нет ключа ${key}`).toBe(true);
+      expect(patch[key]).toBeUndefined();
+    }
+  });
+
+  it('очередь надзора узнаёт об отзыве и не узнаёт о подтверждении; владелец — об обоих', () => {
+    expect(MODERATION_ACTION_SPECS.verify.oversightType).toBeNull();
+    expect(MODERATION_ACTION_SPECS.unverify.oversightType).toBe('oversight_verification_revoked');
+    expect(MODERATION_ACTION_SPECS.verify.ownerNoticeType).toBe('publication_verified_for_owner');
+    expect(MODERATION_ACTION_SPECS.unverify.ownerNoticeType).toBe(
+      'publication_verification_revoked_for_owner',
+    );
+    expect(MODERATION_ACTION_SPECS.verify.precondition).toBe('published');
+    expect(MODERATION_ACTION_SPECS.unverify.precondition).toBe('verified');
   });
 });

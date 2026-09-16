@@ -38,7 +38,8 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   'src/components/admin/AdminNotificationsPage.tsx': 526,
   'src/components/admin/AdminUpdatePasswordModal.tsx': 240,
   'src/components/admin/DashboardPage.tsx': 477,
-  'src/components/admin/LogsPage.tsx': 428,
+  // 38.44: словари подписей и тонов действий уехали в lib/log-action-labels.ts.
+  'src/components/admin/LogsPage.tsx': 379,
   'src/components/admin/ModerationPage.tsx': 473,
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,

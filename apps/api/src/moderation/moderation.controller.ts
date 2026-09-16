@@ -26,7 +26,7 @@ import {
 import { CurrentUser, Requires } from '../auth/access.decorators';
 import type { SessionContext } from '../auth/session.service';
 import { withTopLevel, type TopLevelResult } from '../common/api-response';
-import { NotFoundError, ValidationError } from '../common/domain-error';
+import { ConflictError, NotFoundError, ValidationError } from '../common/domain-error';
 import { LogService } from '../logs/log.service';
 import {
   NotificationService,
@@ -137,18 +137,26 @@ export class ModerationController {
   ) {}
 
   /**
-   * Проверки по данным, названные в словаре действий (`precondition`).
+   * Проверки, названные в словаре действий (`precondition`).
    *
    * Карта, а не ветвление: новое имя условия в словаре компилятор потребует
    * реализовать здесь. `no_live_bookings` — тот же запрет, что у уборки лица
    * (36.19, решение 14), и живёт он в сервисе публикаций: вторая копия здесь
    * разошлась бы с первой при первой же правке набора действующих статусов.
+   * `published` и `verified` смотрят на уже загруженную публикацию: отказ —
+   * 409, это состояние, а не форма запроса; тексты — из словаря.
    */
   private readonly preconditions: Record<
     ModerationPrecondition,
-    (owner: { kind: CatalogOwnerType; id: number }) => Promise<void>
+    (owner: { kind: CatalogOwnerType; id: number }, entity: Club | Trainer) => Promise<void>
   > = {
     no_live_bookings: (owner) => this.publications.assertCanHide(owner),
+    published: async (_owner, entity) => {
+      if (entity.status === 'hidden') throw new ConflictError(MODERATION_ERRORS.notPublished);
+    },
+    verified: async (_owner, entity) => {
+      if (entity.verifiedAt === undefined) throw new ConflictError(MODERATION_ERRORS.notVerified);
+    },
   };
 
   /**
@@ -203,10 +211,10 @@ export class ModerationController {
     const reason = spec.requiresReason === false ? undefined : trimmedReason;
     const owner = { kind: entityType as CatalogOwnerType, id: entityId };
 
-    await this.requirePublication(owner);
+    const current = await this.requirePublication(owner);
 
     if (spec.precondition !== null) {
-      await this.preconditions[spec.precondition](owner);
+      await this.preconditions[spec.precondition](owner, current);
     }
 
     // Исполнитель — НАСТОЯЩИЙ: под работой от чужого лица в карточке публикации
@@ -304,10 +312,17 @@ export class ModerationController {
   }
 
   /** Публикация обязана существовать; текст отказа — по виду, как и прежде. */
-  private async requirePublication(owner: { kind: CatalogOwnerType; id: number }): Promise<void> {
-    if ((await this.repositoryOf(owner.kind).findById(owner.id)) === null) {
+  private async requirePublication(owner: {
+    kind: CatalogOwnerType;
+    id: number;
+  }): Promise<Club | Trainer> {
+    const current = await this.repositoryOf(owner.kind).findById(owner.id);
+
+    if (current === null) {
       throw new NotFoundError(NOT_FOUND_BY_KIND[owner.kind]);
     }
+
+    return current;
   }
 }
 

@@ -31,9 +31,9 @@ import type {
  * Действия модерации. Порядок значим только для текста отказа: он перечисляет
  * действия в этом порядке.
  *
- * Шаг 38.45 добавит `verify` и `unverify` — строками здесь и в словаре ниже.
+ * `verify` / `unverify` — подтверждение проверки площадкой и его отзыв (шаг 38.45).
  */
-export const MODERATION_ACTIONS = ['hide', 'unhide'] as const;
+export const MODERATION_ACTIONS = ['hide', 'unhide', 'verify', 'unverify'] as const;
 
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 
@@ -43,7 +43,7 @@ export function isModerationAction(value: unknown): value is ModerationAction {
 }
 
 /**
- * Предварительные условия, проверяемые ПО ДАННЫМ до записи.
+ * Предварительные условия, проверяемые до записи.
  *
  * Названы именами, а не функциями: домен данных не видит. Реализацию каждого
  * имени держит контроллер картой `Record<ModerationPrecondition, …>` —
@@ -52,8 +52,12 @@ export function isModerationAction(value: unknown): value is ModerationAction {
  * `no_live_bookings` — у публикации нет живых будущих записей (36.19, решение 14):
  * скрытая исчезает из каталога, но уже созданную запись не отменяет, и человек
  * узнал бы о беде, придя к закрытой двери.
+ * `published` — публикация в каталоге: подтверждать скрытую нечего, знака никто
+ * не увидит, а возврат из скрытия проверку не возвращает (38.46).
+ * `verified` — есть что отзывать: отзыв неподтверждённой — противоречие, и оно
+ * называется отказом, а не молчаливым «ничего не изменилось».
  */
-export const MODERATION_PRECONDITIONS = ['no_live_bookings'] as const;
+export const MODERATION_PRECONDITIONS = ['no_live_bookings', 'published', 'verified'] as const;
 
 export type ModerationPrecondition = (typeof MODERATION_PRECONDITIONS)[number];
 
@@ -77,6 +81,9 @@ export type ModerationPatch = {
   hiddenAt?: ISODateTimeString;
   hiddenKind?: HideKindValue;
   awaitingRecheck?: boolean;
+  /** Проверка площадкой: пара «когда + кем» (38.42). */
+  verifiedAt?: ISODateTimeString;
+  verifiedByUserId?: EntityId;
 };
 
 export type ModerationActionSpec = {
@@ -147,6 +154,26 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
       awaitingRecheck: false,
     }),
   },
+  verify: {
+    logAction: 'verification_grant',
+    requiresReason: false,
+    // Наложение проверки внимания второго администратора не требует —
+    // как возврат из скрытия. Требует снятие.
+    oversightType: null,
+    ownerNoticeType: 'publication_verified_for_owner',
+    precondition: 'published',
+    // Повторное подтверждение уже подтверждённой — законно: обновляет «когда» и «кем».
+    patch: ({ actorId, now }) => ({ verifiedAt: now.toISOString(), verifiedByUserId: actorId }),
+  },
+  unverify: {
+    logAction: 'verification_revoke',
+    requiresReason: 'Причина отзыва обязательна',
+    oversightType: 'oversight_verification_revoked',
+    ownerNoticeType: 'publication_verification_revoked_for_owner',
+    precondition: 'verified',
+    // Обе половины пары — ключами с undefined: обнулить, а не оставить.
+    patch: () => ({ verifiedAt: undefined, verifiedByUserId: undefined }),
+  },
 };
 
 /** Перечень через запятую с «или» перед последним: «a, b или c». */
@@ -162,4 +189,7 @@ export const MODERATION_ERRORS = {
   unknownAction: `Некорректное действие. Ожидается ${listWithOr(MODERATION_ACTIONS)}`,
   unknownEntityType: 'Некорректный тип сущности',
   invalidEntityId: 'Некорректный entityId',
+  // Отказы предусловий проверки (38.45): состояние, а не форма запроса — 409.
+  notPublished: 'Подтвердить можно только опубликованную публикацию',
+  notVerified: 'Публикация не подтверждена — отзывать нечего',
 } as const;

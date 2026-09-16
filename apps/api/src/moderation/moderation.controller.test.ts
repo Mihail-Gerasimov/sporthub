@@ -780,3 +780,314 @@ describe('Маршруты модерации', () => {
     expect(response.body.error).toBe('Тренер не найден');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Верификация: verify / unverify (фаза 38, шаги 38.44–38.46)
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Те же маршрут и словарь, что у скрытия: третье и четвёртое действие — строки
+// словаря, а не новые развилки. Тренер проверяется наравне с клубом.
+describe('Верификация публикаций', () => {
+  let harness: TestHarness;
+  let adminCookie: string;
+  let providerCookie: string;
+
+  const moderate = (cookie: string, body: Record<string, unknown>) =>
+    request(harness.app.getHttpServer()).post('/api/moderation').set('Cookie', cookie).send(body);
+
+  const readRows = <T>(name: string) => harness.read<T[]>(name);
+
+  beforeAll(async () => {
+    harness = await createTestHarness('moderation-verification');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 2,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина',
+          email: 'm@test.local',
+          phone: '+7 (900) 000-00-02',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-03',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+        {
+          id: 11,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ 2',
+          email: 'a2@test.local',
+          phone: '+7 (900) 000-00-11',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: [
+        {
+          id: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+          name: 'Волна',
+          slug: 'volna',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          city: 'Самара',
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+        },
+        {
+          id: 2,
+          createdAt: '2026-01-02T00:00:00.000Z',
+          name: 'Скрытый',
+          slug: 'hidden-club',
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          city: 'Самара',
+          managedByUserId: 2,
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'hidden',
+          hideReason: 'Жалобы',
+          hiddenKind: 'moderation',
+        },
+      ],
+      trainers: [
+        {
+          id: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          name: 'Марина Соколова',
+          slug: 'marina',
+          bio: 'Биография',
+          avatarUrl: '',
+          experienceYears: 5,
+          priceFrom: 900,
+          city: 'Самара',
+          managedByUserId: 2,
+          sportIds: [3],
+          specialtyIds: [],
+          workFormatIds: [],
+          rating: 5,
+          reviewCount: 0,
+          status: 'published',
+        },
+      ],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      logs: [],
+      notifications: [],
+    });
+
+    adminCookie = await harness.as(3);
+    providerCookie = await harness.as(2);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('verify ставит «когда» и «кем», пишет verification_grant в журнал', async () => {
+    const response = await moderate(adminCookie, {
+      action: 'verify',
+      entityType: 'club',
+      entityId: 1,
+    });
+
+    expect(response.status).toBe(200);
+    expect(typeof response.body.data.verifiedAt).toBe('string');
+    expect(response.body.data.verifiedByUserId).toBe(3);
+
+    const logs = await readRows<{ action: string; actorId: number; meta: unknown }>('logs');
+
+    expect(logs[0]).toMatchObject({ action: 'verification_grant', actorId: 3, entityId: 1 });
+  });
+
+  it('verify не требует причины и не порождает надзорной строки', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const rows = await readRows<{ type: string; addresseeKind: string }>('notifications');
+
+    expect(rows.filter((row) => row.addresseeKind === 'supervision')).toEqual([]);
+  });
+
+  it('владелец узнаёт о подтверждении — письмом в ящик лица, без имени администратора', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const rows = await readRows<{
+      type: string;
+      addresseeKind: string;
+      addresseeType?: string;
+      addresseeId?: number;
+      payload: Record<string, unknown>;
+    }>('notifications');
+    const owner = rows.find((row) => row.type === 'publication_verified_for_owner');
+
+    expect(owner).toMatchObject({ addresseeKind: 'club', addresseeType: 'club', addresseeId: 1 });
+    expect(owner?.payload.publicationName).toBe('Волна');
+    expect(JSON.stringify(owner?.payload)).not.toContain('actorUserId');
+    expect(JSON.stringify(owner?.payload)).not.toContain('Админ');
+  });
+
+  it('тренер подтверждается наравне с клубом — письмо в ящик карточки', async () => {
+    const response = await moderate(adminCookie, {
+      action: 'verify',
+      entityType: 'trainer',
+      entityId: 1,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.verifiedByUserId).toBe(3);
+
+    const rows = await readRows<{ type: string; addresseeType?: string; addresseeId?: number }>(
+      'notifications',
+    );
+
+    expect(rows.find((row) => row.type === 'publication_verified_for_owner')).toMatchObject({
+      addresseeType: 'trainer',
+      addresseeId: 1,
+    });
+  });
+
+  it('скрытую публикацию подтвердить нельзя — 409 с текстом из словаря', async () => {
+    const response = await moderate(adminCookie, {
+      action: 'verify',
+      entityType: 'club',
+      entityId: 2,
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(MODERATION_ERRORS.notPublished);
+  });
+
+  it('unverify без причины — 400 «Причина отзыва обязательна» (д-45)', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const response = await moderate(adminCookie, {
+      action: 'unverify',
+      entityType: 'club',
+      entityId: 1,
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Причина отзыва обязательна');
+    // Отказ обязан быть отказом: знак остался на месте.
+    const clubs = await readRows<{ id: number; verifiedAt?: string }>('clubs');
+    expect(clubs.find((row) => row.id === 1)?.verifiedAt).toBeDefined();
+  });
+
+  it('unverify с причиной обнуляет пару В БАЗЕ, пишет verification_revoke и причину', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const response = await moderate(adminCookie, {
+      action: 'unverify',
+      entityType: 'club',
+      entityId: 1,
+      reason: 'Документы не подтвердились',
+    });
+
+    expect(response.status).toBe(200);
+    expect('verifiedAt' in response.body.data).toBe(false);
+    expect('verifiedByUserId' in response.body.data).toBe(false);
+
+    const clubs = await readRows<{ id: number; verifiedAt?: string; verifiedByUserId?: number }>(
+      'clubs',
+    );
+    const club = clubs.find((row) => row.id === 1);
+
+    expect(club?.verifiedAt).toBeUndefined();
+    expect(club?.verifiedByUserId).toBeUndefined();
+
+    const logs = await readRows<{ action: string; meta: { reason?: string } }>('logs');
+
+    expect(logs.find((row) => row.action === 'verification_revoke')).toMatchObject({
+      meta: { reason: 'Документы не подтвердились' },
+    });
+  });
+
+  it('отзыв уходит владельцу с причиной и в очередь надзора с исполнителем', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+    await moderate(adminCookie, {
+      action: 'unverify',
+      entityType: 'club',
+      entityId: 1,
+      reason: 'Документы не подтвердились',
+    });
+
+    const rows = await readRows<{
+      type: string;
+      addresseeKind: string;
+      payload: Record<string, unknown>;
+    }>('notifications');
+    const owner = rows.find((row) => row.type === 'publication_verification_revoked_for_owner');
+    const oversight = rows.filter((row) => row.type === 'oversight_verification_revoked');
+
+    expect(owner?.payload.reason).toBe('Документы не подтвердились');
+    expect(JSON.stringify(owner?.payload)).not.toContain('actorUserId');
+    // Одна строка при двух администраторах в срезе — общая очередь (38.50).
+    expect(oversight).toHaveLength(1);
+    expect(oversight[0]).toMatchObject({ addresseeKind: 'supervision' });
+    expect(oversight[0].payload).toMatchObject({
+      reason: 'Документы не подтвердились',
+      actorUserId: 3,
+      subjectType: 'club',
+      subjectId: 1,
+    });
+  });
+
+  it('отозвать неподтверждённую нельзя — 409 с текстом из словаря', async () => {
+    const response = await moderate(adminCookie, {
+      action: 'unverify',
+      entityType: 'club',
+      entityId: 1,
+      reason: 'нет',
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(MODERATION_ERRORS.notVerified);
+  });
+
+  it('владелец подтвердить свою публикацию не может — 403', async () => {
+    const response = await moderate(providerCookie, {
+      action: 'verify',
+      entityType: 'club',
+      entityId: 1,
+    });
+
+    expect(response.status).toBe(403);
+    expect(
+      (await readRows<{ id: number; verifiedAt?: string }>('clubs'))[0].verifiedAt,
+    ).toBeUndefined();
+  });
+});
