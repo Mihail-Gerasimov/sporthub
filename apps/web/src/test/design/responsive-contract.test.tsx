@@ -301,6 +301,8 @@ describe('Контракт адаптива: колонка героя и сет
     expect(clubsRail?.className).toContain('lg:grid-cols-3');
     expect(clubsRail?.style.transform).toBe('');
     // Не только классами: на lg листать нечего — «Вперёд» выключена, drag ленту не двигает.
+    // Ширина слайда — числом, иначе drag выходит на `offsetWidth === 0` раньше проверки (Н-2).
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
     expect(clubsRoot.querySelector('[aria-label="Вперёд"]')).toBeDisabled();
     const wrapper = clubsRail?.parentElement as HTMLElement;
     fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });

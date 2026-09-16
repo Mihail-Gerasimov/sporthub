@@ -43,6 +43,7 @@ describe('Главная — витринные карусели (38.79b)', () =
 
   afterEach(() => {
     stub?.restore();
+    vi.restoreAllMocks();
   });
 
   it('шесть клубов и четыре тренера спрашиваются запросом — sort=rating и limit (файл фазы, 38.79b)', async () => {
@@ -151,7 +152,24 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(container.className).toContain('px-6');
   });
 
-  it('на lg сетка ведёт себя как сетка: «Вперёд» выключена, pointerdown ленту не двигает', async () => {
+  it('на lg сетка ведёт себя как сетка: «Вперёд» выключена, drag ленту не двигает; ниже lg — двигает', async () => {
+    // Ширина слайда — числом: в jsdom offsetWidth 0, и drag выходил бы раньше проверки
+    // сетки, кейс был бы зелёным при любом коде (ревью Н-2).
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const drag = (rail: HTMLElement) => {
+      const wrapper = rail.parentElement as HTMLElement;
+      fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
+      fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
+    };
+
+    // Ниже lg (узкий стенд) лента живая: тянем — сдвигается.
+    const narrow = render(await Home());
+    const narrowRail = section('clubs').querySelector('[data-card-slider-rail]') as HTMLElement;
+    expect(within(section('clubs')).getByRole('button', { name: 'Вперёд' })).toBeEnabled();
+    drag(narrowRail);
+    expect(narrowRail.style.transform).toMatch(/translateX\(-\d+px\)/);
+    narrow.unmount();
+
     setMediaQueryMatches(LG);
     render(await Home());
 
@@ -160,12 +178,7 @@ describe('Главная — витринные карусели (38.79b)', () =
 
     expect(within(clubs).getByRole('button', { name: 'Вперёд' })).toBeDisabled();
     expect(rail.style.transform).toBe('');
-    fireEvent.pointerDown(rail.parentElement as HTMLElement, {
-      clientX: 300,
-      pointerId: 1,
-      button: 0,
-    });
-    fireEvent.pointerMove(rail.parentElement as HTMLElement, { clientX: 100, pointerId: 1 });
+    drag(rail);
     expect(rail.style.transform).toBe('');
     // Обёртка ленты в сетке не режет тень и подъём верхнего ряда (ревью).
     expect((rail.parentElement as HTMLElement).className).toContain('lg:overflow-visible');

@@ -272,10 +272,10 @@ describe('TrainerCard (38.74)', () => {
       expect(link.className).toContain('after:inset-0');
       // Единственная ссылка: «К записи» в витрине нет — вся карточка ведёт на тренера.
       expect(within(card).getAllByRole('link')).toHaveLength(1);
-      // Имя в витрине — пресет `t-card-title` (38.109), не display-капитель.
+      // Имя — `t-h4` (макет: 16px), не display-капитель и не клубный `t-card-title` (19).
       const name = link.closest('h3') as HTMLElement;
-      expect(name.className).toContain('t-card-title');
-      expect(name.className).not.toMatch(/font-display|uppercase|t-h3|t-h4/);
+      expect(name.className).toContain('t-h4');
+      expect(name.className).not.toMatch(/font-display|uppercase|t-h3|t-card-title/);
     });
 
     it('площадка, окно, чипы опыта, лента специализаций и цитата в витрине не рисуются', () => {
