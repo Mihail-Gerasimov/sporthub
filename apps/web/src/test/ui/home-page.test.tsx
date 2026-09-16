@@ -14,7 +14,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
-import { CTA, FEATURES, HERO, POPULAR, STEPS } from '@/lib/home-copy';
+import { CTA, FEATURES, HERO, LEADERS, POPULAR, STEPS } from '@/lib/home-copy';
 import { HOME_SECTION_KEYS, HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
@@ -175,11 +175,7 @@ describe('Home page', () => {
     render(await Home());
 
     // Пустой каталог виден по лидерам и по выдаче; счётчики героя — из сводки.
-    expect(
-      screen.getByText(
-        'Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета провайдера.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(LEADERS.empty.catalog)).toBeInTheDocument();
     const popular = document.getElementById(HOME_SECTIONS.popular.id) as HTMLElement;
     expect(within(popular).getByText(POPULAR.empty.clubs)).toBeInTheDocument();
     expect(
