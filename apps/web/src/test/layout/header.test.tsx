@@ -91,10 +91,15 @@ describe('Header', () => {
     expect(clubs).toHaveAttribute('aria-current', 'page');
     expect(clubs.className).toContain('text-ink');
     expect(clubs.className).toContain('bg-bg');
+    expect(clubs.className).toContain('border-line');
     expect(trainers).not.toHaveAttribute('aria-current');
     expect(trainers.className).toContain('text-muted');
     expect(trainers.className).not.toMatch(/(^|\s)text-ink(\s|$)/);
+    // Рамка 1px у всех — прозрачная у не-текущих (макет): размер пункта не прыгает.
+    expect(trainers.className).toContain('border-transparent');
     for (const link of [clubs, trainers]) {
+      expect(link.className).toMatch(/(^|\s)border(\s|$)/);
+      expect(link.className).not.toMatch(/\bring-/);
       expect(link.className).toContain('hover:text-ink');
       expect(link.className).not.toContain('hover:text-lime-hov');
     }

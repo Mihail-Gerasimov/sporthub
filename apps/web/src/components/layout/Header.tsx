@@ -11,11 +11,10 @@
 // в макете, не рисуется — у гостя нет ящика, значку нечего считать (названо).
 //
 // Цвета пунктов — по макету (аудит 17.09, п. 16; `.dk-navbtn`): приглушённые, при
-// наведении и у текущего — чернила на подложке `bg`. Текущий (`activeNavKey`) несёт
-// `aria-current` и обводку `line`. Обводка — кольцом внутрь, а не `border`: макет держит
-// у всех пунктов прозрачную рамку 1px, но глобальное `* { border-color }` (аудит, п. 1,
-// у Основы) красит `border-transparent` в серый — до его починки рамка была бы видна
-// у всех; кольцо не трогает размер, поэтому текущий пункт на 1px у́же макетного (названо).
+// наведении и у текущего — чернила на подложке `bg`. Рамка 1px у всех пунктов — прозрачная,
+// как в макете (размер не прыгает), у текущего (`activeNavKey`, `aria-current`) — `line`.
+// `border-transparent` невидим с тех пор, как обводка по умолчанию ушла в `@layer base`
+// (аудит п. 1, `7cd0a8d`); до того текущий рисовался кольцом внутрь.
 'use client';
 
 import Link from 'next/link';
@@ -51,8 +50,8 @@ export function Header() {
                 item={item}
                 isActive={isActive}
                 className={cn(
-                  'rounded-[9px] px-[13px] py-[7px] font-body text-[13px] font-semibold no-underline transition-colors hover:bg-bg hover:text-ink',
-                  isActive ? 'bg-bg text-ink ring-1 ring-line ring-inset' : 'text-muted',
+                  'rounded-[9px] border px-[13px] py-[7px] font-body text-[13px] font-semibold no-underline transition-colors hover:bg-bg hover:text-ink',
+                  isActive ? 'border-line bg-bg text-ink' : 'border-transparent text-muted',
                 )}
               />
             );
