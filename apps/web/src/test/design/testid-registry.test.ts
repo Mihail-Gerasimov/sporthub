@@ -42,6 +42,8 @@ export const REGISTRY_PATH = 'tests/checklists/phase-38-transfer.md';
 /** Область: дерево главной и каркаса. Пути от корня приложения. */
 export const AREA = [
   'src/app/page.tsx',
+  // Подписи секций главной (`aria-label`) живут в словаре, а не литералами в разметке (38.66).
+  'src/lib/home-sections.ts',
   'src/components/home',
   'src/components/clubs',
   'src/components/trainers',

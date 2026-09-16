@@ -8,11 +8,13 @@
 // списков: страница, посчитавшая «клубов: clubs.length», покажет другое число
 // (диверсия д-20).
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/',
   notFound: () => {
     throw new Error('Not found');
@@ -23,6 +25,8 @@ import Home from '@/app/page';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs, fixtureOverview } from '@/test/helpers/fixture-routes';
+import { SEARCH } from '@/lib/home-copy';
+import { homeSectionHref } from '@/lib/home-sections';
 
 describe('главная — адреса запросов', () => {
   let stub: ApiStub;
@@ -55,5 +59,21 @@ describe('главная — адреса запросов', () => {
     for (const value of Object.values(fixtureOverview)) {
       expect(hero).toContain(value.toLocaleString('ru-RU'));
     }
+  });
+
+  it('виджет поиска стоит в герое: запрос из поля доезжает до стора, «Найти» ведёт к выдаче (38.67)', async () => {
+    push.mockClear();
+    render(await Home());
+
+    const hero = screen.getByRole('region', { name: 'Главный экран' });
+    const input = hero.querySelector('input[type="search"]');
+
+    expect(input).not.toBeNull();
+
+    fireEvent.change(input as HTMLInputElement, { target: { value: 'йога' } });
+    fireEvent.click(screen.getByRole('button', { name: SEARCH.button }));
+
+    expect(useFilterStore.getState().searchQuery).toBe('йога');
+    expect(push).toHaveBeenCalledWith(homeSectionHref('results'));
   });
 });
