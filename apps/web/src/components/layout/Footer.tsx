@@ -6,6 +6,7 @@ import { BRAND_NAME } from '@sporthub/domain';
 import Link from 'next/link';
 
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { NavLink } from '@/components/layout/NavLink';
 import { FOOTER_NAV } from '@/lib/navigation';
 
 export function Footer() {
@@ -31,13 +32,11 @@ export function Footer() {
           className="flex flex-wrap items-center gap-x-5 gap-y-2"
         >
           {FOOTER_NAV.map((link) => (
-            <Link
+            <NavLink
               key={link.label}
-              href={link.href}
+              item={link}
               className="font-body text-[12px] font-semibold text-plate-muted no-underline transition-colors hover:text-lime"
-            >
-              {link.label}
-            </Link>
+            />
           ))}
         </nav>
 

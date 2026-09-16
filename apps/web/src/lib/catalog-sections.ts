@@ -37,8 +37,11 @@ export type CatalogSectionKey = keyof typeof CATALOG_SECTIONS;
 /** Ключи в порядке словаря — порядок секций на странице. */
 export const CATALOG_SECTION_KEYS = Object.keys(CATALOG_SECTIONS) as CatalogSectionKey[];
 
-/** Адрес страницы каталога — один на все ссылки; наружу — через `catalogSectionHref`. */
-const CATALOG_PATH = '/catalog';
+/**
+ * Адрес страницы каталога — один на все ссылки. Наружу — через `catalogSectionHref`;
+ * сам путь без якоря нужен пункту «Каталог» мобильного дока (38.79c).
+ */
+export const CATALOG_PATH = '/catalog';
 
 /** Адрес секции каталога — с любой страницы: `/catalog#results`. */
 export function catalogSectionHref(key: CatalogSectionKey): string {

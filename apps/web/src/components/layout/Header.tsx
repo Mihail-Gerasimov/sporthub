@@ -11,6 +11,7 @@ import Link from 'next/link';
 
 import { HeaderMenu } from '@/components/layout/HeaderMenu';
 import { HeaderUser } from '@/components/layout/HeaderUser';
+import { NavLink } from '@/components/layout/NavLink';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { HEADER_NAV } from '@/lib/navigation';
 
@@ -24,13 +25,11 @@ export function Header() {
 
         <nav aria-label="Основная навигация" className="hidden items-center gap-0.5 menu:flex">
           {HEADER_NAV.map((item) => (
-            <Link
+            <NavLink
               key={item.label}
-              href={item.href}
+              item={item}
               className="rounded-[9px] px-[13px] py-[7px] font-body text-[13px] font-semibold text-ink no-underline transition-colors hover:bg-bg hover:text-lime-hov"
-            >
-              {item.label}
-            </Link>
+            />
           ))}
         </nav>
 

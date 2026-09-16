@@ -17,6 +17,11 @@
 // файла (лента видов спорта в герое), назван в `RENDERED_ON_PLATE` — сторож границы
 // файла не видит. Комментарии снимаются до разбора.
 //
+// Третья половина (ревью 38.79c): ТЁМНО-зелёный на плашке — `text-lime-hov` внутри
+// `bg-plate` даёт 3,1:1 — тоже красный; на плашке зелёный текст — яркий `text-lime`.
+// И класс типографики (`.t-*` в `globals.css`) цвета не несёт: `.t-eyebrow { color }`
+// побивал утилиту `text-lime` призыва каскадом, а сторож классов каскада не видит.
+//
 // ⚠️ Список старых файлов с потолками — только убывает.
 
 import { readFile, readdir } from 'node:fs/promises';
@@ -46,8 +51,15 @@ export const LEGACY_CEILINGS: Record<string, number> = {};
 const GREEN_TEXT =
   /(?<![\w-])(?:(?:hover|focus|focus-visible|group-hover|active):)?text-(?:lime|accent|\[var\(--ui-(?:lime|accent)\)\])(?![\w-])/;
 
-/** Поверхности, на которых яркий зелёный текст читаем. */
-const PLATE = /(?<![\w-])bg-(?:plate|lime|\[var\(--ui-(?:plate|lime)\)\])(?![\w-])/;
+/**
+ * Поверхности, на которых яркий зелёный текст читаем. `bg-lime/10` — мягкая подложка,
+ * не плашка: модификатор прозрачности исключён (ревью 38.79c нашёл дыру).
+ */
+const PLATE = /(?<![\w-])bg-(?:plate|lime|\[var\(--ui-(?:plate|lime)\)\])(?![\w\-/])/;
+
+/** Тёмно-зелёный как цвет текста — на плашке нечитаем (3,1:1). */
+const DARK_GREEN_TEXT =
+  /(?<![\w-])(?:(?:hover|focus|focus-visible|group-hover|active):)?text-(?:lime-hov|accent-strong|\[var\(--ui-(?:lime-hov|accent-strong)\)\])(?![\w-])/;
 
 /** Прозрачность текста. */
 const OPACITY = /(?<![\w-])opacity-\d+(?![\w-])/;
@@ -101,6 +113,16 @@ export function greenTextOffenders(relativePath: string, text: string): string[]
 
     if (GREEN_TEXT.test(classes) && !onPlate) {
       offenders.push(`строка ${line}: зелёный текст на светлом — ${classes.match(GREEN_TEXT)![0]}`);
+    }
+
+    // Тёмно-зелёный внутри плашки. У самого элемента-плашки — только при литеральном
+    // `className="…"`: в тернарии `active ? 'bg-lime …' : '… hover:text-lime-hov'` фон
+    // и тёмный текст живут в разных ветках, и сторож без вычисления ветки промолчит.
+    const literalClasses = /className="/.test(tag);
+    if (DARK_GREEN_TEXT.test(classes) && (plateDepth > 0 || (selfPlate && literalClasses))) {
+      offenders.push(
+        `строка ${line}: тёмно-зелёный текст на плашке — ${classes.match(DARK_GREEN_TEXT)![0]}`,
+      );
     }
 
     if (OPACITY.test(classes) && plateDepth > 0 && !selfPlate) {
@@ -213,7 +235,59 @@ async function collectSources(directory: string): Promise<string[]> {
   return found;
 }
 
+/** Классы типографики `.t-*` в globals.css, несущие `color`: цвет — утилитой по контексту. */
+export function typographyClassesWithColor(css: string): string[] {
+  const found: string[] = [];
+
+  for (const match of css.matchAll(/(\.t-[\w-]+)\s*\{([^{}]*)\}/g)) {
+    if (/(^|[\s;])color\s*:/.test(match[2])) found.push(match[1]);
+  }
+
+  return found;
+}
+
 describe('Сторож: зелёный текст только на плашке (38.14a)', () => {
+  it('классы типографики .t-* не несут цвета — каскад бил бы утилиту цвета по контексту', async () => {
+    const css = stripComments(await readFile(path.join(WEB_ROOT, 'src/app/globals.css'), 'utf8'));
+    expect(typographyClassesWithColor(css)).toEqual([]);
+    // Обратная половина: подставной класс с цветом находится.
+    expect(typographyClassesWithColor('.t-eyebrow { font-size: 11px; color: red; }')).toEqual([
+      '.t-eyebrow',
+    ]);
+  });
+
+  it('обратная половина: тёмно-зелёный на плашке находится, на светлом — нет', () => {
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<section className="bg-plate"><p className="t-eyebrow text-lime-hov">x</p></section>',
+      ),
+    ).toHaveLength(1);
+    expect(
+      greenTextOffenders('src/x/Y.tsx', '<section><p className="text-lime-hov">x</p></section>'),
+    ).toEqual([]);
+    // Мягкая подложка `bg-lime/10` — не плашка: тёмно-зелёный на ней читаем.
+    expect(
+      greenTextOffenders('src/x/Y.tsx', '<span className="bg-lime/10 text-lime-hov">x</span>'),
+    ).toEqual([]);
+    // Сам элемент-плашка с литеральным классом — красный; в тернарии — нет.
+    expect(
+      greenTextOffenders('src/x/Y.tsx', '<span className="bg-lime text-lime-hov">x</span>'),
+    ).toHaveLength(1);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        "<a className={active ? 'bg-lime text-ink' : 'hover:text-lime-hov'}>x</a>",
+      ),
+    ).toEqual([]);
+    expect(
+      greenTextOffenders(
+        'src/x/Y.tsx',
+        '<section className="bg-plate"><p className="text-lime">x</p></section>',
+      ),
+    ).toEqual([]);
+  });
+
   it('ни в одном компоненте яркий зелёный текст не стоит на светлом, прозрачность — не на плашке', async () => {
     const offenders: string[] = [];
 

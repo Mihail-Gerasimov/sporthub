@@ -17,6 +17,7 @@ vi.mock('next/navigation', () => ({
 
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
+import { HEADER_NAV } from '@/lib/navigation';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -49,7 +50,9 @@ describe('Минималистичный стиль layout-компоненто�
       expect(header.className).not.toContain('bg-plate');
       expect(screen.getByText(BRAND_WORDMARK.tail).className).toContain('text-ink');
       const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
-      expect(nav.querySelectorAll('a')).toHaveLength(5);
+      // Пунктов ровно столько, сколько в словаре (38.79c: шесть — по макету).
+      expect(nav.querySelectorAll('a')).toHaveLength(HEADER_NAV.length);
+      expect(HEADER_NAV).toHaveLength(6);
     });
   });
 

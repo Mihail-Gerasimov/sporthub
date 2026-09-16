@@ -22,6 +22,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { Header } from '@/components/layout/Header';
+import { catalogSectionHref } from '@/lib/catalog-sections';
+import { useFilterStore } from '@/stores/useFilterStore';
 import { HOME_SECTIONS } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -43,13 +45,35 @@ describe('Header', () => {
 
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
-    // Пункты главной — подписью и адресом из словаря секций (38.89: «Подборки» врала).
-    for (const key of ['discover', 'results', 'availability'] as const) {
+    // Пункты — из словаря навигации: секции витрины адресом из словаря секций (38.89:
+    // «Подборки» врала), каталог — из словаря секций каталога (38.79c).
+    for (const key of ['steps', 'features'] as const) {
       expect(screen.getByRole('link', { name: HOME_SECTIONS[key].label })).toHaveAttribute(
         'href',
         `/#${HOME_SECTIONS[key].id}`,
       );
     }
+    expect(screen.getByRole('link', { name: 'Клубы' })).toHaveAttribute(
+      'href',
+      catalogSectionHref('results'),
+    );
+    expect(screen.getByRole('link', { name: 'Тренеры' })).toHaveAttribute(
+      'href',
+      catalogSectionHref('results'),
+    );
+  });
+
+  it('«Тренеры» и «Клубы» переключают режим стора на клике — как чип сегмента (38.79c)', () => {
+    useFilterStore.setState({ discoveryMode: 'clubs' });
+    render(<Header />);
+    fireEvent.click(screen.getByRole('link', { name: 'Тренеры' }));
+    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
+    fireEvent.click(screen.getByRole('link', { name: 'Клубы' }));
+    expect(useFilterStore.getState().discoveryMode).toBe('clubs');
+    // Пункт без режима стор не трогает.
+    useFilterStore.setState({ discoveryMode: 'trainers' });
+    fireEvent.click(screen.getByRole('link', { name: HOME_SECTIONS.steps.label }));
+    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
   });
 
   it('у человека с лицом услуг ссылка ведёт в кабинет ЛИЦА и подписана его именем', () => {

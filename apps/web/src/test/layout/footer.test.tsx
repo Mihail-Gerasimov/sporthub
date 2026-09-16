@@ -3,13 +3,21 @@
  * навигации, копирайт с именем площадки и годом из часов; блока «Статус» нет.
  */
 import { BRAND_NAME } from '@sporthub/domain';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Footer } from '@/components/layout/Footer';
 import { FOOTER_NAV } from '@/lib/navigation';
+import { useFilterStore } from '@/stores/useFilterStore';
 
 describe('Footer', () => {
+  it('«Тренеры» в подвале переключает режим стора на клике, как в шапке (38.79c)', () => {
+    useFilterStore.setState({ discoveryMode: 'clubs' });
+    render(<Footer />);
+    fireEvent.click(screen.getByRole('link', { name: 'Тренеры' }));
+    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
+  });
+
   it('ссылки — ровно пункты словаря, с теми же адресами', () => {
     render(<Footer />);
     const nav = screen.getByRole('navigation', { name: 'Навигация в подвале' });

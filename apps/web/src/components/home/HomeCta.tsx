@@ -9,7 +9,7 @@
  *
  * Логика наша: гостю первая кнопка открывает модалку входа (регистрация там же),
  * вошедшему регистрироваться некуда — она ведёт в его кабинет. Вторая — к выдаче
- * на главной (`#results`).
+ * каталога (`/catalog#results`, 38.79c).
  *
  * Собран из `ui/Button` для primary (гостю — кнопка, вошедшему — `Button href`).
  * Почему не `ui/*` целиком: вторая кнопка — ссылка-«призрак» на тёмной плашке,
@@ -22,7 +22,8 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/Button';
 import { CTA } from '@/lib/home-copy';
-import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -71,7 +72,7 @@ export function HomeCta() {
               {CTA.primary}
             </Button>
           )}
-          <Link href={homeSectionHref('results')} className={GHOST_LINK_CLASS}>
+          <Link href={catalogSectionHref('results')} className={GHOST_LINK_CLASS}>
             {CTA.secondary}
           </Link>
         </div>

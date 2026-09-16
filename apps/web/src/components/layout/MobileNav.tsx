@@ -1,9 +1,10 @@
 // Мобильный нижний док-навигатор (шаг 38.62) — по эталону: белая полоса по низу экрана
 // с четырьмя вкладками; активная — зелёная полоска сверху, иконка на мягкой зелёной
 // подложке, тёмно-зелёная подпись. Виден до md (768), выше навигация в шапке.
-// Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Поиск / Слоты), плюс
+// Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Каталог / Слоты), плюс
 // «Профиль», чей адрес зависит от сессии; здесь у пунктов только SVG-иконки.
-// Подсветка учитывает хэш: «Поиск» и «Слоты» — якоря главной.
+// Подсветка учитывает хэш на любой странице (38.79c): «Слоты» — якорь каталога;
+// пункт-страница активен на своём пути, пока хэш не забрал другой пункт.
 'use client';
 
 import Link from 'next/link';
@@ -36,14 +37,46 @@ const GLYPHS: Record<string, ReactNode> = {
       strokeWidth="1.7"
     />
   ),
-  Поиск: (
+  Каталог: (
     <>
-      <circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="m15.5 15.5 4 4"
+      <rect
+        x="4.5"
+        y="4.5"
+        width="6"
+        height="6"
+        rx="1.5"
         fill="none"
         stroke="currentColor"
-        strokeLinecap="round"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="13.5"
+        y="4.5"
+        width="6"
+        height="6"
+        rx="1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="4.5"
+        y="13.5"
+        width="6"
+        height="6"
+        rx="1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="13.5"
+        y="13.5"
+        width="6"
+        height="6"
+        rx="1.5"
+        fill="none"
+        stroke="currentColor"
         strokeWidth="1.7"
       />
     </>
@@ -96,13 +129,37 @@ const mobileNavItems: ReadonlyArray<MobileNavItem> = [
   },
 ];
 
-/** Активен ли пункт: главная — только без хэша; якорь — по хэшу; кабинет — по корню адреса. */
-function isMobileNavItemActive(item: MobileNavItem, pathname: string, hash: string): boolean {
-  return item.matchPaths.some((target) => {
-    if (target.startsWith('/#')) return pathname === '/' && hash === target.slice(1);
-    if (target === '/') return pathname === '/' && hash === '';
+/** Цель пункта — путь и якорь: `/catalog#availability` → `/catalog` + `#availability`. */
+function splitTarget(target: string): { path: string; anchor: string } {
+  const [path, anchor = ''] = target.split('#');
 
-    return pathname.startsWith(target);
+  return { path, anchor: anchor === '' ? '' : `#${anchor}` };
+}
+
+/**
+ * Активен ли пункт. Пункт-якорь — ровно по паре «путь + хэш». Пункт-страница —
+ * по своему пути (главная — только точно, кабинет — по корню), если пара
+ * «путь + хэш» не принадлежит другому пункту дока: на `/catalog#availability`
+ * активны «Слоты», а не «Каталог»; на `/#steps` — «Главная», якорей главной
+ * в доке нет.
+ */
+function isMobileNavItemActive(
+  item: MobileNavItem,
+  pathname: string,
+  hash: string,
+  items: ReadonlyArray<MobileNavItem>,
+): boolean {
+  const claimedByOther = items.some(
+    (other) => other !== item && other.matchPaths.includes(`${pathname}${hash}`),
+  );
+
+  return item.matchPaths.some((target) => {
+    const { path, anchor } = splitTarget(target);
+
+    if (anchor !== '') return pathname === path && hash === anchor;
+    if (claimedByOther) return false;
+
+    return path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`);
   });
 }
 
@@ -140,13 +197,13 @@ export function MobileNav() {
       className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-line bg-card md:hidden"
     >
       {mobileNavItems.map((item) => {
-        const isActive = isMobileNavItemActive(item, pathname, hash);
+        const isActive = isMobileNavItemActive(item, pathname, hash, mobileNavItems);
 
         return (
           <Link
             key={item.label}
             href={item.href}
-            onClick={() => setHash(item.href.startsWith('/#') ? item.href.slice(1) : '')}
+            onClick={() => setHash(splitTarget(item.href).anchor)}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'relative flex min-w-0 flex-1 flex-col items-center gap-[3px] px-1 pt-2.5 pb-1.5 text-center font-body text-[10px] no-underline transition-colors',

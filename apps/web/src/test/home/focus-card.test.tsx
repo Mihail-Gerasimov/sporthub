@@ -2,7 +2,8 @@
  * «Сегодня в фокусе» (шаг 38.70): первое занятие, LIVE, до трёх строк расписания,
  * «Записаться» → /booking/{id}, счётчик со склонением, пустое состояние с датой.
  * Шаг 38.88: из героя к слотам ведёт ссылка «Все слоты» у счётчика — на якорь
- * секции слотов из словаря (тупик № 1: прежняя кнопка героя вела в никуда).
+ * секции слотов из словаря (тупик № 1: прежняя кнопка героя вела в никуда);
+ * с 38.79c слоты живут на каталоге — адрес из `catalog-sections`.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -10,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { FocusCard } from '@/components/home/FocusCard';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { FOCUS } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 
 const session = (id: number, extra: Partial<UpcomingSessionItem> = {}): UpcomingSessionItem => ({
   id,
@@ -61,10 +62,10 @@ describe('FocusCard', () => {
     expect(screen.getByText('сегодня')).toBeInTheDocument();
   });
 
-  it('вход к слотам из героя: ссылка «Все слоты» у счётчика ведёт на якорь секции слотов из словаря', () => {
+  it('вход к слотам из героя: ссылка «Все слоты» у счётчика ведёт на якорь слотов каталога из словаря', () => {
     render(<FocusCard sessions={[session(1)]} dateLabel="16 сентября" />);
     const link = screen.getByRole('link', { name: FOCUS.allSlots });
-    expect(link).toHaveAttribute('href', homeSectionHref('availability'));
+    expect(link).toHaveAttribute('href', catalogSectionHref('availability'));
     // Ссылка есть и без занятий: слоты и окна тренеров — ниже на странице.
   });
 
@@ -72,7 +73,7 @@ describe('FocusCard', () => {
     render(<FocusCard sessions={[]} dateLabel="16 сентября" />);
     expect(screen.getByRole('link', { name: FOCUS.allSlots })).toHaveAttribute(
       'href',
-      homeSectionHref('availability'),
+      catalogSectionHref('availability'),
     );
   });
 

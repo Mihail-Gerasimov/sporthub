@@ -22,9 +22,9 @@
 // на кнопку, Shift+Tab с кнопки — на последний пункт; под оверлей он не уходит.
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useId, useRef } from 'react';
 
+import { NavLink } from '@/components/layout/NavLink';
 import { HEADER_NAV } from '@/lib/navigation';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -114,7 +114,7 @@ export function HeaderMenu() {
             <ul className="m-0 flex list-none flex-col gap-1 p-0">
               {HEADER_NAV.map((item, index) => (
                 <li key={item.label}>
-                  <Link
+                  <NavLink
                     ref={
                       index === 0
                         ? firstLinkRef
@@ -122,12 +122,10 @@ export function HeaderMenu() {
                           ? lastLinkRef
                           : undefined
                     }
-                    href={item.href}
+                    item={item}
                     onClick={close}
                     className="flex min-h-[47px] items-center rounded-[12px] px-3.5 py-3 font-display text-[14px] font-bold tracking-[0.02em] text-ink uppercase no-underline transition-colors hover:bg-bg hover:text-lime-hov"
-                  >
-                    {item.label}
-                  </Link>
+                  />
                 </li>
               ))}
             </ul>

@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeCta } from '@/components/home/HomeCta';
 import { CTA } from '@/lib/home-copy';
-import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -39,7 +40,7 @@ describe('HomeCta', () => {
     expect(useUIStore.getState().isAuthModalOpen).toBe(true);
     expect(screen.getByRole('link', { name: CTA.secondary })).toHaveAttribute(
       'href',
-      homeSectionHref('results'),
+      catalogSectionHref('results'),
     );
   });
 

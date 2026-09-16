@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HeaderMenu } from '@/components/layout/HeaderMenu';
 import { HEADER_NAV } from '@/lib/navigation';
+import { useFilterStore } from '@/stores/useFilterStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 /** Оверлей — единственный скрытый от диктора слой с затемнением; testid ему не нужен. */
@@ -20,6 +21,15 @@ function overlayOf(container: HTMLElement): HTMLElement {
 describe('HeaderMenu', () => {
   beforeEach(() => {
     useUIStore.setState({ isHeaderMenuOpen: false });
+  });
+
+  it('пункт «Тренеры» в меню переключает режим стора и закрывает панель (38.79c)', () => {
+    useFilterStore.setState({ discoveryMode: 'clubs' });
+    render(<HeaderMenu />);
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Тренеры' }));
+    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
+    expect(useUIStore.getState().isHeaderMenuOpen).toBe(false);
   });
 
   it('закрыто по умолчанию; кнопка открывает панель с пунктами из словаря', () => {

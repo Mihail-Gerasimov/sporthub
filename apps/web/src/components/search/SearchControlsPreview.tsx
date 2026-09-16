@@ -104,7 +104,7 @@ export function SearchControlsPreview({
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="t-eyebrow">Поиск и фильтры</p>
+            <p className="t-eyebrow text-lime-hov">Поиск и фильтры</p>
             <h2 className="t-h2 mt-2 text-ink">{modeCopy.heading}</h2>
             <p className="mt-3 max-w-2xl font-body text-sm leading-relaxed text-muted">
               {modeCopy.description}

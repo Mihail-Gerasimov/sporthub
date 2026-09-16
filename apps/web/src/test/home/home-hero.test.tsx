@@ -9,7 +9,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeHero } from '@/components/home/HomeHero';
 import { HERO } from '@/lib/home-copy';
-import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 describe('HomeHero', () => {
@@ -22,7 +23,8 @@ describe('HomeHero', () => {
     render(<HomeHero />);
 
     const badge = screen.getByRole('link', { name: 'Город: Казань' });
-    expect(badge).toHaveAttribute('href', homeSectionHref('discover'));
+    // Селектор города живёт в блоке поиска каталога (38.79c).
+    expect(badge).toHaveAttribute('href', catalogSectionHref('discover'));
 
     // Смена города в селекторе — та же запись стора — меняет бейдж без литералов.
     act(() => {

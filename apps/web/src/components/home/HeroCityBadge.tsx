@@ -2,7 +2,7 @@
  * Бейдж города в герое (шаг 38.78, тупик № 32): прежде город стоял литералом
  * «Samara active city», а `CitySelector` его менял — бейдж не замечал. Теперь
  * бейдж читает `useFilterStore.selectedCity` — ту же запись, что пишет селектор, —
- * и ведёт к секции поиска, где город меняют.
+ * и ведёт к блоку поиска каталога, где город меняют (38.79c: рабочая часть на `/catalog`).
  *
  * Клиентский островок в серверном герое: стор — единственная причина `'use client'`,
  * остальной герой остаётся серверным.
@@ -14,7 +14,7 @@
 
 import Link from 'next/link';
 
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 /** Булавка — значок места. */
@@ -38,7 +38,7 @@ export function HeroCityBadge() {
 
   return (
     <Link
-      href={homeSectionHref('discover')}
+      href={catalogSectionHref('discover')}
       className="inline-flex items-center gap-1.5 rounded-full border border-plate-line py-[5px] pr-3.5 pl-2.5 font-body text-[12px] font-semibold text-plate-muted transition-colors hover:border-lime/40 hover:text-plate-ink"
     >
       <PinIcon />

@@ -8,7 +8,7 @@
  * «Записаться» → `/booking/{id}`, подпись мест и порог «мало» — из `lib/slot-spots`
  * (одно правило со слотами, 38.81), живой счётчик «N занятий сегодня» со склонением
  * из словаря `PLURAL`; плавающие виджеты макета не переносятся (статистика — вне фазы).
- * У счётчика — ссылка «Все слоты» на якорь секции слотов из словаря (38.88): прежняя
+ * У счётчика — ссылка «Все слоты» на якорь слотов каталога (38.88, с 38.79c — `/catalog#…`): прежняя
  * кнопка героя «Смотреть слоты и окна» вела в никуда (тупик № 1), в герое эталона
  * кнопок нет, и вход к слотам держит эта карточка.
  *
@@ -20,7 +20,7 @@ import Link from 'next/link';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { Button } from '@/components/ui';
 import { FOCUS } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
 import { countRu, PLURAL } from '@/lib/plural';
 import { isLowSpots, spotsLabel } from '@/lib/slot-spots';
 import { cn } from '@/lib/utils';
@@ -130,7 +130,7 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
             {FOCUS.today}
           </span>
           <Link
-            href={homeSectionHref('availability')}
+            href={catalogSectionHref('availability')}
             className="font-semibold text-lime-hov no-underline hover:text-ink"
           >
             {FOCUS.allSlots} <span aria-hidden="true">→</span>

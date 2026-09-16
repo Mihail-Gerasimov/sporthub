@@ -29,7 +29,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   return (
     <main className="mx-auto flex min-h-[60vh] w-full max-w-[1440px] flex-col items-start gap-6 px-4 py-16 sm:px-6 lg:px-10">
-      <p className="t-eyebrow">Сбой</p>
+      <p className="t-eyebrow text-lime-hov">Сбой</p>
       <h1 className="t-h1 text-ink">Сервис временно недоступен</h1>
       <p className="max-w-xl font-body text-base leading-relaxed text-muted">
         Не удалось получить данные. Это сбой на нашей стороне, а не пустой каталог — попробуйте
