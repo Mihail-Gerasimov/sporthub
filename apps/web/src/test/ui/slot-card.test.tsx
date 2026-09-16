@@ -1,7 +1,7 @@
 /*
  * Тесты SlotCard — общая карточка слота на главной (Phase 28.13, вид эталона — 38.81).
  *
- * Проверяем: подпись мест со склонением из словаря и КРАСНАЯ при ≤ LOW_SPOTS
+ * Проверяем: подпись мест со склонением из словаря и КРАСНАЯ при малом остатке
  * (реестр № 124), tone-ротация по index%3, watermark номера, CTA «К записи»
  * (кнопка ui/Button + сторож входа через onSelect снаружи — путь к записи цел),
  * nowrap на time/price, line-clamp на name, room-skip при пустом значении,
@@ -11,7 +11,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SlotCard } from '@/components/ui/SlotCard';
-import { LOW_SPOTS } from '@/lib/slot-spots';
+import { isLowSpots } from '@/lib/slot-spots';
 
 type SlotProps = Parameters<typeof SlotCard>[0];
 
@@ -50,8 +50,12 @@ describe('SlotCard', () => {
     expect(screen.getByText(/Свободно 10 мест/i)).toBeInTheDocument();
   });
 
-  it('подпись мест: при остатке ≤ LOW_SPOTS — красная, выше — зелёная (реестр № 124)', () => {
-    const { rerender } = render(<SlotCard {...makeProps({ availableSpots: LOW_SPOTS })} />);
+  it('подпись мест: при малом остатке — красная, выше порога — зелёная (реестр № 124)', () => {
+    // Порог — правило `lib/slot-spots`: два места красные, три — нет, как в макете.
+    expect(isLowSpots(2)).toBe(true);
+    expect(isLowSpots(3)).toBe(false);
+
+    const { rerender } = render(<SlotCard {...makeProps({ availableSpots: 2 })} />);
 
     expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
     expect(screen.getByText(/Свободно/i).className).not.toMatch(/lime/);
@@ -59,7 +63,7 @@ describe('SlotCard', () => {
     rerender(<SlotCard {...makeProps({ availableSpots: 1 })} />);
     expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
 
-    rerender(<SlotCard {...makeProps({ availableSpots: LOW_SPOTS + 1 })} />);
+    rerender(<SlotCard {...makeProps({ availableSpots: 3 })} />);
     expect(screen.getByText(/Свободно/i).className).toMatch(/text-lime-hov/);
     expect(screen.getByText(/Свободно/i).className).not.toMatch(/red/);
   });

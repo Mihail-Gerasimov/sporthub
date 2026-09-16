@@ -10,8 +10,8 @@
 
 import { countRu, PLURAL } from '@/lib/plural';
 
-/** С этого числа мест и ниже подпись красная: «🔥 2 места» в макете. */
-export const LOW_SPOTS = 2;
+/** С этого числа мест и ниже подпись красная: «🔥 2 места» в макете. Наружу — только `isLowSpots`. */
+const LOW_SPOTS = 2;
 
 /** Мало ли мест: красная подпись, а не нейтральная. */
 export function isLowSpots(availableSpots: number): boolean {
