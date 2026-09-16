@@ -30,7 +30,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { FEATURES } from '@/lib/home-copy';
-import { homeSectionHref, type HomeSectionKey } from '@/lib/home-sections';
+import { HOME_SECTIONS, homeSectionHref, type HomeSectionKey } from '@/lib/home-sections';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -125,8 +125,10 @@ export function HomeFeatures() {
   const openAuthModal = useUIStore((state) => state.openAuthModal);
 
   return (
+    // Якорь и подпись — из записи словаря секций (38.66): секция мимо словаря — красный `anchors-exist`.
     <section
-      aria-labelledby="home-features-title"
+      id={HOME_SECTIONS.features.id}
+      aria-label={HOME_SECTIONS.features.label}
       className="border-t border-line bg-card py-16 md:py-[72px]"
     >
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">

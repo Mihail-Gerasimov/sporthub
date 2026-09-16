@@ -19,6 +19,7 @@
 import type { ReactNode } from 'react';
 
 import { STEPS } from '@/lib/home-copy';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 
 const ICON_CLASS = 'size-[22px]';
 
@@ -83,7 +84,12 @@ const STEP_ICONS: Record<StepKey, ReactNode> = {
 
 export function HomeSteps() {
   return (
-    <section aria-labelledby="home-steps-title" className="py-14 md:py-16">
+    // Якорь и подпись — из записи словаря секций (38.66): секция мимо словаря — красный `anchors-exist`.
+    <section
+      id={HOME_SECTIONS.steps.id}
+      aria-label={HOME_SECTIONS.steps.label}
+      className="py-14 md:py-16"
+    >
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
         <div className="mb-10 text-center">
           <p className="m-0 mb-2.5 font-body text-[10px] font-bold uppercase tracking-[0.12em] text-lime-hov">

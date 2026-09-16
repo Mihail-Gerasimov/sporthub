@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { FEATURES } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { collectRoutes, routeExists } from '@/test/helpers/app-routes';
@@ -45,11 +45,19 @@ describe('HomeFeatures', () => {
     useUIStore.setState({ isAuthModalOpen: false });
   });
 
+  it('якорь и подпись секции — из записи словаря секций', () => {
+    render(<HomeFeatures />);
+
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.features.label });
+
+    expect(section.id).toBe(HOME_SECTIONS.features.id);
+  });
+
   it('четыре плитки — по словарю home-copy, в его порядке', () => {
     signIn();
     render(<HomeFeatures />);
 
-    const section = screen.getByRole('region', { name: /всё, что нужно/i });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.features.label });
     const links = within(section).getAllByRole('link');
 
     expect(links).toHaveLength(4);
@@ -59,7 +67,8 @@ describe('HomeFeatures', () => {
   it('снятые плитки не вернулись: ни дневников, ни маркета, ни челленджей, ни оплаты, ни серий', () => {
     render(<HomeFeatures />);
 
-    const text = screen.getByRole('region', { name: /всё, что нужно/i }).textContent ?? '';
+    const text =
+      screen.getByRole('region', { name: HOME_SECTIONS.features.label }).textContent ?? '';
 
     for (const promise of [/дневник/i, /маркет/i, /челлендж/i, /оплат/i, /сери[ия]/i]) {
       expect(text).not.toMatch(promise);
@@ -89,7 +98,7 @@ describe('HomeFeatures', () => {
   it('гостю плитки в кабинет — кнопки входа, а не ссылки в тупик; плитка к секции — ссылка', () => {
     render(<HomeFeatures />);
 
-    const section = screen.getByRole('region', { name: /всё, что нужно/i });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.features.label });
     const links = within(section).getAllByRole('link');
     const buttons = within(section).getAllByRole('button');
 
@@ -111,7 +120,7 @@ describe('HomeFeatures', () => {
     signIn();
     render(<HomeFeatures />);
 
-    const section = screen.getByRole('region', { name: /всё, что нужно/i });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.features.label });
 
     expect(section.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(4);
     expect(screen.getByRole('link', { name: /онлайн-запись/i })).toBeInTheDocument();
