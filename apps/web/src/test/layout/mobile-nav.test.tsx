@@ -142,6 +142,14 @@ describe('MobileNav', () => {
     for (const label of ['Лента', 'Маркет', 'Главная', 'Клубы']) {
       expect(screen.getByRole('link', { name: label })).not.toHaveAttribute('aria-current');
     }
+
+    // ⚠️ И с хэшем на странице тоже: без хэша оба гасит правило «пара принадлежит другому
+    // пункту», а с хэшем пара ничья — и без правила «цель общая» подсветились бы ОБА
+    // (диверсия: снятая проверка `shared` оставалась зелёной на голом адресе).
+    setHash('#top');
+    for (const label of ['Лента', 'Маркет']) {
+      expect(screen.getByRole('link', { name: label })).not.toHaveAttribute('aria-current');
+    }
   });
 
   it('в кабинете активен «Мой» по корню адреса, остальные не подсвечиваются', () => {
