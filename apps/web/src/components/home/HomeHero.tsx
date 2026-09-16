@@ -9,8 +9,9 @@
  * Поиск и счётчики — свои компоненты (38.67, 38.69); герой оставляет им места
  * по разметке эталона и принимает их как слоты. Правая колонка — `FocusCard` (38.70),
  * герой рисует её сам по данным дня. Без слотов секция рисуется целой, с ними —
- * как в макете. Тексты — из `lib/home-copy.ts`. Рядом с плашкой — город из стора
- * фильтров (`HeroCityBadge`, 38.78): тот же, что в селекторе, а не литерал.
+ * как в макете. Тексты — из `lib/home-copy.ts`; `id` и подпись секции — из словаря
+ * секций, не литералом. Рядом с плашкой — город из стора фильтров (`HeroCityBadge`,
+ * 38.78): тот же, что в селекторе, а не литерал.
  *
  * Почему не `ui/*`: секция-плашка с собственной сеткой и волной — единственная
  * на площадке, компонент общего вида под неё не нужен; кнопки и карточки внутри
@@ -22,6 +23,7 @@ import { FocusCard } from '@/components/home/FocusCard';
 import { HeroCityBadge } from '@/components/home/HeroCityBadge';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { HERO } from '@/lib/home-copy';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 
 type HomeHeroProps = {
   /** Поисковый виджет (38.67) — под подзаголовком. */
@@ -35,8 +37,8 @@ type HomeHeroProps = {
 export function HomeHero({ search, counters, focus }: HomeHeroProps) {
   return (
     <section
-      id="hero"
-      aria-label="Главный экран"
+      id={HOME_SECTIONS.hero.id}
+      aria-label={HOME_SECTIONS.hero.label}
       className="relative overflow-hidden bg-plate pb-[72px] text-plate-ink before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow)]"
     >
       <div className="relative mx-auto w-full max-w-[1320px] px-6 pt-[72px]">

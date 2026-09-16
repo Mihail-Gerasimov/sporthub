@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeHero } from '@/components/home/HomeHero';
 import { HERO } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 describe('HomeHero', () => {
@@ -45,9 +45,10 @@ describe('HomeHero', () => {
 
   it('плашка и подзаголовок — из словаря; секция названа для диктора и тёмная', () => {
     render(<HomeHero />);
-    const section = screen.getByRole('region', { name: 'Главный экран' });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
     expect(section.className).toContain('bg-plate');
-    expect(section.id).toBe('hero');
+    // Якорь и подпись — из словаря секций, не литералом (ревью 38.65).
+    expect(section.id).toBe(HOME_SECTIONS.hero.id);
     expect(screen.getByText(HERO.eyebrowTag)).toBeInTheDocument();
     expect(screen.getByText(HERO.eyebrow)).toBeInTheDocument();
     expect(screen.getByText(HERO.subtitle).className).toContain('text-plate-muted');
@@ -57,7 +58,7 @@ describe('HomeHero', () => {
 
   it('свечение и волна: декор токеном, волна — SVG цветом холста', () => {
     const { container } = render(<HomeHero />);
-    const section = screen.getByRole('region', { name: 'Главный экран' });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
     expect(section.className).toContain('var(--ui-decor-plate-glow)');
     const wave = container.querySelector('svg[viewBox="0 0 1440 56"]');
     expect(wave).not.toBeNull();
@@ -73,7 +74,7 @@ describe('HomeHero', () => {
         focus={{ sessions: [], dateLabel: '16 сентября' }}
       />,
     );
-    const section = screen.getByRole('region', { name: 'Главный экран' });
+    const section = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
     const search = screen.getByTestId('slot-search');
     const counters = screen.getByTestId('slot-counters');
     // Порядок: заголовок → поиск → счётчики; колонка — в отдельной ячейке сетки, с xl.

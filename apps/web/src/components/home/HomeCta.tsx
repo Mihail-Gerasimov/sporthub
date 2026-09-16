@@ -21,7 +21,7 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/Button';
 import { CTA } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -36,7 +36,7 @@ export function HomeCta() {
 
   return (
     <section
-      id="cta"
+      id={HOME_SECTIONS.cta.id}
       aria-label={CTA.eyebrow}
       className="relative overflow-hidden bg-plate py-20 text-plate-ink before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow-center)]"
     >

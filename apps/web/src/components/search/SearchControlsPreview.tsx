@@ -19,6 +19,7 @@ import { CitySelector } from '@/components/search/CitySelector';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SportFilters } from '@/components/search/SportFilters';
 import { cn } from '@/lib/utils';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { countRu, PLURAL } from '@/lib/plural';
 import { useFilterStore, type DiscoveryMode } from '@/stores/useFilterStore';
 
@@ -99,7 +100,7 @@ export function SearchControlsPreview({
   const query = searchQuery.trim();
 
   return (
-    <section id="discover" aria-label="Поиск и фильтры">
+    <section id={HOME_SECTIONS.discover.id} aria-label="Поиск и фильтры">
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

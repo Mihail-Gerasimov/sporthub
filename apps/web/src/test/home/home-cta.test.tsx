@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeCta } from '@/components/home/HomeCta';
 import { CTA } from '@/lib/home-copy';
-import { homeSectionHref } from '@/lib/home-sections';
+import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -20,6 +20,8 @@ describe('HomeCta', () => {
   it('тёмная секция со свечением токеном; рубрика, H2 и текст — из словаря', () => {
     render(<HomeCta />);
     const section = screen.getByRole('region', { name: CTA.eyebrow });
+    // Якорь секции — из словаря, не литералом (ревью 38.65).
+    expect(section.id).toBe(HOME_SECTIONS.cta.id);
     expect(section.className).toContain('bg-plate');
     expect(section.className).toContain('var(--ui-decor-plate-glow-center)');
     const h2 = screen.getByRole('heading', { level: 2 });
