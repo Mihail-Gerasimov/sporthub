@@ -15,8 +15,9 @@
  *   3. в коде фронта нет `min-w-[N]` от 320px (и от 20rem);
  *   4. правая колонка героя есть только с `xl` (принятое отступление 24b: эталон прячет
  *      с 1100, у нас точка 1280);
- *   5. сетки: «возможности» 1→2→4 (`sm`/`lg`), «три шага» 1→3 (`md`), лидеры 1→2 (`md`),
- *      выдача клубов 1→2→3 и тренеров 1→2→4 (`md`/`xl`) — по видимым слайдам.
+ *   5. сетки: «возможности» 1→2→4 (`sm`/`lg`), «три шага» 1→3 (`md`); карусели витрины
+ *      «Клубы» 1→2→3 и «Тренеры» 1→2→4 (`md`/`xl`) на главной и выдача клубов/тренеров
+ *      теми же слайдами на `/catalog` (38.79b: рабочая часть уехала на каталог).
  */
 import { render, screen } from '@testing-library/react';
 import { readFile, readdir } from 'node:fs/promises';
@@ -31,8 +32,10 @@ vi.mock('next/navigation', () => ({
 import { fixtureClub, fixtureClub2, fixtureClub3, fixtureSports } from '@sporthub/fixtures';
 
 import { ClubList } from '@/components/clubs/ClubList';
+import type { HomeData } from '@/components/home/home-data';
 import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHero } from '@/components/home/HomeHero';
+import { HomeClubs, HomeTrainers } from '@/components/home/HomeShowcase';
 import { HomeSteps } from '@/components/home/HomeSteps';
 import { TrainerList } from '@/components/trainers/TrainerList';
 import type { TrainerDirectoryItem } from '@/components/trainers/trainer-preview';
@@ -156,6 +159,17 @@ function trainer(id: number): TrainerDirectoryItem {
 
 const trainers = [trainer(1), trainer(2), trainer(3), trainer(4)];
 
+/** Данные дня витрины (38.79b): каруселям нужны клубы и тренеры, остальное пусто. */
+const homeData: HomeData = {
+  overview: { athletes: 0, trainers: 0, clubs: 0, reviews: 0 },
+  sports: fixtureSports,
+  tags: [],
+  upcomingSessions: [],
+  upcomingSessionsLabel: '16 сентября',
+  showcaseClubs: clubs,
+  showcaseTrainers: trainers,
+};
+
 /**
  * Сколько слайдов в ряд — по ширине слайда: слайдер пишет `calc(100% / N)`, jsdom
  * вычисляет до `calc(33.3333%)`; обратно — округлением 100 / доля.
@@ -262,7 +276,27 @@ describe('Контракт адаптива: колонка героя и сет
     { label: 'узкий', matches: NARROW, expected: 1 },
     { label: 'md', matches: MD, expected: 2 },
     { label: 'xl', matches: XL, expected: 3 },
-  ])('выдача клубов: $label — $expected в ряд (1→2→3)', ({ matches, expected }) => {
+  ])('карусель «Клубы» витрины: $label — $expected в ряд (1→2→3)', ({ matches, expected }) => {
+    setMediaQueryMatches(matches);
+    render(<HomeClubs data={homeData} />);
+    expect(visibleSlides()).toBe(expected);
+  });
+
+  it.each([
+    { label: 'узкий', matches: NARROW, expected: 1 },
+    { label: 'md', matches: MD, expected: 2 },
+    { label: 'xl', matches: XL, expected: 4 },
+  ])('карусель «Тренеры» витрины: $label — $expected в ряд (1→2→4)', ({ matches, expected }) => {
+    setMediaQueryMatches(matches);
+    render(<HomeTrainers data={homeData} />);
+    expect(visibleSlides()).toBe(expected);
+  });
+
+  it.each([
+    { label: 'узкий', matches: NARROW, expected: 1 },
+    { label: 'md', matches: MD, expected: 2 },
+    { label: 'xl', matches: XL, expected: 3 },
+  ])('выдача клубов на каталоге: $label — $expected в ряд (1→2→3)', ({ matches, expected }) => {
     setMediaQueryMatches(matches);
     render(<ClubList clubs={clubs} sports={fixtureSports} tags={[]} />);
     expect(visibleSlides()).toBe(expected);
@@ -272,7 +306,7 @@ describe('Контракт адаптива: колонка героя и сет
     { label: 'узкий', matches: NARROW, expected: 1 },
     { label: 'md', matches: MD, expected: 2 },
     { label: 'xl', matches: XL, expected: 4 },
-  ])('выдача тренеров: $label — $expected в ряд (1→2→4)', ({ matches, expected }) => {
+  ])('выдача тренеров на каталоге: $label — $expected в ряд (1→2→4)', ({ matches, expected }) => {
     setMediaQueryMatches(matches);
     useFilterStore.setState({ discoveryMode: 'trainers' });
     render(<TrainerList trainers={trainers} />);
