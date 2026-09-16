@@ -1,8 +1,10 @@
 /**
  * Placeholder — Финансы. Будет реализована в будущих фазах.
  */
+import { BRAND_NAME } from '@sporthub/domain';
+
 export const metadata = {
-  title: 'SportHub — Финансы',
+  title: `${BRAND_NAME} — Финансы`,
 };
 
 export default function FinancePage() {

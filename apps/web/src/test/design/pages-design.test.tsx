@@ -56,7 +56,8 @@ describe('Минималистичный стиль страниц', () => {
 
     it('hero-описание использует leading-relaxed', async () => {
       render(await Home());
-      const description = screen.getByText(/SportHub собирает клубы/);
+      // Шаг 38.33: старое имя из героя ушло; текст переписывается на 38.64 (`home-copy`).
+      const description = screen.getByText(/собирает клубы/);
       expect(description.className).toContain('leading-relaxed');
     });
   });

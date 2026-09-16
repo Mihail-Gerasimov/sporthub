@@ -4,9 +4,10 @@
  * Содержит фейк-форму логин/пароль для admin seed-пользователя.
  */
 import { ServicePortalLoginForm } from '@/components/admin/ServicePortalLoginForm';
+import { BRAND_NAME } from '@sporthub/domain';
 
 export const metadata = {
-  title: 'SportHub — Сервисная панель',
+  title: `${BRAND_NAME} — Сервисная панель`,
 };
 
 export default function ServicePortalPage() {
@@ -17,7 +18,7 @@ export default function ServicePortalPage() {
           <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
             Сервисная панель
           </h1>
-          <p className="mt-2 text-sm text-muted">Вход для администратора SportHub</p>
+          <p className="mt-2 text-sm text-muted">Вход для администратора {BRAND_NAME}</p>
         </div>
 
         <ServicePortalLoginForm />

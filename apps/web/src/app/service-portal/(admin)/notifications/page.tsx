@@ -16,6 +16,7 @@
  * переключателем состояния.
  */
 import { AdminNotificationsPage } from '@/components/admin/AdminNotificationsPage';
+import { BRAND_NAME } from '@sporthub/domain';
 import { SUPERVISION_MAILBOX } from '@/lib/notification-mailbox';
 import { getNotifications } from '@/lib/server-api';
 import { SUPERVISION_PAGE_SIZE } from '@/lib/notification-pagination';
@@ -23,7 +24,7 @@ import { SUPERVISION_PAGE_SIZE } from '@/lib/notification-pagination';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'SportHub — Надзор',
+  title: `${BRAND_NAME} — Надзор`,
 };
 
 export default async function SupervisionNotificationsRoute() {

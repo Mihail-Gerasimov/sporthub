@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BRAND_NAME } from '@sporthub/domain';
 
 const footerLinks = [
   { href: '/#about', label: 'О проекте' },
@@ -11,7 +12,9 @@ export function Footer() {
     <footer className="border-t border-line bg-panel/90" aria-label="Подвал сайта">
       <div className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-10">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">SportHub</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+            {BRAND_NAME}
+          </p>
           <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
             Городская витрина для спорта без лишнего шума.
           </h2>
@@ -50,7 +53,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-line/80 px-4 py-4 text-center text-xs text-muted sm:px-6 lg:px-10">
-        © 2026 SportHub. Все ссылки в подвале пока работают как заглушки MVP.
+        © 2026 {BRAND_NAME}. Все ссылки в подвале пока работают как заглушки MVP.
       </div>
     </footer>
   );

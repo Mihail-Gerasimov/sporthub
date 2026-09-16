@@ -3,7 +3,7 @@
 import { useId, useState } from 'react';
 import { z } from 'zod';
 
-import { PASSWORD_RESET_TTL_MINUTES } from '@sporthub/domain';
+import { PASSWORD_RESET_TTL_MINUTES, BRAND_NAME } from '@sporthub/domain';
 import { DEFAULT_CITY } from '@sporthub/types';
 import { formatPhone } from '@/lib/utils';
 
@@ -494,7 +494,7 @@ export function AuthModal() {
       open={isAuthModalOpen}
       onClose={handleCloseModal}
       title="Войти или создать профиль"
-      description="Выбери сценарий и продолжи работу с SportHub. Клуб или карточку тренера можно завести позже — учётная запись у всех одна."
+      description={`Выбери сценарий и продолжи работу с ${BRAND_NAME}. Клуб или карточку тренера можно завести позже — учётная запись у всех одна.`}
     >
       <div className="space-y-6">
         {view === 'forgot' ? (

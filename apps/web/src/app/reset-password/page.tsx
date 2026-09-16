@@ -6,11 +6,12 @@
 // где живёт то же правило.
 
 import type { Metadata } from 'next';
+import { BRAND_NAME } from '@sporthub/domain';
 
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 
 export const metadata: Metadata = {
-  title: 'Смена пароля — SportHub',
+  title: `Смена пароля — ${BRAND_NAME}`,
 };
 
 // Значение ссылки приходит в адресе, поэтому страница не кэшируется.

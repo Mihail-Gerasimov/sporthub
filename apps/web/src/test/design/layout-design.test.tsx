@@ -2,6 +2,7 @@
  * Контракт дизайна layout-компонентов — проверяет,
  * что Header и Footer следуют минималистичному стилю.
  */
+import { BRAND_NAME } from '@sporthub/domain';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -36,12 +37,12 @@ describe('Минималистичный стиль layout-компоненто�
       expect(logoIcon!.className).not.toContain('shadow-floating');
     });
 
-    // Phase 28: новый дизайн SportHub использует Oswald 700 letter-spacing 0.18em
-    // для eyebrow «SPORTHUB» (точное значение из UI Kit). Раньше (светлая палитра)
-    // действовало правило «минимализм tracking ≤ 0.15em». Поднимаем предел до 0.20em.
-    it('tracking подзаголовка "SportHub" не превышает 0.20em (UI Kit eyebrow)', () => {
+    // Eyebrow с именем площадки: letter-spacing 0.18em (точное значение из UI Kit).
+    // Раньше действовало правило «минимализм tracking ≤ 0.15em», предел поднят до 0.20em.
+    // Шаг 38.33: имя берётся из `BRAND_NAME`, а не литералом.
+    it('tracking подзаголовка с именем площадки не превышает 0.20em (UI Kit eyebrow)', () => {
       render(<Header />);
-      const sportHubLabel = screen.getByText('SportHub');
+      const sportHubLabel = screen.getByText(BRAND_NAME);
       const trackingMatch = sportHubLabel.className.match(/tracking-\[([0-9.]+)em\]/);
       expect(trackingMatch).not.toBeNull();
       expect(parseFloat(trackingMatch![1])).toBeLessThanOrEqual(0.2);
@@ -49,10 +50,10 @@ describe('Минималистичный стиль layout-компоненто�
   });
 
   describe('Footer', () => {
-    it('tracking заголовка "SportHub" не превышает 0.15em', () => {
+    it('tracking заголовка с именем площадки не превышает 0.15em', () => {
       render(<Footer />);
-      const footerLabels = screen.getAllByText('SportHub');
-      // Footer содержит "SportHub" как label
+      const footerLabels = screen.getAllByText(BRAND_NAME);
+      // Footer содержит имя площадки как label
       const footerLabel = footerLabels[0];
       const trackingMatch = footerLabel.className.match(/tracking-\[([0-9.]+)em\]/);
       expect(trackingMatch).not.toBeNull();

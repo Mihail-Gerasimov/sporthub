@@ -3,11 +3,12 @@
  * Логи загружаются клиентским компонентом через fetch к /api/logs.
  */
 import { LogsPage } from '@/components/admin/LogsPage';
+import { BRAND_NAME } from '@sporthub/domain';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'SportHub — Логи',
+  title: `${BRAND_NAME} — Логи`,
 };
 
 export default function LogsRoute() {

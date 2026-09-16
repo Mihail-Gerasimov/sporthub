@@ -7,6 +7,7 @@
 // а стеки `--ui-font-display` / `--ui-font-body` собираются в globals.css — там же,
 // где живут остальные токены; рубль в display-стеке стоит ПЕРВЫМ.
 import type { Metadata } from 'next';
+import { BRAND_NAME } from '@sporthub/domain';
 import { Inter, Sofia_Sans_Extra_Condensed } from 'next/font/google';
 import localFont from 'next/font/local';
 
@@ -57,7 +58,7 @@ const ruble = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'SportHub',
+  title: BRAND_NAME,
   description: 'Маркетплейс спортивных услуг',
 };
 

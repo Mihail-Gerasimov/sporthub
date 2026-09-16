@@ -9,6 +9,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BRAND_NAME } from '@sporthub/domain';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
@@ -79,7 +80,7 @@ export function Header() {
               eyebrow «SPORTHUB» — только на lg (1024+) */}
           <span className="hidden min-w-0 flex-col leading-none md:flex">
             <span className="mb-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-plate-muted lg:inline">
-              SportHub
+              {BRAND_NAME}
             </span>
             <span className="whitespace-nowrap font-display text-[15px] uppercase tracking-[0.01em] text-plate-ink lg:text-base">
               Найди свой ритм

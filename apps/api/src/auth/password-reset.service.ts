@@ -17,7 +17,7 @@
 // поэтому утёкший дамп сброса не даёт.
 
 import { Inject, Injectable } from '@nestjs/common';
-import { PASSWORD_RESET_TTL_MINUTES, passwordResetExpiryFor } from '@sporthub/domain';
+import { BRAND_NAME, PASSWORD_RESET_TTL_MINUTES, passwordResetExpiryFor } from '@sporthub/domain';
 import type { User } from '@sporthub/types';
 
 import { ValidationError } from '../common/domain-error';
@@ -96,7 +96,7 @@ export class PasswordResetService {
 
     await this.mailer.send({
       to: user.email,
-      subject: 'Восстановление пароля в SportHub',
+      subject: `Восстановление пароля в ${BRAND_NAME}`,
       text: PasswordResetService.letterFor(user, token),
     });
   }
@@ -155,7 +155,7 @@ export class PasswordResetService {
     return [
       `Здравствуйте, ${user.name}!`,
       '',
-      'Кто-то запросил восстановление пароля для этого адреса на SportHub.',
+      `Кто-то запросил восстановление пароля для этого адреса на ${BRAND_NAME}.`,
       `Ссылка действует ${PASSWORD_RESET_TTL_MINUTES} минут и сработает один раз:`,
       '',
       link,

@@ -7,6 +7,7 @@
  * увело бы в отрисовку на клиенте ВЕСЬ маршрут, а не одну эту ветку.
  */
 import { Suspense } from 'react';
+import { BRAND_NAME } from '@sporthub/domain';
 
 import { getSports } from '@/lib/server-api';
 import { ModerationPage } from '@/components/admin/ModerationPage';
@@ -15,7 +16,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'SportHub — Модерация',
+  title: `${BRAND_NAME} — Модерация`,
 };
 
 export default async function ModerationPageRoute() {

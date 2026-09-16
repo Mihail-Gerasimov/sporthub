@@ -16,12 +16,13 @@
  * скачивать весь каталог ради двух счётчиков.
  */
 import { getBookings, getUsers } from '@/lib/server-api';
+import { BRAND_NAME } from '@sporthub/domain';
 import { DashboardPage } from '@/components/admin/DashboardPage';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'SportHub — Dashboard',
+  title: `${BRAND_NAME} — Dashboard`,
 };
 
 export default async function DashboardRoute() {

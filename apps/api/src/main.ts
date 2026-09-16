@@ -5,6 +5,7 @@ import 'reflect-metadata';
 import path from 'node:path';
 
 import { NestFactory } from '@nestjs/core';
+import { BRAND_NAME } from '@sporthub/domain';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
@@ -32,7 +33,7 @@ async function bootstrap(): Promise<void> {
   const port = Number(process.env.API_PORT ?? 3001);
 
   await app.listen(port);
-  console.log(`[api] SportHub backend слушает порт ${port}`);
+  console.log(`[api] ${BRAND_NAME}: бэкенд слушает порт ${port}`);
 }
 
 void bootstrap();
