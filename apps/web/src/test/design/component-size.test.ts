@@ -42,7 +42,7 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   // 38.44: словари подписей и тонов действий уехали в lib/log-action-labels.ts.
   'src/components/admin/LogsPage.tsx': 379,
   // 38.54: карточка строки вынесена в ModerationItemCard, добавлена очередь проверки.
-  'src/components/admin/ModerationPage.tsx': 361,
+  'src/components/admin/ModerationPage.tsx': 332,
   'src/components/auth/AuthModal.tsx': 601,
   'src/components/booking/BookingActionBlock.tsx': 255,
   // 38.53: знак проверки в hero; склонения — общим правилом lib/plural (минус 25 строк).

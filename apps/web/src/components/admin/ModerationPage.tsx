@@ -49,7 +49,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-import type { ModerationAction } from '@sporthub/domain';
+import { MODERATION_ACTION_SPECS, type ModerationAction } from '@sporthub/domain';
 import type { City } from '@sporthub/types';
 import { PaginationBar } from '@/components/ui/PaginationBar';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -63,9 +63,11 @@ import {
   type ModerationFilters,
 } from '@/lib/moderation-filters';
 import { cn } from '@/lib/utils';
+import { useToastStore } from '@/stores/useToastStore';
 
 import { ModerationItemCard, type PublicationItem } from './ModerationItemCard';
-import { ReasonModal, type ReasonPurpose } from './ReasonModal';
+import { ToolbarSelect } from './ToolbarSelect';
+import { ReasonModal } from './ReasonModal';
 
 interface ModerationPageProps {
   sports: Array<{ id: number; name: string }>;
@@ -130,12 +132,13 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Модалка причины: скрытие или отзыв проверки — одна на оба действия.
+  // Модалка причины — одна на все действия, которым словарь домена велит причину.
   const [reasonTarget, setReasonTarget] = useState<{
     item: PublicationItem;
-    purpose: ReasonPurpose;
+    action: ModerationAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const addToast = useToastStore((state) => state.addToast);
 
   /**
    * Свежий отбор для отложенных правок (поиск с задержкой).
@@ -240,11 +243,16 @@ export function ModerationPage({ sports }: ModerationPageProps) {
   /**
    * Одно действие модерации — по словарю домена. Причина уходит только там, где
    * она есть: сервер сам знает, какому действию она обязательна.
+   *
+   * ⚠️ Отказ сервера НЕ глотается (правка по ревью 38.54): 409 на «уже подтверждена»
+   * или «не опубликована» — в том числе гонка двух администраторов — показывается
+   * человеку текстом из конверта, а раздел перечитывается в любом случае: состояние
+   * на экране обязано совпасть с тем, из-за которого отказали.
    */
   const runAction = async (action: ModerationAction, item: PublicationItem, reason?: string) => {
     setActionLoading(true);
     try {
-      await fetch('/api/moderation', {
+      const response = await fetch('/api/moderation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -254,23 +262,44 @@ export function ModerationPage({ sports }: ModerationPageProps) {
           ...(reason === undefined ? {} : { reason }),
         }),
       });
+      const result = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || result.success !== true) {
+        addToast({ message: result.error ?? 'Не удалось выполнить действие', tone: 'error' });
+      }
+
       fetchData();
+    } catch {
+      addToast({ message: 'Ошибка связи с сервером', tone: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  /** Причина из модалки: скрытие или отзыв — по её назначению. */
-  const handleReason = async (reason: string) => {
-    if (!reasonTarget) return;
-    const { item, purpose } = reasonTarget;
-    setReasonTarget(null);
-    await runAction(purpose, item, reason);
+  /**
+   * Действие с карточки. Нужна ли причина — говорит словарь домена, а не проводка
+   * кнопок: действие с причиной открывает модалку, без причины — уходит сразу.
+   */
+  const handleAction = (action: ModerationAction, item: PublicationItem) => {
+    if (MODERATION_ACTION_SPECS[action].requiresReason !== false) {
+      setReasonTarget({ item, action });
+      return;
+    }
+
+    if (action === 'unhide' && !confirm(`Показать публикацию «${item.name}»?`)) return;
+
+    void runAction(action, item);
   };
 
-  const handleUnhide = async (item: PublicationItem) => {
-    if (!confirm(`Показать публикацию «${item.name}»?`)) return;
-    await runAction('unhide', item);
+  /** Причина из модалки — тому действию, ради которого её открыли. */
+  const handleReason = async (reason: string) => {
+    if (!reasonTarget) return;
+    const { item, action } = reasonTarget;
+    setReasonTarget(null);
+    await runAction(action, item, reason);
   };
 
   // Страница — из адреса: отбор и постраничность живут в нём одинаково,
@@ -450,10 +479,7 @@ export function ModerationPage({ sports }: ModerationPageProps) {
               item={item}
               focused={item === focusedItem}
               actionLoading={actionLoading}
-              onHide={() => setReasonTarget({ item, purpose: 'hide' })}
-              onUnhide={() => handleUnhide(item)}
-              onVerify={() => runAction('verify', item)}
-              onUnverify={() => setReasonTarget({ item, purpose: 'unverify' })}
+              onAction={(action) => handleAction(action, item)}
             />
           ))}
         </div>
@@ -470,68 +496,15 @@ export function ModerationPage({ sports }: ModerationPageProps) {
         onPageChange={(page) => applyFilters({ page })}
       />
 
-      {/* Модалка причины — скрытие и отзыв проверки */}
+      {/* Модалка причины — для действий, которым словарь домена велит причину */}
       <ReasonModal
         open={reasonTarget !== null}
-        purpose={reasonTarget?.purpose ?? 'hide'}
+        action={reasonTarget?.action ?? 'hide'}
         onClose={() => setReasonTarget(null)}
         onConfirm={handleReason}
         entityName={reasonTarget?.item.name ?? ''}
         loading={actionLoading}
       />
     </div>
-  );
-}
-
-// --- Внутренние компоненты ---
-
-/**
- * Селект тулбара.
- *
- * ⚠️ `ariaLabel` обязателен. Видимой подписи у селекта нет — её роль играет
- * первый вариант («Все статусы»), и экранный диктор читал бы пять одинаковых
- * «списков» подряд. Фаза 35 уже ловила дефект, видимый только в дереве
- * доступности: подпись врала, а на экране всё выглядело правильно.
- */
-function ToolbarSelect({
-  ariaLabel,
-  value,
-  active,
-  onChange,
-  options,
-}: {
-  ariaLabel: string;
-  value: string;
-  active: boolean;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <span
-      className={cn(
-        'relative block rounded-[14px] border bg-card-2 transition-colors focus-within:border-lime',
-        active ? 'border-lime' : 'border-line',
-      )}
-    >
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none bg-transparent py-3.5 pl-4 pr-9 text-[13px] font-semibold text-ink outline-none"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute right-4 top-1/2 inline-block h-2 w-2 -translate-y-[70%] rotate-45 border-b-[1.6px] border-r-[1.6px] transition-colors',
-          active ? 'border-lime' : 'border-muted',
-        )}
-      />
-    </span>
   );
 }

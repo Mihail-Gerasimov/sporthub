@@ -7,7 +7,15 @@ import type { HTMLAttributes } from 'react';
 
 import { cn } from '@/lib/utils';
 
-type BadgeTone = 'neutral' | 'accent' | 'teal' | 'success' | 'warning' | 'danger' | 'outline';
+type BadgeTone =
+  | 'neutral'
+  | 'accent'
+  | 'teal'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'pending'
+  | 'outline';
 
 /** `teal` и `success` — алиасы positive-тона: у палитры один зелёный. */
 const toneClassNames: Record<BadgeTone, string> = {
@@ -17,6 +25,8 @@ const toneClassNames: Record<BadgeTone, string> = {
   success: 'border-lime/25 bg-lime-soft text-lime-hov',
   warning: 'border-orange/25 bg-orange-soft text-orange-hov',
   danger: 'border-red/25 bg-red/10 text-red',
+  // Ожидание решения (очереди модерации): золотой держит `pending` по палитре.
+  pending: 'border-gold/30 bg-gold/10 text-gold',
   outline: 'border-line bg-card text-ink',
 };
 

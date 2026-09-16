@@ -3,10 +3,13 @@
 /**
  * Модалка причины для действий модерации, у которых причина обязательна.
  *
- * Одна модалка на два действия — скрытие публикации и отзыв проверки (38.54):
- * форма и правило у них одни («без причины нельзя»), различаются только тексты.
- * Тексты — в словаре `REASON_COPY` по назначению модалки: третье действие
- * с причиной добавится строкой словаря, а не третьей модалкой.
+ * Одна модалка на все такие действия — сегодня это скрытие публикации и отзыв
+ * проверки (38.54): форма и правило у них одни («без причины нельзя»), различаются
+ * только тексты. Нужна ли действию причина и как называется отказ без неё, знает
+ * словарь действий домена (`MODERATION_ACTION_SPECS[action].requiresReason`) —
+ * его строка и есть подсказка под пустым полем. Заголовки и подписи кнопок —
+ * в `REASON_COPY` по действию; для действия без своей записи берётся общая
+ * (правка по ревью 38.54): новое действие с причиной откроет модалку без правки фронта.
  *
  * Причина обязательна — кнопка подтверждения заблокирована, пока поле пустое.
  * Черновик не переживает закрытие: открытая заново модалка чиста, и причина
@@ -14,10 +17,8 @@
  */
 import { useState } from 'react';
 
+import { MODERATION_ACTION_SPECS, type ModerationAction } from '@sporthub/domain';
 import { Modal } from '@/components/ui/Modal';
-
-/** Назначение модалки — какое действие подтверждается причиной. */
-export type ReasonPurpose = 'hide' | 'unverify';
 
 type ReasonCopy = {
   title: string;
@@ -30,7 +31,17 @@ type ReasonCopy = {
   pendingLabel: string;
 };
 
-const REASON_COPY: Record<ReasonPurpose, ReasonCopy> = {
+const DEFAULT_REASON_COPY: ReasonCopy = {
+  title: 'Укажите причину',
+  description: (name) =>
+    `Действие над «${name}» требует причины: владелец увидит её в уведомлении.`,
+  placeholder: 'Причина...',
+  inputLabel: 'Причина',
+  confirmLabel: 'Подтвердить',
+  pendingLabel: 'Отправляем…',
+};
+
+const REASON_COPY: Partial<Record<ModerationAction, ReasonCopy>> = {
   hide: {
     title: 'Скрыть публикацию',
     description: (name) =>
@@ -53,7 +64,7 @@ const REASON_COPY: Record<ReasonPurpose, ReasonCopy> = {
 
 interface ReasonModalProps {
   open: boolean;
-  purpose: ReasonPurpose;
+  action: ModerationAction;
   onClose: () => void;
   onConfirm: (reason: string) => void;
   entityName: string;
@@ -62,17 +73,20 @@ interface ReasonModalProps {
 
 export function ReasonModal({
   open,
-  purpose,
+  action,
   onClose,
   onConfirm,
   entityName,
   loading,
 }: ReasonModalProps) {
-  const copy = REASON_COPY[purpose];
+  const copy = REASON_COPY[action] ?? DEFAULT_REASON_COPY;
+  // Текст отказа без причины — из словаря домена: тот же, что вернул бы сервер.
+  const requirement = MODERATION_ACTION_SPECS[action].requiresReason;
   const [reason, setReason] = useState('');
+  const isEmpty = !reason.trim();
 
   const handleSubmit = () => {
-    if (!reason.trim()) return;
+    if (isEmpty) return;
     onConfirm(reason.trim());
     setReason('');
   };
@@ -90,14 +104,20 @@ export function ReasonModal({
       description={copy.description(entityName)}
     >
       <div className="flex flex-col gap-4">
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder={copy.placeholder}
-          rows={3}
-          className="w-full rounded-[12px] border border-line bg-card-2 px-4 py-3 text-sm text-ink placeholder:text-disabled focus:border-lime focus:outline-none"
-          aria-label={copy.inputLabel}
-        />
+        <div className="flex flex-col gap-1.5">
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={copy.placeholder}
+            rows={3}
+            className="w-full rounded-[12px] border border-line bg-card-2 px-4 py-3 text-sm text-ink placeholder:text-disabled focus:border-lime focus:outline-none"
+            aria-label={copy.inputLabel}
+          />
+          {/* Подсказка под пустым полем — словами словаря; исчезает, как только причина есть. */}
+          {isEmpty && requirement !== false ? (
+            <p className="m-0 text-xs font-medium text-muted">{requirement}</p>
+          ) : null}
+        </div>
         <div className="flex flex-wrap justify-end gap-2.5">
           <button
             type="button"
@@ -109,7 +129,7 @@ export function ReasonModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!reason.trim() || loading}
+            disabled={isEmpty || loading}
             className="inline-flex items-center justify-center rounded-full border border-red/45 bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-red transition-colors hover:border-red hover:bg-red hover:text-card disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? copy.pendingLabel : copy.confirmLabel}

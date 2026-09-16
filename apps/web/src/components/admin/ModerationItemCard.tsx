@@ -5,19 +5,23 @@
  *
  * Вынесена из `ModerationPage` шагом 38.54: страница подошла к своему потолку строк,
  * а карточка получила два новых действия — «Подтвердить» и «Отозвать» проверку.
+ * Плашки и кнопки — `ui/Badge` и `ui/Button` (правка по ревью 38.54): своей второй
+ * пилюли у раздела нет, недостающие тон `pending` и вариант `danger` добавлены в словари.
  *
  * Действия — по состоянию, как предусловия на сервере: подтвердить можно только
  * опубликованную и ещё не подтверждённую, отозвать — только подтверждённую; у скрытой
  * — только «Показать». Кнопки, которых сервер отбил бы 409, не рисуются вовсе.
+ * Нужна ли действию причина, карточка не знает: это решает словарь действий домена
+ * в самой странице.
  *
  * ⚠️ У кнопок действий подпись с именем публикации (`aria-label`): в списке из
  * пятнадцати строк пятнадцать одинаковых «Подтвердить» неразличимы для экранного
  * диктора — фаза 37 ловила это на трёх кнопках «Разобрать».
  */
-import type { ReactNode } from 'react';
-
-import { HIDE_KIND_LABELS, isHideKind } from '@sporthub/domain';
+import { HIDE_KIND_LABELS, isHideKind, type ModerationAction } from '@sporthub/domain';
 import type { CatalogOwnerType, HideKindValue } from '@sporthub/types';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge';
 import { cn } from '@/lib/utils';
 
@@ -41,33 +45,18 @@ export interface PublicationItem {
   verifiedAt?: string;
 }
 
-const ACTION_BUTTON =
-  'inline-flex w-full items-center justify-center whitespace-nowrap rounded-full px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors disabled:opacity-50 sm:w-auto';
-
-const ACTION_TONES = {
-  primary: 'border-0 bg-lime text-ink hover:bg-lime-hov',
-  outline: 'border-2 border-lime bg-bg text-ink hover:bg-lime',
-  danger:
-    'border border-red/45 bg-transparent text-red hover:border-red hover:bg-red hover:text-card',
-} as const;
-
 export function ModerationItemCard({
   item,
   focused,
   actionLoading,
-  onHide,
-  onUnhide,
-  onVerify,
-  onUnverify,
+  onAction,
 }: {
   item: PublicationItem;
   /** Та самая публикация, ради которой перешли из уведомления. */
   focused: boolean;
   actionLoading: boolean;
-  onHide: () => void;
-  onUnhide: () => void;
-  onVerify: () => void;
-  onUnverify: () => void;
+  /** Действие по словарю домена; причину, если она нужна, спросит страница. */
+  onAction: (action: ModerationAction) => void;
 }) {
   const isHidden = item.status === 'hidden';
   const isPending = item.status === 'pending';
@@ -99,27 +88,25 @@ export function ModerationItemCard({
           <h3 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
             {item.name}
           </h3>
-          <StateBadge tone="lime-fill">{item.type === 'club' ? 'Клуб' : 'Тренер'}</StateBadge>
+          <Badge tone="outline">{item.type === 'club' ? 'Клуб' : 'Тренер'}</Badge>
           {isHidden ? (
-            <StateBadge tone="muted">{hiddenLabel}</StateBadge>
+            <Badge tone="neutral">{hiddenLabel}</Badge>
           ) : isPending ? (
             // ⚠️ «Новая», а не «На проверке»: рядом живёт вторая очередь —
             // исправленные после скрытия. Прежняя подпись годилась обеим,
             // и модератор не мог понять, какую именно очередь он смотрит.
-            <StateBadge tone="gold">Новая, на проверке</StateBadge>
+            <Badge tone="pending">Новая, на проверке</Badge>
           ) : (
-            <StateBadge tone="lime-soft">Опубликовано</StateBadge>
+            <Badge tone="success">Опубликовано</Badge>
           )}
           {/* Знак проверки — тот же, что видят люди в каталоге: один компонент, одна подпись. */}
           {isVerified ? <VerifiedBadge ownerType={item.type} /> : null}
           {/* Признак идёт рядом со скрытием, а не вместо него: публикация
               всё ещё вне каталога, но разбирательство уже сдвинулось. */}
-          {isAwaitingRecheck ? (
-            <StateBadge tone="gold">Исправлено, ждёт проверки</StateBadge>
-          ) : null}
+          {isAwaitingRecheck ? <Badge tone="pending">Исправлено, ждёт проверки</Badge> : null}
           {/* Бейдж наводки — рядом с состоянием, а не вместо него: он говорит,
               ПОЧЕМУ эта строка здесь, и ничего не сообщает о самой публикации. */}
-          {focused ? <StateBadge tone="lime-fill">Из уведомления</StateBadge> : null}
+          {focused ? <Badge tone="accent">Из уведомления</Badge> : null}
         </div>
         <p className="m-0 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-medium text-muted">
           {item.city && <span>{item.city}</span>}
@@ -138,70 +125,43 @@ export function ModerationItemCard({
 
       <div className="flex flex-wrap justify-end gap-2">
         {isHidden ? (
-          <button
-            type="button"
-            onClick={onUnhide}
-            disabled={actionLoading}
-            className={cn(ACTION_BUTTON, ACTION_TONES.primary)}
-          >
+          <Button size="sm" onClick={() => onAction('unhide')} disabled={actionLoading}>
             Показать
-          </button>
+          </Button>
         ) : (
           <>
             {isVerified ? (
-              <button
-                type="button"
-                onClick={onUnverify}
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => onAction('unverify')}
                 disabled={actionLoading}
                 aria-label={`Отозвать: ${item.name}`}
-                className={cn(ACTION_BUTTON, ACTION_TONES.danger)}
               >
                 Отозвать
-              </button>
+              </Button>
             ) : isPending ? null : (
-              <button
-                type="button"
-                onClick={onVerify}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onAction('verify')}
                 disabled={actionLoading}
                 aria-label={`Подтвердить: ${item.name}`}
-                className={cn(ACTION_BUTTON, ACTION_TONES.outline)}
               >
                 Подтвердить
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              onClick={onHide}
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => onAction('hide')}
               disabled={actionLoading}
-              className={cn(ACTION_BUTTON, ACTION_TONES.danger)}
             >
               Скрыть
-            </button>
+            </Button>
           </>
         )}
       </div>
     </article>
-  );
-}
-
-type StateTone = 'lime-fill' | 'lime-soft' | 'muted' | 'gold';
-
-/** Плашка состояния карточки — компактнее общего `Badge`, тона раздела. */
-function StateBadge({ tone, children }: { tone: StateTone; children: ReactNode }) {
-  const classes: Record<StateTone, string> = {
-    'lime-fill': 'border-transparent bg-lime text-ink',
-    'lime-soft': 'border-lime/30 bg-lime-soft text-lime-hov',
-    muted: 'border-line bg-card-2 text-muted',
-    gold: 'border-gold/30 bg-gold/10 text-gold',
-  };
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.14em]',
-        classes[tone],
-      )}
-    >
-      {children}
-    </span>
   );
 }

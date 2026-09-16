@@ -11,7 +11,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 /**
@@ -19,7 +19,9 @@ type ButtonSize = 'sm' | 'md' | 'lg';
  * - `primary` — solid: зелёный фон, свечение, подъём при наведении (один главный CTA);
  * - `secondary` — outline positive: зелёная обводка, при наведении заливается;
  * - `outline` — нейтральная обводка, при наведении зеленеет обводка и текст;
- * - `ghost` — без обводки и фона, при наведении светлая подложка.
+ * - `ghost` — без обводки и фона, при наведении светлая подложка;
+ * - `danger` — красная обводка для необратимого или строгого действия (скрыть,
+ *   отозвать), при наведении заливается красным.
  */
 const variantClassNames: Record<ButtonVariant, string> = {
   primary:
@@ -28,6 +30,8 @@ const variantClassNames: Record<ButtonVariant, string> = {
   outline:
     'border-line bg-card text-ink hover:border-lime hover:text-lime-hov focus-visible:ring-lime/20',
   ghost: 'border-transparent bg-transparent text-ink hover:bg-card-2 focus-visible:ring-ink/10',
+  danger:
+    'border-red/45 bg-card text-red hover:border-red hover:bg-red hover:text-card focus-visible:ring-red/20',
 };
 
 const sizeClassNames: Record<ButtonSize, string> = {

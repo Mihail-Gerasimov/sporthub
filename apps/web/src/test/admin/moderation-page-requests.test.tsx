@@ -66,6 +66,7 @@ vi.mock('next/navigation', async () => {
 });
 
 import { ModerationPage } from '@/components/admin/ModerationPage';
+import { renderWithToast, resetToasts } from '@/test/helpers/render-with-toast';
 
 /** Виды спорта приходят страницей-сервером, для отбора здесь не важны. */
 const SPORTS = [{ id: 3, name: 'Плавание' }];
@@ -132,6 +133,12 @@ const publicationCalls = () => calls.filter((url) => url.startsWith('/api/public
 /** Тела действий модерации, ушедшие на сервер, — в порядке отправки. */
 let moderationBodies: Array<Record<string, unknown>> = [];
 
+/** Чем сервер отвечает на действие модерации; тесты подменяют под отказ. */
+let moderationReply: { ok: boolean; body: Record<string, unknown> } = {
+  ok: true,
+  body: { success: true },
+};
+
 const okJson = (data: unknown, total: number) => ({
   ok: true,
   json: () => Promise.resolve({ success: true, data, total, offset: 0, limit: 15 }),
@@ -150,6 +157,8 @@ describe('Раздел модерации — адреса запросов', ()
     pushMock.mockClear();
     replaceMock.mockClear();
     moderationBodies = [];
+    moderationReply = { ok: true, body: { success: true } };
+    resetToasts();
     global.fetch = vi.fn((input: unknown, init?: { method?: string; body?: string }) => {
       const url = String(input);
 
@@ -158,7 +167,10 @@ describe('Раздел модерации — адреса запросов', ()
       if (url.startsWith('/api/moderation') && init?.method === 'POST') {
         moderationBodies.push(JSON.parse(init.body ?? '{}') as Record<string, unknown>);
 
-        return Promise.resolve(okJson({}, 0));
+        return Promise.resolve({
+          ok: moderationReply.ok,
+          json: () => Promise.resolve(moderationReply.body),
+        });
       }
 
       if (url.startsWith('/api/cities')) return Promise.resolve(okJson([], 0));
@@ -497,6 +509,22 @@ describe('Раздел модерации — адреса запросов', ()
         entityId: 4,
         reason: 'Документы просрочены',
       });
+    });
+
+    // Правка по ревью 38.54: отказ сервера не глотается — человек видит его текст.
+    it('409 на подтверждение показывает текст отказа из конверта', async () => {
+      moderationReply = {
+        ok: false,
+        body: { success: false, error: 'Публикация уже подтверждена' },
+      };
+      renderWithToast(<ModerationPage sports={SPORTS} />);
+      await waitFor(() => expect(screen.getByText('Железо')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Подтвердить: Железо' }));
+
+      await waitFor(() =>
+        expect(screen.getByText('Публикация уже подтверждена')).toBeInTheDocument(),
+      );
     });
   });
 });
