@@ -41,7 +41,7 @@ export function PopularTrainers({ trainers }: PopularTrainersProps) {
   }
 
   return (
-    <section id="highlights" className="space-y-4">
+    <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">

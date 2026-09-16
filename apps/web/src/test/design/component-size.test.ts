@@ -33,8 +33,7 @@ export const MAX_CODE_LINES = 200;
  * установки сторожа. Только убывает.
  */
 export const LEGACY_CEILINGS: Record<string, number> = {
-  // 38.31: лидеры запросом, сортировка в памяти снята. 38.25: карты надёжности сняты.
-  'src/app/page.tsx': 354,
+  // 38.66: `src/app/page.tsx` ушёл под порог — рисует секции из словаря; запись снята.
   'src/components/admin/AdminNotificationsPage.tsx': 526,
   'src/components/admin/AdminUpdatePasswordModal.tsx': 240,
   // 38.25: надёжность вырезана — двенадцать потолков ниже опущены до факта.

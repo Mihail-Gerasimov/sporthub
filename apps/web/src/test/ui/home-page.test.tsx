@@ -10,6 +10,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Home from '@/app/page';
+import { HERO } from '@/lib/home-copy';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs } from '@/test/helpers/fixture-routes';
@@ -46,7 +47,10 @@ describe('Home page', () => {
   it('рендерит собранную главную с ключевыми секциями и переключает discovery mode', async () => {
     render(await Home());
 
-    expect(screen.getByRole('heading', { name: 'Найди спорт в своём ритме' })).toBeInTheDocument();
+    // Шаг 38.66: главная рисуется из словаря секций — герой стал `HomeHero` (38.65),
+    // заголовок читается из `HERO`; 38.76 перепишет набор на новую витрину целиком.
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1.textContent).toContain(HERO.titleAccent);
     expect(
       screen.getByRole('heading', { name: 'Поиск по клубам и направлениям' }),
     ).toBeInTheDocument();
@@ -119,8 +123,8 @@ describe('Home page', () => {
 
     render(await Home());
 
-    expect(screen.getByText('0 клубов в каталоге')).toBeInTheDocument();
-    expect(screen.getByText('0 тренеров в каталоге')).toBeInTheDocument();
+    // Счётчики каталога в герое — слот 38.69; прежние плашки «N в каталоге» ушли
+    // вместе со старым героем (38.66). Пустой каталог виден по лидерам и по выдаче.
     expect(
       screen.getByText(
         'Каталог пока пуст. Витрина начнёт заполняться новыми публикациями из кабинета провайдера.',
