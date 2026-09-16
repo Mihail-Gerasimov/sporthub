@@ -18,11 +18,38 @@ import { LOW_SPOTS_TONE } from '@/lib/slot-spots';
 
 describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
   describe('Button', () => {
-    it('solid-primary — единственный вариант со свечением и подъёмом', () => {
+    it('solid-primary — единственный вариант со свечением и подъёмом; вес 900 как в макете', () => {
       render(<Button variant="primary">Записаться</Button>);
       const button = screen.getByRole('button');
       expect(button.className).toContain('shadow-glow');
       expect(button.className).toContain('hover:-translate-y-px');
+      expect(button.className).toContain('font-black');
+    });
+
+    it('glow={false} — плоская primary без тени и подъёма («Найти» в макете; аудит 17.09)', () => {
+      render(
+        <Button variant="primary" glow={false}>
+          Найти
+        </Button>,
+      );
+      const button = screen.getByRole('button');
+      expect(button.className).not.toMatch(/\bshadow-/);
+      expect(button.className).not.toContain('translate');
+      expect(button.className).toContain('bg-lime');
+    });
+
+    it('размеры — числами макета: sm 37/13 («Войти»), md 47/14 («Найти»), lg 51/15 (призыв)', () => {
+      const sizes = {
+        sm: ['min-h-[37px]', 'text-[13px]'],
+        md: ['min-h-[47px]', 'text-sm'],
+        lg: ['min-h-[51px]', 'text-[15px]'],
+      } as const;
+      for (const [size, classes] of Object.entries(sizes)) {
+        const { unmount } = render(<Button size={size as 'sm' | 'md' | 'lg'}>x</Button>);
+        const className = screen.getByRole('button').className;
+        for (const cls of classes) expect(className, size).toContain(cls);
+        unmount();
+      }
     });
 
     it.each(['secondary', 'outline', 'ghost', 'alert'] as const)(

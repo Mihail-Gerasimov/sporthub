@@ -29,11 +29,11 @@ import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 /**
- * Главная кнопка призыва: шире обычной и поднимается на 2px, а не на 1px, как `primary`
- * по умолчанию — сознательно, по эталону (`HomePage.tsx:873`: `translateY(-2px)`
- * у CTA «Создать аккаунт»).
+ * Главная кнопка призыва поднимается на 2px, а не на 1px, как `primary` по умолчанию —
+ * сознательно, по эталону (`HomePage.tsx:873`: `translateY(-2px)` у CTA «Создать аккаунт»);
+ * ширина 14/34 — размер `lg` кнопки.
  */
-const CTA_LIFT_CLASS = 'px-[34px] hover:-translate-y-0.5';
+const CTA_LIFT_CLASS = 'hover:-translate-y-0.5';
 
 /** Ссылка-«призрак» на тёмной плашке: как «Смотреть клубы» в эталоне. */
 const GHOST_LINK_CLASS =

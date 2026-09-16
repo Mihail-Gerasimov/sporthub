@@ -1,6 +1,6 @@
 'use client';
 
-// Кнопка дизайн-системы: шесть вариантов, четыре размера, состояние загрузки.
+// Кнопка дизайн-системы: семь вариантов, четыре размера, состояние загрузки.
 // Вид — по эталону ПРОСПОРТ (шаги 38.14, 38.14a): радиус 12px (`rounded-button`, как
 // в макете — решение заказчика), подпись display-шрифтом в верхнем регистре,
 // solid-primary с зелёным свечением и подъёмом на 1px при наведении — единственный
@@ -41,8 +41,7 @@ type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
  *   и подложка, буквы чернилами (`text-red` на светлом ниже AA); одни классы с пилюлей.
  */
 const variantClassNames: Record<ButtonVariant, string> = {
-  primary:
-    'border-transparent bg-lime text-ink shadow-glow hover:-translate-y-px hover:shadow-floating focus-visible:ring-lime/30',
+  primary: 'border-transparent bg-lime text-ink focus-visible:ring-lime/30',
   secondary: 'border-lime bg-card text-ink hover:bg-lime hover:text-ink focus-visible:ring-lime/25',
   soft: 'border-lime/30 bg-lime-soft text-lime-hov hover:bg-lime hover:text-ink focus-visible:ring-lime/25',
   outline:
@@ -54,20 +53,27 @@ const variantClassNames: Record<ButtonVariant, string> = {
 };
 
 /**
- * Размеры — вместе с радиусом и толщиной обводки (`cn` классы не сводит, поэтому
- * размер называет их сам). `xs` — мини-кнопка слоёв поверх карты и строк расписания
- * (эталон `App.tsx:1481`, `HomePage.tsx:448`): радиус 9, обводка 1px, подпись 12px;
- * остальные — радиус 12px (`rounded-button`) и обводка 2px.
+ * Размеры — числами макета (аудит 17.09, п. 3), высота вместе с обводкой (border-box):
+ * `xs` — мини-кнопка слоёв поверх карты и строк расписания (`App.tsx:1481`,
+ * `HomePage.tsx:448`): радиус 9, обводка 1px, подпись 12px; `sm` — «Войти» в шапке
+ * (`App.tsx:2852`: 9/20, 13px); `md` — «Найти» (`HomePage.tsx:346`: 13/24, 14px);
+ * `lg` — призыв (`HomePage.tsx:868`: 14/34, 15px). Радиус 12px (`rounded-button`),
+ * обводка 2px (у primary прозрачная — считается в высоте).
  */
 const sizeClassNames: Record<ButtonSize, string> = {
   xs: 'min-h-8 rounded-[9px] border px-3.5 text-[12px]',
-  sm: 'min-h-10 rounded-button border-2 px-4 text-sm',
-  md: 'min-h-12 rounded-button border-2 px-5 text-sm',
-  lg: 'min-h-14 rounded-button border-2 px-6 text-base',
+  sm: 'min-h-[37px] rounded-button border-2 px-5 text-[13px]',
+  md: 'min-h-[47px] rounded-button border-2 px-6 text-sm',
+  lg: 'min-h-[51px] rounded-button border-2 px-[34px] text-[15px]',
 };
 
+/** Свечение и подъём primary — по умолчанию есть; «Найти» в макете без тени (`glow={false}`). */
+const GLOW_CLASS = 'shadow-glow hover:-translate-y-px hover:shadow-floating';
+
+/* Вес — `font-black` (Sofia 900 = Barlow 900 макета; правило «на ступень выше» дало бы
+   1000, аудит 17.09 выбрал 900). */
 const BASE_CLASS =
-  'inline-flex items-center justify-center gap-2 font-display font-bold tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40';
+  'inline-flex items-center justify-center gap-2 font-display font-black tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40';
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -78,6 +84,8 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   fullWidth?: boolean;
   /** Адрес: с ним кнопка — ссылка `next/link` в тех же классах; `disabled` и `loading` не участвуют. */
   href?: string;
+  /** Свечение и подъём у primary; `false` — плоская зелёная («Найти» в макете без тени). */
+  glow?: boolean;
 };
 
 export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
@@ -87,6 +95,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
       children,
       disabled,
       fullWidth = false,
+      glow = true,
       href,
       leadingIcon,
       loading = false,
@@ -102,6 +111,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
     const classes = cn(
       BASE_CLASS,
       variantClassNames[variant],
+      variant === 'primary' && glow && GLOW_CLASS,
       sizeClassNames[size],
       fullWidth && 'w-full',
       className,
