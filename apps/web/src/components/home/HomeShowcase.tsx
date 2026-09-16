@@ -1,5 +1,7 @@
-// Витринные карусели главной «Клубы» и «Тренеры» (шаг 38.79b) — макет
-// `HomePage.tsx:582-692`: рубрика, заголовок, справа «Все …», ниже карточки.
+// Витринные секции главной «Клубы» и «Тренеры» (шаги 38.79b, 38.106) — макет
+// `HomePage.tsx:582-692`: рубрика, заголовок, справа «Все …», ниже карточки —
+// с `lg` сеткой (клубы 3×2, тренеры четыре в ряд), ниже `lg` — той же лентой
+// `CardSlider` со свайпом (`gridFromLg`), один компонент.
 //
 // Витрина, а не выдача: шесть клубов и четыре тренера приходят запросом
 // (`sort=rating&limit=N`, `load-home-data.ts`), фильтров стора карусели не знают —
@@ -30,7 +32,8 @@ export function HomeClubs({ data }: HomeSectionProps) {
           accent="lime"
           sliderId="showcase-clubs"
           total={data.showcaseClubs.length}
-          visibleByBp={{ sm: 1, md: 2, xl: 3 }}
+          visibleByBp={{ sm: 1, md: 2 }}
+          gridFromLg={3}
           emptyMessage={SHOWCASE.clubs.empty}
           tools={<ShowcaseAllLink mode="clubs">{SHOWCASE.clubs.all}</ShowcaseAllLink>}
         >
@@ -53,7 +56,8 @@ export function HomeTrainers({ data }: HomeSectionProps) {
           accent="orange"
           sliderId="showcase-trainers"
           total={data.showcaseTrainers.length}
-          visibleByBp={{ sm: 1, md: 2, xl: 4 }}
+          visibleByBp={{ sm: 1, md: 2 }}
+          gridFromLg={4}
           emptyMessage={SHOWCASE.trainers.empty}
           tools={<ShowcaseAllLink mode="trainers">{SHOWCASE.trainers.all}</ShowcaseAllLink>}
         >

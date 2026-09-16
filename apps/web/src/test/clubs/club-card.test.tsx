@@ -205,6 +205,10 @@ describe('ClubCard (38.73)', () => {
       expect(link).toHaveAttribute('href', '/clubs/volna-aquatic-club');
       expect(link.className).toContain('after:inset-0');
       expect(positionedAncestorsBetween(card, link)).toEqual([]);
+      // Имя — Inter полужирный обычным регистром (38.109), не display-капитель.
+      const name = link.closest('h3') as HTMLElement;
+      expect(name.className).toContain('font-body');
+      expect(name.className).not.toMatch(/font-display|uppercase/);
     });
 
     it('описание, адрес и лента тегов в витрине не рисуются — они живут в API и на детальной', () => {

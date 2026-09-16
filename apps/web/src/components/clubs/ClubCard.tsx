@@ -135,7 +135,14 @@ export function ClubCard({
 
         {/* Снизу — имя (ссылка на всю карточку), рейтинг, отзывы, расстояние. */}
         <div className="flex flex-col justify-end [grid-area:1/1] px-4 py-3.5">
-          <h3 className="m-0 font-display text-[19px] font-black leading-none text-plate-ink">
+          {/* Имя: в витрине — Inter полужирный обычным регистром (38.109, решение заказчика
+              по сверке бок о бок); в каталоге — display, как было. */}
+          <h3
+            className={cn(
+              'm-0 text-[19px] leading-none text-plate-ink',
+              variant === 'showcase' ? 'font-body font-bold' : 'font-display font-black',
+            )}
+          >
             <Link
               href={`/clubs/${club.slug}`}
               className="no-underline after:absolute after:inset-0 after:z-[1] after:content-['']"

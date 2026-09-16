@@ -272,11 +272,14 @@ describe('Контракт адаптива: колонка героя и сет
   const MD = { '(min-width: 768px)': true };
   const XL = { '(min-width: 768px)': true, '(min-width: 1280px)': true };
 
+  // 38.106: витрина — с lg сетка макета (клубы 3×2, тренеры четыре в ряд) на том же
+  // `CardSlider`; ниже lg — карусель со свайпом: узкий 1, md 2.
+  const LG = { '(min-width: 768px)': true, '(min-width: 1024px)': true };
+
   it.each([
     { label: 'узкий', matches: NARROW, expected: 1 },
     { label: 'md', matches: MD, expected: 2 },
-    { label: 'xl', matches: XL, expected: 3 },
-  ])('карусель «Клубы» витрины: $label — $expected в ряд (1→2→3)', ({ matches, expected }) => {
+  ])('карусель «Клубы» витрины ниже lg: $label — $expected в ряд', ({ matches, expected }) => {
     setMediaQueryMatches(matches);
     render(<HomeClubs data={homeData} />);
     expect(visibleSlides()).toBe(expected);
@@ -285,11 +288,24 @@ describe('Контракт адаптива: колонка героя и сет
   it.each([
     { label: 'узкий', matches: NARROW, expected: 1 },
     { label: 'md', matches: MD, expected: 2 },
-    { label: 'xl', matches: XL, expected: 4 },
-  ])('карусель «Тренеры» витрины: $label — $expected в ряд (1→2→4)', ({ matches, expected }) => {
+  ])('карусель «Тренеры» витрины ниже lg: $label — $expected в ряд', ({ matches, expected }) => {
     setMediaQueryMatches(matches);
     render(<HomeTrainers data={homeData} />);
     expect(visibleSlides()).toBe(expected);
+  });
+
+  it('витрина с lg — сетка: клубы 3 колонки, тренеры 4; лента не сдвигается, стрелки и точки спрятаны', () => {
+    setMediaQueryMatches(LG);
+    const { container: clubsRoot } = render(<HomeClubs data={homeData} />);
+    const clubsRail = clubsRoot.querySelector<HTMLElement>('[data-card-slider-rail]');
+    expect(clubsRail?.className).toContain('lg:grid-cols-3');
+    expect(clubsRail?.style.transform).toBe('');
+    expect(clubsRoot.querySelector('[aria-label="Вперёд"]')?.className).toContain('lg:hidden');
+
+    const { container: trainersRoot } = render(<HomeTrainers data={homeData} />);
+    expect(trainersRoot.querySelector('[data-card-slider-rail]')?.className).toContain(
+      'lg:grid-cols-4',
+    );
   });
 
   it.each([

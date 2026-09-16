@@ -15,6 +15,16 @@
  * SportHub Cards - Clubs.html (28.6) и slots-availability/sporthub/
  * project/SportHub Slots - Availability.html (28.12).
  *
+ * Фаза 38, шаг 38.106: режим сетки с `lg` — `gridFromLg={N}` (витрина главной:
+ * клубы 3×2, тренеры четыре в ряд, как в макете). Ниже `lg` — та же лента со
+ * свайпом; с `lg` лента становится CSS-grid в N колонок, стрелки и точки прячутся,
+ * сдвиг и drag выключены. Один компонент, не вторая карусель (сторож
+ * `carousel-single`). Переключение — классами (`lg:grid`), без мигания
+ * при гидрации; JS лишь снимает сдвиг и drag.
+ *
+ * Шапка секции — по макету (`HomePage.tsx:582-600`): рубрика зелёная, заголовок
+ * шкалы `t-h2`, справа `tools` — кнопка «Все …».
+ *
  * При total=0 рендерится empty-state, сам rail не создаётся.
  */
 import { Children, useCallback, useEffect, useRef, useState } from 'react';
@@ -64,6 +74,40 @@ type CardSliderProps = {
    * сам — рядом с `tools` на lg+, отдельным рядом сверху на <lg.
    */
   tools?: ReactNode;
+  /**
+   * 38.106: с `lg` — сетка в N колонок вместо ленты (2, 3 или 4); стрелки, точки,
+   * сдвиг и drag с `lg` уходят. Ниже `lg` — лента по `visibleByBp`.
+   */
+  gridFromLg?: 2 | 3 | 4;
+};
+
+/** Стрелка prev/next — одна иконка на две кнопки, путь — аргументом. */
+function ArrowIcon({ d }: { d: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+const NAV_BUTTON_CLASS =
+  'flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors disabled:pointer-events-none disabled:opacity-35';
+
+/** Классы сетки — статичными строками: Tailwind собирает их из исходника. */
+const GRID_FROM_LG: Record<2 | 3 | 4, string> = {
+  2: 'lg:grid lg:grid-cols-2 lg:gap-4',
+  3: 'lg:grid lg:grid-cols-3 lg:gap-4',
+  4: 'lg:grid lg:grid-cols-4 lg:gap-3.5',
 };
 
 export function CardSlider({
@@ -78,6 +122,7 @@ export function CardSlider({
   countLabel = 'в выдаче',
   emptyMessage = 'Ничего не нашли. Попробуйте сменить фильтры.',
   tools,
+  gridFromLg,
 }: CardSliderProps) {
   // Выбираем «начальный» visible как fallback если медиа не сматчится.
   const fallbackVisible = visibleByBp?.sm ?? visiblePerBreakpoint.default;
@@ -150,17 +195,23 @@ export function CardSlider({
     visibleByBp?.xl,
   ]);
 
-  const maxIdx = Math.max(0, total - visible);
+  // Сетка с lg (38.106): листать нечего — maxIdx 0 выключает стрелки, точки и drag.
+  const gridActive = gridFromLg !== undefined && isLgUp;
+  const maxIdx = gridActive ? 0 : Math.max(0, total - visible);
   const safeIdx = Math.min(idx, maxIdx);
 
-  // Обновляем translateX rail при смене idx или числа видимых.
+  // Обновляем translateX rail при смене idx или числа видимых; в сетке сдвига нет.
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
+    if (gridActive) {
+      rail.style.transform = '';
+      return;
+    }
     const slide = rail.querySelector('[data-card-slider-slide]') as HTMLElement | null;
     const slideW = slide?.offsetWidth ?? 0;
     rail.style.transform = `translateX(${-safeIdx * slideW}px)`;
-  }, [safeIdx, visible]);
+  }, [safeIdx, visible, gridActive]);
 
   const go = useCallback(
     (delta: number) => {
@@ -281,12 +332,10 @@ export function CardSlider({
     return (
       <section id={sliderId} className="space-y-6">
         <header className="flex flex-col gap-2">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+          <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
             {eyebrow}
           </span>
-          <h2 className="font-display text-[26px] uppercase leading-none tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[30px]">
-            {title}
-          </h2>
+          <h2 className="t-h2 text-ink">{title}</h2>
         </header>
         <p
           data-card-slider-empty
@@ -322,49 +371,28 @@ export function CardSlider({
     </span>
   );
 
+  // В режиме сетки стрелки и точки с lg спрятаны классом — без мигания при гидрации.
+  const hideFromLg = gridFromLg !== undefined ? 'lg:hidden' : '';
+
   const navButtons = (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${hideFromLg}`}>
       <button
         type="button"
         onClick={() => go(-1)}
         disabled={safeIdx <= 0}
         aria-label="Назад"
-        className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
+        className={`${NAV_BUTTON_CLASS} ${navHoverClass} ${hideFromLg}`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
+        <ArrowIcon d="M15 6l-6 6 6 6" />
       </button>
       <button
         type="button"
         onClick={() => go(1)}
         disabled={safeIdx >= maxIdx}
         aria-label="Вперёд"
-        className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors ${navHoverClass} disabled:pointer-events-none disabled:opacity-35`}
+        className={`${NAV_BUTTON_CLASS} ${navHoverClass} ${hideFromLg}`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M9 6l6 6-6 6" />
-        </svg>
+        <ArrowIcon d="M9 6l6 6-6 6" />
       </button>
     </div>
   );
@@ -381,12 +409,10 @@ export function CardSlider({
         return (
           <header className="mb-2 flex items-center justify-between gap-5">
             <div className="flex min-w-0 flex-col gap-2">
-              <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
                 {eyebrow}
               </span>
-              <h2 className="font-display text-[26px] uppercase leading-none tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[30px]">
-                {title}
-              </h2>
+              <h2 className="t-h2 text-ink">{title}</h2>
             </div>
             <div className="ml-auto flex flex-shrink-0 items-center gap-3">
               {tools}
@@ -399,14 +425,12 @@ export function CardSlider({
       return (
         <header className="mb-2 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
               {eyebrow}
             </span>
             {navButtons}
           </div>
-          <h2 className="font-display text-[24px] uppercase leading-tight tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[26px]">
-            {title}
-          </h2>
+          <h2 className="t-h2 text-ink">{title}</h2>
           <div className="flex flex-wrap items-center gap-2">{tools}</div>
         </header>
       );
@@ -417,12 +441,10 @@ export function CardSlider({
     return (
       <header className="mb-2 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--ui-muted)]">
+          <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-lime-hov">
             {eyebrow}
           </span>
-          <h2 className="font-display text-[26px] uppercase leading-none tracking-[-0.005em] text-[var(--ui-ink)] sm:text-[30px]">
-            {title}
-          </h2>
+          <h2 className="t-h2 text-ink">{title}</h2>
         </div>
         <div className="flex flex-shrink-0 items-center gap-3">
           {defaultTools}
@@ -448,12 +470,12 @@ export function CardSlider({
           <div
             ref={railRef}
             data-card-slider-rail
-            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)]'}`}
+            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)]'} ${gridFromLg !== undefined ? GRID_FROM_LG[gridFromLg] : ''}`}
           >
             {Children.map(children, (child) => (
               <div
                 data-card-slider-slide
-                className="flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] md:pr-[22px]"
+                className={`flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] md:pr-[22px] ${gridFromLg !== undefined ? 'lg:pr-0' : ''}`}
                 style={{ flexBasis: `calc(100% / ${visible})` }}
               >
                 {child}
@@ -463,7 +485,7 @@ export function CardSlider({
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-center gap-2">
+      <div className={`mt-2 flex items-center justify-center gap-2 ${hideFromLg}`}>
         {Array.from({ length: maxIdx + 1 }, (_, i) => (
           <button
             key={i}

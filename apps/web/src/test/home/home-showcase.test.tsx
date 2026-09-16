@@ -97,6 +97,47 @@ describe('Главная — витринные карусели (38.79b)', () =
     ).toBeGreaterThan(0);
   });
 
+  it('с lg — сетка макета (клубы 3×2, тренеры четыре в ряд), ниже — та же карусель со свайпом (38.106)', async () => {
+    render(await Home());
+
+    const clubsRail = section('clubs').querySelector('[data-card-slider-rail]') as HTMLElement;
+    const trainersRail = section('trainers').querySelector(
+      '[data-card-slider-rail]',
+    ) as HTMLElement;
+
+    // Один компонент: та же лента `CardSlider`, с lg — grid в N колонок классами.
+    expect(clubsRail.className).toContain('lg:grid-cols-3');
+    expect(trainersRail.className).toContain('lg:grid-cols-4');
+    expect(clubsRail.className).toContain('flex');
+    // Ниже lg — слайдер: md две в ряд (стенд теста — узкий: одна).
+    expect(
+      within(section('clubs')).getAllByRole('article', { name: /^Карточка клуба: / }),
+    ).toHaveLength(fixtureClubs.length);
+    // Стрелки и точки с lg спрятаны: у сетки листать нечего.
+    for (const name of ['Назад', 'Вперёд']) {
+      expect(within(section('clubs')).getByRole('button', { name }).className).toContain(
+        'lg:hidden',
+      );
+    }
+    expect(
+      section('clubs').querySelector('[data-card-slider-dot]')?.parentElement?.className,
+    ).toContain('lg:hidden');
+  });
+
+  it('заголовки секций — шкала t-h2, рубрика зелёная; «Все …» — справа от заголовка (38.106)', async () => {
+    render(await Home());
+
+    const clubs = section('clubs');
+    const heading = within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title });
+
+    expect(heading.className).toContain('t-h2');
+    expect(within(clubs).getByText(SHOWCASE.clubs.eyebrow).className).toContain('text-lime-hov');
+    // Кнопка «Все клубы» стоит в шапке секции рядом с заголовком, а не под лентой.
+    expect(within(clubs).getByRole('link', { name: SHOWCASE.clubs.all }).closest('header')).toBe(
+      heading.closest('header'),
+    );
+  });
+
   it('«Все клубы» и «Все тренеры» ведут в выдачу каталога и ставят режим стора', async () => {
     push.mockClear();
     render(await Home());

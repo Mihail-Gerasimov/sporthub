@@ -273,6 +273,10 @@ describe('TrainerCard (38.74)', () => {
       expect(link.className).toContain('after:inset-0');
       // Единственная ссылка: «К записи» в витрине нет — вся карточка ведёт на тренера.
       expect(within(card).getAllByRole('link')).toHaveLength(1);
+      // Имя — Inter полужирный обычным регистром (38.109), не display-капитель.
+      const name = link.closest('h3') as HTMLElement;
+      expect(name.className).toContain('font-body');
+      expect(name.className).not.toMatch(/font-display|uppercase/);
     });
 
     it('площадка, окно, чипы опыта, лента специализаций и цитата в витрине не рисуются', () => {
