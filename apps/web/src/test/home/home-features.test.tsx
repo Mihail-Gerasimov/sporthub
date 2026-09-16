@@ -135,16 +135,16 @@ describe('HomeFeatures', () => {
     expect(links.some((link) => link.className.includes('bg-lime-soft'))).toBe(false);
   });
 
-  it('заголовок плитки — Inter полужирный обычным регистром, не display-шрифт (38.109)', () => {
+  it('заголовок плитки — .t-h4 словаря обычным регистром (38.109)', () => {
     signIn();
     render(<HomeFeatures />);
 
+    // Класс словаря типографики, а не литералы кегля: одно объявление — в globals.css.
     for (const item of FEATURES.items) {
       const title = screen.getByText(item.title);
 
-      expect(title.className).toContain('font-body');
-      expect(title.className).toContain('font-semibold');
-      expect(title.className).not.toMatch(/uppercase|font-display|t-h[1-4]/);
+      expect(title.className).toContain('t-h4');
+      expect(title.className).not.toContain('uppercase');
     }
   });
 

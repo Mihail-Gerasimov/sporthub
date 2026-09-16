@@ -53,13 +53,13 @@ describe('HomeSteps', () => {
     expect(new Set(icons).size).toBe(STEPS.items.length);
   });
 
-  it('заголовки шагов — Inter полужирный обычным регистром, не display; номера — крупные приглушённые (38.109)', () => {
+  it('заголовки шагов — .t-h3 словаря обычным регистром; номера — крупные приглушённые (38.109)', () => {
     const { container } = render(<HomeSteps />);
 
+    // Класс словаря типографики, а не литералы кегля: одно объявление — в globals.css.
     for (const heading of screen.getAllByRole('heading', { level: 3 })) {
-      expect(heading.className).toContain('font-body');
-      expect(heading.className).toContain('font-semibold');
-      expect(heading.className).not.toMatch(/uppercase|font-display|t-h[1-4]/);
+      expect(heading.className).toContain('t-h3');
+      expect(heading.className).not.toContain('uppercase');
     }
 
     const numbers = [...container.querySelectorAll('[aria-hidden="true"]')].filter((node) =>
