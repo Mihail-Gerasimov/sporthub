@@ -80,6 +80,19 @@ export const LEGACY_DEAD_EXPORTS: Record<string, string[]> = {
     'getTrainerPrimarySportId',
     'getTimeKeyInTimeZone',
   ],
+  // Тексты витрины (38.64) — словарь написан ПЕРВЫМ, чтобы трое собирали блоки
+  // параллельно; потребители приходят шагами 38.65–38.75, и каждый обязан снять
+  // отсюда свою запись — иначе «появился потребитель» краснит.
+  'src/lib/home-copy.ts': [
+    'HERO',
+    'SEARCH',
+    'COUNTER_LABELS',
+    'FOCUS',
+    'STEPS',
+    'FEATURES',
+    'SECTIONS',
+    'CTA',
+  ],
   // Стор: `AUTH_STORE_DEFAULT_STATE` нужен 48 тестам — снять `export` нельзя без
   // переписывания фикстур; остаётся до решения (Э12, 38.102).
   'src/stores/useAuthStore.ts': [
