@@ -43,7 +43,6 @@ export const LEGACY_HEADERLESS: string[] = [
   'src/components/profile/athlete-review-items.ts',
   'src/components/schedule/index.ts',
   'src/components/search/CatalogResultsSection.tsx',
-  'src/components/search/SearchBar.tsx',
   'src/components/search/index.ts',
   'src/components/trainers/filterTrainers.ts',
   'src/components/trainers/index.ts',

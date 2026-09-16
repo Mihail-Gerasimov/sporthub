@@ -67,6 +67,13 @@ describe('Search controls', () => {
     expect(screen.getByDisplayValue('бокс рядом')).toBeInTheDocument();
   });
 
+  it('в SearchBar нет кнопок: «Рядом» без обработчика снята — геолокации у площадки нет (38.93, тупик № 6)', () => {
+    render(<SearchBar />);
+
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('Рядом')).toBeNull();
+  });
+
   it('SportFilters: группа чипов «Все» + виды из базы; клик пишет sportId в store, «Все» — снимает', () => {
     render(<SportFilters sports={sports} />);
 
