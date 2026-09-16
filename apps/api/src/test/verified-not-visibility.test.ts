@@ -17,8 +17,12 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import request from 'supertest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { fixtureCollections } from '@sporthub/fixtures';
+
+import { createTestHarness, type TestHarness } from './harness';
 import { API_ROOT } from './repo-root';
 
 /**
@@ -92,5 +96,89 @@ describe('проверенность — не видимость', () => {
     // Список файлов видимости не пустышка: правило действительно там.
     expect(await readCode('access/access.service.ts')).toContain('canSeeHiddenPublication');
     expect(await readCode('catalog/clubs.controller.ts')).toContain('assertVisible');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Рантаймовая половина (ревью 38.49): текст стережёт код, стенд — поведение.
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Опубликованный НЕпроверенный клуб виден гостю всеми публичными путями;
+// проверенный СКРЫТЫЙ — не виден ни одним. Иначе текстовый сторож зелен
+// и у видимости, которую перепутали не в тех файлах, что он обходит.
+describe('проверенность не меняет видимость — по маршрутам', () => {
+  let harness: TestHarness;
+
+  /** Клуб 1 — опубликован, не проверен, со слотами; клуб 2 — проверен и скрыт. */
+  const VERIFIED_HIDDEN_ID = 2;
+  const PLAIN_ID = 1;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('verified-not-visibility');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureCollections,
+      clubs: fixtureCollections.clubs.map((club) =>
+        club.id === VERIFIED_HIDDEN_ID
+          ? {
+              ...club,
+              status: 'hidden',
+              hideReason: 'Стенд',
+              hiddenKind: 'moderation',
+              verifiedAt: '2026-09-15T12:00:00.000Z',
+              verifiedByUserId: 3,
+            }
+          : club,
+      ),
+      // Слот у скрытого проверенного клуба — чтобы контекст слота тоже был под проверкой.
+      schedule: [
+        ...fixtureCollections.schedule,
+        { ...fixtureCollections.schedule[0], id: 9, ownerId: VERIFIED_HIDDEN_ID, clubId: 2 },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const get = (url: string) => request(harness.app.getHttpServer()).get(url);
+  const ids = (body: { data: { id: number }[] }) => body.data.map((row) => row.id);
+
+  it('непроверенный опубликованный клуб виден гостю всеми публичными путями', async () => {
+    const list = await get('/api/clubs');
+    const showcase = await get('/api/clubs?sort=rating&limit=10');
+    const byId = await get(`/api/clubs/${PLAIN_ID}`);
+    const bySlug = await get('/api/clubs/by-slug/volna-aquatic-club');
+    const context = await get('/api/schedule/1/context');
+
+    expect(ids(list.body)).toContain(PLAIN_ID);
+    expect(ids(showcase.body)).toContain(PLAIN_ID);
+    expect(byId.status).toBe(200);
+    expect(byId.body.data.club.verifiedAt).toBeUndefined();
+    expect(bySlug.status).toBe(200);
+    expect(context.status).toBe(200);
+  });
+
+  it('проверенный СКРЫТЫЙ клуб гостю не виден ни одним из них — знак не открывает дверь', async () => {
+    const list = await get('/api/clubs');
+    const showcase = await get('/api/clubs?sort=rating&limit=10');
+    const byId = await get(`/api/clubs/${VERIFIED_HIDDEN_ID}`);
+    const bySlug = await get('/api/clubs/by-slug/iron-gym');
+    const context = await get('/api/schedule/9/context');
+
+    // Слот скрытого клуба в базе ЕСТЬ — иначе 404 ниже означал бы «слота нет»,
+    // а не «публикация скрыта», и проверка контекста зеленела бы мимо.
+    const schedule = await harness.read<{ id: number; clubId?: number }[]>('schedule');
+
+    expect(schedule.find((slot) => slot.id === 9)?.clubId).toBe(VERIFIED_HIDDEN_ID);
+
+    expect(ids(list.body)).not.toContain(VERIFIED_HIDDEN_ID);
+    expect(ids(showcase.body)).not.toContain(VERIFIED_HIDDEN_ID);
+    expect(byId.status).toBe(404);
+    expect(bySlug.status).toBe(404);
+    expect(context.status).toBe(404);
   });
 });

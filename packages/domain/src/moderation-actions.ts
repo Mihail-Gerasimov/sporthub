@@ -56,8 +56,15 @@ export function isModerationAction(value: unknown): value is ModerationAction {
  * не увидит, а возврат из скрытия проверку не возвращает (38.46).
  * `verified` — есть что отзывать: отзыв неподтверждённой — противоречие, и оно
  * называется отказом, а не молчаливым «ничего не изменилось».
+ * `not_verified` — ещё не подтверждена: повторное подтверждение переписало бы
+ * «когда» и «кем» и оставило бы в журнале вторую строку о том же (ревью 38.45).
  */
-export const MODERATION_PRECONDITIONS = ['no_live_bookings', 'published', 'verified'] as const;
+export const MODERATION_PRECONDITIONS = [
+  'no_live_bookings',
+  'published',
+  'verified',
+  'not_verified',
+] as const;
 
 export type ModerationPrecondition = (typeof MODERATION_PRECONDITIONS)[number];
 
@@ -103,8 +110,12 @@ export type ModerationActionSpec = {
   oversightType: NotificationType | null;
   /** Письмо владельцу в ящик лица — без имени администратора (решение заказчика). */
   ownerNoticeType: NotificationType;
-  /** Условие по данным до записи — или `null`. */
-  precondition: ModerationPrecondition | null;
+  /**
+   * Условия до записи — по именам, все обязаны выполниться; пусто — условий нет.
+   * Список, а не одно имя: подтверждению нужны два (`published` и `not_verified`),
+   * и склеивать их в третье имя значило бы заводить условие под каждое сочетание.
+   */
+  preconditions: readonly ModerationPrecondition[];
   /** Что записать. Ключ с `undefined` — обнулить (см. шапку). */
   patch: (context: ModerationPatchContext) => ModerationPatch;
 };
@@ -121,7 +132,7 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
     // не зная о решениях друг друга, способны отменять их по очереди.
     oversightType: 'oversight_publication_hidden',
     ownerNoticeType: 'publication_hidden_for_owner',
-    precondition: 'no_live_bookings',
+    preconditions: ['no_live_bookings'],
     patch: ({ reason, actorId, now }) => ({
       status: 'hidden',
       hideReason: reason,
@@ -147,7 +158,7 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
     oversightType: null,
     // Владельца возврат уведомляет ТОЖЕ: иначе исправивший нарушение продолжит ждать.
     ownerNoticeType: 'publication_unhidden_for_owner',
-    precondition: null,
+    preconditions: [],
     patch: () => ({
       status: 'published',
       // Все поля скрытия гасятся, включая вид и признак повторной проверки:
@@ -167,8 +178,9 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
     // как возврат из скрытия. Требует снятие.
     oversightType: null,
     ownerNoticeType: 'publication_verified_for_owner',
-    precondition: 'published',
-    // Повторное подтверждение уже подтверждённой — законно: обновляет «когда» и «кем».
+    // Оба нужны: скрытая не бывает подтверждённой (38.46), а второе «подтверждено»
+    // на уже подтверждённой переписало бы пару и оставило вторую строку журнала.
+    preconditions: ['published', 'not_verified'],
     patch: ({ actorId, now }) => ({ verifiedAt: now.toISOString(), verifiedByUserId: actorId }),
   },
   unverify: {
@@ -176,7 +188,7 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
     requiresReason: 'Причина отзыва обязательна',
     oversightType: 'oversight_verification_revoked',
     ownerNoticeType: 'publication_verification_revoked_for_owner',
-    precondition: 'verified',
+    preconditions: ['verified'],
     // Обе половины пары — ключами с undefined: обнулить, а не оставить.
     patch: () => ({ verifiedAt: undefined, verifiedByUserId: undefined }),
   },
@@ -198,4 +210,5 @@ export const MODERATION_ERRORS = {
   // Отказы предусловий проверки (38.45): состояние, а не форма запроса — 409.
   notPublished: 'Подтвердить можно только опубликованную публикацию',
   notVerified: 'Публикация не подтверждена — отзывать нечего',
+  alreadyVerified: 'Публикация уже подтверждена',
 } as const;

@@ -42,8 +42,19 @@ import { createTestHarness, type TestHarness } from './harness';
 
 import { collectRoutes, type RouteRecord } from './app-routes';
 
-/** Поля, которых в публичном ответе быть не должно, — сам список, не копия. */
-const HIDDEN_KEYS: ReadonlySet<string> = new Set(HIDDEN_FROM_PUBLIC);
+/**
+ * Что список скрытого ОБЯЗАН содержать — приколото здесь, а не выведено из него.
+ *
+ * ⚠️ Ревью 38.48: сторож обходил ответы по тому же `HIDDEN_FROM_PUBLIC`, по которому
+ * `stripPublicationOwner` вырезает. Убери имя из списка — и вырезание, и проверка
+ * перестали бы его знать одновременно, а сторож остался бы зелёным. Ожидание
+ * закреплено отдельно: снятие поля из списка краснит эту строку, и тогда решение
+ * «поле больше не скрываем» принимается вслух, а не пропадает.
+ */
+const EXPECTED_HIDDEN = ['managedByUserId', 'awaitingRecheck', 'verifiedByUserId'] as const;
+
+/** Поля, которых в публичном ответе быть не должно, — по приколотому ожиданию. */
+const HIDDEN_KEYS: ReadonlySet<string> = new Set(EXPECTED_HIDDEN);
 
 /** Администратор из фикстур — им «подтверждена» публикация стенда. */
 const ADMIN_ID = 3;
@@ -138,6 +149,10 @@ describe('Сторож: номер владельца публикации не 
     expect(routes.length).toBeGreaterThan(10);
   });
 
+  it('список скрытого совпадает с приколотым ожиданием — поле не снять молча', () => {
+    expect([...HIDDEN_FROM_PUBLIC]).toEqual([...EXPECTED_HIDDEN]);
+  });
+
   it('маршруты, отдающие публикации, действительно отвечают гостю данными', async () => {
     for (const key of PUBLICATION_BEARING_ROUTES) {
       const url = URL_BY_ROUTE[key] ?? key.split(' ')[1];
@@ -177,13 +192,23 @@ describe('Сторож: номер владельца публикации не 
     expect(offenders, offenders.join('\n')).toEqual([]);
   });
 
-  it('«когда подтверждено» гостю ВИДНО — вырезается «кем», а не сам знак', async () => {
+  it('«когда подтверждено» гостю ВИДНО — вырезается «кем», а не сам знак; у клуба и у тренера', async () => {
     // Обратная половина: список скрытого не должен однажды разрастись до даты,
-    // иначе знак проверки на карточке нечем рисовать.
-    const response = await request(harness.app.getHttpServer()).get('/api/clubs/1');
+    // иначе знак проверки на карточке нечем рисовать. Буквально, по именам,
+    // на обеих сущностях — обход по списку выше это дополняет, а не заменяет.
+    const club = await request(harness.app.getHttpServer()).get('/api/clubs/1');
+    const trainer = await request(harness.app.getHttpServer()).get('/api/trainers/1');
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.club.verifiedAt).toBe(VERIFIED_AT);
-    expect('verifiedByUserId' in response.body.data.club).toBe(false);
+    expect(club.status).toBe(200);
+    expect(club.body.data.club.verifiedAt).toBe(VERIFIED_AT);
+    expect('verifiedByUserId' in club.body.data.club).toBe(false);
+    expect('managedByUserId' in club.body.data.club).toBe(false);
+    expect('awaitingRecheck' in club.body.data.club).toBe(false);
+
+    expect(trainer.status).toBe(200);
+    expect(trainer.body.data.trainer.verifiedAt).toBe(VERIFIED_AT);
+    expect('verifiedByUserId' in trainer.body.data.trainer).toBe(false);
+    expect('managedByUserId' in trainer.body.data.trainer).toBe(false);
+    expect('awaitingRecheck' in trainer.body.data.trainer).toBe(false);
   });
 });

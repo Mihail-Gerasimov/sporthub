@@ -1166,6 +1166,62 @@ describe('Верификация публикаций', () => {
     expect(club?.status).toBe('hidden');
     expect(club?.verifiedAt).toBeDefined();
   });
+
+  it('тренер: скрытие модератором гасит подтверждение, архив владельца — нет (38.46, зеркало)', async () => {
+    // Ревью 38.46: кейсы были только для клуба. Тренеры проверяются наравне, и без
+    // зеркала поле у тренеров уехало бы в выкатку с зелёными тестами.
+    await moderate(adminCookie, { action: 'verify', entityType: 'trainer', entityId: 1 });
+
+    const archived = await request(harness.app.getHttpServer())
+      .delete('/api/trainers/1')
+      .set('Cookie', providerCookie);
+
+    expect(archived.status).toBe(200);
+    expect(archived.body.data.outcome).toBe('archived');
+
+    const afterArchive = (
+      await readRows<{ id: number; status: string; verifiedAt?: string }>('trainers')
+    ).find((row) => row.id === 1);
+
+    expect(afterArchive?.status).toBe('hidden');
+    expect(afterArchive?.verifiedAt, 'архив владельца снял знак с тренера').toBeDefined();
+
+    // Вернуть в каталог и скрыть модератором — знак обязан погаснуть.
+    await moderate(adminCookie, { action: 'unhide', entityType: 'trainer', entityId: 1 });
+
+    const hidden = await moderate(adminCookie, {
+      action: 'hide',
+      entityType: 'trainer',
+      entityId: 1,
+      reason: 'Жалобы',
+    });
+
+    expect(hidden.status).toBe(200);
+
+    const afterHide = (
+      await readRows<{ id: number; verifiedAt?: string; verifiedByUserId?: number }>('trainers')
+    ).find((row) => row.id === 1);
+
+    expect(afterHide?.verifiedAt).toBeUndefined();
+    expect(afterHide?.verifiedByUserId).toBeUndefined();
+  });
+
+  it('повторное verify уже подтверждённой — 409, второй строки в журнале нет (ревью 38.45)', async () => {
+    await moderate(adminCookie, { action: 'verify', entityType: 'club', entityId: 1 });
+
+    const again = await moderate(adminCookie, {
+      action: 'verify',
+      entityType: 'club',
+      entityId: 1,
+    });
+
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe(MODERATION_ERRORS.alreadyVerified);
+
+    const logs = await readRows<{ action: string }>('logs');
+
+    expect(logs.filter((row) => row.action === 'verification_grant')).toHaveLength(1);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════

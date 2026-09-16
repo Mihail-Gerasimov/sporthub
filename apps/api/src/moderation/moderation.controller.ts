@@ -161,6 +161,11 @@ export class ModerationController {
     verified: async (_owner, entity) => {
       if (entity.verifiedAt === undefined) throw new ConflictError(MODERATION_ERRORS.notVerified);
     },
+    not_verified: async (_owner, entity) => {
+      if (entity.verifiedAt !== undefined) {
+        throw new ConflictError(MODERATION_ERRORS.alreadyVerified);
+      }
+    },
   };
 
   /**
@@ -217,8 +222,9 @@ export class ModerationController {
 
     const current = await this.requirePublication(owner);
 
-    if (spec.precondition !== null) {
-      await this.preconditions[spec.precondition](owner, current);
+    // Условия — по порядку в словаре; первое невыполненное называет отказ.
+    for (const name of spec.preconditions) {
+      await this.preconditions[name](owner, current);
     }
 
     // Исполнитель — НАСТОЯЩИЙ: под работой от чужого лица в карточке публикации

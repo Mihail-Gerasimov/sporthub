@@ -27,7 +27,7 @@ describe('словарь действий модерации', () => {
           'ownerNoticeType',
           'oversightType',
           'patch',
-          'precondition',
+          'preconditions',
           'requiresReason',
         ].sort(),
       );
@@ -95,8 +95,8 @@ describe('словарь действий модерации', () => {
   });
 
   it('скрыть можно только без живых записей; возврат условий не ставит', () => {
-    expect(MODERATION_ACTION_SPECS.hide.precondition).toBe('no_live_bookings');
-    expect(MODERATION_ACTION_SPECS.unhide.precondition).toBeNull();
+    expect(MODERATION_ACTION_SPECS.hide.preconditions).toEqual(['no_live_bookings']);
+    expect(MODERATION_ACTION_SPECS.unhide.preconditions).toEqual([]);
   });
 
   // --- Верификация (38.45–38.46) ---
@@ -136,7 +136,8 @@ describe('словарь действий модерации', () => {
     expect(MODERATION_ACTION_SPECS.unverify.ownerNoticeType).toBe(
       'publication_verification_revoked_for_owner',
     );
-    expect(MODERATION_ACTION_SPECS.verify.precondition).toBe('published');
-    expect(MODERATION_ACTION_SPECS.unverify.precondition).toBe('verified');
+    // Подтверждение — только опубликованной И ещё не подтверждённой (ревью 38.45).
+    expect(MODERATION_ACTION_SPECS.verify.preconditions).toEqual(['published', 'not_verified']);
+    expect(MODERATION_ACTION_SPECS.unverify.preconditions).toEqual(['verified']);
   });
 });
