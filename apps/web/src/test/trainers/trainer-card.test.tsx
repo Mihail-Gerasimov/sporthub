@@ -87,7 +87,11 @@ describe('TrainerCard (38.74)', () => {
     expect(name.className).toContain('after:absolute');
     // Hover имени — классом, а не собранной строкой (реестр № 108).
     expect(name.className).toContain('hover:text-lime-hov');
-    expect(screen.getByRole('link', { name: /К записи/ })).toHaveAttribute('href', '/booking/1');
+    // Подпись с именем: в ряду из шести карточек шесть «К записи» неразличимы для диктора.
+    expect(screen.getByRole('link', { name: 'К записи: Марина Соколова' })).toHaveAttribute(
+      'href',
+      '/booking/1',
+    );
   });
 
   it('без ближайшего окна «К записи» ведёт на профиль, а окно — «Слоты скоро появятся»', () => {

@@ -115,7 +115,7 @@ describe('ClubCard (38.73)', () => {
     expect(screen.queryByRole('img', { name: /Рейтинг/ })).not.toBeInTheDocument();
   });
 
-  it('фото — из imageUrls[0], с именем клуба в alt', () => {
+  it('фото — из imageUrls[0], декоративное: имя рядом ссылкой, alt пустой', () => {
     render(
       <ClubCard
         club={{ ...baseClub, imageUrls: ['/images/clubs/volna-1.jpg'] }}
@@ -124,9 +124,10 @@ describe('ClubCard (38.73)', () => {
       />,
     );
 
-    const photo = screen.getByRole('img', { name: 'Volna Aquatic Club' });
+    const photo = screen.getByTestId('club-card').querySelector('img');
 
     expect(photo).toHaveAttribute('src', '/images/clubs/volna-1.jpg');
+    expect(photo).toHaveAttribute('alt', '');
     expect(screen.queryByText('Фото клуба')).not.toBeInTheDocument();
   });
 
@@ -144,7 +145,7 @@ describe('ClubCard (38.73)', () => {
       />,
     );
 
-    fireEvent.error(screen.getByRole('img', { name: 'Volna Aquatic Club' }));
+    fireEvent.error(screen.getByTestId('club-card').querySelector('img') as HTMLImageElement);
 
     expect(screen.getByText('Фото клуба')).toBeInTheDocument();
   });
@@ -190,6 +191,8 @@ describe('ClubCard (38.73)', () => {
 
     expect(badge).toHaveTextContent('Клуб проверен');
     expect(badge).toHaveAccessibleDescription(/проверила администрация/i);
+    // Знак на карточке без своего фокуса: он стоит раньше ссылки с именем.
+    expect(badge).not.toHaveAttribute('tabindex');
     expect(within(screen.getByTestId('club-card')).getByTestId('verified-badge')).toBe(badge);
 
     unmount();

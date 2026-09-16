@@ -46,6 +46,10 @@ export function HeroSearch({ sports }: HeroSearchProps) {
   const setSearch = useFilterStore((state) => state.setSearch);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Последнее нажатие было внутри виджета: WebKit не даёт фокус кнопке по клику,
+  // и `blur` поля приходит с пустым `relatedTarget` раньше `click` по пункту —
+  // без этого признака список закрывался бы до выбора (правка по ревью 38.67).
+  const pointerInsideRef = useRef(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
   // Клик (касание) вне виджета закрывает выпадашку — как любой всплывающий список.
@@ -54,6 +58,7 @@ export function HeroSearch({ sports }: HeroSearchProps) {
 
     const onPointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        pointerInsideRef.current = false;
         setSuggestOpen(false);
       }
     };
@@ -65,6 +70,12 @@ export function HeroSearch({ sports }: HeroSearchProps) {
 
   /** Фокус ушёл за пределы виджета (Tab дальше по странице) — выпадашка закрывается. */
   const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    // Нажатие внутри виджета без фокусируемой цели (WebKit, пустое место) — не уход.
+    if (pointerInsideRef.current) {
+      pointerInsideRef.current = false;
+      return;
+    }
+
     if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setSuggestOpen(false);
   };
 
@@ -82,7 +93,14 @@ export function HeroSearch({ sports }: HeroSearchProps) {
   };
 
   return (
-    <div ref={rootRef} onBlur={handleBlur} className="rounded-[18px] bg-card p-2 shadow-floating">
+    <div
+      ref={rootRef}
+      onBlur={handleBlur}
+      onPointerDownCapture={() => {
+        pointerInsideRef.current = true;
+      }}
+      className="rounded-[18px] bg-card p-2 shadow-floating"
+    >
       {/* Переключатель: два сегмента на подложке холста, активный — зелёный со свечением. */}
       <div
         role="group"

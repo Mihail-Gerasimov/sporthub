@@ -223,6 +223,7 @@ export function TrainerCard({ trainer, highlighted = false }: TrainerCardProps) 
         </p>
         <Link
           href={ctaHref}
+          aria-label={`К записи: ${trainer.name}`}
           className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-body text-[11px] font-bold uppercase tracking-[0.14em] text-lime-hov no-underline transition-colors hover:text-ink"
         >
           К записи

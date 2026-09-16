@@ -83,13 +83,14 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
       )}
     >
       {/* Фото 180 с затемнением снизу: низ зоны — тёмная плашка под белым текстом,
-          поэтому подложка — `bg-plate`; заглушка без фото кладёт свою светлую сверху. */}
+          поэтому подложка — `bg-plate`; заглушка без фото кладёт свою светлую сверху.
+          `alt=""` — имя стоит рядом ссылкой, диктор читал бы его дважды. */}
       <div className="relative h-[180px] overflow-hidden bg-plate">
         {showPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- адрес фото из данных, размер фиксирован
           <img
             src={photo}
-            alt={club.name}
+            alt=""
             loading="lazy"
             onError={() => setPhotoBroken(true)}
             className="h-full w-full object-cover opacity-[0.88] transition-opacity duration-200 group-hover:opacity-100"
@@ -114,7 +115,8 @@ export function ClubCard({ club, sports, tags = [], highlighted = false }: ClubC
                 {category}
               </span>
             ) : null}
-            {club.verifiedAt ? <VerifiedBadge ownerType="club" /> : null}
+            {/* Без фокуса: знак стоит раньше ссылки с именем, второй стоп до неё сбивал бы порядок. */}
+            {club.verifiedAt ? <VerifiedBadge ownerType="club" focusable={false} /> : null}
           </div>
           <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-display text-[12px] font-extrabold tabular-nums text-plate-ink">
             от {formatPrice(club.priceFrom)}

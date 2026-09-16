@@ -132,6 +132,25 @@ describe('HeroSearch', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
+  it('WebKit: нажатие внутри виджета без фокусируемой цели — blur без relatedTarget не закрывает список', async () => {
+    render(<HeroSearch sports={sports} />);
+
+    const input = screen.getByRole('searchbox');
+
+    await act(async () => {
+      input.focus();
+    });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    // Safari/iOS: клик по пункту не даёт ему фокус — поле теряет фокус «в никуда».
+    await act(async () => {
+      fireEvent.pointerDown(screen.getByRole('option', { name: /Йога/ }));
+      fireEvent.blur(input, { relatedTarget: null });
+    });
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
   it('фокус внутри виджета — на «Найти» или на пункт выпадашки — её не закрывает', async () => {
     render(<HeroSearch sports={sports} />);
 
