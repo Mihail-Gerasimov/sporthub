@@ -97,6 +97,47 @@
       ]
     }
   },
+  "GET /api/sports?popular=3": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "createdAt": "<время>",
+          "name": "Йога",
+          "slug": "yoga",
+          "description": "Практики для гибкости, дыхания и баланса в спокойном ритме.",
+          "icon": "🧘",
+          "imageUrl": "/images/sports/yoga.jpg",
+          "isPopular": true,
+          "publicationCount": 2
+        },
+        {
+          "id": 3,
+          "createdAt": "<время>",
+          "name": "Плавание",
+          "slug": "swimming",
+          "description": "Групповые и индивидуальные занятия в бассейне для любого уровня.",
+          "icon": "🏊",
+          "imageUrl": "/images/sports/swimming.jpg",
+          "isPopular": true,
+          "publicationCount": 2
+        },
+        {
+          "id": 4,
+          "createdAt": "<время>",
+          "name": "Кроссфит",
+          "slug": "crossfit",
+          "description": "Интенсивные функциональные тренировки с прогрессией нагрузки.",
+          "icon": "🏋️",
+          "imageUrl": "/images/sports/crossfit.jpg",
+          "isPopular": true,
+          "publicationCount": 2
+        }
+      ]
+    }
+  },
   "GET /api/stats/overview": {
     "status": 200,
     "body": {

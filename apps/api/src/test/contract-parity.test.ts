@@ -101,6 +101,8 @@ const KNOWN_DIFFERENCES: Record<string, string> = {
   // `?sort=rating&limit=4`, `/stats/overview` (54 → 57). Прежние 54 не изменились
   // ни на байт — проверено сравнением снимков; добавление — не пересъёмка.
   //
+  // Шаг 38.68: ДОБАВЛЕН `GET /api/sports?popular=3` (59 → 60), прежние 59 не изменились.
+  //
   // Шаг 38.55: ДОБАВЛЕНЫ два вызова верификации — `POST /api/moderation (verify)`
   // и `GET /api/publications?verified=false` (57 → 59); снят режим
   // `GET /api/bookings?scope=clients` — в эталоне его не было, снятие сверки
@@ -203,6 +205,9 @@ export type Call = {
 
 export const CALLS: Call[] = [
   { name: 'GET /api/sports', method: 'get', url: '/api/sports' },
+  // Популярные виды для выпадашки поиска (38.68): строка несёт `publicationCount`,
+  // порядок — по убыванию счёта, ничью разводит номер.
+  { name: 'GET /api/sports?popular=3', method: 'get', url: '/api/sports?popular=3' },
   // Четыре числа героя главной (шаг 38.30): публичный маршрут, форма `{ success, data }`.
   { name: 'GET /api/stats/overview', method: 'get', url: '/api/stats/overview' },
   { name: 'GET /api/cities', method: 'get', url: '/api/cities' },

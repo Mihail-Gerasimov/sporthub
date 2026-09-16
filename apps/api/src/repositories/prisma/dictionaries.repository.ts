@@ -22,6 +22,7 @@ import type { Amenity, City, Specialty, Sport, Tag, WorkFormat } from '@sporthub
 import type {
   CitiesRepository,
   SimpleDictionaryRepository,
+  SportsRepository,
 } from '../../dictionaries/dictionaries.repository';
 import type { DatabaseClient } from '../../storage/prisma-transaction';
 import { PrismaTransactionRunner } from '../../storage/prisma-transaction';
@@ -63,13 +64,20 @@ export class PrismaSimpleDictionaryRepository<
 
 /** Виды спорта — тот же справочник, но с собственными полями. */
 @Injectable()
-export class PrismaSportsRepository implements SimpleDictionaryRepository<Sport> {
+export class PrismaSportsRepository implements SportsRepository {
   constructor(private readonly transactions: PrismaTransactionRunner) {}
 
-  async findAll(): Promise<Sport[]> {
-    const rows = await this.transactions.client.sport.findMany({ orderBy: { id: 'asc' } });
-
-    return rows.map((row) => ({
+  private static toSport(row: {
+    id: number;
+    createdAt: Date;
+    name: string;
+    slug: string;
+    description: string;
+    icon: string;
+    imageUrl: string;
+    isPopular: boolean;
+  }): Sport {
+    return {
       id: row.id,
       createdAt: toIsoString(row.createdAt),
       name: row.name,
@@ -78,6 +86,64 @@ export class PrismaSportsRepository implements SimpleDictionaryRepository<Sport>
       icon: row.icon,
       imageUrl: row.imageUrl,
       isPopular: row.isPopular,
+    };
+  }
+
+  async findAll(): Promise<Sport[]> {
+    const rows = await this.transactions.client.sport.findMany({ orderBy: { id: 'asc' } });
+
+    return rows.map((row) => PrismaSportsRepository.toSport(row));
+  }
+
+  async findPopular(limit: number): Promise<(Sport & { publicationCount: number })[]> {
+    // Популярность — ОДНИМ запросом: два подсчёта по связующим таблицам (клубы
+    // и тренеры отдельно, у каждой своя связь), сложенные у вида. Статус берётся
+    // РАВЕНСТВОМ (`= 'published'`): «не скрыто» обходило бы индекс по статусу
+    // (урок 38.32). Порядок и срез — в запросе: `ORDER BY … LIMIT`, вторичный ключ
+    // `id` разводит равные счёты, иначе верхушка мигала бы от прогона к прогону.
+    // Виды без публикаций остаются в выдаче с нулём (LEFT JOIN), а не пропадают.
+    const rows = await this.transactions.client.$queryRaw<
+      {
+        id: number;
+        createdAt: Date;
+        name: string;
+        slug: string;
+        description: string;
+        icon: string;
+        imageUrl: string;
+        isPopular: boolean;
+        publicationCount: number;
+      }[]
+    >`
+      SELECT s.id,
+             s.created_at AS "createdAt",
+             s.name,
+             s.slug,
+             s.description,
+             s.icon,
+             s.image_url AS "imageUrl",
+             s.is_popular AS "isPopular",
+             (COALESCE(c.cnt, 0) + COALESCE(t.cnt, 0))::int AS "publicationCount"
+        FROM sports s
+        LEFT JOIN (
+          SELECT cs.sport_id, COUNT(*) AS cnt
+            FROM club_sports cs
+            JOIN clubs cl ON cl.id = cs.club_id AND cl.status = 'published'
+           GROUP BY cs.sport_id
+        ) c ON c.sport_id = s.id
+        LEFT JOIN (
+          SELECT ts.sport_id, COUNT(*) AS cnt
+            FROM trainer_sports ts
+            JOIN trainers tr ON tr.id = ts.trainer_id AND tr.status = 'published'
+           GROUP BY ts.sport_id
+        ) t ON t.sport_id = s.id
+       ORDER BY "publicationCount" DESC, s.id ASC
+       LIMIT ${limit}
+    `;
+
+    return rows.map((row) => ({
+      ...PrismaSportsRepository.toSport(row),
+      publicationCount: Number(row.publicationCount),
     }));
   }
 }

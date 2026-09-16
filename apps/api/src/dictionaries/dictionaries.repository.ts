@@ -29,7 +29,17 @@ export interface SimpleDictionaryRepository<TItem> {
   findAll(): Promise<TItem[]>;
 }
 
-export type SportsRepository = SimpleDictionaryRepository<Sport>;
+/**
+ * Виды спорта: справочник плюс популярность (шаг 38.68).
+ *
+ * `findPopular` — первые `limit` видов по убыванию числа ОПУБЛИКОВАННЫХ клубов
+ * и карточек тренеров; ничью разводит номер вида. Считает база группировкой
+ * по связующим таблицам, в памяти не считается ничего: виды без публикаций
+ * приходят с нулём, а не пропадают. `publicationCount` у строки заполнен всегда.
+ */
+export interface SportsRepository extends SimpleDictionaryRepository<Sport> {
+  findPopular(limit: number): Promise<(Sport & { publicationCount: number })[]>;
+}
 export type TagsRepository = SimpleDictionaryRepository<Tag>;
 export type AmenitiesRepository = SimpleDictionaryRepository<Amenity>;
 export type WorkFormatsRepository = SimpleDictionaryRepository<WorkFormat>;

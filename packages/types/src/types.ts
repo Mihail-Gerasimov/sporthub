@@ -223,6 +223,14 @@ export interface Sport extends BaseEntity {
   icon: string;
   imageUrl: string;
   isPopular: boolean;
+  /**
+   * Сколько ОПУБЛИКОВАННЫХ клубов и карточек тренеров у вида (шаг 38.68).
+   *
+   * Заполняется только ответом `GET /api/sports?popular=<n>` — там, где виды
+   * ранжируются по популярности. Обычный справочник поля не несёт: старый клиент
+   * не замечает разницы. Не путать с `isPopular` — ручным флагом сида.
+   */
+  publicationCount?: number;
 }
 
 export interface Club extends BaseEntity {

@@ -294,3 +294,101 @@
 ```
 
 </details>
+
+## Популярные виды спорта — `GET /api/sports?popular=<n>` (шаг 38.68, 16.09.2026)
+
+**Стенд:** схема `explain_sports` на `sporthub_test`: 30 видов, 5000 клубов и 5000 карточек
+тренеров (каждая десятая скрыта), 9 667 строк `club_sports`, 5 000 строк `trainer_sports`.
+Схема удалена после снятия плана.
+
+**Запрос** — тот, что уходит из `PrismaSportsRepository.findPopular`: два подсчёта
+по связующим таблицам (`JOIN … status = 'published'`, `GROUP BY sport_id`), сложенные
+у вида, `ORDER BY count DESC, id ASC LIMIT n`.
+
+**План:** Hash Join `club_sports` × `clubs` → HashAggregate по виду (то же для тренеров),
+Sort top-N по счёту и номеру, Limit. **3,78 мс**, буферов ~330.
+
+**Индекса не заводится — и это названо, а не забыто.** Индексы `club_sports(sport_id)`,
+`trainer_sports(sport_id)` и `clubs(status)` / `trainers(status)` есть, планировщик их
+не берёт — и прав: популярность считается по ВСЕМ опубликованным публикациям, то есть
+обход связующих таблиц целиком неизбежен по смыслу запроса, а отсев `status = 'published'`
+оставляет 90 % строк. Индекс ничего не отбросил бы. Цена растёт линейно с числом
+публикаций (≈0,4 мс на тысячу); порог назван в контроллере: при десятках тысяч публикаций —
+кэш на 60 секунд у маршрута, как у `/stats/overview`, а не индекс.
+
+<details>
+<summary>план целиком</summary>
+
+```
+--- популярные виды: top 8
+                                                                           QUERY PLAN
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=767.49..767.51 rows=8 width=8) (actual time=3.742..3.744 rows=8 loops=1)
+   Buffers: shared hit=274
+   ->  Sort  (cost=767.49..767.57 rows=30 width=8) (actual time=3.741..3.742 rows=8 loops=1)
+         Sort Key: (((COALESCE(c.cnt, '0'::bigint) + COALESCE(t.cnt, '0'::bigint)))::integer) DESC, s.id
+         Sort Method: top-N heapsort  Memory: 25kB
+         Buffers: shared hit=274
+         ->  Hash Left Join  (cost=766.05..766.89 rows=30 width=8) (actual time=3.729..3.738 rows=30 loops=1)
+               Hash Cond: (s.id = t.sport_id)
+               Buffers: shared hit=274
+               ->  Merge Left Join  (cost=455.69..456.29 rows=30 width=12) (actual time=2.234..2.240 rows=30 loops=1)
+                     Merge Cond: (s.id = c.sport_id)
+                     Buffers: shared hit=169
+                     ->  Sort  (cost=2.04..2.11 rows=30 width=4) (actual time=0.009..0.010 rows=30 loops=1)
+                           Sort Key: s.id
+                           Sort Method: quicksort  Memory: 25kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on sports s  (cost=0.00..1.30 rows=30 width=4) (actual time=0.003..0.004 rows=30 loops=1)
+                                 Buffers: shared hit=1
+                     ->  Sort  (cost=453.65..453.73 rows=30 width=12) (actual time=2.224..2.225 rows=27 loops=1)
+                           Sort Key: c.sport_id
+                           Sort Method: quicksort  Memory: 26kB
+                           Buffers: shared hit=168
+                           ->  Subquery Scan on c  (cost=452.32..452.92 rows=30 width=12) (actual time=2.218..2.221 rows=27 loops=1)
+                                 Buffers: shared hit=168
+                                 ->  HashAggregate  (cost=452.32..452.62 rows=30 width=12) (actual time=2.217..2.220 rows=27 loops=1)
+                                       Group Key: cs.sport_id
+                                       Batches: 1  Memory Usage: 24kB
+                                       Buffers: shared hit=168
+                                       ->  Hash Join  (cost=243.75..408.82 rows=8700 width=4) (actual time=0.653..1.717 rows=8833 loops=1)
+                                             Hash Cond: (cs.club_id = cl.id)
+                                             Buffers: shared hit=168
+                                             ->  Seq Scan on club_sports cs  (cost=0.00..139.67 rows=9667 width=8) (actual time=0.002..0.305 rows=9667 loops=1)
+                                                   Buffers: shared hit=43
+                                             ->  Hash  (cost=187.50..187.50 rows=4500 width=4) (actual time=0.648..0.648 rows=4500 loops=1)
+                                                   Buckets: 8192  Batches: 1  Memory Usage: 223kB
+                                                   Buffers: shared hit=125
+                                                   ->  Seq Scan on clubs cl  (cost=0.00..187.50 rows=4500 width=4) (actual time=0.002..0.459 rows=4500 loops=1)
+                                                         Filter: ((status)::text = 'published'::text)
+                                                         Rows Removed by Filter: 500
+                                                         Buffers: shared hit=125
+               ->  Hash  (cost=309.99..309.99 rows=30 width=12) (actual time=1.493..1.493 rows=27 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=105
+                     ->  Subquery Scan on t  (cost=309.39..309.99 rows=30 width=12) (actual time=1.488..1.491 rows=27 loops=1)
+                           Buffers: shared hit=105
+                           ->  HashAggregate  (cost=309.39..309.69 rows=30 width=12) (actual time=1.487..1.489 rows=27 loops=1)
+                                 Group Key: ts.sport_id
+                                 Batches: 1  Memory Usage: 24kB
+                                 Buffers: shared hit=105
+                                 ->  Hash Join  (cost=200.75..286.89 rows=4500 width=4) (actual time=0.695..1.236 rows=4500 loops=1)
+                                       Hash Cond: (ts.trainer_id = tr.id)
+                                       Buffers: shared hit=105
+                                       ->  Seq Scan on trainer_sports ts  (cost=0.00..73.00 rows=5000 width=8) (actual time=0.001..0.165 rows=5000 loops=1)
+                                             Buffers: shared hit=23
+                                       ->  Hash  (cost=144.50..144.50 rows=4500 width=4) (actual time=0.678..0.678 rows=4500 loops=1)
+                                             Buckets: 8192  Batches: 1  Memory Usage: 223kB
+                                             Buffers: shared hit=82
+                                             ->  Seq Scan on trainers tr  (cost=0.00..144.50 rows=4500 width=4) (actual time=0.002..0.431 rows=4500 loops=1)
+                                                   Filter: ((status)::text = 'published'::text)
+                                                   Rows Removed by Filter: 500
+                                                   Buffers: shared hit=82
+ Planning:
+   Buffers: shared hit=348
+ Planning Time: 0.400 ms
+ Execution Time: 3.780 ms
+(65 rows)
+```
+
+</details>
