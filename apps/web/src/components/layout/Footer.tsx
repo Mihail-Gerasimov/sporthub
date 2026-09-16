@@ -1,13 +1,8 @@
 import Link from 'next/link';
 
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { FOOTER_NAV } from '@/lib/navigation';
 import { BRAND_NAME } from '@sporthub/domain';
-
-const footerLinks = [
-  { href: '/#about', label: 'О проекте' },
-  { href: '/#clubs', label: 'Каталог клубов' },
-  { href: '/#contacts', label: 'Контакты' },
-];
 
 export function Footer() {
   return (
@@ -32,7 +27,7 @@ export function Footer() {
               Навигация
             </p>
             <div className="mt-4 flex flex-col gap-3">
-              {footerLinks.map((link) => (
+              {FOOTER_NAV.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href}

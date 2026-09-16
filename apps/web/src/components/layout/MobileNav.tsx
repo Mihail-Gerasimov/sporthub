@@ -1,9 +1,11 @@
-// Phase 28: мобильный нижний док-навигатор. Виден только на 480 (sm-) — на md+
-// nav в Header'е уже доступна. 4 пункта (Главная / Поиск / Слоты / Профиль) с
-// SVG-иконками. В новой палитре — тёмная карточка с lime-акцентом для активного.
+// Мобильный нижний док-навигатор. Виден только на 480 (sm-) — на md+ nav в шапке
+// уже доступна. Пункты — из `lib/navigation.ts` (`MOBILE_NAV`: Главная / Поиск / Слоты),
+// плюс «Профиль», чей адрес зависит от сессии; здесь у пунктов только SVG-иконки.
 'use client';
 
 import Link from 'next/link';
+
+import { MOBILE_NAV } from '@/lib/navigation';
 
 import {
   cabinetSectionPath,
@@ -14,70 +16,58 @@ import {
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-const mobileNavItems: ReadonlyArray<{
-  href: string;
-  label: string;
-  matchPaths: string[];
-  glyph: ReactNode;
-}> = [
-  {
-    href: '/',
-    label: 'Главная',
-    matchPaths: ['/'],
-    glyph: (
+type MobileNavItem = { href: string; label: string; matchPaths: string[]; glyph: ReactNode };
+
+/** Иконки пунктов — по подписи из словаря навигации. */
+const GLYPHS: Record<string, ReactNode> = {
+  Главная: (
+    <path
+      d="M4.5 10.5 12 4l7.5 6.5v8a1 1 0 0 1-1 1H14v-5h-4v5H5.5a1 1 0 0 1-1-1v-8Z"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.7"
+    />
+  ),
+  Поиск: (
+    <>
+      <circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <path
-        d="M4.5 10.5 12 4l7.5 6.5v8a1 1 0 0 1-1 1H14v-5h-4v5H5.5a1 1 0 0 1-1-1v-8Z"
+        d="m15.5 15.5 4 4"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
-        strokeLinejoin="round"
         strokeWidth="1.7"
       />
-    ),
-  },
-  {
-    href: '/#discover',
-    label: 'Поиск',
-    matchPaths: ['/#discover'],
-    glyph: (
-      <>
-        <circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <path
-          d="m15.5 15.5 4 4"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.7"
-        />
-      </>
-    ),
-  },
-  {
-    href: '/#availability',
-    label: 'Слоты',
-    matchPaths: ['/#availability'],
-    glyph: (
-      <>
-        <rect
-          x="5"
-          y="4.5"
-          width="14"
-          height="15"
-          rx="2.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-        />
-        <path
-          d="M8 8.5h8M8 12h8M8 15.5h5"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.7"
-        />
-      </>
-    ),
-  },
+    </>
+  ),
+  Слоты: (
+    <>
+      <rect
+        x="5"
+        y="4.5"
+        width="14"
+        height="15"
+        rx="2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M8 8.5h8M8 12h8M8 15.5h5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.7"
+      />
+    </>
+  ),
+};
+
+const mobileNavItems: ReadonlyArray<MobileNavItem> = [
+  // Главная, поиск и слоты — из словаря: адрес и подпись там, иконка здесь.
+  ...MOBILE_NAV.map((item) => ({ ...item, matchPaths: [item.href], glyph: GLYPHS[item.label] })),
   {
     href: cabinetSectionPath(PERSONAL_CABINET_PATH, DEFAULT_CABINET_SECTION),
     label: 'Профиль',

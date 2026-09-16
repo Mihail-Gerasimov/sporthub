@@ -11,18 +11,13 @@
 import Link from 'next/link';
 
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { HEADER_NAV } from '@/lib/navigation';
 import { useRouter } from 'next/navigation';
 
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { SERVICE_PORTAL_SECTIONS } from '@/lib/service-portal-sections';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
-
-const navigationItems = [
-  { href: '/#discover', label: 'Подборки' },
-  { href: '/#results', label: 'Выдача' },
-  { href: '/#availability', label: 'Слоты' },
-];
 
 export function Header() {
   const openAuthModal = useUIStore((state) => state.openAuthModal);
@@ -84,7 +79,7 @@ export function Header() {
           aria-label="Основная навигация"
           className="hidden items-center gap-1 rounded-full border border-plate-line bg-plate-ink/5 p-[5px] md:flex"
         >
-          {navigationItems.map((item) => (
+          {HEADER_NAV.map((item) => (
             <Link
               key={item.label}
               href={item.href}
