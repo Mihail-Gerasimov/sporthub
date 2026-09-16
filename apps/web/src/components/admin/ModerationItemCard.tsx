@@ -90,9 +90,8 @@ export function ModerationItemCard({
     >
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="m-0 break-words font-display text-[18px] uppercase leading-none tracking-tight text-ink">
-            {item.name}
-          </h3>
+          {/* Заголовок карточки — шкалой `t-h3` (38.109): Inter 600, обычный регистр. */}
+          <h3 className="t-h3 m-0 break-words text-ink">{item.name}</h3>
           <Badge tone="outline">{item.type === 'club' ? 'Клуб' : 'Тренер'}</Badge>
           {isHidden ? (
             <Badge tone="neutral">{hiddenLabel}</Badge>

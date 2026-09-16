@@ -205,10 +205,10 @@ describe('ClubCard (38.73)', () => {
       expect(link).toHaveAttribute('href', '/clubs/volna-aquatic-club');
       expect(link.className).toContain('after:inset-0');
       expect(positionedAncestorsBetween(card, link)).toEqual([]);
-      // Имя — Inter полужирный обычным регистром (38.109), не display-капитель.
+      // Имя — шкалой заголовков карточек (38.109): `t-h4` в витрине, Inter 600 обычным регистром.
       const name = link.closest('h3') as HTMLElement;
-      expect(name.className).toContain('font-body');
-      expect(name.className).not.toMatch(/font-display|uppercase/);
+      expect(name.className).toContain('t-h4');
+      expect(name.className).not.toMatch(/font-display|uppercase|t-h3/);
     });
 
     it('описание, адрес и лента тегов в витрине не рисуются — они живут в API и на детальной', () => {
@@ -229,6 +229,10 @@ describe('ClubCard (38.73)', () => {
       const card = screen.getByRole('article', { name: 'Карточка клуба: Volna Aquatic Club' });
 
       expect(card).toHaveAttribute('data-variant', 'catalog');
+      // Имя в каталоге — `t-h3` (38.109), display-капители у карточек больше нет.
+      expect(
+        within(card).getByRole('link', { name: 'Volna Aquatic Club' }).closest('h3')?.className,
+      ).toContain('t-h3');
       expect(within(card).getByText(baseClub.shortDescription)).toBeInTheDocument();
       expect(within(card).getByText(baseClub.address)).toBeInTheDocument();
       expect(card.querySelector('.chip-track')).not.toBeNull();

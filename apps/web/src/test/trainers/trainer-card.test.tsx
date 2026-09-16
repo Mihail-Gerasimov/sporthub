@@ -273,10 +273,10 @@ describe('TrainerCard (38.74)', () => {
       expect(link.className).toContain('after:inset-0');
       // Единственная ссылка: «К записи» в витрине нет — вся карточка ведёт на тренера.
       expect(within(card).getAllByRole('link')).toHaveLength(1);
-      // Имя — Inter полужирный обычным регистром (38.109), не display-капитель.
+      // Имя — шкалой заголовков карточек (38.109): `t-h4` в витрине, Inter 600 обычным регистром.
       const name = link.closest('h3') as HTMLElement;
-      expect(name.className).toContain('font-body');
-      expect(name.className).not.toMatch(/font-display|uppercase/);
+      expect(name.className).toContain('t-h4');
+      expect(name.className).not.toMatch(/font-display|uppercase|t-h3/);
     });
 
     it('площадка, окно, чипы опыта, лента специализаций и цитата в витрине не рисуются', () => {
@@ -305,6 +305,10 @@ describe('TrainerCard (38.74)', () => {
       const card = screen.getByRole('article', { name: 'Карточка тренера: Марина Соколова' });
 
       expect(card).toHaveAttribute('data-variant', 'catalog');
+      // Имя в каталоге — `t-h3` (38.109).
+      expect(
+        within(card).getByRole('link', { name: 'Марина Соколова' }).closest('h3')?.className,
+      ).toContain('t-h3');
       expect(within(card).getByText('Площадка')).toBeInTheDocument();
       expect(
         within(card).getByRole('link', { name: 'К записи: Марина Соколова' }),

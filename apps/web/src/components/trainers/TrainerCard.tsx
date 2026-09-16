@@ -69,7 +69,8 @@ export function TrainerCard({
   const quote = headline === trainer.bio ? '' : (trainer.bio ?? '');
   // Окна дня словами — вместо расстояния, которого у площадки нет (Д-17).
   const windowsLabel = `${trainer.availableSlotsCount} ${pluralRu(trainer.availableSlotsCount, PLURAL.windows)}`;
-  const nameFontClass = variant === 'showcase' ? 'font-body font-bold' : 'font-display font-black';
+  // Имя — шкалой заголовков карточек (38.109): в витрине `t-h4`, в каталоге `t-h3`.
+  const nameClass = variant === 'showcase' ? 't-h4' : 't-h3';
   const slotLabel =
     trainer.nextSlotDate && trainer.nextSlotStartTime
       ? `${formatDate(trainer.nextSlotDate, { day: 'numeric', month: 'long' })}, ${trainer.nextSlotStartTime}`
@@ -132,8 +133,7 @@ export function TrainerCard({
 
       {/* Имя — ссылка, растянутая на карточку; рядом знак проверки. */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Имя: в витрине — Inter полужирный обычным регистром (38.109); в каталоге — display. */}
-        <h3 className={`m-0 text-[16px] leading-[1.1] text-ink ${nameFontClass}`}>
+        <h3 className={`m-0 text-ink ${nameClass}`}>
           <Link
             href={`/trainers/${trainer.slug}`}
             className="no-underline transition-colors hover:text-lime-hov after:absolute after:inset-0 after:z-[1] after:content-['']"
