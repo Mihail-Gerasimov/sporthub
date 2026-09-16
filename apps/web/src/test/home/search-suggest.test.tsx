@@ -152,7 +152,7 @@ describe('SearchSuggest', () => {
     expect(useFilterStore.getState().selectedSportId).toBe(1);
   });
 
-  it('клавиатура: ↓ из поля — в первый пункт, стрелки по кругу, Enter выбирает', async () => {
+  it('клавиатура: ↓ из поля — в первый пункт, стрелки по кругу, Home/End, Enter выбирает', async () => {
     render(<Harness />);
     await flush();
 
@@ -174,10 +174,16 @@ describe('SearchSuggest', () => {
       options[options.length - 1],
     );
 
-    fireEvent.keyDown(options[options.length - 1], { key: 'End' });
-    // Enter на сфокусированной кнопке — обычный клик: выбор популярного «Бокс».
-    fireEvent.click(document.activeElement as HTMLElement);
+    fireEvent.keyDown(options[options.length - 1], { key: 'Home' });
+    expect(document.activeElement, 'Home — в первый пункт').toBe(options[0]);
+
+    fireEvent.keyDown(options[0], { key: 'End' });
+    expect(document.activeElement, 'End — в последний пункт').toBe(options[options.length - 1]);
+
+    // Enter на пункте — выбор: последний пункт — популярный «Бокс».
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Enter' });
     expect(useFilterStore.getState().selectedSportId).toBe(2);
+    expect(push).toHaveBeenCalledWith('/#results');
   });
 
   it('Escape из списка закрывает выпадашку и возвращает фокус в поле — не открывая заново', async () => {

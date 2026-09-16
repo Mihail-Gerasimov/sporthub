@@ -24,14 +24,24 @@ describe('HomeSteps', () => {
     ).toEqual(STEPS.items.map((item) => item.title));
   });
 
-  it('номера шагов считаются от позиции — 01, 02, 03 — и скрыты от диктора', () => {
+  it('номера шагов — из словаря, в его порядке, и скрыты от диктора', () => {
     const { container } = render(<HomeSteps />);
 
     const numbers = [...container.querySelectorAll('[aria-hidden="true"]')]
       .map((node) => node.textContent)
       .filter((text) => /^\d\d$/.test(text ?? ''));
 
-    expect(numbers).toEqual(['01', '02', '03']);
+    expect(numbers).toEqual(STEPS.items.map((step) => step.number));
+  });
+
+  it('иконка шага берётся по ключу записи: у каждого шага своя, ни одна не повторяется', () => {
+    render(<HomeSteps />);
+
+    const items = screen.getAllByRole('listitem');
+    const icons = items.map((item) => item.querySelector('svg')?.innerHTML ?? '');
+
+    expect(items).toHaveLength(STEPS.items.length);
+    expect(new Set(icons).size).toBe(STEPS.items.length);
   });
 
   it('третий шаг — без дневника и челленджей (решение заказчика)', () => {
@@ -43,6 +53,8 @@ describe('HomeSteps', () => {
     expect(text).not.toMatch(/челлендж/i);
     // Вместо них — то, что есть: история занятий в кабинете и отзыв после посещения.
     expect(text).toMatch(/отзыв/i);
+    // Посещение отмечает провайдер, не спортсмен (ревью 38.71): шаг говорит «приходи».
+    expect(text).not.toMatch(/отмечай посещен/i);
   });
 
   it('у каждого шага есть иконка, скрытая от диктора, — контент несёт текст', () => {

@@ -67,11 +67,19 @@ const CheckIcon = (
   </svg>
 );
 
+/** Ключ шага — из словаря: новый шаг без иконки здесь не соберётся. */
+type StepKey = (typeof STEPS.items)[number]['key'];
+
 /**
- * Иконки шагов — по порядку сценария из `home-copy` (поиск, запись, посещение).
- * Тексты живут в словаре, иконки — здесь: словарь не знает разметки.
+ * Иконки шагов — по КЛЮЧУ записи словаря, не по позиции (ревью 38.71: параллельный
+ * массив по индексу расходится молча). Тексты живут в словаре, иконки — здесь:
+ * словарь не знает разметки.
  */
-const STEP_ICONS: readonly ReactNode[] = [SearchIcon, CalendarIcon, CheckIcon];
+const STEP_ICONS: Record<StepKey, ReactNode> = {
+  find: SearchIcon,
+  book: CalendarIcon,
+  train: CheckIcon,
+};
 
 export function HomeSteps() {
   return (
@@ -88,9 +96,9 @@ export function HomeSteps() {
 
         {/* Одна полоса: обводка общая, разделители — линии между колонками, не зазоры. */}
         <ol className="m-0 grid list-none grid-cols-1 overflow-hidden rounded-[22px] border border-line bg-card p-0 md:grid-cols-3">
-          {STEPS.items.map((step, index) => (
+          {STEPS.items.map((step) => (
             <li
-              key={step.number}
+              key={step.key}
               className="min-w-0 border-line px-7 py-8 [&:not(:last-child)]:border-b md:[&:not(:last-child)]:border-r md:[&:not(:last-child)]:border-b-0"
             >
               <div className="mb-4 flex items-center gap-3">
@@ -101,7 +109,7 @@ export function HomeSteps() {
                   {step.number}
                 </span>
                 <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-lime-soft text-lime-hov">
-                  {STEP_ICONS[index]}
+                  {STEP_ICONS[step.key]}
                 </span>
               </div>
               <h3 className="t-h3 m-0 mb-2 uppercase text-ink">{step.title}</h3>

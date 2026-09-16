@@ -40,8 +40,19 @@ export async function collectRoutes(directory = APP_DIR, prefix = ''): Promise<s
   return routes;
 }
 
-/** Есть ли у адреса файл страницы; `[slug]` подходит под любой сегмент. */
-export function routeExists(href: string, routes: string[]): boolean {
+/**
+ * Есть ли у адреса файл страницы; `[slug]` подходит под любой сегмент.
+ *
+ * `staticOnly` — считать только маршруты без параметров. Для ФИКСИРОВАННЫХ адресов
+ * (плитки «Возможности», разделы кабинета человека) подстановка `[faceKind]/[faceId]`
+ * под `/profile/me/что-угодно` даёт ложный зелёный: файл есть, страница отдаёт 404
+ * (ревью 38.72, диверсия `/profile/me/diary`).
+ */
+export function routeExists(
+  href: string,
+  routes: string[],
+  { staticOnly = false }: { staticOnly?: boolean } = {},
+): boolean {
   const target = href.split('#')[0].split('?')[0];
   const parts = target.split('/').filter(Boolean);
 
@@ -49,6 +60,7 @@ export function routeExists(href: string, routes: string[]): boolean {
     const segments = route.split('/').filter(Boolean);
 
     if (segments.length !== parts.length) return false;
+    if (staticOnly && segments.some((segment) => /^\[.*\]$/.test(segment))) return false;
 
     return segments.every((segment, index) => /^\[.*\]$/.test(segment) || segment === parts[index]);
   });

@@ -134,6 +134,11 @@ export function SearchSuggest({ open, sports, inputRef, onClose }: SearchSuggest
     } else if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
       items[event.key === 'Home' ? 0 : items.length - 1]?.focus();
+    } else if (event.key === 'Enter' && index >= 0) {
+      // Выбор — явно, а не только штатной активацией кнопки: `preventDefault`
+      // гасит её, иначе выбор сработал бы дважды. Пробел остаётся штатным.
+      event.preventDefault();
+      items[index]?.click();
     } else if (event.key === 'Escape') {
       event.preventDefault();
       closeToInput();
