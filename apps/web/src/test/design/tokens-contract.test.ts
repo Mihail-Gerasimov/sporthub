@@ -52,11 +52,9 @@ export const REQUIRED_TOKENS = [
   '--ui-orange-text',
   '--ui-tint-lime',
   '--ui-tint-sky',
-  '--ui-tint-violet',
   '--ui-tint-orange',
   '--ui-tint-emerald',
   '--ui-hue-sky',
-  '--ui-hue-violet',
   '--ui-hue-emerald',
   '--ui-red',
   '--ui-gold',
@@ -259,11 +257,9 @@ const AA_PAIRS: Array<[text: string, surface: string]> = [
   // Плитки «Возможности» (38.110): чернила и приглушённый на каждой подложке-оттенке.
   ['--ui-ink', '--ui-tint-lime'],
   ['--ui-ink', '--ui-tint-sky'],
-  ['--ui-ink', '--ui-tint-violet'],
   ['--ui-ink', '--ui-tint-orange'],
   ['--ui-muted', '--ui-tint-lime'],
   ['--ui-muted', '--ui-tint-sky'],
-  ['--ui-muted', '--ui-tint-violet'],
   ['--ui-muted', '--ui-tint-orange'],
   ['--ui-ink', '--ui-tint-emerald'],
   ['--ui-muted', '--ui-tint-emerald'],
@@ -288,7 +284,7 @@ describe('Сторож: контракт токенов палитры (38.7)', 
     expect(contrastRatio('#6b7280', '#f4f6f9')!).toBeLessThan(4.5);
     expect(contrastRatio('#f97316', 'rgba(249, 115, 22, 0.12)')!).toBeLessThan(3);
     // Подложка плитки при 40% оттенка (не 6%) уронила бы приглушённый текст ниже AA.
-    expect(contrastRatio('#626b7a', 'rgba(139, 92, 246, 0.4)')!).toBeLessThan(4.5);
+    expect(contrastRatio('#626b7a', 'rgba(16, 185, 129, 0.4)')!).toBeLessThan(4.5);
     expect(contrastRatio('rgba(255, 255, 255, 0.45)', '#111111')!).toBeGreaterThan(4.5);
   });
 

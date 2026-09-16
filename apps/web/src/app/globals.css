@@ -83,19 +83,18 @@
    * Не путать с --ui-orange (cancel/reject): gold = «на проверке», не «отклонено». */
   --ui-gold: #f59e0b;
   /* Подложки плиток «Возможности» — 6% оттенка на белом, как в макете (`HomePage.tsx:227-236`,
-     `f.color`): лайм, небо, фиолет, оранжевый, изумруд. Токены здесь — один раз, плитки читают их
+     `f.color`): лайм, небо, оранжевый, изумруд. Токены здесь — один раз, плитки читают их
      классами `bg-tint-*` (38.110); текст на них — чернила и приглушённый, пары считает
      tokens-contract (≥ 5:1). */
   --ui-tint-lime: rgba(126, 217, 0, 0.06);
   --ui-tint-sky: rgba(14, 165, 233, 0.06);
-  --ui-tint-violet: rgba(139, 92, 246, 0.06);
   --ui-tint-orange: rgba(249, 115, 22, 0.06);
   --ui-tint-emerald: rgba(16, 185, 129, 0.06);
   /* Цвета значков плиток, которых нет в палитре (лайм и оранжевый уже есть) — значения
-     макета (`#0ea5e9`, `#8b5cf6`, `#10b981`); это графика, не текст: небо на белом 2,8:1 —
-     как в макете. Изумруд — «Прогресс и цели» (`HomePage.tsx:232`), фиолет — «Маркет». */
+     макета (`#0ea5e9`, `#10b981`); это графика, не текст: небо на белом 2,8:1 — как в макете.
+     Изумруд — «Прогресс и цели» (`HomePage.tsx:232`). Фиолет макета — у «Маркета» (Д-8),
+     которого нет: токен впрок не держим. */
   --ui-hue-sky: #0ea5e9;
-  --ui-hue-violet: #8b5cf6;
   --ui-hue-emerald: #10b981;
 
   /* ===== Контраст-плашка: тёмный фон героя и шапки =====
@@ -203,11 +202,9 @@
   --color-orange-text: var(--ui-orange-text);
   --color-tint-lime: var(--ui-tint-lime);
   --color-tint-sky: var(--ui-tint-sky);
-  --color-tint-violet: var(--ui-tint-violet);
   --color-tint-orange: var(--ui-tint-orange);
   --color-tint-emerald: var(--ui-tint-emerald);
   --color-hue-sky: var(--ui-hue-sky);
-  --color-hue-violet: var(--ui-hue-violet);
   --color-hue-emerald: var(--ui-hue-emerald);
   --color-red: var(--ui-red);
   --color-gold: var(--ui-gold);
@@ -389,8 +386,8 @@ body {
   line-height: 1.3;
 }
 
-/* Имя клуба/тренера в карточке витрины (38.109, ревью): макет `HomePage.tsx:99` —
- * 19px, интерлиньяж 1, Barlow 900 → Inter 700 (решение заказчика: карточки — Inter). */
+/* Имя клуба в карточке витрины (38.109, ревью): макет `HomePage.tsx:99` — 19px,
+ * интерлиньяж 1, Barlow 900 → Inter 700 (решение заказчика: карточки — Inter). */
 .t-card-title {
   font-family: var(--ui-font-body);
   font-weight: 700;

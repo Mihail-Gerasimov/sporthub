@@ -20,6 +20,7 @@
 
 import Link from 'next/link';
 
+import { HomeContainer } from '@/components/home/HomeContainer';
 import { Button } from '@/components/ui/Button';
 import { CTA } from '@/lib/home-copy';
 import { catalogSectionHref } from '@/lib/catalog-sections';
@@ -49,7 +50,7 @@ export function HomeCta() {
       aria-label={HOME_SECTIONS.cta.label}
       className="relative overflow-hidden bg-plate py-20 text-plate-ink before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow-center)]"
     >
-      <div className="relative mx-auto flex w-full max-w-[1320px] flex-col items-center px-6 text-center">
+      <HomeContainer className="relative flex flex-col items-center text-center">
         <p className="t-eyebrow mb-4 text-lime">{CTA.eyebrow}</p>
         <h2 className="t-cta mb-3.5 text-plate-ink">
           {CTA.titleLines.map((line) => (
@@ -76,7 +77,7 @@ export function HomeCta() {
             {CTA.secondary}
           </Link>
         </div>
-      </div>
+      </HomeContainer>
     </section>
   );
 }

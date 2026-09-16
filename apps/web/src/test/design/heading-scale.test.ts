@@ -77,6 +77,8 @@ describe('Сторож: шкала заголовков по макету (38.10
   it('базовое правило display-шрифта — только h1 и h2; h3 без класса — шрифт текста', () => {
     // Весь слой base: любое правило, где h3 получает display-шрифт (в общем селекторе
     // или своим правилом), — красное (ревью 38.109, дыра «а»).
+    // Слой base — один: второй `@layer base { h3 { … } }` ниже по файлу сторож бы не прочёл.
+    expect(GLOBALS.match(/@layer base \{/g)).toHaveLength(1);
     const base = /@layer base \{([\s\S]*?)\n\}/.exec(GLOBALS)?.[1] ?? '';
     const rules = [...base.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
       selectors: m[1].split(',').map((sel) => sel.trim()),

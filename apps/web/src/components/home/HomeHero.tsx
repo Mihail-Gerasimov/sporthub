@@ -21,6 +21,7 @@
 import type { ReactNode } from 'react';
 
 import { FocusCard } from '@/components/home/FocusCard';
+import { HomeContainer } from '@/components/home/HomeContainer';
 import { HeroSubtitle } from '@/components/home/HeroSubtitle';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { HERO } from '@/lib/home-copy';
@@ -42,7 +43,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
       aria-label={HOME_SECTIONS.hero.label}
       className="relative overflow-hidden bg-plate pb-[72px] text-plate-ink before:pointer-events-none before:absolute before:inset-0 before:[background:var(--ui-decor-plate-glow)]"
     >
-      <div className="relative mx-auto w-full max-w-[1320px] px-6 pt-[72px]">
+      <HomeContainer className="relative pt-[72px]">
         <div className="grid items-center gap-14 xl:grid-cols-[1fr_min(480px,42%)]">
           <div className="min-w-0">
             {/* Плашка над заголовком (`HomePage.tsx:283-294`): метка + текст + шеврон-декор.
@@ -89,7 +90,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
             </div>
           ) : null}
         </div>
-      </div>
+      </HomeContainer>
 
       {/* Волна-переход к холсту страницы: цвет — токен фона, не hex */}
       <div
