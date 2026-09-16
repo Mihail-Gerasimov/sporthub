@@ -96,21 +96,21 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(match![1]).not.toMatch(new RegExp(`var\\(--ui-font-${'mono'}\\)|Jet${'Brains'}`));
   });
 
-  // Шаг 38.19: шкала заголовков — токенами CSS, а не TS-константой. Sofia при кегле
-  // ×1,069 и весе на ступень выше совпадает с Barlow макета (−1% по ширине); коэффициент
-  // и веса объявлены один раз и читаются классами `.t-*`. TS-константу в CSS не прокинуть
-  // иначе как инлайновым стилем — поэтому её нет.
-  it('шкала заголовков: коэффициент кегля и веса display — токены :root', () => {
-    expect(globalsCss).toMatch(/--ui-scale-display:\s*1\.069;/);
+  // Шаг 38.19: веса display — токенами CSS, а не TS-константой; Sofia на ступень тяжелее
+  // Barlow макета. Шаг 38.109: множителя кегля (`--ui-scale-display` 1,069) больше нет —
+  // размеры ровно как в макете, `clamp` литералами (сторож `heading-scale` считает px).
+  it('шкала заголовков: веса display — токены :root, множителя кегля нет', () => {
+    expect(globalsCss).not.toMatch(/--ui-scale-display/);
     expect(globalsCss).toMatch(/--ui-weight-heading:\s*\d{3,4};/);
     expect(globalsCss).toMatch(/--ui-weight-hero:\s*\d{3,4};/);
   });
 
-  it.each(['t-display', 't-h1', 't-h2', 't-h3'])(
-    '.%s читает коэффициент и вес из токенов',
+  it.each(['t-display', 't-hero', 't-cta', 't-h1', 't-h2'])(
+    '.%s — display-шрифт, вес из токенов, кегль clamp макета',
     (cls) => {
       const block = globalsCss.match(new RegExp(`\\.${cls}\\s*\\{[^}]*\\}`))?.[0] ?? '';
-      expect(block).toContain('var(--ui-scale-display)');
+      expect(block).toContain('var(--ui-font-display)');
+      expect(block).toMatch(/font-size:\s*clamp\(/);
       expect(block).toMatch(/font-weight:\s*var\(--ui-weight-(heading|hero)\)/);
     },
   );
@@ -137,10 +137,10 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(offenders).toEqual([]);
   });
 
-  // 38.14a: h1 без `.t-*` уходил в Inter — базовое правило слоя base отдаёт всем h1–h3
-  // display-шрифт и вес заголовка.
-  it('h1–h3 получают display-шрифт и вес заголовка базовым правилом', () => {
-    const block = globalsCss.match(/@layer base \{[\s\S]*?h1,\s*h2,\s*h3 \{([^}]*)\}/)?.[1] ?? '';
+  // 38.14a: h1 без `.t-*` уходил в Inter — базовое правило слоя base отдаёт h1 и h2
+  // display-шрифт и вес заголовка; h3 — карточные, Inter (38.109, сторож heading-scale).
+  it('h1 и h2 получают display-шрифт и вес заголовка базовым правилом', () => {
+    const block = globalsCss.match(/@layer base \{[\s\S]*?h1,\s*h2 \{([^}]*)\}/)?.[1] ?? '';
     expect(block).toContain('font-family: var(--ui-font-display)');
     expect(block).toContain('font-weight: var(--ui-weight-heading)');
   });
