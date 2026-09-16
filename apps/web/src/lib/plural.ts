@@ -14,6 +14,7 @@ export type PluralForms = readonly [one: string, few: string, many: string];
  */
 export const PLURAL = {
   reviews: ['отзыв', 'отзыва', 'отзывов'],
+  clubs: ['клуб', 'клуба', 'клубов'],
   trainers: ['тренер', 'тренера', 'тренеров'],
   directions: ['направление', 'направления', 'направлений'],
   slots: ['слот', 'слота', 'слотов'],

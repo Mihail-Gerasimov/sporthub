@@ -76,6 +76,14 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(badge.className).toContain('bg-lime-soft');
       expect(badge.className).toContain('text-lime-hov');
     });
+
+    it('тон pending — золотой, для очередей «ждёт решения» (38.54)', () => {
+      render(<Badge tone="pending">Новая, на проверке</Badge>);
+      const badge = screen.getByText('Новая, на проверке');
+      expect(badge.className).toContain('text-gold');
+      expect(badge.className).toContain('bg-gold/10');
+      expect(badge.className).not.toContain('lime');
+    });
   });
 
   describe('Chip', () => {
@@ -86,6 +94,20 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(chip.className).toContain('text-ink');
       expect(chip.className).not.toMatch(/\bshadow-/);
       expect(chip).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('чип категории эталона (38.77): радиус 10, подложка холста, 12px 700, строчными', () => {
+      render(<Chip>Фильтр</Chip>);
+      const chip = screen.getByRole('button');
+      expect(chip.className).toContain('rounded-[10px]');
+      expect(chip.className).toContain('bg-bg');
+      expect(chip.className).toContain('text-[12px]');
+      expect(chip.className).toContain('font-bold');
+      expect(chip.className).toContain('px-[13px]');
+      expect(chip.className).toContain('py-[7px]');
+      expect(chip.className).not.toContain('uppercase');
+      expect(chip.className).not.toContain('rounded-pill');
+      expect(chip).toHaveAttribute('aria-pressed', 'false');
     });
   });
 
