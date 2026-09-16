@@ -102,7 +102,7 @@ export function HeroSearch({ sports }: HeroSearchProps) {
       onPointerDownCapture={() => {
         pointerInsideRef.current = true;
       }}
-      className="rounded-[18px] bg-card p-2 shadow-floating"
+      className="rounded-[18px] bg-card p-2 shadow-hero"
     >
       {/* Переключатель: два сегмента на подложке холста, активный — зелёный со свечением. */}
       <div
@@ -168,6 +168,7 @@ export function HeroSearch({ sports }: HeroSearchProps) {
         </div>
         <Button
           size="md"
+          glow={false}
           onClick={goToResults}
           className="shrink-0 px-6 tracking-[0.04em]"
           trailingIcon={

@@ -85,6 +85,17 @@ describe('HeroSearch', () => {
     expect(useFilterStore.getState().searchQuery).toBe('бассейн');
   });
 
+  it('вид по макету: виджет с тенью героя (shadow-hero), «Найти» — без свечения и подъёма', () => {
+    const { container } = render(<HeroSearch sports={sports} />);
+
+    // Обёртка — `shadow-hero` (0559d1c), не плавающая тень карточек.
+    expect(container.firstElementChild?.className).toContain('shadow-hero');
+    expect(container.firstElementChild?.className).not.toContain('shadow-floating');
+    // Кнопка макета 47/14 без тени: `glow={false}` (9b345ac).
+    const button = screen.getByRole('button', { name: SEARCH.button });
+    expect(button.className).not.toMatch(/shadow-glow|hover:-translate-y-px/);
+  });
+
   it('Enter в поле — та же цель, что у кнопки', () => {
     render(<HeroSearch sports={sports} />);
 
