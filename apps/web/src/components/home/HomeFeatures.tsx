@@ -145,7 +145,9 @@ export function HomeFeatures() {
           </h2>
         </div>
 
-        <ul className="m-0 grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Сетка эталона (`hp-features`): четыре плитки, ниже 1100 — две, и две же на телефоне;
+            у нас точка `lg` — четыре плитки по 236px помещаются от 1024 (38.85). */}
+        <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 lg:grid-cols-4">
           {FEATURES.items.map((feature) => {
             const target = FEATURE_TARGETS[feature.key];
             const body = (

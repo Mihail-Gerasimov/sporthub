@@ -3,8 +3,9 @@
 /*
  * ClubList — выдача клубов под фильтр на главной странице.
  * Step 28.10: оборачиваем карточки в <CardSlider> (Phase 28.6) — на главной
- * вместо grid-сетки появляется реальный слайдер со стрелками prev/next, dots
- * и адаптивом 1↔2 видимых через matchMedia (1024px брейкпоинт).
+ * вместо grid-сетки появляется реальный слайдер со стрелками prev/next и dots.
+ * Шаг 38.85: видимых в ряд 1→2→3 по точкам `md`/`xl` (`visibleByBp`) — как сетка
+ * клубов эталона (`hp-clubs-grid`: 3 → 2 → 1), слайдер сохранён (реестр № 78).
  *
  * Передаём index={i} в каждую карточку — это даёт watermark номера ранга
  * («01», «02», ...) и tone-ротацию (lime/orange/blank) в hero ClubCard.
@@ -46,6 +47,7 @@ export function ClubList({ clubs, selectedClubId = null, sports, tags = [] }: Cl
       title="Клубы под текущие фильтры"
       accent="lime"
       sliderId="club-list"
+      visibleByBp={{ sm: 1, md: 2, xl: 3 }}
       total={filteredClubs.length}
       emptyMessage="По текущему запросу клубов не найдено. Попробуй очистить поиск или выбрать другой вид спорта."
     >
