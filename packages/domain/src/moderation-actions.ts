@@ -6,7 +6,12 @@
 // Третье и четвёртое действие — подтверждение и отзыв проверки (Э6) — умножили бы
 // каждую развилку, и следующее за ними — снова. Здесь всё, чем действия
 // отличаются, собрано в ОДНУ строку словаря; контроллер читает её и не ветвится.
-// Новое действие = строка здесь; компилятор потребует все шесть полей сам.
+// Новое действие = строка здесь; компилятор потребует все семь полей сам.
+//
+// Седьмое поле — `confirmation` (шаг 38.54): подтверждение перед действием БЕЗ
+// причины. Читает его фронт: раздел модерации держал `if (action === 'unhide')`
+// перед `confirm(…)` — ту же развилку по имени действия, только по другую сторону
+// сети. У действий с причиной подтверждение — сама модалка причины.
 //
 // ⚠️ Конвенция записи (`patch`): ключ со значением `undefined` означает
 // «ОБНУЛИТЬ колонку», а не «не трогать». Так работает `update` репозиториев:
@@ -103,6 +108,13 @@ export type ModerationActionSpec = {
    */
   requiresReason: false | string;
   /**
+   * Подтверждение перед действием без причины: `false` — не нужно; функция —
+   * текст вопроса по названию публикации (администратор должен видеть, ЧТО
+   * возвращает, среди десятка карточек). У действий с причиной — всегда `false`:
+   * их подтверждение — модалка причины, второй вопрос был бы двойным.
+   */
+  confirmation: false | ((subject: string) => string);
+  /**
    * Строка в ОБЩУЮ очередь надзора — или `null`. Очередь не журнал: она про то,
    * что требует внимания второго администратора. Снятие ограничения строки
    * не порождает (37.31).
@@ -128,6 +140,7 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
   hide: {
     logAction: 'moderation_hide',
     requiresReason: 'Причина скрытия обязательна',
+    confirmation: false,
     // Скрытие публикации уходит в общую очередь (37.31): двое администраторов,
     // не зная о решениях друг друга, способны отменять их по очереди.
     oversightType: 'oversight_publication_hidden',
@@ -154,6 +167,8 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
   unhide: {
     logAction: 'moderation_unhide',
     requiresReason: false,
+    // Возврат в каталог — одним нажатием, поэтому перед ним вопрос с названием.
+    confirmation: (subject) => `Показать публикацию «${subject}»?`,
     // Возврат — снятие ограничения, очередь надзора строки не получает.
     oversightType: null,
     // Владельца возврат уведомляет ТОЖЕ: иначе исправивший нарушение продолжит ждать.
@@ -174,6 +189,8 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
   verify: {
     logAction: 'verification_grant',
     requiresReason: false,
+    // Подтверждение проверки обратимо отзывом с причиной — вопроса перед ним нет.
+    confirmation: false,
     // Наложение проверки внимания второго администратора не требует —
     // как возврат из скрытия. Требует снятие.
     oversightType: null,
@@ -186,6 +203,7 @@ export const MODERATION_ACTION_SPECS: Record<ModerationAction, ModerationActionS
   unverify: {
     logAction: 'verification_revoke',
     requiresReason: 'Причина отзыва обязательна',
+    confirmation: false,
     oversightType: 'oversight_verification_revoked',
     ownerNoticeType: 'publication_verification_revoked_for_owner',
     preconditions: ['verified'],

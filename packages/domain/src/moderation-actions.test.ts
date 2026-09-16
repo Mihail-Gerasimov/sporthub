@@ -1,7 +1,7 @@
 // Тесты словаря действий модерации (фаза 38, шаг 38.38).
 //
 // Проверяется не «контроллер что-то делает», а сам словарь: у каждого действия
-// все шесть полей, тексты отказов — здесь, патч — по конвенции обнуления.
+// все семь полей, тексты отказов — здесь, патч — по конвенции обнуления.
 // Контроллер читает словарь, и его тесты (`moderation.controller.test.ts`)
 // проверяют поведение маршрута; здесь — что словарь говорит то, что должен.
 
@@ -17,12 +17,13 @@ import {
 const CONTEXT = { reason: 'жалоба', actorId: 3, now: new Date('2026-09-15T10:00:00.000Z') };
 
 describe('словарь действий модерации', () => {
-  it('у каждого действия есть строка со всеми шестью полями', () => {
+  it('у каждого действия есть строка со всеми семью полями', () => {
     for (const action of MODERATION_ACTIONS) {
       const spec = MODERATION_ACTION_SPECS[action];
 
       expect(Object.keys(spec).sort()).toEqual(
         [
+          'confirmation',
           'logAction',
           'ownerNoticeType',
           'oversightType',
@@ -57,6 +58,27 @@ describe('словарь действий модерации', () => {
   it('скрытие требует причину с закреплённым текстом, возврат — нет', () => {
     expect(MODERATION_ACTION_SPECS.hide.requiresReason).toBe('Причина скрытия обязательна');
     expect(MODERATION_ACTION_SPECS.unhide.requiresReason).toBe(false);
+  });
+
+  // --- Подтверждение перед действием без причины (38.54) ---
+  it('возврат из скрытия спрашивает подтверждение с названием публикации', () => {
+    const { confirmation } = MODERATION_ACTION_SPECS.unhide;
+
+    expect(confirmation).not.toBe(false);
+    expect(confirmation !== false && confirmation('Атлант')).toBe('Показать публикацию «Атлант»?');
+  });
+
+  it('у действий с причиной подтверждения нет: их подтверждение — модалка причины', () => {
+    // Правило на весь словарь, а не на два имени: пятое действие с причиной
+    // и вопросом сверху дало бы администратору два подтверждения подряд.
+    for (const action of MODERATION_ACTIONS) {
+      const { requiresReason, confirmation } = MODERATION_ACTION_SPECS[action];
+
+      if (requiresReason !== false) {
+        expect(confirmation, `${action}: причина и вопрос вместе`).toBe(false);
+      }
+    }
+    expect(MODERATION_ACTION_SPECS.verify.confirmation).toBe(false);
   });
 
   it('скрытие пишет вид, причину, исполнителя и момент; признак повторной проверки гасит', () => {
