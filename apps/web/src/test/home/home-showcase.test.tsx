@@ -122,6 +122,11 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(
       within(section('clubs')).getAllByRole('article', { name: /^Карточка клуба: / }),
     ).toHaveLength(fixtureClubs.length);
+    // В сетке зазор слайда не вешается с md: карточка занимает ячейку целиком (прогон 38.112:
+    // `md:pr-0` рядом с `md:pr-[22px]` проигрывал, карточки были уже ячеек на 22px).
+    const slide = clubsRail.querySelector('[data-card-slider-slide]') as HTMLElement;
+    expect(slide.className).toContain('md:pr-0');
+    expect(slide.className).not.toMatch(/\b(md|lg|xl):pr-\[/);
     // Стрелки и точки с md спрятаны — одним классом на обёртке: у сетки листать нечего.
     expect(
       within(section('clubs')).getByRole('button', { name: 'Вперёд' }).parentElement?.className,

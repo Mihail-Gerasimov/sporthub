@@ -420,7 +420,10 @@ export function CardSlider({
             {Children.map(children, (child) => (
               <div
                 data-card-slider-slide
-                className={`flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] md:pr-[22px] ${gridFrom !== undefined ? 'md:pr-0' : ''}`}
+                // Зазор слайда — только в режиме ленты: в сетке с md его нет вовсе
+                // (`md:pr-0` рядом с `md:pr-[22px]` на одной точке проигрывал — карточки
+                // были уже ячеек на 22px; прогон 38.112).
+                className={`flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] ${gridFrom !== undefined ? 'md:pr-0' : 'md:pr-[22px]'}`}
                 style={{ flexBasis: `calc(100% / ${visible})` }}
               >
                 {child}

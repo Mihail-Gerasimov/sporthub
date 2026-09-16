@@ -294,6 +294,10 @@ describe('Контракт адаптива: колонка героя и сет
     const { container: clubsRoot } = render(<HomeClubs data={homeData} />);
     const clubsRail = clubsRoot.querySelector<HTMLElement>('[data-card-slider-rail]');
     expect(clubsRail?.className).toContain('md:grid-cols-2');
+    // Ширина карточки = ширине ячейки: у слайда в сетке нет правого зазора с md.
+    const slide = clubsRail?.querySelector<HTMLElement>('[data-card-slider-slide]');
+    expect(slide?.className).toContain('md:pr-0');
+    expect(slide?.className).not.toMatch(/\b(md|lg|xl):pr-\[/);
     expect(clubsRoot.querySelector('[aria-label="Вперёд"]')).toBeDisabled();
     const wrapper = clubsRail?.parentElement as HTMLElement;
     fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
@@ -338,8 +342,12 @@ describe('Контракт адаптива: колонка героя и сет
     { label: 'xl', matches: XL, expected: 3 },
   ])('выдача клубов на каталоге: $label — $expected в ряд (1→2→3)', ({ matches, expected }) => {
     setMediaQueryMatches(matches);
-    render(<ClubList clubs={clubs} sports={fixtureSports} tags={[]} />);
+    const { container } = render(<ClubList clubs={clubs} sports={fixtureSports} tags={[]} />);
     expect(visibleSlides()).toBe(expected);
+    // Лента без сетки держит зазор слайда и на md — иначе карточки слиплись бы.
+    expect(container.querySelector('[data-card-slider-slide]')?.className).toContain(
+      'md:pr-[22px]',
+    );
   });
 
   it.each([
