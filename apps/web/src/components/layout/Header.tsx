@@ -9,17 +9,31 @@
 // Шаг 38.108: пункты — ровно макет (`App.tsx` ~2778): Клубы · Тренеры · Командные ·
 // Маркет; «Мой Спорт» — позже, решением заказчика. Колокольчик у гостя, который есть
 // в макете, не рисуется — у гостя нет ящика, значку нечего считать (названо).
+//
+// Цвета пунктов — по макету (аудит 17.09, п. 16; `.dk-navbtn`): приглушённые, при
+// наведении и у текущего — чернила на подложке `bg`. Текущий (`activeNavKey`) несёт
+// `aria-current` и обводку `line`. Обводка — кольцом внутрь, а не `border`: макет держит
+// у всех пунктов прозрачную рамку 1px, но глобальное `* { border-color }` (аудит, п. 1,
+// у Основы) красит `border-transparent` в серый — до его починки рамка была бы видна
+// у всех; кольцо не трогает размер, поэтому текущий пункт на 1px у́же макетного (названо).
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import { HeaderMenu } from '@/components/layout/HeaderMenu';
 import { HeaderUser } from '@/components/layout/HeaderUser';
 import { NavLink } from '@/components/layout/NavLink';
 import { BrandLogo } from '@/components/ui/BrandLogo';
-import { HEADER_NAV } from '@/lib/navigation';
+import { activeNavKey, HEADER_NAV } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
+import { useFilterStore } from '@/stores/useFilterStore';
 
 export function Header() {
+  const pathname = usePathname();
+  const discoveryMode = useFilterStore((state) => state.discoveryMode);
+  const activeKey = activeNavKey(HEADER_NAV, pathname, discoveryMode);
+
   return (
     <header className="sticky top-0 z-[200] border-b border-line bg-card shadow-card">
       <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6">
@@ -28,13 +42,21 @@ export function Header() {
         </Link>
 
         <nav aria-label="Основная навигация" className="hidden items-center gap-0.5 menu:flex">
-          {HEADER_NAV.map((item) => (
-            <NavLink
-              key={item.key}
-              item={item}
-              className="rounded-[9px] px-[13px] py-[7px] font-body text-[13px] font-semibold text-ink no-underline transition-colors hover:bg-bg hover:text-lime-hov"
-            />
-          ))}
+          {HEADER_NAV.map((item) => {
+            const isActive = item.key === activeKey;
+
+            return (
+              <NavLink
+                key={item.key}
+                item={item}
+                isActive={isActive}
+                className={cn(
+                  'rounded-[9px] px-[13px] py-[7px] font-body text-[13px] font-semibold no-underline transition-colors hover:bg-bg hover:text-ink',
+                  isActive ? 'bg-bg text-ink ring-1 ring-line ring-inset' : 'text-muted',
+                )}
+              />
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">

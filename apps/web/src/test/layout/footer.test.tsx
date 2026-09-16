@@ -42,6 +42,16 @@ describe('Footer', () => {
     ]);
   });
 
+  // Аудит главной 17.09, п. 17: контейнер подвала был 1440/24, макет и все секции — 1320/24.
+  it('контейнер подвала — HomeContainer 1320/24, как у секций, а не 1440', () => {
+    render(<Footer />);
+    const footer = screen.getByRole('contentinfo', { name: 'Подвал сайта' });
+    const container = footer.firstElementChild as HTMLElement;
+    expect(container.className).toContain('max-w-[1320px]');
+    expect(container.className).toContain('px-6');
+    expect(footer.innerHTML).not.toContain('max-w-[1440px]');
+  });
+
   it('логотип ведёт на главную и стоит на тёмной плашке', () => {
     render(<Footer />);
     const footer = screen.getByRole('contentinfo', { name: 'Подвал сайта' });

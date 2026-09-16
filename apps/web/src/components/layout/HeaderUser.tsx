@@ -16,6 +16,9 @@
 // Почему не `ui/*` целиком: «Войти» — `ui/Button`; плашка с именем и подписью
 // кабинета и аватар-ссылка — элементы шапки со своими размерами (38/40 на 64),
 // у `Badge`/`Card` таких мест нет, а ссылка-аватар обязана оставаться ссылкой.
+//
+// «Войти» несёт значок входа 14px перед текстом (макет `LogIn`, аудит 17.09, п. 16) —
+// своим SVG через `leadingIcon` кнопки, библиотек иконок в проекте нет.
 'use client';
 
 import Link from 'next/link';
@@ -61,7 +64,27 @@ export function HeaderUser() {
 
   if (!isAuthenticated || !user) {
     return (
-      <Button size="sm" onClick={openAuthModal} className="shrink-0">
+      <Button
+        size="sm"
+        onClick={openAuthModal}
+        className="shrink-0"
+        leadingIcon={
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3.5"
+            aria-hidden="true"
+          >
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
+        }
+      >
         Войти
       </Button>
     );

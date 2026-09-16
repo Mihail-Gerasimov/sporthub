@@ -6,13 +6,14 @@ import { BRAND_NAME, BRAND_WORDMARK } from '@sporthub/domain';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Мокаем next/navigation (Header использует useRouter)
+// Мокаем next/navigation (Header использует useRouter и usePathname — текущий пункт)
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
+  usePathname: () => '/',
 }));
 
 import { Footer } from '@/components/layout/Footer';

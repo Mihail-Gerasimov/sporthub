@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CATALOG_PATH, catalogSectionHref } from '@/lib/catalog-sections';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-import { FOOTER_NAV, HEADER_NAV, MOBILE_NAV } from '@/lib/navigation';
+import { activeNavKey, FOOTER_NAV, HEADER_NAV, MOBILE_NAV } from '@/lib/navigation';
 
 describe('Словарь навигации', () => {
   it('шапка — ровно макет: каталог в двух режимах и два раздела вне фазы', () => {
@@ -55,6 +55,19 @@ describe('Словарь навигации', () => {
     for (const item of [...HEADER_NAV, ...MOBILE_NAV]) {
       expect(showcaseAnchors, item.label).not.toContain(item.href);
     }
+  });
+
+  // Аудит 17.09, п. 16: текущий пункт шапки — по пути адреса и режиму стора.
+  it('текущий пункт: путь без якоря плюс режим; общий или чужой адрес — никто', () => {
+    const catalog = catalogSectionHref('results').split('#')[0];
+    expect(activeNavKey(HEADER_NAV, catalog, 'clubs')).toBe('clubs');
+    expect(activeNavKey(HEADER_NAV, catalog, 'trainers')).toBe('trainers');
+    // «Командные» и «Маркет» делят адрес — выбор по нему не узнать.
+    expect(activeNavKey(HEADER_NAV, '/coming-soon', 'clubs')).toBeNull();
+    expect(activeNavKey(HEADER_NAV, '/', 'clubs')).toBeNull();
+    expect(activeNavKey(HEADER_NAV, null, 'clubs')).toBeNull();
+    // Детальная клуба пункт не подсвечивает: корни разделов не объявлены (названо).
+    expect(activeNavKey(HEADER_NAV, '/clubs/atlant', 'clubs')).toBeNull();
   });
 
   it('ни один пункт не ведёт на якорь главной, которого нет в словаре рабочей части', () => {

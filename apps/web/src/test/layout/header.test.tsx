@@ -10,15 +10,16 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Мокаем next/navigation (Header использует useRouter,
-// а NotificationBell/useUnreadCountPolling — usePathname)
+// Мокаем next/navigation (Header использует useRouter и usePathname — текущий пункт,
+// NotificationBell/useUnreadCountPolling — usePathname)
+let pathname = '/';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => '/',
+  usePathname: () => pathname,
 }));
 
 import { Header } from '@/components/layout/Header';
@@ -31,7 +32,9 @@ import { useUIStore } from '@/stores/useUIStore';
 
 describe('Header', () => {
   beforeEach(() => {
+    pathname = '/';
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+    useFilterStore.setState({ discoveryMode: 'clubs' });
     useUIStore.setState({
       isAuthModalOpen: false,
     });
@@ -74,6 +77,55 @@ describe('Header', () => {
       ).not.toBeInTheDocument();
     }
     expect(screen.queryByText('Мой Спорт')).not.toBeInTheDocument();
+  });
+
+  // Аудит главной 17.09, п. 16: в макете пункты приглушённые, текущий и наведённый —
+  // чернилами на подложке; у нас все были чернилами, а наведение — зелёным.
+  it('пункты приглушённые; текущий — чернилами на подложке с aria-current, наведение — чернилами', () => {
+    pathname = catalogSectionHref('results').split('#')[0];
+    useFilterStore.setState({ discoveryMode: 'clubs' });
+    render(<Header />);
+    const clubs = screen.getByRole('link', { name: 'Клубы' });
+    const trainers = screen.getByRole('link', { name: 'Тренеры' });
+
+    expect(clubs).toHaveAttribute('aria-current', 'page');
+    expect(clubs.className).toContain('text-ink');
+    expect(clubs.className).toContain('bg-bg');
+    expect(trainers).not.toHaveAttribute('aria-current');
+    expect(trainers.className).toContain('text-muted');
+    expect(trainers.className).not.toMatch(/(^|\s)text-ink(\s|$)/);
+    for (const link of [clubs, trainers]) {
+      expect(link.className).toContain('hover:text-ink');
+      expect(link.className).not.toContain('hover:text-lime-hov');
+    }
+  });
+
+  it('на каталоге текущий пункт следует за режимом стора: «Тренеры» в режиме тренеров', () => {
+    pathname = catalogSectionHref('results').split('#')[0];
+    useFilterStore.setState({ discoveryMode: 'trainers' });
+    render(<Header />);
+    expect(screen.getByRole('link', { name: 'Тренеры' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Клубы' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('на главной и на «раздел в разработке» текущего пункта нет: адрес ничей или общий', () => {
+    for (const path of ['/', '/coming-soon']) {
+      pathname = path;
+      const { unmount } = render(<Header />);
+      const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
+      expect([...nav.querySelectorAll('[aria-current]')], path).toEqual([]);
+      unmount();
+    }
+  });
+
+  it('«Войти» несёт значок входа перед текстом (макет LogIn 14)', () => {
+    render(<Header />);
+    const login = screen.getByRole('button', { name: 'Войти' });
+    const icon = login.querySelector('svg');
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute('class')).toContain('size-3.5');
+    // Значок — до текста, а не после.
+    expect(login.firstElementChild?.contains(icon!)).toBe(true);
   });
 
   it('«Тренеры» и «Клубы» переключают режим стора на клике — как чип сегмента (38.79c)', () => {
