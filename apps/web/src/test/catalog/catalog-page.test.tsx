@@ -9,7 +9,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CatalogPage, { metadata } from '@/app/catalog/page';
-import { CATALOG_SECTION_KEYS, CATALOG_SECTIONS } from '@/lib/catalog-sections';
+import { CATALOG_PAGE, CATALOG_SECTION_KEYS, CATALOG_SECTIONS } from '@/lib/catalog-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { createFixtureRoutes, fixtureClubs } from '@/test/helpers/fixture-routes';
@@ -38,8 +38,19 @@ describe('Страница /catalog (38.79a)', () => {
     stub?.restore();
   });
 
-  it('заголовок вкладки несёт имя площадки', () => {
-    expect(metadata.title).toBe(`Каталог — ${BRAND_NAME}`);
+  it('заголовок вкладки несёт имя площадки — тем же словом, что и h1', () => {
+    expect(metadata.title).toBe(`${CATALOG_PAGE.title} — ${BRAND_NAME}`);
+  });
+
+  it('у страницы ровно один h1 — из словаря, и он первый в иерархии заголовков (a11y-прогон)', async () => {
+    render(await CatalogPage());
+
+    const h1 = screen.getAllByRole('heading', { level: 1 });
+
+    expect(h1).toHaveLength(1);
+    expect(h1[0]).toHaveTextContent(CATALOG_PAGE.title);
+    // Первый заголовок документа — h1, а не h2 секции поиска.
+    expect(screen.getAllByRole('heading')[0]).toBe(h1[0]);
   });
 
   it('рисует все секции словаря в его порядке, каждую — с id из записи', async () => {

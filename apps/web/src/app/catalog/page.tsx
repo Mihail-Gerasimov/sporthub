@@ -14,10 +14,11 @@ import type { Metadata } from 'next';
 
 import { CATALOG_SECTION_COMPONENTS } from '@/components/catalog/sections';
 import { loadCatalogData } from '@/components/catalog/load-catalog-data';
-import { CATALOG_SECTION_KEYS } from '@/lib/catalog-sections';
+import { HomeContainer } from '@/components/home/HomeContainer';
+import { CATALOG_PAGE, CATALOG_SECTION_KEYS } from '@/lib/catalog-sections';
 
 export const metadata: Metadata = {
-  title: `Каталог — ${BRAND_NAME}`,
+  title: `${CATALOG_PAGE.title} — ${BRAND_NAME}`,
 };
 
 // Каталог читает живые данные после publish/edit/delete владельцев.
@@ -30,6 +31,13 @@ export default async function CatalogPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-bg-deep">
       <div className="flex flex-col gap-6 py-6 lg:gap-10 lg:py-10">
+        {/* Свой h1 у страницы: секции ниже держат h2, иерархия заголовков цела. */}
+        <HomeContainer>
+          <h1 className="t-h1 text-ink">{CATALOG_PAGE.title}</h1>
+          <p className="mt-3 max-w-2xl font-body text-base leading-relaxed text-muted">
+            {CATALOG_PAGE.lede}
+          </p>
+        </HomeContainer>
         {CATALOG_SECTION_KEYS.map((key) => {
           const Section = CATALOG_SECTION_COMPONENTS[key];
 
