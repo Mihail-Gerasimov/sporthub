@@ -1,8 +1,8 @@
 // Витринные секции главной «Клубы» и «Тренеры» (шаги 38.79b, 38.106) — макет
 // `HomePage.tsx:582-692`: секция 72px по вертикали с верхней линией (у тренеров —
-// на белом), рубрика, заголовок, справа «Все …», ниже карточки — с `lg` сеткой
-// (клубы 3×2, тренеры четыре в ряд), ниже `lg` — той же лентой `CardSlider`
-// со свайпом (`gridFromLg`), один компонент. Серверные: стора им не нужно —
+// на белом), рубрика, заголовок, справа «Все …», ниже карточки — сеткой макета
+// (с 768 две в ряд, с 1024 клубы 3×2, тренеры четыре), на телефоне — той же лентой `CardSlider`
+// со свайпом (`gridFrom`), один компонент. Серверные: стора им не нужно —
 // заголовки без города (ревью О-2: витринный запрос города не знает).
 //
 // Витрина, а не выдача: шесть клубов и четыре тренера приходят запросом
@@ -38,8 +38,8 @@ export function HomeClubs({ data }: HomeSectionProps) {
           accent="lime"
           sliderId="showcase-clubs"
           total={data.showcaseClubs.length}
-          visibleByBp={{ sm: 1, md: 2 }}
-          gridFromLg={3}
+          visibleByBp={{ sm: 1 }}
+          gridFrom={{ md: 2, lg: 3 }}
           emptyMessage={SHOWCASE.clubs.empty}
           tools={<ShowcaseAllLink mode="clubs">{SHOWCASE.clubs.all}</ShowcaseAllLink>}
         >
@@ -66,8 +66,8 @@ export function HomeTrainers({ data }: HomeSectionProps) {
           accent="orange"
           sliderId="showcase-trainers"
           total={data.showcaseTrainers.length}
-          visibleByBp={{ sm: 1, md: 2 }}
-          gridFromLg={4}
+          visibleByBp={{ sm: 1 }}
+          gridFrom={{ md: 2, lg: 4 }}
           emptyMessage={SHOWCASE.trainers.empty}
           tools={<ShowcaseAllLink mode="trainers">{SHOWCASE.trainers.all}</ShowcaseAllLink>}
         >

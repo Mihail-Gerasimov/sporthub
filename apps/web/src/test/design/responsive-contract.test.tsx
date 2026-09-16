@@ -272,26 +272,39 @@ describe('Контракт адаптива: колонка героя и сет
   const MD = { '(min-width: 768px)': true };
   const XL = { '(min-width: 768px)': true, '(min-width: 1280px)': true };
 
-  // 38.106: витрина — с lg сетка макета (клубы 3×2, тренеры четыре в ряд) на том же
-  // `CardSlider`; ниже lg — карусель со свайпом: узкий 1, md 2.
+  // 38.106: витрина — сетка макета на том же `CardSlider`: с md две в ряд, с lg клубы
+  // 3×2 и тренеры четыре; слайдер только там, где сетка не помещается — ниже md, одна в кадре.
   const LG = { '(min-width: 768px)': true, '(min-width: 1024px)': true };
 
-  it.each([
-    { label: 'узкий', matches: NARROW, expected: 1 },
-    { label: 'md', matches: MD, expected: 2 },
-  ])('карусель «Клубы» витрины ниже lg: $label — $expected в ряд', ({ matches, expected }) => {
-    setMediaQueryMatches(matches);
-    render(<HomeClubs data={homeData} />);
-    expect(visibleSlides()).toBe(expected);
+  it('карусель витрины ниже md: одна карточка в кадре, лента движется', () => {
+    setMediaQueryMatches(NARROW);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const { container } = render(<HomeClubs data={homeData} />);
+    expect(visibleSlides()).toBe(1);
+    const rail = container.querySelector<HTMLElement>('[data-card-slider-rail]');
+    const wrapper = rail?.parentElement as HTMLElement;
+    fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
+    expect(rail?.style.transform).toMatch(/translateX\(-\d+px\)/);
   });
 
-  it.each([
-    { label: 'узкий', matches: NARROW, expected: 1 },
-    { label: 'md', matches: MD, expected: 2 },
-  ])('карусель «Тренеры» витрины ниже lg: $label — $expected в ряд', ({ matches, expected }) => {
-    setMediaQueryMatches(matches);
-    render(<HomeTrainers data={homeData} />);
-    expect(visibleSlides()).toBe(expected);
+  it('витрина с md — сетка 2 в ряд: «Вперёд» выключена, лента не сдвигается; тренеры — то же', () => {
+    setMediaQueryMatches(MD);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const { container: clubsRoot } = render(<HomeClubs data={homeData} />);
+    const clubsRail = clubsRoot.querySelector<HTMLElement>('[data-card-slider-rail]');
+    expect(clubsRail?.className).toContain('md:grid-cols-2');
+    expect(clubsRoot.querySelector('[aria-label="Вперёд"]')).toBeDisabled();
+    const wrapper = clubsRail?.parentElement as HTMLElement;
+    fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
+    expect(clubsRail?.style.transform).toBe('');
+
+    const { container: trainersRoot } = render(<HomeTrainers data={homeData} />);
+    expect(trainersRoot.querySelector('[data-card-slider-rail]')?.className).toContain(
+      'md:grid-cols-2',
+    );
+    expect(trainersRoot.querySelector('[aria-label="Вперёд"]')).toBeDisabled();
   });
 
   it('витрина с lg — сетка: клубы 3 колонки, тренеры 4; лента не сдвигается, стрелки и точки спрятаны', () => {
@@ -308,9 +321,9 @@ describe('Контракт адаптива: колонка героя и сет
     fireEvent.pointerDown(wrapper, { clientX: 300, pointerId: 1, button: 0 });
     fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
     expect(clubsRail?.style.transform).toBe('');
-    // Стрелки и точки спрятаны с lg — на обёртке, одним классом.
+    // Стрелки и точки спрятаны с md — на обёртке, одним классом.
     expect(clubsRoot.querySelector('[aria-label="Вперёд"]')?.parentElement?.className).toContain(
-      'lg:hidden',
+      'md:hidden',
     );
 
     const { container: trainersRoot } = render(<HomeTrainers data={homeData} />);

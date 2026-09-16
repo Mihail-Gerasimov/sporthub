@@ -26,7 +26,8 @@ import { installApiStub, type ApiStub } from '@/test/helpers/api-stub';
 import { setMediaQueryMatches } from '@/test/setup';
 import { createFixtureRoutes, fixtureClubs, fixtureTrainers } from '@/test/helpers/fixture-routes';
 
-/** Медиа lg: с этой точки витрина — сетка макета. */
+/** Медиа: с md витрина — сетка 2 в ряд, с lg — 3/4; ниже md — лента. */
+const MD = { '(min-width: 768px)': true };
 const LG = { '(min-width: 768px)': true, '(min-width: 1024px)': true };
 
 const section = (key: 'clubs' | 'trainers') =>
@@ -103,7 +104,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     ).toBeGreaterThan(0);
   });
 
-  it('с lg — сетка макета (клубы 3×2, тренеры четыре в ряд), ниже — та же карусель со свайпом (38.106)', async () => {
+  it('сетка макета: с md две в ряд, с lg клубы 3×2 и тренеры четыре; ниже md — та же карусель со свайпом (38.106)', async () => {
     render(await Home());
 
     const clubsRail = section('clubs').querySelector('[data-card-slider-rail]') as HTMLElement;
@@ -111,21 +112,23 @@ describe('Главная — витринные карусели (38.79b)', () =
       '[data-card-slider-rail]',
     ) as HTMLElement;
 
-    // Один компонент: та же лента `CardSlider`, с lg — grid в N колонок классами.
+    // Один компонент: та же лента `CardSlider`, сетка — классами по двум точкам.
+    expect(clubsRail.className).toContain('md:grid-cols-2');
     expect(clubsRail.className).toContain('lg:grid-cols-3');
+    expect(trainersRail.className).toContain('md:grid-cols-2');
     expect(trainersRail.className).toContain('lg:grid-cols-4');
     expect(clubsRail.className).toContain('flex');
-    // Ниже lg — слайдер: md две в ряд (стенд теста — узкий: одна).
+    // Ниже md — слайдер, одна карточка в кадре (стенд теста — узкий).
     expect(
       within(section('clubs')).getAllByRole('article', { name: /^Карточка клуба: / }),
     ).toHaveLength(fixtureClubs.length);
-    // Стрелки и точки с lg спрятаны — одним классом на обёртке: у сетки листать нечего.
+    // Стрелки и точки с md спрятаны — одним классом на обёртке: у сетки листать нечего.
     expect(
       within(section('clubs')).getByRole('button', { name: 'Вперёд' }).parentElement?.className,
-    ).toContain('lg:hidden');
+    ).toContain('md:hidden');
     expect(
       section('clubs').querySelector('[data-card-slider-dot]')?.parentElement?.className,
-    ).toContain('lg:hidden');
+    ).toContain('md:hidden');
   });
 
   it('на lg: шапка одной разметкой — рубрика 10px зелёная, заголовок t-h2, «Все …» в той же шапке справа; секции и контейнер по макету', async () => {
@@ -152,7 +155,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect(container.className).toContain('px-6');
   });
 
-  it('на lg сетка ведёт себя как сетка: «Вперёд» выключена, drag ленту не двигает; ниже lg — двигает', async () => {
+  it('на md и lg сетка ведёт себя как сетка: «Вперёд» выключена, drag ленту не двигает; ниже md — двигает', async () => {
     // Ширина слайда — числом: в jsdom offsetWidth 0, и drag выходил бы раньше проверки
     // сетки, кейс был бы зелёным при любом коде (ревью Н-2).
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
@@ -162,13 +165,22 @@ describe('Главная — витринные карусели (38.79b)', () =
       fireEvent.pointerMove(wrapper, { clientX: 100, pointerId: 1 });
     };
 
-    // Ниже lg (узкий стенд) лента живая: тянем — сдвигается.
+    // Ниже md (узкий стенд) лента живая: тянем — сдвигается.
     const narrow = render(await Home());
     const narrowRail = section('clubs').querySelector('[data-card-slider-rail]') as HTMLElement;
     expect(within(section('clubs')).getByRole('button', { name: 'Вперёд' })).toBeEnabled();
     drag(narrowRail);
     expect(narrowRail.style.transform).toMatch(/translateX\(-\d+px\)/);
     narrow.unmount();
+
+    // С md — сетка 2 в ряд: листать нечего.
+    setMediaQueryMatches(MD);
+    const md = render(await Home());
+    const mdRail = section('clubs').querySelector('[data-card-slider-rail]') as HTMLElement;
+    expect(within(section('clubs')).getByRole('button', { name: 'Вперёд' })).toBeDisabled();
+    drag(mdRail);
+    expect(mdRail.style.transform).toBe('');
+    md.unmount();
 
     setMediaQueryMatches(LG);
     render(await Home());
@@ -181,7 +193,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     drag(rail);
     expect(rail.style.transform).toBe('');
     // Обёртка ленты в сетке не режет тень и подъём верхнего ряда (ревью).
-    expect((rail.parentElement as HTMLElement).className).toContain('lg:overflow-visible');
+    expect((rail.parentElement as HTMLElement).className).toContain('md:overflow-visible');
   });
 
   it('заголовки без города и без «по рейтингу»: витринный запрос города не знает (ревью О-2)', async () => {

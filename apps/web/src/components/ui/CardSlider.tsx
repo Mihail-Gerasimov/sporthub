@@ -13,12 +13,13 @@
  * SportHub Cards - Clubs.html (28.6) и slots-availability/sporthub/
  * project/SportHub Slots - Availability.html (28.12).
  *
- * Фаза 38, шаг 38.106: режим сетки с `lg` — `gridFromLg={N}` (витрина главной:
- * клубы 3×2, тренеры четыре в ряд, как в макете). Ниже `lg` — та же лента со
- * свайпом; с `lg` лента становится CSS-grid в N колонок, стрелки и точки прячутся,
- * сдвиг и drag выключены. Один компонент, не вторая карусель (сторож
- * `carousel-single`). Переключение — классами (`lg:grid`), без мигания
- * при гидрации; JS лишь снимает сдвиг и drag.
+ * Фаза 38, шаг 38.106: режим сетки — `gridFrom={{ md, lg }}` (витрина главной по
+ * макету `HomePage.tsx:244-264`: с 768 — две в ряд, с 1024 — клубы 3×2, тренеры
+ * четыре в ряд). Слайдер — только там, где сетка не помещается: ниже `md` та же
+ * лента со свайпом, одна карточка в кадре. С `md` лента становится CSS-grid,
+ * стрелки и точки прячутся, сдвиг и drag выключены. Один компонент, не вторая
+ * карусель (сторож `carousel-single`). Переключение — классами (`md:grid`), без
+ * мигания при гидрации; JS лишь снимает сдвиг и drag.
  *
  * Шапка секции — по макету (`HomePage.tsx:582-600`): рубрика 10px зелёная, заголовок
  * шкалы `t-h2`, справа `tools` — кнопка «Все …»; одна разметка на все ширины
@@ -76,11 +77,13 @@ type CardSliderProps = {
    */
   tools?: ReactNode;
   /**
-   * 38.106: с `lg` — сетка в N колонок вместо ленты (2, 3 или 4); стрелки, точки,
-   * сдвиг и drag с `lg` уходят. Ниже `lg` — лента по `visibleByBp`.
+   * 38.106: сетка вместо ленты — с `md` в `md` колонок, с `lg` в `lg` колонок;
+   * стрелки, точки, сдвиг и drag с `md` уходят. Ниже `md` — лента по `visibleByBp`.
    */
-  gridFromLg?: 2 | 3 | 4;
+  gridFrom?: { md: GridColumns; lg: GridColumns };
 };
+
+type GridColumns = 2 | 3 | 4;
 
 /** Рубрика секции — по макету: 10px, полужирная, зелёная, разрядка 0.12em. */
 const EYEBROW_CLASS = 'font-body text-[10px] font-bold uppercase tracking-[0.12em] text-lime-hov';
@@ -89,10 +92,16 @@ const NAV_BUTTON_CLASS =
   'flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-card-2)] text-[var(--ui-ink)] transition-colors disabled:pointer-events-none disabled:opacity-35';
 
 /** Классы сетки — статичными строками: Tailwind собирает их из исходника. */
-const GRID_FROM_LG: Record<2 | 3 | 4, string> = {
-  2: 'lg:grid lg:grid-cols-2 lg:gap-4',
-  3: 'lg:grid lg:grid-cols-3 lg:gap-4',
-  4: 'lg:grid lg:grid-cols-4 lg:gap-3.5',
+const GRID_MD: Record<GridColumns, string> = {
+  2: 'md:grid md:grid-cols-2',
+  3: 'md:grid md:grid-cols-3',
+  4: 'md:grid md:grid-cols-4',
+};
+/** Зазор — по макету: у клубов 16, у тренеров (четыре в ряд) 14. */
+const GRID_LG: Record<GridColumns, string> = {
+  2: 'md:gap-4 lg:grid-cols-2',
+  3: 'md:gap-4 lg:grid-cols-3',
+  4: 'md:gap-3.5 lg:grid-cols-4',
 };
 
 export function CardSlider({
@@ -107,7 +116,7 @@ export function CardSlider({
   countLabel = 'в выдаче',
   emptyMessage = 'Ничего не нашли. Попробуйте сменить фильтры.',
   tools,
-  gridFromLg,
+  gridFrom,
 }: CardSliderProps) {
   // Выбираем «начальный» visible как fallback если медиа не сматчится.
   const fallbackVisible = visibleByBp?.sm ?? visiblePerBreakpoint.default;
@@ -115,9 +124,9 @@ export function CardSlider({
   // Текущий индекс левого края rail-контейнера (шаг = 1 карточка).
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(fallbackVisible);
-  // 1024px — та же точка, что у сетки `gridFromLg`: с lg листать нечего (maxIdx 0).
-  // Шапку по этому флагу больше не ветвим (ревью 38.106): она одной разметкой.
-  const [isLgUp, setIsLgUp] = useState(false);
+  // 768px — точка сетки `gridFrom`: с md листать нечего (maxIdx 0). Шапку по флагу
+  // не ветвим (ревью 38.106): она одной разметкой.
+  const [isMdUp, setIsMdUp] = useState(false);
   const railRef = useRef<HTMLDivElement | null>(null);
 
   // Слушаем matchMedia. Если задан `visibleByBp` — два запроса
@@ -134,7 +143,6 @@ export function CardSlider({
     if (visibleByBp) {
       const mqMd = window.matchMedia('(min-width: 768px)');
       const mqXl = window.matchMedia('(min-width: 1280px)');
-      const mqLg = window.matchMedia('(min-width: 1024px)');
 
       const update = () => {
         const sm = visibleByBp.sm ?? 1;
@@ -142,24 +150,19 @@ export function CardSlider({
         const xl = visibleByBp.xl ?? md;
         const next = mqXl.matches ? xl : mqMd.matches ? md : sm;
         applyVisible(next);
-        setIsLgUp(mqLg.matches);
+        setIsMdUp(mqMd.matches);
       };
 
       update();
       mqMd.addEventListener('change', update);
       mqXl.addEventListener('change', update);
-      mqLg.addEventListener('change', update);
-      onChangeHandlers.push(
-        { mq: mqMd, handler: update },
-        { mq: mqXl, handler: update },
-        { mq: mqLg, handler: update },
-      );
+      onChangeHandlers.push({ mq: mqMd, handler: update }, { mq: mqXl, handler: update });
     } else {
       const mq = window.matchMedia('(min-width: 1024px)');
       const update = () => {
         const next = mq.matches ? visiblePerBreakpoint.lg : visiblePerBreakpoint.default;
         applyVisible(next);
-        setIsLgUp(mq.matches);
+        setIsMdUp(window.matchMedia('(min-width: 768px)').matches);
       };
       update();
       mq.addEventListener('change', update);
@@ -179,8 +182,8 @@ export function CardSlider({
     visibleByBp?.xl,
   ]);
 
-  // Сетка с lg (38.106): листать нечего — maxIdx 0 выключает стрелки, точки и drag.
-  const gridActive = gridFromLg !== undefined && isLgUp;
+  // Сетка с md (38.106): листать нечего — maxIdx 0 выключает стрелки, точки и drag.
+  const gridActive = gridFrom !== undefined && isMdUp;
   const maxIdx = gridActive ? 0 : Math.max(0, total - visible);
   const safeIdx = Math.min(idx, maxIdx);
 
@@ -354,10 +357,10 @@ export function CardSlider({
   );
 
   // В режиме сетки стрелки и точки с lg спрятаны классом — без мигания при гидрации.
-  const hideFromLg = gridFromLg !== undefined ? 'lg:hidden' : '';
+  const hideFromMd = gridFrom !== undefined ? 'md:hidden' : '';
 
   const navButtons = (
-    <div className={`flex items-center gap-2 ${hideFromLg}`}>
+    <div className={`flex items-center gap-2 ${hideFromMd}`}>
       <button
         type="button"
         onClick={() => go(-1)}
@@ -402,7 +405,7 @@ export function CardSlider({
 
       <div className="relative">
         <div
-          className={`overflow-hidden rounded-[22px] ${gridFromLg !== undefined ? 'lg:overflow-visible lg:rounded-none' : ''} ${maxIdx > 0 ? 'cursor-grab touch-pan-y select-none' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
+          className={`overflow-hidden rounded-[22px] ${gridFrom !== undefined ? 'md:overflow-visible md:rounded-none' : ''} ${maxIdx > 0 ? 'cursor-grab touch-pan-y select-none' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
@@ -412,12 +415,12 @@ export function CardSlider({
           <div
             ref={railRef}
             data-card-slider-rail
-            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)]'} ${gridFromLg !== undefined ? GRID_FROM_LG[gridFromLg] : ''}`}
+            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-[350ms] [transition-timing-function:cubic-bezier(.2,.7,.2,1)]'} ${gridFrom !== undefined ? `${GRID_MD[gridFrom.md]} ${GRID_LG[gridFrom.lg]}` : ''}`}
           >
             {Children.map(children, (child) => (
               <div
                 data-card-slider-slide
-                className={`flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] md:pr-[22px] ${gridFromLg !== undefined ? 'lg:pr-0' : ''}`}
+                className={`flex-shrink-0 pr-[14px] last:pr-0 sm:pr-[18px] md:pr-[22px] ${gridFrom !== undefined ? 'md:pr-0' : ''}`}
                 style={{ flexBasis: `calc(100% / ${visible})` }}
               >
                 {child}
@@ -427,7 +430,7 @@ export function CardSlider({
         </div>
       </div>
 
-      <div className={`mt-2 flex items-center justify-center gap-2 ${hideFromLg}`}>
+      <div className={`mt-2 flex items-center justify-center gap-2 ${hideFromMd}`}>
         {Array.from({ length: maxIdx + 1 }, (_, i) => (
           <button
             key={i}
