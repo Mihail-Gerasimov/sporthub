@@ -260,41 +260,34 @@ describe('Запросы серверных страниц кабинетов', 
       }
     });
 
-    it('раздел клиентов берёт историю СВОИХ клиентов, а не срез площадки', async () => {
+    /**
+     * Фаза 38 (после 38.25). Второго запроса — истории клиентов по всей площадке
+     * (`?scope=clients`) — у разделов больше нет: он читался ради бейджа надёжности
+     * клиента, бейдж вырезан, а на бэкенде режим снят и отвечает 400. Раздел, который
+     * его по-прежнему спросил бы, падал бы целиком — поэтому проверяется ПОДКЛЮЧЕНИЕ:
+     * ровно один запрос записей, и он — записи публикаций лица.
+     */
+    it('раздел клиентов читает только записи публикаций лица — одним запросом', async () => {
       signedInUserId = '2';
       const { default: FaceClientsRoute } =
         await import('@/app/profile/[faceKind]/[faceId]/clients/page');
 
       await FaceClientsRoute(withFace());
 
-      // К записям публикаций добавляется история тех же людей — срез `scope=clients`
-      // по трём статусам истории клиента (`CLIENT_HISTORY_STATUSES`).
-      const calls = bookingCalls(stub);
-      expect(calls).toContain(
-        '/bookings?scope=clients&faceType=club&faceId=1&status=completed%2Cno_show%2Ccancelled_by_athlete',
-      );
-      // ⚠️ Срез всей площадки закрыт правом администратора: провайдер получил бы
-      // на него отказ, и страница упала бы целиком. Ни в каком виде его тут быть
-      // не должно — ни голым, ни с параметрами.
-      expect(calls.filter((call) => call.includes('scope=all&status'))).toEqual([]);
-      expect(calls).not.toContain('/bookings?scope=all');
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner&faceType=club&faceId=1']);
     });
 
-    it('раздел записей берёт тот же срез клиентов, что и раздел клиентов', async () => {
+    it('раздел записей читает тот же единственный срез', async () => {
       signedInUserId = '2';
       const { default: FaceBookingsRoute } =
         await import('@/app/profile/[faceKind]/[faceId]/bookings/page');
 
       await FaceBookingsRoute(withFace());
 
-      const calls = bookingCalls(stub);
-      expect(calls).toContain(
-        '/bookings?scope=clients&faceType=club&faceId=1&status=completed%2Cno_show%2Ccancelled_by_athlete',
-      );
-      expect(calls.filter((call) => call.includes('scope=all&status'))).toEqual([]);
+      expect(bookingCalls(stub)).toEqual(['/bookings?scope=owner&faceType=club&faceId=1']);
     });
 
-    it('у гостя истории клиентов не спрашивает вовсе', async () => {
+    it('у гостя записей не спрашивает вовсе', async () => {
       // Кто такой «этот провайдер», знает только сессия: без неё спрашивать нечего,
       // и запрос не должен уходить «на всякий случай».
       const { default: FaceClientsRoute } =

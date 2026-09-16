@@ -71,7 +71,8 @@ export const LEGACY_CEILINGS: Record<string, number> = {
   // 38.43: тексты темы «Публикации» уехали в свой модуль.
   'src/lib/notification-copy.ts': 206,
   // 38.32: сняты четыре мёртвых экспорта, витринные вызовы получили параметры.
-  'src/lib/server-api.ts': 281,
+  // После 38.25: сняты getClientBookings и mergeBookingsById — читателей не осталось.
+  'src/lib/server-api.ts': 262,
   'src/stores/useAuthStore.ts': 219,
 };
 

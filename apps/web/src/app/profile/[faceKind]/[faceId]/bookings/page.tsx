@@ -1,9 +1,10 @@
 // Server page входящих записей кабинета лица (Step 25.9).
 //
-// Срез берётся с историей клиентов: рядом с каждой входящей записью стоит бейдж
-// надёжности атлета, а он считается по всей его истории, не только по нашей части.
+// Срез — записи публикаций лица. История клиентов по всей площадке (`?scope=clients`)
+// читалась ради бейджа надёжности атлета; бейджа нет с шага 38.25, второго запроса
+// у страницы больше нет.
 import { ProviderBookingsInbox } from '@/components/profile/provider/ProviderBookingsInbox';
-import { loadFaceScopeWithClientHistory } from '@/lib/face-scope';
+import { loadFaceScope } from '@/lib/face-scope';
 import { requireFaceCabinetParams, type FaceCabinetParams } from '@/lib/face-cabinet-params';
 import { getOfferings, getSchedule, getSports, getClientUsers } from '@/lib/server-api';
 
@@ -16,7 +17,7 @@ export default async function FaceBookingsRoute({
 }) {
   const face = await requireFaceCabinetParams(params);
   const [{ bookings, clubs, trainers }, offerings, schedule, sports, users] = await Promise.all([
-    loadFaceScopeWithClientHistory(face.kind, face.id),
+    loadFaceScope(face.kind, face.id),
     getOfferings(),
     getSchedule({ ownerType: 'all' }),
     getSports(),

@@ -418,32 +418,6 @@ export const getBookingsByUser = (userId: EntityId): Promise<Booking[]> =>
   apiGet<Booking[]>(`/bookings${query({ userId })}`);
 
 /**
- * Записи КЛИЕНТОВ текущего провайдера — вся история людей, ходивших к его публикациям.
- *
- * ⚠️ Это не то же самое, что записи публикаций провайдера (`getBookingsForOwners`).
- * Там записи на ЕГО занятия, здесь — история тех же людей целиком, включая занятия
- * у других провайдеров: бейдж надёжности рядом с клиентом считается по всей истории,
- * иначе прогулявший десять занятий у соседей выглядел бы у нас безупречным.
- *
- * Кто такой «текущий провайдер», решает сессия; публикации бэкенд находит сам.
- * Поэтому у вызова нет ни одного параметра личности — подставить чужого нечем.
- * Раньше эту историю добирал `?scope=all`, то есть срез всей площадки; с закрытием
- * того режима правом администратора он стал ещё и отказом для провайдера.
- */
-export const getClientBookings = (
-  options: Pick<GetBookingsOptions, 'face' | 'status' | 'dateFrom' | 'dateTo'> = {},
-): Promise<Booking[]> =>
-  apiGet<Booking[]>(
-    `/bookings${query({
-      scope: 'clients',
-      ...faceQuery(options.face),
-      status: options.status === undefined ? undefined : options.status.join(','),
-      dateFrom: options.dateFrom,
-      dateTo: options.dateTo,
-    })}`,
-  );
-
-/**
  * Записи ПУБЛИКАЦИЙ текущего провайдера — своих клубов и своих тренеров.
  *
  * ⚠️ Раньше на этом месте стоял веер: по запросу на каждую публикацию, и в каждом —
@@ -458,6 +432,10 @@ export const getClientBookings = (
  *
  * Склейка по номеру больше не нужна: одна запись у клуба-владельца и клуба-площадки
  * приезжала дважды именно потому, что запросов было два.
+ *
+ * ⚠️ Фаза 38 (после 38.25). Соседний вызов `getClientBookings` (`?scope=clients`,
+ * история клиентов по всей площадке) снят вместе с бейджем надёжности — единственным
+ * его читателем; режим снят и на бэкенде.
  */
 export const getOwnPublicationBookings = (
   options: Omit<GetBookingsOptions, 'clubId' | 'trainerId' | 'userId'> = {},
@@ -474,23 +452,6 @@ export const getOwnPublicationBookings = (
       limit: options.limit,
     })}`,
   );
-
-/**
- * Слияние нескольких наборов записей в один, без повторов.
- *
- * Нужно везде, где страница собирает выдачу из нескольких запросов: один и тот же
- * ряд приходит и от клуба-владельца, и от клуба-площадки, и из истории атлета.
- * Порядок восстанавливается по номеру — тот же, в котором ряды отдаёт маршрут.
- */
-export function mergeBookingsById(...chunks: Booking[][]): Booking[] {
-  const byId = new Map<EntityId, Booking>();
-
-  for (const chunk of chunks) {
-    for (const booking of chunk) byId.set(booking.id, booking);
-  }
-
-  return [...byId.values()].sort((left, right) => left.id - right.id);
-}
 
 // --- Прочие коллекции -----------------------------------------------------------
 

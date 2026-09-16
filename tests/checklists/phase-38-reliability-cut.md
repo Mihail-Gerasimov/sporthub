@@ -321,5 +321,12 @@
 
 **Что остаётся после Э3 — поимённо:** `reliability_recompute` в `LOG_ACTIONS` с подписью
 «Рейтинг пересчитан» в `LogsPage.tsx`; `computeCancelReason` в `booking-fsm.ts`;
-`DISCIPLINE_CONFIG` с окнами FSM; `CLIENT_HISTORY_STATUSES` в `booking-scopes.ts`.
-Всё остальное — нет.
+`DISCIPLINE_CONFIG` с окнами FSM. Всё остальное — нет.
+
+⚠️ **Поправка после 38.25 (решение заказчика через координатора).** `CLIENT_HISTORY_STATUSES`
+в `booking-scopes.ts` НЕ остался: у среза `?scope=clients` (история клиентов по всей
+площадке) после снятия бейджа не нашлось ни одного читателя — разделы «Записи»
+и «Клиенты» читают записи публикаций лица. Сняты: `loadFaceScopeWithClientHistory`,
+второй запрос на двух страницах, `getClientBookings` и `mergeBookingsById`
+в `server-api.ts`, `booking-scopes.ts` с тестом; на бэкенде режим `scope=clients`
+снят (отвечает 400). Строки Ф4, Ф5, Т7 выше читать с этой поправкой.

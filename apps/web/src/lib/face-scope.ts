@@ -27,6 +27,11 @@
 // они оставят: бэкенд считает записью клуба и ту, где клуб — площадка, и это ровно
 // то же правило, по которому разбирает запись `getBookingClubId`.
 //
+// ⚠️ Фаза 38 (после 38.25). Второго загрузчика — «срез плюс история клиентов по всей
+// площадке» (`?scope=clients`) — больше нет. Он читал чужую историю ради бейджа
+// надёжности клиента; бейдж вырезан, а разделы «Записи» и «Клиенты» читают только
+// записи публикаций лица. Режим снят и на бэкенде: запрос отвечал бы 400.
+//
 // ⚠️ Проверки владения здесь НЕТ намеренно. Её делает лейаут кабинета
 // (`requireOwner`) — и делает ДО вызова этого загрузчика; продублировать её тут
 // значило бы обессмыслить отдельный тест про порядок в `protected-layouts`:
@@ -38,15 +43,8 @@ import 'server-only';
 import { cache } from 'react';
 
 import { readSession } from '@/lib/session';
-import { CLIENT_HISTORY_STATUSES } from '@/lib/booking-scopes';
 import type { ServiceFaceKind, ServiceFaceRef } from '@/lib/service-faces';
-import {
-  getClientBookings,
-  getClubs,
-  getOwnPublicationBookings,
-  getTrainers,
-  mergeBookingsById,
-} from '@/lib/server-api';
+import { getClubs, getOwnPublicationBookings, getTrainers } from '@/lib/server-api';
 import type { Booking, Club, EntityId, Trainer } from '@sporthub/types';
 
 export type FaceScope = {
@@ -109,45 +107,5 @@ export const loadFaceScope = cache(
       providerTrainerIds: kind === 'trainer' ? [id] : [],
       bookings,
     };
-  },
-);
-
-/**
- * Тот же срез плюс история клиентов лица.
- *
- * Разделы «Записи» и «Клиенты» получают сверх записей самого лица историю его
- * клиентов по всей площадке — срезом `CLIENT_HISTORY_STATUSES`.
- *
- * ⚠️ Фаза 38, шаг 38.25: бейдж надёжности клиента, ради которого эта история
- * читалась по ВСЕЙ площадке, вырезан. Срез оставлен по реестру вырезания
- * (`phase-38-reliability-cut.md`, Ф5/Ф23): история клиента нужна разделу «Клиенты».
- * Читает ли раздел что-то сверх записей самого лица — названо в отчёте шага,
- * решение за заказчиком.
- *
- * Сузить такую историю по одному человеку за запрос нечем: клиентов у клуба бывают
- * сотни, и вместо одного запроса вышли бы сотни. Поэтому у бэкенда есть свой срез —
- * `?scope=clients`: он сам находит публикации спрашивающего и отдаёт историю тех,
- * кто к ним записывался, одним условием запроса.
- *
- * ⚠️ До шага 34.58 здесь стоял срез ВСЕЙ площадки (`?scope=all`). Он и правда
- * содержал нужное — вместе с записями всех посторонних людей; а после того, как
- * этот режим ушёл под право администратора, оба раздела перестали открываться
- * вовсе: страница получала отказ и падала целиком. Новый срез отдаёт ровно
- * недостающее и никому, кроме самого владельца лица, ничего не показывает.
- *
- * Статусы сужены до трёх из восьми — три статуса истории клиента.
- */
-export const loadFaceScopeWithClientHistory = cache(
-  async (kind: ServiceFaceKind, id: EntityId): Promise<FaceScope> => {
-    const scope = await loadFaceScope(kind, id);
-
-    if (scope.userId === null) return scope;
-
-    const clientHistory = await getClientBookings({
-      face: scope.face,
-      status: CLIENT_HISTORY_STATUSES,
-    });
-
-    return { ...scope, bookings: mergeBookingsById(scope.bookings, clientHistory) };
   },
 );
