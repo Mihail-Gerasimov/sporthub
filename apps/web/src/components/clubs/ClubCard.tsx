@@ -135,9 +135,9 @@ export function ClubCard({
 
         {/* Снизу — имя (ссылка на всю карточку), рейтинг, отзывы, расстояние. */}
         <div className="flex flex-col justify-end [grid-area:1/1] px-4 py-3.5">
-          {/* Имя — шкалой заголовков карточек (38.109): в витрине `t-h4`, в каталоге `t-h3`;
-              Inter полужирный обычным регистром, один класс на все карточки. */}
-          <h3 className={cn('m-0 text-plate-ink', variant === 'showcase' ? 't-h4' : 't-h3')}>
+          {/* Имя — пресет `t-card-title` (38.109: Inter 700 19px, макет `HomePage.tsx:99`)
+              в обоих режимах. */}
+          <h3 className="t-card-title m-0 text-plate-ink">
             <Link
               href={`/clubs/${club.slug}`}
               className="no-underline after:absolute after:inset-0 after:z-[1] after:content-['']"

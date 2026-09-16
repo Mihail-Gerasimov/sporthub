@@ -131,8 +131,8 @@ export function TrainerCard({
 
       {/* Имя — ссылка, растянутая на карточку; рядом знак проверки. */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Имя — `t-h4` в обоих режимах (38.109; макет: 16px): Inter 600 обычным регистром. */}
-        <h3 className="t-h4 m-0 text-ink">
+        {/* Имя — в витрине пресет `t-card-title` (38.109), в каталоге `t-h4` (16px, как было). */}
+        <h3 className={cn('m-0 text-ink', variant === 'showcase' ? 't-card-title' : 't-h4')}>
           <Link
             href={`/trainers/${trainer.slug}`}
             className="no-underline transition-colors hover:text-lime-hov after:absolute after:inset-0 after:z-[1] after:content-['']"
