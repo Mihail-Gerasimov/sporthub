@@ -7,6 +7,9 @@
  * справа кнопка. Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
  * «Записаться» → `/booking/{id}`, живой счётчик «N занятий сегодня» со склонением
  * из словаря `PLURAL`; плавающие виджеты макета не переносятся (статистика — вне фазы).
+ * У счётчика — ссылка «Все слоты» на якорь секции слотов из словаря (38.88): прежняя
+ * кнопка героя «Смотреть слоты и окна» вела в никуда (тупик № 1), в герое эталона
+ * кнопок нет, и вход к слотам держит эта карточка.
  *
  * Почему не `ui/Card`: у карточки тёмная верхняя зона и тень «парящего» слоя на плашке
  * героя — у `Card` белая поверхность с подложкой-тенью для светлого фона.
@@ -15,6 +18,7 @@ import Link from 'next/link';
 
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { FOCUS } from '@/lib/home-copy';
+import { homeSectionHref } from '@/lib/home-sections';
 import { countRu, PLURAL } from '@/lib/plural';
 import { cn } from '@/lib/utils';
 
@@ -115,12 +119,20 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
             ))}
           </ul>
         )}
-        {/* Живой счётчик — наш контракт (реестр № 44) */}
-        <p className="m-0 mt-3 border-t border-line pt-3 font-body text-[12px] text-muted">
-          <strong className="font-display text-[14px] text-lime-hov tabular-nums">
-            {countRu(sessions.length, PLURAL.sessions)}
-          </strong>{' '}
-          {FOCUS.today}
+        {/* Живой счётчик — наш контракт (реестр № 44); справа — вход к секции слотов */}
+        <p className="m-0 mt-3 flex items-center justify-between gap-3 border-t border-line pt-3 font-body text-[12px] text-muted">
+          <span>
+            <strong className="font-display text-[14px] text-lime-hov tabular-nums">
+              {countRu(sessions.length, PLURAL.sessions)}
+            </strong>{' '}
+            {FOCUS.today}
+          </span>
+          <Link
+            href={homeSectionHref('availability')}
+            className="font-semibold text-lime-hov no-underline hover:text-ink"
+          >
+            {FOCUS.allSlots} <span aria-hidden="true">→</span>
+          </Link>
         </p>
       </div>
     </aside>

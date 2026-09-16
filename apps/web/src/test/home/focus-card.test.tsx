@@ -1,12 +1,16 @@
 /**
  * «Сегодня в фокусе» (шаг 38.70): первое занятие, LIVE, до трёх строк расписания,
  * «Записаться» → /booking/{id}, счётчик со склонением, пустое состояние с датой.
+ * Шаг 38.88: из героя к слотам ведёт ссылка «Все слоты» у счётчика — на якорь
+ * секции слотов из словаря (тупик № 1: прежняя кнопка героя вела в никуда).
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { FocusCard } from '@/components/home/FocusCard';
 import type { UpcomingSessionItem } from '@/components/schedule';
+import { FOCUS } from '@/lib/home-copy';
+import { homeSectionHref } from '@/lib/home-sections';
 
 const session = (id: number, extra: Partial<UpcomingSessionItem> = {}): UpcomingSessionItem => ({
   id,
@@ -55,6 +59,21 @@ describe('FocusCard', () => {
     expect(screen.getByText('сегодня')).toBeInTheDocument();
   });
 
+  it('вход к слотам из героя: ссылка «Все слоты» у счётчика ведёт на якорь секции слотов из словаря', () => {
+    render(<FocusCard sessions={[session(1)]} dateLabel="16 сентября" />);
+    const link = screen.getByRole('link', { name: FOCUS.allSlots });
+    expect(link).toHaveAttribute('href', homeSectionHref('availability'));
+    // Ссылка есть и без занятий: слоты и окна тренеров — ниже на странице.
+  });
+
+  it('без занятий ссылка к слотам остаётся — секция ниже покажет окна тренеров', () => {
+    render(<FocusCard sessions={[]} dateLabel="16 сентября" />);
+    expect(screen.getByRole('link', { name: FOCUS.allSlots })).toHaveAttribute(
+      'href',
+      homeSectionHref('availability'),
+    );
+  });
+
   it('без занятий: «—:—», «Слоты скоро появятся», подсказка с датой, LIVE нет, счётчик «0 занятий»', () => {
     render(<FocusCard sessions={[]} dateLabel="16 сентября" />);
     expect(screen.getByText('—:—')).toBeInTheDocument();
@@ -63,7 +82,9 @@ describe('FocusCard', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText('Проверь расписание на 16 сентября').length).toBeGreaterThan(0);
     expect(screen.queryByText('Live')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    // Ссылок на запись нет — единственная ссылка ведёт к секции слотов (38.88).
+    expect(screen.queryByRole('link', { name: /Записаться/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(screen.getByText('0 занятий')).toBeInTheDocument();
   });
 
