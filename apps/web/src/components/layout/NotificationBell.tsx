@@ -30,6 +30,10 @@
  * форма приезжает из общего `@/lib/notification-date`. Вид подписи прежний —
  * день, месяц и время без года; год в выпадашке шириной 320px был бы шумом.
  * Разными остались ФОРМЫ, а не реализации: расходиться теперь нечему.
+ *
+ * Шаг 38.59: форма кнопки и выпадашки — по эталону ПРОСПОРТ; логика прежняя.
+ * Оптимистичная отметка на главной больше не no-op: стор убавляет счётчик и по
+ * номеру, которого в его списке нет (строки выпадашки живут здесь, не в сторе).
  */
 'use client';
 
@@ -230,7 +234,9 @@ export function NotificationBell() {
           setIsOpen((prev) => !prev);
           void refetch();
         }}
-        className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--ui-line)] bg-[var(--ui-card)] text-[var(--ui-ink)] transition-colors hover:border-[var(--ui-lime)] hover:text-lime-hov"
+        // Форма — из эталона (шаг 38.59): 38×38, радиус 11, светлый фон с тонкой обводкой;
+        // значок — зелёная точка, но с числом: подпись обязана называть, сколько непрочитанных.
+        className="relative flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-[11px] border border-line bg-bg text-ink transition-colors hover:border-lime hover:text-lime-hov"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -249,7 +255,7 @@ export function NotificationBell() {
         {unreadCount > 0 ? (
           <span
             data-testid="notification-bell-badge"
-            className="absolute -right-[3px] -top-[3px] flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[var(--ui-bg)] bg-[var(--ui-orange)] px-[5px] font-body text-[10px] font-bold tabular-nums text-[var(--ui-bg)]"
+            className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-lime px-1 font-body text-[10px] font-bold text-ink tabular-nums"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
@@ -259,7 +265,7 @@ export function NotificationBell() {
       {isOpen ? (
         <div
           data-testid="notification-bell-dropdown"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-[18px] border border-[var(--ui-line)] bg-[var(--ui-card)] shadow-[var(--ui-shadow-floating)]"
+          className="absolute top-[calc(100%+8px)] right-0 z-50 w-80 overflow-hidden rounded-[14px] border border-line bg-card shadow-floating"
           role="dialog"
           aria-label="Последние уведомления"
         >

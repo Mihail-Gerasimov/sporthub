@@ -133,9 +133,15 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
     set({ unreadCount: Math.max(0, unreadCount) });
   },
 
+  // ⚠️ Шаг 38.59. Номер, которого стор НЕ знает, — строка выпадашки колокольчика:
+  // она грузится в компонент, а не в стор (у стора — список раздела, и подмешивать
+  // туда чужой ящик нельзя). Счётчик при этом всё равно убавляется: он — число
+  // с сервера и учитывает и такие строки; прежний ранний выход делал отметку
+  // на главной no-op, и значок ждал опроса. Идемпотентность по неизвестному номеру
+  // держит потребитель: колокольчик отмечает строку один раз и закрывается.
   markRead: (id) => {
     const target = get().notifications.find((n) => n.id === id);
-    if (!target || target.readAt !== undefined) return;
+    if (target?.readAt !== undefined) return;
 
     const now = new Date().toISOString();
     set((state) => ({
@@ -146,9 +152,9 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
 
   rollbackMarkRead: (id) => {
     const target = get().notifications.find((n) => n.id === id);
-    // Откатываем только если уведомление сейчас прочитано — иначе rollback
+    // Известную строку откатываем только если она сейчас прочитана — иначе rollback
     // дублирует undo других путей (например, если polling уже синхронизировал).
-    if (!target || target.readAt === undefined) return;
+    if (target && target.readAt === undefined) return;
 
     set((state) => ({
       notifications: state.notifications.map((n) =>

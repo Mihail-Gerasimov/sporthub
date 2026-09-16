@@ -98,13 +98,24 @@ describe('useNotificationsStore', () => {
       expect(useNotificationsStore.getState().unreadCount).toBe(0);
     });
 
-    it('unreadCount не уходит в минус при отсутствующем id', () => {
+    // ⚠️ Шаг 38.59. Колокольчик на главной держит строки выпадашки у себя, а не в сторе:
+    // markRead по номеру, которого стор не знает, был no-op, и значок не убавлялся,
+    // пока не придёт опрос. Счётчик — число с сервера, и оно учитывает и те строки,
+    // которых в списке стора нет: неизвестный номер убавляет счётчик, откат возвращает.
+    it('неизвестный стору номер убавляет unreadCount (строка выпадашки колокольчика), но не ниже нуля', () => {
       useNotificationsStore
         .getState()
         .setNotifications([makeNotification(1)], unreadOf([makeNotification(1)]));
       useNotificationsStore.getState().markRead(999);
+      expect(useNotificationsStore.getState().unreadCount).toBe(0);
+      expect(useNotificationsStore.getState().notifications).toHaveLength(1);
 
+      useNotificationsStore.getState().rollbackMarkRead(999);
       expect(useNotificationsStore.getState().unreadCount).toBe(1);
+
+      useNotificationsStore.getState().setUnreadCount(0);
+      useNotificationsStore.getState().markRead(999);
+      expect(useNotificationsStore.getState().unreadCount).toBe(0);
     });
 
     it('rollbackMarkRead возвращает readAt в undefined и инкрементит unreadCount', () => {
