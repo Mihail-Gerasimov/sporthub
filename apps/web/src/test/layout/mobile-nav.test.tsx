@@ -1,6 +1,8 @@
 /**
  * Мобильный док (шаг 38.62): пункты из словаря плюс «Профиль», подсветка активного
  * по адресу И по хэшу (якоря главной), скрытие при открытом меню шапки.
+ * Шаг 38.86 — узкие экраны: док есть до `md` (768) и скрыт с неё; в шапке навигация
+ * видна с точки `menu` (960), ниже — кнопка меню; обе точки — из словаря брейкпоинтов.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,8 +13,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
+import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { MOBILE_NAV } from '@/lib/navigation';
+import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
 function setHash(hash: string) {
@@ -92,5 +96,33 @@ describe('MobileNav', () => {
 
     act(() => useUIStore.getState().setHeaderMenuOpen(false));
     expect(screen.getByRole('navigation', { name: 'Мобильная навигация' })).toBeInTheDocument();
+  });
+});
+
+describe('Узкие экраны (38.86): док до md, навигация шапки с точки menu', () => {
+  beforeEach(() => {
+    pathname = '/';
+    window.location.hash = '';
+    useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
+    useUIStore.setState({ isHeaderMenuOpen: false, isAuthModalOpen: false });
+  });
+
+  it('док прижат к низу и скрыт с md (768): выше планшета его место занимает шапка', () => {
+    render(<MobileNav />);
+    const dock = screen.getByRole('navigation');
+    expect(dock.className).toContain('fixed');
+    expect(dock.className).toContain('bottom-0');
+    expect(dock.className).toContain('md:hidden');
+    expect(dock.className).not.toMatch(/\b(sm|lg|xl|menu):hidden\b/);
+  });
+
+  it('шапка: горизонтальная навигация с menu (960), до неё — кнопка меню; точка одна на обоих', () => {
+    render(<Header />);
+    const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
+    expect(nav.className).toContain('hidden');
+    expect(nav.className).toContain('menu:flex');
+
+    const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+    expect(menuButton.closest('.menu\\:hidden')).not.toBeNull();
   });
 });
