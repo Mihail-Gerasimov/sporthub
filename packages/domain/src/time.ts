@@ -182,6 +182,32 @@ export function isSlotAhead(
   return slot.startTime > getTimeKeyInTimeZone(now, timeZone);
 }
 
+/** Слот с местами: занятие или окно, у которого есть вместимость и счёт записей. */
+export type SlotWithCapacity = Pick<SlotTimes, 'date' | 'startTime'> & {
+  capacity: number;
+  bookedCount: number;
+};
+
+/**
+ * Свободное окно дня (шаг 38.81): сегодня ∧ ещё не началось ∧ есть места.
+ *
+ * Один предикат на слоты клубов и окна тренеров: прежде трёхстрочный фильтр жил
+ * тремя копиями, и у тренера окно, начавшееся десять минут назад, считалось
+ * «доступен сейчас», а клубный слот в той же ситуации был спрятан. Момент —
+ * аргументом; «сегодня» и «ещё не началось» — по часам зала (`isSlotAhead`).
+ */
+export function isSlotOpenToday(
+  slot: SlotWithCapacity,
+  now: Date,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): boolean {
+  return (
+    slot.date === getDateKeyInTimeZone(now, timeZone) &&
+    isSlotAhead(slot, now, timeZone) &&
+    slot.bookedCount < slot.capacity
+  );
+}
+
 /**
  * Не закончилось ли занятие.
  *

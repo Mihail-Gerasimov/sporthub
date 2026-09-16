@@ -1,4 +1,5 @@
-// Рабочая часть главной из словаря секций (шаг 38.66): поиск, карта, карточки, популярное, слоты.
+// Рабочая часть главной из словаря секций (шаг 38.66): поиск, карта, карточки, популярное.
+// Слоты — в своём файле `HomeAvailability` (38.81): у них клиентский отбор по стору.
 //
 // Каждая секция — тонкая обёртка над прежними блоками: они получают данные дня
 // из `HomeData`, а не из разметки страницы. Отбор здесь по-прежнему в памяти —
@@ -10,7 +11,6 @@
 import { PopularNearby } from '@/components/clubs';
 import { HomeContainer } from '@/components/home/HomeContainer';
 import { MapSection } from '@/components/map';
-import { UpcomingSessions } from '@/components/schedule';
 import { CatalogResultsSection, SearchControlsPreview } from '@/components/search';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
@@ -62,21 +62,6 @@ export function HomePopular({ data }: HomeSectionProps) {
           trainers={data.trainerDirectory}
         />
       </HomeContainer>
-    </section>
-  );
-}
-
-// ⚠️ Слоты (38.81) переезжают к Бэкенду в свой файл вместе с клиентским отбором
-// по стору; контейнер `HomeContainer` — вместе с переездом. Здесь не трогать.
-export function HomeAvailability({ data }: HomeSectionProps) {
-  return (
-    <section id={HOME_SECTIONS.availability.id} aria-label={HOME_SECTIONS.availability.label}>
-      <UpcomingSessions
-        dateLabel={data.upcomingSessionsLabel}
-        sessions={data.upcomingSessions}
-        trainerDateLabel={data.trainerAvailabilityLabel}
-        trainerSlots={data.trainerAvailability}
-      />
     </section>
   );
 }

@@ -72,11 +72,16 @@ export default async function Home() {
 
   // Момент передаётся явно: без аргумента форматирование берёт время в обход
   // подменённых часов, и зафиксировать расчёт тестом становится нечем.
-  const todayDateKey = getDateKeyInTimeZone(new Date());
+  // Один момент на день и на отбор занятий — иначе на границе суток они разошлись бы.
+  const now = new Date();
+  const todayDateKey = getDateKeyInTimeZone(now);
+  // Занятия дня без фильтров и среза: фильтры выдачи и первые N применяет секция
+  // слотов по стору (38.81), правая колонка героя берёт список как есть.
   const upcomingSessions = getUpcomingSessions({
     clubs,
     schedule: clubSchedule,
     targetDate: todayDateKey,
+    now,
   });
   // Цвет вида (38.80) едет до карты и легенды вместе с именем и иконкой.
   const searchFilterSports = sports.map(({ id, name, icon, color }) => ({ id, name, icon, color }));

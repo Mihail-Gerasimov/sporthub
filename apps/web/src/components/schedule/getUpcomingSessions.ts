@@ -3,11 +3,14 @@
  *
  * Логика отбора — решение, названное заказчику; рабочая часть считает в памяти
  * по действующему ограничению (долг Д-15):
- *  1. сегодня (`targetDate`);
- *  2. ещё не началось — `isSlotAhead` из домена, по часам зала: идущее занятие
- *     «не прошло», но записываться на него поздно;
+ *  1. сегодня (`targetDate` — день момента `now` по часам зала);
+ *  2. ещё не началось — по часам зала: идущее занятие «не прошло», но записываться
+ *     на него поздно;
  *  3. есть свободные места — слот без мест ПРЯЧЕТСЯ; освободилось — вернётся при
- *     следующей загрузке, без специального механизма;
+ *     следующей загрузке, без специального механизма.
+ *  Пункты 1–3 — ОДИН предикат домена `isSlotOpenToday`: тот же, что у окон тренеров
+ *  («доступен сейчас»), иначе тренер с окном, начавшимся десять минут назад, был бы
+ *  доступен, а клубный слот в той же ситуации — спрятан;
  *  4. те же фильтры, что у выдачи (`filterClubs`: вид спорта, город, запрос) —
  *     слоты клубов, оставшихся в выдаче; при выбранном виде — только слоты ЭТОГО вида,
  *     клуб «йога + бокс» под фильтром «йога» бокс не показывает;
@@ -15,12 +18,15 @@
  *  6. первые N — `APP_LIMITS.upcomingSessions`, одна константа рядом с прочими
  *     размерами витрины.
  *
- * Функция чистая: момент `now` и фильтры приходят снаружи, поэтому её зовёт
- * и серверная страница (без фильтров — правая колонка героя), и клиентская секция
- * слотов (с фильтрами из стора — те же, что у карточек рядом).
+ * Отбор разрезан по месту исполнения. Пункты 1–3 и 5 — `getUpcomingSessions`,
+ * на сервере: расписание не едет в браузер, страница отдаёт секциям уже занятия дня
+ * (правая колонка героя берёт их как есть). Пункты 4 и 6 — `applyUpcomingSessionFilters`,
+ * в клиентской секции слотов: фильтры живут в сторе поиска, и срез первых N делается
+ * ПОСЛЕ них — иначе под чипом «Йога» шестёрка была бы уже урезана до фильтра.
+ * Обе функции чистые: момент `now` и фильтры приходят снаружи.
  */
 import { APP_LIMITS } from '@sporthub/types';
-import { isSlotAhead } from '@sporthub/domain';
+import { isSlotOpenToday } from '@sporthub/domain';
 
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
 import { getScheduleClubId } from '@/lib/utils';
@@ -32,6 +38,8 @@ export type UpcomingSessionItem = {
   title: string;
   clubId: EntityId;
   clubName: string;
+  /** Вид спорта занятия — по нему секция сужает список под выбранный чип. */
+  sportId: EntityId;
   date: string;
   startTime: string;
   endTime: string;
@@ -54,60 +62,48 @@ type GetUpcomingSessionsInput = {
   clubs: Club[];
   schedule: Schedule[];
   targetDate: string;
-  /** Момент «сейчас» — явно, чтобы отбор был воспроизводим тестом. */
-  now?: Date;
-  /** Без фильтров — все занятия дня (правая колонка героя). */
-  filters?: UpcomingSessionFilters;
-  limit?: number;
+  /** Момент «сейчас» — явно: страница передаёт тот же, по которому считает день. */
+  now: Date;
 };
 
+/** Пункты 1–3 и 5: занятия дня, куда ещё можно прийти, ближайшее — первым. Без среза. */
 export function getUpcomingSessions({
   clubs,
   schedule,
   targetDate,
-  now = new Date(),
-  filters,
-  limit = APP_LIMITS.upcomingSessions,
+  now,
 }: GetUpcomingSessionsInput): UpcomingSessionItem[] {
-  // Шаг 4: клубы, оставшиеся в выдаче под теми же фильтрами. Без фильтров — все.
-  const visibleClubs = filters === undefined ? clubs : filterClubs({ clubs, ...filters });
-  const clubById = new Map(visibleClubs.map((club) => [club.id, club]));
-  const selectedSportId = filters?.selectedSportId ?? null;
-
-  const upcomingSessions = schedule
-    // Шаг 1: сегодня.
-    .filter((slot) => slot.date === targetDate)
-    // Шаг 2: ещё не началось.
-    .filter((slot) => isSlotAhead(slot, now))
-    // Шаг 3: есть места.
-    .filter((slot) => slot.bookedCount < slot.capacity)
-    // Шаг 4, вторая половина: под выбранным видом — слоты только этого вида.
-    .filter((slot) => selectedSportId === null || slot.sportId === selectedSportId)
-    .flatMap((slot) => {
-      const clubId = getScheduleClubId(slot);
-      const club = clubId === null ? undefined : clubById.get(clubId);
-
-      // Слот клуба вне выдачи (или без клуба) — не показывается.
-      if (clubId === null || club === undefined) return [];
-
-      return [
-        {
-          id: slot.id,
-          title: slot.title,
-          clubId,
-          clubName: club.name,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          price: slot.price,
-          room: slot.room,
-          availableSpots: slot.capacity - slot.bookedCount,
-        } satisfies UpcomingSessionItem,
-      ];
-    });
+  const clubById = new Map(clubs.map((club) => [club.id, club]));
 
   return (
-    upcomingSessions
+    schedule
+      // Шаги 1–3: сегодня, ещё не началось, есть места — предикат домена.
+      // `targetDate` — день того же момента, что и `now`: страница считает его по `now`,
+      // и день «сверху» держится ради подписи даты, а не второго правила отбора.
+      .filter((slot) => slot.date === targetDate && isSlotOpenToday(slot, now))
+      .flatMap((slot) => {
+        const clubId = getScheduleClubId(slot);
+        const club = clubId === null ? undefined : clubById.get(clubId);
+
+        // Слот клуба, которого нет в каталоге (скрыт, архив), не показывается.
+        if (clubId === null || club === undefined) return [];
+
+        return [
+          {
+            id: slot.id,
+            title: slot.title,
+            clubId,
+            clubName: club.name,
+            sportId: slot.sportId,
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            price: slot.price,
+            room: slot.room,
+            availableSpots: slot.capacity - slot.bookedCount,
+          } satisfies UpcomingSessionItem,
+        ];
+      })
       // Шаг 5: по времени начала, ничьи — по названию.
       .sort((left, right) => {
         const byStart = `${left.date}T${left.startTime}`.localeCompare(
@@ -116,7 +112,36 @@ export function getUpcomingSessions({
 
         return byStart !== 0 ? byStart : left.title.localeCompare(right.title, 'ru');
       })
-      // Шаг 6: первые N.
-      .slice(0, limit)
   );
+}
+
+type ApplyUpcomingSessionFiltersInput = {
+  /** Занятия дня из `getUpcomingSessions` — уже отобранные и упорядоченные. */
+  sessions: UpcomingSessionItem[];
+  /** Каталог клубов — правило выдачи ищет по тексту клуба. */
+  clubs: Club[];
+  filters: UpcomingSessionFilters;
+  limit?: number;
+};
+
+/**
+ * Пункты 4 и 6: те же фильтры, что у выдачи, затем первые N.
+ *
+ * Клуб проходит фильтры по правилу выдачи (`filterClubs`); слот клуба, выпавшего
+ * из выдачи, выпадает вместе с ним. Под выбранным видом остаются только слоты
+ * ЭТОГО вида: клуб «йога + бокс» под чипом «йога» бокс не показывает.
+ */
+export function applyUpcomingSessionFilters({
+  sessions,
+  clubs,
+  filters,
+  limit = APP_LIMITS.upcomingSessions,
+}: ApplyUpcomingSessionFiltersInput): UpcomingSessionItem[] {
+  const visibleClubIds = new Set(filterClubs({ clubs, ...filters }).map((club) => club.id));
+  const { selectedSportId } = filters;
+
+  return sessions
+    .filter((session) => visibleClubIds.has(session.clubId))
+    .filter((session) => selectedSportId === null || session.sportId === selectedSportId)
+    .slice(0, limit);
 }

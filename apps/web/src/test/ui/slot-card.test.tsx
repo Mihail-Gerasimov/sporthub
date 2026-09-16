@@ -1,15 +1,17 @@
 /*
- * Тесты SlotCard — общая карточка слота на главной (Phase 28.13).
+ * Тесты SlotCard — общая карточка слота на главной (Phase 28.13, вид эталона — 38.81).
  *
- * Проверяем: capacity-pill всегда лайм со склонением, tone-ротация по
- * index%3, watermark номера, CTA «К записи» (button + auth-guard через
- * onSelect снаружи), nowrap на time/price, line-clamp на name, room-skip
- * при пустом значении, нейтральный контракт {eyebrow, name, sport, ...}.
+ * Проверяем: подпись мест со склонением из словаря и КРАСНАЯ при ≤ LOW_SPOTS
+ * (реестр № 124), tone-ротация по index%3, watermark номера, CTA «К записи»
+ * (кнопка ui/Button + сторож входа через onSelect снаружи — путь к записи цел),
+ * nowrap на time/price, line-clamp на name, room-skip при пустом значении,
+ * нейтральный контракт {eyebrow, name, sport, ...}, без подъёма при наведении.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SlotCard } from '@/components/ui/SlotCard';
+import { LOW_SPOTS } from '@/lib/slot-spots';
 
 type SlotProps = Parameters<typeof SlotCard>[0];
 
@@ -48,12 +50,26 @@ describe('SlotCard', () => {
     expect(screen.getByText(/Свободно 10 мест/i)).toBeInTheDocument();
   });
 
-  it('capacity-pill всегда имеет lime-цвет (нет orange/red вариантов даже при availableSpots=1)', () => {
-    render(<SlotCard {...makeProps({ availableSpots: 1 })} />);
-    const pill = screen.getByText(/Свободно/i);
-    const cls = pill.className;
-    expect(cls).not.toMatch(/orange|red|warning|danger/i);
-    expect(cls).toMatch(/lime/i);
+  it('подпись мест: при остатке ≤ LOW_SPOTS — красная, выше — зелёная (реестр № 124)', () => {
+    const { rerender } = render(<SlotCard {...makeProps({ availableSpots: LOW_SPOTS })} />);
+
+    expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
+    expect(screen.getByText(/Свободно/i).className).not.toMatch(/lime/);
+
+    rerender(<SlotCard {...makeProps({ availableSpots: 1 })} />);
+    expect(screen.getByText(/Свободно/i).className).toMatch(/text-red/);
+
+    rerender(<SlotCard {...makeProps({ availableSpots: LOW_SPOTS + 1 })} />);
+    expect(screen.getByText(/Свободно/i).className).toMatch(/text-lime-hov/);
+    expect(screen.getByText(/Свободно/i).className).not.toMatch(/red/);
+  });
+
+  it('склонение мест — из словаря PLURAL, включая «11 мест» и «21 место»', () => {
+    const { rerender } = render(<SlotCard {...makeProps({ availableSpots: 11 })} />);
+    expect(screen.getByText(/Свободно 11 мест/)).toBeInTheDocument();
+
+    rerender(<SlotCard {...makeProps({ availableSpots: 21 })} />);
+    expect(screen.getByText(/Свободно 21 место/)).toBeInTheDocument();
   });
 
   it('tone-ротация: index=0 → tone-lime, index=1 → tone-orange, index=2 → tone-blank, index=3 → tone-lime', () => {
@@ -151,26 +167,32 @@ describe('SlotCard', () => {
     expect(venueEl?.textContent).toBe('Самарский бассейн');
   });
 
-  // --- Phase 30.9 ---
+  // --- Вид эталона (38.81) ---
 
-  it('Phase 30.9: CTA — primary fill (lime + rounded-pill + cursor-pointer)', () => {
-    const { container } = render(<SlotCard {...makeProps()} />);
-    const cta = container.querySelector('.slot-cta');
-    expect(cta).not.toBeNull();
-    const cls = cta?.className ?? '';
-    // Primary CTA по frontend-design SKILL: lime fill, pill-shape, кликабельный курсор.
-    expect(cls).toMatch(/bg-lime/);
-    expect(cls).toMatch(/rounded-pill/);
-    expect(cls).toMatch(/cursor-pointer/);
-    expect(cls).toMatch(/hover:bg-lime-hov/);
-    // Старый ghost-стиль не должен оставаться.
-    expect(cls).not.toMatch(/bg-transparent/);
-    expect(cls).not.toMatch(/border-0/);
+  it('CTA — кнопка дизайн-системы: радиус rounded-button, зелёная обводка, не pill', () => {
+    render(<SlotCard {...makeProps()} />);
+    const cls = screen.getByRole('button', { name: /к записи/i }).className;
+
+    expect(cls).toMatch(/rounded-button|rounded-\[9px\]/);
+    expect(cls).toMatch(/border-lime/);
+    expect(cls).not.toMatch(/rounded-pill/);
   });
 
-  it('Phase 30.9: hover-микро-анимация стрелочки сохранена (hover:gap-2.5)', () => {
+  it('карточка: радиус 18, обводка зеленеет при наведении, подъёма нет', () => {
     const { container } = render(<SlotCard {...makeProps()} />);
-    const cta = container.querySelector('.slot-cta');
-    expect(cta?.className).toMatch(/hover:gap-2\.5/);
+    const cls = container.querySelector('article')?.className ?? '';
+
+    expect(cls).toContain('rounded-[18px]');
+    expect(cls).toContain('hover:border-lime');
+    expect(cls).not.toMatch(/translate/);
+  });
+
+  it('hero-зона на bg-card-2, время и цена display-шрифтом с tabular-nums', () => {
+    const { container } = render(<SlotCard {...makeProps()} />);
+
+    expect(container.querySelector('.slot-hero')?.className).toContain('bg-card-2');
+    for (const value of container.querySelectorAll('.slot-box-val')) {
+      expect(value.className).toContain('font-display');
+    }
   });
 });

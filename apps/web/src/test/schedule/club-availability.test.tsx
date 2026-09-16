@@ -19,6 +19,7 @@ function makeSession(overrides: Partial<UpcomingSessionItem> = {}): UpcomingSess
     title: 'Айкидо',
     clubId: 1,
     clubName: 'Самарская федерация Айкидо',
+    sportId: 1,
     date: '2026-05-05',
     startTime: '18:00',
     endTime: '18:40',

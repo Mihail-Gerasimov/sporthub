@@ -17,6 +17,7 @@ const session = (id: number, extra: Partial<UpcomingSessionItem> = {}): Upcoming
   title: `Занятие ${id}`,
   clubId: 1,
   clubName: 'Атлант',
+  sportId: 1,
   date: '2026-09-16',
   startTime: `1${id}:00`,
   endTime: `1${id}:45`,

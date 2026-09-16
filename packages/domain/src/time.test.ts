@@ -15,6 +15,7 @@ import {
   getWeekStartKey,
   hoursUntilSlotStart,
   isSlotAhead,
+  isSlotOpenToday,
   isSlotUpcoming,
   shiftDateKey,
   zonedDateTime,
@@ -104,6 +105,30 @@ describe('Занятие ещё не началось (38.81)', () => {
     // Другой день — по календарю: вчера нет, завтра да.
     expect(isSlotAhead(SLOT, new Date('2026-08-21T01:00:00.000Z'))).toBe(false);
     expect(isSlotAhead(SLOT, new Date('2026-08-19T23:00:00.000Z'))).toBe(true);
+  });
+});
+
+describe('Свободное окно дня (38.81)', () => {
+  const OPEN = { ...SLOT, capacity: 10, bookedCount: 4 };
+
+  it('сегодня, ещё не началось и есть места — свободно; граница: началось минуту назад — нет', () => {
+    // 05:59 UTC = 09:59 в Самаре — за минуту до начала.
+    expect(isSlotOpenToday(OPEN, new Date('2026-08-20T05:59:00.000Z'))).toBe(true);
+    // 06:01 UTC = 10:01 — началось минуту назад: окно идёт, но оно не свободно.
+    expect(isSlotOpenToday(OPEN, new Date('2026-08-20T06:01:00.000Z'))).toBe(false);
+  });
+
+  it('не сегодня — не свободно, даже если впереди; без мест — не свободно', () => {
+    // Завтрашнее окно впереди (`isSlotAhead`), но это не окно ДНЯ.
+    expect(isSlotAhead(OPEN, new Date('2026-08-19T12:00:00.000Z'))).toBe(true);
+    expect(isSlotOpenToday(OPEN, new Date('2026-08-19T12:00:00.000Z'))).toBe(false);
+    // Мест нет — не свободно; одно место — свободно.
+    expect(
+      isSlotOpenToday({ ...OPEN, bookedCount: 10 }, new Date('2026-08-20T05:59:00.000Z')),
+    ).toBe(false);
+    expect(isSlotOpenToday({ ...OPEN, bookedCount: 9 }, new Date('2026-08-20T05:59:00.000Z'))).toBe(
+      true,
+    );
   });
 });
 

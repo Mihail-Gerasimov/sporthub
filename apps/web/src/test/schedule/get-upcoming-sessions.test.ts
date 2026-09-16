@@ -7,7 +7,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getUpcomingSessions } from '@/components/schedule/getUpcomingSessions';
+import {
+  applyUpcomingSessionFilters,
+  getUpcomingSessions,
+  type UpcomingSessionFilters,
+} from '@/components/schedule/getUpcomingSessions';
 import type { Club, Schedule } from '@sporthub/types';
 
 const TODAY = '2026-03-17';
@@ -69,10 +73,28 @@ const SPORTS = [
   { id: 8, name: 'Пилатес', icon: '🤸' },
 ];
 
-const select = (
+const select = (schedule: Schedule[]) =>
+  getUpcomingSessions({ clubs: CLUBS, schedule, targetDate: TODAY, now: NOW });
+
+const NO_FILTERS: UpcomingSessionFilters = {
+  searchQuery: '',
+  selectedSportId: null,
+  selectedCity: '',
+  sports: SPORTS,
+};
+
+/** Пункты 4 и 6 поверх отбора дня — как делает секция слотов с фильтрами из стора. */
+const narrow = (
   schedule: Schedule[],
-  extra: Partial<Parameters<typeof getUpcomingSessions>[0]> = {},
-) => getUpcomingSessions({ clubs: CLUBS, schedule, targetDate: TODAY, now: NOW, ...extra });
+  filters: Partial<UpcomingSessionFilters> = {},
+  limit?: number,
+) =>
+  applyUpcomingSessionFilters({
+    sessions: select(schedule),
+    clubs: CLUBS,
+    filters: { ...NO_FILTERS, ...filters },
+    limit,
+  });
 
 describe('getUpcomingSessions — шесть пунктов отбора', () => {
   it('1. только сегодня: вчера и завтра — мимо', () => {
@@ -134,34 +156,25 @@ describe('getUpcomingSessions — шесть пунктов отбора', () =>
       slot({ id: 3, clubId: 3, sportId: 1, startTime: '14:00', endTime: '15:00' }),
       slot({ id: 4, clubId: 3, sportId: 8, startTime: '15:00', endTime: '16:00' }),
     ];
-    const base = { searchQuery: '', selectedSportId: null, selectedCity: '', sports: SPORTS };
 
-    // Без фильтров — все четыре, как без аргумента.
-    expect(select(schedule, { filters: base }).map((session) => session.id)).toEqual([1, 2, 3, 4]);
+    // Без фильтров — все четыре, в порядке отбора дня.
+    expect(narrow(schedule).map((session) => session.id)).toEqual([1, 2, 3, 4]);
 
     // Вид спорта: пилатес есть у обоих клубов — но только слоты ПИЛАТЕСА, не все слоты клубов.
-    expect(
-      select(schedule, { filters: { ...base, selectedSportId: 8 } }).map((session) => session.id),
-    ).toEqual([2, 4]);
+    expect(narrow(schedule, { selectedSportId: 8 }).map((session) => session.id)).toEqual([2, 4]);
 
     // Город — правило выдачи, регистр не важен.
-    expect(
-      select(schedule, { filters: { ...base, selectedCity: 'тольятти' } }).map(
-        (session) => session.id,
-      ),
-    ).toEqual([3, 4]);
+    expect(narrow(schedule, { selectedCity: 'тольятти' }).map((session) => session.id)).toEqual([
+      3, 4,
+    ]);
 
     // Запрос — по тексту клуба, как в выдаче: «yoga» находит Balance Yoga House.
-    expect(
-      select(schedule, { filters: { ...base, searchQuery: 'yoga' } }).map((session) => session.id),
-    ).toEqual([3, 4]);
+    expect(narrow(schedule, { searchQuery: 'yoga' }).map((session) => session.id)).toEqual([3, 4]);
 
     // Запрос по названию вида из справочника — тоже правило выдачи.
-    expect(
-      select(schedule, { filters: { ...base, searchQuery: 'плавание' } }).map(
-        (session) => session.id,
-      ),
-    ).toEqual([1, 2]);
+    expect(narrow(schedule, { searchQuery: 'плавание' }).map((session) => session.id)).toEqual([
+      1, 2,
+    ]);
   });
 
   it('5. по времени начала, при равенстве — по названию', () => {
@@ -190,12 +203,21 @@ describe('getUpcomingSessions — шесть пунктов отбора', () =>
       }),
     );
 
-    expect(select(schedule)).toHaveLength(6);
-    expect(select(schedule, { limit: 2 }).map((session) => session.id)).toEqual([1, 2]);
-    // Срез — ПОСЛЕ отсева: полный слот в начале дня место в шестёрке не занимает.
-    const withFull = [{ ...schedule[0], bookedCount: 10 }, ...schedule.slice(1)];
+    // Отбор дня — без среза: правая колонка героя считает все занятия дня.
+    expect(select(schedule)).toHaveLength(9);
+    // Секция — первые N после фильтров.
+    expect(narrow(schedule)).toHaveLength(6);
+    expect(narrow(schedule, {}, 2).map((session) => session.id)).toEqual([1, 2]);
+    // Срез — ПОСЛЕ отсева и фильтра: полный слот и слот чужого вида места в шестёрке не занимают.
+    const withFull = [
+      { ...schedule[0], bookedCount: 10 },
+      { ...schedule[1], sportId: 8 },
+      ...schedule.slice(2),
+    ];
 
-    expect(select(withFull).map((session) => session.id)).toEqual([2, 3, 4, 5, 6, 7]);
+    expect(narrow(withFull, { selectedSportId: 3 }).map((session) => session.id)).toEqual([
+      3, 4, 5, 6, 7, 8,
+    ]);
   });
 
   it('слот клуба, которого нет в списке (скрыт, архив), не показывается', () => {
@@ -224,6 +246,7 @@ describe('getUpcomingSessions — шесть пунктов отбора', () =>
       title: 'Кроль',
       clubId: 1,
       clubName: 'Volna Aquatic Club',
+      sportId: 3,
       date: TODAY,
       startTime: '12:00',
       endTime: '13:00',
