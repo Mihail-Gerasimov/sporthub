@@ -1,7 +1,7 @@
 // Тесты секции «Возможности» (шаг 38.72).
 //
 // Плитки макета выглядели кликабельными и не вели никуда (тупик № 10 приложения Б).
-// Здесь у каждой плитки цель СУЩЕСТВУЕТ: якорь — из словаря секций главной, маршрут —
+// Здесь у каждой плитки цель СУЩЕСТВУЕТ: якорь — из словаря секций каталога, маршрут —
 // файл `src/app/**/page.tsx`, и проверяется ПАРА «плитка → цель», а не только
 // существование целей. Гостю раздел кабинета — тупик (`307 → /` без возврата),
 // поэтому гостю такая плитка открывает модалку входа, как «Создать аккаунт»
@@ -12,14 +12,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { FEATURES } from '@/lib/home-copy';
-import { HOME_SECTIONS, homeSectionHref } from '@/lib/home-sections';
+import { catalogSectionHref } from '@/lib/catalog-sections';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { collectRoutes, routeExists } from '@/test/helpers/app-routes';
 
 /** Пары «плитка → цель», закреплённые по заголовку из словаря. */
 const EXPECTED_TARGETS: Record<string, string> = {
-  'Онлайн-запись': homeSectionHref('availability'),
+  'Онлайн-запись': catalogSectionHref('availability'),
   'Статистика тренировок': '/profile/me/stats',
   'Прогресс и цели': '/profile/me/dashboard',
   'Отзывы и рейтинг': '/profile/me/reviews',
@@ -86,12 +87,12 @@ describe('HomeFeatures', () => {
       Object.fromEntries(links.map((link) => [titleOf(link), link.getAttribute('href')])),
     ).toEqual(EXPECTED_TARGETS);
 
+    // Все цели — фиксированные маршруты (`/catalog#…` — страница каталога, якорь
+    // из её словаря; `/profile/me/*` — кабинет): у каждой есть файл страницы.
     for (const href of Object.values(EXPECTED_TARGETS)) {
-      const exists = href.startsWith('/#')
-        ? homeSectionHref('availability') === href
-        : routeExists(href, routes, { staticOnly: true });
-
-      expect(exists, `цель «${href}» не существует`).toBe(true);
+      expect(routeExists(href, routes, { staticOnly: true }), `цель «${href}» не существует`).toBe(
+        true,
+      );
     }
   });
 
@@ -103,7 +104,7 @@ describe('HomeFeatures', () => {
     const buttons = within(section).getAllByRole('button');
 
     expect(links.map(titleOf)).toEqual(['Онлайн-запись']);
-    expect(links[0]).toHaveAttribute('href', homeSectionHref('availability'));
+    expect(links[0]).toHaveAttribute('href', catalogSectionHref('availability'));
     expect(buttons.map(titleOf)).toEqual([
       'Статистика тренировок',
       'Прогресс и цели',

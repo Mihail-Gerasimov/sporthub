@@ -9,16 +9,16 @@
  *
  * ⚠️ Каждая плитка ведёт к существующей цели, не декорация: у макета плитки
  * выглядели кликабельными и не вели никуда (`cursor:default`, тупик № 10
- * приложения Б). Цели — из словаря секций главной и фиксированных маршрутов
- * кабинета; их существование стережёт `home-features.test.tsx` тем же способом,
- * что `menu-routes-exist`. У макета у каждой плитки свой цветной фон из восьми
+ * приложения Б). Цели — из словаря секций каталога (слоты живут на `/catalog`,
+ * 38.79) и фиксированных маршрутов кабинета; их существование стережёт
+ * `home-features.test.tsx` тем же способом, что `menu-routes-exist`. У макета у каждой плитки свой цветной фон из восьми
  * `rgba` — у нас подложка одна, токеном: восемь оттенков вне палитры.
  *
  * ⚠️ Гостю плитка в кабинет — не ссылка (ревью 38.72): `/profile/me/*` уводит
  * гостя `307 → /` без возврата, и он оказывается наверху той же главной — тупик.
  * Гостю такая плитка открывает модалку входа тем же механизмом, что «Создать
  * аккаунт» в призыве (`HomeCta`, 38.75); вошедшему — ссылка. Плитка к секции
- * главной — ссылка всем. Цель — по КЛЮЧУ записи словаря, не по позиции.
+ * каталога — ссылка всем. Цель — по КЛЮЧУ записи словаря, не по позиции.
  *
  * Почему не `ui/Card`: плитка — ссылка или кнопка целиком, а `Card` — `div`;
  * заворачивать `Card` в интерактив значило бы вкладывать ховер поверх ховера.
@@ -30,7 +30,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { FEATURES } from '@/lib/home-copy';
-import { HOME_SECTIONS, homeSectionHref, type HomeSectionKey } from '@/lib/home-sections';
+import { catalogSectionHref, type CatalogSectionKey } from '@/lib/catalog-sections';
+import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 
@@ -99,10 +100,11 @@ const icons: Record<FeatureKey, ReactNode> = {
 };
 
 /**
- * Цель плитки: секция главной (ссылка всем) или раздел кабинета человека
- * (`/profile/me/*` — ссылка вошедшему, гостю модалка входа).
+ * Цель плитки: секция каталога (`/catalog#…`, ссылка всем — рабочая часть переехала
+ * туда решением заказчика, 38.79) или раздел кабинета человека (`/profile/me/*` —
+ * ссылка вошедшему, гостю модалка входа).
  */
-type FeatureTarget = { section: HomeSectionKey } | { cabinet: `/profile/me/${string}` };
+type FeatureTarget = { section: CatalogSectionKey } | { cabinet: `/profile/me/${string}` };
 
 /** Цели плиток — по ключу записи словаря. */
 const FEATURE_TARGETS: Record<FeatureKey, FeatureTarget> = {
@@ -114,7 +116,7 @@ const FEATURE_TARGETS: Record<FeatureKey, FeatureTarget> = {
 
 /** Адрес цели — для ссылки. */
 function hrefOf(target: FeatureTarget): string {
-  return 'section' in target ? homeSectionHref(target.section) : target.cabinet;
+  return 'section' in target ? catalogSectionHref(target.section) : target.cabinet;
 }
 
 const TILE_CLASS =
