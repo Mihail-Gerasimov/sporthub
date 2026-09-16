@@ -12,8 +12,10 @@ import type { ComponentType } from 'react';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 import { HomeCta } from '@/components/home/HomeCta';
+import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { HomeHeroSection } from '@/components/home/HomeHeroSection';
 import { HomeLeaders } from '@/components/home/HomeLeaders';
+import { HomeSteps } from '@/components/home/HomeSteps';
 import {
   HomeAvailability,
   HomeCatalog,
@@ -26,6 +28,8 @@ import type { HomeSectionKey } from '@/lib/home-sections';
 export const HOME_SECTION_COMPONENTS: Record<HomeSectionKey, ComponentType<HomeSectionProps>> = {
   hero: HomeHeroSection,
   leaders: HomeLeaders,
+  steps: HomeSteps,
+  features: HomeFeatures,
   cta: HomeCta,
   discover: HomeDiscover,
   results: HomeResults,

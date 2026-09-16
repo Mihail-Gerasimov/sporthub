@@ -3,9 +3,11 @@
 // Герой (38.65) принимает слоты и данные правой колонки; здесь они складываются
 // из `HomeData`: правая колонка — занятия дня и дата словами, в слоте поиска — лента
 // видов спорта (реестр № 37: «сохранить; в дизайне это место занимает поисковый
-// виджет» — виджет 38.67 встанет рядом), счётчики — 38.69.
+// виджет» — виджет 38.67 встанет рядом), в слоте счётчиков — `HomeCounters` (38.69)
+// с числами из `/stats/overview`.
 
 import { HeroSportMarquee } from '@/components/home/HeroSportMarquee';
+import { HomeCounters } from '@/components/home/HomeCounters';
 import { HomeHero } from '@/components/home/HomeHero';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
@@ -21,6 +23,7 @@ export function HomeHeroSection({ data }: HomeSectionProps) {
           <HeroSportMarquee sports={data.sports.slice(0, MARQUEE_SPORTS)} />
         ) : undefined
       }
+      counters={<HomeCounters overview={data.overview} />}
       focus={{ sessions: data.upcomingSessions, dateLabel: data.upcomingSessionsLabel }}
     />
   );

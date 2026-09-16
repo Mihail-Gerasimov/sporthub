@@ -15,6 +15,7 @@ import type { HomeData } from '@/components/home/home-data';
 import { HOME_SECTION_KEYS } from '@/lib/home-sections';
 import {
   getOfferings,
+  getPlatformOverview,
   getPublishedClubs,
   getPublishedTrainers,
   getSchedule,
@@ -42,6 +43,7 @@ export default async function Home() {
     // Лидеры пришли отсортированными и обрезанными базой — берётся первая строка.
     [featuredClub],
     [featuredTrainer],
+    overview,
   ] = await Promise.all([
     // Phase 27 Step 27.12: публичные SSR-витрины читают только не-hidden коллекции,
     // чтобы скрытые админом публикации не оставались в выдаче, на карте, в счётчиках
@@ -64,6 +66,8 @@ export default async function Home() {
     // по всему каталогу ради одной карточки.
     getPublishedClubs({ sort: 'rating', limit: 1 }),
     getPublishedTrainers({ sort: 'rating', limit: 1 }),
+    // Счётчики героя — четыре `count` на бэкенде, а не длины списков (38.30, д-20).
+    getPlatformOverview(),
   ]);
 
   // Момент передаётся явно: без аргумента форматирование берёт время в обход
@@ -102,6 +106,7 @@ export default async function Home() {
     featuredTrainer?.bio;
 
   const data: HomeData = {
+    overview,
     clubs,
     sports: searchFilterSports,
     tags,

@@ -25,6 +25,7 @@ import type {
   ISODateString,
   Notification,
   Offering,
+  PlatformOverview,
   ProviderClientNote,
   PublicationSort,
   Review,
@@ -259,11 +260,17 @@ export function faceOwnerQuery(face: ServiceFaceRef | undefined): {
  * Маршрут закрыт правом модерации, поэтому читатель у этой функции один — лейаут
  * служебной панели, где проверка уже пройдена.
  */
-export async function getAwaitingRecheckCount(): Promise<number> {
-  return apiGetTotal('/publications?awaitingRecheck=true&limit=1');
-}
+export const getAwaitingRecheckCount = (): Promise<number> =>
+  apiGetTotal('/publications?awaitingRecheck=true&limit=1');
 
 export const getSports = (): Promise<Sport[]> => apiGet<Sport[]>('/sports');
+
+/**
+ * Четыре числа героя главной — `GET /api/stats/overview` (шаг 38.30): четыре `count`
+ * на бэкенде вместо длины полного списка во фронте (диверсия д-20).
+ */
+export const getPlatformOverview = (): Promise<PlatformOverview> =>
+  apiGet<PlatformOverview>('/stats/overview');
 export const getTags = (): Promise<Tag[]> => apiGet<Tag[]>('/tags');
 export const getAmenities = (): Promise<Amenity[]> => apiGet<Amenity[]>('/amenities');
 export const getSpecialties = (): Promise<Specialty[]> => apiGet<Specialty[]>('/specialties');
@@ -329,11 +336,9 @@ export async function getClubBySlug(slug: string): Promise<Club | null> {
 }
 
 export async function getTrainerBySlug(slug: string): Promise<Trainer | null> {
-  const detail = await apiGetOptional<{ trainer: Trainer }>(
-    `/trainers/by-slug/${encodeURIComponent(slug)}`,
-  );
+  const path = `/trainers/by-slug/${encodeURIComponent(slug)}`;
 
-  return detail?.trainer ?? null;
+  return (await apiGetOptional<{ trainer: Trainer }>(path))?.trainer ?? null;
 }
 
 // --- Услуги и расписание --------------------------------------------------------

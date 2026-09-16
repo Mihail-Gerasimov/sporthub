@@ -51,8 +51,16 @@ export const fixtureSchedule = [...fixtureClubSchedule, ...fixtureTrainerSchedul
  * и тренерские слоты РАЗНЫМИ запросами, и отвечать на них одним набором значило бы
  * скрыть подмену одного другим.
  */
+/**
+ * Четыре числа героя. ⚠️ Нарочно НЕ равны длинам списков стенда: страница,
+ * собравшая сводку из `clubs.length`, показала бы другие числа — и тест подключения
+ * это увидит (диверсия д-20).
+ */
+export const fixtureOverview = { athletes: 128, trainers: 24, clubs: 42, reviews: 310 };
+
 export function createFixtureRoutes(): ApiRoutes {
   return {
+    '/stats/overview': fixtureOverview,
     '/sports': fixtureSports,
     '/cities': fixtureCities,
     '/tags': fixtureTags,

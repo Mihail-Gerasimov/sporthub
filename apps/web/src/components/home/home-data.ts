@@ -6,12 +6,14 @@
 
 import type { TrainerAvailabilityItem, TrainerDirectoryItem } from '@/components/trainers';
 import type { UpcomingSessionItem } from '@/components/schedule';
-import type { Club, Sport, Tag, Trainer } from '@sporthub/types';
+import type { Club, PlatformOverview, Sport, Tag, Trainer } from '@sporthub/types';
 
 /** Вид спорта в том виде, в каком его читают фильтры и карточки главной. */
 export type HomeSport = Pick<Sport, 'id' | 'name' | 'icon'>;
 
 export type HomeData = {
+  /** Четыре числа героя — `GET /api/stats/overview`, четыре `count` на бэкенде (38.30). */
+  overview: PlatformOverview;
   /** Полный каталог клубов — рабочая часть фильтрует в памяти (Д-15). */
   clubs: Club[];
   sports: HomeSport[];
