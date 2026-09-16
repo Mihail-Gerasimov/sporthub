@@ -1129,3 +1129,158 @@ describe('Верификация публикаций', () => {
     expect(club?.verifiedAt).toBeDefined();
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Раздел модерации: отбор «непроверенные» — в запросе (фаза 38, шаг 38.47)
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Стенд: 150 клубов. Сто десять НОВЕЙШИХ подтверждены, сорок САМЫХ СТАРЫХ — нет.
+// Список идёт «свежие сверху», страница — 50 строк: все непроверенные лежат
+// за третьей страницей. Отсев в памяти поверх выданной страницы вернул бы ноль;
+// отбор в запросе — все сорок (диверсия д-44).
+describe('Отбор «непроверенные» считает запрос', () => {
+  let harness: TestHarness;
+  let adminCookie: string;
+
+  const TOTAL = 150;
+  const UNVERIFIED = 40;
+
+  beforeAll(async () => {
+    harness = await createTestHarness('publications-verified-filter');
+  });
+
+  beforeEach(async () => {
+    await harness.writeMany({
+      ...fixtureDictionaryCollections,
+      users: [
+        {
+          id: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          accountKind: 'admin',
+          name: 'Админ',
+          email: 'a@test.local',
+          phone: '+7 (900) 000-00-03',
+          passwordHash: DEMO_PASSWORD_HASH,
+          favoriteClubIds: [],
+        },
+      ],
+      clubs: Array.from({ length: TOTAL }, (_, index) => {
+        const id = index + 1;
+
+        return {
+          id,
+          // Чем больше номер, тем новее — и тем выше в списке «свежие сверху».
+          createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(),
+          name: `Клуб ${id}`,
+          slug: `club-${id}`,
+          description: 'Описание',
+          shortDescription: 'Кратко',
+          address: 'ул. Ленина, 1',
+          phone: '+7 900 000-00-00',
+          coordinates: { lat: 53.2, lng: 50.1 },
+          priceFrom: 500,
+          distanceKm: 1,
+          city: 'Самара',
+          sportIds: [3],
+          tagIds: [],
+          amenityIds: [],
+          imageUrls: [],
+          rating: 4,
+          reviewCount: 0,
+          status: 'published',
+          ...(id > UNVERIFIED
+            ? { verifiedAt: '2026-09-15T12:00:00.000Z', verifiedByUserId: 3 }
+            : {}),
+        };
+      }),
+      trainers: [],
+      offerings: [],
+      schedule: [],
+      bookings: [],
+      logs: [],
+      notifications: [],
+    });
+
+    adminCookie = await harness.as(3);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  const list = (query: string) =>
+    request(harness.app.getHttpServer())
+      .get(`/api/publications${query}`)
+      .set('Cookie', adminCookie);
+
+  it('verified=false достаёт непроверенных ИЗ-ЗА ПРЕДЕЛОВ первой страницы (д-44)', async () => {
+    const response = await list('?verified=false&limit=6');
+
+    expect(response.status).toBe(200);
+    expect(response.body.total, 'отбор посчитал только первую страницу').toBe(UNVERIFIED);
+    expect(response.body.data).toHaveLength(6);
+    expect(
+      (response.body.data as { verifiedAt?: string }[]).every(
+        (item) => item.verifiedAt === undefined,
+      ),
+    ).toBe(true);
+  });
+
+  it('verified=true — проверенные, и строка несёт «когда»', async () => {
+    const response = await list('?verified=true&limit=1');
+
+    expect(response.body.total).toBe(TOTAL - UNVERIFIED);
+    expect(response.body.data[0].verifiedAt).toBe('2026-09-15T12:00:00.000Z');
+    // «Кем» разделу не отдаётся: в строке списка этого поля нет вовсе.
+    expect('verifiedByUserId' in response.body.data[0]).toBe(false);
+  });
+
+  it('без параметра выдача прежняя — старый клиент переживает выкатку', async () => {
+    const response = await list('');
+
+    expect(response.body.total).toBe(TOTAL);
+  });
+
+  it('мусор в параметре означает его отсутствие', async () => {
+    const response = await list('?verified=yes');
+
+    expect(response.body.total).toBe(TOTAL);
+  });
+
+  it('отбор складывается с типом и состоянием: верификация — не видимость', async () => {
+    // Скрытая непроверенная публикация в очереди «непроверенных» есть — она
+    // просто скрыта. Отбор по проверенности не подменяет отбор по состоянию.
+    await harness.write('clubs', [
+      {
+        id: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        name: 'Клуб 1',
+        slug: 'club-1',
+        description: 'Описание',
+        shortDescription: 'Кратко',
+        address: 'ул. Ленина, 1',
+        phone: '+7 900 000-00-00',
+        coordinates: { lat: 53.2, lng: 50.1 },
+        priceFrom: 500,
+        distanceKm: 1,
+        city: 'Самара',
+        sportIds: [3],
+        tagIds: [],
+        amenityIds: [],
+        imageUrls: [],
+        rating: 4,
+        reviewCount: 0,
+        status: 'hidden',
+      },
+    ]);
+
+    // Запись пересобирает базу и гасит сессии — cookie берётся заново.
+    adminCookie = await harness.as(3);
+
+    const all = await list('?verified=false');
+    const hiddenOnly = await list('?verified=false&status=hidden');
+
+    expect(all.body.total).toBe(1);
+    expect(hiddenOnly.body.total).toBe(1);
+  });
+});

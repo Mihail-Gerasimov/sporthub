@@ -65,6 +65,8 @@ export type PublicationItem = {
   hiddenKind?: HideKindValue;
   /** Владелец исправил скрытую публикацию, она ждёт повторной проверки (36.20). */
   awaitingRecheck?: boolean;
+  /** Когда подтверждена площадкой (38.47); пусто — не подтверждена. «Кем» разделу не нужно. */
+  verifiedAt?: string;
 };
 
 function clubToItem(club: Club): PublicationItem {
@@ -81,6 +83,7 @@ function clubToItem(club: Club): PublicationItem {
     hiddenAt: club.hiddenAt,
     hiddenKind: club.hiddenKind,
     awaitingRecheck: club.awaitingRecheck,
+    verifiedAt: club.verifiedAt,
   };
 }
 
@@ -98,6 +101,7 @@ function trainerToItem(trainer: Trainer): PublicationItem {
     hiddenAt: trainer.hiddenAt,
     hiddenKind: trainer.hiddenKind,
     awaitingRecheck: trainer.awaitingRecheck,
+    verifiedAt: trainer.verifiedAt,
   };
 }
 
@@ -367,6 +371,9 @@ export class PublicationsController {
     // выдачу. Номер, а не слаг: в уведомлении лежит именно номер, а перевод его
     // в слаг означал бы лишний поход в базу ради ссылки.
     @Query('id') rawFocusId?: string,
+    // ⚠️ Шаг 38.47. Отбор по проверенности: `false` — очередь «ещё не смотрели»,
+    // `true` — проверенные. Параметр НЕОБЯЗАТЕЛЬНЫЙ и админский; публичного нет.
+    @Query('verified') rawVerified?: string,
     @Query('offset') rawOffset?: string,
     @Query('limit') rawLimit?: string,
   ): Promise<TopLevelResult<PublicationItem[]>> {
@@ -385,6 +392,8 @@ export class PublicationsController {
     // поэтому раздел о ненайденной публикации говорит вслух.
     const focusId = Number(rawFocusId);
     const focus = Number.isInteger(focusId) && focusId > 0 ? focusId : undefined;
+    // Ровно два значения; всё остальное — отбора нет, как у прочих флагов раздела.
+    const verified = rawVerified === 'true' ? true : rawVerified === 'false' ? false : undefined;
     const offset = Math.max(0, Number(rawOffset ?? 0));
     const limit = Math.min(100, Math.max(1, Number(rawLimit ?? 50)));
 
@@ -402,6 +411,9 @@ export class PublicationsController {
       // Очередь повторной проверки уходит В ЗАПРОС: под неё заведён частичный
       // индекс `clubs_awaiting_recheck_idx` / `trainers_awaiting_recheck_idx`.
       ...(onlyAwaitingRecheck ? { awaitingRecheck: true } : {}),
+      // Проверенность — В ЗАПРОСЕ, до слияния и среза (38.47): отсев в памяти поверх
+      // первой страницы отдал бы «непроверенных среди свежих» вместо непроверенных.
+      ...(verified === undefined ? {} : { verified }),
       // ⚠️ Наводка СУЖАЕТ выдачу до одной строки и делает это в запросе.
       // Читать страницу целиком, чтобы найти в ней одну публикацию, — ровно тот
       // отбор в памяти, от которого ушёл шаг 36.х.
