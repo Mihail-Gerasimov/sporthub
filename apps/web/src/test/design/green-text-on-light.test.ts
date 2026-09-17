@@ -53,6 +53,8 @@ export const BRAND_MARK: string[] = ['src/components/ui/BrandLogo.tsx'];
 export const ICON_GREEN: string[] = [
   'src/components/home/HomeFeatures.tsx',
   'src/components/home/HomeSteps.tsx',
+  // Значок-подарок баннера пробного — `GREEN` макета (38.118).
+  'src/components/home/HomeShowcase.tsx',
 ];
 
 /** Старые файлы и потолок нарушений. Только убывает. */

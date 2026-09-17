@@ -238,6 +238,9 @@ describe('Главная — витринные карусели (38.79b)', () =
     const banner = screen.getByRole('complementary', { name: SHOWCASE.trial.title });
 
     expect(section('trainers')).toContainElement(banner);
+    // Отступ от сетки 20 (`HomePage.tsx:664`), значок — зелёный `GREEN` макета (графика).
+    expect(banner.className).toContain('mt-5');
+    expect(banner.querySelector('svg')?.parentElement?.className).toContain('text-lime');
     expect(within(banner).getByText('40% тренеров — первое занятие бесплатно')).toBeInTheDocument();
     expect(within(banner).getByText('Попробуй без риска · Отмена за 24 часа')).toBeInTheDocument();
     const cta = within(banner).getByRole('link', { name: SHOWCASE.trial.cta });
