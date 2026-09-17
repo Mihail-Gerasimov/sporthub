@@ -53,6 +53,11 @@ jobs:
       - name: Зависимости
         run: npm ci
 
+      # Внутренние пакеты монорепо (`packages/*/dist` не в git — артефакт сборки): линтер,
+      # типы и тесты приложений читают их собранными, как и Dockerfile'ы.
+      - name: Сборка внутренних пакетов
+        run: npm run build --workspace @sporthub/types --workspace @sporthub/domain --workspace @sporthub/fixtures
+
       - name: Линтер
         run: npm run lint
 
