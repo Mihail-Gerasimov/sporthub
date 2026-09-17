@@ -24,6 +24,19 @@ import { HOME_SECTIONS } from '@/lib/home-sections';
 
 import type { HomeSectionProps } from '@/components/home/home-data';
 
+/** Заголовок в две строки, как в макете (`<br/>`): каждая строка — блочный span одного h2. */
+function TitleLines({ lines }: { lines: readonly string[] }) {
+  return (
+    <>
+      {lines.map((line) => (
+        <span key={line} className="block">
+          {line}
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function HomeClubs({ data }: HomeSectionProps) {
   return (
     <section
@@ -34,7 +47,7 @@ export function HomeClubs({ data }: HomeSectionProps) {
       <HomeContainer>
         <CardSlider
           eyebrow={SHOWCASE.clubs.eyebrow}
-          title={SHOWCASE.clubs.title}
+          title={<TitleLines lines={SHOWCASE.clubs.titleLines} />}
           accent="lime"
           sliderId="showcase-clubs"
           total={data.showcaseClubs.length}
@@ -62,7 +75,7 @@ export function HomeTrainers({ data }: HomeSectionProps) {
       <HomeContainer>
         <CardSlider
           eyebrow={SHOWCASE.trainers.eyebrow}
-          title={SHOWCASE.trainers.title}
+          title={<TitleLines lines={SHOWCASE.trainers.titleLines} />}
           accent="orange"
           sliderId="showcase-trainers"
           total={data.showcaseTrainers.length}
@@ -75,7 +88,56 @@ export function HomeTrainers({ data }: HomeSectionProps) {
             <TrainerCard key={trainer.id} trainer={trainer} variant="showcase" />
           ))}
         </CardSlider>
+
+        {/* Баннер пробного — под тренерами (`HomePage.tsx:667-689`): холст, зелёная обводка
+            .25, радиус 14, 16/22; значок-подарок 36 на лайме .1; кнопка — в выдачу тренеров. */}
+        <aside
+          aria-label={SHOWCASE.trial.title}
+          className="mt-9 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-lime/25 bg-bg px-[22px] py-4"
+        >
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-lime/10 text-lime-hov"
+            >
+              <GiftIcon />
+            </span>
+            <span>
+              <span className="block font-body text-[13px] font-bold text-ink">
+                {SHOWCASE.trial.title}
+              </span>
+              <span className="block font-body text-[11px] text-muted">
+                {SHOWCASE.trial.subtitle}
+              </span>
+            </span>
+          </div>
+          <ShowcaseAllLink mode="trainers" tone="primary">
+            {SHOWCASE.trial.cta}
+          </ShowcaseAllLink>
+        </aside>
       </HomeContainer>
     </section>
+  );
+}
+
+/** Подарок — `lucide-react` `Gift` (макет, 16px), инлайн: библиотеки значков в проекте нет. */
+function GiftIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13" />
+      <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+      <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+    </svg>
   );
 }

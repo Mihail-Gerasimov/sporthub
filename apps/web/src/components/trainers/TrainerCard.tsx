@@ -171,14 +171,14 @@ export function TrainerCard({
               >
                 <path d="m12 3.2 2.72 5.52 6.09.89-4.4 4.29 1.04 6.07L12 17.09l-5.45 2.88 1.04-6.07-4.4-4.29 6.09-.89L12 3.2Z" />
               </svg>
-              <span className="font-display text-[12px] font-extrabold tabular-nums text-ink">
+              <span className="font-mono text-[12px] font-extrabold tabular-nums text-ink">
                 {trainer.rating.toFixed(1)}
               </span>
             </span>
             <span>({trainer.reviewCount})</span>
           </span>
         )}
-        <span className="font-display text-[13px] font-extrabold tabular-nums text-ink">
+        <span className="font-mono text-[13px] font-extrabold tabular-nums text-ink">
           от {formatPrice(trainer.priceFrom)}
         </span>
       </div>

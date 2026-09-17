@@ -30,6 +30,9 @@ import { createFixtureRoutes, fixtureClubs, fixtureTrainers } from '@/test/helpe
 const MD = { '(min-width: 768px)': true };
 const LG = { '(min-width: 768px)': true, '(min-width: 1024px)': true };
 
+/** Доступное имя двухстрочного заголовка в jsdom: строки словаря слитно (блочные span'ы без пробела). */
+const titleName = (lines: readonly string[]) => lines.join('');
+
 const section = (key: 'clubs' | 'trainers') =>
   document.getElementById(HOME_SECTIONS[key].id) as HTMLElement;
 
@@ -59,7 +62,9 @@ describe('Главная — витринные карусели (38.79b)', () =
 
     const clubs = section('clubs');
 
-    expect(within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
+    expect(
+      within(clubs).getByRole('heading', { name: titleName(SHOWCASE.clubs.titleLines) }),
+    ).toBeInTheDocument();
     expect(within(clubs).getAllByRole('article', { name: /^Карточка клуба: / })).toHaveLength(
       fixtureClubs.length,
     );
@@ -79,7 +84,7 @@ describe('Главная — витринные карусели (38.79b)', () =
     const trainers = section('trainers');
 
     expect(
-      within(trainers).getByRole('heading', { name: SHOWCASE.trainers.title }),
+      within(trainers).getByRole('heading', { name: titleName(SHOWCASE.trainers.titleLines) }),
     ).toBeInTheDocument();
     expect(
       within(trainers).getAllByRole('article', { name: /^Карточка тренера: / }).length,
@@ -141,7 +146,9 @@ describe('Главная — витринные карусели (38.79b)', () =
     render(await Home());
 
     const clubs = section('clubs');
-    const heading = within(clubs).getByRole('heading', { name: SHOWCASE.clubs.title });
+    const heading = within(clubs).getByRole('heading', {
+      name: titleName(SHOWCASE.clubs.titleLines),
+    });
     const header = heading.closest('header') as HTMLElement;
 
     expect(heading.className).toContain('t-h2');
@@ -213,12 +220,30 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect((rail.parentElement as HTMLElement).className).toContain('md:overflow-visible');
   });
 
-  it('заголовки без города и без «по рейтингу»: витринный запрос города не знает (ревью О-2)', async () => {
+  it('заголовки секций — дословно из макета, в две строки: «Топовые залы / рядом с тобой», «Сертифицированные / тренеры» (38.118)', async () => {
     render(await Home());
 
-    expect(SHOWCASE.clubs.title).not.toMatch(/город|Самар|рейтинг/i);
-    expect(SHOWCASE.trainers.title).not.toMatch(/город|Самар|рейтинг/i);
-    expect(screen.getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
+    expect(SHOWCASE.clubs.titleLines).toEqual(['Топовые залы', 'рядом с тобой']);
+    expect(SHOWCASE.trainers.titleLines).toEqual(['Сертифицированные', 'тренеры']);
+    // Перенос — как в макете: каждая строка блочным span'ом внутри одного h2.
+    const heading = screen.getByRole('heading', { name: titleName(SHOWCASE.clubs.titleLines) });
+    const lines = [...heading.querySelectorAll('span.block')].map((line) => line.textContent);
+    expect(lines).toEqual([...SHOWCASE.clubs.titleLines]);
+  });
+
+  it('баннер пробного под тренерами — дословно из макета; кнопка ведёт в выдачу каталога в режиме тренеров (38.118)', async () => {
+    useFilterStore.setState({ discoveryMode: 'clubs' });
+    render(await Home());
+
+    const banner = screen.getByRole('complementary', { name: SHOWCASE.trial.title });
+
+    expect(section('trainers')).toContainElement(banner);
+    expect(within(banner).getByText('40% тренеров — первое занятие бесплатно')).toBeInTheDocument();
+    expect(within(banner).getByText('Попробуй без риска · Отмена за 24 часа')).toBeInTheDocument();
+    const cta = within(banner).getByRole('link', { name: SHOWCASE.trial.cta });
+    expect(cta).toHaveAttribute('href', catalogSectionHref('results'));
+    fireEvent.click(cta);
+    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
   });
 
   it('«Все клубы» и «Все тренеры» ведут в выдачу каталога и ставят режим стора', async () => {

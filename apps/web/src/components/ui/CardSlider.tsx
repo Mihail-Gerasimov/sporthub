@@ -47,8 +47,8 @@ type CardSliderProps = {
   total: number;
   /** Маленькое UPPERCASE-eyebrow над заголовком */
   eyebrow: string;
-  /** Главный заголовок секции (display) */
-  title: string;
+  /** Главный заголовок секции (display); витрина даёт две строки блочными span'ами. */
+  title: ReactNode;
   /** Цвет акцента: lime — для клубов/слотов, orange — для тренеров */
   accent: 'lime' | 'orange';
   /** Уникальный идентификатор слайдера в DOM */

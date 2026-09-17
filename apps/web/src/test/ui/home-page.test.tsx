@@ -79,8 +79,13 @@ describe('Home page', () => {
     for (const line of FEATURES.titleLines) {
       expect(featuresTitle.textContent).toContain(line);
     }
-    expect(screen.getByRole('heading', { name: SHOWCASE.clubs.title })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: SHOWCASE.trainers.title })).toBeInTheDocument();
+    // Двухстрочные заголовки: в jsdom имя — строки слитно (блочные span'ы).
+    expect(
+      screen.getByRole('heading', { name: SHOWCASE.clubs.titleLines.join('') }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: SHOWCASE.trainers.titleLines.join('') }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: CTA.primary })).toBeInTheDocument();
   });
 

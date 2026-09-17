@@ -201,8 +201,10 @@ describe('ClubCard (38.73)', () => {
       expect(card).toHaveAttribute('data-testid', 'club-card');
       expect(card).toHaveAttribute('data-variant', 'showcase');
       expect(within(card).getByText('Плавание')).toBeInTheDocument();
-      expect(within(card).getByText(/^от\s+900/)).toBeInTheDocument();
+      // Цена и рейтинг — моноширинным, как в макете (DM Mono, 38.118).
+      expect(within(card).getByText(/^от\s+900/).className).toContain('font-mono');
       expect(within(card).getByRole('img', { name: 'Рейтинг: 4.8 из 5' })).toBeInTheDocument();
+      expect(within(card).getByText('4.8').className).toContain('font-mono');
       expect(within(card).getByText('(64)')).toBeInTheDocument();
       expect(within(card).getByTestId('verified-badge')).toBeInTheDocument();
 

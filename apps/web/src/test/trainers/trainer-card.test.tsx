@@ -264,7 +264,9 @@ describe('TrainerCard (38.74)', () => {
       expect(within(card).getByText('Персональная тренировка')).toBeInTheDocument();
       expect(within(card).getByRole('img', { name: 'Рейтинг: 4.9 из 5' })).toBeInTheDocument();
       expect(within(card).getByText('(31)')).toBeInTheDocument();
-      expect(within(card).getByText(/^от\s+1\s?400/)).toBeInTheDocument();
+      // Цена и рейтинг — моноширинным, как в макете (DM Mono, 38.118).
+      expect(within(card).getByText(/^от\s+1\s?400/).className).toContain('font-mono');
+      expect(within(card).getByText('4.9').className).toContain('font-mono');
       expect(within(card).getByText('Доступен сейчас')).toBeInTheDocument();
       expect(within(card).getByTestId('verified-badge')).toBeInTheDocument();
 

@@ -128,7 +128,7 @@ export function ClubCard({
               </span>
             ) : null}
           </div>
-          <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-display text-[12px] font-extrabold tabular-nums text-plate-ink">
+          <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-mono text-[12px] font-extrabold tabular-nums text-plate-ink">
             от {formatPrice(club.priceFrom)}
           </span>
         </div>
@@ -168,7 +168,7 @@ export function ClubCard({
                   >
                     <path d="m12 3.2 2.72 5.52 6.09.89-4.4 4.29 1.04 6.07L12 17.09l-5.45 2.88 1.04-6.07-4.4-4.29 6.09-.89L12 3.2Z" />
                   </svg>
-                  <span className="font-display text-[11px] font-bold tabular-nums text-plate-ink">
+                  <span className="font-mono text-[11px] font-bold tabular-nums text-plate-ink">
                     {club.rating.toFixed(1)}
                   </span>
                 </span>
