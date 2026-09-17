@@ -9,10 +9,10 @@
  * Поиск и счётчики — свои компоненты (38.67, 38.69); герой оставляет им места
  * по разметке эталона и принимает их как слоты. Правая колонка — `FocusCard` (38.70),
  * герой рисует её сам по данным дня. Без слотов секция рисуется целой, с ними —
- * как в макете. Тексты — из `lib/home-copy.ts`; `id` и подпись секции — из словаря
- * секций, не литералом. Город — в подзаголовке из стора фильтров (`HeroSubtitle`,
- * 38.78/38.107): тот же, что в селекторе каталога; чипа города и ленты видов спорта
- * в герое нет — в макете их нет (38.107).
+ * как в макете. Тексты — дословно из макета через `lib/home-copy.ts` (38.114); `id`
+ * и подпись секции — из словаря секций, не литералом. Города в герое нет: подзаголовок
+ * макета статичен («…в твоём городе»), селектор города живёт в каталоге; чипа города
+ * и ленты видов спорта в герое нет — в макете их нет (38.107).
  *
  * Почему не `ui/*`: секция-плашка с собственной сеткой и волной — единственная
  * на площадке, компонент общего вида под неё не нужен; кнопки и карточки внутри
@@ -22,7 +22,6 @@ import type { ReactNode } from 'react';
 
 import { FocusCard } from '@/components/home/FocusCard';
 import { HomeContainer } from '@/components/home/HomeContainer';
-import { HeroSubtitle } from '@/components/home/HeroSubtitle';
 import type { UpcomingSessionItem } from '@/components/schedule';
 import type { Club } from '@sporthub/types';
 import { HERO } from '@/lib/home-copy';
@@ -79,7 +78,9 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
               <span className="block text-lime">{HERO.titleAccent}</span>
             </h1>
 
-            <HeroSubtitle />
+            <p className="mb-8 max-w-[480px] font-body text-[15px] leading-[1.7] text-plate-muted">
+              {HERO.subtitle}
+            </p>
 
             {search ? <div className="relative mb-9">{search}</div> : null}
             {counters}

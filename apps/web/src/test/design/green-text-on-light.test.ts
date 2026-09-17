@@ -35,8 +35,6 @@ import { WEB_ROOT } from '../web-root';
 export const RENDERED_ON_PLATE: string[] = [
   // Ряд счётчиков — слот `counters` героя (38.69), рисуется на его плашке.
   'src/components/home/HomeCounters.tsx',
-  // Подзаголовок героя с городом из стора (38.107) — в теле героя.
-  'src/components/home/HeroSubtitle.tsx',
 ];
 
 /**

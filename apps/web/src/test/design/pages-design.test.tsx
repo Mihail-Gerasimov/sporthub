@@ -67,10 +67,10 @@ describe('Минималистичный стиль страниц', () => {
       expect(hero.textContent).not.toMatch(/\bSH\b/);
     });
 
-    it('описание витрины стоит в герое и написано приглушённым текстом плашки', async () => {
+    it('подзаголовок макета стоит в герое и написан приглушённым текстом плашки', async () => {
       render(await Home());
       const hero = screen.getByRole('region', { name: HOME_SECTIONS.hero.label });
-      const description = screen.getByText(/собирает клубы/);
+      const description = screen.getByText(HERO.subtitle);
       expect(hero.contains(description)).toBe(true);
       expect(description.className).toContain('text-plate-muted');
     });

@@ -100,7 +100,9 @@ function useCountUp(target: number, start: boolean): number {
  * иначе незрячий слышал бы либо каждый кадр счёта, либо ничего (ревью 38.69: `aria-label`
  * на абзаце запрещён ARIA 1.2 и пропускается). Визуально число над подписью —
  * `flex-col-reverse`, порядок в разметке остаётся «подпись, число».
- * `tabular-nums` — цифры не «прыгают» по ширине при счёте.
+ * `tabular-nums` — цифры не «прыгают» по ширине при счёте. Число — DM Mono (`font-mono`,
+ * 38.113/38.114) весом 900, как в макете (`HomePage.tsx:392`): у DM Mono есть только
+ * 400/500, жирность дорисовывает браузер — так же, как в превью макета.
  */
 function Counter({ label, target, start }: { label: string; target: number; start: boolean }) {
   const value = useCountUp(target, start);
@@ -110,7 +112,7 @@ function Counter({ label, target, start }: { label: string; target: number; star
       <dt className="mt-1 font-body text-[10px] font-semibold uppercase tracking-[0.07em] text-plate-muted">
         {label}
       </dt>
-      <dd className="m-0 font-display text-[20px] font-black leading-none text-lime tabular-nums">
+      <dd className="m-0 font-mono text-[20px] font-black leading-none text-lime tabular-nums">
         <span aria-hidden="true">{value.toLocaleString('ru-RU')}</span>
         <span className="sr-only">{target.toLocaleString('ru-RU')}</span>
       </dd>

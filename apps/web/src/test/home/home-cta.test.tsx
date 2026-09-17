@@ -32,6 +32,13 @@ describe('HomeCta', () => {
     expect(lines.map((s) => s.textContent)).toEqual([...CTA.titleLines, CTA.titleAccent]);
     expect(lines[lines.length - 1].className).toContain('text-lime');
     expect(screen.getByText(CTA.body).className).toContain('text-plate-muted');
+    // Строка под кнопками — дословно из макета (38.114), приглушённым текстом плашки.
+    const footnote = screen.getByText(CTA.footnote);
+    expect(footnote.className).toContain('text-plate-muted');
+    expect(
+      screen.getByRole('link', { name: CTA.secondary }).compareDocumentPosition(footnote) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('гостю «Создать аккаунт» открывает модалку входа; «Смотреть клубы» ведёт к выдаче', () => {

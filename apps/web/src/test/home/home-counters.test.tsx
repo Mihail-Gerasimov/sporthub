@@ -93,6 +93,12 @@ describe('HomeCounters', () => {
     expect(spokenNumber('Тренеров')).toBe('340');
     expect(spokenNumber('Клубов')).toBe('52');
     expect(spokenNumber('Отзывов')).toBe(fmt(4987));
+    // Число — DM Mono 900 зелёным 20px, как в макете (`HomePage.tsx:392`; 38.114).
+    const definition = definitionOf('Клубов');
+    expect(definition.className).toContain('font-mono');
+    expect(definition.className).not.toContain('font-display');
+    expect(definition.className).toContain('font-black');
+    expect(definition.className).toContain('text-lime');
   });
 
   it('бегущее число скрыто от диктора, конечное — только для него', () => {

@@ -1,11 +1,12 @@
 /**
  * Герой главной (шаг 38.65): тексты из словаря, H1 display-шрифтом в три строки
  * с зелёной третьей, тёмная плашка со свечением и волной, слоты под поиск,
- * счётчики и правую колонку; водяного знака «SH» нет. Город в подзаголовке героя —
- * из стора фильтров (38.78, тупик № 32; 38.107: чип города снят, селектор в каталоге).
+ * счётчики и правую колонку; водяного знака «SH» нет. Подзаголовок — статичная строка
+ * макета (38.114): города в герое нет (38.107: чип снят, селектор в каталоге; 38.114:
+ * текст с городом из стора снят вместе с `HeroSubtitle`).
  */
-import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
 import { HomeHero } from '@/components/home/HomeHero';
 import { HERO } from '@/lib/home-copy';
@@ -13,24 +14,14 @@ import { HOME_SECTIONS } from '@/lib/home-sections';
 import { useFilterStore } from '@/stores/useFilterStore';
 
 describe('HomeHero', () => {
-  beforeEach(() => {
-    useFilterStore.setState({ selectedCity: 'Самара' });
-  });
-
-  it('город — в подзаголовке из стора фильтров, следует за селектором; чипа города нет (38.107)', () => {
+  it('подзаголовок — строка макета без города: стор фильтров на герой не влияет (38.114)', () => {
     useFilterStore.setState({ selectedCity: 'Казань' });
     render(<HomeHero />);
 
-    const subtitle = screen.getByText(HERO.subtitle('Казань'));
+    const subtitle = screen.getByText(HERO.subtitle);
     expect(subtitle.className).toContain('text-plate-muted');
+    expect(subtitle.textContent).not.toMatch(/Казань/);
     expect(screen.queryByRole('link', { name: /Город:/ })).toBeNull();
-
-    // Смена города в селекторе — та же запись стора — меняет текст без литералов.
-    act(() => {
-      useFilterStore.getState().setSelectedCity('тольятти');
-    });
-    expect(screen.getByText(HERO.subtitle('Тольятти'))).toBeInTheDocument();
-    expect(screen.queryByText(/Казань/)).toBeNull();
   });
 
   it('H1 — из словаря, display-шрифтом, три строки, третья зелёная', () => {
@@ -55,7 +46,7 @@ describe('HomeHero', () => {
     expect(HERO.eyebrowTag).toBe('Новинки');
     const eyebrow = screen.getByText(HERO.eyebrow);
     expect(eyebrow.parentElement?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
-    expect(screen.getByText(HERO.subtitle('Самара')).className).toContain('text-plate-muted');
+    expect(screen.getByText(HERO.subtitle).className).toContain('text-plate-muted');
     // Водяного знака «SH» больше нет.
     expect(section.textContent).not.toMatch(/\bSH\b/);
   });
