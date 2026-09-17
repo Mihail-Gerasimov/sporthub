@@ -32,6 +32,7 @@ import { WEB_ROOT } from '../web-root';
 import {
   coversCyrillic,
   declarationOf,
+  googleFontCalls,
   loadFontkit,
   localFontCall,
   stackVariables,
@@ -87,11 +88,16 @@ const layoutPath = path.join(WEB_ROOT, 'src', 'app', 'layout.tsx');
 const globalsPath = path.join(WEB_ROOT, 'src', 'app', 'globals.css');
 
 describe('Сторож: стек шрифтов макета и кириллица display-текста (38.113)', () => {
-  it('display-стек: Barlow, за ним кириллический Inter 900, затем Inter; body — Inter', async () => {
+  it('display-стек: Barlow с весом 900, за ним кириллический Inter 900, затем Inter; body — Inter', async () => {
     const css = await readFile(globalsPath, 'utf8');
+    const barlow = googleFontCalls(await readFile(layoutPath, 'utf8')).find(
+      (call) => call.variable === DISPLAY_STACK_HEAD[0],
+    );
 
     expect(stackVariables(css, 'display').slice(0, 3)).toEqual(DISPLAY_STACK_HEAD);
     expect(stackVariables(css, 'body')[0]).toBe('--font-inter');
+    // Вес макета: без '900' в запросе браузер подставит ближайший загруженный (800).
+    expect(barlow?.options).toMatch(/weight\s*:\s*\[[^\]]*['"]900['"]/);
   });
 
   it('mono-стек — DM Mono и системная моноширинная; DM Mono больше нигде; `--font-mono` Tailwind — этот стек', async () => {
