@@ -18,9 +18,14 @@ import { describe, expect, it } from 'vitest';
 
 import { WEB_ROOT } from '../web-root';
 
-/** Снятые шрифты — как они пишутся в CSS и как импортируются из `next/font/google`. */
+/**
+ * Снятые шрифты — как они пишутся в CSS и как импортируются из `next/font/google`;
+ * плюс снятое рублёвое лицо (38.18 → 38.113): переменная `--font-ruble` и файлы
+ * `barlow-ruble-*` — ссылка на несуществующую переменную делает весь `font-family`
+ * недействительным, и текст молча уходит в шрифт по умолчанию.
+ */
 export const REMOVED_FONTS =
-  /Bowlby One|Bowlby_One|Oswald|JetBrains Mono|JetBrains_Mono|Sofia Sans|Sofia_Sans|font-sofia/;
+  /Bowlby One|Bowlby_One|Oswald|JetBrains Mono|JetBrains_Mono|Sofia Sans|Sofia_Sans|font-sofia|font-ruble|barlow-ruble/;
 
 // Текст без комментариев: блочных и строчных (до конца строки).
 // ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.
@@ -57,7 +62,7 @@ async function collectSources(directory: string): Promise<string[]> {
 }
 
 describe('Сторож: снятые шрифты (38.16)', () => {
-  it('ни один файл не ссылается на Bowlby One, Oswald, JetBrains Mono или Sofia Sans', async () => {
+  it('ни один файл не ссылается на Bowlby One, Oswald, JetBrains Mono, Sofia Sans или рублёвое лицо', async () => {
     const offenders: string[] = [];
 
     for (const file of await collectSources(path.join(WEB_ROOT, 'src'))) {
@@ -85,6 +90,10 @@ describe('Сторож: снятые шрифты (38.16)', () => {
       referencesRemovedFont("import { Sofia_Sans_Extra_Condensed } from 'next/font/google';"),
     ).toBe(true);
     expect(referencesRemovedFont('font-family: var(--font-sofia);')).toBe(true);
+    expect(referencesRemovedFont('--ui-font-mono: var(--font-ruble), var(--font-dm-mono);')).toBe(
+      true,
+    );
+    expect(referencesRemovedFont("src: [{ path: '../fonts/barlow-ruble-800.woff2' }]")).toBe(true);
     // Комментарий — не ссылка.
     expect(referencesRemovedFont('// раньше display был Bowlby One\nconst x = 1;')).toBe(false);
     // Шрифты макета — не нарушение; `--ui-font-mono` теперь токен DM Mono (38.113).

@@ -25,7 +25,7 @@ import { LOW_SPOTS_TONE } from '@/lib/slot-spots';
 import { cn } from '@/lib/utils';
 
 type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'outline' | 'ghost' | 'danger' | 'alert';
-type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
+type ButtonSize = '2xs' | 'xs' | 'sm' | 'md' | 'lg';
 
 /**
  * Варианты:
@@ -54,13 +54,16 @@ const variantClassNames: Record<ButtonVariant, string> = {
 
 /**
  * Размеры — числами макета (аудит 17.09, п. 3), высота вместе с обводкой (border-box):
- * `xs` — мини-кнопка слоёв поверх карты и строк расписания (`App.tsx:1481`,
- * `HomePage.tsx:448`): радиус 9, обводка 1px, подпись 12px; `sm` — «Войти» в шапке
+ * `2xs` — кнопка строки расписания в колонке героя (`HomePage.tsx:448`, ревью Э14):
+ * 27 высоты, радиус 8, отступы 5×12, подпись 10px; `xs` — мини-кнопка слоёв поверх
+ * карты (`App.tsx:1481`): радиус 9, обводка 1px, подпись 12px; `sm` — «Войти» в шапке
  * (`App.tsx:2852`: 9/20, 13px); `md` — «Найти» (`HomePage.tsx:346`: 13/24, 14px);
  * `lg` — призыв (`HomePage.tsx:868`: 14/34, 15px). Радиус 12px (`rounded-button`),
- * обводка 2px (у primary прозрачная — считается в высоте).
+ * обводка 2px (у primary прозрачная — считается в высоте). Вес у всех размеров один —
+ * семейный 900 (макет держит 800 у `2xs` и `xs`, аудит п. 3 выбрал 900 для семейства).
  */
 const sizeClassNames: Record<ButtonSize, string> = {
+  '2xs': 'min-h-[27px] rounded-lg border px-3 text-[10px]',
   xs: 'min-h-8 rounded-[9px] border px-3.5 text-[12px]',
   sm: 'min-h-[37px] rounded-button border-2 px-5 text-[13px]',
   md: 'min-h-[47px] rounded-button border-2 px-6 text-sm',

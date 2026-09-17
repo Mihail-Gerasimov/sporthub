@@ -190,6 +190,13 @@
     transparent 35%,
     color-mix(in srgb, var(--ui-ink) 78%, transparent) 100%
   );
+  /* Затемнение фото карточки героя (38.116, ревью Э14; `HomePage.tsx:414`): круче
+   * витринного — чернила на 85% у нижнего края, прозрачно уже к 55% высоты. */
+  --ui-decor-photo-shade-hero: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--ui-ink) 85%, transparent) 0%,
+    transparent 55%
+  );
   /* Свечение призыва: то же пятно 700×400, по центру секции. */
   --ui-decor-plate-glow-center: radial-gradient(
     ellipse 350px 200px at 50% 50%,

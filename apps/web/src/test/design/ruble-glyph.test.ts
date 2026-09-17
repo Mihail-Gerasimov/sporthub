@@ -56,7 +56,8 @@ describe('Сторож: знак рубля из собственных шриф
     const css = await readFile(path.join(WEB_ROOT, 'src', 'app', 'globals.css'), 'utf8');
 
     expect(rubleOffenders(layout, css, loadFontData())).toEqual([]);
-    expect(layout).not.toContain('--font-ruble');
+    // Имя склеено, чтобы сторож removed-fonts не принял проверку за ссылку.
+    expect(layout).not.toContain(`--font-${'ruble'}`);
   });
 
   it('в каталоге локальных лиц рублёвых файлов не осталось', async () => {
@@ -102,13 +103,14 @@ describe('Сторож: знак рубля из собственных шриф
         fontData,
       ),
     ).toEqual(['опция `text` сужает набор глифов']);
-    // Вернувшееся рублёвое лицо в стеке — нарушение.
+    // Вернувшееся рублёвое лицо в стеке — нарушение (имя склеено — см. выше).
+    const rubleVariable = `--font-${'ruble'}`;
     expect(
       rubleOffenders(
         layout('Barlow Condensed'),
-        '--ui-font-display: var(--font-ruble), var(--font-x);',
+        `--ui-font-display: var(${rubleVariable}), var(--font-x);`,
         fontData,
       ),
-    ).toEqual(['--font-ruble: локальное рублёвое лицо снято в 38.113']);
+    ).toEqual([`${rubleVariable}: локальное рублёвое лицо снято в 38.113`]);
   });
 });

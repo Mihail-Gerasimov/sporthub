@@ -4,10 +4,12 @@
  * Правая колонка героя — карточка клуба по макету (шаг 38.116; `HomePage.tsx:403-456`,
  * чек-лист step-23/24): белая карточка радиусом 24 с глубокой тенью (`shadow-deep`,
  * 0 32 80 .5) и обводкой white .06; сверху фото клуба высотой 200 с затемнением снизу
- * (токен `--ui-decor-photo-shade`), на нём бейдж «Верифицирован» (по `verifiedAt`),
- * имя display 20 и рейтинг моно 12 с числом отзывов и адресом; ниже «Ближайшие занятия»
- * до трёх строк: время моно 13, название 12, тренер 10, справа кнопка `ui/Button`
- * размера `xs` ссылкой на запись — первое занятие «Записаться» (зелёная мягкая), мало
+ * (токен `--ui-decor-photo-shade-hero`: чернила 85% снизу до прозрачного на 55%,
+ * `HomePage.tsx:414` — круче, чем у карточки витрины), на нём бейдж «Верифицирован»
+ * (по `verifiedAt`), имя display 20 и рейтинг моно 12 с числом отзывов и адресом; ниже
+ * «Ближайшие занятия» до трёх строк: время моно 13, название 12, тренер 10, справа кнопка
+ * `ui/Button` размера `2xs` (27/8/5×12, 10px — числа строки макета, ревью Э14) ссылкой
+ * на запись — первое занятие «Записаться» (зелёная мягкая), мало
  * мест — «🔥 N места» (тон «мало мест»), остальные — «N мест» (обводка).
  *
  * Логика наша (реестр № 40–46): клуб — клуб ближайшего занятия дня всей площадки
@@ -83,7 +85,7 @@ export function FocusCard({ club, sessions, dateLabel }: FocusCardProps) {
         ) : null}
         <div
           aria-hidden="true"
-          className="pointer-events-none [grid-area:1/1] [background:var(--ui-decor-photo-shade)]"
+          className="pointer-events-none [grid-area:1/1] [background:var(--ui-decor-photo-shade-hero)]"
         />
 
         {club?.verifiedAt ? (
@@ -154,7 +156,7 @@ export function FocusCard({ club, sessions, dateLabel }: FocusCardProps) {
                   href={`/booking/${session.id}`}
                   aria-label={`${FOCUS.cta}: ${session.title}, ${session.startTime}`}
                   variant={rowButtonVariant(index, session.availableSpots)}
-                  size="xs"
+                  size="2xs"
                   className="shrink-0"
                 >
                   {index === 0 ? (

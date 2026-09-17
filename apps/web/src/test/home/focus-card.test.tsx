@@ -64,7 +64,8 @@ describe('FocusCard (38.116 — по макету)', () => {
     // `alt=""` — фото декоративное (имя стоит заголовком), у диктора роли нет.
     expect(card.querySelector('img')).toHaveAttribute('src', '/images/clubs/garage.jpg');
     expect(card.querySelector('.h-\\[200px\\]')).not.toBeNull();
-    expect(card.querySelector('[class*="--ui-decor-photo-shade"]')).not.toBeNull();
+    // Затемнение — свой токен героя (`HomePage.tsx:414`: 85% снизу до 55%), не витринный.
+    expect(card.querySelector('[class*="--ui-decor-photo-shade-hero"]')).not.toBeNull();
     expect(within(card).getByText(FOCUS.verified)).toBeInTheDocument();
     expect(
       within(card).getByRole('heading', { level: 3, name: 'CrossFit Garage' }),
@@ -114,6 +115,13 @@ describe('FocusCard (38.116 — по макету)', () => {
     const low = screen.getByRole('link', { name: `${FOCUS.cta}: Занятие 3, 13:00` });
     expect(low).toHaveTextContent('2 места');
     expect(low.className).toContain(LOW_SPOTS_TONE);
+    // Кнопка строки — размер `2xs` по числам макета (`HomePage.tsx:448`, ревью Э14):
+    // 27 высоты, радиус 8, подпись 10px — не `xs` карты (32/9/12).
+    for (const button of [first, plain, low]) {
+      expect(button.className).toContain('min-h-[27px]');
+      expect(button.className).toContain('rounded-lg');
+      expect(button.className).toContain('text-[10px]');
+    }
   });
 
   it('без занятий — тот же каркас: фото и имя клуба на месте, вместо строк — подсказка с датой, ссылок на запись нет', () => {

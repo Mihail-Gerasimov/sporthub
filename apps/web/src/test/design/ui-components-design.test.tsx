@@ -116,7 +116,17 @@ describe('UI-компоненты под дизайн ПРОСПОРТ', () => {
       expect(link.textContent).not.toContain('Загрузка');
     });
 
-    it('размер xs — мини-кнопка слоя над картой и строк расписания: радиус 9, обводка 1px, 12px', () => {
+    it('размер 2xs — кнопка строки расписания героя: 27 высоты, радиус 8, обводка 1px, 10px', () => {
+      render(<Button size="2xs">8 мест</Button>);
+      const button = screen.getByRole('button');
+      expect(button.className).toContain('min-h-[27px]');
+      expect(button.className).toContain('rounded-lg');
+      expect(button.className).toContain('px-3');
+      expect(button.className).toContain('text-[10px]');
+      expect(button.className).not.toContain('border-2');
+    });
+
+    it('размер xs — мини-кнопка слоя над картой: радиус 9, обводка 1px, 12px', () => {
       render(<Button size="xs">Закрыть</Button>);
       const button = screen.getByRole('button');
       expect(button.className).toContain('rounded-[9px]');
