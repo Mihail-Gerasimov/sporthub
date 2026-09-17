@@ -247,6 +247,16 @@ docker compose --profile app up -d
 `docker compose exec -T db pg_dump -U sporthub sporthub | gzip > дамп.sql.gz`.
 Записи, сделанные после снятия дампа, при восстановлении теряются.
 
+## CI/CD
+
+- **CI** — GitHub Actions, `.github/workflows/ci.yml`: на каждый push и pull request — линтер,
+  типы, все тесты (PostgreSQL 16 с локалью ICU ru-RU как у стенда), сборка. Красный запуск —
+  не сливать.
+- **CD** — `.github/workflows/deploy.yml`: образы в GitHub Container Registry, выкатка на сервер
+  по ssh (pull, миграции, перезапуск, проверка `/api/health`). Запускается только кнопкой
+  Actions → Deploy или тегом `v*`. **Пока не подключён** — на сервере MVP, нужны расширение
+  тарифа и переезд по `docker/PRODUCTION.md` (долг Д-31 в `STACK_OVERVIEW.md`).
+
 ## Прогресс реализации
 
 Карта фаз целиком — в `PHASES_OVERVIEW.md` (файл локальный, в репозиторий не попадает).
