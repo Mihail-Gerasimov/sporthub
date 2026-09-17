@@ -94,6 +94,12 @@ describe('Учётные записи', () => {
       // Пятый набор — и зал, и персоналки. В прежней модели он был невыразим:
       // роль позволяла быть кем-то одним.
       { kind: 'person', clubs: true, cards: true },
+      // Люди макета (38.115): два тренера с карточками, трое спортсменов-рецензентов.
+      { kind: 'person', clubs: false, cards: true },
+      { kind: 'person', clubs: false, cards: false },
+      { kind: 'person', clubs: false, cards: false },
+      { kind: 'person', clubs: false, cards: true },
+      { kind: 'person', clubs: false, cards: false },
     ]);
   });
 
@@ -121,14 +127,93 @@ describe('Демонабор', () => {
     // ⚠️ Фаза 35: публикаций стало больше, и не случайно. Пятый человек сида
     // владеет И клубом, И карточкой тренера — набором лиц, который в прежней
     // модели выразить было нельзя вовсе: роль позволяла быть кем-то одним.
-    expect(await db.prisma.club.count()).toBe(3);
-    expect(await db.prisma.trainer.count()).toBe(2);
+    // 38.115: шесть клубов и четыре тренера — как на витрине макета.
+    expect(await db.prisma.club.count()).toBe(6);
+    expect(await db.prisma.trainer.count()).toBe(4);
 
-    const link = await db.prisma.trainerClubLink.findFirstOrThrow();
+    const link = await db.prisma.trainerClubLink.findFirstOrThrow({ orderBy: { id: 'asc' } });
 
     expect(link.status).toBe('confirmed');
     expect(link.trainerId).toBe(1);
     expect(link.clubId).toBe(1);
+  });
+
+  // --- Сид под макет (38.115) ---
+
+  it('у каждого клуба есть снимок, у каждого тренера — лицо: адреса макета', async () => {
+    const clubs = await db.prisma.club.findMany({
+      include: { images: true },
+      orderBy: { id: 'asc' },
+    });
+    const trainers = await db.prisma.trainer.findMany({ orderBy: { id: 'asc' } });
+
+    for (const club of clubs) {
+      expect(club.images.length, `у клуба «${club.name}» нет снимка`).toBeGreaterThan(0);
+      expect(club.images[0].url).toMatch(/^https:\/\/images\.unsplash\.com\/photo-.*w=500&h=220/);
+    }
+    for (const trainer of trainers) {
+      expect(trainer.avatarUrl, `у тренера «${trainer.name}» нет лица`).toMatch(
+        /^https:\/\/images\.unsplash\.com\/photo-.*w=200&h=200.*crop=faces/,
+      );
+    }
+  });
+
+  it('у каждой публикации несколько отзывов, рейтинг посчитан из них, часть подтверждена', async () => {
+    const clubs = await db.prisma.club.findMany({
+      include: { reviews: true },
+      orderBy: { id: 'asc' },
+    });
+    const trainers = await db.prisma.trainer.findMany({
+      include: { reviews: true },
+      orderBy: { id: 'asc' },
+    });
+
+    for (const subject of [...clubs, ...trainers]) {
+      expect(subject.reviews.length, `«${subject.name}»: отзывов`).toBeGreaterThanOrEqual(3);
+      expect(subject.reviewCount).toBe(subject.reviews.length);
+      const mean = subject.reviews.reduce((sum, r) => sum + r.rating, 0) / subject.reviews.length;
+
+      expect(Math.abs(subject.rating - mean)).toBeLessThan(0.06);
+      expect(subject.rating).toBeGreaterThanOrEqual(4.5);
+    }
+
+    // Автор отзыва — не владелец предмета (правило «сам себе»).
+    for (const club of clubs) {
+      expect(club.reviews.some((r) => r.userId === club.managedByUserId)).toBe(false);
+    }
+    for (const trainer of trainers) {
+      expect(trainer.reviews.some((r) => r.userId === trainer.managedByUserId)).toBe(false);
+    }
+
+    // Знак «проверено» — у части, не у всех: на карточках видна разница.
+    expect(clubs.filter((c) => c.verifiedAt !== null).length).toBeGreaterThanOrEqual(3);
+    expect(clubs.some((c) => c.verifiedAt === null)).toBe(true);
+    expect(trainers.filter((t) => t.verifiedAt !== null).length).toBeGreaterThanOrEqual(2);
+    expect(trainers.some((t) => t.verifiedAt === null)).toBe(true);
+  });
+
+  it('занятия есть «сегодня» и «завтра» относительно опорного дня — у клубов и у тренеров', async () => {
+    const slots = await db.prisma.schedule.findMany({ orderBy: { id: 'asc' } });
+    const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+    const today = dateKey(TODAY);
+    const tomorrow = dateKey(new Date(TODAY.getTime() + 86_400_000));
+
+    const clubToday = slots.filter((s) => s.ownerClubId !== null && dateKey(s.date) === today);
+    const clubTomorrow = slots.filter(
+      (s) => s.ownerClubId !== null && dateKey(s.date) === tomorrow,
+    );
+    const trainerToday = slots.filter(
+      (s) => s.ownerTrainerId !== null && dateKey(s.date) === today,
+    );
+
+    expect(clubToday.length).toBeGreaterThanOrEqual(5);
+    expect(clubTomorrow.length).toBeGreaterThanOrEqual(3);
+    expect(trainerToday.length).toBeGreaterThanOrEqual(3);
+    // Поздние занятия: вечером в день сида на витрине ещё есть что показать.
+    // Время в базе — `time` (в клиенте — Date на эпохе), сравниваем часы UTC.
+    expect(clubToday.some((s) => s.startTime.getUTCHours() >= 21)).toBe(true);
+    // Места свободны везде: занятость считается из живых записей, а их сид не заводит.
+    expect(clubToday.every((s) => s.bookedCount === 0 && s.capacity > 0)).toBe(true);
   });
 
   it('в сиде есть человек с двумя лицами — клубом и карточкой тренера', async () => {
@@ -153,14 +238,15 @@ describe('Демонабор', () => {
     expect(offering.trainerClubLinkId).toBe(1);
   });
 
-  it('занятия лежат в будущем — иначе записаться на них нельзя с первой минуты', async () => {
+  it('занятия лежат не в прошлом — с опорного дня и дальше, записаться можно с первой минуты', async () => {
     const slots = await db.prisma.schedule.findMany({ orderBy: { id: 'asc' } });
 
     expect(slots.length).toBeGreaterThanOrEqual(3);
 
     for (const slot of slots) {
-      expect(slot.date.getTime(), `слот ${slot.id}`).toBeGreaterThan(TODAY.getTime());
-      expect(slot.bookedCount).toBe(0);
+      // 38.115: занятия начинаются с самого опорного дня («сегодня»), а не с завтрашнего.
+      expect(slot.date.getTime(), `слот ${slot.id}`).toBeGreaterThanOrEqual(TODAY.getTime());
+      expect(slot.bookedCount).toBeLessThanOrEqual(slot.capacity);
       expect(slot.capacity).toBeGreaterThan(0);
     }
   });

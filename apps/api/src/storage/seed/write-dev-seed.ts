@@ -176,7 +176,6 @@ export async function writeDevSeed({ client, source }: WriteDevSeedOptions): Pro
   // вслух, а не записать половину: у этих таблиц естественного ключа нет.
   assertNotSeeded(rows.bookings, 'записи');
   assertNotSeeded(rows.bookingStatusTransitions, 'переходы записей');
-  assertNotSeeded(rows.reviews, 'отзывы');
   assertNotSeeded(rows.notifications, 'уведомления');
   assertNotSeeded(rows.logs, 'журнал');
   assertNotSeeded(rows.providerClientNotes, 'заметки о клиентах');
@@ -466,6 +465,35 @@ export async function writeDevSeed({ client, source }: WriteDevSeedOptions): Pro
       }
 
       if (scheduleRows.length > 0) await tx.schedule.createMany({ data: scheduleRows });
+
+      // --- Отзывы: у публикаций и от людей, заведённых сейчас (38.115) ---
+      //
+      // Отзыв к чужой публикации или от живого человека — правка живых данных;
+      // отзыв, чей автор или предмет не заводились этим прогоном, пропускается вслух.
+      const reviewRows: Prisma.ReviewCreateManyInput[] = [];
+
+      for (const row of rows.reviews) {
+        const ownAuthor = users.created.has(row.userId);
+        const ownSubject =
+          (row.clubId !== null && row.clubId !== undefined && clubs.created.has(row.clubId)) ||
+          (row.trainerId !== null &&
+            row.trainerId !== undefined &&
+            trainers.created.has(row.trainerId));
+
+        if (!ownAuthor || !ownSubject) {
+          notes.push(`отзыв ${row.id} пропущен: автор или публикация заведены не этим прогоном`);
+          continue;
+        }
+
+        reviewRows.push({
+          ...withoutId(row),
+          userId: remapRequired(users, row.userId, 'пользователя'),
+          clubId: remap(clubs, row.clubId, 'клуб'),
+          trainerId: remap(trainers, row.trainerId, 'карточку тренера'),
+        });
+      }
+
+      if (reviewRows.length > 0) await tx.review.createMany({ data: reviewRows });
 
       // --- Связующие строки: только у публикаций и людей, заведённых сейчас ---
       //
