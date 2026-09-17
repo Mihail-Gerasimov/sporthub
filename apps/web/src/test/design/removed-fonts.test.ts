@@ -1,7 +1,9 @@
 // Сторож: на снятые шрифты никто не ссылается (шаг 38.16).
 //
-// ⚠️ Зачем. Фаза 38 сняла три шрифта — Bowlby One, Oswald, JetBrains Mono — и токен
-// `--ui-font-mono`. Ссылка на снятый шрифт в коде не падает: браузер молча подставит
+// ⚠️ Зачем. Фаза 38 сняла четыре шрифта — Bowlby One, Oswald, JetBrains Mono и Sofia Sans
+// Extra Condensed (38.113: стек макета — Barlow Condensed, Inter 900 кириллицей, DM Mono
+// цифрами; токен `--ui-font-mono` вернулся как DM Mono). Ссылка на снятый шрифт в коде
+// не падает: браузер молча подставит
 // системный, и никто не заметит, пока не сравнит с макетом. `next/font/google` с именем
 // снятого шрифта ещё и скачает его — назад к трём шрифтам одним импортом.
 //
@@ -18,7 +20,7 @@ import { WEB_ROOT } from '../web-root';
 
 /** Снятые шрифты — как они пишутся в CSS и как импортируются из `next/font/google`. */
 export const REMOVED_FONTS =
-  /Bowlby One|Bowlby_One|Oswald|JetBrains Mono|JetBrains_Mono|ui-font-mono/;
+  /Bowlby One|Bowlby_One|Oswald|JetBrains Mono|JetBrains_Mono|Sofia Sans|Sofia_Sans|font-sofia/;
 
 // Текст без комментариев: блочных и строчных (до конца строки).
 // ⚠️ Обычным комментарием, а не JSDoc: пример `*/` внутри JSDoc закрыл бы его сам.
@@ -55,7 +57,7 @@ async function collectSources(directory: string): Promise<string[]> {
 }
 
 describe('Сторож: снятые шрифты (38.16)', () => {
-  it('ни один файл не ссылается на Bowlby One, Oswald, JetBrains Mono или --ui-font-mono', async () => {
+  it('ни один файл не ссылается на Bowlby One, Oswald, JetBrains Mono или Sofia Sans', async () => {
     const offenders: string[] = [];
 
     for (const file of await collectSources(path.join(WEB_ROOT, 'src'))) {
@@ -79,14 +81,16 @@ describe('Сторож: снятые шрифты (38.16)', () => {
   it('сторож видит ссылку на снятый шрифт на подставном тексте', () => {
     expect(referencesRemovedFont("import { Bowlby_One } from 'next/font/google';")).toBe(true);
     expect(referencesRemovedFont("--ui-font-body: 'Oswald', system-ui;")).toBe(true);
-    expect(referencesRemovedFont('font-family: var(--ui-font-mono);')).toBe(true);
+    expect(
+      referencesRemovedFont("import { Sofia_Sans_Extra_Condensed } from 'next/font/google';"),
+    ).toBe(true);
+    expect(referencesRemovedFont('font-family: var(--font-sofia);')).toBe(true);
     // Комментарий — не ссылка.
     expect(referencesRemovedFont('// раньше display был Bowlby One\nconst x = 1;')).toBe(false);
-    // Новые шрифты — не нарушение.
+    // Шрифты макета — не нарушение; `--ui-font-mono` теперь токен DM Mono (38.113).
     expect(
-      referencesRemovedFont(
-        "import { Inter, Sofia_Sans_Extra_Condensed } from 'next/font/google';",
-      ),
+      referencesRemovedFont("import { Barlow_Condensed, DM_Mono, Inter } from 'next/font/google';"),
     ).toBe(false);
+    expect(referencesRemovedFont('font-family: var(--ui-font-mono);')).toBe(false);
   });
 });

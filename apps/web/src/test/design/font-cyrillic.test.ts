@@ -1,74 +1,79 @@
-// Сторож: каждый шрифт из `next/font/google` подключён с кириллицей (шаг 38.17).
+// Сторож: у каждого шрифта стека кириллица либо своя, либо закрыта названным соседом
+// (шаг 38.17; 38.113 — стек макета).
 //
 // ⚠️ Зачем. Три фазы display-шрифтом был Bowlby One — у него кириллицы нет вовсе,
 // и русские заголовки молча рисовались Impact'ом. Сборка проходит, тест классов
 // зелёный, а H1 на странице — другим шрифтом. Никакой тест классов этого не поймает:
 // подстановка происходит в браузере по глифу.
 //
-// Проверяется по двум источникам сразу: по вызову в коде — запрошен ли `subsets`
-// с `cyrillic`; и по `font-data.json` самого Next — есть ли у шрифта кириллица вообще.
-// Второе важнее: `subsets: ['cyrillic']` у Barlow Condensed сборку уронит, но диверсия
-// «подключить Barlow без cyrillic» должна краснеть здесь, а не в браузере.
+// С 38.113 шрифт без кириллицы в стеке есть НАМЕРЕННО — Barlow Condensed макета, и
+// кириллицу за него берёт следующий в стеке: локальный Inter 900 с `unicode-range`
+// кириллицы. Правило стало точнее: шрифт Google без кириллицы в каталоге допустим,
+// только если в КАЖДОМ стеке `--ui-font-*`, где он стоит, за ним идёт шрифт с кириллицей
+// (Google с `cyrillic` в `subsets` или локальное лицо с `unicode-range` кириллицы),
+// и у него самого выключен подставной fallback: иначе Next вставит за ним Arial
+// (`Barlow Condensed Fallback`, `src: local(Arial)`) — с кириллицей и БЕЗ `unicode-range`,
+// и он перехватит русский текст раньше Inter. Шрифт с кириллицей в каталоге обязан
+// её запросить — `subsets` без `cyrillic` тоже молчаливая подмена.
 //
-// ⚠️ `next/font/local` не проверяется: рублёвый глиф (38.18) — один символ U+20BD,
-// кириллицы у него нет по построению.
+// Исключение одно и названо: `--ui-font-mono` — DM Mono кириллицы не несёт, и макет
+// (`'DM Mono', monospace`) отдаёт её системной моноширинной; такой стек обязан
+// заканчиваться `monospace`, чтобы кириллица не упала в serif по умолчанию.
 //
-// ⚠️ `font-data.json` берётся по внутреннему пути Next
-// (`next/dist/compiled/@next/font/dist/google/font-data.json`) — при обновлении Next
-// это пункт чек-листа.
+// Проверяется по двум источникам сразу: по вызову в коде и по `font-data.json` самого
+// Next — есть ли у шрифта кириллица вообще. Разбор — общий (`./fonts.ts`).
 
-import { createRequire } from 'node:module';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { WEB_ROOT } from '../web-root';
+import {
+  coversCyrillic,
+  declarationOf,
+  googleFontCalls,
+  loadFontData,
+  localFontCalls,
+  stackVariables,
+  type FontData,
+} from './fonts';
 
-const require = createRequire(import.meta.url);
+/** Стеки, где кириллица сознательно системная моноширинная (см. шапку). */
+export const SYSTEM_CYRILLIC_STACKS = ['mono'];
 
-type FontData = Record<string, { subsets: string[] }>;
-
-/** Каталог шрифтов Google, каким его знает Next. */
-export function loadFontData(): FontData {
-  return require('next/dist/compiled/@next/font/dist/google/font-data.json') as FontData;
+/** Имена всех стеков `--ui-font-<name>` в globals.css. */
+export function stackNames(css: string): string[] {
+  return [...css.matchAll(/--ui-font-([\w-]+)\s*:/g)].map((m) => m[1]);
 }
 
-/** Имя импорта → имя шрифта: `Sofia_Sans_Extra_Condensed` → «Sofia Sans Extra Condensed». */
-export function fontNameOf(importName: string): string {
-  return importName.replace(/_/g, ' ');
-}
+/** Переменные шрифтов, у которых кириллица есть: Google с запрошенным `cyrillic` и локальные лица с её `unicode-range`. */
+export function cyrillicProviders(layout: string, fontData: FontData): Set<string> {
+  const providers = new Set<string>();
 
-/** Вызовы шрифтов Google в тексте: имя и запрошенные `subsets`. */
-export function googleFontCalls(text: string): { name: string; subsets: string[] }[] {
-  const imported = text.match(/import\s*\{([^}]+)\}\s*from\s*['"]next\/font\/google['"]/);
+  for (const call of googleFontCalls(layout)) {
+    if (
+      call.variable &&
+      fontData[call.name]?.subsets.includes('cyrillic') &&
+      call.subsets.includes('cyrillic')
+    )
+      providers.add(call.variable);
+  }
+  for (const call of localFontCalls(layout)) {
+    const variable = call.match(/variable\s*:\s*['"](--font-[\w-]+)['"]/)?.[1];
 
-  if (!imported) return [];
-
-  const names = imported[1]
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const calls: { name: string; subsets: string[] }[] = [];
-
-  for (const name of names) {
-    const call = text.match(new RegExp(`\\b${name}\\s*\\(\\s*\\{([\\s\\S]*?)\\}\\s*\\)`));
-    const subsetsMatch = call?.[1].match(/subsets\s*:\s*\[([^\]]*)\]/);
-    const subsets = subsetsMatch
-      ? [...subsetsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
-      : [];
-
-    calls.push({ name: fontNameOf(name), subsets });
+    if (variable && coversCyrillic(declarationOf(call, 'unicode-range'))) providers.add(variable);
   }
 
-  return calls;
+  return providers;
 }
 
-/** Нарушения: шрифт без кириллицы в каталоге или без `cyrillic` в запросе. */
-export function cyrillicOffenders(text: string, fontData: FontData): string[] {
+/** Нарушения: кириллица шрифта не своя и не закрыта соседом по стеку. */
+export function cyrillicOffenders(layout: string, css: string, fontData: FontData): string[] {
   const offenders: string[] = [];
+  const providers = cyrillicProviders(layout, fontData);
 
-  for (const { name, subsets } of googleFontCalls(text)) {
+  for (const { name, subsets, variable, options } of googleFontCalls(layout)) {
     const known = fontData[name];
 
     if (!known) {
@@ -76,10 +81,39 @@ export function cyrillicOffenders(text: string, fontData: FontData): string[] {
       continue;
     }
 
-    if (!known.subsets.includes('cyrillic')) {
-      offenders.push(`${name}: у шрифта нет кириллицы (${known.subsets.join(', ')})`);
-    } else if (!subsets.includes('cyrillic')) {
-      offenders.push(`${name}: subsets без cyrillic (${subsets.join(', ') || 'пусто'})`);
+    if (known.subsets.includes('cyrillic')) {
+      if (!subsets.includes('cyrillic'))
+        offenders.push(`${name}: subsets без cyrillic (${subsets.join(', ') || 'пусто'})`);
+      continue;
+    }
+
+    // Кириллицы нет в каталоге — закрыть её обязан сосед по стеку, а не подставной Arial.
+    if (!/adjustFontFallback\s*:\s*false/.test(options) || !/fallback\s*:\s*\[\s*\]/.test(options))
+      offenders.push(
+        `${name}: без adjustFontFallback: false и fallback: [] подставной Arial перехватит кириллицу`,
+      );
+
+    const stacks = stackNames(css).filter(
+      (stack) => variable && stackVariables(css, stack).includes(variable),
+    );
+
+    if (stacks.length === 0) offenders.push(`${name}: не стоит ни в одном стеке --ui-font-*`);
+
+    for (const stack of stacks) {
+      const entries = stackVariables(css, stack);
+      const value = css.match(new RegExp(`--ui-font-${stack}\\s*:\\s*([^;]+);`))?.[1] ?? '';
+
+      if (SYSTEM_CYRILLIC_STACKS.includes(stack)) {
+        if (!/monospace\s*$/.test(value))
+          offenders.push(
+            `${name}: стек --ui-font-${stack} не заканчивается monospace — кириллица упадёт в serif`,
+          );
+        continue;
+      }
+      const after = entries.slice(entries.indexOf(variable!) + 1);
+
+      if (!after.some((entry) => providers.has(entry)))
+        offenders.push(`${name}: в --ui-font-${stack} за ним нет шрифта с кириллицей`);
     }
   }
 
@@ -112,61 +146,107 @@ async function collectSources(directory: string): Promise<string[]> {
   return found;
 }
 
-describe('Сторож: шрифты Google с кириллицей (38.17)', () => {
-  it('каждый шрифт из next/font/google подключён с cyrillic и имеет её в каталоге', async () => {
-    const fontData = loadFontData();
-    const offenders: string[] = [];
+const LAYOUT = 'src/app/layout.tsx';
+
+describe('Сторож: кириллица у каждого шрифта стека (38.17, 38.113)', () => {
+  it('шрифты Google подключаются только в layout.tsx', async () => {
+    const elsewhere: string[] = [];
 
     for (const file of await collectSources(path.join(WEB_ROOT, 'src'))) {
-      const text = await readFile(path.join(WEB_ROOT, file), 'utf8');
-
-      for (const offender of cyrillicOffenders(text, fontData))
-        offenders.push(`${file}: ${offender}`);
+      if (file === LAYOUT) continue;
+      if (googleFontCalls(await readFile(path.join(WEB_ROOT, file), 'utf8')).length > 0)
+        elsewhere.push(file);
     }
+
+    expect(elsewhere).toEqual([]);
+  });
+
+  it('у каждого шрифта кириллица своя или закрыта соседом по стеку; mono — системная', async () => {
+    const layout = await readFile(path.join(WEB_ROOT, LAYOUT), 'utf8');
+    const css = await readFile(path.join(WEB_ROOT, 'src', 'app', 'globals.css'), 'utf8');
+    const offenders = cyrillicOffenders(layout, css, loadFontData());
 
     expect(offenders, offenders.join('\n')).toEqual([]);
   });
 
   it('сторож читает настоящий layout и настоящий каталог, а не пустоту', async () => {
     const fontData = loadFontData();
-    const layout = await readFile(path.join(WEB_ROOT, 'src', 'app', 'layout.tsx'), 'utf8');
+    const layout = await readFile(path.join(WEB_ROOT, LAYOUT), 'utf8');
     const calls = googleFontCalls(layout);
 
     expect(Object.keys(fontData).length).toBeGreaterThan(1000);
-    expect(calls.map((c) => c.name)).toEqual(['Inter', 'Sofia Sans Extra Condensed']);
-    for (const call of calls) expect(call.subsets).toContain('cyrillic');
-    // Каталог знает, что у Barlow Condensed кириллицы нет — иначе диверсия д-35 не покраснела бы.
+    expect(calls.map((c) => c.name)).toEqual(['Barlow Condensed', 'DM Mono', 'Inter']);
+    // Каталог знает, что у Barlow Condensed кириллицы нет — иначе диверсия д-35 не покраснела бы,
+    // а локальное лицо кириллицы — единственный её поставщик в display-стеке.
     expect(fontData['Barlow Condensed'].subsets).not.toContain('cyrillic');
+    expect(cyrillicProviders(layout, fontData)).toEqual(
+      new Set(['--font-inter', '--font-inter-cyr']),
+    );
   });
 
   it('сторож видит нарушение на подставном тексте', () => {
     const fontData = loadFontData();
     const barlow =
-      "import { Barlow_Condensed } from 'next/font/google';\nconst b = Barlow_Condensed({ subsets: ['latin'], weight: '900' });";
-    // Диверсия д-35: Barlow Condensed без кириллицы — у шрифта её нет вовсе.
-    expect(cyrillicOffenders(barlow, fontData)).toEqual([
-      'Barlow Condensed: у шрифта нет кириллицы (latin, latin-ext, vietnamese)',
+      "import { Barlow_Condensed } from 'next/font/google';\nconst b = Barlow_Condensed({ subsets: ['latin'], weight: '900', variable: '--font-barlow', adjustFontFallback: false, fallback: [] });";
+    const cyrillic =
+      "import localFont from 'next/font/local';\nconst c = localFont({ src: [], variable: '--font-inter-cyr', declarations: [{ prop: 'unicode-range', value: 'U+0400-045F' }] });";
+    const display = (stack: string) =>
+      `--ui-font-display: ${stack};\n--ui-font-mono: var(--font-dm-mono), monospace;`;
+
+    // Диверсия д-35: Barlow Condensed без кириллицы — и никого с кириллицей за ним.
+    expect(cyrillicOffenders(barlow, display('var(--font-barlow), sans-serif'), fontData)).toEqual([
+      'Barlow Condensed: в --ui-font-display за ним нет шрифта с кириллицей',
+    ]);
+    // Кириллическое лицо ПЕРЕД Barlow не закрывает: подстановка идёт по порядку стека.
+    expect(
+      cyrillicOffenders(
+        `${barlow}\n${cyrillic}`,
+        display('var(--font-inter-cyr), var(--font-barlow)'),
+        fontData,
+      ),
+    ).toEqual(['Barlow Condensed: в --ui-font-display за ним нет шрифта с кириллицей']);
+    // Лицо за Barlow — чисто.
+    expect(
+      cyrillicOffenders(
+        `${barlow}\n${cyrillic}`,
+        display('var(--font-barlow), var(--font-inter-cyr)'),
+        fontData,
+      ),
+    ).toEqual([]);
+    // Подставной fallback не выключен — Arial перехватит кириллицу раньше лица.
+    expect(
+      cyrillicOffenders(
+        `${barlow.replace('adjustFontFallback: false, fallback: []', '')}\n${cyrillic}`,
+        display('var(--font-barlow), var(--font-inter-cyr)'),
+        fontData,
+      ),
+    ).toEqual([
+      'Barlow Condensed: без adjustFontFallback: false и fallback: [] подставной Arial перехватит кириллицу',
+    ]);
+    // Шрифт без кириллицы, которого нет ни в одном стеке, — мёртвый и не закрыт.
+    expect(cyrillicOffenders(barlow, '--ui-font-display: var(--font-inter);', fontData)).toEqual([
+      'Barlow Condensed: не стоит ни в одном стеке --ui-font-*',
     ]);
     // Шрифт с кириллицей, но подключённый без неё — тоже нарушение.
     expect(
       cyrillicOffenders(
         "import { Inter } from 'next/font/google';\nconst i = Inter({ subsets: ['latin'] });",
+        '',
         fontData,
       ),
     ).toEqual(['Inter: subsets без cyrillic (latin)']);
-    // Правильное подключение — чисто.
+    // Mono: DM Mono без кириллицы допустим, пока стек заканчивается monospace.
+    const dmMono =
+      "import { DM_Mono } from 'next/font/google';\nconst m = DM_Mono({ subsets: ['latin'], weight: '400', variable: '--font-dm-mono', adjustFontFallback: false, fallback: [] });";
     expect(
-      cyrillicOffenders(
-        "import { Inter, Sofia_Sans_Extra_Condensed } from 'next/font/google';\nconst s = Sofia_Sans_Extra_Condensed({ subsets: ['cyrillic', 'latin'] });\nconst i = Inter({ subsets: ['cyrillic', 'latin'] });",
-        fontData,
-      ),
+      cyrillicOffenders(dmMono, '--ui-font-mono: var(--font-dm-mono), monospace;', fontData),
     ).toEqual([]);
-    // `next/font/local` не проверяется.
     expect(
-      cyrillicOffenders(
-        "import localFont from 'next/font/local';\nconst r = localFont({ src: [] });",
-        fontData,
-      ),
-    ).toEqual([]);
+      cyrillicOffenders(dmMono, '--ui-font-mono: var(--font-dm-mono), Menlo;', fontData),
+    ).toEqual([
+      'DM Mono: стек --ui-font-mono не заканчивается monospace — кириллица упадёт в serif',
+    ]);
+    // `next/font/local` сам по себе не проверяется.
+    expect(cyrillicOffenders(cyrillic, '', fontData)).toEqual([]);
   });
 });

@@ -72,6 +72,7 @@ export const REQUIRED_TOKENS = [
   '--ui-plate-line',
   '--ui-font-display',
   '--ui-font-body',
+  '--ui-font-mono',
   '--ui-radius-card',
   '--ui-radius-pill',
   '--ui-radius-modal',

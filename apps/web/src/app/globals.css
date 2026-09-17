@@ -17,24 +17,28 @@
 @import 'tailwindcss';
 
 :root {
-  /* ===== Шрифты (шаги 38.16, 38.18) =====
+  /* ===== Шрифты (шаг 38.16; 38.113 — стек макета) =====
    * Файлы подключает next/font в src/app/layout.tsx и отдаёт переменными
-   * `--font-ruble` / `--font-sofia` / `--font-inter`; стеки собираются здесь.
-   * Рубль в display-стеке ПЕРВЫМ: он держит один глиф `₽` (unicode-range), и браузер
-   * берёт его, не скачивая `latin-ext` Sofia впустую. Своего моно-шрифта нет —
-   * `.font-mono` живёт на системном стеке (`--font-mono` в @theme inline).
+   * `--font-barlow` / `--font-inter-cyr` / `--font-inter` / `--font-dm-mono`; стеки
+   * собираются здесь. Display — как в превью макета: Barlow Condensed латиницей,
+   * кириллица — Inter 900 (у Barlow кириллицы нет; в превью её рисует Helvetica Bold),
+   * подстановка пословная — у кириллического Inter `unicode-range` кириллицы.
+   * Моно — DM Mono макета (цифры); кириллицы у него нет, она системная моноширинная,
+   * как в макете (`'DM Mono', monospace`). Знак `₽` у обоих — в своём `latin-ext`.
    */
-  --ui-font-display: var(--font-ruble), var(--font-sofia), 'Arial Narrow', sans-serif;
+  --ui-font-display:
+    var(--font-barlow), var(--font-inter-cyr), var(--font-inter), 'Helvetica Neue', Arial,
+    sans-serif;
   --ui-font-body: var(--font-inter), system-ui, sans-serif;
+  --ui-font-mono: var(--font-dm-mono), ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* ===== Шкала заголовков (шаг 38.19; 38.109 — числа макета) =====
-   * Веса на ступень выше макета (Sofia Sans Extra Condensed тоньше Barlow Condensed).
-   * Множителя кегля больше нет: заказчик по стенду 16.09 — размеры ровно как в макете
-   * (H1 героя 72px на 1440, H2 секций 43,2px; прежние ×1,069 давали H1 77 и H2 38,5),
-   * кегли — `clamp` макета литералами в классах `.t-*`.
+  /* ===== Шкала заголовков (шаг 38.19; 38.109 — числа макета; 38.113 — веса макета) =====
+   * Веса — ровно макета: Barlow Condensed 900 (`F.barlow` + `fontWeight: 900`), у кириллицы
+   * тот же вес в Inter. Множителя кегля нет: размеры ровно как в макете (H1 героя 72px
+   * на 1440, H2 секций 43,2px), кегли — `clamp` макета литералами в классах `.t-*`.
    */
-  --ui-weight-heading: 900; /* Заголовки секций и карточек: макет 800 → Sofia 900 */
-  --ui-weight-hero: 1000; /* H1 героя: макет 900 → Sofia 1000 */
+  --ui-weight-heading: 900; /* Заголовки секций и карточек — макет 900 */
+  --ui-weight-hero: 900; /* H1 героя — макет 900 */
 
   /* ===== Палитра ПРОСПОРТ (фаза 38): графитовый текст на светло-серой странице,
    * белые карточки, зелёный акцент. Значения — из эталона дизайна
@@ -244,12 +248,12 @@
   --color-warning: var(--ui-warning);
   --color-danger: var(--ui-danger);
 
-  /* Шрифты. `--font-mono` — системный моно-стек для служебных данных (`.font-mono`,
-   * `.t-mono`): токены, hex, номера. Собственного моно-шрифта проект не грузит. */
+  /* Шрифты. `--font-mono` — DM Mono макета (38.113): счётчики, цены, время, рейтинги,
+   * номера шагов (`.font-mono`, `.t-mono`, `.t-num`). */
   --font-sans: var(--ui-font-body);
   --font-display: var(--ui-font-display);
   --font-body: var(--ui-font-body);
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-mono: var(--ui-font-mono);
   /* Веса display: `font-heading` / `font-hero` — утилиты веса, не семейства */
   --font-weight-heading: var(--ui-weight-heading);
   --font-weight-hero: var(--ui-weight-hero);
@@ -369,8 +373,8 @@
     text-transform: uppercase;
   }
 
-  /* Заголовок героя (шаг 38.65): макет `clamp(2.8rem, 5vw, 4.6rem)` 900 → Sofia на ступень
-   * выше и ×1,069 по кеглю; интерлиньяж 0.95, трекинг −0.01em. */
+  /* Заголовок героя (шаг 38.65; 38.113 — стек макета): `clamp(2.8rem, 5vw, 4.6rem)` 900,
+   * интерлиньяж 0.95, трекинг −0.01em. */
   .t-hero {
     font-family: var(--ui-font-display);
     font-weight: var(--ui-weight-hero);
@@ -428,11 +432,11 @@
     line-height: 1.3;
   }
 
-  /* Имя клуба в карточке витрины (38.109, ревью): макет `HomePage.tsx:99` — 19px,
-   * интерлиньяж 1, Barlow 900 → Inter 700 (решение заказчика: карточки — Inter). */
+  /* Имя клуба в карточке витрины (38.109, ревью; 38.113): макет `HomePage.tsx:99` —
+   * display-шрифт 900, 19px, интерлиньяж 1 (кириллица — Inter 900 из стека). */
   .t-card-title {
-    font-family: var(--ui-font-body);
-    font-weight: 700;
+    font-family: var(--ui-font-display);
+    font-weight: var(--ui-weight-heading);
     font-size: 19px;
     line-height: 1;
   }
@@ -463,13 +467,14 @@
   }
 
   .t-mono {
-    font-family: var(--font-mono);
+    font-family: var(--ui-font-mono);
     font-size: 13px;
   }
 
+  /* Числа макета — DM Mono 500 (38.113): счётчики, цены, время, рейтинги, номера шагов. */
   .t-num {
-    font-family: var(--ui-font-display);
-    font-weight: var(--ui-weight-heading);
+    font-family: var(--ui-font-mono);
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
 

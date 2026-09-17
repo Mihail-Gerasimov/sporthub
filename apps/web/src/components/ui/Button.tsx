@@ -70,8 +70,8 @@ const sizeClassNames: Record<ButtonSize, string> = {
 /** Свечение и подъём primary — по умолчанию есть; «Найти» в макете без тени (`glow={false}`). */
 const GLOW_CLASS = 'shadow-glow hover:-translate-y-px hover:shadow-floating';
 
-/* Вес — `font-black` (Sofia 900 = Barlow 900 макета; правило «на ступень выше» дало бы
-   1000, аудит 17.09 выбрал 900). */
+/* Вес — `font-black`: Barlow Condensed 900 макета, кириллицу подписи берёт Inter 900
+   из стека (38.113). */
 const BASE_CLASS =
   'inline-flex items-center justify-center gap-2 font-display font-black tracking-[0.04em] uppercase transition-[background-color,border-color,color,box-shadow,transform] outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-40';
 

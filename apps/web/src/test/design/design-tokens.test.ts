@@ -78,31 +78,28 @@ describe('Дизайн-токены (globals.css)', () => {
     expect(globalsCss).toContain('--ui-font-body');
   });
 
-  // Шаг 38.16: два шрифта вместо трёх. Display — Sofia Sans Extra Condensed, body — Inter,
-  // оба приходят переменными next/font (`--font-sofia`, `--font-inter`); собственного
-  // моно-шрифта нет — `.font-mono` живёт на системном стеке, названном в `@theme inline`.
-  it('display-стек собран из переменной Sofia, body — из Inter; свой моно-токен снят', () => {
-    expect(globalsCss).toMatch(/--ui-font-display:\s*[^;]*var\(--font-sofia\)/);
+  // Шаг 38.16: шрифты приходят переменными next/font; 38.113 — стек макета: display —
+  // Barlow Condensed с кириллицей локального Inter 900 за ним, body — Inter, mono — DM Mono
+  // (цифры). Порядок и опции стека стережёт `font-stack`, кириллицу — `font-cyrillic`.
+  it('display-стек начинается с Barlow, body — Inter, mono — DM Mono', () => {
+    expect(globalsCss).toMatch(/--ui-font-display:\s*var\(--font-barlow\)/);
     expect(globalsCss).toMatch(/--ui-font-body:\s*var\(--font-inter\)/);
-    // Имя склеено, чтобы сторож removed-fonts не принял проверку за ссылку.
-    expect(globalsCss).not.toContain(`--ui-font-${'mono'}`);
+    expect(globalsCss).toMatch(/--ui-font-mono:\s*var\(--font-dm-mono\)/);
   });
 
-  it('.font-mono — утилита на системном моно-стеке, названном в @theme inline', () => {
+  it('.font-mono — утилита на стеке DM Mono, названном в @theme inline', () => {
     const match = globalsCss.match(/--font-mono:\s*([^;]+);/);
     expect(match).not.toBeNull();
-    expect(match![1]).toMatch(/ui-monospace|Menlo|monospace/);
-    // Имена склеены, чтобы сторож removed-fonts не принял проверку за ссылку.
-    expect(match![1]).not.toMatch(new RegExp(`var\\(--ui-font-${'mono'}\\)|Jet${'Brains'}`));
+    expect(match![1]).toBe('var(--ui-font-mono)');
   });
 
-  // Шаг 38.19: веса display — токенами CSS, а не TS-константой; Sofia на ступень тяжелее
-  // Barlow макета. Шаг 38.109: множителя кегля (`--ui-scale-display` 1,069) больше нет —
-  // размеры ровно как в макете, `clamp` литералами (сторож `heading-scale` считает px).
-  it('шкала заголовков: веса display — токены :root, множителя кегля нет', () => {
+  // Шаг 38.19: веса display — токенами CSS, а не TS-константой; 38.113 — ровно веса
+  // макета (Barlow Condensed 900). Шаг 38.109: множителя кегля (`--ui-scale-display` 1,069)
+  // больше нет — размеры ровно как в макете, `clamp` литералами (сторож `heading-scale`).
+  it('шкала заголовков: веса display — токены :root со значением макета 900, множителя кегля нет', () => {
     expect(globalsCss).not.toMatch(/--ui-scale-display/);
-    expect(globalsCss).toMatch(/--ui-weight-heading:\s*\d{3,4};/);
-    expect(globalsCss).toMatch(/--ui-weight-hero:\s*\d{3,4};/);
+    expect(globalsCss).toMatch(/--ui-weight-heading:\s*900;/);
+    expect(globalsCss).toMatch(/--ui-weight-hero:\s*900;/);
   });
 
   it.each(['t-display', 't-hero', 't-cta', 't-h1', 't-h2'])(

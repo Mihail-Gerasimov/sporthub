@@ -1,12 +1,14 @@
 // Сторож: шкала заголовков — числами макета (шаг 38.109, сверка бок о бок 16.09).
 //
 // ⚠️ Зачем. У нас заголовки секций были визуально мельче, а H1 героя крупнее макета:
-// множитель `--ui-scale-display` 1,069 (компенсация узкого Sofia, 38.19) давал H1 77px
+// множитель `--ui-scale-display` 1,069 (компенсация узкого display-шрифта, 38.19) давал H1 77px
 // против 72 макета, а `.t-h2` стоял фиксированными 36px против текучих `3vw` = 43,2px
 // на 1440. Решение заказчика — числа макета: множителя нет, `clamp` макета как есть.
-// Карточные и плиточные заголовки — Inter полужирный обычным регистром (макет по
-// коду держит Barlow 900 16–20px, по стенду заказчик выбрал Inter — записано); базовое
-// правило display-шрифта — только `h1`/`h2`, секционные — классом `.t-h2`.
+// Карточные и плиточные заголовки `.t-h3`/`.t-h4` — Inter полужирный обычным регистром
+// (макет по коду держит Barlow 900 16–20px, по стенду заказчик выбрал Inter — записано);
+// имя клуба `.t-card-title` — display 900 (38.113, стек макета); базовое правило
+// display-шрифта — только `h1`/`h2`, секционные — классом `.t-h2`. Веса display —
+// ровно макета: 900 у героя, секций и карточек.
 //
 // Считает по тексту `globals.css`: `clamp(min, vw, max)` на 1440 → px.
 
@@ -91,8 +93,8 @@ describe('Сторож: шкала заголовков по макету (38.10
     expect(rules.some((r) => r.selectors.includes('h3'))).toBe(false);
   });
 
-  it('карточные заголовки .t-h3/.t-h4 — Inter полужирный обычным регистром; .t-card-title — 19px/700', () => {
-    for (const selector of ['.t-h3', '.t-h4', '.t-card-title']) {
+  it('карточные заголовки .t-h3/.t-h4 — Inter полужирный обычным регистром; .t-card-title — display 900 19px', () => {
+    for (const selector of ['.t-h3', '.t-h4']) {
       const body = ruleBody(GLOBALS, selector) ?? '';
       expect(prop(body, 'font-family'), selector).toBe('var(--ui-font-body)');
       expect(prop(body, 'text-transform'), selector).toBeNull();
@@ -101,10 +103,23 @@ describe('Сторож: шкала заголовков по макету (38.10
     expect(prop(ruleBody(GLOBALS, '.t-h3') ?? '', 'font-weight')).toBe('600');
     expect(prop(ruleBody(GLOBALS, '.t-h4') ?? '', 'font-size')).toBe('16px');
     expect(prop(ruleBody(GLOBALS, '.t-h4') ?? '', 'font-weight')).toBe('600');
-    // Имя клуба в карточке витрины — макет `HomePage.tsx:99`: 19px, вес 900 Barlow → 700 Inter.
-    expect(prop(ruleBody(GLOBALS, '.t-card-title') ?? '', 'font-size')).toBe('19px');
-    expect(prop(ruleBody(GLOBALS, '.t-card-title') ?? '', 'font-weight')).toBe('700');
-    expect(prop(ruleBody(GLOBALS, '.t-card-title') ?? '', 'line-height')).toBe('1');
+    // Имя клуба в карточке витрины — макет `HomePage.tsx:99`: Barlow 900, 19px, интерлиньяж 1;
+    // кириллицу имени берёт Inter 900 из стека (38.113).
+    const card = ruleBody(GLOBALS, '.t-card-title') ?? '';
+    expect(prop(card, 'font-family')).toBe('var(--ui-font-display)');
+    expect(prop(card, 'font-weight')).toBe('var(--ui-weight-heading)');
+    expect(prop(card, 'font-size')).toBe('19px');
+    expect(prop(card, 'line-height')).toBe('1');
+    expect(prop(card, 'text-transform')).toBeNull();
+  });
+
+  it('веса display — ровно макета: токены героя и заголовков 900, пресеты читают токены', () => {
+    const root = ruleBody(GLOBALS, ':root') ?? '';
+    expect(prop(root, '--ui-weight-hero')).toBe('900');
+    expect(prop(root, '--ui-weight-heading')).toBe('900');
+    expect(prop(ruleBody(GLOBALS, '.t-hero') ?? '', 'font-weight')).toBe('var(--ui-weight-hero)');
+    expect(prop(ruleBody(GLOBALS, '.t-h1') ?? '', 'font-weight')).toBe('var(--ui-weight-hero)');
+    expect(prop(ruleBody(GLOBALS, '.t-h2') ?? '', 'font-weight')).toBe('var(--ui-weight-heading)');
   });
 
   it('обратная половина: разбор clamp и правил на подставном тексте', () => {

@@ -1,154 +1,114 @@
-// Сторож: рублёвый глиф — один символ, три обязательные опции, первым в стеке (шаг 38.18).
+// Сторож: знак рубля приходит из собственных шрифтов стека (шаг 38.18 → 38.113).
 //
-// ⚠️ Зачем. Механизм подстановки одного глифа ломается МОЛЧА в трёх местах, и ни одно
-// не видно ни в сборке, ни в jsdom:
-//   1. лишний глиф в файле (цифра «1» рядом с `₽`) — цифры цен уедут в Barlow, и никто
-//      не заметит: шрифты похожи. Файл проверяется через fontkit: `characterSet`
-//      строго `[0x20BD]`;
-//   2. `adjustFontFallback` не выключен — Next подставит Arial-fallback сразу за рублём,
-//      и он перехватит весь текст display-стека; `fallback: []` — по той же причине;
-//      `preload: false` — иначе четыре файла грузятся на странице без единой цены;
-//   3. рубль в стеке `--ui-font-display` не первый — браузер сначала спросит Sofia,
-//      скачает её `latin-ext` (18,5 КБ) ради диапазона с рублём, глифа не найдёт
-//      и лишь потом дойдёт до рубля.
+// ⚠️ Зачем. Цена «500 ₽» ломается молча: если у шрифта нет U+20BD, браузер подставит
+// знак из системного — другим начертанием и другой ширины, и никакой тест классов
+// этого не увидит. В 38.18 знак резали из Barlow Condensed отдельным лицом, потому что
+// у Sofia Sans его не было. С 38.113 display-шрифт — сам Barlow Condensed, цифры —
+// DM Mono, и у обоих `₽` лежит в подмножестве `latin-ext` Google (U+20A0–20C0), проверено
+// fontkit по файлам gstatic 17.09.2026: Barlow Condensed 900 — 233 глифа, DM Mono 500 —
+// 199, знак есть у обоих. Next включает @font-face ВСЕХ подмножеств с `unicode-range`
+// (`subsets` в вызове — только предзагрузка), и файл приезжает по первому знаку на
+// странице — ровно как в превью макета с `@import` Google. Отдельное лицо снято.
 //
-// ⚠️ Диверсия «снять unicode-range» рубль не заставит перехватить текст: браузер
-// подставляет по глифу, а глиф в файле один. Стережётся порядок в стеке и опции.
-//
-// ⚠️ `fontkit` берётся по внутреннему пути Next
-// (`next/dist/compiled/@next/font/dist/fontkit`) — при обновлении Next это пункт
-// чек-листа. Тот же fontkit Next использует сам при сборке `next/font/local`.
+// Что стережётся здесь (без сети): у каждого Google-шрифта display- и mono-стека
+// в каталоге Next есть `latin-ext`; вызов не сужает набор глифов опцией `text`
+// (она бы вырезала знак вместе с остальным); локального рублёвого лица не осталось —
+// `var(--font-ruble)` в стеке сделал бы всё объявление `font-family` недействительным.
 
-import { createRequire } from 'node:module';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { WEB_ROOT } from '../web-root';
+import { googleFontCalls, loadFontData, stackVariables, type FontData } from './fonts';
 
-const require = createRequire(import.meta.url);
+/** Подмножество Google, в котором лежит U+20BD. */
+export const RUBLE_SUBSET = 'latin-ext';
 
-/** Каталог глифов и ожидаемые файлы — веса донора. */
-export const FONTS_DIR = 'src/fonts';
-export const RUBLE_FILES = [
-  'barlow-ruble-500.woff2',
-  'barlow-ruble-600.woff2',
-  'barlow-ruble-700.woff2',
-  'barlow-ruble-800.woff2',
-];
-export const RUBLE = 0x20bd;
+/** Нарушения покрытия рубля у шрифтов display- и mono-стеков. */
+export function rubleOffenders(layout: string, css: string, fontData: FontData): string[] {
+  const offenders: string[] = [];
+  const fonts = googleFontCalls(layout);
+  const stacks = [...stackVariables(css, 'display'), ...stackVariables(css, 'mono')];
 
-type FontFromBuffer = (buffer: Buffer) => { characterSet: number[] };
+  for (const variable of new Set(stacks)) {
+    if (/ruble/.test(variable))
+      offenders.push(`${variable}: локальное рублёвое лицо снято в 38.113`);
+    const font = fonts.find((f) => f.variable === variable);
 
-/** fontkit из поставки Next — тот же `fontFromBuffer`, что читает шрифты при сборке. */
-export function loadFontkit(): FontFromBuffer {
-  return (require('next/dist/compiled/@next/font/dist/fontkit') as { default: FontFromBuffer })
-    .default;
+    if (!font) continue;
+    const known = fontData[font.name];
+
+    if (!known) offenders.push(`${font.name}: нет в каталоге Next`);
+    else if (!known.subsets.includes(RUBLE_SUBSET))
+      offenders.push(`${font.name}: нет подмножества ${RUBLE_SUBSET} — знака ₽ не будет`);
+  }
+
+  if (/\btext\s*:\s*['"[]/.test(layout)) offenders.push('опция `text` сужает набор глифов');
+
+  return offenders;
 }
 
-/**
- * Кодовые точки файла.
- *
- * ⚠️ `U+FFFF` — не глиф, а завершающий сегмент таблицы cmap формата 4; fontkit отдаёт
- * его в `characterSet` у любого шрифта. Снимается до сравнения, иначе «строго один
- * глиф» было бы невыполнимо по построению.
- */
-export function characterSetOf(buffer: Buffer): number[] {
-  return [...loadFontkit()(buffer).characterSet].filter((c) => c !== 0xffff).sort((a, b) => a - b);
-}
-
-/** Текст вызова `localFont({ ... })` из layout.tsx. */
-export function localFontCall(layout: string): string | null {
-  return layout.match(/localFont\(\s*\{([\s\S]*?)\}\s*\)\s*;/)?.[1] ?? null;
-}
-
-/** Три обязательные опции и две декларации — что из них отсутствует. */
-export function missingRubleOptions(call: string): string[] {
-  const required: [string, RegExp][] = [
-    ['adjustFontFallback: false', /adjustFontFallback\s*:\s*false/],
-    ['fallback: []', /fallback\s*:\s*\[\s*\]/],
-    ['preload: false', /preload\s*:\s*false/],
-    ['unicode-range: U+20BD', /['"]unicode-range['"][\s\S]{0,40}['"]U\+20BD['"]/i],
-    ['size-adjust', /['"]size-adjust['"]/],
-    ["variable: '--font-ruble'", /variable\s*:\s*['"]--font-ruble['"]/],
-  ];
-
-  return required.filter(([, pattern]) => !pattern.test(call)).map(([name]) => name);
-}
-
-/** Первым ли рубль в стеке `--ui-font-display`. */
-export function rubleFirstInStack(css: string): boolean {
-  const value = css.match(/--ui-font-display\s*:\s*([^;]+);/)?.[1] ?? '';
-
-  return /^\s*var\(--font-ruble\)\s*,\s*var\(--font-sofia\)/.test(value);
-}
-
-describe('Сторож: рублёвый глиф (38.18)', () => {
-  it('в каждом файле рубля ровно один глиф — U+20BD', async () => {
-    const wrong: string[] = [];
-
-    for (const file of RUBLE_FILES) {
-      const set = characterSetOf(await readFile(path.join(WEB_ROOT, FONTS_DIR, file)));
-
-      if (set.length !== 1 || set[0] !== RUBLE) {
-        wrong.push(`${file}: ${set.map((c) => `U+${c.toString(16).toUpperCase()}`).join(', ')}`);
-      }
-    }
-
-    expect(wrong, wrong.join('\n')).toEqual([]);
-  });
-
-  it('в каталоге шрифтов нет ничего, кроме четырёх файлов рубля', async () => {
-    const files = (await readdir(path.join(WEB_ROOT, FONTS_DIR)))
-      .filter((f) => !f.startsWith('.'))
-      .sort();
-
-    expect(files).toEqual([...RUBLE_FILES].sort());
-  });
-
-  it('layout.tsx подключает рубль с тремя обязательными опциями и двумя декларациями', async () => {
+describe('Сторож: знак рубля из собственных шрифтов стека (38.18 → 38.113)', () => {
+  it('у Barlow Condensed и DM Mono в каталоге Next есть latin-ext, опции text нет, рублёвого лица нет', async () => {
     const layout = await readFile(path.join(WEB_ROOT, 'src', 'app', 'layout.tsx'), 'utf8');
-    const call = localFontCall(layout);
-
-    expect(call, 'вызова localFont({...}) в layout.tsx нет').not.toBeNull();
-    expect(missingRubleOptions(call!)).toEqual([]);
-    // Веса объявлены на ступень выше файла: файл 500 отвечает за Sofia 600 и так далее.
-    for (const file of RUBLE_FILES) expect(call).toContain(file);
-  });
-
-  it('рубль стоит ПЕРВЫМ в стеке --ui-font-display, перед Sofia', async () => {
     const css = await readFile(path.join(WEB_ROOT, 'src', 'app', 'globals.css'), 'utf8');
 
-    expect(rubleFirstInStack(css)).toBe(true);
+    expect(rubleOffenders(layout, css, loadFontData())).toEqual([]);
+    expect(layout).not.toContain('--font-ruble');
   });
 
-  it('сторож читает настоящие файлы через fontkit, а не пустоту', async () => {
-    const buffer = await readFile(path.join(WEB_ROOT, FONTS_DIR, RUBLE_FILES[0]));
+  it('в каталоге локальных лиц рублёвых файлов не осталось', async () => {
+    const files = await readdir(path.join(WEB_ROOT, 'src', 'fonts'));
 
-    expect(buffer.length).toBeGreaterThan(200);
-    expect(characterSetOf(buffer)).toEqual([RUBLE]);
+    expect(files.filter((f) => /ruble/.test(f))).toEqual([]);
+  });
+
+  it('сторож читает настоящий layout и настоящий каталог, а не пустоту', async () => {
+    const layout = await readFile(path.join(WEB_ROOT, 'src', 'app', 'layout.tsx'), 'utf8');
+    const fontData = loadFontData();
+
+    expect(Object.keys(fontData).length).toBeGreaterThan(1000);
+    expect(googleFontCalls(layout).map((f) => f.name)).toEqual([
+      'Barlow Condensed',
+      'DM Mono',
+      'Inter',
+    ]);
+    // Каталог различает: есть шрифты без latin-ext — на них проверка и краснеет.
+    expect(Object.values(fontData).some((f) => !f.subsets.includes(RUBLE_SUBSET))).toBe(true);
   });
 
   it('сторож видит поломку на подставном тексте', () => {
-    // Диверсия д-37: adjustFontFallback не выключен.
+    const fontData = loadFontData();
+    const latinOnly = Object.entries(fontData).find(
+      ([, f]) => f.subsets.includes('latin') && !f.subsets.includes(RUBLE_SUBSET),
+    )![0];
+    const layout = (name: string) =>
+      `import { ${name.replace(/ /g, '_')} } from 'next/font/google';\nconst f = ${name.replace(/ /g, '_')}({ subsets: ['latin'], variable: '--font-x' });`;
+    const css = '--ui-font-display: var(--font-x), sans-serif;\n--ui-font-mono: monospace;';
+
+    // Шрифт без latin-ext в стеке — знака не будет.
+    expect(rubleOffenders(layout(latinOnly), css, fontData)).toEqual([
+      `${latinOnly}: нет подмножества ${RUBLE_SUBSET} — знака ₽ не будет`,
+    ]);
+    // Barlow Condensed — чисто.
+    expect(rubleOffenders(layout('Barlow Condensed'), css, fontData)).toEqual([]);
+    // Опция `text` — нарушение даже у шрифта с latin-ext.
     expect(
-      missingRubleOptions(
-        "src: [], variable: '--font-ruble', preload: false, fallback: [], declarations: [{ prop: 'unicode-range', value: 'U+20BD' }, { prop: 'size-adjust', value: '94%' }]",
+      rubleOffenders(
+        `${layout('Barlow Condensed')}\nconst t = X({ text: '0123' });`,
+        css,
+        fontData,
       ),
-    ).toEqual(['adjustFontFallback: false']);
-    // Полный набор — чисто.
+    ).toEqual(['опция `text` сужает набор глифов']);
+    // Вернувшееся рублёвое лицо в стеке — нарушение.
     expect(
-      missingRubleOptions(
-        "variable: '--font-ruble', preload: false, adjustFontFallback: false, fallback: [], declarations: [{ prop: 'unicode-range', value: 'U+20BD' }, { prop: 'size-adjust', value: '94%' }]",
+      rubleOffenders(
+        layout('Barlow Condensed'),
+        '--ui-font-display: var(--font-ruble), var(--font-x);',
+        fontData,
       ),
-    ).toEqual([]);
-    // Диверсия д-36: рубль не первым.
-    expect(
-      rubleFirstInStack('--ui-font-display: var(--font-sofia), var(--font-ruble), sans-serif;'),
-    ).toBe(false);
-    expect(
-      rubleFirstInStack('--ui-font-display: var(--font-ruble), var(--font-sofia), sans-serif;'),
-    ).toBe(true);
+    ).toEqual(['--font-ruble: локальное рублёвое лицо снято в 38.113']);
   });
 });
