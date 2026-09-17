@@ -172,10 +172,12 @@ export function cleanupRun({ subjects = [] } = {}) {
   }
 
   const list = ids.join(',');
+  // ⚠️ Люди прогона могли быть уже убраны (повторная уборка по названным предметам):
+  // `IN ()` без номеров — синтаксическая ошибка SQL, и уборка падала до первого
+  // DELETE (38.120). Без людей публикации ищутся только по признаку в имени.
+  const ownerWhere = ids.length > 0 ? `managed_by_user_id IN (${list}) OR ` : '';
   const idsOf = (table) =>
-    psql(
-      `SELECT id FROM ${table} WHERE managed_by_user_id IN (${list}) OR name LIKE '${RUN_TAG}%';`,
-    )
+    psql(`SELECT id FROM ${table} WHERE ${ownerWhere}name LIKE '${RUN_TAG}%';`)
       .split('\n')
       .filter(Boolean)
       .map(Number);
@@ -191,7 +193,7 @@ export function cleanupRun({ subjects = [] } = {}) {
   // не совпадает никогда: выживала любая надзорная строка, порождённая действием
   // любого человека прогона. Ключ уборки — ПРЕДМЕТ, а не владелец, и он один
   // на оба плана.
-  const userIds = list.split(',').map(Number);
+  const userIds = ids.map(Number);
 
   // ⚠️ `subjects` — номера того, что прогон СТЁР по ходу дела, запомненные ДО удаления.
   //
@@ -202,24 +204,35 @@ export function cleanupRun({ subjects = [] } = {}) {
   // Иначе надзорная строка про стирание останется в живой базе навсегда: искать её
   // не по чему — владельца у неё нет, а предмета уже нет в таблице. Найдено
   // браузерным прогоном фазы 37 (шаг 37.61).
+  // ⚠️ Сами люди прогона — тоже ПРЕДМЕТ журнала: `admin_impersonate_start/stop`
+  // пишет живой администратор (его нет в `actor_id` прогона) о человеке прогона
+  // (`entity_type = 'user'`), и после удаления человека строка не находилась ни по
+  // исполнителю, ни по названным публикациям — шесть сирот за три прохода 38.120.
+  // Человек называется предметом ДО удаления, как и стёртые публикации.
+  const subjectsWithPeople =
+    userIds.length > 0 ? [...subjects, { type: 'user', ids: userIds }] : subjects;
+
   for (const statement of cleanupStatements(
-    cleanupPlans({ clubIds, trainerIds, userIds, subjects }),
+    cleanupPlans({ clubIds, trainerIds, userIds, subjects: subjectsWithPeople }),
   )) {
     psql(statement);
   }
 
   // Остальные следы людей: они могли записаться и на чужую публикацию, и без этих
   // строк база не отдаст удалить человека (`Restrict` на записи и отзыве).
-  psql(
-    `DELETE FROM provider_client_notes WHERE provider_user_id IN (${list}) OR client_user_id IN (${list});`,
-  );
-  psql(`DELETE FROM reviews WHERE user_id IN (${list});`);
-  psql(`DELETE FROM bookings WHERE user_id IN (${list});`);
-  psql(`DELETE FROM sessions WHERE user_id IN (${list});`);
+  let users = '0';
+  if (ids.length > 0) {
+    psql(
+      `DELETE FROM provider_client_notes WHERE provider_user_id IN (${list}) OR client_user_id IN (${list});`,
+    );
+    psql(`DELETE FROM reviews WHERE user_id IN (${list});`);
+    psql(`DELETE FROM bookings WHERE user_id IN (${list});`);
+    psql(`DELETE FROM sessions WHERE user_id IN (${list});`);
 
-  const users = psql(
-    `WITH d AS (DELETE FROM users WHERE id IN (${list}) RETURNING 1) SELECT count(*) FROM d;`,
-  );
+    users = psql(
+      `WITH d AS (DELETE FROM users WHERE id IN (${list}) RETURNING 1) SELECT count(*) FROM d;`,
+    );
+  }
 
   // Прогон разлогинивается сам: сессии учёток сида, заведённые с его старта (38.100).
   const sessions = logoutSeedSessions();
