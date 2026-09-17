@@ -1,9 +1,10 @@
 /**
  * Подвал (шаг 38.61): тёмная плашка, логотип ссылкой на главную, ссылки из словаря
  * навигации, копирайт с именем площадки и годом из часов; блока «Статус» нет.
- * Шаг 38.108: ссылки — тот же словарь, что шапка (Клубы · Тренеры · Командные · Маркет);
- * «Лента» из подвала макета (`HomePage.tsx` ~899) не переносится — один словарь,
- * а третья ссылка на «раздел в разработке» ничего бы не добавила (названо).
+ * Шаг 38.119 (Э14, дословно по макету): ссылки — свой словарь подвала ровно по
+ * `HomePage.tsx` ~899: Клубы · Тренеры · Маркет · Лента; отступление 24g («Лента» не
+ * переносится, «Командные» в подвале) снято. Год копирайта — из часов: «© 2025» макета
+ * захардкожен и устарел (названо).
  */
 import { BRAND_NAME } from '@sporthub/domain';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -31,15 +32,17 @@ describe('Footer', () => {
     expect(links.some((a) => /#about|#contacts/.test(a.getAttribute('href') ?? ''))).toBe(false);
   });
 
-  it('подвал — ровно шапка макета: без «Ленты» и без секций витрины (38.108)', () => {
+  it('подвал — ровно макет: Клубы · Тренеры · Маркет · Лента, «Командных» нет (38.119)', () => {
     render(<Footer />);
     const nav = screen.getByRole('navigation', { name: 'Навигация в подвале' });
     expect([...nav.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
       'Клубы',
       'Тренеры',
-      'Командные',
       'Маркет',
+      'Лента',
     ]);
+    expect(screen.getByRole('link', { name: 'Лента' })).toHaveAttribute('href', '/coming-soon');
+    expect(screen.getByRole('link', { name: 'Маркет' })).toHaveAttribute('href', '/coming-soon');
   });
 
   // Аудит главной 17.09, п. 17: контейнер подвала был 1440/24, макет и все секции — 1320/24.
@@ -61,9 +64,12 @@ describe('Footer', () => {
     expect(screen.getByText('СПОРТ').className).toContain('text-plate-ink');
   });
 
-  it('копирайт — имя площадки и текущий год; блока «Статус» и признаний нет', () => {
+  it('копирайт — «© <год> ПРОСПОРТ» как в макете, год из часов; блока «Статус» и признаний нет', () => {
     render(<Footer />);
+    // Слово в слово с `HomePage.tsx` ~911 («© 2025 ПРОСПОРТ»), кроме года: он из часов.
+    expect(BRAND_NAME).toBe('ПРОСПОРТ');
     expect(screen.getByText(`© ${new Date().getFullYear()} ${BRAND_NAME}`)).toBeInTheDocument();
+    expect(screen.queryByText(/© 2025/)).not.toBeInTheDocument();
     expect(screen.queryByText('Статус')).not.toBeInTheDocument();
     expect(screen.queryByText(/заглушки/)).not.toBeInTheDocument();
   });

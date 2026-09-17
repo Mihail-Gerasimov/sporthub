@@ -1,8 +1,9 @@
 /**
- * Словарь навигации (шаги 38.56, 38.79c, 38.108): шапка и подвал — ровно макет
- * (`App.tsx` ~2778, `HomePage.tsx` ~899): «Клубы», «Тренеры», «Командные», «Маркет»;
- * док — `BOTTOM_TABS` макета (`App.tsx` ~2700) без «Мой»: Главная, Клубы, Лента, Маркет —
- * «Мой» добавляет компонент, адрес зависит от сессии. Рабочая часть живёт на `/catalog`,
+ * Словарь навигации (шаги 38.56, 38.79c, 38.108, 38.119): шапка — ровно макет
+ * (`App.tsx` ~2778): «Клубы», «Тренеры», «Командные», «Маркет»; подвал — свой список
+ * ровно по `HomePage.tsx` ~899: «Клубы», «Тренеры», «Маркет», «Лента» (38.119 — отступление
+ * 24g снято); док — `BOTTOM_TABS` макета (`App.tsx` ~2700) без «Мой»: Главная, Клубы,
+ * Лента, Маркет — «Мой» добавляет компонент, адрес зависит от сессии. Рабочая часть живёт на `/catalog`,
  * поэтому «Клубы» и «Тренеры» ведут на выдачу каталога и несут режим стора: клик
  * переключает `discoveryMode`, как чип сегмента. Прямой заход по адресу открывает режим
  * по умолчанию — принятое ограничение (Д-15: режим и фильтры в адресе).
@@ -27,8 +28,18 @@ describe('Словарь навигации', () => {
     ]);
   });
 
-  it('подвал — те же пункты, что в шапке (один словарь; «Лента» подвала макета не переносится)', () => {
-    expect(FOOTER_NAV).toBe(HEADER_NAV);
+  it('подвал — свой список ровно по макету: Клубы · Тренеры · Маркет · Лента (38.119)', () => {
+    expect(FOOTER_NAV.map((item) => [item.key, item.label, item.href, item.mode ?? null])).toEqual([
+      ['clubs', 'Клубы', catalogSectionHref('results'), 'clubs'],
+      ['trainers', 'Тренеры', catalogSectionHref('results'), 'trainers'],
+      ['market', 'Маркет', '/coming-soon', null],
+      ['feed', 'Лента', '/coming-soon', null],
+    ]);
+    // Пункт, общий с шапкой, — одна запись: адрес и подпись объявлены один раз.
+    for (const item of FOOTER_NAV) {
+      const twin = HEADER_NAV.find((candidate) => candidate.key === item.key);
+      if (twin !== undefined) expect(twin).toBe(item);
+    }
   });
 
   it('док — BOTTOM_TABS макета без «Мой»: главная, клубы (режим клубов), лента и маркет', () => {
@@ -42,7 +53,7 @@ describe('Словарь навигации', () => {
   });
 
   it('ключ пункта уникален в своём списке — по нему компонент берёт иконку и React-ключ', () => {
-    for (const list of [HEADER_NAV, MOBILE_NAV]) {
+    for (const list of [HEADER_NAV, FOOTER_NAV, MOBILE_NAV]) {
       const keys = list.map((item) => item.key);
       expect(new Set(keys).size).toBe(keys.length);
     }
@@ -52,7 +63,7 @@ describe('Словарь навигации', () => {
     const showcaseAnchors = [HOME_SECTIONS.steps, HOME_SECTIONS.features].map(
       (section) => `/#${section.id}`,
     );
-    for (const item of [...HEADER_NAV, ...MOBILE_NAV]) {
+    for (const item of [...HEADER_NAV, ...FOOTER_NAV, ...MOBILE_NAV]) {
       expect(showcaseAnchors, item.label).not.toContain(item.href);
     }
   });
@@ -73,7 +84,7 @@ describe('Словарь навигации', () => {
   it('ни один пункт не ведёт на якорь главной, которого нет в словаре рабочей части', () => {
     // Рабочая часть уехала на каталог: `/#discover`, `/#results`, `/#availability` — тупики.
     const homeAnchors = ['/#discover', '/#map', '/#results', '/#availability'];
-    for (const item of [...HEADER_NAV, ...MOBILE_NAV]) {
+    for (const item of [...HEADER_NAV, ...FOOTER_NAV, ...MOBILE_NAV]) {
       expect(homeAnchors, item.label).not.toContain(item.href);
     }
   });
