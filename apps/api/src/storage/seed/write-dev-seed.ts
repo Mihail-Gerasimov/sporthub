@@ -158,7 +158,29 @@ async function insertMissing<TRow extends SeedRow>(options: {
 export type WriteDevSeedOptions = {
   client: PrismaClient;
   source: SourceData;
+  /** Окружение процесса — аргументом, чтобы отказ проверялся тестом без подмены глобального. */
+  env?: NodeJS.ProcessEnv;
 };
+
+/** Переменная, которой боевой запуск сида разрешается ЯВНО — чистая установка по §5.3. */
+export const DEMO_SEED_OVERRIDE = 'SPORTHUB_ALLOW_DEMO_SEED';
+
+/**
+ * Демонстрационный набор на боевой базе — подделка: знаки «проверено» и отзывы в нём
+ * синтетические (38.115), и тот же `db:seed` на сервере дал бы фальшивые знаки живым
+ * посетителям. Писатель отказывается работать при `NODE_ENV=production` (так собран
+ * боевой образ, `docker/api.Dockerfile`), если запуск не разрешён явно переменной
+ * `SPORTHUB_ALLOW_DEMO_SEED=1` — единственный законный случай: чистая установка (§5.3).
+ */
+export function assertDemoSeedAllowed(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV === 'production' && env[DEMO_SEED_OVERRIDE] !== '1') {
+    throw new Error(
+      `Сид не запускается при NODE_ENV=production: набор демонстрационный, знаки «проверено» ` +
+        `и отзывы в нём синтетические. Для чистой установки (docker/PRODUCTION.md, §5.3) ` +
+        `запуск разрешается явно: ${DEMO_SEED_OVERRIDE}=1.`,
+    );
+  }
+}
 
 /**
  * Записать демонстрационный набор, ничего не затирая.
@@ -166,7 +188,14 @@ export type WriteDevSeedOptions = {
  * Вся вставка — одна транзакция: наполовину наполненная база хуже пустой,
  * потому что выглядит рабочей.
  */
-export async function writeDevSeed({ client, source }: WriteDevSeedOptions): Promise<ImportReport> {
+export async function writeDevSeed({
+  client,
+  source,
+  env = process.env,
+}: WriteDevSeedOptions): Promise<ImportReport> {
+  // Боевое окружение — отказ ДО подготовки строк и до транзакции: ничего не пишется.
+  assertDemoSeedAllowed(env);
+
   // Починка текстов сиду не положена (её словарь привязан к номерам боевых записей),
   // пересчёт агрегатов положен: у набора нет отзывов, и рейтинги обязаны быть нулями.
   const { rows, changes } = prepareRows(source, { repairTexts: false, recalculate: true });

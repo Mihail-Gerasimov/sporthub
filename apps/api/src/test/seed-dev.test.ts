@@ -11,7 +11,12 @@ import { fixtureSports } from '@sporthub/fixtures';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { verifyPassword } from '../common/password';
-import { DEV_PASSWORD, seedDevData } from '../storage/seed/dev-seed';
+import { buildDevSourceData, DEV_PASSWORD, seedDevData } from '../storage/seed/dev-seed';
+import {
+  assertDemoSeedAllowed,
+  DEMO_SEED_OVERRIDE,
+  writeDevSeed,
+} from '../storage/seed/write-dev-seed';
 import type { ImportReport } from '../storage/seed/import-from-files';
 
 import { createTestDatabase, type TestDatabase } from './db-harness';
@@ -139,6 +144,25 @@ describe('Демонабор', () => {
   });
 
   // --- Сид под макет (38.115) ---
+
+  it('в боевом окружении сид отказывает до записи; явное разрешение — единственный ключ', async () => {
+    // Знаки «проверено» и отзывы набора синтетические: на боевой базе — подделка.
+    expect(() => assertDemoSeedAllowed({ NODE_ENV: 'production' })).toThrow(/NODE_ENV=production/);
+    expect(() =>
+      assertDemoSeedAllowed({ NODE_ENV: 'production', [DEMO_SEED_OVERRIDE]: '1' }),
+    ).not.toThrow();
+    expect(() => assertDemoSeedAllowed({ NODE_ENV: 'development' })).not.toThrow();
+    expect(() => assertDemoSeedAllowed({})).not.toThrow();
+
+    // Отказ стоит у самого писателя: базу он не трогает вовсе.
+    const before = await db.prisma.user.count();
+    const source = await buildDevSourceData(TODAY);
+
+    await expect(
+      writeDevSeed({ client: db.prisma, source, env: { NODE_ENV: 'production' } }),
+    ).rejects.toThrow(/SPORTHUB_ALLOW_DEMO_SEED=1/);
+    expect(await db.prisma.user.count()).toBe(before);
+  });
 
   it('у каждого клуба есть снимок, у каждого тренера — лицо: адреса макета', async () => {
     const clubs = await db.prisma.club.findMany({

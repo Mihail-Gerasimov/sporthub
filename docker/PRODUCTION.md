@@ -335,9 +335,14 @@ docker compose run --rm api npx prisma migrate deploy
 удобства) плюс минимальный работающий набор, чтобы было чем войти и было что открыть:
 
 ```bash
-docker compose run --rm api \
+docker compose run --rm -e SPORTHUB_ALLOW_DEMO_SEED=1 api \
   node -e "require('./dist/storage/seed/cli').runSeedCli('dev').then((code) => process.exit(code))"
 ```
+
+⚠️ **Без `SPORTHUB_ALLOW_DEMO_SEED=1` сид в боевом образе отказывает** (`NODE_ENV=production`,
+шаг 38.115): набор демонстрационный — знаки «проверено» и отзывы в нём синтетические,
+и на базе с живыми посетителями они были бы подделкой. Переменная — осознанное «да»
+на чистой установке, и только на ней.
 
 ⚠️ Команда `npm run db:seed` на сервере не работает: она запускает `scripts/db-seed-dev.mjs`,
 а в рабочий образ попадает только собранный код. Запускающая обвязка внутри образа живёт
