@@ -1,89 +1,38 @@
 /**
- * «Три шага до первой тренировки» — секция главной (шаг 38.71).
+ * «Три шага до первой тренировки» — секция главной (шаг 38.71; дословно по макету — 38.117).
  *
  * По эталону (`HomePage.tsx:502-540`): секция 64/56 сверху/снизу, шапка с отступом 44,
  * рубрика и H2 по центру, одна белая полоса радиусом 22 с разделителями `border`,
- * а не `gap`; в карточке шага — номер
- * крупным display-шрифтом еле видимой заливкой (40px, 5 % чернил — как в макете),
- * иконка 44×44 на мягкой зелёной подложке, заголовок и абзац. Ховера нет вовсе
- * (эталон, step-30). Заголовок шага — `.t-h3` словаря типографики (38.109): Inter
- * полужирный обычным регистром; display-шрифт остаётся за H1/H2.
+ * а не `gap`; в карточке шага — номер крупным моноширинным шрифтом макета (DM Mono,
+ * 40px, 5 % чернил), иконка lucide 44×44 на мягкой зелёной подложке, заголовок и абзац.
+ * Ховера нет вовсе (эталон, step-30). Заголовок шага — `.t-h3` словаря типографики
+ * (38.109): Inter полужирный обычным регистром; display-шрифт остаётся за H1/H2.
  *
- * Третий шаг — БЕЗ дневника (решение заказчика): у нас нет ни дневника тренировок,
- * ни челленджей (долг Д-12, Д-5); третий шаг говорит о том, что есть, — история
- * занятий в кабинете и отзывы после посещения.
+ * Тексты и иконки — слово в слово и знак в знак из макета (решение заказчика 17.09, Э14):
+ * лупа, календарь, столбики (`bar-chart-2`, не галочка); третий шаг обещает дневник
+ * и челленджи — разделы в разработке, обещание — решение заказчика.
  *
  * Почему не `ui/Card`: карточки шагов не самостоятельны — это одна полоса с общей
  * обводкой и внутренними разделителями, у `Card` обводка и тень у каждой своей.
- * Иконки — инлайновые SVG на `currentColor`: библиотеки иконок в проекте нет
- * (зависимостей у `apps/web` девять, решение заказчика 11).
+ * Иконки — из общего файла `lucide-icons` (инлайновые SVG на `currentColor`).
  */
 
-import type { ReactNode } from 'react';
-
 import { HomeContainer } from '@/components/home/HomeContainer';
+import { LUCIDE, type LucideName } from '@/components/home/lucide-icons';
 import { STEPS } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-
-const ICON_CLASS = 'size-[22px]';
-
-/** Лупа — поиск. */
-const SearchIcon = (
-  <svg
-    className={ICON_CLASS}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    aria-hidden="true"
-  >
-    <circle cx="11" cy="11" r="7" />
-    <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-  </svg>
-);
-
-/** Календарь — запись на время. */
-const CalendarIcon = (
-  <svg
-    className={ICON_CLASS}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    aria-hidden="true"
-  >
-    <rect x="3" y="5" width="18" height="16" rx="3" />
-    <path d="M3 10h18M8 3v4M16 3v4" strokeLinecap="round" />
-  </svg>
-);
-
-/** Галочка в круге — посещение и отзыв. */
-const CheckIcon = (
-  <svg
-    className={ICON_CLASS}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <path d="m8 12 3 3 5-6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 /** Ключ шага — из словаря: новый шаг без иконки здесь не соберётся. */
 type StepKey = (typeof STEPS.items)[number]['key'];
 
 /**
- * Иконки шагов — по КЛЮЧУ записи словаря, не по позиции (ревью 38.71: параллельный
- * массив по индексу расходится молча). Тексты живут в словаре, иконки — здесь:
- * словарь не знает разметки.
+ * Иконки шагов — по КЛЮЧУ записи словаря, не по позиции; имена — как в макете
+ * (`Search`, `Calendar`, `BarChart2`).
  */
-const STEP_ICONS: Record<StepKey, ReactNode> = {
-  find: SearchIcon,
-  book: CalendarIcon,
-  train: CheckIcon,
+const STEP_ICONS: Record<StepKey, LucideName> = {
+  find: 'search',
+  book: 'calendar',
+  train: 'bar-chart-2',
 };
 
 export function HomeSteps() {
@@ -112,9 +61,10 @@ export function HomeSteps() {
               className="min-w-0 border-line px-7 py-8 [&:not(:last-child)]:border-b md:[&:not(:last-child)]:border-r md:[&:not(:last-child)]:border-b-0"
             >
               <div className="mb-4 flex items-center gap-3">
+                {/* Номер — DM Mono макета (38.113), 40px, еле видимой заливкой. */}
                 <span
                   aria-hidden="true"
-                  className="font-display text-[40px] font-black leading-none text-ink/[0.05]"
+                  className="font-mono text-[40px] font-black leading-none text-ink/[0.05]"
                 >
                   {step.number}
                 </span>
@@ -123,7 +73,7 @@ export function HomeSteps() {
                     Значок — яркий `text-lime`, как `GREEN` макета: графика 22px, не текст; правило контраста
                     текста к нему не относится (то же решение, что у плиток «Возможности»). */}
                 <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-tint-lime text-lime">
-                  {STEP_ICONS[step.key]}
+                  {LUCIDE[STEP_ICONS[step.key]]}
                 </span>
               </div>
               {/* Заголовок шага — `.t-h3` словаря (38.109): Inter полужирный 20px обычным регистром, как в макете. */}

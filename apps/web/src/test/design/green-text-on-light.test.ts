@@ -509,11 +509,12 @@ describe('Сторож: зелёный текст только на плашке
     }
   });
 
-  it('файлы ICON_GREEN красят зелёным графику: в каждом есть <svg', async () => {
+  it('файлы ICON_GREEN красят зелёным графику: в каждом есть значок', async () => {
     for (const file of ICON_GREEN) {
       const text = stripComments(await readFile(path.join(WEB_ROOT, file), 'utf8'));
 
-      expect(text, `${file}: значков нет — исключение без предмета`).toMatch(/<svg\b/);
+      // Значки — либо `<svg` в самом файле, либо из общего файла иконок (`LUCIDE[…]`, 38.117).
+      expect(text, `${file}: значков нет — исключение без предмета`).toMatch(/<svg\b|\bLUCIDE\[/);
       expect(text, `${file}: ярко-зелёного нет — запись снять`).toMatch(
         /(?<![\w-])text-lime(?![\w-])/,
       );

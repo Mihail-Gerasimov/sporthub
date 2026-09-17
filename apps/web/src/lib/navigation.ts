@@ -36,8 +36,8 @@
 import { CATALOG_PATH, catalogSectionHref } from '@/lib/catalog-sections';
 import type { DiscoveryMode } from '@/stores/useFilterStore';
 
-/** Страница «раздел в разработке» — один адрес на все разделы вне фазы. */
-const COMING_SOON_PATH = '/coming-soon';
+/** Страница «раздел в разработке» — один адрес на все разделы вне фазы (читают и плитки главной, 38.117). */
+export const COMING_SOON_PATH = '/coming-soon';
 
 /**
  * Назначение пункта — ключ, а не подпись: по нему компонент выбирает иконку и узнаёт

@@ -43,7 +43,7 @@ describe('HomeSteps', () => {
     expect(numbers).toEqual(STEPS.items.map((step) => step.number));
   });
 
-  it('иконка шага берётся по ключу записи: у каждого шага своя, ни одна не повторяется', () => {
+  it('иконки шагов — lucide по ключу записи, как в макете: лупа, календарь, столбики (не галочка)', () => {
     render(<HomeSteps />);
 
     const items = screen.getAllByRole('listitem');
@@ -51,6 +51,11 @@ describe('HomeSteps', () => {
 
     expect(items).toHaveLength(STEPS.items.length);
     expect(new Set(icons).size).toBe(STEPS.items.length);
+    // Лупа — круг и ручка; календарь — рамка и «ушки»; третий — три столбика `bar-chart-2`.
+    expect(icons[0]).toMatch(/<circle/);
+    expect(icons[1]).toMatch(/<rect/);
+    expect((icons[2].match(/<line/g) ?? []).length).toBe(3);
+    expect(icons[2]).not.toMatch(/<circle/);
   });
 
   it('заголовки шагов — .t-h3 словаря обычным регистром; номера — крупные приглушённые (38.109)', () => {
@@ -68,6 +73,9 @@ describe('HomeSteps', () => {
 
     expect(numbers).toHaveLength(STEPS.items.length);
     for (const number of numbers) {
+      // DM Mono макета (38.113), не display-шрифт.
+      expect(number.className).toMatch(/\bfont-mono\b/);
+      expect(number.className).not.toMatch(/font-display/);
       expect(number.className).toMatch(/text-\[40px\]/);
       expect(number.className).toMatch(/text-ink\/\[0\.05\]/);
     }
@@ -91,17 +99,14 @@ describe('HomeSteps', () => {
     expect(box?.className).toMatch(/\btext-lime\b/);
   });
 
-  it('третий шаг — без дневника и челленджей (решение заказчика)', () => {
+  it('тексты шагов — слово в слово из словаря, третий про дневник и челленджи (Э14)', () => {
     render(<HomeSteps />);
 
-    const text = screen.getByRole('region', { name: HOME_SECTIONS.steps.label }).textContent ?? '';
-
-    expect(text).not.toMatch(/дневник/i);
-    expect(text).not.toMatch(/челлендж/i);
-    // Вместо них — то, что есть: история занятий в кабинете и отзыв после посещения.
-    expect(text).toMatch(/отзыв/i);
-    // Посещение отмечает провайдер, не спортсмен (ревью 38.71): шаг говорит «приходи».
-    expect(text).not.toMatch(/отмечай посещен/i);
+    for (const step of STEPS.items) {
+      expect(screen.getByText(step.body)).toBeInTheDocument();
+    }
+    expect(STEPS.items[1].title).toBe('Забронируй онлайн');
+    expect(STEPS.items[2].body).toMatch(/дневник/);
   });
 
   it('у каждого шага есть иконка, скрытая от диктора, — контент несёт текст', () => {
