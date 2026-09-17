@@ -82,20 +82,28 @@
   /* Soft-warning (status-pending бейджи, warn-action в логах админки).
    * Не путать с --ui-orange (cancel/reject): gold = «на проверке», не «отклонено». */
   --ui-gold: #f59e0b;
-  /* Подложки плиток «Возможности» — 6% оттенка на белом, как в макете (`HomePage.tsx:227-236`,
-     `f.color`): лайм, небо, оранжевый, изумруд. Токены здесь — один раз, плитки читают их
-     классами `bg-tint-*` (38.110); текст на них — чернила и приглушённый, пары считает
+  /* Подложки восьми плиток «Возможности» — 6% оттенка на белом, как в макете
+     (`HomePage.tsx:227-236`, `f.color`): лайм, индиго, небо, янтарь, красный, изумруд,
+     фиолет, оранжевый. Токены здесь — один раз, плитки читают их классами `bg-tint-*`
+     (38.110; восемь плиток — 38.117); текст на них — чернила и приглушённый, пары считает
      tokens-contract (≥ 5:1). */
   --ui-tint-lime: rgba(126, 217, 0, 0.06);
+  --ui-tint-indigo: rgba(99, 102, 241, 0.06);
   --ui-tint-sky: rgba(14, 165, 233, 0.06);
-  --ui-tint-orange: rgba(249, 115, 22, 0.06);
+  --ui-tint-amber: rgba(245, 158, 11, 0.06);
+  --ui-tint-red: rgba(239, 68, 68, 0.06);
   --ui-tint-emerald: rgba(16, 185, 129, 0.06);
-  /* Цвета значков плиток, которых нет в палитре (лайм и оранжевый уже есть) — значения
-     макета (`#0ea5e9`, `#10b981`); это графика, не текст: небо на белом 2,8:1 — как в макете.
-     Изумруд — «Прогресс и цели» (`HomePage.tsx:232`). Фиолет макета — у «Маркета» (Д-8),
-     которого нет: токен впрок не держим. */
+  --ui-tint-violet: rgba(139, 92, 246, 0.06);
+  --ui-tint-orange: rgba(249, 115, 22, 0.06);
+  /* Цвета значков плиток, которых нет в палитре (лайм, красный и оранжевый уже есть) —
+     значения макета; это графика, не текст: небо на белом 2,8:1 — как в макете.
+     Индиго — «Онлайн-оплата», янтарь — «Дневник тренировок», изумруд — «Прогресс и цели»,
+     фиолет — «Маркет спортпита» (`HomePage.tsx:228-234`). */
+  --ui-hue-indigo: #6366f1;
   --ui-hue-sky: #0ea5e9;
+  --ui-hue-amber: #f59e0b;
   --ui-hue-emerald: #10b981;
+  --ui-hue-violet: #8b5cf6;
 
   /* ===== Контраст-плашка: тёмный фон героя и шапки =====
    * Единственные тёмные острова на светлой странице. У плашки свой текст, свой
@@ -205,11 +213,18 @@
   --color-orange-soft: var(--ui-orange-soft);
   --color-orange-text: var(--ui-orange-text);
   --color-tint-lime: var(--ui-tint-lime);
+  --color-tint-indigo: var(--ui-tint-indigo);
   --color-tint-sky: var(--ui-tint-sky);
-  --color-tint-orange: var(--ui-tint-orange);
+  --color-tint-amber: var(--ui-tint-amber);
+  --color-tint-red: var(--ui-tint-red);
   --color-tint-emerald: var(--ui-tint-emerald);
+  --color-tint-violet: var(--ui-tint-violet);
+  --color-tint-orange: var(--ui-tint-orange);
+  --color-hue-indigo: var(--ui-hue-indigo);
   --color-hue-sky: var(--ui-hue-sky);
+  --color-hue-amber: var(--ui-hue-amber);
   --color-hue-emerald: var(--ui-hue-emerald);
+  --color-hue-violet: var(--ui-hue-violet);
   --color-red: var(--ui-red);
   --color-gold: var(--ui-gold);
   --color-plate: var(--ui-plate);

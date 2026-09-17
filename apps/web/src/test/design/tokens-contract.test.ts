@@ -51,11 +51,18 @@ export const REQUIRED_TOKENS = [
   '--ui-orange-soft',
   '--ui-orange-text',
   '--ui-tint-lime',
+  '--ui-tint-indigo',
   '--ui-tint-sky',
-  '--ui-tint-orange',
+  '--ui-tint-amber',
+  '--ui-tint-red',
   '--ui-tint-emerald',
+  '--ui-tint-violet',
+  '--ui-tint-orange',
+  '--ui-hue-indigo',
   '--ui-hue-sky',
+  '--ui-hue-amber',
   '--ui-hue-emerald',
+  '--ui-hue-violet',
   '--ui-red',
   '--ui-gold',
   // Контраст-плашка: тёмный фон героя и шапки с собственным текстом и линиями.
@@ -241,6 +248,18 @@ export function contrastRatio(foreground: string, background: string): number | 
  * приглушённый и тёмно-зелёный текст на светлых поверхностях, чернила на лайме,
  * белый и приглушённый белый на плашке. Порог — по WCAG для обычного текста.
  */
+/** Подложки восьми плиток «Возможности» — по одной на плитку макета (`HomePage.tsx:227-236`). */
+const TINT_TOKENS = [
+  '--ui-tint-lime',
+  '--ui-tint-indigo',
+  '--ui-tint-sky',
+  '--ui-tint-amber',
+  '--ui-tint-red',
+  '--ui-tint-emerald',
+  '--ui-tint-violet',
+  '--ui-tint-orange',
+];
+
 const AA_PAIRS: Array<[text: string, surface: string]> = [
   ['--ui-muted', '--ui-bg'],
   ['--ui-muted', '--ui-card'],
@@ -256,15 +275,14 @@ const AA_PAIRS: Array<[text: string, surface: string]> = [
   ['--ui-orange-text', '--ui-card'],
   ['--ui-orange-text', '--ui-card-2'],
   ['--ui-orange-text', '--ui-orange-soft'],
-  // Плитки «Возможности» (38.110): чернила и приглушённый на каждой подложке-оттенке.
-  ['--ui-ink', '--ui-tint-lime'],
-  ['--ui-ink', '--ui-tint-sky'],
-  ['--ui-ink', '--ui-tint-orange'],
-  ['--ui-muted', '--ui-tint-lime'],
-  ['--ui-muted', '--ui-tint-sky'],
-  ['--ui-muted', '--ui-tint-orange'],
-  ['--ui-ink', '--ui-tint-emerald'],
-  ['--ui-muted', '--ui-tint-emerald'],
+  // Плитки «Возможности» (38.110; восемь — 38.117): чернила и приглушённый на каждой
+  // подложке-оттенке.
+  ...TINT_TOKENS.flatMap(
+    (tint): Array<[string, string]> => [
+      ['--ui-ink', tint],
+      ['--ui-muted', tint],
+    ],
+  ),
 ];
 
 describe('Сторож: контракт токенов палитры (38.7)', () => {
