@@ -24,6 +24,7 @@ import { FocusCard } from '@/components/home/FocusCard';
 import { HomeContainer } from '@/components/home/HomeContainer';
 import { HeroSubtitle } from '@/components/home/HeroSubtitle';
 import type { UpcomingSessionItem } from '@/components/schedule';
+import type { Club } from '@sporthub/types';
 import { HERO } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
 
@@ -32,8 +33,8 @@ type HomeHeroProps = {
   search?: ReactNode;
   /** Ряд счётчиков (38.69) — под поиском. */
   counters?: ReactNode;
-  /** Данные правой колонки (38.70): занятия дня и дата словами; без них колонки нет. */
-  focus?: { sessions: UpcomingSessionItem[]; dateLabel: string };
+  /** Данные правой колонки (38.70, 38.116): клуб героя, его занятия дня и дата словами. */
+  focus?: { club?: Club; sessions: UpcomingSessionItem[]; dateLabel: string };
 };
 
 export function HomeHero({ search, counters, focus }: HomeHeroProps) {
@@ -87,7 +88,7 @@ export function HomeHero({ search, counters, focus }: HomeHeroProps) {
           {/* Карточка в колонке со сдвигом 32 слева (`HomePage.tsx:405`: left 32 → ширина 448) */}
           {focus ? (
             <div className="relative hidden min-w-0 xl:block xl:pl-8" data-hero-aside>
-              <FocusCard sessions={focus.sessions} dateLabel={focus.dateLabel} />
+              <FocusCard club={focus.club} sessions={focus.sessions} dateLabel={focus.dateLabel} />
             </div>
           ) : null}
         </div>

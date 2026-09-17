@@ -163,7 +163,7 @@ const homeData: HomeData = {
   overview: { athletes: 0, trainers: 0, clubs: 0, reviews: 0 },
   sports: fixtureSports,
   tags: [],
-  upcomingSessions: [],
+  heroSessions: [],
   upcomingSessionsLabel: '16 сентября',
   showcaseClubs: clubs,
   showcaseTrainers: trainers,

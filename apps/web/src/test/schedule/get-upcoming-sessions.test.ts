@@ -97,6 +97,24 @@ const narrow = (
   });
 
 describe('getUpcomingSessions — шесть пунктов отбора', () => {
+  it('имя тренера — по справочнику (38.116): есть в списке — имя, нет справочника — поля нет', () => {
+    const schedule = [
+      slot({ id: 1, clubId: 1, startTime: '10:00', endTime: '11:00', trainerId: 7 }),
+    ];
+
+    const [named] = getUpcomingSessions({
+      clubs: CLUBS,
+      schedule,
+      targetDate: TODAY,
+      now: NOW,
+      trainers: [{ id: 7, name: 'Алексей К.' }],
+    });
+    const [unnamed] = select(schedule);
+
+    expect(named.trainerName).toBe('Алексей К.');
+    expect(unnamed.trainerName).toBeUndefined();
+  });
+
   it('1. только сегодня: вчера и завтра — мимо', () => {
     const sessions = select([
       slot({ id: 1, clubId: 1, startTime: '10:00', endTime: '11:00' }),

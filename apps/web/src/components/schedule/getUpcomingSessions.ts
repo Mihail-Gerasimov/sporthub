@@ -31,13 +31,15 @@ import { isSlotOpenToday } from '@sporthub/domain';
 import { filterClubs, type ClubListSport } from '@/components/clubs/filterClubs';
 import { getScheduleClubId } from '@/lib/utils';
 
-import type { Club, EntityId, Schedule, Tag } from '@sporthub/types';
+import type { Club, EntityId, Schedule, Tag, Trainer } from '@sporthub/types';
 
 export type UpcomingSessionItem = {
   id: EntityId;
   title: string;
   clubId: EntityId;
   clubName: string;
+  /** Тренер занятия по справочнику — строка карточки героя (38.116); без справочника пусто. */
+  trainerName?: string;
   /** Вид спорта занятия — по нему секция сужает список под выбранный чип. */
   sportId: EntityId;
   date: string;
@@ -64,6 +66,8 @@ type GetUpcomingSessionsInput = {
   targetDate: string;
   /** Момент «сейчас» — явно: страница передаёт тот же, по которому считает день. */
   now: Date;
+  /** Справочник тренеров — только ради имени в строке занятия (38.116); без него имени нет. */
+  trainers?: Pick<Trainer, 'id' | 'name'>[];
 };
 
 /** Пункты 1–3 и 5: занятия дня, куда ещё можно прийти, ближайшее — первым. Без среза. */
@@ -72,8 +76,10 @@ export function getUpcomingSessions({
   schedule,
   targetDate,
   now,
+  trainers = [],
 }: GetUpcomingSessionsInput): UpcomingSessionItem[] {
   const clubById = new Map(clubs.map((club) => [club.id, club]));
+  const trainerNameById = new Map(trainers.map((trainer) => [trainer.id, trainer.name]));
 
   return (
     schedule
@@ -94,6 +100,8 @@ export function getUpcomingSessions({
             title: slot.title,
             clubId,
             clubName: club.name,
+            trainerName:
+              slot.trainerId === undefined ? undefined : trainerNameById.get(slot.trainerId),
             sportId: slot.sportId,
             date: slot.date,
             startTime: slot.startTime,

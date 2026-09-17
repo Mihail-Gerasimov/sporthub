@@ -41,6 +41,7 @@ export async function loadHomeData(now: Date): Promise<HomeData> {
     sports,
     tags,
     trainerClubLinks,
+    trainers,
   ] = await Promise.all([
     getPublishedClubs({ sort: 'rating', limit: HOME_SHOWCASE_LIMITS.clubs }),
     getPublishedTrainers({ sort: 'rating', limit: HOME_SHOWCASE_LIMITS.trainers }),
@@ -54,23 +55,32 @@ export async function loadHomeData(now: Date): Promise<HomeData> {
     getSports(),
     getTags(),
     getTrainerClubLinks({ status: 'confirmed' }),
+    // Имена тренеров в строках занятий героя (38.116).
+    getPublishedTrainers(),
   ]);
 
   const todayDateKey = getDateKeyInTimeZone(now);
   // Цвет вида (38.80) едет до карточек и ленты героя вместе с именем и иконкой.
   const homeSports = sports.map(({ id, name, icon, color }) => ({ id, name, icon, color }));
 
+  // Занятия дня: сегодня, не начались, есть места, по времени (38.81), с именем тренера.
+  const upcomingSessions = getUpcomingSessions({
+    clubs,
+    schedule: clubSchedule,
+    targetDate: todayDateKey,
+    now,
+    trainers,
+  });
+  // Клуб героя (38.116): клуб ближайшего занятия дня, без занятий — лучший по рейтингу.
+  const heroClub =
+    clubs.find((club) => club.id === upcomingSessions[0]?.clubId) ?? showcaseClubs[0];
+
   return {
     overview,
     sports: homeSports,
     tags,
-    // Занятия дня для героя: сегодня, не начались, есть места, по времени (38.81).
-    upcomingSessions: getUpcomingSessions({
-      clubs,
-      schedule: clubSchedule,
-      targetDate: todayDateKey,
-      now,
-    }),
+    heroClub,
+    heroSessions: upcomingSessions.filter((session) => session.clubId === heroClub?.id),
     upcomingSessionsLabel: formatDate(todayDateKey, { day: 'numeric', month: 'long' }),
     showcaseClubs,
     // Карточка тренера — та же, что в каталоге: площадка, услуга, ближайшее окно и

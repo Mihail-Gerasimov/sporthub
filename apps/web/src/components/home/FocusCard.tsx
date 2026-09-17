@@ -1,32 +1,42 @@
+'use client';
+
 /**
- * «Сегодня в фокусе» — правая колонка героя (шаг 38.70), в виде эталона
- * (`HomePage.tsx:403-456`, чек-лист step-23/24): белая карточка радиусом 24 с глубокой
- * тенью (`shadow-deep`, 0 32 80 .5) и обводкой white .06; тёмная верхняя зона высотой 200 (в макете — фото
- * клуба: фото у клубов нет — долг Д-10, зона несёт время и имя первого занятия),
- * ниже — «Ближайшие занятия» до трёх строк: время display-шрифтом, название и клуб,
- * справа кнопка — `ui/Button` размера `xs` ссылкой (ревью 38.80). Логика наша (реестр № 40–46): первое занятие дня, маркер LIVE,
- * «Записаться» → `/booking/{id}`, подпись мест и порог «мало» — из `lib/slot-spots`
- * (одно правило со слотами, 38.81), живой счётчик «N занятий сегодня» со склонением
- * из словаря `PLURAL`; плавающие виджеты макета не переносятся (статистика — вне фазы).
- * У счётчика — ссылка «Все слоты» на якорь слотов каталога (38.88, с 38.79c — `/catalog#…`): прежняя
- * кнопка героя «Смотреть слоты и окна» вела в никуда (тупик № 1), в герое эталона
- * кнопок нет, и вход к слотам держит эта карточка.
+ * Правая колонка героя — карточка клуба по макету (шаг 38.116; `HomePage.tsx:403-456`,
+ * чек-лист step-23/24): белая карточка радиусом 24 с глубокой тенью (`shadow-deep`,
+ * 0 32 80 .5) и обводкой white .06; сверху фото клуба высотой 200 с затемнением снизу
+ * (токен `--ui-decor-photo-shade`), на нём бейдж «Верифицирован» (по `verifiedAt`),
+ * имя display 20 и рейтинг моно 12 с числом отзывов и адресом; ниже «Ближайшие занятия»
+ * до трёх строк: время моно 13, название 12, тренер 10, справа кнопка `ui/Button`
+ * размера `xs` ссылкой на запись — первое занятие «Записаться» (зелёная мягкая), мало
+ * мест — «🔥 N места» (тон «мало мест»), остальные — «N мест» (обводка).
  *
- * Почему не `ui/Card`: у карточки тёмная верхняя зона и тень «парящего» слоя на плашке
- * героя — у `Card` белая поверхность с подложкой-тенью для светлого фона.
+ * Логика наша (реестр № 40–46): клуб — клуб ближайшего занятия дня всей площадки
+ * (без занятий — лучший по рейтингу), строки — ЕГО занятия сегодня, куда ещё можно
+ * прийти (предикат домена, 38.81); каждая кнопка ведёт на `/booking/{id}`; подпись мест
+ * и порог «мало» — из `lib/slot-spots`. Без занятий — тот же каркас с подсказкой даты;
+ * без клуба (пустой каталог) — тёмная зона с «Слоты скоро появятся». Плавающие
+ * «Запись подтверждена!» и «Моя статистика» макета не переносятся.
+ *
+ * Фото — `imageUrls[0]`; без адреса или при ошибке — заглушка «Фото клуба».
+ * STUB: загрузки фото на площадке нет (долг Д-10), заглушка стоит, пока владелец
+ * не загрузит снимок. Клиентская — только ради ошибки загрузки фото.
+ *
+ * Почему не `ui/Card`: тень «парящего» слоя на плашке героя и фото-зона с затемнением —
+ * у `Card` белая поверхность с подложкой-тенью для светлого фона.
  */
-import Link from 'next/link';
+import { useState } from 'react';
 
 import type { UpcomingSessionItem } from '@/components/schedule';
 import { Button } from '@/components/ui';
 import { FOCUS } from '@/lib/home-copy';
-import { catalogSectionHref } from '@/lib/catalog-sections';
-import { countRu, PLURAL } from '@/lib/plural';
 import { isLowSpots, spotsLabel } from '@/lib/slot-spots';
 import { cn } from '@/lib/utils';
+import type { Club } from '@sporthub/types';
 
 type FocusCardProps = {
-  /** Занятия сегодня, ближайшее — первым. */
+  /** Клуб героя; пусто — каталог пуст. */
+  club?: Club;
+  /** Занятия клуба сегодня, ближайшее — первым. */
   sessions: UpcomingSessionItem[];
   /** Дата словами для пустого состояния: «15 сентября». */
   dateLabel: string;
@@ -35,11 +45,7 @@ type FocusCardProps = {
 /** Сколько строк расписания показывает карточка — как в макете. */
 const ROWS = 3;
 
-/**
- * Вариант кнопки строки: первое занятие зовёт записаться, мало мест — тон «мало мест»
- * (тот же, что у пилюли карточки слота: красные обводка и подложка, буквы чернилами —
- * `text-red` на белом 3,76:1, ниже AA), остальные нейтральные.
- */
+/** Кнопка строки: первое занятие зовёт записаться, мало мест — тон «мало мест», прочие — обводка. */
 function rowButtonVariant(index: number, spots: number): 'soft' | 'alert' | 'outline' {
   if (index === 0) return 'soft';
   if (isLowSpots(spots)) return 'alert';
@@ -47,61 +53,93 @@ function rowButtonVariant(index: number, spots: number): 'soft' | 'alert' | 'out
   return 'outline';
 }
 
-export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
-  const focus = sessions[0];
+export function FocusCard({ club, sessions, dateLabel }: FocusCardProps) {
+  const [photoBroken, setPhotoBroken] = useState(false);
+  const photo = club?.imageUrls[0];
+  const showPhoto = photo !== undefined && !photoBroken;
+  const rows = sessions.slice(0, ROWS);
 
   return (
     <aside
       aria-label={FOCUS.eyebrow}
       className="relative overflow-hidden rounded-[24px] border border-plate-ink/[0.06] bg-card text-ink shadow-deep"
     >
-      {/* Верхняя зона: тёмная плашка с временем и именем первого занятия.
-          STUB: в макете здесь фото клуба (`HomePage.tsx:410`); загрузки фото на площадке
-          нет (долг Д-10) — зона несёт время и имя занятия, с появлением фото клуба
-          станет подложкой снимка с затемнением, как у карточки клуба. */}
-      <div className="relative flex h-[200px] flex-col justify-between bg-plate p-4 text-plate-ink">
-        <div className="flex items-center justify-between gap-2.5">
-          <span className="font-body text-[10px] font-bold tracking-[0.18em] text-lime uppercase">
-            {FOCUS.eyebrow}
-          </span>
-          {focus ? (
-            <span className="inline-flex items-center gap-1.5 font-body text-[10px] font-bold tracking-[0.14em] text-orange uppercase">
-              <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-orange" />
-              {FOCUS.live}
+      {/* Фото 200 с затемнением снизу (макет 410-417); без клуба — тёмная зона с пустым состоянием. */}
+      <div className="grid h-[200px] grid-rows-[200px] bg-plate">
+        {club && showPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element -- адрес фото из данных, размер фиксирован
+          <img
+            src={photo}
+            alt=""
+            onError={() => setPhotoBroken(true)}
+            className="h-full w-full [grid-area:1/1] object-cover"
+          />
+        ) : club ? (
+          <div className="hero-bg-blank flex items-center justify-center [grid-area:1/1] bg-card-2">
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+              {FOCUS.photoFallback}
             </span>
-          ) : null}
-        </div>
-        <div>
-          <p className="m-0 font-display text-[40px] leading-[0.9] font-black tracking-[0.02em] tabular-nums">
-            {focus?.startTime ?? '—:—'}
-          </p>
-          <h3 className="m-0 mt-1 font-display text-[20px] leading-tight font-black uppercase">
-            {focus?.title ?? FOCUS.emptyTitle}
+          </div>
+        ) : null}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none [grid-area:1/1] [background:var(--ui-decor-photo-shade)]"
+        />
+
+        {club?.verifiedAt ? (
+          <span className="absolute left-3 top-3 rounded-[5px] bg-lime px-2 py-[3px] font-body text-[9px] font-extrabold uppercase leading-none text-ink">
+            {FOCUS.verified}
+          </span>
+        ) : null}
+
+        <div className="flex flex-col justify-end [grid-area:1/1] px-4 pb-3.5 pt-4 text-plate-ink">
+          <h3 className="m-0 font-display text-[20px] font-black leading-none">
+            {club?.name ?? FOCUS.emptyTitle}
           </h3>
-          <p className="m-0 mt-0.5 font-body text-[12px] text-plate-muted">
-            {focus ? focus.clubName : FOCUS.emptyHint(dateLabel)}
-          </p>
+          {club ? (
+            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-plate-muted">
+              <span
+                role="img"
+                aria-label={`Рейтинг: ${club.rating.toFixed(1)} из 5`}
+                className="inline-flex items-center gap-1.5"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="size-[11px] fill-current text-lime"
+                >
+                  <path d="m12 3.2 2.72 5.52 6.09.89-4.4 4.29 1.04 6.07L12 17.09l-5.45 2.88 1.04-6.07-4.4-4.29 6.09-.89L12 3.2Z" />
+                </svg>
+                <span className="font-mono text-[12px] font-bold tabular-nums text-plate-ink">
+                  {club.rating.toFixed(1)}
+                </span>
+              </span>
+              <span>
+                ({club.reviewCount}) · {club.address}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* Расписание: до трёх строк, как в макете */}
-      <div className="px-4 pt-3.5 pb-4">
-        <p className="m-0 mb-2.5 font-display text-[13px] font-bold tracking-[0.06em] uppercase">
+      {/* Расписание: заголовок 13 800 капителью, до трёх строк, как в макете (429-455). */}
+      <div className="px-4 pb-4 pt-3.5">
+        <p className="m-0 mb-2.5 font-display text-[13px] font-extrabold uppercase tracking-[0.06em]">
           {FOCUS.upcoming}
         </p>
-        {sessions.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="m-0 font-body text-[12px] text-muted">{FOCUS.emptyHint(dateLabel)}</p>
         ) : (
           <ul className="m-0 list-none p-0">
-            {sessions.slice(0, ROWS).map((session, index) => (
+            {rows.map((session, index) => (
               <li
                 key={session.id}
                 className={cn(
                   'flex items-center gap-3 py-2.25',
-                  index < Math.min(sessions.length, ROWS) - 1 && 'border-b border-line',
+                  index < rows.length - 1 && 'border-b border-line',
                 )}
               >
-                <span className="w-10 shrink-0 font-display text-[13px] font-bold tabular-nums">
+                <span className="w-10 shrink-0 font-mono text-[13px] font-extrabold tabular-nums">
                   {session.startTime}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -109,7 +147,7 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
                     {session.title}
                   </span>
                   <span className="block truncate font-body text-[10px] text-muted">
-                    {session.clubName}
+                    {session.trainerName ?? session.clubName}
                   </span>
                 </span>
                 <Button
@@ -119,27 +157,21 @@ export function FocusCard({ sessions, dateLabel }: FocusCardProps) {
                   size="xs"
                   className="shrink-0"
                 >
-                  {index === 0 ? FOCUS.cta : spotsLabel(session.availableSpots)}
+                  {index === 0 ? (
+                    FOCUS.cta
+                  ) : (
+                    <>
+                      {isLowSpots(session.availableSpots) ? (
+                        <span aria-hidden="true">🔥 </span>
+                      ) : null}
+                      {spotsLabel(session.availableSpots)}
+                    </>
+                  )}
                 </Button>
               </li>
             ))}
           </ul>
         )}
-        {/* Живой счётчик — наш контракт (реестр № 44); справа — вход к секции слотов */}
-        <p className="m-0 mt-3 flex items-center justify-between gap-3 border-t border-line pt-3 font-body text-[12px] text-muted">
-          <span>
-            <strong className="font-display text-[14px] font-black text-lime-hov tabular-nums">
-              {countRu(sessions.length, PLURAL.sessions)}
-            </strong>{' '}
-            {FOCUS.today}
-          </span>
-          <Link
-            href={catalogSectionHref('availability')}
-            className="font-semibold text-lime-hov no-underline hover:text-ink"
-          >
-            {FOCUS.allSlots} <span aria-hidden="true">→</span>
-          </Link>
-        </p>
       </div>
     </aside>
   );

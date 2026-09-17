@@ -17,7 +17,11 @@ export function HomeHeroSection({ data }: HomeSectionProps) {
     <HomeHero
       search={<HeroSearch sports={data.sports} />}
       counters={<HomeCounters overview={data.overview} />}
-      focus={{ sessions: data.upcomingSessions, dateLabel: data.upcomingSessionsLabel }}
+      focus={{
+        club: data.heroClub,
+        sessions: data.heroSessions,
+        dateLabel: data.upcomingSessionsLabel,
+      }}
     />
   );
 }
