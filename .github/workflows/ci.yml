@@ -1,0 +1,66 @@
+# Проверка каждого коммита: линтер, типы, тесты (с PostgreSQL 16 как у стенда), сборка.
+# Тестам бэкенда нужна база sporthub_test с локалью ICU ru-RU — той же, что в docker-compose:
+# порядок кириллицы в выдаче иначе разойдётся с localeCompare, и часть тестов покраснеет.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sporthub
+          POSTGRES_PASSWORD: sporthub
+          POSTGRES_DB: sporthub_test
+          POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=ru-RU --encoding=UTF8'
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sporthub -d sporthub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # Тесты бэкенда сами выводят из этой строки схему на каждый файл (apps/api/src/test/setup.ts).
+      DATABASE_TEST_URL: postgresql://sporthub:sporthub@localhost:5432/sporthub_test
+      DATABASE_URL: postgresql://sporthub:sporthub@localhost:5432/sporthub_test
+      DATABASE_POOL_SIZE: '10'
+      SPORT_HUB_PUBLIC_ORIGIN: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Линтер
+        run: npm run lint
+
+      - name: Типы
+        run: npm run typecheck
+
+      - name: Тесты
+        run: npm run test
+
+      - name: Сборка
+        run: npm run build

@@ -1,0 +1,11 @@
+# Дополнение для боевого сервера: образы приезжают из GitHub Container Registry,
+# собирать на сервере нечего. Подключается на сервере ОДИН раз командой
+#   cp docker-compose.registry.yml docker-compose.override.yml
+# (override compose читает сам). См. docker/PRODUCTION.md §1.1 и .github/workflows/deploy.yml.
+services:
+  api:
+    image: ghcr.io/mihail-gerasimov/sporthub-api:latest
+  migrate:
+    image: ghcr.io/mihail-gerasimov/sporthub-api:latest
+  web:
+    image: ghcr.io/mihail-gerasimov/sporthub-web:latest
