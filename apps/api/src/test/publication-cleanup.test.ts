@@ -881,7 +881,9 @@ describe('Общая опись уборки — одна на всех (36.36)'
     // не принимала их сама, каждый прогон, что-нибудь стирающий, обязан был помнить
     // про отдельный заход — и первый же забывший оставил бы строку навсегда.
     expect(fixtureSource).toContain('subjects');
-    expect(fixtureSource).toContain('cleanupPlans({ clubIds, trainerIds, userIds, subjects })');
+    // Форма вызова: предметы передаются в уборку (с 38.120 — вместе с людьми прогона как
+    // предметом журнала), поэтому сверяется вызов с ключом `subjects`, а не буква в букву.
+    expect(fixtureSource).toMatch(/cleanupPlans\(\{ clubIds, trainerIds, userIds, subjects(?::\s*\w+)? \}\)/);
   });
 
   it('названные предметы убираются И из журнала, не только из уведомлений', async () => {

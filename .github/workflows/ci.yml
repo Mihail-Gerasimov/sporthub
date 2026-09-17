@@ -58,6 +58,12 @@ jobs:
       - name: Сборка внутренних пакетов
         run: npm run build --workspace @sporthub/types --workspace @sporthub/domain --workspace @sporthub/fixtures
 
+      # Клиент Prisma — тоже артефакт (apps/api/src/storage/prisma-client/ не в git):
+      # без него типы бэкенда — `never`. Сборка генерирует его сама, но линтер и типы идут раньше.
+      - name: Клиент Prisma
+        run: npx prisma generate
+        working-directory: apps/api
+
       - name: Линтер
         run: npm run lint
 
