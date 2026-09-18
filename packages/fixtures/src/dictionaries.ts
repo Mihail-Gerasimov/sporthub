@@ -110,9 +110,9 @@ export const fixtureSports: Sport[] = [
   {
     id: 9,
     createdAt: '2026-04-18T18:07:36.053Z',
-    name: 'Борьба четкая',
-    slug: 'borbahetkay',
-    description: '',
+    name: 'Борьба',
+    slug: 'wrestling',
+    description: 'Тренировки по технике борьбы, контролю соперника и общей физической подготовке.',
     icon: '',
     imageUrl: '',
     isPopular: true,

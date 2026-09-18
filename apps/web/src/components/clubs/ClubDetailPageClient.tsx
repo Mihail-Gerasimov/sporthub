@@ -206,6 +206,8 @@ export function ClubDetailPageClient({
   const [reviewForm, setReviewForm] = useState<ReviewFormState>({ rating: 0, text: '' });
   const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [photoBroken, setPhotoBroken] = useState(false);
+  const heroPhoto = club.imageUrls[0];
 
   /* Словари id → name для отображения */
   const tagNameById = useMemo(() => Object.fromEntries(tags.map((t) => [t.id, t.name])), [tags]);
@@ -339,16 +341,25 @@ export function ClubDetailPageClient({
   return (
     <div className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-        {/* ═══ Hero — gallery (placeholder) + meta-col. Hero — просто grid
+        {/* ═══ Hero — главное фото + meta-col. Hero — просто grid
          * без card-обёртки: card-стиль живёт на gallery-блоке (handoff). ═══ */}
         <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
-          {/* Photo-placeholder клуба (фотогалерея в MVP не подключена) */}
           <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
-            <div className="hero-bg-blank flex aspect-[16/10] items-center justify-center">
-              <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
-                Фото клуба
-              </span>
-            </div>
+            {heroPhoto !== undefined && !photoBroken ? (
+              // eslint-disable-next-line @next/next/no-img-element -- внешний URL приходит из карточки клуба
+              <img
+                src={heroPhoto}
+                alt={`Зал ${club.name}`}
+                onError={() => setPhotoBroken(true)}
+                className="aspect-[16/10] h-full w-full object-cover"
+              />
+            ) : (
+              <div className="hero-bg-blank flex aspect-[16/10] items-center justify-center">
+                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+                  Фото клуба
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Meta column */}
@@ -457,13 +468,13 @@ export function ClubDetailPageClient({
               </div>
               <div className="px-[18px] py-4">
                 <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
-                  Цена от
+                  {club.priceFrom > 0 ? 'Цена от' : 'Стоимость'}
                 </p>
                 <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
-                  {formatPrice(club.priceFrom)}
+                  {club.priceFrom > 0 ? formatPrice(club.priceFrom) : 'Уточняйте'}
                 </p>
                 <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
-                  за абонемент
+                  {club.priceFrom > 0 ? 'за абонемент' : 'у администратора клуба'}
                 </p>
               </div>
             </div>

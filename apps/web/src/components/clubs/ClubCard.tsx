@@ -129,7 +129,7 @@ export function ClubCard({
             ) : null}
           </div>
           <span className="shrink-0 rounded-[8px] bg-plate/80 px-2.5 py-1 font-mono text-[12px] font-extrabold tabular-nums text-plate-ink">
-            от {formatPrice(club.priceFrom)}
+            {club.priceFrom > 0 ? `от ${formatPrice(club.priceFrom)}` : 'цена по запросу'}
           </span>
         </div>
 
