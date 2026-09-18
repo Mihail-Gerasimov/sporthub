@@ -158,6 +158,8 @@ async function insertMissing<TRow extends SeedRow>(options: {
 export type WriteDevSeedOptions = {
   client: PrismaClient;
   source: SourceData;
+  /** Справочный сид не содержит пользователей, публикаций и пользовательских данных. */
+  seedKind?: 'demo' | 'reference';
   /** Окружение процесса — аргументом, чтобы отказ проверялся тестом без подмены глобального. */
   env?: NodeJS.ProcessEnv;
 };
@@ -191,10 +193,32 @@ export function assertDemoSeedAllowed(env: NodeJS.ProcessEnv = process.env): voi
 export async function writeDevSeed({
   client,
   source,
+  seedKind = 'demo',
   env = process.env,
 }: WriteDevSeedOptions): Promise<ImportReport> {
-  // Боевое окружение — отказ ДО подготовки строк и до транзакции: ничего не пишется.
-  assertDemoSeedAllowed(env);
+  // На проде разрешены только справочники. Признак нельзя использовать для обхода
+  // защиты: любая пользовательская или витринная строка немедленно отклоняет запуск.
+  if (seedKind === 'reference') {
+    const forbidden = [
+      ...source.users,
+      ...source.clubs,
+      ...source.trainers,
+      ...source.trainerClubLinks,
+      ...source.offerings,
+      ...source.schedule,
+      ...source.bookings,
+      ...source.reviews,
+      ...source.notifications,
+      ...source.logs,
+      ...source.providerClientNotes,
+    ];
+    if (forbidden.length > 0) {
+      throw new Error('Справочный сид не может содержать пользовательские или витринные данные.');
+    }
+  } else {
+    // Боевое окружение — отказ ДО подготовки строк и до транзакции: ничего не пишется.
+    assertDemoSeedAllowed(env);
+  }
 
   // Починка текстов сиду не положена (её словарь привязан к номерам боевых записей),
   // пересчёт агрегатов положен: у набора нет отзывов, и рейтинги обязаны быть нулями.

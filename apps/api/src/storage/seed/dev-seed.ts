@@ -436,10 +436,11 @@ export type DevSeedOptions = {
   today?: Date;
 };
 
-/** Демонстрационный срез: справочники плюс минимальный работающий набор. */
-export async function buildDevSourceData(today: Date = new Date()): Promise<SourceData> {
-  const passwordHash = await hashPassword(DEV_PASSWORD);
-
+/**
+ * Только справочники, необходимые чистой боевой установке. Пользователи, публикации,
+ * отзывы, расписание и знаки проверки появляются исключительно через приложение.
+ */
+export function buildReferenceSourceData(): SourceData {
   return {
     cities: CITIES.map((city) => ({
       id: city.id,
@@ -447,14 +448,31 @@ export async function buildDevSourceData(today: Date = new Date()): Promise<Sour
       name: city.name,
       coordinates: { lat: city.lat, lng: city.lng },
     })),
-    // Виды спорта берутся из общего пакета: этот справочник объявлен один раз
-    // и им же снят эталон контрактов. Своя копия здесь разошлась бы с эталоном
-    // молча — и увидели бы мы это только по расхождению ответов.
     sports: fixtureSports,
     tags: numbered(TAGS),
     amenities: numbered(AMENITIES),
     specialties: numbered(SPECIALTIES),
     workFormats: numbered(WORK_FORMATS),
+    users: [],
+    clubs: [],
+    trainers: [],
+    trainerClubLinks: [],
+    offerings: [],
+    schedule: [],
+    bookings: [],
+    reviews: [],
+    notifications: [],
+    logs: [],
+    providerClientNotes: [],
+  };
+}
+
+/** Демонстрационный срез: справочники плюс минимальный работающий набор. */
+export async function buildDevSourceData(today: Date = new Date()): Promise<SourceData> {
+  const passwordHash = await hashPassword(DEV_PASSWORD);
+
+  return {
+    ...buildReferenceSourceData(),
 
     // ⚠️ Фаза 35: по человеку на каждый НАБОР ЛИЦ, а не на каждую роль.
     //
@@ -1060,4 +1078,11 @@ export async function seedDevData({ client, today }: DevSeedOptions): Promise<Im
   const source = await buildDevSourceData(today);
 
   return writeDevSeed({ client, source });
+}
+
+/** Наполнить чистую боевую базу только безопасными справочниками. */
+export async function seedReferenceData({
+  client,
+}: Pick<DevSeedOptions, 'client'>): Promise<ImportReport> {
+  return writeDevSeed({ client, source: buildReferenceSourceData(), seedKind: 'reference' });
 }

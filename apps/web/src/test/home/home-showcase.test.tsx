@@ -220,33 +220,15 @@ describe('Главная — витринные карусели (38.79b)', () =
     expect((rail.parentElement as HTMLElement).className).toContain('md:overflow-visible');
   });
 
-  it('заголовки секций — дословно из макета, в две строки: «Топовые залы / рядом с тобой», «Сертифицированные / тренеры» (38.118)', async () => {
+  it('заголовки секций не заявляют геолокацию и сертификацию без данных', async () => {
     render(await Home());
 
-    expect(SHOWCASE.clubs.titleLines).toEqual(['Топовые залы', 'рядом с тобой']);
-    expect(SHOWCASE.trainers.titleLines).toEqual(['Сертифицированные', 'тренеры']);
+    expect(SHOWCASE.clubs.titleLines).toEqual(['Спортивные клубы', 'на платформе']);
+    expect(SHOWCASE.trainers.titleLines).toEqual(['Тренеры', 'на платформе']);
     // Перенос — как в макете: каждая строка блочным span'ом внутри одного h2.
     const heading = screen.getByRole('heading', { name: titleName(SHOWCASE.clubs.titleLines) });
     const lines = [...heading.querySelectorAll('span.block')].map((line) => line.textContent);
     expect(lines).toEqual([...SHOWCASE.clubs.titleLines]);
-  });
-
-  it('баннер пробного под тренерами — дословно из макета; кнопка ведёт в выдачу каталога в режиме тренеров (38.118)', async () => {
-    useFilterStore.setState({ discoveryMode: 'clubs' });
-    render(await Home());
-
-    const banner = screen.getByRole('complementary', { name: SHOWCASE.trial.title });
-
-    expect(section('trainers')).toContainElement(banner);
-    // Отступ от сетки 20 (`HomePage.tsx:664`), значок — зелёный `GREEN` макета (графика).
-    expect(banner.className).toContain('mt-5');
-    expect(banner.querySelector('svg')?.parentElement?.className).toContain('text-lime');
-    expect(within(banner).getByText('40% тренеров — первое занятие бесплатно')).toBeInTheDocument();
-    expect(within(banner).getByText('Попробуй без риска · Отмена за 24 часа')).toBeInTheDocument();
-    const cta = within(banner).getByRole('link', { name: SHOWCASE.trial.cta });
-    expect(cta).toHaveAttribute('href', catalogSectionHref('results'));
-    fireEvent.click(cta);
-    expect(useFilterStore.getState().discoveryMode).toBe('trainers');
   });
 
   it('«Все клубы» и «Все тренеры» ведут в выдачу каталога и ставят режим стора', async () => {

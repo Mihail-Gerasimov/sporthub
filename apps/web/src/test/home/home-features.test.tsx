@@ -1,4 +1,4 @@
-// Тесты секции «Возможности» (шаг 38.72; восемь плиток дословно по макету — 38.117).
+// Тесты секции «Возможности»: в боевой витрине только работающие разделы.
 //
 // Здесь у каждой плитки цель СУЩЕСТВУЕТ и закреплена ПАРОЙ «плитка → цель» по ключу
 // записи словаря: якорь — из словаря секций каталога, маршрут — файл `src/app/**/page.tsx`;
@@ -17,7 +17,6 @@ import { HomeFeatures } from '@/components/home/HomeFeatures';
 import { catalogSectionHref } from '@/lib/catalog-sections';
 import { FEATURES } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-import { COMING_SOON_PATH } from '@/lib/navigation';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { collectRoutes, routeExists } from '@/test/helpers/app-routes';
@@ -28,29 +27,17 @@ type FeatureKey = (typeof FEATURES.items)[number]['key'];
 /** Пары «ключ плитки → цель», закреплённые по словарю. */
 const EXPECTED_TARGETS: Record<FeatureKey, string> = {
   booking: catalogSectionHref('availability'),
-  payment: COMING_SOON_PATH,
   stats: '/profile/me/stats',
-  workoutLog: COMING_SOON_PATH,
-  foodLog: COMING_SOON_PATH,
-  progress: '/profile/me/dashboard',
-  market: COMING_SOON_PATH,
-  challenges: COMING_SOON_PATH,
 };
 
 /** Подложки по ключу — цвета макета (`HomePage.tsx:227-236`). */
 const EXPECTED_SURFACE: Record<FeatureKey, string> = {
   booking: 'bg-tint-lime',
-  payment: 'bg-tint-indigo',
   stats: 'bg-tint-sky',
-  workoutLog: 'bg-tint-amber',
-  foodLog: 'bg-tint-red',
-  progress: 'bg-tint-emerald',
-  market: 'bg-tint-violet',
-  challenges: 'bg-tint-orange',
 };
 
 /** Плитки кабинета — гостю кнопки входа. */
-const CABINET_KEYS: FeatureKey[] = ['stats', 'progress'];
+const CABINET_KEYS: FeatureKey[] = ['stats'];
 
 function signIn() {
   useAuthStore.setState({
@@ -87,14 +74,14 @@ describe('HomeFeatures', () => {
     expect(section().id).toBe(HOME_SECTIONS.features.id);
   });
 
-  it('восемь плиток — тексты словаря слово в слово, в его порядке', () => {
+  it('плитки работающих возможностей — тексты словаря в его порядке', () => {
     signIn();
     render(<HomeFeatures />);
 
     const items = within(section()).getAllByRole('listitem');
 
-    expect(items).toHaveLength(8);
-    expect(FEATURES.items).toHaveLength(8);
+    expect(items).toHaveLength(2);
+    expect(FEATURES.items).toHaveLength(2);
     items.forEach((item, index) => {
       expect(within(item).getByText(FEATURES.items[index].title)).toBeInTheDocument();
       expect(within(item).getByText(FEATURES.items[index].body)).toBeInTheDocument();

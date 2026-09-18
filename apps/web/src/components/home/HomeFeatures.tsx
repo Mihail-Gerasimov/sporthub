@@ -38,7 +38,6 @@ import { Button } from '@/components/ui/Button';
 import { catalogSectionHref, type CatalogSectionKey } from '@/lib/catalog-sections';
 import { FEATURES } from '@/lib/home-copy';
 import { HOME_SECTIONS } from '@/lib/home-sections';
-import { COMING_SOON_PATH } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthFaces, useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -52,8 +51,7 @@ type FeatureKey = (typeof FEATURES.items)[number]['key'];
  */
 type FeatureTarget =
   | { section: CatalogSectionKey }
-  | { cabinet: `/profile/me/${string}` }
-  | { comingSoon: true };
+  | { cabinet: `/profile/me/${string}` };
 
 /** Всё, чем плитки отличаются, — одной строкой на ключ: иконка макета, цель, подложка, тон значка. */
 type FeatureSpec = {
@@ -74,56 +72,18 @@ const FEATURE_SPECS: Record<FeatureKey, FeatureSpec> = {
     surface: 'bg-tint-lime',
     tone: 'text-lime',
   },
-  payment: {
-    icon: 'credit-card',
-    target: { comingSoon: true },
-    surface: 'bg-tint-indigo',
-    tone: 'text-hue-indigo',
-  },
   stats: {
     icon: 'bar-chart-2',
     target: { cabinet: '/profile/me/stats' },
     surface: 'bg-tint-sky',
     tone: 'text-hue-sky',
   },
-  workoutLog: {
-    icon: 'book-open',
-    target: { comingSoon: true },
-    surface: 'bg-tint-amber',
-    tone: 'text-hue-amber',
-  },
-  foodLog: {
-    icon: 'apple',
-    target: { comingSoon: true },
-    surface: 'bg-tint-red',
-    tone: 'text-red',
-  },
-  progress: {
-    icon: 'trending-up',
-    target: { cabinet: '/profile/me/dashboard' },
-    surface: 'bg-tint-emerald',
-    tone: 'text-hue-emerald',
-  },
-  market: {
-    icon: 'package',
-    target: { comingSoon: true },
-    surface: 'bg-tint-violet',
-    tone: 'text-hue-violet',
-  },
-  challenges: {
-    icon: 'flame',
-    target: { comingSoon: true },
-    surface: 'bg-tint-orange',
-    tone: 'text-orange',
-  },
 };
 
 /** Адрес цели — для ссылки. */
 function hrefOf(target: FeatureTarget): string {
   if ('section' in target) return catalogSectionHref(target.section);
-  if ('cabinet' in target) return target.cabinet;
-
-  return COMING_SOON_PATH;
+  return target.cabinet;
 }
 
 const TILE_CLASS =

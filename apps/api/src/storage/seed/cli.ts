@@ -13,11 +13,11 @@
 import path from 'node:path';
 
 import { PrismaService, readDatabaseSettings } from '../prisma.service';
-import { seedDevData } from './dev-seed';
+import { seedDevData, seedReferenceData } from './dev-seed';
 import { formatImportReport, importSourceData } from './import-from-files';
 
-/** Что именно запускаем. Сценарий остался один — сид для разработки. */
-export type SeedMode = 'dev';
+/** Демонстрационный набор для разработки или безопасные справочники для продакшена. */
+export type SeedMode = 'dev' | 'reference';
 
 /**
  * Подхватить `apps/api/.env`.
@@ -42,15 +42,20 @@ export async function runSeedCli(mode: SeedMode): Promise<number> {
   const service = new PrismaService(settings);
 
   try {
-    console.log('СИД ДЛЯ РАЗРАБОТКИ');
+    console.log(mode === 'reference' ? 'СПРАВОЧНИКИ ДЛЯ БОЕВОЙ БАЗЫ' : 'СИД ДЛЯ РАЗРАБОТКИ');
     console.log(`База: ${settings.schema}\n`);
 
-    const report = await seedDevData({ client: service.client });
+    const report =
+      mode === 'reference'
+        ? await seedReferenceData({ client: service.client })
+        : await seedDevData({ client: service.client });
 
     console.log(formatImportReport(report, { title: 'ЗАПИСАНО', prepared: 'в наборе' }));
-    console.log(
-      '\nВойти можно любой из учётных записей: admin@ / owner@ / trainer@ / athlete@sporthub.local',
-    );
+    if (mode === 'dev') {
+      console.log(
+        '\nВойти можно любой из учётных записей: admin@ / owner@ / trainer@ / athlete@sporthub.local',
+      );
+    }
 
     return 0;
   } catch (error) {
