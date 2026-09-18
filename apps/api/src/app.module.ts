@@ -43,10 +43,22 @@ import { PublicationService } from './publications/publication.service';
 import { SlotContextService } from './schedule/slot-context.service';
 import { readRateLimits } from './common/rate-limit';
 import { StorageModule } from './storage/storage.module';
+import { SocialModule } from './social/social.module';
+import { TeamModule } from './team/team.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { WellnessModule } from './wellness/wellness.module';
+import { PassesModule } from './passes/passes.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
     StorageModule,
+    SocialModule,
+    TeamModule,
+    MarketplaceModule,
+    WellnessModule,
+    PassesModule,
+    CampaignsModule,
     // Ограничитель частоты: пределы читаются из окружения при сборке приложения,
     // а вешаются на маршруты декоратором `@RateLimit` — глобальным guard'ом он
     // не ставится намеренно, иначе предел молча получил бы каждый маршрут.

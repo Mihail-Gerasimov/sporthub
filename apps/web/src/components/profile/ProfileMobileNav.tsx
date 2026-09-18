@@ -30,9 +30,11 @@ export function ProfileMobileNav({ items, ariaLabel, className }: ProfileMobileN
         onClick={() => setOpen(true)}
         aria-label="Открыть меню кабинета"
         aria-expanded={open}
-        className="inline-flex items-center gap-2 rounded-lg border border-line bg-panel px-3 py-2 text-sm font-medium text-ink shadow-sm"
+        className="inline-flex min-h-11 items-center gap-2 rounded-[12px] border border-line bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink shadow-card"
       >
-        <span aria-hidden="true">☰</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-4 w-4">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
         Разделы
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Разделы кабинета">

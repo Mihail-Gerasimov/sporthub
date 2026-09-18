@@ -92,9 +92,9 @@ function KpiCard({
   testid: string;
 }) {
   const body = (
-    <div className="rounded-card border border-line bg-panel p-4" data-testid={testid}>
+    <div className="h-full rounded-[14px] border border-line bg-card p-4 shadow-card transition-[border-color,box-shadow] hover:border-accent/50 hover:shadow-floating" data-testid={testid}>
       <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-ink">{value}</p>
+      <p className="mt-3 font-mono text-3xl font-semibold tabular-nums text-ink">{value}</p>
       <p className="mt-2 text-xs text-muted">{caption}</p>
     </div>
   );
@@ -311,20 +311,22 @@ export function ProviderDashboard({
   return (
     <div className="flex flex-col gap-6" data-testid="provider-dashboard">
       {/* Шапка. */}
-      <Card className="p-6 sm:p-8">
+      <Card className="border-ink bg-ink p-6 shadow-floating sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="outline">{cabinetTitle}</Badge>
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
+                {cabinetTitle}
+              </span>
             </div>
-            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
+            <h1 className="mt-4 font-display text-3xl font-semibold uppercase tracking-tight text-card">
               Обзор, {user.name}
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
+            <p className="mt-3 text-sm leading-relaxed text-card/60">
               Что требует внимания прямо сейчас: заявки, ссылки тренер↔клуб, окна check-in.
             </p>
             {/* Мета-инфо пользователя (Phase 26 Step 26.5 — перенос из удалённого монолита). */}
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-card/50">
               {user.id != null ? (
                 <span
                   data-testid="provider-dashboard-account-id"
@@ -382,18 +384,18 @@ export function ProviderDashboard({
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-card border border-line bg-canvas p-4">
+        <div className="rounded-[14px] border border-line bg-card p-4 shadow-card">
           <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Активные записи сегодня
           </p>
-          <p className="mt-3 text-3xl font-semibold text-ink">{activeToday}</p>
+          <p className="mt-3 font-mono text-3xl font-semibold tabular-nums text-ink">{activeToday}</p>
           <p className="mt-2 text-xs text-muted">pending + confirmed с датой = сегодня</p>
         </div>
-        <div className="rounded-card border border-line bg-canvas p-4">
+        <div className="rounded-[14px] border border-line bg-card p-4 shadow-card">
           <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Активные на неделе
           </p>
-          <p className="mt-3 text-3xl font-semibold text-ink">{activeWeek}</p>
+          <p className="mt-3 font-mono text-3xl font-semibold tabular-nums text-ink">{activeWeek}</p>
           <p className="mt-2 text-xs text-muted">В ближайшие 7 дней</p>
         </div>
       </section>
@@ -402,7 +404,7 @@ export function ProviderDashboard({
       {hasClubSide ? (
         <Card className="p-6 sm:p-8" data-testid="provider-dashboard-clubs">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl font-semibold text-ink">Мои клубы</h2>
+            <h2 className="font-display text-2xl font-semibold uppercase text-ink">Мои клубы</h2>
             <Badge tone="outline">{providerClubs.length}</Badge>
           </div>
           <ul className="mt-4 flex flex-col gap-3">
@@ -425,7 +427,7 @@ export function ProviderDashboard({
       {hasTrainerSide ? (
         <Card className="p-6 sm:p-8" data-testid="provider-dashboard-trainers">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl font-semibold text-ink">Мои тренеры</h2>
+            <h2 className="font-display text-2xl font-semibold uppercase text-ink">Мои тренеры</h2>
             <Badge tone="outline">{providerTrainers.length}</Badge>
           </div>
           <ul className="mt-4 flex flex-col gap-4">

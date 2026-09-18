@@ -17,7 +17,7 @@ import {
   getAthleteUpcomingProfileBookings,
   type UpcomingProfileBooking,
 } from '@/components/profile/athlete-bookings';
-import { Badge, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { DISCIPLINE_CONFIG, getSlotStartAt } from '@sporthub/domain';
 import {
   cabinetSectionPath,
@@ -153,22 +153,24 @@ export function AthleteDashboard({
   return (
     <div className="flex flex-col gap-6">
       {/* Шапка: без истории — нейтральная «Сделайте первую запись», иначе — «Обзор». */}
-      <Card className="p-6 sm:p-8">
+      <Card className="overflow-hidden border-ink bg-ink p-6 shadow-floating sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="outline">{PERSONAL_CABINET_TITLE}</Badge>
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
+                {PERSONAL_CABINET_TITLE}
+              </span>
             </div>
-            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">
+            <h1 className="mt-4 font-display text-3xl font-semibold uppercase tracking-tight text-card">
               {hasHistory ? 'Обзор' : 'Сделайте первую запись'}
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-card/60">
               {hasHistory
                 ? `Привет, ${user.name}. Здесь сводка вашей активности на платформе.`
                 : 'Выберите клуб или тренера — после первого завершённого занятия здесь появится сводка.'}
             </p>
             {/* Мета-инфо пользователя (Phase 26 Step 26.5 — перенос из удалённого монолита). */}
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-card/50">
               {user.id != null ? (
                 <span
                   data-testid="athlete-dashboard-account-id"
@@ -183,43 +185,43 @@ export function AthleteDashboard({
         </div>
 
         {/* KPI: completed + upcoming. Для new-user показываем 0/0 нейтрально. */}
-        <div className="mt-6 grid gap-3 sm:grid-cols-2" data-testid="athlete-dashboard-kpi">
-          <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+        <div className="mt-7 grid gap-3 sm:grid-cols-2" data-testid="athlete-dashboard-kpi">
+          <div className="rounded-[14px] border border-card/10 bg-card/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-card/45">
               Ближайшие записи
             </p>
             <p
-              className="mt-3 text-3xl font-semibold text-ink"
+              className="mt-3 font-mono text-3xl font-semibold text-accent"
               data-testid="athlete-dashboard-kpi-upcoming"
             >
               {upcomingCount}
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
+            <p className="mt-2 text-sm leading-relaxed text-card/50">
               Активных слотов в ближайшем плане
             </p>
           </div>
-          <div className="rounded-card border border-line bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
+          <div className="rounded-[14px] border border-card/10 bg-card/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-card/45">
               Посещения
             </p>
             <p
-              className="mt-3 text-3xl font-semibold text-ink"
+              className="mt-3 font-mono text-3xl font-semibold text-card"
               data-testid="athlete-dashboard-kpi-completed"
             >
               {completedCount}
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted">Завершённых занятий в истории</p>
+            <p className="mt-2 text-sm leading-relaxed text-card/50">Завершённых занятий в истории</p>
           </div>
         </div>
       </Card>
 
       {/* Ближайшая тренировка (confirmed): карточка с временем и локацией. */}
       {nextConfirmed ? (
-        <Card className="p-6 sm:p-8" data-testid="athlete-dashboard-next">
+        <Card className="p-6 sm:p-7" data-testid="athlete-dashboard-next">
           <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
             Ближайшая тренировка
           </p>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-ink">
+          <h2 className="mt-2 font-display text-2xl font-semibold uppercase text-ink">
             {nextConfirmed.title}
           </h2>
           <p className="mt-1 text-sm text-muted">

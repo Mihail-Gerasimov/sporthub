@@ -128,8 +128,8 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-lime/30 bg-lime-soft text-lime-hov'
-      : 'border-line bg-transparent text-ink';
+      ? 'border-lime/30 bg-lime-soft text-lime'
+      : 'border-plate-line bg-transparent text-plate-ink';
   return (
     <span
       className={`inline-flex items-center rounded-pill border px-3 py-1.5 font-body text-[11px] font-semibold uppercase tracking-[0.12em] ${cls}`}
@@ -175,6 +175,7 @@ const pluralizeReviews = (n: number) => countRu(n, PLURAL.reviews);
 const pluralizeServices = (n: number) => countRu(n, PLURAL.services);
 const pluralizeDirections = (n: number) => countRu(n, PLURAL.directions);
 const pluralizeSlots = (n: number) => countRu(n, PLURAL.slots);
+const formatKnownPrice = (price: number) => (price > 0 ? formatPrice(price) : 'Цена по запросу');
 
 /* Метка формата услуги. */
 function getFormatLabel(format: Offering['format']): string {
@@ -217,6 +218,7 @@ export function TrainerDetailPageClient({
   const [reviewForm, setReviewForm] = useState<ReviewFormState>({ rating: 0, text: '' });
   const [reviewErrors, setReviewErrors] = useState<ReviewFormErrors>({});
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [photoBroken, setPhotoBroken] = useState(false);
 
   /* Словарь specialtyId → name для отображения */
   const specialtyNameById = useMemo(
@@ -243,7 +245,7 @@ export function TrainerDetailPageClient({
               date: slot.date,
               title: slot.title,
               sportName: sportNames.get(slot.sportId) ?? 'Занятие',
-              priceLabel: formatPrice(slot.price),
+              priceLabel: formatKnownPrice(slot.price),
               availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
               room: slot.room ?? null,
               // Phase 28.23 audit-fix: на trainer-странице room уже отдельным chip-ом,
@@ -364,28 +366,58 @@ export function TrainerDetailPageClient({
   const trainerInitials = getTrainerInitials(trainer.name);
 
   return (
-    <div className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
+    <div className="min-h-screen overflow-x-hidden bg-bg">
+      <div data-testid="trainer-detail-breadcrumb" className="border-b border-line bg-card">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 text-xs sm:px-6">
+          <Link
+            href="/catalog"
+            className="inline-flex items-center gap-1 font-semibold text-muted transition-colors hover:text-ink"
+          >
+            <span aria-hidden="true">←</span>
+            Тренеры
+          </Link>
+          <span aria-hidden="true" className="text-disabled">
+            /
+          </span>
+          <span className="min-w-0 truncate font-semibold text-ink">{trainer.name}</span>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-7 sm:px-6 lg:py-8">
         {/* ═══ Hero — gallery (placeholder с avatar-disc) + meta-col. Hero —
          * просто grid без card-обёртки: card-стиль на gallery-блоке. ═══ */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
+        <section
+          data-testid="trainer-detail-hero"
+          className="relative grid grid-cols-1 gap-5 overflow-hidden rounded-modal bg-plate p-4 text-plate-ink shadow-deep sm:p-6 lg:grid-cols-[220px_1fr] lg:items-center lg:gap-8"
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 [background-image:var(--ui-decor-plate-glow)]" />
           {/* Photo-placeholder тренера: avatar-disc 132×132 (96 на 480) с инициалами. */}
-          <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
-            <div className="hero-bg-blank flex aspect-[16/10] flex-col items-center justify-center gap-3.5">
-              <span
-                aria-hidden="true"
-                className="flex size-24 items-center justify-center rounded-full border border-line bg-card font-display text-[32px] tabular-nums text-ink md:size-[132px] md:text-[44px]"
-              >
-                {trainerInitials}
-              </span>
-              <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+          <div className="relative overflow-hidden rounded-card border border-plate-line bg-plate">
+            <div className="hero-bg-blank flex aspect-square flex-col items-center justify-center gap-3.5">
+              {trainer.avatarUrl && !photoBroken ? (
+                // eslint-disable-next-line @next/next/no-img-element -- внешний URL профиля с runtime fallback
+                <img
+                  src={trainer.avatarUrl}
+                  alt={`Тренер ${trainer.name}`}
+                  onError={() => setPhotoBroken(true)}
+                  className="size-32 rounded-card border-2 border-lime object-cover"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex size-24 items-center justify-center rounded-card border-2 border-lime bg-card font-display text-[32px] tabular-nums text-ink md:size-[132px] md:text-[44px]"
+                >
+                  {trainerInitials}
+                </span>
+              )}
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-plate-muted">
                 Фото тренера
               </span>
             </div>
           </div>
 
           {/* Meta column */}
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="relative flex min-w-0 flex-col gap-4">
             {/* meta-tags */}
             <div className="flex flex-wrap gap-2">
               {trainer.city ? <Chip variant="solid">{formatCityDisplay(trainer.city)}</Chip> : null}
@@ -396,21 +428,21 @@ export function TrainerDetailPageClient({
             </div>
 
             <div className="flex flex-col gap-3">
-              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-lime">
                 Trainer profile
               </p>
-              <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
+              <h1 className="font-display text-[30px] leading-none text-plate-ink md:text-[38px] xl:text-[46px]">
                 {trainer.name}
               </h1>
 
               {/* rating + addr */}
               <div className="flex flex-wrap items-center gap-3">
                 <Rating value={trainer.rating} hideValue />
-                <span className="font-display text-sm tabular-nums text-ink">
+                <span className="font-display text-sm tabular-nums text-plate-ink">
                   {trainer.rating.toFixed(1)}
                 </span>
                 {trainer.address ? (
-                  <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
+                  <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-plate-muted">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -431,31 +463,31 @@ export function TrainerDetailPageClient({
             </div>
 
             {/* description (line-clamp-5) */}
-            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
+            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-plate-muted">
               {trainer.bio}
             </p>
 
             {/* stat-rail 2-col: Цена от | Услуг */}
-            <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-              <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
+            <div className="grid grid-cols-1 overflow-hidden rounded-card border border-plate-line bg-plate sm:grid-cols-[1.1fr_1fr]">
+              <div className="border-b border-plate-line px-[18px] py-4 sm:border-b-0 sm:border-r">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-plate-muted">
                   Цена от
                 </p>
-                <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
-                  {formatPrice(trainer.priceFrom)}
+                <p className="mt-2 font-display text-[18px] leading-none text-lime md:text-[22px]">
+                  {trainer.priceFrom > 0 ? formatPrice(trainer.priceFrom) : 'Уточняйте'}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
-                  за тренировку
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-plate-muted">
+                  {trainer.priceFrom > 0 ? 'за тренировку' : 'у тренера'}
                 </p>
               </div>
               <div className="px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-plate-muted">
                   Услуг
                 </p>
-                <p className="mt-2 font-display text-[18px] leading-none text-ink tabular-nums md:text-[22px]">
+                <p className="mt-2 font-display text-[18px] leading-none text-plate-ink tabular-nums md:text-[22px]">
                   {offerings.length}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-plate-muted">
                   в активном прайсе
                 </p>
               </div>
@@ -463,20 +495,20 @@ export function TrainerDetailPageClient({
 
             {/* stat-rail 1-col: Контакты (если есть) */}
             {trainer.phone || trainer.vk || trainer.telegram || trainer.facebook ? (
-              <div className="rounded-[16px] border border-line bg-card-2 px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
+              <div className="rounded-card border border-plate-line bg-plate px-[18px] py-4">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-plate-muted">
                   Контакты
                 </p>
                 <div className="mt-2 space-y-1 text-sm">
                   {trainer.phone ? (
-                    <p className="font-body font-semibold text-ink">{formatPhone(trainer.phone)}</p>
+                    <p className="font-body font-semibold text-plate-ink">{formatPhone(trainer.phone)}</p>
                   ) : null}
                   {trainer.vk ? (
                     <a
                       href={trainer.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       VK
                     </a>
@@ -486,7 +518,7 @@ export function TrainerDetailPageClient({
                       href={trainer.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       Telegram
                     </a>
@@ -496,7 +528,7 @@ export function TrainerDetailPageClient({
                       href={trainer.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       Facebook
                     </a>
@@ -507,21 +539,26 @@ export function TrainerDetailPageClient({
 
             {/* amenity-row через ChipMarquee — специализации */}
             {specializationItems.length > 0 ? (
-              <ChipMarquee items={specializationItems} variant="outline" accent="lime" />
+              <ChipMarquee
+                items={specializationItems}
+                variant="outline"
+                accent="lime"
+                tone="plate"
+              />
             ) : null}
 
             {/* CTA-row */}
             <div className="flex flex-wrap items-center gap-2.5">
               <a
                 href="#trainer-schedule"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-lime px-[18px] font-display text-xs font-black uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
               >
                 Записаться к тренеру <span aria-hidden="true">→</span>
               </a>
               {phoneRaw ? (
                 <a
                   href={`tel:${phoneRaw}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
+                  className="inline-flex min-h-11 items-center justify-center rounded-button border border-plate-line bg-transparent px-[18px] font-display text-xs font-black uppercase tracking-[0.14em] text-plate-ink transition-colors hover:border-lime hover:text-lime"
                 >
                   Связаться
                 </a>
@@ -665,7 +702,7 @@ export function TrainerDetailPageClient({
                       {getFormatLabel(offering.format)}
                     </span>
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
-                      {formatPrice(offering.price)}
+                      {formatKnownPrice(offering.price)}
                     </span>
                     <span className="inline-flex items-center rounded-pill border border-line bg-transparent px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-ink">
                       {offering.durationMinutes} мин

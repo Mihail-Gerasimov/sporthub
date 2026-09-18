@@ -93,6 +93,7 @@ model Sport {
   schedule          Schedule[]
   bookings          Booking[]
   primaryForTrainer Trainer[]      @relation("TrainerPrimarySport")
+  partnerAds        PartnerAd[]
 
   @@map("sports")
 }
@@ -219,6 +220,28 @@ model User {
   approvedLinks  TrainerClubLink[] @relation("LinkApprovedBy")
   rejectedLinks  TrainerClubLink[] @relation("LinkRejectedBy")
   revokedLinks   TrainerClubLink[] @relation("LinkRevokedBy")
+
+  posts                 SocialPost[]
+  postComments          PostComment[]
+  postReactions         PostReaction[]
+  postBookmarks         PostBookmark[]
+  following             UserFollow[] @relation("UserFollowing")
+  followers             UserFollow[] @relation("UserFollowers")
+  teamEvents            TeamEvent[] @relation("TeamEventOwner")
+  eventParticipations   EventParticipant[]
+  partnerAds            PartnerAd[]
+  sentContactRequests   PartnerContactRequest[] @relation("ContactRequester")
+  receivedContactRequests PartnerContactRequest[] @relation("ContactAdOwner")
+  products              Product[] @relation("ProductSeller")
+  cart                  Cart?
+  orders                Order[]
+  programEntitlements   ProgramEntitlement[]
+  workoutEntries        WorkoutEntry[]
+  foodEntries           FoodEntry[]
+  nutritionTarget       NutritionTarget?
+  passPlans             PassPlan[] @relation("PassPlanProvider")
+  subscriptions         UserSubscription[]
+  campaigns             MarketingCampaign[] @relation("CampaignProvider")
 
   /// ⚠️ Индекса по роли здесь НЕТ, и колонки тоже: обе удалены в шаге 35.24.
   /// Индекс `users_role_idx` не был использован ни разу (`idx_scan = 0`),
@@ -1243,6 +1266,389 @@ model UserNotificationPreference {
   /// Настройки человека читаются одним запросом при каждой выдаче уведомлений.
   @@index([userId])
   @@map("user_notification_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MVP REDESIGN DOMAINS — additive, PostgreSQL-backed, never reference-seeded.
+// String state columns intentionally follow the existing no-database-enum rule.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model SocialPost {
+  id         Int      @id @default(autoincrement()) @map("id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  authorId   Int      @map("author_id")
+  body       String   @map("body") @db.VarChar(5000)
+  visibility String   @default("public") @map("visibility") @db.VarChar(16)
+  imageUrl   String?  @map("image_url") @db.VarChar(500)
+
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  PostComment[]
+  reactions PostReaction[]
+  bookmarks PostBookmark[]
+
+  @@index([visibility, createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("social_posts")
+}
+
+model PostComment {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  postId    Int      @map("post_id")
+  authorId  Int      @map("author_id")
+  body      String   @map("body") @db.VarChar(2000)
+
+  post   SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@map("post_comments")
+}
+
+model PostReaction {
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  kind      String   @default("like") @map("kind") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("post_reactions")
+}
+
+model PostBookmark {
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("post_bookmarks")
+}
+
+model UserFollow {
+  followerId  Int      @map("follower_id")
+  followingId Int      @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId, createdAt(sort: Desc)])
+  @@map("user_follows")
+}
+
+model TeamEvent {
+  id          Int      @id @default(autoincrement()) @map("id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  ownerId     Int      @map("owner_id")
+  title       String   @map("title") @db.VarChar(200)
+  description String   @map("description") @db.VarChar(5000)
+  startsAt    DateTime @map("starts_at")
+  endsAt      DateTime @map("ends_at")
+  location    String   @map("location") @db.VarChar(300)
+  capacity    Int?     @map("capacity")
+  visibility  String   @default("public") @map("visibility") @db.VarChar(16)
+  status      String   @default("scheduled") @map("status") @db.VarChar(16)
+
+  owner        User               @relation("TeamEventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+
+  @@index([visibility, startsAt])
+  @@index([ownerId, startsAt])
+  @@map("team_events")
+}
+
+model EventParticipant {
+  eventId  Int      @map("event_id")
+  userId   Int      @map("user_id")
+  status   String   @default("joined") @map("status") @db.VarChar(16)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  event TeamEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId, joinedAt(sort: Desc)])
+  @@map("event_participants")
+}
+
+model PartnerAd {
+  id          Int      @id @default(autoincrement()) @map("id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  ownerId     Int      @map("owner_id")
+  sportId     Int?     @map("sport_id")
+  title       String   @map("title") @db.VarChar(200)
+  description String   @map("description") @db.VarChar(3000)
+  city        String   @map("city") @db.VarChar(200)
+  availableAt DateTime? @map("available_at")
+  status      String   @default("active") @map("status") @db.VarChar(16)
+
+  owner           User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sport           Sport?                  @relation(fields: [sportId], references: [id], onDelete: SetNull)
+  contactRequests PartnerContactRequest[]
+
+  @@index([status, city, createdAt(sort: Desc)])
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@map("partner_ads")
+}
+
+model PartnerContactRequest {
+  id          Int      @id @default(autoincrement()) @map("id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  adId        Int      @map("ad_id")
+  requesterId Int      @map("requester_id")
+  adOwnerId   Int      @map("ad_owner_id")
+  message     String   @map("message") @db.VarChar(1000)
+  status      String   @default("pending") @map("status") @db.VarChar(16)
+
+  ad        PartnerAd @relation(fields: [adId], references: [id], onDelete: Cascade)
+  requester User      @relation("ContactRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  adOwner   User      @relation("ContactAdOwner", fields: [adOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, requesterId])
+  @@index([adOwnerId, status, createdAt(sort: Desc)])
+  @@map("partner_contact_requests")
+}
+
+model MarketplaceCategory {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String   @map("name") @db.VarChar(200)
+  slug      String   @unique @map("slug") @db.VarChar(200)
+  active    Boolean  @default(true) @map("active")
+
+  products Product[]
+
+  @@map("marketplace_categories")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement()) @map("id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  sellerId    Int      @map("seller_id")
+  categoryId  Int      @map("category_id")
+  name        String   @map("name") @db.VarChar(200)
+  description String   @map("description") @db.VarChar(5000)
+  price       Int      @map("price")
+  kind        String   @default("physical") @map("kind") @db.VarChar(16)
+  status      String   @default("draft") @map("status") @db.VarChar(16)
+  stock       Int?     @map("stock")
+
+  seller      User                @relation("ProductSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  category    MarketplaceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  program     DigitalProgram?
+
+  @@index([status, categoryId, createdAt(sort: Desc)])
+  @@index([sellerId, createdAt(sort: Desc)])
+  @@map("products")
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  userId    Int      @unique @map("user_id")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  cartId    Int @map("cart_id")
+  productId Int @map("product_id")
+  quantity  Int @map("quantity")
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([cartId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  status    String   @default("pending_confirmation") @map("status") @db.VarChar(32)
+  total     Int      @map("total")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items OrderItem[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int    @id @default(autoincrement()) @map("id")
+  orderId     Int    @map("order_id")
+  productId   Int?   @map("product_id")
+  productName String @map("product_name") @db.VarChar(200)
+  unitPrice   Int    @map("unit_price")
+  quantity    Int    @map("quantity")
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model DigitalProgram {
+  id          Int    @id @default(autoincrement()) @map("id")
+  productId   Int    @unique @map("product_id")
+  programType String @map("program_type") @db.VarChar(16)
+  content     Json   @map("content")
+
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  entitlements ProgramEntitlement[]
+
+  @@map("digital_programs")
+}
+
+model ProgramEntitlement {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  programId Int      @map("program_id")
+  orderId   Int?     @map("order_id")
+  expiresAt DateTime? @map("expires_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program DigitalProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("program_entitlements")
+}
+
+model WorkoutEntry {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  occurredAt DateTime @map("occurred_at")
+  title     String   @map("title") @db.VarChar(200)
+  notes     String?  @map("notes") @db.VarChar(2000)
+  durationMinutes Int? @map("duration_minutes")
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises WorkoutExercise[]
+
+  @@index([userId, occurredAt(sort: Desc)])
+  @@map("workout_entries")
+}
+
+model WorkoutExercise {
+  id         Int    @id @default(autoincrement()) @map("id")
+  workoutId  Int    @map("workout_id")
+  name       String @map("name") @db.VarChar(200)
+  sets       Int?   @map("sets")
+  reps       Int?   @map("reps")
+  weightKg   Float? @map("weight_kg")
+  durationSeconds Int? @map("duration_seconds")
+
+  workout WorkoutEntry @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@index([workoutId])
+  @@map("workout_exercises")
+}
+
+model FoodEntry {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  eatenAt   DateTime @map("eaten_at")
+  name      String   @map("name") @db.VarChar(200)
+  calories  Int      @map("calories")
+  proteinGrams Float? @map("protein_grams")
+  fatGrams     Float? @map("fat_grams")
+  carbsGrams   Float? @map("carbs_grams")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eatenAt(sort: Desc)])
+  @@map("food_entries")
+}
+
+model NutritionTarget {
+  userId       Int      @id @map("user_id")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  calories     Int      @map("calories")
+  proteinGrams Float?   @map("protein_grams")
+  fatGrams     Float?   @map("fat_grams")
+  carbsGrams   Float?   @map("carbs_grams")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_targets")
+}
+
+model PassPlan {
+  id             Int      @id @default(autoincrement()) @map("id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  providerUserId Int      @map("provider_user_id")
+  name           String   @map("name") @db.VarChar(200)
+  description    String   @map("description") @db.VarChar(2000)
+  price          Int      @map("price")
+  durationDays   Int      @map("duration_days")
+  visitLimit     Int?     @map("visit_limit")
+  status         String   @default("draft") @map("status") @db.VarChar(16)
+
+  provider      User               @relation("PassPlanProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
+  subscriptions UserSubscription[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([providerUserId])
+  @@map("pass_plans")
+}
+
+model UserSubscription {
+  id             Int      @id @default(autoincrement()) @map("id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  userId         Int      @map("user_id")
+  planId         Int      @map("plan_id")
+  status         String   @default("active") @map("status") @db.VarChar(16)
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime @map("ends_at")
+  remainingVisits Int?    @map("remaining_visits")
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan PassPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, endsAt])
+  @@map("user_subscriptions")
+}
+
+model MarketingCampaign {
+  id             Int      @id @default(autoincrement()) @map("id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  providerUserId Int      @map("provider_user_id")
+  title          String   @map("title") @db.VarChar(200)
+  message        String   @map("message") @db.VarChar(2000)
+  status         String   @default("draft") @map("status") @db.VarChar(16)
+  sentAt         DateTime? @map("sent_at")
+  recipientCount Int      @default(0) @map("recipient_count")
+
+  provider User @relation("CampaignProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
+
+  @@index([providerUserId, createdAt(sort: Desc)])
+  @@map("marketing_campaigns")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

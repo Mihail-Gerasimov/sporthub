@@ -28,7 +28,7 @@ describe('ProviderFinance (Step 25.16)', () => {
     useAuthStore.setState(AUTH_STORE_DEFAULT_STATE);
   });
 
-  it('рендерит 3 секции для провайдера', () => {
+  it('рендерит 3 честных пустых состояния без финансовых показателей', () => {
     useAuthStore.setState({
       ...AUTH_STORE_DEFAULT_STATE,
       user: providerUser,
@@ -41,5 +41,8 @@ describe('ProviderFinance (Step 25.16)', () => {
     expect(screen.getByTestId('provider-finance-transactions')).toBeInTheDocument();
     expect(screen.getByTestId('provider-finance-payouts')).toBeInTheDocument();
     expect(screen.getByTestId('provider-finance-requisites')).toBeInTheDocument();
+    expect(screen.getAllByText(/Нет данных|Не подключено/i)).toHaveLength(3);
+    expect(screen.getByText(/платформа не получает данные/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\d[\d\s]*₽/)).not.toBeInTheDocument();
   });
 });

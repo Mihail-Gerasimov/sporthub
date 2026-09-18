@@ -20,46 +20,49 @@ export function ProviderFinance() {
 
   return (
     <div className="flex flex-col gap-6" data-testid="provider-finance">
-      <Card className="p-6 sm:p-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Финансы</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Раздел в разработке. Здесь появятся транзакции по записям атлетов, расписание выплат и
-          реквизиты для получения платежей.
+      <header className="flex flex-col gap-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+          Кабинет · Финансы
         </p>
-      </Card>
+        <h1 className="font-display text-3xl font-semibold uppercase tracking-tight text-ink">
+          Финансы
+        </h1>
+        <p className="max-w-2xl text-sm leading-relaxed text-muted">
+          Платёжная аналитика пока недоступна: платформа не получает данные об оплатах и выплатах.
+        </p>
+      </header>
 
-      <Card className="p-6 sm:p-8" data-testid="provider-finance-transactions">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl font-semibold text-ink">Транзакции</h2>
-          <Badge tone="outline">В разработке</Badge>
-        </header>
-        <p className="mt-4 text-sm leading-relaxed text-muted">
-          Лента платежей атлетов за ваши услуги — с фильтрами по offering, клиенту, периоду. Сейчас
-          приём платежей ведётся offline; интеграция с платёжным шлюзом — после MVP.
-        </p>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="p-6" data-testid="provider-finance-transactions">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold uppercase text-ink">Транзакции</h2>
+            <Badge tone="outline">Нет данных</Badge>
+          </header>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            Онлайн-платежи не подключены. Лента появится после интеграции платёжного шлюза.
+          </p>
+        </Card>
 
-      <Card className="p-6 sm:p-8" data-testid="provider-finance-payouts">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl font-semibold text-ink">Выплаты</h2>
-          <Badge tone="outline">В разработке</Badge>
-        </header>
-        <p className="mt-4 text-sm leading-relaxed text-muted">
-          График и история выплат на ваш расчётный счёт. После интеграции эквайринга суммы будут
-          агрегироваться автоматически с учётом комиссии {BRAND_NAME}.
-        </p>
-      </Card>
+        <Card className="p-6" data-testid="provider-finance-payouts">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold uppercase text-ink">Выплаты</h2>
+            <Badge tone="outline">Нет данных</Badge>
+          </header>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            История выплат отсутствует. Она станет доступна после запуска эквайринга {BRAND_NAME}.
+          </p>
+        </Card>
 
-      <Card className="p-6 sm:p-8" data-testid="provider-finance-requisites">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl font-semibold text-ink">Реквизиты</h2>
-          <Badge tone="outline">В разработке</Badge>
-        </header>
-        <p className="mt-4 text-sm leading-relaxed text-muted">
-          Данные юрлица или ИП для выплат: расчётный счёт, БИК, ИНН/КПП. Редактирование появится
-          одновременно с live-платежами.
-        </p>
-      </Card>
+        <Card className="p-6" data-testid="provider-finance-requisites">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold uppercase text-ink">Реквизиты</h2>
+            <Badge tone="outline">Не подключено</Badge>
+          </header>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            Платёжные реквизиты не собираются до подключения live-платежей.
+          </p>
+        </Card>
+      </div>
     </div>
   );
 }

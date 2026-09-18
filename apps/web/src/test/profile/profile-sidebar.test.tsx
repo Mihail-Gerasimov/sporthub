@@ -54,6 +54,16 @@ describe('ProfileSidebar', () => {
     expect(scheduleLink).toHaveAttribute('aria-current', 'page');
     expect(dashboardLink).not.toHaveAttribute('aria-current');
     expect(settingsLink).not.toHaveAttribute('aria-current');
+    expect(scheduleLink).toHaveClass('bg-accent/15');
+    expect(scheduleLink.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('использует тёмную кабинетную панель из redesign', () => {
+    vi.mocked(usePathname).mockReturnValue('/profile/athlete/dashboard');
+
+    render(<ProfileSidebar items={items} ariaLabel="Разделы кабинета атлета" />);
+
+    expect(screen.getByRole('navigation')).toHaveClass('bg-ink', 'rounded-[18px]');
   });
 
   it('возвращает null при пустом массиве items (защита от мёртвой разметки)', () => {

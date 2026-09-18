@@ -106,8 +106,8 @@ function Chip({
 }) {
   const cls =
     variant === 'solid'
-      ? 'border-lime/30 bg-lime-soft text-muted'
-      : 'border-line bg-transparent text-ink';
+      ? 'border-lime/30 bg-lime-soft text-lime'
+      : 'border-plate-line bg-transparent text-plate-ink';
   return (
     <span
       className={`inline-flex items-center rounded-pill border px-3 py-1.5 font-body text-[11px] font-semibold uppercase tracking-[0.12em] ${cls}`}
@@ -181,6 +181,7 @@ const pluralizeTrainers = (n: number) => countRu(n, PLURAL.trainers);
 const pluralizeDirections = (n: number) => countRu(n, PLURAL.directions);
 const pluralizeReviews = (n: number) => countRu(n, PLURAL.reviews);
 const pluralizeSlots = (n: number) => countRu(n, PLURAL.slots);
+const formatKnownPrice = (price: number) => (price > 0 ? formatPrice(price) : 'Цена по запросу');
 
 export function ClubDetailPageClient({
   amenities,
@@ -241,7 +242,7 @@ export function ClubDetailPageClient({
             date: slot.date,
             title: slot.title,
             sportName: sportNames.get(slot.sportId) ?? 'Занятие',
-            priceLabel: formatPrice(slot.price),
+            priceLabel: formatKnownPrice(slot.price),
             availableSpots: Math.max(slot.capacity - slot.bookedCount, 0),
             room: slot.room ?? null,
             sub: `${slot.startTime} - ${slot.endTime}, ${trainerName}`,
@@ -339,23 +340,43 @@ export function ClubDetailPageClient({
   const phoneRaw = club.phone ? club.phone.replace(/\s+/g, '') : '';
 
   return (
-    <div className="min-h-screen overflow-x-hidden px-4 py-7 sm:px-6 md:px-8 lg:py-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
+    <div className="min-h-screen overflow-x-hidden bg-bg">
+      <div data-testid="club-detail-breadcrumb" className="border-b border-line bg-card">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 text-xs sm:px-6">
+          <Link
+            href="/catalog"
+            className="inline-flex items-center gap-1 font-semibold text-muted transition-colors hover:text-ink"
+          >
+            <span aria-hidden="true">←</span>
+            Каталог клубов
+          </Link>
+          <span aria-hidden="true" className="text-disabled">
+            /
+          </span>
+          <span className="min-w-0 truncate font-semibold text-ink">{club.name}</span>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-7 sm:px-6 lg:py-8">
         {/* ═══ Hero — главное фото + meta-col. Hero — просто grid
          * без card-обёртки: card-стиль живёт на gallery-блоке (handoff). ═══ */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_1fr] lg:gap-[22px]">
-          <div className="overflow-hidden rounded-[18px] border border-line bg-card-2">
+        <section
+          data-testid="club-detail-hero"
+          className="relative grid grid-cols-1 gap-5 overflow-hidden rounded-modal bg-plate p-4 text-plate-ink shadow-deep sm:p-6 lg:grid-cols-[1.05fr_1fr] lg:gap-7"
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 [background-image:var(--ui-decor-plate-glow)]" />
+          <div className="relative overflow-hidden rounded-card border border-plate-line bg-plate">
             {heroPhoto !== undefined && !photoBroken ? (
               // eslint-disable-next-line @next/next/no-img-element -- внешний URL приходит из карточки клуба
               <img
                 src={heroPhoto}
                 alt={`Зал ${club.name}`}
                 onError={() => setPhotoBroken(true)}
-                className="aspect-[16/10] h-full w-full object-cover"
+                className="aspect-[16/10] h-full w-full object-cover opacity-80"
               />
             ) : (
               <div className="hero-bg-blank flex aspect-[16/10] items-center justify-center">
-                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-muted">
+                <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-plate-muted">
                   Фото клуба
                 </span>
               </div>
@@ -363,7 +384,7 @@ export function ClubDetailPageClient({
           </div>
 
           {/* Meta column */}
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="relative flex min-w-0 flex-col justify-center gap-4">
             {/* meta-tags */}
             <div className="flex flex-wrap gap-2">
               <Chip variant="solid">{formatCityDisplay(club.city)}</Chip>
@@ -374,15 +395,15 @@ export function ClubDetailPageClient({
             </div>
 
             <div className="flex flex-col gap-3">
-              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
+              <p className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-lime">
                 Club profile
               </p>
-              <h1 className="font-display text-[24px] leading-none text-ink md:text-[30px] lg:text-[32px] xl:text-[38px]">
+              <h1 className="font-display text-[30px] leading-none text-plate-ink md:text-[38px] xl:text-[46px]">
                 {club.name}
               </h1>
 
               {/* address с пином */}
-              <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-muted">
+              <span className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-plate-muted">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -402,34 +423,34 @@ export function ClubDetailPageClient({
               {/* rating */}
               <div className="flex flex-wrap items-center gap-3">
                 <Rating value={club.rating} hideValue />
-                <span className="font-display text-sm tabular-nums text-ink">
+                <span className="font-display text-sm tabular-nums text-plate-ink">
                   {club.rating.toFixed(1)}
                 </span>
               </div>
             </div>
 
             {/* description (line-clamp-5) */}
-            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-muted">
+            <p className="line-clamp-5 break-words font-body text-sm leading-relaxed text-plate-muted">
               {club.description}
             </p>
 
             {/* stat-rail: Контакты | Цена от */}
-            <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-line bg-card-2 lg:grid-cols-[1.1fr_1fr]">
-              <div className="border-b border-line px-[18px] py-4 lg:border-b-0 lg:border-r">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
+            <div className="grid grid-cols-1 overflow-hidden rounded-card border border-plate-line bg-plate lg:grid-cols-[1.1fr_1fr]">
+              <div className="border-b border-plate-line px-[18px] py-4 lg:border-b-0 lg:border-r">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-plate-muted">
                   Контакты
                 </p>
                 <div className="mt-2 space-y-1 text-sm">
                   {club.phone ? (
-                    <p className="font-body font-semibold text-ink">{formatPhone(club.phone)}</p>
+                    <p className="font-body font-semibold text-plate-ink">{formatPhone(club.phone)}</p>
                   ) : null}
-                  {club.email ? <p className="font-body text-ink/70">{club.email}</p> : null}
+                  {club.email ? <p className="font-body text-plate-muted">{club.email}</p> : null}
                   {club.website ? (
                     <a
                       href={club.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       Сайт
                     </a>
@@ -439,7 +460,7 @@ export function ClubDetailPageClient({
                       href={club.vk}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       VK
                     </a>
@@ -449,7 +470,7 @@ export function ClubDetailPageClient({
                       href={club.telegram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       Telegram
                     </a>
@@ -459,7 +480,7 @@ export function ClubDetailPageClient({
                       href={club.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-body text-ink/70 hover:text-lime-hov"
+                      className="block font-body text-plate-muted hover:text-lime"
                     >
                       Facebook
                     </a>
@@ -467,13 +488,13 @@ export function ClubDetailPageClient({
                 </div>
               </div>
               <div className="px-[18px] py-4">
-                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-ink/55">
+                <p className="font-body text-[10px] font-bold uppercase tracking-[0.22em] text-plate-muted">
                   {club.priceFrom > 0 ? 'Цена от' : 'Стоимость'}
                 </p>
-                <p className="mt-2 font-display text-[18px] leading-none text-ink md:text-[22px]">
+                <p className="mt-2 font-display text-[18px] leading-none text-lime md:text-[22px]">
                   {club.priceFrom > 0 ? formatPrice(club.priceFrom) : 'Уточняйте'}
                 </p>
-                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-ink/70">
+                <p className="mt-1.5 font-body text-xs font-medium leading-snug text-plate-muted">
                   {club.priceFrom > 0 ? 'за абонемент' : 'у администратора клуба'}
                 </p>
               </div>
@@ -481,21 +502,21 @@ export function ClubDetailPageClient({
 
             {/* amenity-row через ChipMarquee */}
             {amenityItems.length > 0 ? (
-              <ChipMarquee items={amenityItems} variant="outline" accent="lime" />
+              <ChipMarquee items={amenityItems} variant="outline" accent="lime" tone="plate" />
             ) : null}
 
             {/* CTA-row */}
             <div className="flex flex-wrap items-center gap-2.5">
               <a
                 href="#club-schedule"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-lime px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-lime px-[18px] font-display text-xs font-black uppercase tracking-[0.14em] text-ink transition-colors hover:bg-lime-hov"
               >
                 Записаться на занятие <span aria-hidden="true">→</span>
               </a>
               {phoneRaw ? (
                 <a
                   href={`tel:${phoneRaw}`}
-                  className="inline-flex min-h-11 items-center justify-center rounded-pill border border-line bg-transparent px-[18px] font-body text-xs font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov"
+                  className="inline-flex min-h-11 items-center justify-center rounded-button border border-plate-line bg-transparent px-[18px] font-display text-xs font-black uppercase tracking-[0.14em] text-plate-ink transition-colors hover:border-lime hover:text-lime"
                 >
                   Связаться с клубом
                 </a>
@@ -588,7 +609,7 @@ export function ClubDetailPageClient({
                       {pluralizeReviews(trainer.reviewCount)}
                     </span>
                     <span className="inline-flex items-center rounded-pill border border-lime/30 bg-lime-soft px-2.5 py-1 font-body text-[10px] font-bold uppercase tracking-[0.10em] text-muted">
-                      {formatPrice(trainer.priceFrom)}
+                      {formatKnownPrice(trainer.priceFrom)}
                     </span>
                   </div>
                   <div className="mx-4 mb-4 mt-2 flex flex-wrap gap-1.5">

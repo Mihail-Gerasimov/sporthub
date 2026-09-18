@@ -66,28 +66,51 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const formatLabel = OFFERING_FORMAT_LABELS[offering.format];
   const actionDateLabel = formatDate(slot.date, { day: 'numeric', month: 'long' });
   const actionTimeLabel = `${slot.startTime} - ${slot.endTime}`;
+  const priceLabel = slot.price > 0 ? formatPrice(slot.price) : 'Стоимость уточняется';
 
   return (
-    <div className="min-h-screen px-6 py-8 sm:px-8 lg:px-12">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="min-h-screen bg-bg px-4 py-7 sm:px-6 lg:py-10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
-              Booking details
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-ink">Запись на занятие</h1>
-          </div>
-
           <Link
-            href="/"
-            className="rounded-pill border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-accent/30 hover:text-accent-strong"
+            href="/catalog"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-ink"
           >
-            Назад на главную
+            <span aria-hidden="true">←</span>
+            Вернуться в каталог
           </Link>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] xl:items-start">
-          <Card className="space-y-6 p-6 sm:p-8" elevated>
+        <section
+          data-testid="booking-page-hero"
+          className="relative overflow-hidden rounded-modal bg-plate px-5 py-7 text-plate-ink shadow-deep sm:px-8 sm:py-9"
+        >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 [background-image:var(--ui-decor-plate-glow)]"
+          />
+          <div className="relative">
+            <div>
+              <p className="t-eyebrow text-lime">Booking details</p>
+              <h1 className="t-h1 mt-3 text-plate-ink">Запись на занятие</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-plate-muted">
+                Проверьте занятие, место и время перед подтверждением записи.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Badge tone="accent">{slotTypeLabel}</Badge>
+              <Badge className="border-plate-line bg-transparent text-plate-ink">
+                {actionDateLabel}
+              </Badge>
+              <Badge className="border-plate-line bg-transparent text-plate-ink">
+                {actionTimeLabel}
+              </Badge>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <Card className="space-y-6 p-5 sm:p-7">
             <div className="flex flex-wrap gap-2">
               <Badge tone="accent">{slotTypeLabel}</Badge>
               <Badge tone="outline">{actionDateLabel}</Badge>
@@ -100,7 +123,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
               <p className="text-sm font-medium uppercase tracking-[0.10em] text-muted">
                 {ownerName}
               </p>
-              <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-ink sm:text-4xl">
                 {slot.title}
               </h2>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
@@ -109,8 +132,8 @@ export default async function BookingPage({ params }: BookingPageProps) {
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-card border border-line bg-panel p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-card-lg border border-line bg-card-2 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Владелец услуги
                 </p>
@@ -118,7 +141,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
                 <p className="mt-2 text-sm text-muted">{ownerMeta}</p>
               </div>
 
-              <div className="rounded-card border border-line bg-canvas p-5">
+              <div className="rounded-card-lg border border-line bg-card-2 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Дата и время
                 </p>
@@ -129,11 +152,11 @@ export default async function BookingPage({ params }: BookingPageProps) {
                 </p>
               </div>
 
-              <div className="rounded-card border border-line bg-panel-strong p-5">
+              <div className="rounded-card-lg border border-line bg-card-2 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                   Стоимость и формат
                 </p>
-                <p className="mt-3 text-lg font-semibold text-ink">{formatPrice(slot.price)}</p>
+                <p className="mt-3 text-lg font-semibold text-ink">{priceLabel}</p>
                 <p className="mt-2 text-sm text-muted">{formatLabel}</p>
                 <p className="mt-2 text-sm text-muted">Свободно мест: {availableSpots}</p>
               </div>
@@ -161,7 +184,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
               </div>
             </div>
 
-            <div className="rounded-card border border-line bg-canvas p-5">
+            <div className="rounded-card-lg border border-line bg-card-2 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.10em] text-muted">
                 Описание слота
               </p>

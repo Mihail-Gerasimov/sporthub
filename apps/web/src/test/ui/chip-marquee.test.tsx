@@ -132,6 +132,18 @@ describe('ChipMarquee', () => {
     expect(chip?.className).toMatch(/transparent|bg-transparent/);
   });
 
+  it('на тёмной плашке использует plate-токены для outline-чипов', () => {
+    MOCK_CONTAINER_W = 500;
+    MOCK_CONTENT_W = 200;
+    const items = [{ label: 'X' }];
+    const { container } = render(
+      <ChipMarquee items={items} variant="outline" accent="lime" tone="plate" />,
+    );
+    const chip = container.querySelector('[data-chip-original="true"]');
+
+    expect(chip).toHaveClass('border-plate-line', 'text-plate-ink');
+  });
+
   // --- Phase 30.8 ---
 
   it('Phase 30.8: на каждом чипе явно cursor-default (override grab от родителя)', () => {

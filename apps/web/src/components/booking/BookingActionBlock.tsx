@@ -251,7 +251,7 @@ export function BookingActionBlock({
   return (
     <>
       <Card
-        className="sticky top-6 space-y-5 p-6 sm:p-7"
+        className="sticky top-24 space-y-5 border-lime/30 p-5 shadow-floating sm:p-6"
         data-testid="booking-action-block"
         elevated
       >
@@ -262,12 +262,15 @@ export function BookingActionBlock({
           </div>
 
           <div>
-            <h2 className="text-2xl font-semibold text-ink">Подтверждение записи</h2>
+            <p className="t-eyebrow text-lime-hov">Booking summary</p>
+            <h2 className="mt-2 font-display text-2xl font-black text-ink">
+              Подтверждение записи
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">{statusCopy.description}</p>
           </div>
         </div>
 
-        <div className="rounded-card border border-line bg-canvas px-4 py-4">
+        <div className="rounded-card-lg border border-line bg-card-2 px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
             Выбранный слот
           </p>
@@ -279,7 +282,7 @@ export function BookingActionBlock({
         </div>
 
         <div className="grid gap-3">
-          <div className="rounded-card border border-line bg-panel-strong px-4 py-4">
+          <div className="rounded-card-lg border border-line bg-card-2 px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
               Кто записывается
             </p>
@@ -291,7 +294,7 @@ export function BookingActionBlock({
             </p>
           </div>
 
-          <div className="rounded-card border border-line bg-panel px-4 py-4">
+          <div className="rounded-card-lg border border-line bg-card px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
               Статус слота
             </p>

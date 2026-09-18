@@ -89,11 +89,10 @@ describe('Физические имена', () => {
     const existing = new Set(rows.map((row) => row.tablename));
 
     expect(tables.filter((table) => !existing.has(table))).toEqual([]);
-    // 27 таблиц по описи фазы 33 плюс две из фазы 34: `sessions` (шаг 34.4) и
-    // `password_reset_tokens` (шаг 34.69 — одноразовые ссылки восстановления).
+    // 29 прежних таблиц плюс 24 additive-таблицы backend foundation redesign.
     // Число закреплено намеренно: таблица, добавленная мимо описи, обязана быть
     // замечена, а не приехать молча.
-    expect(tables.length).toBe(29);
+    expect(tables.length).toBe(53);
   });
 
   it('имена таблиц и колонок записаны в нижнем регистре', async () => {

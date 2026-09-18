@@ -4,3 +4,4 @@
 // видеть один и тот же контракт данных, а не две разошедшиеся копии.
 export * from './types';
 export * from './constants';
+export * from './redesign';

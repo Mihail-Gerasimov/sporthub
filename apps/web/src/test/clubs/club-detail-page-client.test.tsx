@@ -181,6 +181,33 @@ describe('ClubDetailPageClient', () => {
     expect(screen.getByTestId('club-trainer-card-1')).toBeInTheDocument();
   });
 
+  it('использует breadcrumb и тёмный hero из публичного макета с живым фото', () => {
+    render(
+      <ClubDetailPageClient
+        amenities={amenities}
+        club={club}
+        reviews={reviews}
+        reviewAuthors={{ 1: 'Алексей Смирнов' }}
+        schedule={schedule}
+        specialties={specialties}
+        sports={sports}
+        tags={tags}
+        trainers={trainers}
+      />,
+    );
+
+    expect(screen.getByTestId('club-detail-breadcrumb')).toBeInTheDocument();
+    expect(screen.getByTestId('club-detail-hero')).toHaveClass('bg-plate');
+    expect(screen.getByRole('link', { name: /Каталог клубов/i })).toHaveAttribute(
+      'href',
+      '/catalog',
+    );
+    expect(screen.getByRole('img', { name: 'Зал Volna Aquatic Club' })).toHaveAttribute(
+      'src',
+      '/images/clubs/volna-1.jpg',
+    );
+  });
+
   // Фаза 38, шаг 38.53: знак проверки площадкой — по полю `verifiedAt`.
   it('у проверенного клуба в hero стоит знак «Клуб проверен» с подсказкой, у обычного — нет', () => {
     const { unmount } = render(

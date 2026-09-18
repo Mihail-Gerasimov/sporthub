@@ -177,6 +177,20 @@ describe('TrainerDetailPageClient', () => {
     expect(screen.getAllByText('Плавание').length).toBeGreaterThan(0);
   });
 
+  it('использует breadcrumb, тёмный hero и реальное фото с fallback', () => {
+    render(<TrainerDetailPageClient {...defaultProps} />);
+
+    expect(screen.getByTestId('trainer-detail-breadcrumb')).toBeInTheDocument();
+    expect(screen.getByTestId('trainer-detail-hero')).toHaveClass('bg-plate');
+    expect(screen.getByRole('link', { name: 'Тренеры' })).toHaveAttribute('href', '/catalog');
+
+    const photo = screen.getByRole('img', { name: 'Тренер Марина Соколова' });
+
+    expect(photo).toHaveAttribute('src', '/images/trainers/marina.jpg');
+    fireEvent.error(photo);
+    expect(screen.getByText('МС')).toBeInTheDocument();
+  });
+
   it('рендерит секцию связанного клуба с ссылкой', () => {
     render(<TrainerDetailPageClient {...defaultProps} />);
 

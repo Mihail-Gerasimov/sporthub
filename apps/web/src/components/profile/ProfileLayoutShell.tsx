@@ -60,10 +60,17 @@ export function ProfileLayoutShell({
   // и без этой полосы кабинет архивированного клуба выглядел ровно как живой.
   // Найдено полным браузерным прогоном (35.44a).
   const archived = face !== null && isFaceArchived(face);
+  const cabinetTitle = face?.name ?? 'Личный кабинет';
+  const cabinetKind =
+    face === null
+      ? 'Профиль спортсмена'
+      : face.kind === 'club'
+        ? 'Кабинет клуба'
+        : 'Кабинет тренера';
 
   return (
     <CabinetProvider cabinet={cabinet}>
-      <div className="mx-auto w-full max-w-7xl px-4 py-4 md:py-6">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 md:py-7">
         {archived ? (
           <p
             data-testid="profile-face-archived-notice"
@@ -73,15 +80,38 @@ export function ProfileLayoutShell({
             раздела публикаций.
           </p>
         ) : null}
-        {face === null ? null : <FaceSwitcher className="mb-4" />}
-        <ProfileMobileNav items={items} ariaLabel={ariaLabel} className="mb-4" />
-        <div className="md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:items-start md:gap-6">
-          <ProfileSidebar
-            items={items}
-            ariaLabel={ariaLabel}
-            className="hidden md:sticky md:top-28 md:flex md:self-start"
-          />
+        <div className="md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:items-start md:gap-7">
+          <aside className="hidden md:sticky md:top-24 md:flex md:flex-col md:gap-3">
+            <div className="rounded-[18px] border border-line bg-card p-4 shadow-card">
+              <div className="flex size-11 items-center justify-center rounded-[12px] bg-accent font-display text-lg font-semibold uppercase text-ink">
+                {cabinetTitle.slice(0, 1)}
+              </div>
+              <p className="mt-3 truncate font-display text-lg font-semibold uppercase text-ink">
+                {cabinetTitle}
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                {cabinetKind}
+              </p>
+              {face === null ? null : <FaceSwitcher className="mt-4" />}
+            </div>
+            <ProfileSidebar items={items} ariaLabel={ariaLabel} />
+          </aside>
           <div className="min-w-0">
+            <div className="mb-4 flex items-center justify-between gap-3 md:hidden">
+              {face === null ? (
+                <div>
+                  <p className="font-display text-xl font-semibold uppercase text-ink">
+                    {cabinetTitle}
+                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                    {cabinetKind}
+                  </p>
+                </div>
+              ) : (
+                <FaceSwitcher />
+              )}
+              <ProfileMobileNav items={items} ariaLabel={ariaLabel} />
+            </div>
             <ProfileBreadcrumb items={items} cabinetPath={cabinet.href} />
             {children}
           </div>

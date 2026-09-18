@@ -56,21 +56,33 @@ export default async function AdminLayout({
 
   return (
     <AdminGuard>
-      <div className="w-full max-w-[1440px] px-4 py-7 sm:px-8">
-        {/* Топ-полоса: навигация по разделам слева, «Открыть сайт» справа */}
-        <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <AdminNavigation
-            awaitingRecheck={awaitingRecheck}
-            supervisionUnread={supervisionUnread}
-          />
-          <Link
-            href="/"
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-line bg-transparent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink transition-colors hover:border-lime hover:text-lime-hov lg:self-auto"
-          >
-            Открыть сайт →
-          </Link>
+      <div className="w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:py-7">
+        <div className="grid items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-7">
+          <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6">
+            <div className="hidden rounded-[18px] border border-line bg-card p-4 shadow-card lg:block">
+              <div className="flex size-11 items-center justify-center rounded-[12px] bg-lime font-display text-lg font-semibold text-ink">
+                A
+              </div>
+              <p className="mt-3 font-display text-lg font-semibold uppercase text-ink">
+                Сервисная панель
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                Управление платформой
+              </p>
+            </div>
+            <AdminNavigation
+              awaitingRecheck={awaitingRecheck}
+              supervisionUnread={supervisionUnread}
+            />
+            <Link
+              href="/"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-[12px] border border-line bg-card px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink shadow-card transition-colors hover:border-lime hover:text-lime-hov lg:w-full"
+            >
+              Открыть сайт →
+            </Link>
+          </aside>
+          <main className="min-w-0">{children}</main>
         </div>
-        {children}
       </div>
     </AdminGuard>
   );

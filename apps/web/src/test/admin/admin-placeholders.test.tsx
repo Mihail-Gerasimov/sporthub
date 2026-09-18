@@ -14,6 +14,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminNavigation } from '@/components/admin/AdminNavigation';
+import FinancePage from '@/app/service-portal/(admin)/finance/page';
 import { AUTH_STORE_DEFAULT_STATE, useAuthStore } from '@/stores/useAuthStore';
 
 // Номера пользователей стенда. Раньше они приезжали константами из стора —
@@ -75,5 +76,20 @@ describe('Admin placeholders (Step 17.7)', () => {
       );
       expect(screen.getByRole('link', { name: /^надзор$/i })).not.toHaveAttribute('aria-current');
     });
+
+    it('использует тёмную боковую панель redesign', () => {
+      render(<AdminNavigation />);
+
+      expect(screen.getByRole('navigation')).toHaveClass('bg-ink', 'rounded-[18px]');
+    });
+  });
+
+  it('финансы показывают честное пустое состояние без demo-сумм', () => {
+    render(<FinancePage />);
+
+    expect(screen.getByRole('heading', { name: 'Финансы' })).toBeInTheDocument();
+    expect(screen.getByText(/Финансовая аналитика недоступна/i)).toBeInTheDocument();
+    expect(screen.getByText(/не показаны расчётные или демонстрационные суммы/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\d[\d\s]*₽/)).not.toBeInTheDocument();
   });
 });

@@ -47,5 +47,16 @@ describe('Справочный сид для боевой базы', () => {
     expect(await db.prisma.club.count()).toBe(0);
     expect(await db.prisma.trainer.count()).toBe(0);
     expect(await db.prisma.review.count()).toBe(0);
+    expect(await db.prisma.socialPost.count()).toBe(0);
+    expect(await db.prisma.teamEvent.count()).toBe(0);
+    expect(await db.prisma.partnerAd.count()).toBe(0);
+    expect(await db.prisma.marketplaceCategory.count()).toBe(0);
+    expect(await db.prisma.product.count()).toBe(0);
+    expect(await db.prisma.order.count()).toBe(0);
+    expect(await db.prisma.workoutEntry.count()).toBe(0);
+    expect(await db.prisma.foodEntry.count()).toBe(0);
+    expect(await db.prisma.passPlan.count()).toBe(0);
+    expect(await db.prisma.userSubscription.count()).toBe(0);
+    expect(await db.prisma.marketingCampaign.count()).toBe(0);
   });
 });

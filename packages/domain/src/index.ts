@@ -27,3 +27,4 @@ export * from './session-policy';
 // публикации, а прокси выполняется на каждом обращении к закрытым разделам.
 export * from './session-cookie';
 export * from './password-reset-policy';
+export * from './redesign';

@@ -151,9 +151,9 @@ export function AdminNavigation({
   return (
     <nav
       aria-label="Разделы admin-панели"
-      className="scrollbar-hidden -mx-1 max-w-full overflow-x-auto"
+      className="scrollbar-hidden max-w-full overflow-x-auto rounded-[18px] bg-ink p-2 shadow-floating lg:overflow-visible lg:p-3"
     >
-      <ul className="inline-flex items-center gap-1 rounded-full border border-line bg-card-2 p-1.5">
+      <ul className="inline-flex min-w-max items-center gap-1 lg:flex lg:min-w-0 lg:flex-col lg:items-stretch">
         {adminNavItems.map((item) => {
           const href = SERVICE_PORTAL_SECTIONS[item.section];
           const active = isItemActive(pathname, href);
@@ -168,10 +168,15 @@ export function AdminNavigation({
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors',
-                  active ? 'bg-lime text-ink' : 'text-muted hover:text-ink',
+                  'relative inline-flex min-h-11 w-full items-center whitespace-nowrap rounded-[12px] px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors',
+                  active
+                    ? 'bg-lime/15 text-card'
+                    : 'text-card/55 hover:bg-card/10 hover:text-card',
                 )}
               >
+                {active ? (
+                  <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-lime" />
+                ) : null}
                 {item.label}
                 {badge !== null && count > 0 ? (
                   <span

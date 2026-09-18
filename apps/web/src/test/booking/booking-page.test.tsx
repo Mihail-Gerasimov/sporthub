@@ -82,6 +82,11 @@ describe('Booking page', () => {
     expect(screen.getAllByText('Volna Aquatic Club').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Утреннее плавание').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Подтверждение записи' })).toBeInTheDocument();
+    expect(screen.getByTestId('booking-page-hero')).toHaveClass('bg-plate');
+    expect(screen.getByRole('link', { name: /Вернуться в каталог/i })).toHaveAttribute(
+      'href',
+      '/catalog',
+    );
     expect(screen.queryByText(/MVP booking stub/i)).not.toBeInTheDocument();
   });
 

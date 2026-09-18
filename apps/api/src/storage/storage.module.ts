@@ -154,6 +154,7 @@ const repository = <TRepository>(
     { provide: BOOKINGS_REPOSITORY, ...repository(PrismaBookingsRepository) },
   ],
   exports: [
+    PrismaTransactionRunner,
     TRANSACTION_RUNNER,
     STORAGE_HEALTH,
     SPORTS_REPOSITORY,

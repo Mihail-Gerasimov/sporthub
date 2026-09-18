@@ -36,6 +36,8 @@ type ChipMarqueeProps = {
   variant: 'outline' | 'solid';
   /** Цвет акцента для solid-варианта */
   accent: 'lime' | 'orange';
+  /** Поверхность, на которой лежит лента: светлая карточка или тёмная плашка. */
+  tone?: 'light' | 'plate';
   /** Скорость прокрутки, px/sec. Дефолт 32. */
   speedPxPerSec?: number;
   /** Если true — добавить нижний отступ (последний marquee в карточке). */
@@ -51,6 +53,7 @@ export function ChipMarquee({
   items,
   variant,
   accent,
+  tone = 'light',
   speedPxPerSec = 32,
   isLast = false,
   interactive = true,
@@ -235,9 +238,11 @@ export function ChipMarquee({
   const tagClass =
     variant === 'solid'
       ? accent === 'lime'
-        ? 'border border-lime/30 bg-lime-soft text-lime-hov'
+        ? `border border-lime/30 bg-lime-soft ${tone === 'plate' ? 'text-lime' : 'text-lime-hov'}`
         : 'border border-orange/30 bg-orange-soft text-orange-text'
-      : 'border border-[var(--ui-line)] bg-transparent text-[var(--ui-ink)]';
+      : tone === 'plate'
+        ? 'border border-plate-line bg-transparent text-plate-ink'
+        : 'border border-line bg-transparent text-ink';
 
   return (
     <div
